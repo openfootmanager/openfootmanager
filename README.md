@@ -1,5 +1,7 @@
 **NOTE:** *THIS PROJECT IS STILL UNDER DEVELOPMENT, AND IS NOT READY FOR GAMEPLAY YET. AS SOON AS GAMEPLAY FEATURES ARE IMPLEMENTED, THIS NOTE WILL BE REMOVED AND NEW INFO WILL BE ADDED TO THIS REPOSITORY.*
 
+![Openfoot logo](images/openfoot.png)
+
 # OPENFOOTMANAGER PROJECT
 
 **OpenFoot Manager** (temporary name) is a free and open source football/soccer manager game, licensed under the [GPLv3](LICENSE.md), inspired by the famous franchise Football Manager&copy;, and based on the source code of [Bygfoot](https://bygfoot.sourceforge.io/new/), an abandoned manager game.
@@ -43,8 +45,8 @@ The game will have a number of features inspired by other established games on t
 
 ## LICENSE
 
-    OpenFoot Manager - A free and open source eSports management game
-    Copyright (C) 2020  Pedrenrique G. Guimarães
+    OpenFoot Manager - A free and open source soccer management game
+    Copyright (C) 2020-2021  Pedrenrique G. Guimarães
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
