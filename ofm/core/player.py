@@ -14,12 +14,41 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import uuid
+from .positions import Positions
+
 class Player:
-    def __init__(self, player_id, fullname, short_name, nationality, age, skill, pos):
-        self.player_id = player_id
+    def __init__(
+        self,
+        fullname: str,
+        short_name: str,
+        nationality: str,
+        age: int, 
+        skill: dict,
+        pos_skill: int,
+        mult: dict,
+        player_id: int = None,
+        stamina: int = 100,
+    ):
+        self.player_id = uuid.uuid4() if player_id is None else player_id
         self.fullname = fullname
         self.short_name = short_name
         self.nationality = nationality
         self.age = age
         self.skill = skill
-        self.pos = pos
+        self.pos_skill = pos_skill
+        self.mult = mult
+        self.stamina = stamina
+        self.curr_pos = None
+
+    def set_curr_pos(self, pos: Positions):
+        self.curr_pos = pos
+
+    def get_curr_pos(self):
+        return self.curr_pos
+    
+    def get_best_curr_pos(self):
+        pass
+
+    def get_int_id(self):
+        return self.player_id.int
