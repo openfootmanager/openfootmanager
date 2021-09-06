@@ -18,7 +18,7 @@ import random
 import uuid
 
 from .generator_interface import IGenerator
-from ...team import Team
+from ..game.team import Team
 
 
 class TeamGenerator(IGenerator):
@@ -26,4 +26,21 @@ class TeamGenerator(IGenerator):
         self.team_id = None
         self.name = None
         self.nationality = None
-        
+    
+    def generate_id(self):
+        pass
+
+    def generate_name(self):
+        pass
+
+    def generate(self):
+        pass
+
+    def generate_obj(self):
+        pass
+
+    def generate_dict(self):
+        pass
+
+    def generate_file(self):
+        pass

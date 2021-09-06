@@ -13,3 +13,14 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from .core.api.gamemanager import GameManager
+from .gui import GUI
+
+
+class Game:
+    def __init__(self):
+        self.gamemanager = GameManager()
+        self.gui = GUI()
+
+    def start(self):
+        self.gui.start()

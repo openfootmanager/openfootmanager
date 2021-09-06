@@ -13,3 +13,13 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from .generator import Generator
+from .database import Database
+from .game.gamestate import GameState
+
+
+class GameManager:
+    def __init__(self):
+        self.generator = Generator()
+        self.database = Database()
+        self.gamestate = GameState()

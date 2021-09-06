@@ -13,9 +13,3 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-class Championship:
-    def __init__(self, name, ch_id):
-        self.name = name
-        self.ch_id = ch_id
-        self.teams = None

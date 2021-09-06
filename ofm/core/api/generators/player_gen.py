@@ -15,7 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uuid
 from .generator_interface import IGenerator
-from ...player import Player
+from ..game.player import Player
 
 
 class PlayerGenerator(IGenerator):
