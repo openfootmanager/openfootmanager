@@ -14,18 +14,39 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uuid
-from .generator_interface import IGenerator
-from ..game.player import Player
+from datetime import date, timedelta
+
+from ofm.core.api.file_management import write_to_file
+from ofm.core.api.game.player import Player
+from generator_interface import IGenerator
+
+
+class PlayerGeneratorError(Exception):
+    pass
 
 
 class PlayerGenerator(IGenerator):
-    def __init__(self):
+    def __init__(
+        self,
+        today: data = date.today(),
+        min_age: int = 16,
+        max_age: int = 40,
+        file_name: str = "players.json",
+    ):
         self.player_id = None
         self.name = None
         self.skill = None
         self.short_name = None
         self.mult = None
         self.nationality = None
+
+        if min_age <= max_age:
+            self.min_age = min_age
+            self.max_age = max_age
+        else:
+            self.min_age = 16
+            self.max_age = 40
+
         self.dob = None
         self.pos_skill = None
         self.mult = None
@@ -34,26 +55,27 @@ class PlayerGenerator(IGenerator):
         self.player_dict = None
         self.player_obj_list = []
         self.player_dict_list = []
+        self.filename = file_name
     
-    def generate_id(self):
+    def generate_id(self) -> None:
         self.player_id = uuid.uuid4()
         
-    def generate_name(self):
+    def generate_name(self) -> None:
         pass
 
-    def generate_short_name(self):
+    def generate_short_name(self) -> None:
         pass
 
-    def generate_dob(self):
+    def generate_dob(self) -> None:
         pass
     
-    def generate_skill(self):
+    def generate_skill(self) -> None:
         pass
 
-    def generate_mult(self):
+    def generate_mult(self) -> None:
         pass
 
-    def generate(self):
+    def generate(self) -> None:
         self.generate_id()
         self.generate_name()
         self.generate_short_name()
@@ -65,11 +87,11 @@ class PlayerGenerator(IGenerator):
         self.player_obj_list.append(self.player_obj)
         self.player_dict_list.append(self.player_dict)
     
-    def generate_amount(self, amount = 11):
+    def generate_amount(self, amount = 11) -> None:
         for _ in range(amount):
             self.generate()
 
-    def generate_obj(self):
+    def generate_obj(self) -> None:
         self.player_obj = Player(
             self.name,
             self.short_name,
@@ -81,7 +103,7 @@ class PlayerGenerator(IGenerator):
             self.player_id,
         )
 
-    def generate_dict(self):
+    def generate_dict(self) -> None:
         self.player_dict = {
             "player_id": self.player_id.int,
             "name": self.name,
@@ -91,5 +113,5 @@ class PlayerGenerator(IGenerator):
             "mult": self.mult,
         }
 
-    def generate_file(self):
-        pass
+    def generate_file(self) -> None:
+        write_to_file(self.player_dict_list)

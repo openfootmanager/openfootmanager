@@ -13,17 +13,3 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-from enum import Enum, auto
-
-
-class Positions(Enum):
-    GK = auto()
-    RW = auto()
-    DF = auto()
-    LW = auto()
-    MR = auto()
-    MF = auto()
-    ML = auto()
-    ST = auto()
-    FW = auto()

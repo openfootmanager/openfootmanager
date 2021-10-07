@@ -19,8 +19,10 @@ class Team:
         self.team_id = team_id
         self.name = name
         self.roster = None
+        self.game_score = 0
 
-    def get_players(self):
+    def get_players(self, db):
         if self.roster is None:
             self.roster = []
         
+        self.roster = db.get_players(self)

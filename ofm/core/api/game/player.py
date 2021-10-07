@@ -25,9 +25,8 @@ class Player:
         nationality: str,
         age: int, 
         skill: dict,
-        pos_skill: int,
-        mult: dict,
-        player_id: int = None,
+        pos_skill: dict,
+        player_id: uuid.UUID = None,
         stamina: int = 100,
     ):
         self.player_id = uuid.uuid4() if player_id is None else player_id
@@ -37,7 +36,6 @@ class Player:
         self.age = age
         self.skill = skill
         self.pos_skill = pos_skill
-        self.mult = mult
         self.stamina = stamina
         self.curr_pos = None
 
@@ -47,8 +45,8 @@ class Player:
     def get_curr_pos(self):
         return self.curr_pos
     
-    def get_best_curr_pos(self):
-        pass
+    def get_best_pos(self):
+        return max(self.pos_skill, key=self.pos_skill.get)
 
     def get_int_id(self):
         return self.player_id.int

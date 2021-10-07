@@ -15,6 +15,10 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 class Match:
-    def __init__(self, match_id, teams):
+    def __init__(self, match_id, team1, team2):
         self.match_id = match_id
-        self.teams = teams
+        self.team1 = team1
+        self.team2 = team2
+        self.teams = [team1, team2]
+        self.victorious_team = None
+        
