@@ -14,7 +14,23 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
+class DatabaseError(Exception):
+    pass
+
+
 class Database:
     def __init__(self):
+        self.connection = None
+    
+    def get_players_list(self):
         pass
+
+    def load_player(self, player):
+        players_list = self.get_players_list()
+        for player_obj in players_list:
+            if player_obj.player_id == player:
+                return player_obj
+        else:
+            raise DatabaseError("Player ID {} not found in the database!".format(player))
 

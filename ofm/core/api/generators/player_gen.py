@@ -16,7 +16,7 @@
 import uuid
 from datetime import date, timedelta
 
-from ofm.core.api.file_management import write_to_file
+from ofm.core.api.file_management import write_to_file, load_list_from_file
 from ofm.core.api.game.player import Player
 from generator_interface import IGenerator
 
@@ -35,11 +35,15 @@ class PlayerGenerator(IGenerator):
     ):
         self.player_id = None
         self.name = None
+        self.nationality = None
+        
+        self.names = None
+
         self.skill = None
         self.short_name = None
         self.mult = None
         self.nationality = None
-
+        
         if min_age <= max_age:
             self.min_age = min_age
             self.max_age = max_age
@@ -60,7 +64,16 @@ class PlayerGenerator(IGenerator):
     def generate_id(self) -> None:
         self.player_id = uuid.uuid4()
         
+    def get_names(self) -> None:
+        self.names = load_list_from_file("names.json")
+    
     def generate_name(self) -> None:
+        pass
+
+    def get_nationalitites(self) -> None:
+        pass
+
+    def generate_nationality(self) -> None:
         pass
 
     def generate_short_name(self) -> None:

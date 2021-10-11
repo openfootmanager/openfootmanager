@@ -13,29 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.api.database import Database
+from ofm.ofm import Game
 
 
-class Team:
-    def __init__(self, name, country, team_id, roster, is_national_team=False):
-        self.team_id = team_id
-        self.name = name
-        self.country = country
-        self.is_national_team = is_national_team
-        self.roster = self.get_roster(roster)
-        self.game_score = 0
-        self._team_skill = 0
-
-    def get_roster(self, roster):
-        database = Database()
-        return [
-            database.load_player(player_id)
-            for player_id in roster
-        ]
-
-    @property
-    def team_skill(self):
-        self.team_skill = sum(player.skill for player in self.roster)
-        return self.team_skill
-    
-    
+if __name__ == '__main__':
+    game = Game()
+    game.start()
