@@ -16,4 +16,10 @@
 
 class GameState:
     def __init__(self):
-        pass
+        self.state = 'start'
+        self.states = [
+            'start',
+            'new_game',
+            'load_game',
+            'save_game',
+        ]

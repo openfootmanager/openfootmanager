@@ -23,6 +23,8 @@ class Team:
         self.country = country
         self.is_national_team = is_national_team
         self.roster = self.get_roster(roster)
+        self.game_roster = []
+        self.game_bench = [] 
         self.game_score = 0
         self._team_skill = 0
 
@@ -32,6 +34,12 @@ class Team:
             database.load_player(player_id)
             for player_id in roster
         ]
+    
+    def get_game_roster(self):
+        pass
+
+    def get_bench_roster(self):
+        pass
 
     @property
     def team_skill(self):

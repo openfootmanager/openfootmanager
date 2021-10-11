@@ -27,11 +27,15 @@ class IGenerator(ABC):
     @abstractmethod
     def generate(self):
         pass
-
+    
     @abstractmethod
     def generate_obj(self):
         pass
-
+    
+    @abstractmethod
+    def generate_list(self):
+        pass
+    
     @abstractmethod
     def generate_dict(self):
         pass

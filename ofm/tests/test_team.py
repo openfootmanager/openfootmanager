@@ -13,3 +13,18 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import pytest
+from ofm.core.api.generators.team_gen import TeamGenerator
+
+
+@pytest.fixture
+def team_generator():
+    return TeamGenerator()
+
+
+def test_get_country():
+    pass
+
+
+def test_generate():
+    pass

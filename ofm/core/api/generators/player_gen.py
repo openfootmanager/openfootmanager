@@ -13,11 +13,13 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
 import uuid
 from datetime import date, timedelta
 
 from ofm.core.api.file_management import write_to_file, load_list_from_file
 from ofm.core.api.game.player import Player
+from ofm.core.api.game.positions import Positions
 from generator_interface import IGenerator
 
 
@@ -86,7 +88,7 @@ class PlayerGenerator(IGenerator):
         pass
 
     def generate_mult(self) -> None:
-        pass
+        self.mult = {position.name: random.randint(0, 100) / 10 for position in Positions}
 
     def generate(self) -> None:
         self.generate_id()
@@ -100,9 +102,8 @@ class PlayerGenerator(IGenerator):
         self.player_obj_list.append(self.player_obj)
         self.player_dict_list.append(self.player_dict)
     
-    def generate_amount(self, amount = 11) -> None:
-        for _ in range(amount):
-            self.generate()
+    def generate_list(self, amount = 11) -> None:
+        return [self.generate() for _ in range(amount)]
 
     def generate_obj(self) -> None:
         self.player_obj = Player(

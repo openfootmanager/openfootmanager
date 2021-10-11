@@ -17,7 +17,7 @@
 import random
 import uuid
 
-from ofm.core.api.file_management import write_to_file, get_list_from_file
+from ofm.core.api.file_management import load_list_from_file, write_to_file, get_list_from_file
 from ofm.core.api.generators.generator_interface import IGenerator
 from ofm.core.api.game.team import Team
 from player_gen import PlayerGenerator
@@ -30,6 +30,8 @@ class TeamGenerator(IGenerator):
         self.names = None
         self.nationality = None
         self.file_name = "teams.json"
+        
+        self.countries = None
         self.country = None
 
         self.team_obj = None
@@ -51,18 +53,33 @@ class TeamGenerator(IGenerator):
         self.names.remove(self.name)
 
     def get_countries(self) -> None:
-        pass
+        return load_list_from_file("countries.txt")
 
     def generate_country(self) -> None:
-        pass
+        if self.countries is None:
+            self.countries = self.get_countries()
+        self.country = random.choice(self.countries)
     
-    def generate_players(self) -> None:
-        pass
+    def generate_players(self, amount) -> None:
+        self.roster = [
+            player.player_id
+            for player in self.player_gen.generate_list(amount)
+        ]
 
     def generate(self) -> None:
         self.generate_id()
         self.generate_name()
+        self.generate_country()
+        self.generate_players()
+        self.generate_obj()
+        self.generate_dict()
+        self.team_obj_list.append(self.team_obj)
+        self.team_dict_list.append(self.team_dict)
 
+    def generate_list(self, amount) -> None:
+        for _ in range(amount):
+            self.generate()
+    
     def generate_obj(self) -> None:
         self.team_obj = Team(
             self.name,
@@ -74,7 +91,7 @@ class TeamGenerator(IGenerator):
         self.team_dict = {
             "id": self.id.int,
             "name": self.name,
-            "roster": self.roster
+            "roster": self.roster.copy()
         }
 
     def generate_file(self) -> None:
