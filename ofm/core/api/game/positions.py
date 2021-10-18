@@ -16,14 +16,22 @@
 
 from enum import Enum, auto
 
-
 class Positions(Enum):
     GK = auto()
-    RW = auto()
-    DF = auto()
+
+    # Defenders
+    DEF = auto()
     LW = auto()
-    MR = auto()
+    RW = auto()
+
+    # Midfield
+    DM = auto()
     MF = auto()
-    ML = auto()
+    RM = auto()
+    LM = auto()
+
+    # Strikers/Forwards
     ST = auto()
-    FW = auto()
+    CF = auto()
+    LF = auto()
+    RF = auto()

@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from ofm.ofm import Game
 
-
 if __name__ == '__main__':
-    game = Game()
-    game.start()
+    app = Game()
+    app.start()

@@ -28,6 +28,7 @@ class Team:
         self.game_score = 0
         self._team_skill = 0
 
+    @staticmethod
     def get_roster(self, roster):
         database = Database()
         return [
@@ -43,7 +44,7 @@ class Team:
 
     @property
     def team_skill(self):
-        self.team_skill = sum(player.skill for player in self.roster)
+        self._team_skill = sum(player.skill for player in self.roster)
         return self.team_skill
     
     
