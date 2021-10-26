@@ -17,3 +17,9 @@
 class GUI:
     def __init__(self):
         pass
+
+    def setup_layouts(self):
+        pass
+
+    def start(self):
+        pass

@@ -13,11 +13,25 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.api.generators.player_gen import PlayerGenerator
-from ofm.core.api.generators.team_gen import TeamGenerator
+from generators.player_gen import PlayerGenerator
+from generators.team_gen import TeamGenerator
 
 
 class Generator:
     def __init__(self):
-        self.player_gen = PlayerGenerator()
-        self.team_gen = TeamGenerator()
+        self.generator = None
+
+    def generate_players(self):
+        if self.generator is None:
+            self.generator = PlayerGenerator()
+
+    def generate_teams(self):
+        if self.generator is None:
+            self.generator = TeamGenerator()
+
+    def write_data_file(self):
+        pass
+
+    def update_database(self, database):
+        pass
+
