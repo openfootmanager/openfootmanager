@@ -28,7 +28,7 @@ def write_to_file(
     try:
         filewrite = find_file(filename, folder)
     except FileNotFoundError:
-        filewrite = os.path.join(ROOT_DIR, res_folder)
+        filewrite = os.path.join(res_folder, filename)
     finally:
         with open(filewrite, "w") as fp:
             json.dump(contents, fp, sort_keys=True, indent=4)

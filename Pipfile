@@ -7,6 +7,8 @@ verify_ssl = true
 
 [packages]
 pytest = "*"
+pyside6 = "*"
+qtpy = "*"
 
 [requires]
 python_version = "3"
