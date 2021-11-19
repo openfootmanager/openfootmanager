@@ -13,14 +13,68 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.api.gamemanager import GameManager
-from ofm.gui.gui import GUI
+import random
+import json
+
+from ofm.core.api.game.team import Team
+from ofm.core.api.game.player import Player
+from ofm.core.api.game.match import Match
+from ofm.core.api.game.match_live import MatchLive
+from ofm.core.api.file_management import find_file
 
 
 class Game:
     def __init__(self):
-        self.gamemanager = GameManager()
-        self.gui = GUI()
+        self.players = None
+        self.teams = []
+        self.match = None
+        self.match_live = None
 
-    def start(self):
-        self.gui.start()
+    def create_random_match(self):
+        team1 = random.choice(self.teams)
+        self.teams.remove(team1)
+        team2 = random.choice(self.teams)
+        self.teams.clear()
+        self.match = Match(1, team1, team2)
+
+    def play_random_match(self):
+        print(self.match)
+        self.match_live = MatchLive(self.match)
+        self.match_live.run()
+
+    def get_teams(self):
+        filename = find_file('players_22.json')
+        with open(filename, 'r') as fp:
+            self.players = json.load(fp)
+
+        for player in self.players:
+            pl = Player(
+                player["name"],
+                player["short_name"],
+                player["nationality"],
+                player["age"],
+                player["dob"],
+                player["overall"],
+                player["positions"],
+                player["international_reputation"],
+                player["preferred_foot"],
+                player["id"]
+            )
+            if player["team"] not in self.teams:
+                team = Team(player["team"])
+                team.roster.append(pl)
+                self.teams.append(team)
+            else:
+                for team in self.teams:
+                    if team == player["team"]:
+                        team.roster.append(pl)
+
+    def run(self):
+        self.get_teams()
+        self.create_random_match()
+        self.play_random_match()
+
+
+if __name__ == '__main__':
+    game = Game()
+    game.run()

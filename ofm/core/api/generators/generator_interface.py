@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from abc import ABC, abstractmethod
 
+
 class IGenerator(ABC):
     @abstractmethod
     def generate_id(self):

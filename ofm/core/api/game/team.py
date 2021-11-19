@@ -13,38 +13,44 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.api.database import Database
+import uuid
 
 
 class Team:
-    def __init__(self, name, country, team_id, roster, is_national_team=False):
-        self.team_id = team_id
+    def __init__(self, name, country=None, team_id=None, roster=None, is_national_team=False):
+        self.team_id = uuid.uuid4() if team_id is None else team_id
         self.name = name
         self.country = country
         self.is_national_team = is_national_team
-        self.roster = self.get_roster(roster)
+        self.roster = [] if roster is None else roster
         self.game_roster = []
         self.game_bench = [] 
         self.game_score = 0
         self._team_skill = 0
 
-    @staticmethod
-    def get_roster(self, roster):
-        database = Database()
-        return [
-            database.load_player(player_id)
-            for player_id in roster
-        ]
-    
-    def get_game_roster(self):
-        pass
-
-    def get_bench_roster(self):
-        pass
-
     @property
     def team_skill(self):
         self._team_skill = sum(player.skill for player in self.roster)
         return self.team_skill
-    
-    
+
+    def get_team_dict(self):
+        return {
+            "id": self.team_id.int,
+            "name": self.name,
+            "roster": [player.player_id for player in self.roster]
+        }
+
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
+    def __eq__(self, other):
+        if isinstance(other, Team):
+            return self.name == other.name
+
+        if isinstance(other, str):
+            return self.name == other
+
+        return False

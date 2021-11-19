@@ -15,7 +15,10 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import uuid
+from typing import Union
+from datetime import datetime
 from .positions import Positions
+
 
 class Player:
     def __init__(
@@ -23,19 +26,32 @@ class Player:
         fullname: str,
         short_name: str,
         nationality: str,
-        age: int, 
-        skill: dict,
-        pos_skill: dict,
+        age: int,
+        dob: Union[str, datetime],
+        skill: int,
+        pos: str,
+        international_rep: int,
+        preferred_foot: str,
         player_id: uuid.UUID = None,
         stamina: int = 100,
+        value: float = 0,
+        wage: float = 0,
     ):
         self.player_id = uuid.uuid4() if player_id is None else player_id
         self.fullname = fullname
         self.short_name = short_name
         self.nationality = nationality
-        self.age = age
-        self.skill = skill
-        self.pos_skill = pos_skill
+        self.age = int(age)
+        if not isinstance(dob, datetime):
+            self.dob = datetime.strptime(dob, "%Y-%m-%d")
+        else:
+            self.dob = dob
+        self.skill = int(skill)
+        self.intenational_rep = international_rep
+        self.preferred_foot = preferred_foot
+        self.value = float(value)
+        self.wage = float(wage)
+        self.pos = pos
         self.stamina = stamina
         self.curr_pos = None
 
@@ -46,7 +62,13 @@ class Player:
         return self.curr_pos
     
     def get_best_pos(self):
-        return max(self.pos_skill, key=self.pos_skill.get)
+        return self.pos[0]
 
     def get_int_id(self):
         return self.player_id.int
+
+    def __str__(self):
+        return self.short_name
+
+    def __repr__(self):
+        return self.short_name

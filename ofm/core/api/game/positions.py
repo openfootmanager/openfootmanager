@@ -16,6 +16,7 @@
 
 from enum import Enum, auto
 
+
 class Positions(Enum):
     GK = auto()
 

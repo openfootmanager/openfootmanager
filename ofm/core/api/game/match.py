@@ -21,4 +21,9 @@ class Match:
         self.team2 = team2
         self.teams = [team1, team2]
         self.victorious_team = None
-        
+
+    def __repr__(self):
+        return str(self.team1.name + " - " + self.team2.name)
+
+    def __str__(self):
+        return str(self.team1.name + " " + str(self.team1.game_score) + " - " + str(self.team2.game_score) + " " + self.team2.name)
