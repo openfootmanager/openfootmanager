@@ -21,10 +21,22 @@ class LiveGameEvent:
         self.event_type = event_type
         self.game_time = game_time
 
+    def _calculate_free_kick(self):
+        pass
+
+    def _calculate_corner_kick(self):
+        pass
+
+    def _calculate_penalty(self):
+        pass
+
+    def _calculate_injury(self):
+        pass
+
     def _calculate_scoring_chance(self, scorer, gk):
         pass
 
-    def _calculate_foul(self, player_commiting_foul, player_receiving_foul):
+    def _calculate_foul(self, player_committing_foul, player_receiving_foul):
         pass
 
     def calculate_event(self, *args, **kwargs):
@@ -38,7 +50,8 @@ class LiveGameEventHandler:
         self.events = self.get_events()
         self.probs = self.get_event_probabilities()
 
-    def get_events(self):
+    @staticmethod
+    def get_events():
         return [
             {"name": "SCORING_CHANCE", "prob": 0.08},
             {"name": "SWITCH_POSSESSION", "prob": 0.25},
