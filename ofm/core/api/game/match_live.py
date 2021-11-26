@@ -13,6 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
+
 from .match import Match
 from .live_game_events import LiveGameEventHandler
 from .team import Team
@@ -25,10 +27,16 @@ class MatchLive:
         self.event_handler = LiveGameEventHandler()
         self.show_commentary = show_commentary
         self.game_time = 0.0
+        self.current_possession = None
 
     def run(self):
+        self.current_possession = random.choice(self.match.teams)
         while self.game_time < 90.0:
             self.event_handler.generate_events(self.game_time)
+            self.event_handler.event.calculate_event(
+                teams=self.match.teams,
+                match=self,
+            )
             self.game_time += 1
 
         for event in self.event_handler.event_history:
