@@ -60,8 +60,13 @@ class Player:
 
     def get_curr_pos(self):
         return self.curr_pos
-    
+
+    def parse_pos(self):
+        if isinstance(self.pos, str):
+            self.pos = self.pos.split(', ')
+
     def get_best_pos(self):
+        self.parse_pos()
         return self.pos[0]
 
     def get_int_id(self):
