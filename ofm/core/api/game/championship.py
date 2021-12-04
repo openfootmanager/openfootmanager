@@ -15,7 +15,8 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 class Championship:
-    def __init__(self, name, ch_id):
+    def __init__(self, name, type, ch_id):
         self.name = name
+        self.type = type
         self.ch_id = ch_id
         self.teams = None
