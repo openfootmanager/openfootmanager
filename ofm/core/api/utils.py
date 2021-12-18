@@ -1,4 +1,3 @@
-#      Openfoot Manager - A free and open source soccer management game
 #      Copyright (C) 2020-2021  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -14,9 +13,3 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-class Championship:
-    def __init__(self, name, type, ch_id):
-        self.name = name
-        self.type = type
-        self.ch_id = ch_id
-        self.teams = None

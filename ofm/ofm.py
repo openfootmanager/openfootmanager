@@ -49,7 +49,9 @@ class Game:
         filename = find_file('players_22.json')
         with open(filename, 'r') as fp:
             self.players = json.load(fp)
+            self.get_players_from_team()
 
+    def get_players_from_team(self):
         for player in self.players:
             pl = Player(
                 player["name"],
