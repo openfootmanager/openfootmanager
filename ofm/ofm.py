@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 import json
+import logging
 
 from ofm.core.api.game.team import Team
 from ofm.core.api.game.player import Player
@@ -29,6 +30,8 @@ class Game:
         self.teams = []
         self.match = None
         self.match_live = None
+        logging.basicConfig()
+        self.logger = logging.getLogger(__file__)
 
     def create_random_match(self):
         team1 = random.choice(self.teams)

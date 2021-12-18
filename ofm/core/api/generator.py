@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import logging
 from generators.player_gen import PlayerGenerator
 from generators.team_gen import TeamGenerator
 
@@ -20,6 +21,7 @@ from generators.team_gen import TeamGenerator
 class Generator:
     def __init__(self):
         self.generator = None
+        self.logger = logging.getLogger(__file__)
 
     def generate_players(self):
         if self.generator is None:
