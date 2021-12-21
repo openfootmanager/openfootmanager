@@ -47,7 +47,7 @@ class Player:
         else:
             self.dob = dob
         self.skill = int(skill)
-        self.intenational_rep = international_rep
+        self.international_rep = international_rep
         self.preferred_foot = preferred_foot
         self.value = float(value)
         self.wage = float(wage)

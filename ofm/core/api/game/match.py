@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 class Match:
     def __init__(self, match_id, team1, team2):
         self.match_id = match_id

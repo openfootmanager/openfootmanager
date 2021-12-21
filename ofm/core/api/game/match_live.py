@@ -16,28 +16,14 @@
 import random
 
 from .match import Match
-from .live_game_events import LiveGameEventHandler
-from .team import Team
-from .player import Player
 
 
 class MatchLive:
     def __init__(self, match: Match, show_commentary: bool = True):
         self.match = match
-        self.event_handler = LiveGameEventHandler()
         self.show_commentary = show_commentary
         self.game_time = 0.0
         self.current_possession = None
 
     def run(self):
-        self.current_possession = random.choice(self.match.teams)
-        while self.game_time < 90.0:
-            self.event_handler.generate_events(self.game_time)
-            self.event_handler.event.calculate_event(
-                teams=self.match.teams,
-                match=self,
-            )
-            self.game_time += 1
-
-        for event in self.event_handler.event_history:
-            print(event.event_type)
+        pass
