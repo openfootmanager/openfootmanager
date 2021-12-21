@@ -9,7 +9,9 @@ Welcome to Openfootmanager's documentation!
 ===========================================
 
 **Openfootmanager** is a free and open source football (a.k.a soccer in the US) manager game, inspired by famous
-franchises such as Football Manager:raw-html:`&trade;`
+franchises such as Football Manager and Championship Manager, and based on the source code of Bygfoot.
+
+This game aims to be a complete alternative to these games.
 
 .. toctree::
    :maxdepth: 2
