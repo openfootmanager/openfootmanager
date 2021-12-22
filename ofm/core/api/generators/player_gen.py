@@ -17,6 +17,8 @@ import datetime
 import random
 import uuid
 from datetime import date, timedelta
+from typing import Union
+from pathlib import Path
 
 from ofm.core.api.file_management import write_to_file, load_list_from_file
 from ofm.core.api.game.player import Player
@@ -29,6 +31,13 @@ class PlayerGeneratorError(Exception):
 
 
 class PlayerGenerator(IGenerator):
+    """
+    The PlayerGenerator class creates and populates a database of players based on some parameters.
+
+    It is able to create random players for a team. In the PlayerParser class, the PlayerGenerator is used
+    to create players based on existing information from a spreadsheet or json file.
+    """
+
     def __init__(
             self,
             today: date = date.today(),
@@ -79,12 +88,19 @@ class PlayerGenerator(IGenerator):
     def get_names() -> list:
         return load_list_from_file("names.json")
 
+    def generate_nationality(self):
+        """
+        Generates the player's nationality
+        :return:
+        """
+
     def generate_short_name(self):
         """
         Generates the player's shortname (the name on the player's shirt, or a nickname)
         :return:
         """
-        pass
+        name = self.name.split()
+        self.short_name = name[0][0] + '. ' + name[-1]
 
     def calculate_age(self, today: date = date.today()):
         """
@@ -131,16 +147,19 @@ class PlayerGenerator(IGenerator):
         skill levels
         :return:
         """
-        pass
+        pos = [pos.name for pos in Positions]
+        self.positions = random.choices(pos)
 
     def generate_international_rep(self):
         """
         Generates the player's international reputation.
 
         Players with good international reputation have a higher weight on the game simulation.
+
+        International reputation ranges from 0 to 5
         :return:
         """
-        pass
+        self.international_rep = max(int(random.gauss(5, 1)), 0)
 
     def generate_preferred_foot(self):
         """
@@ -151,12 +170,15 @@ class PlayerGenerator(IGenerator):
         accurately describe the player's ability with each foot.
         :return:
         """
+        feet = ['Left', 'Right']
+        self.preferred_foot = random.choice(feet)
 
     def generate(self):
         self.generate_id()
         self.generate_name()
         self.generate_short_name()
         self.generate_dob()
+        self.generate_nationality()
         self.generate_skill()
         self.generate_positions()
         self.generate_international_rep()
@@ -200,5 +222,85 @@ class PlayerGenerator(IGenerator):
             "short_name": self.short_name,
         }
 
+    def __check_attributes(self):
+        """
+        Checks for None attributes, to generate them in case one of them is not found.
+        :return:
+        """
+        if self.player_id is None:
+            self.generate_id()
+        if self.name is None:
+            self.generate_name()
+        if self.dob is None:
+            self.generate_dob()
+        if self.nationality is None:
+            self.generate_nationality()
+        if self.skill is None:
+            self.generate_skill()
+        if self.positions is None:
+            self.generate_positions()
+        if self.international_rep is None:
+            self.generate_international_rep()
+        if self.preferred_foot is None:
+            self.generate_preferred_foot()
+        if self.short_name is None:
+            self.generate_short_name()
+
+    def get_dict(self, dictionary: dict):
+        """
+        Gets a player_dict from the given dictionary.
+        :param dictionary:
+        :return:
+        """
+        self.player_id = dictionary.get("id")
+        self.name = dictionary.get("name")
+        self.dob = dictionary.get("dob")
+        self.skill = dictionary.get("overall")
+        self.positions = dictionary.get("positions")
+        self.international_rep = dictionary.get("international_reputation")
+        self.preferred_foot = dictionary.get("preferred_foot")
+        self.nationality = dictionary.get("nationality")
+        self.short_name = dictionary.get("short_name")
+
+        # Checking if any value is None to fill them in based on the other values
+        self.__check_attributes()
+
+        # Get dictionary and append it to the list of dictionaries
+        self.generate_dict()
+        self.player_dict_list.append(self.player_dict)
+
     def generate_file(self) -> None:
         write_to_file(self.player_dict_list, self.file_name)
+
+
+class PlayerParser:
+    """
+    Reads and parses a json file to create a players.json file using the PlayerGenerator.
+
+    This is useful if a players.json file already exists, or if we need to parse a file with
+    data coming from a spreadsheet, and turning this file into a format that OFM can understand.
+
+    In the future, I think I'll try to make this also recognize XLSX, XML and other types of files to make
+    it compatible with Bygfoot.
+    """
+
+    def __init__(
+            self,
+            filename: Union[str, Path],
+            read_file: Union[str, Path],
+            player_file: Union[str, Path] = "players.json"
+    ):
+        self.filename = filename
+        self.read_file = read_file
+        self.player_list = None
+        self.destination_file = player_file
+        self.player_generator = PlayerGenerator()
+
+    def get_players(self):
+        self.player_list = load_list_from_file(self.read_file)
+        self.player_generator.player_dict_list.clear()
+        for data in self.read_file:
+            self.player_generator.get_dict(data)
+
+    def write_players_file(self):
+        self.player_generator.generate_file()

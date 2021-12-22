@@ -52,7 +52,7 @@ class TeamGenerator(IGenerator):
         self.name = random.choice(self.names)
         self.names.remove(self.name)
 
-    def get_countries(self) -> None:
+    def get_countries(self) -> list:
         return load_list_from_file("countries.txt")
 
     def generate_country(self) -> None:
@@ -76,8 +76,8 @@ class TeamGenerator(IGenerator):
         self.team_obj_list.append(self.team_obj)
         self.team_dict_list.append(self.team_dict)
 
-    def generate_list(self, amount) -> None:
-        for _ in range(amount):
+    def generate_list(self) -> None:
+        for _ in range(self.amount):
             self.generate()
     
     def generate_obj(self) -> None:
@@ -89,10 +89,10 @@ class TeamGenerator(IGenerator):
 
     def generate_dict(self) -> None:
         self.team_dict = {
-            "id": self.id.int,
+            "id": self.team_id.int,
             "name": self.name,
             "roster": self.roster.copy()
         }
 
     def generate_file(self) -> None:
-        write_to_file(self.file_name)
+        write_to_file(self.team_dict_list, self.file_name)

@@ -16,6 +16,7 @@
 import os
 import json
 import logging
+from pathlib import Path
 from datetime import date, timezone
 from ofm import ROOT_DIR, RES_DIR
 
@@ -27,11 +28,11 @@ def write_to_file(
     res_folder: str = RES_DIR,
 ) -> None:
     try:
-        filewrite = find_file(filename, folder)
+        filename = find_file(filename, folder)
     except FileNotFoundError:
-        filewrite = os.path.join(res_folder, filename)
+        filename = os.path.join(res_folder, filename)
     finally:
-        with open(filewrite, "w") as fp:
+        with open(filename, "w") as fp:
             json.dump(contents, fp, sort_keys=True, indent=4)
 
 

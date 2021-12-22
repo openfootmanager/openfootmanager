@@ -22,6 +22,7 @@ from ofm.core.api.game.player import Player
 from ofm.core.api.game.match import Match
 from ofm.core.api.game.match_live import MatchLive
 from ofm.core.api.file_management import find_file
+from ofm.core.api.generators.player_gen import PlayerParser
 
 
 class Game:
@@ -33,51 +34,8 @@ class Game:
         logging.basicConfig()
         self.logger = logging.getLogger(__file__)
 
-    def create_random_match(self):
-        team1 = random.choice(self.teams)
-        self.teams.remove(team1)
-        team2 = random.choice(self.teams)
-        self.teams.clear()
-        self.match = Match(1, team1, team2)
-
-    def play_random_match(self):
-        print(self.match)
-        self.match_live = MatchLive(self.match)
-        self.match_live.run()
-
-    def get_teams(self):
-        filename = find_file('players_22.json')
-        with open(filename, 'r') as fp:
-            self.players = json.load(fp)
-            self.get_players_from_team()
-
-    def get_players_from_team(self):
-        for player in self.players:
-            pl = Player(
-                player["name"],
-                player["short_name"],
-                player["nationality"],
-                player["age"],
-                player["dob"],
-                player["overall"],
-                player["positions"],
-                player["international_reputation"],
-                player["preferred_foot"],
-                player["id"]
-            )
-            if player["team"] not in self.teams:
-                team = Team(player["team"])
-                team.roster.append(pl)
-                self.teams.append(team)
-            else:
-                for team in self.teams:
-                    if team == player["team"]:
-                        team.roster.append(pl)
-
     def run(self):
-        self.get_teams()
-        self.create_random_match()
-        self.play_random_match()
+        player_parser = PlayerParser()
 
 
 if __name__ == '__main__':

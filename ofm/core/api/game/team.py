@@ -19,12 +19,12 @@ import uuid
 class Team:
     def __init__(self, name, country=None, team_id=None, roster=None, is_national_team=False):
         self.team_id = uuid.uuid4() if team_id is None else team_id
-        self.name = name
         self.country = country
         self.is_national_team = is_national_team
+        self.name = name if self.is_national_team else country
         self.roster = [] if roster is None else roster
         self.game_roster = []
-        self.game_bench = [] 
+        self.game_bench = []
         self.game_score = 0
         self._team_skill = 0
 
