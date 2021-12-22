@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import datetime
 import random
 import uuid
 from datetime import date, timedelta
@@ -29,12 +30,13 @@ class PlayerGeneratorError(Exception):
 
 class PlayerGenerator(IGenerator):
     def __init__(
-        self,
-        today: date = date.today(),
-        min_age: int = 16,
-        max_age: int = 40,
-        file_name: str = "players.json",
+            self,
+            today: date = date.today(),
+            min_age: int = 16,
+            max_age: int = 40,
+            file_name: str = "players.json",
     ):
+        self.preferred_foot = None
         self.player_id = None
         self.name = None
         self.nationality = None
@@ -46,9 +48,9 @@ class PlayerGenerator(IGenerator):
         self.mult = None
         self.nationality = None
         self.dob = None
-        self.pos_skill = None
-        self.mult = None
-        self.names = None
+        self.positions = None
+        self.international_rep = None
+        self.names = self.get_names()
         self.today = today
         if min_age <= max_age:
             self.max_age = max_age
@@ -62,11 +64,10 @@ class PlayerGenerator(IGenerator):
         self.player_dict = None
         self.player_obj_list = []
         self.player_dict_list = []
-        self.filename = file_name
 
     def generate_id(self) -> None:
         self.player_id = uuid.uuid4()
-        
+
     def generate_name(self):
         """
         Generates the player's name
@@ -74,8 +75,9 @@ class PlayerGenerator(IGenerator):
         """
         pass
 
-    def get_names(self) -> None:
-        self.names = load_list_from_file("names.json")
+    @staticmethod
+    def get_names() -> list:
+        return load_list_from_file("names.json")
 
     def generate_short_name(self):
         """
@@ -83,6 +85,14 @@ class PlayerGenerator(IGenerator):
         :return:
         """
         pass
+
+    def calculate_age(self, today: date = date.today()):
+        """
+        Calculates the age based on today's date.
+        :param today:
+        :return:
+        """
+        return today.year - self.dob.year - ((today.month, today.day) < (self.dob.month, self.dob.day))
 
     def generate_dob(self) -> None:
         """
@@ -92,11 +102,11 @@ class PlayerGenerator(IGenerator):
         year = timedelta(seconds=31556952)  # defining a Gregorian calendar year
 
         max_age = (
-            self.max_age * year
+                self.max_age * year
         )
 
         min_age = (
-            self.min_age * year
+                self.min_age * year
         )
 
         min_year = self.today - max_age  # min date for birthday
@@ -115,7 +125,7 @@ class PlayerGenerator(IGenerator):
         """
         pass
 
-    def generate_mult(self):
+    def generate_positions(self):
         """
         Generates multipliers, so that players playing outside their ideal positions don't have ideal
         skill levels
@@ -123,18 +133,39 @@ class PlayerGenerator(IGenerator):
         """
         pass
 
+    def generate_international_rep(self):
+        """
+        Generates the player's international reputation.
+
+        Players with good international reputation have a higher weight on the game simulation.
+        :return:
+        """
+        pass
+
+    def generate_preferred_foot(self):
+        """
+        Generate the player's preferred foot: left or right.
+
+        This can have an impact in the shot simulation. The player tends to shoot more accurately with its preferred foot.
+        In the future we can attribute weights to player's preferred foot to make it a tuple, and more
+        accurately describe the player's ability with each foot.
+        :return:
+        """
+
     def generate(self):
         self.generate_id()
         self.generate_name()
         self.generate_short_name()
         self.generate_dob()
         self.generate_skill()
-        self.generate_mult()
+        self.generate_positions()
+        self.generate_international_rep()
+        self.generate_preferred_foot()
         self.generate_obj()
         self.generate_dict()
         self.player_obj_list.append(self.player_obj)
         self.player_dict_list.append(self.player_dict)
-    
+
     def generate_list(self, amount=11) -> list:
         return [self.generate() for _ in range(amount)]
 
@@ -145,8 +176,9 @@ class PlayerGenerator(IGenerator):
             self.nationality,
             self.dob,
             self.skill,
-            self.pos_skill,
-            self.mult,
+            self.positions,
+            self.international_rep,
+            self.preferred_foot,
             self.player_id,
         )
 
@@ -156,13 +188,17 @@ class PlayerGenerator(IGenerator):
         :return:
         """
         self.player_dict = {
-            "player_id": self.player_id.int,
+            "id": self.player_id.int,
             "name": self.name,
+            "dob": self.dob,
+            "age": self.calculate_age(),
+            "overall": self.skill,
+            "positions": self.positions,
+            "international_reputation": self.international_rep,
+            "preferred_foot": self.preferred_foot,
             "nationality": self.nationality,
             "short_name": self.short_name,
-            "pos_skill": self.pos_skill,
-            "mult": self.mult,
         }
 
     def generate_file(self) -> None:
-        write_to_file(self.player_dict_list)
+        write_to_file(self.player_dict_list, self.file_name)
