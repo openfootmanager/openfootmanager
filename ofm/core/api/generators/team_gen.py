@@ -24,24 +24,31 @@ from player_gen import PlayerGenerator
 
 
 class TeamGenerator(IGenerator):
-    def __init__(self):
+    def __init__(
+            self,
+            amount_teams: int = 100,
+            amount_players: int = 23,
+    ):
         self.team_id = None
         self.name = None
         self.names = None
         self.nationality = None
         self.file_name = "teams.json"
-        
+
         self.countries = None
         self.country = None
 
         self.team_obj = None
         self.team_dict = None
 
+        self.amount_teams = amount_teams
+        self.amount_players = amount_players
+
         self.player_gen = PlayerGenerator()
         self.roster = []
         self.team_dict_list = []
         self.team_obj_list = []
-    
+
     def generate_id(self) -> None:
         self.team_id = uuid.uuid4()
 
@@ -59,11 +66,11 @@ class TeamGenerator(IGenerator):
         if self.countries is None:
             self.countries = self.get_countries()
         self.country = random.choice(self.countries)
-    
-    def generate_players(self, amount) -> None:
+
+    def generate_players(self) -> None:
         self.roster = [
             player.player_id
-            for player in self.player_gen.generate_list(amount)
+            for player in self.player_gen.generate_list(self.amount_players)
         ]
 
     def generate(self) -> None:
@@ -77,9 +84,9 @@ class TeamGenerator(IGenerator):
         self.team_dict_list.append(self.team_dict)
 
     def generate_list(self) -> None:
-        for _ in range(self.amount):
+        for _ in range(self.amount_teams):
             self.generate()
-    
+
     def generate_obj(self) -> None:
         self.team_obj = Team(
             self.name,
