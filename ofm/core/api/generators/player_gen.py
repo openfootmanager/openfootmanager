@@ -59,7 +59,8 @@ class PlayerGenerator(IGenerator):
         self.dob = None
         self.positions = None
         self.international_rep = None
-        self.names = self.get_names()
+        self.nationalities = []
+        self.names = None
         self.today = today
         if min_age <= max_age:
             self.max_age = max_age
@@ -82,17 +83,33 @@ class PlayerGenerator(IGenerator):
         Generates the player's name
         :return:
         """
-        pass
+        if self.names is None:
+            self.get_names()
+        self.name = random.choice
 
     @staticmethod
     def get_names() -> list:
         return load_list_from_file("names.json")
+
+    def get_nationalities(self):
+        if self.names is None:
+            nationalities = load_list_from_file("names.json")
+        else:
+            nationalities = self.names.copy()
+
+        self.nationalities = []
+        for nat in nationalities:
+            nationality = nat["region"]
+            self.nationalities.append(nationality)
 
     def generate_nationality(self):
         """
         Generates the player's nationality
         :return:
         """
+        if self.nationalities is None:
+            self.get_nationalities()
+        self.nationality = random.choice(self.nationalities)
 
     def generate_short_name(self):
         """
@@ -174,11 +191,15 @@ class PlayerGenerator(IGenerator):
         self.preferred_foot = random.choice(feet)
 
     def generate(self):
+        """
+        Generates a random player with random data
+        :return:
+        """
         self.generate_id()
+        self.generate_nationality()
         self.generate_name()
         self.generate_short_name()
         self.generate_dob()
-        self.generate_nationality()
         self.generate_skill()
         self.generate_positions()
         self.generate_international_rep()
@@ -189,9 +210,18 @@ class PlayerGenerator(IGenerator):
         self.player_dict_list.append(self.player_dict)
 
     def generate_list(self, amount=11) -> list:
+        """
+        Generates a list of players based on the amount of players given.
+        :param amount:
+        :return:
+        """
         return [self.generate() for _ in range(amount)]
 
     def generate_obj(self) -> None:
+        """
+        Generates a player object. It is useful for match simulation.
+        :return:
+        """
         self.player_obj = Player(
             self.name,
             self.short_name,
