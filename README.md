@@ -46,7 +46,7 @@ The game will have a number of features inspired by other established games on t
 ## LICENSE
 
     OpenFoot Manager - A free and open source soccer management game
-    Copyright (C) 2020-2021  Pedrenrique G. Guimarães
+    Copyright (C) 2020-2022  Pedrenrique G. Guimarães
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
