@@ -25,5 +25,11 @@ class MatchLive:
         self.game_time = 0.0
         self.current_possession = None
 
+    def is_half_time(self):
+        return self.game_time == 45.0
+
+    def match_simulation(self):
+        pass
+
     def run(self):
         pass

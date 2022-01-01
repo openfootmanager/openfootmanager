@@ -22,5 +22,3 @@ class GameEvent:
 
     def calculate_event(self):
         pass
-
-
