@@ -18,5 +18,5 @@ import os
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 RES_DIR = os.path.join(ROOT_DIR, "res")
-PLAYERS_FILE = "players.json"
-TEAMS_FILE = "teams.json"
+PLAYERS_FILE = os.path.join(RES_DIR, "players.json")
+TEAMS_FILE = os.path.join(RES_DIR, "teams.json")

@@ -17,9 +17,10 @@
 import random
 import uuid
 
+from ofm import TEAMS_FILE
 from ofm.core.api.file_management import load_list_from_file, write_to_file, get_list_from_file
-from ofm.core.api.generators.generator_interface import IGenerator
 from ofm.core.api.game.team import Team
+from ofm.core.api.generators.generator_interface import IGenerator
 from player_gen import PlayerGenerator
 
 
@@ -28,12 +29,13 @@ class TeamGenerator(IGenerator):
             self,
             amount_teams: int = 100,
             amount_players: int = 23,
+            file_name: str = TEAMS_FILE,
     ):
         self.team_id = None
         self.name = None
         self.names = None
         self.nationality = None
-        self.file_name = "teams.json"
+        self.file_name = file_name
 
         self.countries = None
         self.country = None

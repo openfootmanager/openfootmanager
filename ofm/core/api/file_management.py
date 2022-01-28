@@ -22,29 +22,14 @@ from ofm import ROOT_DIR, RES_DIR
 def write_to_file(
     contents: list,
     filename: str,
-    folder: str = ROOT_DIR,
-    res_folder: str = RES_DIR,
 ) -> None:
-    try:
-        filename = find_file(filename, folder)
-    except FileNotFoundError:
-        filename = os.path.join(res_folder, filename)
-    finally:
-        with open(filename, "w") as fp:
-            json.dump(contents, fp, sort_keys=True, indent=4)
-
-
-def find_file(filename: str, folder: str = ROOT_DIR) -> str:
-    for root, _, files in os.walk(folder):
-        if filename in files:
-            return os.path.join(root, filename)
-    else:
-        raise FileNotFoundError("File not found!")
+    if not os.path.exists:
+        raise FileNotFoundError
+    with open(filename, "w") as fp:
+        json.dump(contents, fp, sort_keys=True, indent=4)
 
 
 def get_list_from_file(filename: str) -> list:
-    filename = find_file(filename)
-
     with open(filename, "r", encoding="utf-8") as fp:
         lst = fp.read().splitlines()
     
@@ -58,11 +43,7 @@ def get_from_file(filename: str) -> list:
     return content
 
 
-def load_list_from_file(filepath: str, folder: str = ROOT_DIR) -> list:
-    try:
-        filename = find_file(filepath, folder)
-    except FileNotFoundError as e:
-        print("File was not found!")
-        print("Error occured: {}".format(e.errno))
-    else:
-        return get_from_file(filename)
+def load_list_from_file(filepath: str) -> list:
+    if not os.path.exists(filepath):
+        raise FileNotFoundError
+    return get_from_file(filepath)

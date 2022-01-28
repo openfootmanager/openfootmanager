@@ -23,7 +23,8 @@ from pathlib import Path
 from ofm.core.api.file_management import write_to_file, load_list_from_file
 from ofm.core.api.game.player import Player
 from ofm.core.api.game.positions import Positions
-from generator_interface import IGenerator
+from ofm import PLAYERS_FILE
+from ofm.core.api.generators.generator_interface import IGenerator
 
 
 class PlayerGeneratorError(Exception):
@@ -43,7 +44,7 @@ class PlayerGenerator(IGenerator):
             today: date = date.today(),
             min_age: int = 16,
             max_age: int = 40,
-            file_name: str = "players.json",
+            file_name: str = PLAYERS_FILE,
     ):
         self.preferred_foot = None
         self.player_id = None
@@ -125,6 +126,8 @@ class PlayerGenerator(IGenerator):
         :param today:
         :return:
         """
+        if isinstance(self.dob, str):
+            self.dob = datetime.datetime.strptime(self.dob, "%Y-%m-%d")
         return today.year - self.dob.year - ((today.month, today.day) < (self.dob.month, self.dob.day))
 
     def generate_dob(self) -> None:
@@ -240,7 +243,7 @@ class PlayerGenerator(IGenerator):
         :return:
         """
         self.player_dict = {
-            "id": self.player_id.int,
+            "id": self.player_id,
             "name": self.name,
             "dob": self.dob,
             "age": self.calculate_age(),
@@ -317,20 +320,18 @@ class PlayerParser:
     def __init__(
             self,
             filename: Union[str, Path],
-            read_file: Union[str, Path],
-            player_file: Union[str, Path] = "players.json"
+            player_file: Union[str, Path] = PLAYERS_FILE
     ):
         self.filename = filename
-        self.read_file = read_file
         self.player_list = None
         self.destination_file = player_file
-        self.player_generator = PlayerGenerator()
+        self.player_generator = PlayerGenerator(file_name=player_file)
 
     def get_players(self):
-        self.player_list = load_list_from_file(self.read_file)
+        self.player_list = load_list_from_file(self.filename)
         self.player_generator.player_dict_list.clear()
-        for data in self.read_file:
-            self.player_generator.get_dict(data)
+        for player in self.player_list:
+            self.player_generator.get_dict(player)
 
     def write_players_file(self):
         self.player_generator.generate_file()

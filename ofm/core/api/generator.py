@@ -36,4 +36,3 @@ class Generator:
 
     def update_database(self, database):
         pass
-

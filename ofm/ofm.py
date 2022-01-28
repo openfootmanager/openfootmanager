@@ -13,16 +13,11 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import random
-import json
+import os
 import logging
 
-from ofm.core.api.game.team import Team
-from ofm.core.api.game.player import Player
-from ofm.core.api.game.match import Match
-from ofm.core.api.game.match_live import MatchLive
-from ofm.core.api.file_management import find_file
 from ofm.core.api.generators.player_gen import PlayerParser
+from ofm import RES_DIR
 
 
 class Game:
@@ -35,7 +30,9 @@ class Game:
         self.logger = logging.getLogger(__file__)
 
     def run(self):
-        player_parser = PlayerParser()
+        player_parser = PlayerParser(os.path.join(RES_DIR, "players_fifa.json"))
+        player_parser.get_players()
+        player_parser.write_players_file()
 
 
 if __name__ == '__main__':
