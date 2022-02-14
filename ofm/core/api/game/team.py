@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uuid
+from .player import Player
 
 
 class Team:
@@ -21,7 +22,7 @@ class Team:
         self.team_id = uuid.uuid4() if team_id is None else team_id
         self.country = country
         self.is_national_team = is_national_team
-        self.name = name if self.is_national_team else country
+        self.name = name
         self.roster = [] if roster is None else roster
         self.game_roster = []
         self.game_bench = []
@@ -39,6 +40,21 @@ class Team:
             "name": self.name,
             "roster": [player.player_id for player in self.roster]
         }
+
+    def get_team_full_dict(self):
+        return {
+            "id": self.team_id.int,
+            "name": self.name,
+            "roster": [player.get_dict() for player in self.roster]
+        }
+
+    @classmethod
+    def get_from_dict(cls, team: dict):
+        return cls(
+            team["name"],
+            team_id=team["id"],
+            roster=[Player.get_from_dict(player) for player in team["roster"]]
+        )
 
     def __repr__(self):
         return self.name

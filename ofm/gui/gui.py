@@ -13,6 +13,11 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import qtpy
+from qtpy import QtCore, QtGui
+
+qtpy.QT_API = "pyside6"
+
 
 class GUI:
     def __init__(self):

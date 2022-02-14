@@ -14,9 +14,10 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
+import json
 import logging
 
-from ofm.core.api.generators.player_gen import PlayerParser
+from ofm.core.api.game.team import Team
 from ofm import RES_DIR
 
 
@@ -29,10 +30,15 @@ class Game:
         logging.basicConfig()
         self.logger = logging.getLogger(__file__)
 
+    @staticmethod
+    def get_data():
+        filename = os.path.join(RES_DIR, "data.json")
+        with open(filename, "r", encoding="utf-8") as fp:
+            return json.load(fp)
+
     def run(self):
-        player_parser = PlayerParser(os.path.join(RES_DIR, "players_fifa.json"))
-        player_parser.get_players()
-        player_parser.write_players_file()
+        data = self.get_data()
+        teams = [Team.get_from_dict(team) for team in data]
 
 
 if __name__ == '__main__':

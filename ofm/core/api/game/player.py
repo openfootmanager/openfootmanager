@@ -51,7 +51,11 @@ class Player:
         self.skill = int(skill)
         self.international_rep = international_rep
         self.preferred_foot = preferred_foot
+        if value == '':
+            value = 0.0
         self.value = float(value)
+        if wage == '':
+            wage = 0.0
         self.wage = float(wage)
         self.pos = pos
         self.stamina = stamina
@@ -110,6 +114,39 @@ class Player:
         :return:
         """
         return today.year - self.dob.year - ((today.month, today.day) < (self.dob.month, self.dob.day))
+
+    def get_dict(self):
+        return {
+            "name": self.fullname,
+            "short_name": self.short_name,
+            "nationality": self.nationality,
+            "dob": datetime.strftime(self.dob, "%Y-%m-%d"),
+            "overall": self.skill,
+            "positions": self.pos,
+            "international_reputation": self.international_rep,
+            "preferred_foot": self.preferred_foot,
+            "id": self.player_id,
+            "club_number": self.shirt_number,
+            "value": self.value,
+            "wage": self.wage,
+        }
+
+    @classmethod
+    def get_from_dict(cls, player: dict):
+        return cls(
+            player["name"],
+            player["short_name"],
+            player["nationality"],
+            player["dob"],
+            player["overall"],
+            player["positions"],
+            player["international_reputation"],
+            player["preferred_foot"],
+            player["id"],
+            player["club_number"],
+            value=player["value"],
+            wage=player["wage"],
+        )
 
     def get_int_id(self):
         return self.player_id.int

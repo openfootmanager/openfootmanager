@@ -16,8 +16,8 @@
 
 
 class Championship:
-    def __init__(self, name, type, ch_id):
+    def __init__(self, name, championship_type, ch_id):
         self.name = name
-        self.type = type
+        self.type = championship_type
         self.ch_id = ch_id
         self.teams = None

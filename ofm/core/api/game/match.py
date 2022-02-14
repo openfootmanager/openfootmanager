@@ -29,3 +29,5 @@ class Match:
     def __str__(self):
         return str(self.team1.name + " " + str(self.team1.game_score) + " - " + str(
             self.team2.game_score) + " " + self.team2.name)
+
+

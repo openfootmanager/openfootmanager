@@ -10,6 +10,8 @@ pytest = "*"
 pyside6 = "*"
 qtpy = "*"
 sphinx = "*"
+pygments = "*"
+docutils = "*"
 
 [requires]
 python_version = "3"
