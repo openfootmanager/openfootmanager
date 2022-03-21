@@ -21,6 +21,7 @@ to comply with Python's syntax.
 This is just to get a headstart with the project, and some enums
 and classes might be removed in the future.
 """
+import random
 
 from enum import Enum, auto
 from dataclasses import dataclass, field
@@ -88,26 +89,6 @@ class LiveGameUnitTime(Enum):
     LIVE_GAME_UNIT_TIME_PENALTIES = auto()
 
 
-class LiveGameStatValue(Enum):
-    LIVE_GAME_STAT_VALUE_GOALS_REGULAR = 0
-    LIVE_GAME_STAT_VALUE_SHOTS = auto()
-    LIVE_GAME_STAT_VALUE_SHOT_PERCENTAGE = auto()
-    LIVE_GAME_STAT_VALUE_POSSESSION = auto()
-    LIVE_GAME_STAT_VALUE_PENALTIES = auto()
-    LIVE_GAME_STAT_VALUE_FOULS = auto()
-    LIVE_GAME_STAT_VALUE_CARDS = auto()
-    LIVE_GAME_STAT_VALUE_REDS = auto()
-    LIVE_GAME_STAT_VALUE_INJURIES = auto()
-
-
-class LiveGameStatArray(Enum):
-    LIVE_GAME_STAT_ARRAY_SCORERS_FOR_DISPLAY = 0
-    LIVE_GAME_STAT_ARRAY_SCORERS = auto()
-    LIVE_GAME_STAT_ARRAY_YELLOWS = auto()
-    LIVE_GAME_STAT_ARRAY_REDS = auto()
-    LIVE_GAME_STAT_ARRAY_INJURED = auto()
-
-
 class GameTeamValue(Enum):
     GAME_TEAM_VALUE_GOALIE = 0
     GAME_TEAM_VALUE_DEFEND = auto()
@@ -117,9 +98,15 @@ class GameTeamValue(Enum):
 
 @dataclass
 class LiveGameStats:
-    possession: float
-    values: list
-    players: list
+    goals_regular: int = 0
+    shots: int = 0
+    shot_percentage: float = 0.0
+    possession: float = 0.0
+    penalties: int = 0
+    fouls: int = 0
+    cards: int = 0
+    reds: int = 0
+    injuries: int = 0
 
 
 @dataclass
@@ -136,9 +123,9 @@ class LiveGameEvent:
 @dataclass
 class LiveGameUnit:
     possession: int
-    area: int
+    area: LiveGameUnitArea
     minute: int
-    time: int
+    time: LiveGameUnitTime
     result: list
     event: LiveGameEvent
 
@@ -147,7 +134,6 @@ class LiveGameUnit:
 class LiveGameTeamState:
     structure: int
     style: int
-    player_ids: list[Union[UUID, int]]
 
 
 @dataclass
@@ -165,17 +151,27 @@ class Match:
     decisive: bool
     attendance: int
 
+
+class EventHandler:
+    def __init__(self):
+        self.possible_events = [event.name for event in LiveGameEventType]
+        self.event_history = []
+
+    def create_event_unit(self, curr_minutes: float):
+        pass
+
+
 @dataclass
 class LiveGame:
     match: Match
-    subs_left: list
-    started_game: int
-    stadium_event: int
-    team_values: list
-    stats: LiveGameStats
-    team_state: list[LiveGameTeamState]
-    action_ids: list
+    stats = LiveGameStats()
+    started_game: bool = False
+    minutes: float = 0.0
+    eventhandler: EventHandler = EventHandler()
     units: list = field(default_factory=list)
-    
+    running: bool = False
 
-
+    def play_live_game(self):
+        self.running = True
+        while self.running:
+            self.eventhandler.create_event_unit(self.minutes)
