@@ -18,6 +18,18 @@ from uuid import UUID
 from dataclasses import dataclass
 from typing import Union
 
+from .player import PlayerLive
+from .formations import Formation
+
+@dataclass
+class Stadium:
+    name: str
+    capacity: int
+    avg_attendance: float = 0.0
+    possible_attendance: float = 0.0
+    safety: float = 1.0
+    ticket_price: float = 0.0
+
 
 @dataclass
 class Team:
@@ -37,4 +49,16 @@ class Team:
                 for key, val in inspect.signature(Team).parameters.items()
             }
         )
-    
+
+
+@dataclass
+class TeamLive:
+    """
+    Class that is used for Live Games.
+    """
+    team: Team
+    in_game_roster: list[PlayerLive]
+    bench: list[PlayerLive]
+    luck: float
+    formation: Formation
+    remaining_subs: int = 3
