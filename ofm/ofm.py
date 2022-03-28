@@ -17,28 +17,16 @@ import os
 import json
 import logging
 
-from ofm.core.api.game.team import Team
 from ofm import RES_DIR
 
 
 class Game:
     def __init__(self):
-        self.players = None
-        self.teams = []
-        self.match = None
-        self.match_live = None
         logging.basicConfig()
         self.logger = logging.getLogger(__file__)
 
-    @staticmethod
-    def get_data():
-        filename = os.path.join(RES_DIR, "data.json")
-        with open(filename, "r", encoding="utf-8") as fp:
-            return json.load(fp)
-
     def run(self):
-        data = self.get_data()
-        teams = [Team.get_from_dict(team) for team in data]
+        pass
 
 
 if __name__ == '__main__':

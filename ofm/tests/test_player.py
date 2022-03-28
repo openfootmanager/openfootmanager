@@ -1,20 +1,38 @@
-#      Openfoot Manager - A free and open source soccer management game
-#      Copyright (C) 2020-2022  Pedrenrique G. Guimarães
-#
-#      This program is free software: you can redistribute it and/or modify
-#      it under the terms of the GNU General Public License as published by
-#      the Free Software Foundation, either version 3 of the License, or
-#      (at your option) any later version.
-#
-#      This program is distributed in the hope that it will be useful,
-#      but WITHOUT ANY WARRANTY; without even the implied warranty of
-#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#      GNU General Public License for more details.
-#
-#      You should have received a copy of the GNU General Public License
-#      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.api.generators.player_gen import PlayerGenerator
+import pytest
+from ofm.core.data.player import Player
+
+def test_player_from_dict():
+    dictionary = {
+        "player_id": 1,
+        "name": "Joseph Doe",
+        "short_name": "J. Doe",
+        "club_number": 10,
+        "date_of_birth": "1970-01-01",
+        "nationality": "England",
+        "international_reputation": 5,
+        "overall": 50,
+        "positions": "FW, RW, GK",
+        "potential": 55,
+        "preferred_foot": "left",
+        "value": 3300.00,
+        "wage": 2000.00,
+    }
+    player = Player.get_from_dict(dictionary)
+    player_expected = Player(
+        1,
+        "Joseph Doe",
+        "J. Doe",
+        10,
+        "1970-01-01",
+        "England",
+        5,
+        50,
+        "FW, RW, GK",
+        55,
+        "left",
+        3300.00,
+        2000.00,
+    )
 
 
-def test_player_gen():
-    pass
+    assert player == player_expected
