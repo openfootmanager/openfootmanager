@@ -1,6 +1,7 @@
 import pytest
 from ofm.core.data.player import Player
 
+
 def test_player_from_dict():
     dictionary = {
         "player_id": 1,
@@ -33,6 +34,5 @@ def test_player_from_dict():
         3300.00,
         2000.00,
     )
-
 
     assert player == player_expected

@@ -13,10 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
+
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Union
 from uuid import UUID
+
+from ofm.core.data.player import PlayerLive
+from ofm.core.data.team import TeamLive
 
 
 class LiveGameUnitArea(Enum):
@@ -85,11 +90,11 @@ class LiveGameEventType(Enum):
 
 @dataclass
 class LiveGameEvent:
-    event_type: int
+    event_type: LiveGameEventType
     verbosity: int
-    team: int
-    player: Union[int, UUID]
-    player2: Union[int, UUID]
+    team: TeamLive
+    player: PlayerLive
+    player2: PlayerLive
     commentary: str
     commentary_id: Union[int, UUID]
 
@@ -135,7 +140,7 @@ class LiveGameEvent:
 
 @dataclass
 class LiveGameUnit:
-    possession: int
+    possession: TeamLive
     area: LiveGameUnitArea
     minute: int
     time: LiveGameUnitTime
@@ -188,5 +193,11 @@ class EventHandler:
         self.possible_events = [event.name for event in LiveGameEventType]
         self.event_history = []
 
-    def create_event_unit(self, curr_minutes: float):
+    def create_event_unit(self, **kwargs):
+        if len(self.event_history) == 0:
+            self.create_start_unit(**kwargs)
+        else:
+            pass
+
+    def create_start_unit(self, **kwargs):
         pass

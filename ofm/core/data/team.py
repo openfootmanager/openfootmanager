@@ -21,6 +21,7 @@ from typing import Union
 from .player import PlayerLive
 from .formations import Formation
 
+
 @dataclass
 class Stadium:
     name: str
@@ -36,7 +37,7 @@ class Team:
     team_id: Union[int, UUID]
     name: str
     nationality: str
-    stadium_name: str
+    stadium: Union[str, Stadium]
     international_reputation: int
     overall: int
     financial_status: float
@@ -55,10 +56,21 @@ class Team:
 class TeamLive:
     """
     Class that is used for Live Games.
+
+    :param team: Team object
+    :param in_game_roster: List of players currently playing
+    :param bench: List of players on the bench
+    :param luck: Current luck float
+    :param formation: Current team formation
+    :param home:
+    :param winning_streak:
+    :param remaining_subs:
     """
     team: Team
     in_game_roster: list[PlayerLive]
     bench: list[PlayerLive]
     luck: float
     formation: Formation
+    home: bool
+    winning_streak: int
     remaining_subs: int = 3

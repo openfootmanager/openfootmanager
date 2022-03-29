@@ -13,18 +13,42 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from .player import Player
+
+
+def get_formations():
+    return [
+        "3-5-2",
+        "3-4-3",
+        "3-4-1-2",
+        "3-6-1",
+        "4-4-2",
+        "4-2-2-2",
+        "4-4-1-1",
+        "4-2-3-1",
+        "4-3-1-2",
+        "4-3-2-1",
+        "4-4-1-1",
+        "4-1-2-1-2",
+        "4-3-3",
+        "4-5-1",
+        "5-4-1",
+        "5-3-2",
+    ]
 
 
 @dataclass
 class Formation:
     goalkeeper: Player
-    defenders: list[Player]
-    midfielders: list[Player]
-    forwards: list[Player]
+    defenders: list[Player] = field(default_factory=list)
+    midfielders: list[Player] = field(default_factory=list)
+    forwards: list[Player] = field(default_factory=list)
 
-    def change_formation(self):
+    def get_formation(self, formation: str):
+        pass
+
+    def set_formation(self, formation: str):
         pass
 
     def validate_formation(self):
@@ -33,4 +57,3 @@ class Formation:
             return True
 
         return False
-
