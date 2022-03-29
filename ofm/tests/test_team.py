@@ -2,7 +2,7 @@ import pytest
 from ofm.core.data.team import Team
 
 
-def test_player_from_dict():
+def test_team_from_dict():
     dictionary = {
         "team_id": 1,
         "name": "Manchester Utd",

@@ -90,7 +90,7 @@ class Player:
     international_reputation: int
     overall: int
     positions: str
-    __potential: int
+    potential: int
     preferred_foot: str
     value: float
     wage: float
@@ -134,7 +134,7 @@ class Player:
         :param potential_rand: the potential randomness from the scout. If the scout is good, the rand approaches 0.
         :return: returns the potential
         """
-        return self.__potential * potential_multiplier + potential_rand
+        return self.potential * potential_multiplier + potential_rand
 
     def parse_positions(self):
         pos = self.positions.split(', ')
