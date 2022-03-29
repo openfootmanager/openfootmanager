@@ -21,7 +21,9 @@ to comply with Python's syntax.
 This is just to get a headstart with the project, and some enums
 and classes might be removed in the future.
 """
+from uuid import UUID
 from dataclasses import dataclass, field
+from typing import Union
 
 from ofm.core.data.team import Team
 from ofm.core.live_game.events import EventHandler
@@ -48,8 +50,8 @@ class LiveGameTeamState:
 
 @dataclass
 class Match:
-    championship_id: int
-    match_id: int
+    championship_id: Union[int, UUID]
+    match_id: Union[int, UUID]
     championship_round: int
     replay_number: int
     week_number: int
@@ -65,6 +67,7 @@ class Match:
 @dataclass
 class LiveGame:
     match: Match
+    verbosity: int
     stats = LiveGameStats()
     started_game: bool = False
     minutes: float = 0.0
@@ -75,4 +78,8 @@ class LiveGame:
     def play_live_game(self):
         self.running = True
         while self.running:
-            self.eventhandler.create_event_unit(self.minutes)
+            self.eventhandler.create_event_unit(
+                minutes=self.minutes,
+                verbosity=self.verbosity,
+
+            )

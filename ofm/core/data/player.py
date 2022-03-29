@@ -14,10 +14,31 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
+from enum import Enum, auto
 from uuid import UUID
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, date
 from typing import Union
+
+
+class PlayerPos(Enum):
+    GK = 0
+    LB = auto()
+    CB = auto()
+    RB = auto()
+    LWB = auto()
+    RWB = auto()
+    CDM = auto()
+    CM = auto()
+    LM = auto()
+    RM = auto()
+    CAM = auto()
+    LW = auto()
+    RW = auto()
+    LF = auto()
+    RF = auto()
+    ST = auto()
+    CF = auto()
 
 
 @dataclass
@@ -73,6 +94,7 @@ class Player:
     preferred_foot: str
     value: float
     wage: float
+    __positions: list = field(default_factory=list)
 
     def get_age(self, today: datetime = date.today()) -> int:
         """
@@ -113,6 +135,21 @@ class Player:
         :return: returns the potential
         """
         return self.__potential * potential_multiplier + potential_rand
+
+    def parse_positions(self):
+        pos = self.positions.split(', ')
+        self.__positions.clear()
+        player_positions = list(PlayerPos)
+
+        for p in pos:
+            for pp in player_positions:
+                if pp.name == p.strip():
+                    self.__positions.append(pp)
+                    break
+
+    def get_player_positions(self):
+        self.parse_positions()
+        return self.__positions
 
 
 @dataclass
