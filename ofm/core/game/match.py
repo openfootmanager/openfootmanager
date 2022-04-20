@@ -14,13 +14,13 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from uuid import UUID
-from dataclasses import dataclass
 from ..obj.team import Team
 
 
-@dataclass
 class Match:
-    match_id: UUID
-    teams: list[Team]
-    championship_id: UUID
-
+    def __init__(self, match_id: UUID, championship_id: UUID, team1: Team, team2: Team):
+        self.match_id = match_id
+        self.championship_id = championship_id
+        self.team1 = team1
+        self.team2 = team2
+        self.teams = [self.team1, self.team2]

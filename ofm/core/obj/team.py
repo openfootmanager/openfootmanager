@@ -15,6 +15,8 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from uuid import UUID
 from dataclasses import dataclass
+from .player import PlayerSimulation
+from .formation import Formation
 
 
 @dataclass
@@ -25,12 +27,29 @@ class Team:
     stadium: str
     is_players_team: bool
 
+    def get_roster_in_player_simulator_objects(self) -> list[PlayerSimulation]:
+        return [PlayerSimulation(player, player.get_current_skill()) for player in self.roster]
+
 
 @dataclass
 class TeamSimulation:
     team: Team
+    players: list[PlayerSimulation]
+    bench: list[PlayerSimulation]
+    formation: Formation
     in_possession: bool = False
     score: int = 0
+
+    def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
+        pass
+
+    def remove_player(self, player: PlayerSimulation):
+        """
+        Remove player if it got injured, or received a red card.
+        :param player:
+        :return:
+        """
+        self.players.remove(player)
 
 
 @dataclass

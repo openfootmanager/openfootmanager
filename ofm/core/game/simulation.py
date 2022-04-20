@@ -18,8 +18,11 @@ from ..obj.team import TeamSimulation
 
 
 class MatchSimulation:
-    def __init__(self, match: Match):
+    def __init__(self, match: Match, team1: TeamSimulation, team2: TeamSimulation):
         self.match = match
+        self.team1 = team1
+        self.team2 = team2
+        self.teams = [self.team1, self.team2]
         self.running = False
 
     def check_is_players_team(self) -> bool:

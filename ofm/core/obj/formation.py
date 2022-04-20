@@ -13,27 +13,39 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union
-from uuid import UUID
 from dataclasses import dataclass
+from .player import PlayerSimulation
 
 
 @dataclass
-class Player:
-    player_id: UUID
-    current_team_id: Union[UUID, None]
-    first_name: str
-    last_name: str
-    short_name: str
-    positions: Union[list, str]
-    skill: int
-    potential_skill: int
+class Formation:
+    players: list[PlayerSimulation]
 
+    def validate_formation(self) -> bool:
+        """
+        Validates if the given formation is valid.
 
-@dataclass
-class PlayerSimulation:
-    player: Player
-    current_skill: int
+        This method calculates the number of players, and returns if the formation is a valid formation.
+        This should point out if players are missing from the formation.
+        :return:
+        """
+        pass
 
-    def calculate_current_skill(self, skill):
+    def get_formation(self) -> str:
+        """
+        This returns the formation string, such as 4-4-2, 3-5-2, 4-3-3, etc.
+        :return:
+        """
+        if self.validate_formation():
+            formation = ""
+            return formation
+
+    def change_formation(self):
+        """
+        Changes the player formation.
+        :return:
+        """
+        pass
+
+    def update_formation(self):
         pass

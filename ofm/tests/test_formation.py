@@ -13,27 +13,14 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Union
-from uuid import UUID
-from dataclasses import dataclass
+import pytest
+from ofm.core.obj.team import TeamSimulation
 
 
-@dataclass
-class Player:
-    player_id: UUID
-    current_team_id: Union[UUID, None]
-    first_name: str
-    last_name: str
-    short_name: str
-    positions: Union[list, str]
-    skill: int
-    potential_skill: int
+@pytest.fixture
+def team():
+    pass
 
 
-@dataclass
-class PlayerSimulation:
-    player: Player
-    current_skill: int
-
-    def calculate_current_skill(self, skill):
-        pass
+def test_validate_formation(team):
+    pass
