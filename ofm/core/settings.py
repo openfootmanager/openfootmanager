@@ -13,9 +13,17 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+import os
+
+from dataclasses import dataclass
+from ofm.defaults import PROJECT_DIR
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+@dataclass
+class Settings:
+    res: str = os.path.join(PROJECT_DIR, "res")
+    images: str = os.path.join(PROJECT_DIR, "images")
+    db: str = os.path.join(PROJECT_DIR, "db")
+    save: str = os.path.join(PROJECT_DIR, "save")
+
+

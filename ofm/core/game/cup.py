@@ -13,9 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
 
+class Cup:
+    """
+    A Cup is a competition that is composed mainly of knockout tournaments, such as the Spanish Cup, Coupe de France,
+    Copa do Brasil, FA Cup, and others.
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+    This can't be used for the World Cup. Instead, see the @Championship class
+    """
+    pass

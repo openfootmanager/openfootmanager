@@ -13,9 +13,35 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+from uuid import UUID
+from dataclasses import dataclass
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+@dataclass
+class Team:
+    team_id: UUID
+    name: str
+    roster: list
+    stadium: str
+    is_players_team: bool
+
+
+@dataclass
+class TeamSimulation:
+    team: Team
+    in_possession: bool = False
+    score: int = 0
+
+
+@dataclass
+class TeamStats:
+    shots: int = 0
+    fouls: int = 0
+    goals: int = 0
+    own_goals: int = 0
+    penalties: int = 0
+    injuries: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    avg_rating: float = 0.0
+    possession: float = 0.0

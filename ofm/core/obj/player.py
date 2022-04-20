@@ -13,9 +13,27 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+from typing import Union
+from uuid import UUID
+from dataclasses import dataclass
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+@dataclass
+class Player:
+    player_id: UUID
+    current_team_id: Union[UUID, None]
+    first_name: str
+    last_name: str
+    short_name: str
+    positions: Union[list, str]
+    skill: int
+    potential_skill: int
+
+
+class PlayerSimulation:
+    player: Player
+    current_skill: int
+
+
+    def calculate_current_skill(self, skill):
+        pass

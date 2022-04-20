@@ -13,9 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+import pytest
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+def test_event_handler():
+    pass
+
+
+def test_get_event():
+    pass

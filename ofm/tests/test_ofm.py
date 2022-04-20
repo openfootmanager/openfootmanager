@@ -13,9 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+import pytest
+from ofm.ofm import OFM
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+def test_settings():
+    ofm = OFM()

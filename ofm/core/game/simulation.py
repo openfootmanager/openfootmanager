@@ -13,9 +13,20 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+from .match import Match
+from ..obj.team import TeamSimulation
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+class MatchSimulation:
+    def __init__(self, match: Match):
+        self.match = match
+        self.running = False
+
+    def check_is_players_team(self) -> bool:
+        for team in self.match.teams:
+            if team.is_players_team:
+                return True
+        return False
+
+    def simulate_match(self):
+        pass

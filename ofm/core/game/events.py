@@ -13,9 +13,13 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+from abc import ABC, abstractmethod
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+class Event(ABC):
+    pass
+
+
+class EventFactory:
+    def create_event(self, event: str):
+        pass

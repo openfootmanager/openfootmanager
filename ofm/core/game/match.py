@@ -13,9 +13,14 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+from uuid import UUID
+from dataclasses import dataclass
+from ..obj.team import Team
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+@dataclass
+class Match:
+    match_id: UUID
+    teams: list[Team]
+    championship_id: UUID
+

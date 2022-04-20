@@ -13,9 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
+import os
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
