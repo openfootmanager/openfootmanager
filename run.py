@@ -13,8 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.ofm import Game
+from ofm.ofm import OFM
+
 
 if __name__ == '__main__':
-    app = Game()
+    app = OFM()
     app.run()

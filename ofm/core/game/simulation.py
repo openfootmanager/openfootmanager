@@ -26,10 +26,7 @@ class MatchSimulation:
         self.running = False
 
     def check_is_players_team(self) -> bool:
-        for team in self.match.teams:
-            if team.is_players_team:
-                return True
-        return False
+        return any(team.is_players_team for team in self.match.teams)
 
     def simulate_match(self):
         pass

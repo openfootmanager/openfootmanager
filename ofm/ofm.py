@@ -19,3 +19,6 @@ from .core.settings import Settings
 class OFM:
     def __init__(self):
         self.settings = Settings()
+    
+    def run(self):
+        pass

@@ -13,8 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from uuid import UUID
 from dataclasses import dataclass
+from uuid import UUID
+
 from .player import PlayerSimulation
 from .formation import Formation
 
@@ -31,14 +32,20 @@ class Team:
         return [PlayerSimulation(player, player.get_current_skill()) for player in self.roster]
 
 
-@dataclass
 class TeamSimulation:
-    team: Team
-    players: list[PlayerSimulation]
-    bench: list[PlayerSimulation]
-    formation: Formation
-    in_possession: bool = False
-    score: int = 0
+    def __init__(
+            self,
+            team: Team,
+            players: list[PlayerSimulation] = None,
+            bench: list[PlayerSimulation] = None,
+            formation: Formation = None,
+    ):
+        self.team = team
+        self.players = players
+        self.bench = bench
+        self.formation = formation
+        self.in_possession: bool = False
+        self.score: int = 0
 
     def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
         pass

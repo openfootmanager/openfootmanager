@@ -13,9 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from dataclasses import dataclass
 from typing import Union
 from uuid import UUID
-from dataclasses import dataclass
 
 
 @dataclass
@@ -25,15 +25,16 @@ class Player:
     first_name: str
     last_name: str
     short_name: str
-    positions: Union[list, str]
+    positions: list[dict]
     skill: int
     potential_skill: int
 
 
-@dataclass
 class PlayerSimulation:
-    player: Player
-    current_skill: int
+    def __init__(self, player: Player, current_position: dict):
+        self.player = player
+        self.current_position = current_position
+        self.current_skill = self.calculate_current_skill()
 
-    def calculate_current_skill(self, skill):
-        pass
+    def calculate_current_skill(self):
+        return self.player.skill * self.current_position["mult"]
