@@ -14,16 +14,49 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
-from dataclasses import dataclass
+import yaml
+from typing import Union
+from pathlib import Path
 
 from ofm.defaults import PROJECT_DIR
 
 
-@dataclass
 class Settings:
-    res: str = os.path.join(PROJECT_DIR, "res")
-    images: str = os.path.join(PROJECT_DIR, "images")
-    db: str = os.path.join(PROJECT_DIR, "db")
-    save: str = os.path.join(PROJECT_DIR, "save")
+    def __init__(self, settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml")):
+        self.res: str = os.path.join(PROJECT_DIR, "res")
+        self.images: str = os.path.join(PROJECT_DIR, "images")
+        self.db: str = os.path.join(PROJECT_DIR, "db")
+        self.save: str = os.path.join(PROJECT_DIR, "save")
+        self.settings_file: str = settings
+
+    def get_data(self) -> dict:
+        return {
+            "res": self.res,
+            "images": self.images,
+            "db": self.db,
+            "save": self.save,
+        }
+    
+    def parse_settings(self, data: dict) -> None:
+        self.res = data['res']
+        self.images = data['images']
+        self.db = data['db']
+        self.save = data['save']
+
+    def load_settings(self) -> None:
+        with open(self.settings_file, 'r') as fp:
+            data = yaml.safe_load(fp)
+            self.parse_settings(data)
+
+    def create_settings(self) -> None:
+        with open(self.settings_file, 'w') as fp:
+            yaml.safe_dump(self.get_data(), fp)
+
+    def get_settings(self) -> None:
+        if os.path.exists(self.settings_file):
+            self.load_settings()
+        else:
+            self.create_settings()
+    
 
 

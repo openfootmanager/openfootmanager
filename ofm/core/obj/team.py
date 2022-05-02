@@ -28,9 +28,6 @@ class Team:
     stadium: str
     is_players_team: bool
 
-    def get_roster_in_player_simulator_objects(self) -> list[PlayerSimulation]:
-        return [PlayerSimulation(player, player.get_current_skill()) for player in self.roster]
-
 
 class TeamSimulation:
     def __init__(
@@ -46,6 +43,9 @@ class TeamSimulation:
         self.formation = formation
         self.in_possession: bool = False
         self.score: int = 0
+
+    def update_player_stamina(self):
+        pass
 
     def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
         pass

@@ -104,8 +104,6 @@ class EventHandler:
         if self.minutes == 0:
             return self.all_events[0]
 
-
-
     def generate_event(self):
         rand = random.randint(0, 1)
 

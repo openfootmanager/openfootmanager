@@ -14,11 +14,26 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
-from ofm.ofm import OFM
+import os
+
+from ofm.core.settings import Settings
+from ofm.defaults import PROJECT_DIR
 
 
 @pytest.fixture
-def ofm():
-    return OFM()
+def settings(tmp_path):
+    f = tmp_path / 'settings.yaml'
+    return Settings(f)
 
 
+def test_get_settings(settings):
+    expected_data = {
+        "res": os.path.join(PROJECT_DIR, "res"),
+        "images": os.path.join(PROJECT_DIR, "images"),
+        "db": os.path.join(PROJECT_DIR, "db"),
+        "save": os.path.join(PROJECT_DIR, "save"),
+    }
+    settings.create_settings()
+    settings.load_settings()
+    assert settings.get_data() == expected_data
+    

@@ -26,15 +26,24 @@ class Player:
     last_name: str
     short_name: str
     positions: list[dict]
+    endurance: float
+    stamina: float
+    form: float
     skill: int
     potential_skill: int
 
 
 class PlayerSimulation:
-    def __init__(self, player: Player, current_position: dict):
+    def __init__(
+            self,
+            player: Player,
+            current_position: dict,
+            stamina: float,
+    ):
         self.player = player
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
+        self.stamina = stamina
 
     def calculate_current_skill(self):
         return self.player.skill * self.current_position["mult"]
