@@ -15,7 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from uuid import UUID
 
-from ..obj.team import Team
+from ..common.team import Team
 
 
 class Match:

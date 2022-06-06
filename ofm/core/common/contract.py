@@ -13,42 +13,17 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import uuid
-
-import pytest
-
-from ofm.core.common.team import Team
-from ofm.core.game.match import Match
-from ofm.core.game.simulation import MatchSimulation
+from dataclasses import dataclass
+from datetime import date, timedelta
 
 
-@pytest.fixture
-def team1():
-    return Team()
+@dataclass
+class Contract:
+    wage: float
+    contract_started: date
+    contract_end: date
+    bonus_for_goal: float
+    bonus_for_def: float
 
 
-@pytest.fixture
-def team2():
-    return Team()
 
-
-@pytest.fixture
-def match(team1, team2):
-    return Match(uuid.uuid4(), uuid.uuid4(), team1, team2)
-
-
-@pytest.fixture
-def simulation(match, team1, team2):
-    return MatchSimulation(match)
-
-
-def test_match_simulation(simulation):
-    pass
-
-
-def test_event_handler(simulation):
-    pass
-
-
-def test_get_event():
-    pass

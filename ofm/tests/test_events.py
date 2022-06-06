@@ -67,3 +67,13 @@ def test_get_red_card_event():
 def test_get_penalties_event():
     assert_event_correct_type("penalties", PenaltiesEvent)
 
+
+def test_get_minutes_from_event():
+    goal_opp = GoalOpportunityEvent(25)
+    long_shot = LongShotEvent(25)
+    assert goal_opp.minutes == 25
+    assert long_shot.minutes == 25
+
+
+def test_event_duel():
+    pass

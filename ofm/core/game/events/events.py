@@ -13,7 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
 from abc import ABC, abstractmethod
+from ...common.player import PlayerSimulation
 
 
 class Event(ABC):
@@ -26,7 +28,7 @@ class Event(ABC):
 
 
 class EventDuel:
-    def event_duel(self, player1, player2):
+    def event_duel(self, player_atk: PlayerSimulation, player_def: PlayerSimulation):
         pass
 
 

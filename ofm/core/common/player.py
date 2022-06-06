@@ -16,6 +16,15 @@
 from dataclasses import dataclass
 from typing import Union
 from uuid import UUID
+from enum import StrEnum, auto
+
+from .contract import Contract
+
+
+class PreferredFoot(StrEnum):
+    LEFT = auto()
+    RIGHT = auto()
+    BOTH = auto()
 
 
 @dataclass
@@ -31,6 +40,25 @@ class Player:
     form: float
     skill: int
     potential_skill: int
+    preferred_foot: PreferredFoot
+    value: float
+    contract: Contract
+
+
+
+@dataclass
+class PlayerStats:
+    shots: int = 0
+    assists: int = 0
+    fouls: int = 0
+    goals: int = 0
+    own_goals: int = 0
+    penalties: int = 0
+    injuries: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    avg_rating: float = 0.0
+    win_streak: int = 0
 
 
 class PlayerSimulation:
@@ -44,6 +72,7 @@ class PlayerSimulation:
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
         self.stamina = stamina
+        self.statistics = PlayerStats()
 
     def calculate_current_skill(self):
         return self.player.skill * self.current_position["mult"]

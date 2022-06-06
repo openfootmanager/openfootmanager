@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .match import Match
-from ..obj.team import TeamSimulation
+from ..common.team import TeamSimulation
 
 
 class MatchSimulation:
