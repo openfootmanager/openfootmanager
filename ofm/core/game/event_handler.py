@@ -19,97 +19,115 @@ from .events import *
 
 
 def get_events():
-    return [
-        {
+    return {
+        "start_match": {
             "event": "start_match",
             "cond": "start_match",
             "type": StartMatchEvent,
         },
-        {
+        "nothing": {
             "event": "nothing",
             "prob": 0.3,
             "type": NothingEvent,
         },
-        {
+        "foul": {
             "event": "foul",
             "prob": 0.1,
             "type": FoulEvent,
         },
-        {
+        "penalty": {
             "event": "penalty",
             "prob": 0.1,
             "type": PenaltyEvent,
         },
-        {
+        "goal_opportunity": {
             "event": "goal_opportunity",
             "prob": 0.05,
             "type": GoalOpportunityEvent,
         },
-        {
+        "free_kick": {
             "event": "free_kick",
             "prob": 0.1,
             "type": FreeKickEvent,
         },
-        {
+        "corner_kick": {
             "event": "corner_kick",
             "prob": 0.1,
             "type": CornerKickEvent,
         },
-        {
+        "longshot": {
             "event": "longshot",
             "prob": 0.05,
             "type": LongShotEvent,
         },
-        {
+        "injury": {
             "event": "injury",
             "prob": 0.03,
             "type": InjuryEvent,
         },
-        {
+        "substitution": {
             "event": "substitution",
             "cond": "substitution",
             "type": SubstitutionEvent,
         },
-        {
+        "yellow_card": {
             "event": "yellow_card",
             "prob": 0.08,
             "type": YellowCardEvent,
         },
-        {
+        "red_card": {
             "event": "red_card",
             "prob": 0.03,
             "type": RedCardEvent,
         },
-        {
+        "penalties": {
             "event": "penalties",
             "cond": "penalty_shootout",
             "type": PenaltiesEvent,
         },
-        {
+        "end_match": {
             "event": "end_match",
             "cond": "end_match",
             "type": EndMatchEvent,
-        }
-    ]
+        },
+        "extra_time": {
+            "event": "extra_time",
+            "cond": "extra_time",
+            "type": ExtraTimeEvent,
+        },
+    }
 
 
 class EventHandler:
-    def __init__(self, minutes: int = 0):
-        self.minutes = minutes
+    def __init__(self,  possible_extra_time: bool, possible_penalties: bool):
+        self.minutes = 0
         self.all_events = get_events()
-        self.possible_events = self.get_possible_events()
+        self.possible_events = None
         self.event_history = []
+        self.possible_extra_time = possible_extra_time
+        self.possible_penalties = possible_penalties
 
     def get_possible_events(self):
         if self.minutes == 0:
-            return self.all_events[0]
+            self.possible_events = self.all_events["start_match"]
+        elif self.minutes == 90:
+            if self.possible_extra_time:
+                self.possible_events = self.all_events["extra_time"]
+            else:
+                self.possible_events = self.all_events["end_match"]
+        elif self.minutes == 120:
+            if self.possible_penalties:
+                self.possible_events = self.all_events["penalties"]
+            else:
+                self.possible_events = self.all_events["end_match"]
+        else:
+            self.possible_events = [event for event in self.all_events if 'prob' in event]
+
+        return self.possible_events
 
     def generate_event(self):
-        rand = random.randint(0, 1)
+        if isinstance(self.possible_events, dict):
+            self.get_event(self.possible_events)
 
-    def get_event(self, event_type: str):
-        for event in self.all_events:
-            if event["event"] == event_type:
-                return event["type"](self.minutes)
-
-        return NotImplemented
+    def get_event(self, event: str, team1: TeamSimulation, team2: TeamSimulation):
+        return self.all_events[event]["type"](self.minutes, team1, team2)

@@ -40,10 +40,12 @@ class Player:
     form: float
     skill: int
     potential_skill: int
+    shirt_number: int
+    national_shirt_number: int
+    international_reputation: int
     preferred_foot: PreferredFoot
     value: float
     contract: Contract
-
 
 
 @dataclass

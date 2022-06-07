@@ -13,3 +13,36 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from abc import ABC, abstractmethod
+
+
+class Generator(ABC):
+    @abstractmethod
+    def generate(self):
+        pass
+
+    @abstractmethod
+    def write_to_db(self):
+        pass
+
+
+class GeneratePlayer(Generator):
+    def __init__(self):
+        self.players_obj = []
+        self.players_dict = []
+        self.nationalities = self.get_nationalities()
+
+    def get_nationalities(self):
+        return []
+
+    def generate_nationality(self):
+        pass
+
+    def generate_name(self):
+        pass
+
+    def generate(self):
+        pass
+
+    def write_to_db(self):
+        pass

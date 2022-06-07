@@ -25,3 +25,4 @@ class Match:
         self.team1 = team1
         self.team2 = team2
         self.teams = [self.team1, self.team2]
+

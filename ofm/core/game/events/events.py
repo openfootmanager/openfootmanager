@@ -16,11 +16,14 @@
 import random
 from abc import ABC, abstractmethod
 from ...common.player import PlayerSimulation
+from ...common.team import TeamSimulation
 
 
 class Event(ABC):
-    def __init__(self, minutes):
+    def __init__(self, minutes: int, team1: TeamSimulation, team2: TeamSimulation):
         self.minutes = minutes
+        self.team1 = team1
+        self.team2 = team2
 
     @abstractmethod
     def process_event(self, *args, **kwargs):
@@ -96,6 +99,9 @@ class NothingEvent(Event):
     def process_event(self, *args, **kwargs):
         pass
 
+class ExtraTimeEvent(Event):
+    def process_event(self, *args, **kwargs):
+        pass
 
 class EndMatchEvent(Event):
     def process_event(self, *args, **kwargs):
