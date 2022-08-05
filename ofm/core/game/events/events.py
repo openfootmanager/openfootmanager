@@ -55,11 +55,6 @@ class FreeKickEvent(Event, EventDuel):
         pass
 
 
-class LongShotEvent(Event, EventDuel):
-    def process_event(self, *args, **kwargs):
-        pass
-
-
 class StartMatchEvent(Event):
     def process_event(self, *args, **kwargs):
         pass
@@ -76,7 +71,11 @@ class InjuryEvent(Event):
 
 
 class SubstitutionEvent(Event):
-    def process_event(self, *args, **kwargs):
+    def process_event(
+            self,
+            players_substituted: list[PlayerSimulation],
+            players_entered: list[PlayerSimulation],
+    ):
         pass
 
 
@@ -90,18 +89,20 @@ class RedCardEvent(Event):
         pass
 
 
-class PenaltiesEvent(Event):
-    def process_event(self, *args, **kwargs):
-        pass
-
-
 class NothingEvent(Event):
     def process_event(self, *args, **kwargs):
         pass
 
+
 class ExtraTimeEvent(Event):
     def process_event(self, *args, **kwargs):
         pass
+
+
+class HalfTimeEvent(Event):
+    def process_event(self, *args, **kwargs):
+        pass
+
 
 class EndMatchEvent(Event):
     def process_event(self, *args, **kwargs):

@@ -35,7 +35,7 @@ class Player:
     last_name: str
     short_name: str
     positions: list[dict]
-    endurance: float
+    fitness: float
     stamina: float
     form: float
     skill: int
@@ -73,8 +73,11 @@ class PlayerSimulation:
         self.player = player
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
-        self.stamina = stamina
+        self.current_stamina = stamina
         self.statistics = PlayerStats()
 
     def calculate_current_skill(self):
         return self.player.skill * self.current_position["mult"]
+
+    def update_stamina(self):
+        pass

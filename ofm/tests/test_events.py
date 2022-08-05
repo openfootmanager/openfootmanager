@@ -13,14 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+import pytest
+from unittest.mock import Mock
 from ofm.core.game.event_handler import EventHandler
 from ofm.core.game.events import *
 
 
 def assert_event_correct_type(event_type, event_class):
-    event_handler = EventHandler()
-    event = event_handler.get_event(event_type)
+    event_handler = EventHandler(possible_extra_time=False, possible_penalties=False)
+    event = event_handler.get_event(event_type, Mock(), Mock())
     assert isinstance(event, event_class)
 
 
@@ -69,8 +70,8 @@ def test_get_penalties_event():
 
 
 def test_get_minutes_from_event():
-    goal_opp = GoalOpportunityEvent(25)
-    long_shot = LongShotEvent(25)
+    goal_opp = GoalOpportunityEvent(25, Mock(), Mock())
+    long_shot = LongShotEvent(25, Mock(), Mock())
     assert goal_opp.minutes == 25
     assert long_shot.minutes == 25
 

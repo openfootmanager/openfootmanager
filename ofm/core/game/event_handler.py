@@ -55,11 +55,6 @@ def get_events():
             "prob": 0.1,
             "type": CornerKickEvent,
         },
-        "longshot": {
-            "event": "longshot",
-            "prob": 0.05,
-            "type": LongShotEvent,
-        },
         "injury": {
             "event": "injury",
             "prob": 0.03,
@@ -80,11 +75,6 @@ def get_events():
             "prob": 0.03,
             "type": RedCardEvent,
         },
-        "penalties": {
-            "event": "penalties",
-            "cond": "penalty_shootout",
-            "type": PenaltiesEvent,
-        },
         "end_match": {
             "event": "end_match",
             "cond": "end_match",
@@ -95,6 +85,11 @@ def get_events():
             "cond": "extra_time",
             "type": ExtraTimeEvent,
         },
+        "half_time": {
+            "event": "half_time",
+            "cond": "half_time",
+            "type": HalfTimeEvent,
+        }
     }
 
 
@@ -110,6 +105,8 @@ class EventHandler:
     def get_possible_events(self):
         if self.minutes == 0:
             self.possible_events = self.all_events["start_match"]
+        elif self.minutes in [45, 105]:
+            self.possible_events = self.all_events["half_time"]
         elif self.minutes == 90:
             if self.possible_extra_time:
                 self.possible_events = self.all_events["extra_time"]
@@ -127,7 +124,10 @@ class EventHandler:
 
     def generate_event(self):
         if isinstance(self.possible_events, dict):
-            self.get_event(self.possible_events)
+            return self.possible_events
+        if isinstance(self.possible_events, list):
+            probs = [event["prob"] for event in self.possible_events]
+            return random.choices(self.possible_events, probs)
 
-    def get_event(self, event: str, team1: TeamSimulation, team2: TeamSimulation):
+    def get_event_from_list(self, event: str, team1: TeamSimulation, team2: TeamSimulation):
         return self.all_events[event]["type"](self.minutes, team1, team2)

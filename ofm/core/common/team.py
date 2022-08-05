@@ -36,16 +36,20 @@ class TeamSimulation:
             players: list[PlayerSimulation] = None,
             bench: list[PlayerSimulation] = None,
             formation: Formation = None,
+            max_substitutions: int = 3,
     ):
-        self.team = team
-        self.players = players
-        self.bench = bench
-        self.formation = formation
+        self.team: Team = team
+        self.players: list[PlayerSimulation] = players
+        self.bench: list[PlayerSimulation] = bench
+        self.formation: Formation = formation
         self.in_possession: bool = False
+        self.substitutions: int = 0
         self.score: int = 0
+        self.max_substitutions: int = max_substitutions
 
     def update_player_stamina(self):
-        pass
+        for player in self.players:
+
 
     def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
         pass
