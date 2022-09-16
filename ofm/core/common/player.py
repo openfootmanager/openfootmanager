@@ -16,12 +16,26 @@
 from dataclasses import dataclass
 from typing import Union
 from uuid import UUID
-from enum import StrEnum, auto
+from enum import Enum, auto
 
 from .contract import Contract
 
 
-class PreferredFoot(StrEnum):
+def get_players_from_dict_list(players_dict: list) -> list:
+    return [Player.get_from_dict(player) for player in players_dict]
+
+
+class Positions(Enum):
+    GK = auto()
+    LW = auto()
+    DF = auto()
+    RW = auto()
+    MF = auto()
+    ST = auto()
+    FW = auto()
+
+
+class PreferredFoot(Enum):
     LEFT = auto()
     RIGHT = auto()
     BOTH = auto()
@@ -46,6 +60,20 @@ class Player:
     preferred_foot: PreferredFoot
     value: float
     contract: Contract
+
+    @classmethod
+    def get_from_dict(cls, player_dict: dict):
+        pass
+        # return cls(
+        #     UUID(int=player_dict["id"]),
+            
+        # )
+    
+    def serialize(self):
+        pass
+        # return {
+        #     "name"
+        # }
 
 
 @dataclass

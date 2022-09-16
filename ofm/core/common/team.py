@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from .player import PlayerSimulation
+from .player import PlayerSimulation, get_players_from_dict_list
 from .formation import Formation
 
 
@@ -27,6 +27,16 @@ class Team:
     roster: list
     stadium: str
     is_players_team: bool
+
+    @classmethod
+    def get_from_dict(cls, team: dict):
+        return Team(
+            UUID(int = team["id"]),
+            team["name"],
+            get_players_from_dict_list(team["roster"]),
+            team["stadium"],
+            False # by default returns False
+        )
 
 
 class TeamSimulation:
@@ -48,8 +58,7 @@ class TeamSimulation:
         self.max_substitutions: int = max_substitutions
 
     def update_player_stamina(self):
-        for player in self.players:
-
+        pass
 
     def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
         pass

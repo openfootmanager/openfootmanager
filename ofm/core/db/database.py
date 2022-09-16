@@ -13,3 +13,35 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import json
+from ofm.defaults import PLAYERS_FILE, TEAMS_FILE
+
+
+def load_players():
+    with open(PLAYERS_FILE, "r") as fp:
+        return json.load(fp)
+
+
+def load_teams():
+    with open(TEAMS_FILE, "r") as fp:
+        return json.load(fp)
+
+
+def load_players_from_team(team_id: int, teams: list, players: list):
+    """
+    :team_id: the ID of the team to load the players from
+    :teams: list of teams loaded with load_teams()
+    :players: list of players loaded with load_players()
+    """
+    for team in teams:
+        if team["id"] == team_id:
+            player_ids = team["roster"]
+            roster = [player for player in players if player["id"] in player_ids]
+
+
+
+if __name__ == "__main__":
+    # testing the function
+    teams = load_teams()
+    players = load_players()
+    team1 = load_players_from_team()
