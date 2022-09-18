@@ -54,12 +54,9 @@ class Player:
     form: float
     skill: int
     potential_skill: int
-    shirt_number: int
-    national_shirt_number: int
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float
-    contract: Contract
 
     @classmethod
     def get_from_dict(cls, player_dict: dict):
@@ -78,6 +75,7 @@ class Player:
 
 @dataclass
 class PlayerStats:
+    player_id: UUID
     shots: int = 0
     assists: int = 0
     fouls: int = 0
@@ -91,14 +89,30 @@ class PlayerStats:
     win_streak: int = 0
 
 
+@dataclass
+class PlayerTeam:
+    player_id: UUID
+    shirt_number: int
+    contract: Contract
+
+    @classmethod
+    def get_from_dict(cls, player: dict):
+        return cls(
+            player["player_id"],
+            player["shirt_number"],
+            player[""]
+        )
+
 class PlayerSimulation:
     def __init__(
             self,
             player: Player,
+            player_team: PlayerTeam,
             current_position: dict,
             stamina: float,
     ):
         self.player = player
+        self.player_team = player_team
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
         self.current_stamina = stamina

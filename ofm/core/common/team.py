@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from .player import PlayerSimulation, get_players_from_dict_list
+from .player import PlayerSimulation, PlayerTeam, get_players_from_dict_list
 from .formation import Formation
 
 
@@ -33,7 +33,7 @@ class Team:
         return Team(
             UUID(int = team["id"]),
             team["name"],
-            get_players_from_dict_list(team["roster"]),
+            get_players_from_dict_list(team["roster"]), # might add a get_roster() function here
             team["stadium"],
             False # by default returns False
         )

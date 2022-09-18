@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 
 @dataclass
@@ -25,5 +25,16 @@ class Contract:
     bonus_for_goal: float
     bonus_for_def: float
 
-
-
+    @classmethod
+    def get_from_dict(cls, contract: dict):
+        return cls(
+            contract["wage"],
+            datetime.strptime(contract["started"], "YYYY-mm-dd").date,
+            datetime.strptime(contract["end"], "YYYY-mm-dd").date,
+            contract["bonus_for_goal"],
+            contract["bonus_for_def"],
+        )
+    
+    @property
+    def contract_length(self) -> timedelta:
+        return timedelta(self.contract_end - self.contract_started)

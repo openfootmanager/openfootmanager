@@ -38,7 +38,7 @@ class GeneratePlayerError(Exception):
 
 
 class GeneratePlayer(Generator):
-    def __init__(self, today: Union[datetime, date] = date.today(), max_age = 35, min_age = 16):
+    def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16):
         if min_age > max_age:
             raise GeneratePlayerError("Minimum age must not be greater than maximum age!")
         
@@ -85,14 +85,16 @@ class GeneratePlayer(Generator):
         )  # chooses a random date from the max days interval
         return min_year + timedelta(days=rand_date)  # assigns date of birth
     
-    def generate_name(self, region: Optional[str]) -> Tuple[str, str]:
+    def generate_name(self, region: Optional[str]) -> Tuple[str, str, str]:
         if not region:
             region = random.choice(self.nationalities)
         names = self.get_names_from_region(region)
         first_name = random.choice(names["male"])
         last_name = random.choice(names["surnames"])
-        return first_name, last_name
-
+        short_name = f'{first_name[0]}. {last_name}'
+        # We could also generate some nick names for players, just for fun, but for now, just keep it that way
+        return first_name, last_name, short_name
+    
     def generate_skill(self) -> int:
         """
         Generates the player's skill lvl. Region-tuned skill-lvl might come later,
@@ -112,6 +114,9 @@ class GeneratePlayer(Generator):
 
         return skill
     
+    def generate_potential_skill(self, skill: int, age: int):
+        pass
+    
     def generate_positions(self, desired_pos: Optional[List[Positions]]) -> Positions:
         if desired_pos:     # might be useful if we want to generate teams later, so we don't get entirely random positions
             return desired_pos
@@ -121,13 +126,28 @@ class GeneratePlayer(Generator):
     def generate_preferred_foot(self) -> PreferredFoot:
         return random.choice(list(PreferredFoot))
 
-    def get_player_value(self, skill: int, age: int) -> float:
+    def get_player_value(self, skill: int, potential_skill: int, age: int) -> float:
         """
         Gets how much the player is worth based on the player's rating.
 
         Standard currency is EUR, might be convertable later.
+
+        Logic is such that:
+        We need to know the player's current skill, the player's potential skill, and the player's age
+
+        All of these variables determine how much the player is worth. Players of current rating higher than 80
+        should be more valuable than others.
+
+        Potential skill right now is a fixed value, but in the game itself, potential skill is an uncertain value
+        determined by a scout. The scout looks at the real potential value and might estimate it to be less
+        or more than the actual value.
         """
+        # If a player is young, it might be worth more than an older player, but that is tuned by the
+        # current skill lvl
         distance_to_max_age = self.max_age - timedelta(days=age.days)
+
+        # If player's current skill is close to the potential skill, the player's value stagnates 
+        distance_to_potential_skil = potential_skill - skill
 
     
     def generate(self, region: Optional[str]) -> Player:
