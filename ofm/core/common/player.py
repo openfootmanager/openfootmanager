@@ -14,9 +14,10 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass
+import datetime
 from typing import Union
 from uuid import UUID
-from enum import Enum, auto
+from enum import IntEnum, auto
 
 from .contract import Contract
 
@@ -25,7 +26,7 @@ def get_players_from_dict_list(players_dict: list) -> list:
     return [Player.get_from_dict(player) for player in players_dict]
 
 
-class Positions(Enum):
+class Positions(IntEnum):
     GK = auto()
     LW = auto()
     DF = auto()
@@ -35,7 +36,7 @@ class Positions(Enum):
     FW = auto()
 
 
-class PreferredFoot(Enum):
+class PreferredFoot(IntEnum):
     LEFT = auto()
     RIGHT = auto()
     BOTH = auto()
@@ -44,11 +45,12 @@ class PreferredFoot(Enum):
 @dataclass
 class Player:
     player_id: UUID
-    current_team_id: Union[UUID, None]
+    nationality: str
+    dob: Union[datetime.datetime, datetime.date]
     first_name: str
     last_name: str
     short_name: str
-    positions: list[dict]
+    positions: list[Positions]
     fitness: float
     stamina: float
     form: float
@@ -60,17 +62,45 @@ class Player:
 
     @classmethod
     def get_from_dict(cls, player_dict: dict):
-        pass
-        # return cls(
-        #     UUID(int=player_dict["id"]),
-            
-        # )
-    
-    def serialize(self):
-        pass
-        # return {
-        #     "name"
-        # }
+        return cls(
+            UUID(int=player_dict["id"]),
+            player_dict["nationality"],
+            player_dict["dob"],
+            player_dict["first_name"],
+            player_dict["last_name"],
+            player_dict["short_name"],
+            player_dict["positions"],
+            player_dict["fitness"],
+            player_dict["stamina"],
+            player_dict["form"],
+            player_dict["skill"],
+            player_dict["potential_skill"],
+            player_dict["international_reputation"],
+            player_dict["preferred_foot"],
+            player_dict["value"]
+        )
+
+    def get_position_names(self):
+        return [position.name for position in self.positions]
+
+    def serialize(self) -> dict:
+        return {
+            "id": self.player_id.int,
+            "nationality": self.nationality,
+            "dob": self.dob.strftime("%Y-%m-%d"),
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "short_name": self.short_name,
+            "positions": self.get_position_names(),
+            "fitness": self.fitness,
+            "stamina": self.stamina,
+            "form": self.form,
+            "skill": self.skill,
+            "potential_skill": self.potential_skill,
+            "international_reputation": self.international_reputation,
+            "preferred_foot": self.preferred_foot.name,
+            "value": self.value
+        }
 
 
 @dataclass
@@ -92,6 +122,7 @@ class PlayerStats:
 @dataclass
 class PlayerTeam:
     player_id: UUID
+    team_id: Union[UUID, None]
     shirt_number: int
     contract: Contract
 
@@ -99,9 +130,11 @@ class PlayerTeam:
     def get_from_dict(cls, player: dict):
         return cls(
             player["player_id"],
+            player["team_id"],
             player["shirt_number"],
-            player[""]
+            player["contract"],
         )
+
 
 class PlayerSimulation:
     def __init__(
@@ -116,7 +149,7 @@ class PlayerSimulation:
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
         self.current_stamina = stamina
-        self.statistics = PlayerStats()
+        self.statistics = PlayerStats(player.player_id)
 
     def calculate_current_skill(self):
         return self.player.skill * self.current_position["mult"]

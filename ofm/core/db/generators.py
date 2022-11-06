@@ -18,18 +18,19 @@ import json
 import random
 import uuid
 from abc import ABC, abstractmethod
+from os import PathLike
 from typing import Tuple, List, Optional, Union
 from ofm.core.common.player import Player, Positions, PreferredFoot
-from ofm.defaults import NAMES_FILE
+from ofm.defaults import NAMES_FILE, PLAYERS_FILE
 
 
 class Generator(ABC):
     @abstractmethod
-    def generate(self):
+    def generate(self, *args):
         pass
 
     @abstractmethod
-    def write_to_db(self):
+    def write_to_db(self, *args):
         pass
 
 
@@ -43,7 +44,6 @@ class GeneratePlayer(Generator):
             raise GeneratePlayerError("Minimum age must not be greater than maximum age!")
         
         self.players_obj = []
-        self.players_dict = []
         self.nationalities = self._get_nationalities()
         self.names = self._get_names()
         
@@ -52,13 +52,15 @@ class GeneratePlayer(Generator):
         self.max_age = max_age * year
         self.min_age = min_age * year
 
-    def _get_nationalities(self):
-        with open(NAMES_FILE, "r") as fp:
+    @staticmethod
+    def _get_nationalities():
+        with open(NAMES_FILE, "r", encoding="utf-8") as fp:
             data = json.load(fp)
             return [d["region"] for d in data]
 
-    def _get_names(self):
-        with open(NAMES_FILE, "r") as fp:
+    @staticmethod
+    def _get_names():
+        with open(NAMES_FILE, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def _get_names_from_region(self, region: str) -> dict:  
@@ -88,14 +90,15 @@ class GeneratePlayer(Generator):
     def generate_name(self, region: Optional[str]) -> Tuple[str, str, str]:
         if not region:
             region = random.choice(self.nationalities)
-        names = self.get_names_from_region(region)
+        names = self._get_names_from_region(region)
         first_name = random.choice(names["male"])
         last_name = random.choice(names["surnames"])
         short_name = f'{first_name[0]}. {last_name}'
-        # We could also generate some nick names for players, just for fun, but for now, just keep it that way
+        # We could also generate some nicknames for players, just for fun, but for now, just keep it that way
         return first_name, last_name, short_name
-    
-    def generate_skill(self) -> int:
+
+    @staticmethod
+    def generate_skill() -> int:
         """
         Generates the player's skill lvl. Region-tuned skill-lvl might come later,
         but for now, just generates players with skill lvls from 30 to 90.
@@ -114,49 +117,90 @@ class GeneratePlayer(Generator):
 
         return skill
     
-    def generate_potential_skill(self, skill: int, age: int):
+    def generate_potential_skill(self, skill: int, age: int) -> int:
         pass
     
-    def generate_positions(self, desired_pos: Optional[List[Positions]]) -> Positions:
-        if desired_pos:     # might be useful if we want to generate teams later, so we don't get entirely random positions
+    def generate_positions(self, desired_pos: Optional[List[Positions]]) -> Union[list[Positions]]:
+        if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
             return desired_pos
         positions = list(Positions)
         return random.choices(positions)  # very naive implementation, I will improve it later
 
-    def generate_preferred_foot(self) -> PreferredFoot:
+    @staticmethod
+    def generate_preferred_foot() -> PreferredFoot:
         return random.choice(list(PreferredFoot))
 
-    def get_player_value(self, skill: int, potential_skill: int, age: int) -> float:
+    def generate_player_value(self, skill: int) -> float:
         """
-        Gets how much the player is worth based on the player's rating.
+        Should return how much a player's worth.
 
-        Standard currency is EUR, might be convertable later.
-
-        Logic is such that:
-        We need to know the player's current skill, the player's potential skill, and the player's age
-
-        All of these variables determine how much the player is worth. Players of current rating higher than 80
-        should be more valuable than others.
-
-        Potential skill right now is a fixed value, but in the game itself, potential skill is an uncertain value
-        determined by a scout. The scout looks at the real potential value and might estimate it to be less
-        or more than the actual value.
+        Right now I'm just going to say it is skill * 1000.00. It's not too important to come up
+        with an algorithm for that right now!
+        :param skill:
+        :return:
         """
-        # If a player is young, it might be worth more than an older player, but that is tuned by the
-        # current skill lvl
-        distance_to_max_age = self.max_age - timedelta(days=age.days)
+        # TODO: Implement an algorithm to calculate player value
+        return skill * 1000.00
 
-        # If player's current skill is close to the potential skill, the player's value stagnates 
-        distance_to_potential_skil = potential_skill - skill
-
-    
-    def generate(self, region: Optional[str]) -> Player:
+    def generate_international_reputation(self, skill: int) -> int:
         pass
 
-    def write_to_db(self):
-        pass
+    def get_players_dictionaries(self) -> List[dict]:
+        if not self.players_obj:
+            raise GeneratePlayerError("Players objects were not generated!")
+        return [player.serialize() for player in self.players_obj]
+
+    def generate_player(self, region: Optional[str] = None, desired_pos: Optional[List[Positions]] = None) -> Player:
+        player_id = self.generate_id()
+        nationality = self.generate_nationality(region)
+        first_name, last_name, short_name = self.generate_name(region)
+        dob = self.generate_dob()
+        age = int((self.today - dob).days * 0.0027379070)
+        positions = self.generate_positions(desired_pos)
+        preferred_foot = self.generate_preferred_foot()
+        skill = self.generate_skill()
+        potential_skill = self.generate_potential_skill(skill, age)
+        international_reputation = self.generate_international_reputation(skill)
+        value = self.generate_player_value(skill)
+
+        return Player(
+            player_id,
+            nationality,
+            dob,
+            first_name,
+            last_name,
+            short_name,
+            positions,
+            100.0,
+            100.0,
+            0.5,
+            skill,
+            potential_skill,
+            international_reputation,
+            preferred_foot,
+            value,
+        )
+
+    def generate(self, amount: int, region: Optional[str] = None, desired_pos: Optional[List[Positions]] = None):
+        self.players_obj = [self.generate_player(region, desired_pos) for _ in range(amount)]
+
+    def write_to_db(self, player_file: Union[PathLike, str] = PLAYERS_FILE):
+        players_dict = self.get_players_dictionaries()
+
+        with open(player_file, "w") as fp:
+            json.dump(players_dict, fp)
 
 
 class GenerateTeams(Generator):
     def __init__(self):
+        self.teams_obj = []
+        self.teams_dict = []
+
+    def generate_team(self):
+        pass
+
+    def generate(self, *args):
+        pass
+
+    def write_to_db(self, *args):
         pass

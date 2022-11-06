@@ -131,3 +131,6 @@ class EventHandler:
 
     def get_event_from_list(self, event: str, team1: TeamSimulation, team2: TeamSimulation):
         return self.all_events[event]["type"](self.minutes, team1, team2)
+
+    def get_event(self, event_type, param, param1):
+        pass
