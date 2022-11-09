@@ -26,6 +26,10 @@ def get_players_from_dict_list(players_dict: list) -> list:
     return [Player.get_from_dict(player) for player in players_dict]
 
 
+def get_positions_from_dict(positions: list[int]):
+    return [Positions(position) for position in positions]
+
+
 class Positions(IntEnum):
     GK = auto()
     LW = auto()
@@ -65,11 +69,11 @@ class Player:
         return cls(
             UUID(int=player_dict["id"]),
             player_dict["nationality"],
-            player_dict["dob"],
+            datetime.datetime.strptime(player_dict["dob"], "%Y-%m-%d").date(),
             player_dict["first_name"],
             player_dict["last_name"],
             player_dict["short_name"],
-            player_dict["positions"],
+            get_positions_from_dict(player_dict["positions"]),
             player_dict["fitness"],
             player_dict["stamina"],
             player_dict["form"],
@@ -98,7 +102,7 @@ class Player:
             "skill": self.skill,
             "potential_skill": self.potential_skill,
             "international_reputation": self.international_reputation,
-            "preferred_foot": self.preferred_foot.name,
+            "preferred_foot": self.preferred_foot.value,
             "value": self.value
         }
 

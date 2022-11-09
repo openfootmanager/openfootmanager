@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
+import json
 import uuid
 import datetime
 from ..core.common.player import Player, PlayerSimulation, PlayerStats, PlayerTeam, Positions, PreferredFoot
@@ -62,7 +63,7 @@ def test_get_from_dictionary():
         "skill": skill,
         "potential_skill": potential_skill,
         "international_reputation": international_reputation,
-        "preferred_foot": preferred_foot.name,
+        "preferred_foot": PreferredFoot(preferred_foot),
         "value": value
     }
     expected_player = Player(
@@ -111,5 +112,9 @@ def test_player_expected_keys_dictionary(player_gen):
 
 def test_write_to_db(player_gen, players_file):
     player_gen.generate(1000)
+    expected_players_dict = player_gen.get_players_dictionaries()
     player_gen.write_to_db(players_file)
-    # TODO: finish this test
+    with open(players_file, "r") as fp:
+        players_dict = json.load(fp)
+
+    assert expected_players_dict == players_dict
