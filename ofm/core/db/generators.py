@@ -38,7 +38,7 @@ class GeneratePlayerError(Exception):
     pass
 
 
-class GeneratePlayer(Generator):
+class PlayerGenerator(Generator):
     def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16):
         if min_age > max_age:
             raise GeneratePlayerError("Minimum age must not be greater than maximum age!")
@@ -191,10 +191,13 @@ class GeneratePlayer(Generator):
             json.dump(players_dict, fp)
 
 
-class GenerateTeams(Generator):
+class GenerateTeamError(Exception):
+    pass
+
+
+class TeamGenerator(Generator):
     def __init__(self):
         self.teams_obj = []
-        self.teams_dict = []
 
     def generate_team(self):
         pass

@@ -22,11 +22,16 @@ from ofm.defaults import PROJECT_DIR
 
 
 class Settings:
-    def __init__(self, settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml")):
-        self.res: str = os.path.join(PROJECT_DIR, "res")
-        self.images: str = os.path.join(PROJECT_DIR, "images")
-        self.db: str = os.path.join(PROJECT_DIR, "db")
-        self.save: str = os.path.join(PROJECT_DIR, "save")
+    def __init__(
+            self,
+            root_dir: Union[str, Path] = PROJECT_DIR,
+            settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml")
+    ):
+        self.root_dir = root_dir
+        self.res: str = os.path.join(root_dir, "res")
+        self.images: str = os.path.join(root_dir, "images")
+        self.db: str = os.path.join(root_dir, "db")
+        self.save: str = os.path.join(root_dir, "save")
         self.settings_file: str = settings
 
     def get_data(self) -> dict:

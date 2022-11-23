@@ -18,7 +18,7 @@ from datetime import date, datetime, timedelta
 
 
 @dataclass
-class Contract:
+class PlayerContract:
     wage: float
     contract_started: date
     contract_end: date
@@ -29,12 +29,21 @@ class Contract:
     def get_from_dict(cls, contract: dict):
         return cls(
             contract["wage"],
-            datetime.strptime(contract["started"], "YYYY-mm-dd").date,
-            datetime.strptime(contract["end"], "YYYY-mm-dd").date,
+            datetime.strptime(contract["started"], "%Y-%m-%d").date(),
+            datetime.strptime(contract["end"], "%Y-%m-%d").date(),
             contract["bonus_for_goal"],
             contract["bonus_for_def"],
         )
-    
+
+    def serialize(self) -> dict:
+        return {
+            "wage": self.wage,
+            "started": self.contract_started.strftime("%Y-%m-%d"),
+            "end": self.contract_end.strftime("%Y-%m-%d"),
+            "bonus_for_goal": self.bonus_for_goal,
+            "bonus_for_def": self.bonus_for_def,
+        }
+
     @property
     def contract_length(self) -> timedelta:
-        return timedelta(self.contract_end - self.contract_started)
+        return self.contract_end - self.contract_started

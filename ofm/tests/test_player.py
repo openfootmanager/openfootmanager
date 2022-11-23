@@ -17,13 +17,14 @@ import pytest
 import json
 import uuid
 import datetime
-from ..core.common.player import Player, PlayerSimulation, PlayerStats, PlayerTeam, Positions, PreferredFoot
-from ..core.db.generators import GeneratePlayer
+from ..core.common.player import Player, PlayerTeam, Positions, PreferredFoot, get_player_from_player_id
+from ..core.common.playercontract import PlayerContract
+from ..core.db.generators import PlayerGenerator
 
 
 @pytest.fixture
 def player_gen():
-    return GeneratePlayer()
+    return PlayerGenerator()
 
 
 @pytest.fixture
@@ -108,6 +109,130 @@ def test_player_expected_keys_dictionary(player_gen):
     player = player_gen.generate_player()
     player_dict = player.serialize()
     assert all(k in player_dict for k in expected_keys)
+
+
+def test_player_team_get_from_dictionary():
+    player_id = uuid.uuid4()
+    team_id = uuid.uuid4()
+    shirt_number = 10
+    nationality = "Brazil"
+    dob = "1996-12-14"
+    first_name = "John"
+    last_name = "Doe"
+    short_name = "J. Doe"
+    positions = [Positions.FW, Positions.ST]
+    fitness = 100.0
+    stamina = 100.0
+    form = 0.5
+    skill = 80
+    potential_skill = 90
+    international_reputation = 5
+    preferred_foot = PreferredFoot.LEFT
+    value = 10000.00
+    contract_dict = {
+        "wage": 10000.00,
+        "started": "2020-01-01",
+        "end": "2021-01-01",
+        "bonus_for_goal": 500.00,
+        "bonus_for_def": 500.00,
+    }
+    player = Player(
+        player_id,
+        nationality,
+        datetime.datetime.strptime(dob, "%Y-%m-%d").date(),
+        first_name,
+        last_name,
+        short_name,
+        positions,
+        fitness,
+        stamina,
+        form,
+        skill,
+        potential_skill,
+        international_reputation,
+        preferred_foot,
+        value
+    )
+    player_team_dict = {
+        "player_id": player_id.int,
+        "team_id": team_id.int,
+        "shirt_number": shirt_number,
+        "contract": contract_dict,
+    }
+    expected_contract = PlayerContract.get_from_dict(contract_dict)
+    expected_player_team = PlayerTeam(
+        player,
+        team_id,
+        shirt_number,
+        expected_contract
+    )
+    assert PlayerTeam.get_from_dict(player_team_dict, [player]) == expected_player_team
+
+
+def test_serialize_player_team():
+    player_id = uuid.uuid4()
+    team_id = uuid.uuid4()
+    shirt_number = 10
+    nationality = "Brazil"
+    dob = "1996-12-14"
+    first_name = "John"
+    last_name = "Doe"
+    short_name = "J. Doe"
+    positions = [Positions.FW, Positions.ST]
+    fitness = 100.0
+    stamina = 100.0
+    form = 0.5
+    skill = 80
+    potential_skill = 90
+    international_reputation = 5
+    preferred_foot = PreferredFoot.LEFT
+    value = 10000.00
+    contract_dict = {
+        "wage": 10000.00,
+        "started": "2020-01-01",
+        "end": "2021-01-01",
+        "bonus_for_goal": 500.00,
+        "bonus_for_def": 500.00,
+    }
+    player = Player(
+        player_id,
+        nationality,
+        datetime.datetime.strptime(dob, "%Y-%m-%d").date(),
+        first_name,
+        last_name,
+        short_name,
+        positions,
+        fitness,
+        stamina,
+        form,
+        skill,
+        potential_skill,
+        international_reputation,
+        preferred_foot,
+        value
+    )
+    expected_player_team_dict = {
+        "player_id": player_id.int,
+        "team_id": team_id.int,
+        "shirt_number": shirt_number,
+        "contract": contract_dict,
+    }
+    expected_contract = PlayerContract.get_from_dict(contract_dict)
+    player_team = PlayerTeam(
+        player,
+        team_id,
+        shirt_number,
+        expected_contract
+    )
+    assert player_team.serialize() == expected_player_team_dict
+
+
+def test_get_player_from_player_id(player_gen):
+    player_gen.generate(100)
+    players = player_gen.players_obj.copy()
+    player = players[0]
+
+    assert get_player_from_player_id(player.player_id, players) == player
 
 
 def test_write_to_db(player_gen, players_file):

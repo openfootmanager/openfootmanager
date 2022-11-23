@@ -13,29 +13,49 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
-from .player import PlayerSimulation, PlayerTeam, get_players_from_dict_list
+from .player import PlayerSimulation, Player, PlayerTeam, get_players_from_dict_list
+from .playercontract import PlayerContract
 from .formation import Formation
+
+
+def get_squad_from_ids(
+        squad_ids: list[dict],
+        team_id: UUID,
+        players: list[Player]
+) -> list[PlayerTeam]:
+    squad = []
+    for pl_id in squad_ids:
+        squad.extend(
+            PlayerTeam(
+                player, team_id, pl_id["shirt_number"],
+                PlayerContract.get_from_dict(pl_id["contract"])
+            ) for player in players if pl_id["player_id"] == player.player_id
+        )
+
+    return squad
 
 
 @dataclass
 class Team:
     team_id: UUID
     name: str
-    roster: list
+    squad: list[PlayerTeam]
     stadium: str
     is_players_team: bool
 
     @classmethod
-    def get_from_dict(cls, team: dict):
+    def get_from_dict(cls, team: dict, players: list[Player]):
+        team_id = UUID(int=team["id"])
+        squad = get_squad_from_ids(team["squad"], team_id, players)
         return Team(
-            UUID(int = team["id"]),
+            team_id,
             team["name"],
-            get_players_from_dict_list(team["roster"]), # might add a get_roster() function here
+            squad,
             team["stadium"],
-            False # by default returns False
+            False  # by default returns False
         )
 
 

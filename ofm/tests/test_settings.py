@@ -17,21 +17,21 @@ import pytest
 import os
 
 from ofm.core.settings import Settings
-from ofm.defaults import PROJECT_DIR
 
 
 @pytest.fixture
 def settings(tmp_path):
-    f = tmp_path / 'settings.yaml'
-    return Settings(f)
+    d = tmp_path
+    f = d / 'settings.yaml'
+    return Settings(d, f)
 
 
-def test_get_settings(settings):
+def test_get_settings(settings, tmp_path):
     expected_data = {
-        "res": os.path.join(PROJECT_DIR, "res"),
-        "images": os.path.join(PROJECT_DIR, "images"),
-        "db": os.path.join(PROJECT_DIR, "db"),
-        "save": os.path.join(PROJECT_DIR, "save"),
+        "res": os.path.join(tmp_path, "res"),
+        "images": os.path.join(tmp_path, "images"),
+        "db": os.path.join(tmp_path, "db"),
+        "save": os.path.join(tmp_path, "save"),
     }
     settings.create_settings()
     settings.load_settings()

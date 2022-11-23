@@ -18,8 +18,7 @@ import datetime
 from typing import Union
 from uuid import UUID
 from enum import IntEnum, auto
-
-from .contract import Contract
+from .playercontract import PlayerContract
 
 
 def get_players_from_dict_list(players_dict: list) -> list:
@@ -125,38 +124,57 @@ class PlayerStats:
 
 @dataclass
 class PlayerTeam:
-    player_id: UUID
+    details: Player
     team_id: Union[UUID, None]
     shirt_number: int
-    contract: Contract
+    contract: PlayerContract
 
     @classmethod
-    def get_from_dict(cls, player: dict):
+    def get_from_dict(cls, player: dict, players: list[Player]):
+        pl = get_player_from_player_id(UUID(int=player["player_id"]), players)
         return cls(
-            player["player_id"],
-            player["team_id"],
+            pl,
+            UUID(int=player["team_id"]),
             player["shirt_number"],
-            player["contract"],
+            PlayerContract.get_from_dict(player["contract"]),
         )
+
+    def serialize(self) -> dict:
+        return {
+            "player_id": self.details.player_id.int,
+            "team_id": self.team_id.int,
+            "shirt_number": self.shirt_number,
+            "contract": self.contract.serialize()
+        }
+
+
+class GetPlayerException(Exception):
+    pass
+
+
+def get_player_from_player_id(player_id: UUID, players: list[Player]) -> Player:
+    for player in players:
+        if player.player_id == player_id:
+            return player
+
+    raise GetPlayerException
 
 
 class PlayerSimulation:
     def __init__(
             self,
-            player: Player,
-            player_team: PlayerTeam,
+            player: PlayerTeam,
             current_position: dict,
             stamina: float,
     ):
         self.player = player
-        self.player_team = player_team
         self.current_position = current_position
         self.current_skill = self.calculate_current_skill()
         self.current_stamina = stamina
-        self.statistics = PlayerStats(player.player_id)
+        self.statistics = PlayerStats(player.details.player_id)
 
     def calculate_current_skill(self):
-        return self.player.skill * self.current_position["mult"]
+        return self.player.details.skill * self.current_position["mult"]
 
     def update_stamina(self):
         pass
