@@ -12,6 +12,7 @@ qtpy = "*"
 sphinx = "*"
 pygments = "*"
 docutils = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3"

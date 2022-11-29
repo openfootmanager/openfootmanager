@@ -13,22 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import os
-import json
-import logging
-
-from ofm import RES_DIR
+from .core.settings import Settings
 
 
-class Game:
+class OFM:
     def __init__(self):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__file__)
-
+        self.settings = Settings()
+    
     def run(self):
         pass
-
-
-if __name__ == '__main__':
-    game = Game()
-    game.run()

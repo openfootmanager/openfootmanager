@@ -13,10 +13,3 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import os
-
-
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-RES_DIR = os.path.join(ROOT_DIR, "res")
-PLAYERS_FILE = os.path.join(RES_DIR, "players.json")
-TEAMS_FILE = os.path.join(RES_DIR, "teams.json")
