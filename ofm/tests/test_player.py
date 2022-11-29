@@ -14,7 +14,6 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
-import json
 import uuid
 import datetime
 from ..core.common.player import Player, PlayerTeam, Positions, PreferredFoot, get_player_from_player_id
@@ -23,7 +22,7 @@ from ..core.db.generators import PlayerGenerator
 
 
 @pytest.fixture
-def player_gen():
+def player_gen() -> PlayerGenerator:
     return PlayerGenerator()
 
 
@@ -88,7 +87,7 @@ def test_get_from_dictionary():
     assert expected_player == player
 
 
-def test_player_expected_keys_dictionary(player_gen):
+def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
     expected_keys = (
         "id",
         "nationality",
@@ -227,7 +226,7 @@ def test_serialize_player_team():
     assert player_team.serialize() == expected_player_team_dict
 
 
-def test_get_player_from_player_id(player_gen):
+def test_get_player_from_player_id(player_gen: PlayerGenerator):
     player_gen.generate(100)
     players = player_gen.players_obj.copy()
     player = players[0]
@@ -235,11 +234,8 @@ def test_get_player_from_player_id(player_gen):
     assert get_player_from_player_id(player.player_id, players) == player
 
 
-def test_write_to_db(player_gen, players_file):
-    player_gen.generate(1000)
-    expected_players_dict = player_gen.get_players_dictionaries()
-    player_gen.write_to_db(players_file)
-    with open(players_file, "r") as fp:
-        players_dict = json.load(fp)
-
-    assert expected_players_dict == players_dict
+def test_serialized_player_equals_to_obj(player_gen: PlayerGenerator):
+    player = player_gen.generate_player()
+    player_dict = player.serialize()
+    
+    assert Player.get_from_dict(player_dict) == player

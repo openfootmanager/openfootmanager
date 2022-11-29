@@ -21,17 +21,18 @@ from ofm.core.settings import Settings
 
 @pytest.fixture
 def settings(tmp_path):
-    d = tmp_path
-    f = d / 'settings.yaml'
-    return Settings(d, f)
+    f = tmp_path / 'settings.yaml'
+    return Settings(tmp_path, f)
 
 
 def test_get_settings(settings, tmp_path):
     expected_data = {
         "res": os.path.join(tmp_path, "res"),
         "images": os.path.join(tmp_path, "images"),
-        "db": os.path.join(tmp_path, "db"),
+        "db": os.path.join(tmp_path, "res", "db"),
         "save": os.path.join(tmp_path, "save"),
+        "players": os.path.join(tmp_path, "res", "db", "players.json"),
+        "teams": os.path.join(tmp_path, "res", "db", "teams.json")
     }
     settings.create_settings()
     settings.load_settings()

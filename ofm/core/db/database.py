@@ -14,32 +14,64 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import json
+import uuid
 from .generators import PlayerGenerator, TeamGenerator
-from ofm.defaults import PLAYERS_FILE, TEAMS_FILE
+from typing import Optional, List
 from ofm.core.common.team import Team
-from ofm.core.common.player import Player
+from ofm.core.common.player import Player, Positions
+from ofm.core.settings import Settings
+
+
+class DatabaseLoadError(Exception):
+    pass
 
 
 class DB:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+    
+    @property
+    def players_file(self):
+        return self.settings.players_file
+    
+    @property
+    def teams_file(self):
+        return self.settings.teams_file
+
     def load_teams(self) -> list[dict]:
-        with open(TEAMS_FILE, "r") as fp:
+        with open(self.teams_file, "r") as fp:
             return json.load(fp)
 
     def load_players(self) -> list[dict]:
-        with open(PLAYERS_FILE, "r") as fp:
+        with open(self.players_file, "r") as fp:
             return json.load(fp)
 
     def load_player_objects(self, players: list[dict]) -> list[Player]:
         return [Player.get_from_dict(player) for player in players]
 
-
     def load_team_objects(self, teams: list[dict], players: list[Player]) -> list[Team]:
         return [Team.get_from_dict(team, players) for team in teams]
+    
+    def get_player_object_from_id(self, player_id: uuid.UUID, players: list[dict]) -> Player:
+        if not players:
+            raise DatabaseLoadError("Players list cannot be empty!")
 
+        for player in players:
+            if uuid.UUID(int=player["id"]) == player_id:
+                return Player.get_from_dict(player)
+        
+        raise DatabaseLoadError("Player does not exist in database!")
 
-    def generate_players(self) -> list[Player]:
+    def generate_players(self, amount: int = 50 * 22, region: str = None, desired_pos: Optional[List[Positions]] = None) -> list[Player]:
         players = PlayerGenerator()
-
+        players.generate(amount, region, desired_pos)
+        players_dict = players.get_players_dictionaries()
+        with open(self.players_file, "w") as fp:
+            json.dump(players_dict, fp)
 
     def generate_teams(self) -> list[Team]:
         teams = TeamGenerator()
+        teams.generate()
+        teams_dict = teams.get_teams_dictionaries()
+        with open(self.teams_file, "w") as fp:
+            json.dump(teams_dict, fp)

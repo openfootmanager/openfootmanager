@@ -30,8 +30,10 @@ class Settings:
         self.root_dir = root_dir
         self.res: str = os.path.join(root_dir, "res")
         self.images: str = os.path.join(root_dir, "images")
-        self.db: str = os.path.join(root_dir, "db")
+        self.db: str = os.path.join(self.res, "db")
         self.save: str = os.path.join(root_dir, "save")
+        self.players_file: str = os.path.join(self.db, "players.json")
+        self.teams_file: str = os.path.join(self.db, "teams.json")
         self.settings_file: str = settings
 
     def get_data(self) -> dict:
@@ -40,6 +42,8 @@ class Settings:
             "images": self.images,
             "db": self.db,
             "save": self.save,
+            "players": self.players_file,
+            "teams": self.teams_file,
         }
     
     def parse_settings(self, data: dict) -> None:

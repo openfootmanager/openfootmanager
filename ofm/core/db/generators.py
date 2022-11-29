@@ -18,19 +18,14 @@ import json
 import random
 import uuid
 from abc import ABC, abstractmethod
-from os import PathLike
 from typing import Tuple, List, Optional, Union
 from ofm.core.common.player import Player, Positions, PreferredFoot
-from ofm.defaults import NAMES_FILE, PLAYERS_FILE
+from ofm.defaults import NAMES_FILE
 
 
 class Generator(ABC):
     @abstractmethod
     def generate(self, *args):
-        pass
-
-    @abstractmethod
-    def write_to_db(self, *args):
         pass
 
 
@@ -72,6 +67,10 @@ class PlayerGenerator(Generator):
         return uuid.uuid4()
     
     def generate_nationality(self, nat: Optional[str]) -> str:
+        """
+        Returns the player's nationality. If you define a nationality for any reason,
+        you should get this nationality here.
+        """
         return nat or random.choice(self.nationalities)
 
     def generate_dob(self) -> datetime:
@@ -120,7 +119,7 @@ class PlayerGenerator(Generator):
     def generate_potential_skill(self, skill: int, age: int) -> int:
         pass
     
-    def generate_positions(self, desired_pos: Optional[List[Positions]]) -> Union[list[Positions]]:
+    def generate_positions(self, desired_pos: Optional[List[Positions]]) -> list[Positions]:
         if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
             return desired_pos
         positions = list(Positions)
@@ -135,15 +134,20 @@ class PlayerGenerator(Generator):
         Should return how much a player's worth.
 
         Right now I'm just going to say it is skill * 1000.00. It's not too important to come up
-        with an algorithm for that right now!
+        with an algorithm for that at the moment.
         :param skill:
         :return:
         """
         # TODO: Implement an algorithm to calculate player value
+        # This algorithm should take into account the player's international reputation,
+        # The potential skill value and the current skill of the player
         return skill * 1000.00
 
     def generate_international_reputation(self, skill: int) -> int:
-        pass
+        """
+        Returns the player's international reputation. This number ranges from 0 to 5.
+        """
+        return random.randint(0, 5)
 
     def get_players_dictionaries(self) -> List[dict]:
         if not self.players_obj:
@@ -184,12 +188,6 @@ class PlayerGenerator(Generator):
     def generate(self, amount: int, region: Optional[str] = None, desired_pos: Optional[List[Positions]] = None):
         self.players_obj = [self.generate_player(region, desired_pos) for _ in range(amount)]
 
-    def write_to_db(self, player_file: Union[PathLike, str] = PLAYERS_FILE):
-        players_dict = self.get_players_dictionaries()
-
-        with open(player_file, "w") as fp:
-            json.dump(players_dict, fp)
-
 
 class GenerateTeamError(Exception):
     pass
@@ -203,7 +201,4 @@ class TeamGenerator(Generator):
         pass
 
     def generate(self, *args):
-        pass
-
-    def write_to_db(self, *args):
         pass

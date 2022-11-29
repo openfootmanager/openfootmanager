@@ -21,14 +21,6 @@ from enum import IntEnum, auto
 from .playercontract import PlayerContract
 
 
-def get_players_from_dict_list(players_dict: list) -> list:
-    return [Player.get_from_dict(player) for player in players_dict]
-
-
-def get_positions_from_dict(positions: list[int]):
-    return [Positions(position) for position in positions]
-
-
 class Positions(IntEnum):
     GK = auto()
     LW = auto()
@@ -43,6 +35,14 @@ class PreferredFoot(IntEnum):
     LEFT = auto()
     RIGHT = auto()
     BOTH = auto()
+
+
+def get_players_from_dict_list(players_dict: list) -> list:
+    return [Player.get_from_dict(player) for player in players_dict]
+
+
+def get_positions_from_dict(positions: list[int]):
+    return [Positions(position) for position in positions]
 
 
 @dataclass
@@ -83,8 +83,8 @@ class Player:
             player_dict["value"]
         )
 
-    def get_position_names(self):
-        return [position.name for position in self.positions]
+    def get_position_values(self):
+        return [position.value for position in self.positions]
 
     def serialize(self) -> dict:
         return {
@@ -94,7 +94,7 @@ class Player:
             "first_name": self.first_name,
             "last_name": self.last_name,
             "short_name": self.short_name,
-            "positions": self.get_position_names(),
+            "positions": self.get_position_values(),
             "fitness": self.fitness,
             "stamina": self.stamina,
             "form": self.form,

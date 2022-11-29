@@ -137,3 +137,5 @@ node_modules/
 
 # Pipfile lock
 Pipfile.lock
+
+/res/db/**
