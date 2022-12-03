@@ -19,10 +19,6 @@ from ..core.common.team import Team, TeamStats, TeamSimulation, PlayerTeam
 from ..core.db.generators import TeamGenerator, PlayerGenerator
 
 
-def get_squad_ids():
-    return [uuid.uuid4().int for _ in range(11)]
-
-
 @pytest.fixture
 def team_gen():
     return TeamGenerator()
@@ -33,15 +29,9 @@ def player_gen():
     return PlayerGenerator()
 
 
-@pytest.fixture
-def teams_file(tmp_path):
-    d = tmp_path / "db"
-    d.mkdir()
-    return d / "teams.json"
-
-
-def test_get_team_from_dictionary():
-    team_id = uuid.uuid4()
-    name = "MyClub FC"
-    squad = get_squad_ids()
-    stadium = "MyStadium"
+# def test_get_team_from_dictionary(player_gen: PlayerGenerator):
+#     team_id = uuid.uuid4()
+#     name = "MyClub FC"
+#     stadium = "MyStadium"
+#     is_players_team = False
+#     expected_team = Team()

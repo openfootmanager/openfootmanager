@@ -173,8 +173,5 @@ class PlayerSimulation:
         self.current_stamina = stamina
         self.statistics = PlayerStats(player.details.player_id)
 
-    def calculate_current_skill(self):
-        return self.player.details.skill * self.current_position["mult"]
-
     def update_stamina(self):
         pass

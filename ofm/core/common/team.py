@@ -13,50 +13,36 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from uuid import UUID
+from typing import Tuple
 
-from .player import PlayerSimulation, Player, PlayerTeam, get_players_from_dict_list
-from .playercontract import PlayerContract
+from .player import PlayerSimulation, Player, PlayerTeam
 from .formation import Formation
-
-
-def get_squad_from_ids(
-        squad_ids: list[dict],
-        team_id: UUID,
-        players: list[Player]
-) -> list[PlayerTeam]:
-    squad = []
-    for pl_id in squad_ids:
-        squad.extend(
-            PlayerTeam(
-                player, team_id, pl_id["shirt_number"],
-                PlayerContract.get_from_dict(pl_id["contract"])
-            ) for player in players if pl_id["player_id"] == player.player_id
-        )
-
-    return squad
 
 
 @dataclass
 class Team:
     team_id: UUID
     name: str
-    squad: list[PlayerTeam]
+    # TODO: Implement a serializable stadium object
     stadium: str
     is_players_team: bool
 
     @classmethod
     def get_from_dict(cls, team: dict, players: list[Player]):
         team_id = UUID(int=team["id"])
-        squad = get_squad_from_ids(team["squad"], team_id, players)
         return Team(
             team_id,
             team["name"],
-            squad,
             team["stadium"],
-            False  # by default returns False
+            team["is_players_team"]
         )
+
+
+@dataclass
+class TeamSquad:
+    players: list[PlayerTeam]
 
 
 class TeamSimulation:
@@ -74,8 +60,10 @@ class TeamSimulation:
         self.formation: Formation = formation
         self.in_possession: bool = False
         self.substitutions: int = 0
+        self.sub_history: list[Tuple(PlayerSimulation, PlayerSimulation)]
         self.score: int = 0
         self.max_substitutions: int = max_substitutions
+        self.stats: TeamStats = TeamStats(self.team.team_id)
 
     def update_player_stamina(self):
         pass
@@ -94,13 +82,19 @@ class TeamSimulation:
 
 @dataclass
 class TeamStats:
+    team_id: UUID
     shots: int = 0
+    shots_on_target: int = 0
     fouls: int = 0
     goals: int = 0
     own_goals: int = 0
     penalties: int = 0
+    corners: int = 0
+    throw_ins: int = 0
+    kick_offs: int = 0
     injuries: int = 0
     yellow_cards: int = 0
     red_cards: int = 0
     avg_rating: float = 0.0
     possession: float = 0.0
+    goals_conceded: int = 0

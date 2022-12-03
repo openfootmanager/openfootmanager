@@ -18,11 +18,15 @@ import uuid
 from .generators import PlayerGenerator, TeamGenerator
 from typing import Optional, List
 from ofm.core.common.team import Team
-from ofm.core.common.player import Player, Positions
+from ofm.core.common.player import Player, Positions, PlayerTeam
 from ofm.core.settings import Settings
 
 
 class DatabaseLoadError(Exception):
+    pass
+
+
+class PlayerTeamLoadError(Exception):
     pass
 
 
@@ -62,6 +66,18 @@ class DB:
         
         raise DatabaseLoadError("Player does not exist in database!")
 
+    def get_player_team_from_dicts(self, squad_ids: list[dict], players: list[Player]) -> list[PlayerTeam]:
+        squad = []
+        for player in players:
+            for pl_id in squad_ids:
+                if player.player_id.int == pl_id["player_id"]:
+                    squad.append(PlayerTeam.get_from_dict(pl_id, players))
+        
+        if squad:
+            return squad
+        else:
+            raise PlayerTeamLoadError("Squad not found in database of players!")
+    
     def generate_players(self, amount: int = 50 * 22, region: str = None, desired_pos: Optional[List[Positions]] = None) -> list[Player]:
         players = PlayerGenerator()
         players.generate(amount, region, desired_pos)
