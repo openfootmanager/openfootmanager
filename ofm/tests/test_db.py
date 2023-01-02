@@ -41,7 +41,7 @@ def test_generate_players(db: DB):
 
 def test_get_non_existant_player_from_database(db: DB):
     with pytest.raises(DatabaseLoadError):
-        db.get_player_object_from_id(uuid.uuid4(), [{"id": 217378114826650685132252196524443409741}])
+        db.get_player_object_from_id(uuid.uuid4(), [{"id": 3333333333333333333333333333333333333}])
 
 
 def test_get_player_from_empty_players_list(db: DB):
@@ -60,3 +60,7 @@ def test_load_player_from_dict(db: DB):
     player = PlayerGenerator().generate_player()
     player_dict = player.serialize()
     assert db.load_player_objects([player_dict]) == [player]
+
+
+def test_generate_teams(db: DB):
+    pass

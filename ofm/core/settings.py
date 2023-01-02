@@ -66,6 +66,4 @@ class Settings:
             self.load_settings()
         else:
             self.create_settings()
-    
-
 

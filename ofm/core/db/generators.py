@@ -19,7 +19,8 @@ import random
 import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
-from ofm.core.common.player import Player, Positions, PreferredFoot
+from ofm.core.common.player import Player, Positions, PreferredFoot, PlayerTeam
+from ofm.core.common.team import Team
 from ofm.defaults import NAMES_FILE
 
 
@@ -34,7 +35,7 @@ class GeneratePlayerError(Exception):
 
 
 class PlayerGenerator(Generator):
-    def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16):
+    def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16, max_skill_lvl: int = 99):
         if min_age > max_age:
             raise GeneratePlayerError("Minimum age must not be greater than maximum age!")
         
@@ -46,6 +47,7 @@ class PlayerGenerator(Generator):
         self.today = today
         self.max_age = max_age * year
         self.min_age = min_age * year
+        self.max_skill_lvl = max_skill_lvl
 
     @staticmethod
     def _get_nationalities():
@@ -93,16 +95,15 @@ class PlayerGenerator(Generator):
         first_name = random.choice(names["male"])
         last_name = random.choice(names["surnames"])
         short_name = f'{first_name[0]}. {last_name}'
-        # We could also generate some nicknames for players, just for fun, but for now, just keep it that way
+        # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
 
-    @staticmethod
-    def generate_skill() -> int:
+    def generate_skill(self) -> int:
         """
         Generates the player's skill lvl. Region-tuned skill-lvl might come later,
-        but for now, just generates players with skill lvls from 30 to 90.
+        but for now, just generates players with skill lvls from 30 to 99.
 
-        I'm capping skill lvls to not return negative values or values above 90.
+        I'm capping skill lvls to not return negative values or values above 99.
 
         The planned skill rating should go from 0 to 99 in this game, just like other soccer games do. 
         """
@@ -111,13 +112,17 @@ class PlayerGenerator(Generator):
 
         skill = int(random.gauss(mu, sigma))
 
-        skill = min(skill, 90)
+        skill = min(skill, self.max_skill_lvl)
         skill = max(30, skill)
 
         return skill
     
     def generate_potential_skill(self, skill: int, age: int) -> int:
-        pass
+        """
+        Generates the player's potential skill.
+        """
+        # TODO: improve this algorithm
+        return random.randint(skill, self.max_skill_lvl)
     
     def generate_positions(self, desired_pos: Optional[List[Positions]]) -> list[Positions]:
         if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
@@ -189,16 +194,31 @@ class PlayerGenerator(Generator):
         self.players_obj = [self.generate_player(region, desired_pos) for _ in range(amount)]
 
 
-class GenerateTeamError(Exception):
+class GenerateSquadError(Exception):
     pass
 
 
 class TeamGenerator(Generator):
-    def __init__(self):
-        self.teams_obj = []
+    """
+    Teams are defined in a definition file.
 
-    def generate_team(self):
-        pass
+    The definition file is a list of teams. However, teams do not contain a squad by default,
+    and a squad should be generated for each team.
+    """
+    def __init__(self, teams: list[dict]):
+        self.teams = teams
+        self.player_gen = PlayerGenerator()
+        self.team_objects = []
+    
+    def generate_squad(self, team: Team):
+        # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
+        needed_positions = [(Positions.GK, 2), (Positions.DF, 6), (Positions.MF, 6), (Positions.FW, 4)]
+
+    def generate_team(self, team: dict) -> Team:
+        return Team(
+            
+        )
 
     def generate(self, *args):
-        pass
+        for team in self.teams:
+            self.generate_squad(team)

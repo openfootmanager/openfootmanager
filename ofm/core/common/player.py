@@ -17,17 +17,14 @@ from dataclasses import dataclass
 import datetime
 from typing import Union
 from uuid import UUID
-from enum import IntEnum, auto
+from enum import StrEnum, IntEnum, auto
 from .playercontract import PlayerContract
 
 
 class Positions(IntEnum):
     GK = auto()
-    LW = auto()
     DF = auto()
-    RW = auto()
     MF = auto()
-    ST = auto()
     FW = auto()
 
 
@@ -113,6 +110,7 @@ class PlayerStats:
     assists: int = 0
     fouls: int = 0
     goals: int = 0
+    goals_conceded: int = 0 # only for GK
     own_goals: int = 0
     penalties: int = 0
     injuries: int = 0
@@ -160,11 +158,27 @@ def get_player_from_player_id(player_id: UUID, players: list[Player]) -> Player:
     raise GetPlayerException
 
 
+class PlayerInjuries(StrEnum):
+    ANKLE_SP = "Ankle sprain"
+    KNEE_SP = "Knee sprain"
+    CALF_ST = "Calf strain"
+    KNEECAP_BURSITIS = "Kneecap bursitis"
+    RIB_BROK = "Broken rib"
+    CLAVICLE_FRAC = "Fractured clavicle"
+    ARM_FRAC = "Fractured arm"
+    FOOT_FRAC = "Fractured foot"
+    WRIST_FRAC = "Fractured wrist"
+    ANKLE_FRAC = "Fractured ankle"
+    CONCUSSION = "Concussion"
+    LIGAMENT_TORN = "Torn ligament"
+    MENISCAL_TORN = "Torn meniscal"
+
+
 class PlayerSimulation:
     def __init__(
             self,
             player: PlayerTeam,
-            current_position: dict,
+            current_position: Positions,
             stamina: float,
     ):
         self.player = player
@@ -172,6 +186,13 @@ class PlayerSimulation:
         self.current_skill = self.calculate_current_skill()
         self.current_stamina = stamina
         self.statistics = PlayerStats(player.details.player_id)
+        self.is_injured = False
+        self.injury_type = None
+
+    def calculate_current_skill(self) -> int:
+        if self.current_position in self.player.details.positions:
+            return self.player.details.skill
+        return int(0.5 * self.player.details.skill)
 
     def update_stamina(self):
         pass

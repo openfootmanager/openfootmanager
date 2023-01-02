@@ -15,7 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass
 from uuid import UUID
-from typing import Tuple
+from typing import Tuple, Optional
 
 from .player import PlayerSimulation, Player, PlayerTeam
 from .formation import Formation
@@ -27,7 +27,8 @@ class Team:
     name: str
     # TODO: Implement a serializable stadium object
     stadium: str
-    is_players_team: bool
+    squad: list[PlayerTeam]
+    stadium_capacity: int
 
     @classmethod
     def get_from_dict(cls, team: dict, players: list[Player]):
@@ -35,15 +36,9 @@ class Team:
         return Team(
             team_id,
             team["name"],
-            team["stadium"],
-            team["is_players_team"]
+            team["stadium_name"],
+            team["stadium_capacity"],
         )
-
-
-@dataclass
-class TeamSquad:
-    players: list[PlayerTeam]
-
 
 class TeamSimulation:
     def __init__(
@@ -51,7 +46,7 @@ class TeamSimulation:
             team: Team,
             players: list[PlayerSimulation] = None,
             bench: list[PlayerSimulation] = None,
-            formation: Formation = None,
+            formation: Optional[Formation] = None,
             max_substitutions: int = 3,
     ):
         self.team: Team = team
@@ -98,3 +93,4 @@ class TeamStats:
     avg_rating: float = 0.0
     possession: float = 0.0
     goals_conceded: int = 0
+

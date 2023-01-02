@@ -13,3 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import uuid
+import datetime
+from dataclasses import dataclass
+
+
+
+@dataclass
+class Manager:
+    manager_id: uuid.UUID
+    first_name: str
+    last_name: str
+    birth_data: datetime.date 
+

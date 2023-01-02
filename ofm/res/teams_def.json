@@ -1,0 +1,22 @@
+{
+    "regions": [
+        {
+            "name": "ORGANIZATION",
+            "countries": [
+                {
+                    "name": "COUNTRY_NAME",
+                    "teams": [
+                        {
+                            "name": "TEAM_NAME",
+                            "average_skill": 50,
+                            "stadium_name": "STADIUM_NAME/NULL",
+                            "stadium_capacity": 40100,
+                            "possible_nationalities": ["MOST_PROBABLE_NAT", "LEAST_PROBABLE_NAT"],
+                            "fincancial_rating": 50
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

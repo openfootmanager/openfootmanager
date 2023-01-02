@@ -239,3 +239,11 @@ def test_serialized_player_equals_to_obj(player_gen: PlayerGenerator):
     player_dict = player.serialize()
     
     assert Player.get_from_dict(player_dict) == player
+
+
+def test_serialized_player_has_no_none(player_gen: PlayerGenerator):
+    player_gen.generate(10000)
+    for player in player_gen.players_obj:
+        player_dict = player.serialize()
+        for key in player_dict.keys():
+            assert player_dict[key] is not None
