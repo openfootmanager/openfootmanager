@@ -20,7 +20,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
 from ofm.core.common.player import Player, Positions, PreferredFoot, PlayerTeam
-from ofm.core.common.team import Team
+from ofm.core.common.team import Team, TeamSquad
 from ofm.defaults import NAMES_FILE
 
 
@@ -205,20 +205,20 @@ class TeamGenerator(Generator):
     The definition file is a list of teams. However, teams do not contain a squad by default,
     and a squad should be generated for each team.
     """
-    def __init__(self, teams: list[dict]):
-        self.teams = teams
+    def __init__(self, team_definitions: list[dict], squad_definitions: list[dict]):
+        self.team_definitions = team_definitions
+        self.squad_definitions = squad_definitions
         self.player_gen = PlayerGenerator()
         self.team_objects = []
     
-    def generate_squad(self, team: Team):
+    def generate_squad(self, team: Team) -> TeamSquad:
         # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
         needed_positions = [(Positions.GK, 2), (Positions.DF, 6), (Positions.MF, 6), (Positions.FW, 4)]
 
+
     def generate_team(self, team: dict) -> Team:
-        return Team(
-            
-        )
+        return Team.get_from_dict(team)
 
     def generate(self, *args):
-        for team in self.teams:
-            self.generate_squad(team)
+        for team in self.team_definitions:
+            self.team_objects.append(self.generate_team(team))

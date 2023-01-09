@@ -19,7 +19,45 @@ from ..core.common.team import Team, TeamStats, TeamSimulation, PlayerTeam
 from ..core.db.generators import TeamGenerator
 
 
-def get_mock_file() -> dict:
+def get_squads_def() -> list[dict]:
+    return [
+        {
+            "id": 1,
+            "nationalities": [
+                {
+                    "name": "Germany",
+                    "probability": 0.90,
+                },
+                {
+                    "name": "France",
+                    "probability": 0.05,
+                },
+                {
+                    "name": "Spain",
+                    "probability": 0.05,
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "nationalities": [
+                {
+                    "name": "Spain",
+                    "probability": 0.90
+                },
+                {
+                    "name": "Germany",
+                    "probability": 0.05
+                },
+                {
+                    "name": "France",
+                    "probability": 0.05
+                }
+            ]
+        }
+    ]
+
+def get_team_mock_file() -> dict:
     return {
         "regions": [
             {
@@ -31,10 +69,8 @@ def get_mock_file() -> dict:
                             {
                                 "id": 1,
                                 "name": "Munchen",
-                                "avg_skill": 80.0,
                                 "stadium_name": "Munchen National Stadium",
                                 "stadium_capacity": 40100,
-                                "possible_nationalities": ["Germany", "Spain", "Brazil", "France", "Senegal"],
                                 "financial_rating": 80,
                             }
                         ]
@@ -45,10 +81,8 @@ def get_mock_file() -> dict:
                             {
                                 "id": 2,
                                 "name": "Barcelona",
-                                "avg_skill": 75.0,
                                 "stadium_name": "Barcelona National Stadium",
                                 "stadium_capacity": 50000,
-                                "possible_nationalities": ["Spain", "Brazil", "France", "Portugal", "Germany"],
                                 "financial_rating": 85,
                             },
                         ]
@@ -58,16 +92,34 @@ def get_mock_file() -> dict:
         ]
     }
 
-@pytest.fixture
-def team_gen():
-    return TeamGenerator()
-
 
 def test_get_team_from_mock_file():
-    mock_definition_file = get_mock_file()
-    expected_teams = [Team(uuid.UUID(int=1), "Munchen", 80)]
+    mock_definition_file = get_team_mock_file()
+    expected_teams = [
+        Team(
+            uuid.UUID(int=1),
+            "Munchen",
+            "Munchen National Stadium",
+            40100,
+            80,
+        ),
+        Team(
+            uuid.UUID(int=2),
+            "Barcelona",
+            "Barcelona National Stadium",
+            50000,
+            85,
+        )
+    ]
     teams = []
+
     for region in mock_definition_file["regions"]:
         for countries in region["countries"]:
             for team in countries["teams"]:
-                teams.append(team_gen.generate_team(team))
+                teams.append(Team.get_from_dict(team))
+
+    assert teams == expected_teams
+
+
+def test_generate_team_squads():
+    pass

@@ -27,18 +27,49 @@ class Team:
     name: str
     # TODO: Implement a serializable stadium object
     stadium: str
-    squad: list[PlayerTeam]
     stadium_capacity: int
+    financial_rating: int
 
     @classmethod
-    def get_from_dict(cls, team: dict, players: list[Player]):
+    def get_from_dict(cls, team: dict):
         team_id = UUID(int=team["id"])
         return Team(
             team_id,
             team["name"],
             team["stadium_name"],
             team["stadium_capacity"],
+            team["financial_rating"],
         )
+    
+    def serialize(self) -> dict:
+        return {
+            "id": self.team_id.int,
+            "name": self.name,
+            "stadium_name": self.stadium,
+            "stadium_capacity": self.stadium_capacity,
+            "financial_rating": self.financial_rating
+        }
+
+
+@dataclass
+class TeamSquad:
+    team: Team
+    squad: list[PlayerTeam]
+
+    @classmethod
+    def get_from_dict(cls, team: dict, players_list: list[PlayerTeam]):
+        team_id = UUID(int=team["id"])
+        return TeamSquad(
+            Team(team_id, team["name"], team["stadium_name"], team["stadium_capacity"]),
+            squad=players_list,
+        )
+
+    def serialize(self) -> dict:
+        return {
+            "id": self.team.team_id.int,
+            "squad": [player.details.player_id.int for player in self.squad]
+        }
+
 
 class TeamSimulation:
     def __init__(
@@ -55,7 +86,7 @@ class TeamSimulation:
         self.formation: Formation = formation
         self.in_possession: bool = False
         self.substitutions: int = 0
-        self.sub_history: list[Tuple(PlayerSimulation, PlayerSimulation)]
+        self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
         self.score: int = 0
         self.max_substitutions: int = max_substitutions
         self.stats: TeamStats = TeamStats(self.team.team_id)
