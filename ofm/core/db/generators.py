@@ -20,6 +20,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
 from ofm.core.common.player import Player, Positions, PreferredFoot, PlayerTeam
+from ofm.core.common.playercontract import PlayerContract
 from ofm.core.common.team import Team, TeamSquad
 from ofm.defaults import NAMES_FILE
 
@@ -35,14 +36,15 @@ class GeneratePlayerError(Exception):
 
 
 class PlayerGenerator(Generator):
-    def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16, max_skill_lvl: int = 99):
+    def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16,
+                 max_skill_lvl: int = 99):
         if min_age > max_age:
             raise GeneratePlayerError("Minimum age must not be greater than maximum age!")
-        
-        self.players_obj = []
+
+        self.players_obj: List[Player] = []
         self.nationalities = self._get_nationalities()
         self.names = self._get_names()
-        
+
         year = timedelta(seconds=31556952)  # definition of a Gregorian calendar date
         self.today = today
         self.max_age = max_age * year
@@ -60,14 +62,14 @@ class PlayerGenerator(Generator):
         with open(NAMES_FILE, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
-    def _get_names_from_region(self, region: str) -> dict:  
+    def _get_names_from_region(self, region: str) -> dict:
         for reg in self.names:
             if reg["region"] == region:
                 return reg
-    
+
     def generate_id(self):
         return uuid.uuid4()
-    
+
     def generate_nationality(self, nat: Optional[str]) -> str:
         """
         Returns the player's nationality. If you define a nationality for any reason,
@@ -87,7 +89,7 @@ class PlayerGenerator(Generator):
             days_interval.days
         )  # chooses a random date from the max days interval
         return min_year + timedelta(days=rand_date)  # assigns date of birth
-    
+
     def generate_name(self, region: Optional[str]) -> Tuple[str, str, str]:
         if not region:
             region = random.choice(self.nationalities)
@@ -98,7 +100,7 @@ class PlayerGenerator(Generator):
         # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
 
-    def generate_skill(self) -> int:
+    def generate_skill(self, mu: int = 50, sigma: int = 20) -> int:
         """
         Generates the player's skill lvl. Region-tuned skill-lvl might come later,
         but for now, just generates players with skill lvls from 30 to 99.
@@ -107,8 +109,11 @@ class PlayerGenerator(Generator):
 
         The planned skill rating should go from 0 to 99 in this game, just like other soccer games do. 
         """
-        mu = 50
-        sigma = 20
+        if mu is None:
+            mu = 50
+
+        if sigma is None:
+            sigma = 20
 
         skill = int(random.gauss(mu, sigma))
 
@@ -116,14 +121,14 @@ class PlayerGenerator(Generator):
         skill = max(30, skill)
 
         return skill
-    
+
     def generate_potential_skill(self, skill: int, age: int) -> int:
         """
         Generates the player's potential skill.
         """
         # TODO: improve this algorithm
         return random.randint(skill, self.max_skill_lvl)
-    
+
     def generate_positions(self, desired_pos: Optional[List[Positions]]) -> list[Positions]:
         if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
             return desired_pos
@@ -159,7 +164,13 @@ class PlayerGenerator(Generator):
             raise GeneratePlayerError("Players objects were not generated!")
         return [player.serialize() for player in self.players_obj]
 
-    def generate_player(self, region: Optional[str] = None, desired_pos: Optional[List[Positions]] = None) -> Player:
+    def generate_player(
+            self,
+            region: Optional[str] = None,
+            mu: Optional[int] = 50,
+            sigma: Optional[int] = 20,
+            desired_pos: Optional[List[Positions]] = None
+    ) -> Player:
         player_id = self.generate_id()
         nationality = self.generate_nationality(region)
         first_name, last_name, short_name = self.generate_name(region)
@@ -167,7 +178,7 @@ class PlayerGenerator(Generator):
         age = int((self.today - dob).days * 0.0027379070)
         positions = self.generate_positions(desired_pos)
         preferred_foot = self.generate_preferred_foot()
-        skill = self.generate_skill()
+        skill = self.generate_skill(mu, sigma)
         potential_skill = self.generate_potential_skill(skill, age)
         international_reputation = self.generate_international_reputation(skill)
         value = self.generate_player_value(skill)
@@ -205,20 +216,100 @@ class TeamGenerator(Generator):
     The definition file is a list of teams. However, teams do not contain a squad by default,
     and a squad should be generated for each team.
     """
-    def __init__(self, team_definitions: list[dict], squad_definitions: list[dict]):
+
+    def __init__(self, team_definitions: list[dict], squad_definitions: list[dict], season_start: date):
         self.team_definitions = team_definitions
+        self.season_start = season_start
         self.squad_definitions = squad_definitions
         self.player_gen = PlayerGenerator()
-        self.team_objects = []
-    
-    def generate_squad(self, team: Team) -> TeamSquad:
+
+    def _get_nationalities(self, squad_definition: dict) -> Tuple[list[str], list[float]]:
+        nationalities = []
+        probabilities = []
+        for nat in squad_definition["nationalities"]:
+            nationalities.append(nat["name"])
+            probabilities.append(nat["probability"])
+
+        return nationalities, probabilities
+
+    def generate_player_contract(self, player: Player) -> PlayerContract:
+        wage = player.value / 12
+        contract_started = self.season_start
+        contract_length = random.randint(1, 4) * timedelta(seconds=31556952)   # pick a contract length in years
+        contract_end = contract_started + contract_length
+        bonus_for_goal = 0
+        bonus_for_def = 0
+        if any(x in player.positions for x in [Positions.FW, Positions.MF]):
+            bonus_for_goal = player.value * ((player.skill / 2) / 100)
+        if any(x in player.positions for x in [Positions.GK, Positions.DF]):
+            bonus_for_def = player.value * ((player.skill / 2) / 100)
+
+        return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
+
+    def generate_squad(self, team: Team, squad_definition: dict) -> TeamSquad:
         # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
-        needed_positions = [(Positions.GK, 2), (Positions.DF, 6), (Positions.MF, 6), (Positions.FW, 4)]
+        needed_positions = [
+            Positions.GK,
+            Positions.DF,
+            Positions.DF,
+            Positions.DF,
+            Positions.DF,
+            Positions.MF,
+            Positions.MF,
+            Positions.MF,
+            Positions.MF,
+            Positions.FW,
+            Positions.FW,
+            # Reserves
+            Positions.GK,
+            Positions.DF,
+            Positions.DF,
+            Positions.MF,
+            Positions.MF,
+            Positions.FW,
+            Positions.FW,
+        ]
 
+        # Variables for player generation
+        shirt_number = 1
+        mu = squad_definition["mu"]
+        sigma = squad_definition["sigma"]
+        nationalities, probabilities = self._get_nationalities(squad_definition)
+        players = []
 
-    def generate_team(self, team: dict) -> Team:
-        return Team.get_from_dict(team)
+        # Generate players for squad
+        for position in needed_positions:
+            nationality = random.choices(nationalities, probabilities)[0]
+            players.append(self.player_gen.generate_player(nationality, mu, sigma, [position]))
+
+        # Generate the PlayerTeam object
+        squad = []
+        for player in players:
+            squad.append(PlayerTeam(
+                player,
+                team.team_id,
+                shirt_number,
+                self.generate_player_contract(player)
+            ))
+            shirt_number += 1
+
+        return TeamSquad(team, squad)
 
     def generate(self, *args):
-        for team in self.team_definitions:
-            self.team_objects.append(self.generate_team(team))
+        teams = [Team.get_from_dict(team) for team in self.team_definitions]
+        team_squads = []
+        for team in teams:
+            found = False
+            for squad_def in self.squad_definitions:
+                if team.team_id.int == squad_def["id"]:
+                    found = True
+                    team_squads.append(self.generate_squad(team, squad_def))
+                    break
+
+            if not found:
+                raise GenerateSquadError(f"Squad definition not found for team {team.name}")
+
+        if not team_squads:
+            raise GenerateSquadError(f"Team Squads are empty!")
+
+        return team_squads

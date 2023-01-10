@@ -40,7 +40,7 @@ def test_get_from_dictionary():
     first_name = "John"
     last_name = "Doe"
     short_name = "J. Doe"
-    positions = [Positions.FW, Positions.ST]
+    positions = [Positions.FW, Positions.MF]
     fitness = 100.0
     stamina = 100.0
     form = 0.5
@@ -119,7 +119,7 @@ def test_player_team_get_from_dictionary():
     first_name = "John"
     last_name = "Doe"
     short_name = "J. Doe"
-    positions = [Positions.FW, Positions.ST]
+    positions = [Positions.FW, Positions.MF]
     fitness = 100.0
     stamina = 100.0
     form = 0.5
@@ -177,7 +177,7 @@ def test_serialize_player_team():
     first_name = "John"
     last_name = "Doe"
     short_name = "J. Doe"
-    positions = [Positions.FW, Positions.ST]
+    positions = [Positions.FW, Positions.MF]
     fitness = 100.0
     stamina = 100.0
     form = 0.5

@@ -60,7 +60,7 @@ class TeamSquad:
     def get_from_dict(cls, team: dict, players_list: list[PlayerTeam]):
         team_id = UUID(int=team["id"])
         return TeamSquad(
-            Team(team_id, team["name"], team["stadium_name"], team["stadium_capacity"]),
+            Team(team_id, team["name"], team["stadium_name"], team["stadium_capacity"], team["financial_rating"]),
             squad=players_list,
         )
 

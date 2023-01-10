@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
+import datetime
 import uuid
 from ..core.common.team import Team, TeamStats, TeamSimulation, PlayerTeam
 from ..core.db.generators import TeamGenerator
@@ -36,7 +37,9 @@ def get_squads_def() -> list[dict]:
                     "name": "Spain",
                     "probability": 0.05,
                 }
-            ]
+            ],
+            "mu": 80,
+            "sigma": 20,
         },
         {
             "id": 2,
@@ -53,9 +56,12 @@ def get_squads_def() -> list[dict]:
                     "name": "France",
                     "probability": 0.05
                 }
-            ]
+            ],
+            "mu": 80,
+            "sigma": 20,
         }
     ]
+
 
 def get_team_mock_file() -> dict:
     return {
@@ -122,4 +128,27 @@ def test_get_team_from_mock_file():
 
 
 def test_generate_team_squads():
-    pass
+    squad_def = get_squads_def()
+    team_def = [
+        {
+            "id": 1,
+            "name": "Munchen",
+            "stadium_name": "Munchen National Stadium",
+            "stadium_capacity": 40100,
+            "financial_rating": 80,
+        },
+        {
+            "id": 2,
+            "name": "Barcelona",
+            "stadium_name": "Barcelona National Stadium",
+            "stadium_capacity": 50000,
+            "financial_rating": 85,
+        },
+    ]
+    team_gen = TeamGenerator(team_def, squad_def, datetime.date.today())
+    team_squads = team_gen.generate()
+    for t_squad in team_squads:
+        assert len(t_squad.squad) == 18
+        assert isinstance(t_squad.team, Team)
+        for player in t_squad.squad:
+            assert isinstance(player, PlayerTeam)
