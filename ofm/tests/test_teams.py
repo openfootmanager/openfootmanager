@@ -16,7 +16,7 @@
 import pytest
 import datetime
 import uuid
-from ..core.common.team import Team, TeamStats, TeamSimulation, PlayerTeam
+from ..core.common.club import Club, TeamStats, TeamSimulation, PlayerTeam
 from ..core.db.generators import TeamGenerator
 
 
@@ -63,7 +63,7 @@ def get_squads_def() -> list[dict]:
     ]
 
 
-def get_team_mock_file() -> dict:
+def get_club_mock_file() -> dict:
     return {
         "regions": [
             {
@@ -71,7 +71,7 @@ def get_team_mock_file() -> dict:
                 "countries": [
                     {
                         "name": "Germany",
-                        "teams": [
+                        "clubs": [
                             {
                                 "id": 1,
                                 "name": "Munchen",
@@ -83,7 +83,7 @@ def get_team_mock_file() -> dict:
                     },
                     {
                         "name": "Spain",
-                        "teams": [
+                        "clubs": [
                             {
                                 "id": 2,
                                 "name": "Barcelona",
@@ -99,17 +99,17 @@ def get_team_mock_file() -> dict:
     }
 
 
-def test_get_team_from_mock_file():
-    mock_definition_file = get_team_mock_file()
+def test_get_club_from_mock_file():
+    mock_definition_file = get_club_mock_file()
     expected_teams = [
-        Team(
+        Club(
             uuid.UUID(int=1),
             "Munchen",
             "Munchen National Stadium",
             40100,
             80,
         ),
-        Team(
+        Club(
             uuid.UUID(int=2),
             "Barcelona",
             "Barcelona National Stadium",
@@ -121,8 +121,8 @@ def test_get_team_from_mock_file():
 
     for region in mock_definition_file["regions"]:
         for countries in region["countries"]:
-            for team in countries["teams"]:
-                teams.append(Team.get_from_dict(team))
+            for team in countries["clubs"]:
+                teams.append(Club.get_from_dict(team))
 
     assert teams == expected_teams
 
@@ -149,6 +149,6 @@ def test_generate_team_squads():
     team_squads = team_gen.generate()
     for t_squad in team_squads:
         assert len(t_squad.squad) == 18
-        assert isinstance(t_squad.team, Team)
+        assert isinstance(t_squad.team, Club)
         for player in t_squad.squad:
             assert isinstance(player, PlayerTeam)

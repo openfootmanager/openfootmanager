@@ -17,7 +17,7 @@ import json
 import uuid
 from .generators import PlayerGenerator, TeamGenerator
 from typing import Optional, List
-from ofm.core.common.team import Team
+from ofm.core.common.club import Club
 from ofm.core.common.player import Player, Positions, PlayerTeam
 from ofm.core.settings import Settings
 
@@ -53,8 +53,8 @@ class DB:
     def load_player_objects(self, players: list[dict]) -> list[Player]:
         return [Player.get_from_dict(player) for player in players]
 
-    def load_team_objects(self, teams: list[dict], players: list[Player]) -> list[Team]:
-        return [Team.get_from_dict(team, players) for team in teams]
+    def load_team_objects(self, teams: list[dict], players: list[Player]) -> list[Club]:
+        return [Club.get_from_dict(team, players) for team in teams]
     
     def get_player_object_from_id(self, player_id: uuid.UUID, players: list[dict]) -> Player:
         if not players:
@@ -85,7 +85,7 @@ class DB:
         with open(self.players_file, "w") as fp:
             json.dump(players_dict, fp)
 
-    def generate_teams(self) -> list[Team]:
+    def generate_teams(self) -> list[Club]:
         teams = TeamGenerator()
         teams.generate()
         teams_dict = teams.get_teams_dictionaries()

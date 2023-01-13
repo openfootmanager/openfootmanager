@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .match import Match
-from ..common.team import TeamSimulation
+from ..common.club import TeamSimulation
 from .event_handler import EventHandler
 
 

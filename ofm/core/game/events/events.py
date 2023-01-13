@@ -16,7 +16,7 @@
 import random
 from abc import ABC, abstractmethod
 from ...common.player import PlayerSimulation
-from ...common.team import TeamSimulation
+from ...common.club import TeamSimulation
 
 
 class Event(ABC):

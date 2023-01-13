@@ -15,11 +15,11 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from uuid import UUID
 
-from ..common.team import Team
+from ..common.club import Club
 
 
 class Match:
-    def __init__(self, match_id: UUID, championship_id: UUID, team1: Team, team2: Team):
+    def __init__(self, match_id: UUID, championship_id: UUID, team1: Club, team2: Club):
         self.match_id = match_id
         self.championship_id = championship_id
         self.team1 = team1

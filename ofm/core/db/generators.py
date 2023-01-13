@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
 from ofm.core.common.player import Player, Positions, PreferredFoot, PlayerTeam
 from ofm.core.common.playercontract import PlayerContract
-from ofm.core.common.team import Team, TeamSquad
+from ofm.core.common.club import Club, TeamSquad
 from ofm.defaults import NAMES_FILE
 
 
@@ -246,7 +246,7 @@ class TeamGenerator(Generator):
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 
-    def generate_squad(self, team: Team, squad_definition: dict) -> TeamSquad:
+    def generate_squad(self, team: Club, squad_definition: dict) -> TeamSquad:
         # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
         needed_positions = [
             Positions.GK,
@@ -296,7 +296,7 @@ class TeamGenerator(Generator):
         return TeamSquad(team, squad)
 
     def generate(self, *args):
-        teams = [Team.get_from_dict(team) for team in self.team_definitions]
+        teams = [Club.get_from_dict(team) for team in self.team_definitions]
         team_squads = []
         for team in teams:
             found = False

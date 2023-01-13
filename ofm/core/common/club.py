@@ -22,7 +22,7 @@ from .formation import Formation
 
 
 @dataclass
-class Team:
+class Club:
     team_id: UUID
     name: str
     # TODO: Implement a serializable stadium object
@@ -33,7 +33,7 @@ class Team:
     @classmethod
     def get_from_dict(cls, team: dict):
         team_id = UUID(int=team["id"])
-        return Team(
+        return Club(
             team_id,
             team["name"],
             team["stadium_name"],
@@ -53,14 +53,14 @@ class Team:
 
 @dataclass
 class TeamSquad:
-    team: Team
+    team: Club
     squad: list[PlayerTeam]
 
     @classmethod
     def get_from_dict(cls, team: dict, players_list: list[PlayerTeam]):
         team_id = UUID(int=team["id"])
         return TeamSquad(
-            Team(team_id, team["name"], team["stadium_name"], team["stadium_capacity"], team["financial_rating"]),
+            Club(team_id, team["name"], team["stadium_name"], team["stadium_capacity"], team["financial_rating"]),
             squad=players_list,
         )
 
@@ -74,13 +74,13 @@ class TeamSquad:
 class TeamSimulation:
     def __init__(
             self,
-            team: Team,
+            team: Club,
             players: list[PlayerSimulation] = None,
             bench: list[PlayerSimulation] = None,
             formation: Optional[Formation] = None,
             max_substitutions: int = 3,
     ):
-        self.team: Team = team
+        self.team: Club = team
         self.players: list[PlayerSimulation] = players
         self.bench: list[PlayerSimulation] = bench
         self.formation: Formation = formation
