@@ -1,4 +1,4 @@
-#      Openfoot Manager - A free and open source soccer management game
+#      Openfoot Manager - A free and open source soccer management simulation
 #      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -23,50 +23,47 @@ from .formation import Formation
 
 @dataclass
 class Club:
-    team_id: UUID
+    club_id: UUID
     name: str
     # TODO: Implement a serializable stadium object
     stadium: str
     stadium_capacity: int
-    financial_rating: int
 
     @classmethod
-    def get_from_dict(cls, team: dict):
-        team_id = UUID(int=team["id"])
+    def get_from_dict(cls, club: dict):
+        club_id = UUID(int=club["id"])
         return Club(
-            team_id,
-            team["name"],
-            team["stadium_name"],
-            team["stadium_capacity"],
-            team["financial_rating"],
+            club_id,
+            club["name"],
+            club["stadium_name"],
+            club["stadium_capacity"],
         )
     
     def serialize(self) -> dict:
         return {
-            "id": self.team_id.int,
+            "id": self.club_id.int,
             "name": self.name,
             "stadium_name": self.stadium,
             "stadium_capacity": self.stadium_capacity,
-            "financial_rating": self.financial_rating
         }
 
 
 @dataclass
-class TeamSquad:
-    team: Club
+class ClubSquad:
+    club: Club
     squad: list[PlayerTeam]
 
     @classmethod
-    def get_from_dict(cls, team: dict, players_list: list[PlayerTeam]):
-        team_id = UUID(int=team["id"])
-        return TeamSquad(
-            Club(team_id, team["name"], team["stadium_name"], team["stadium_capacity"], team["financial_rating"]),
+    def get_from_dict(cls, club: dict, players_list: list[PlayerTeam]):
+        team_id = UUID(int=club["id"])
+        return ClubSquad(
+            Club(team_id, club["name"], club["stadium_name"], club["stadium_capacity"]),
             squad=players_list,
         )
 
     def serialize(self) -> dict:
         return {
-            "id": self.team.team_id.int,
+            "id": self.club.club_id.int,
             "squad": [player.details.player_id.int for player in self.squad]
         }
 
@@ -74,13 +71,13 @@ class TeamSquad:
 class TeamSimulation:
     def __init__(
             self,
-            team: Club,
+            club: Club,
             players: list[PlayerSimulation] = None,
             bench: list[PlayerSimulation] = None,
             formation: Optional[Formation] = None,
             max_substitutions: int = 3,
     ):
-        self.team: Club = team
+        self.club: Club = club
         self.players: list[PlayerSimulation] = players
         self.bench: list[PlayerSimulation] = bench
         self.formation: Formation = formation
@@ -89,7 +86,7 @@ class TeamSimulation:
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
         self.score: int = 0
         self.max_substitutions: int = max_substitutions
-        self.stats: TeamStats = TeamStats(self.team.team_id)
+        self.stats: TeamStats = TeamStats(self.club.club_id)
 
     def update_player_stamina(self):
         pass
@@ -108,7 +105,7 @@ class TeamSimulation:
 
 @dataclass
 class TeamStats:
-    team_id: UUID
+    club_id: UUID
     shots: int = 0
     shots_on_target: int = 0
     fouls: int = 0

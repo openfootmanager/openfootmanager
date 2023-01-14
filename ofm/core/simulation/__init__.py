@@ -1,4 +1,4 @@
-#      Openfoot Manager - A free and open source soccer management game
+#      Openfoot Manager - A free and open source soccer management simulation
 #      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -13,12 +13,3 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-class Championship:
-    """
-    A Championship is a mixed-form competition, which has multiple formats, like a Group stage and Play Offs stage.
-
-    Can be used for international competitions such as Champions League, Europa League, Copa Libertadores, and
-    even World Cup formats.
-    """
-    pass

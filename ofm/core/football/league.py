@@ -1,4 +1,4 @@
-#      Openfoot Manager - A free and open source soccer management game
+#      Openfoot Manager - A free and open source soccer management simulation
 #      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -13,4 +13,11 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .events import *
+
+class League:
+    """
+    A League is the standard competition in many countries. Generally we have many divisions of leagues,
+    and this can be used for standard national competitions, such as the Liga BBVA, Ligue 1, Premier League,
+    Campeonato Brasileiro, and others.
+    """
+    pass

@@ -1,4 +1,4 @@
-#      Openfoot Manager - A free and open source soccer management game
+#      Openfoot Manager - A free and open source soccer management simulation
 #      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 import pytest
 import datetime
 import uuid
-from ..core.common.club import Club, TeamStats, TeamSimulation, PlayerTeam
+from ..core.football.club import Club, TeamStats, TeamSimulation, PlayerTeam
 from ..core.db.generators import TeamGenerator
 
 
@@ -77,7 +77,6 @@ def get_club_mock_file() -> dict:
                                 "name": "Munchen",
                                 "stadium_name": "Munchen National Stadium",
                                 "stadium_capacity": 40100,
-                                "financial_rating": 80,
                             }
                         ]
                     },
@@ -89,7 +88,6 @@ def get_club_mock_file() -> dict:
                                 "name": "Barcelona",
                                 "stadium_name": "Barcelona National Stadium",
                                 "stadium_capacity": 50000,
-                                "financial_rating": 85,
                             },
                         ]
                     }
@@ -107,14 +105,12 @@ def test_get_club_from_mock_file():
             "Munchen",
             "Munchen National Stadium",
             40100,
-            80,
         ),
         Club(
             uuid.UUID(int=2),
             "Barcelona",
             "Barcelona National Stadium",
             50000,
-            85,
         )
     ]
     teams = []
@@ -135,20 +131,18 @@ def test_generate_team_squads():
             "name": "Munchen",
             "stadium_name": "Munchen National Stadium",
             "stadium_capacity": 40100,
-            "financial_rating": 80,
         },
         {
             "id": 2,
             "name": "Barcelona",
             "stadium_name": "Barcelona National Stadium",
             "stadium_capacity": 50000,
-            "financial_rating": 85,
         },
     ]
     team_gen = TeamGenerator(team_def, squad_def, datetime.date.today())
     team_squads = team_gen.generate()
     for t_squad in team_squads:
         assert len(t_squad.squad) == 18
-        assert isinstance(t_squad.team, Club)
+        assert isinstance(t_squad.club, Club)
         for player in t_squad.squad:
             assert isinstance(player, PlayerTeam)

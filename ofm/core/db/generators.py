@@ -1,4 +1,4 @@
-#      Openfoot Manager - A free and open source soccer management game
+#      Openfoot Manager - A free and open source soccer management simulation
 #      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
@@ -19,9 +19,9 @@ import random
 import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
-from ofm.core.common.player import Player, Positions, PreferredFoot, PlayerTeam
-from ofm.core.common.playercontract import PlayerContract
-from ofm.core.common.club import Club, TeamSquad
+from ofm.core.football.player import Player, Positions, PreferredFoot, PlayerTeam
+from ofm.core.football.playercontract import PlayerContract
+from ofm.core.football.club import Club, ClubSquad
 from ofm.defaults import NAMES_FILE
 
 
@@ -107,7 +107,7 @@ class PlayerGenerator(Generator):
 
         I'm capping skill lvls to not return negative values or values above 99.
 
-        The planned skill rating should go from 0 to 99 in this game, just like other soccer games do. 
+        The planned skill rating should go from 0 to 99 in this simulation, just like other soccer games do.
         """
         if mu is None:
             mu = 50
@@ -246,7 +246,7 @@ class TeamGenerator(Generator):
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 
-    def generate_squad(self, team: Club, squad_definition: dict) -> TeamSquad:
+    def generate_squad(self, team: Club, squad_definition: dict) -> ClubSquad:
         # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
         needed_positions = [
             Positions.GK,
@@ -287,13 +287,13 @@ class TeamGenerator(Generator):
         for player in players:
             squad.append(PlayerTeam(
                 player,
-                team.team_id,
+                team.club_id,
                 shirt_number,
                 self.generate_player_contract(player)
             ))
             shirt_number += 1
 
-        return TeamSquad(team, squad)
+        return ClubSquad(team, squad)
 
     def generate(self, *args):
         teams = [Club.get_from_dict(team) for team in self.team_definitions]
@@ -301,7 +301,7 @@ class TeamGenerator(Generator):
         for team in teams:
             found = False
             for squad_def in self.squad_definitions:
-                if team.team_id.int == squad_def["id"]:
+                if team.club_id.int == squad_def["id"]:
                     found = True
                     team_squads.append(self.generate_squad(team, squad_def))
                     break
