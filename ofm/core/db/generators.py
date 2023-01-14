@@ -66,6 +66,8 @@ class PlayerGenerator(Generator):
         for reg in self.names:
             if reg["region"] == region:
                 return reg
+            else:
+                return random.choice(self.names)
 
     def generate_id(self):
         return uuid.uuid4()

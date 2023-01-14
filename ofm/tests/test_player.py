@@ -241,6 +241,13 @@ def test_serialized_player_equals_to_obj(player_gen: PlayerGenerator):
     assert Player.get_from_dict(player_dict) == player
 
 
+def test_generate_player_from_unknown_region(player_gen: PlayerGenerator):
+    player = player_gen.generate_player(region="Senegal")
+
+    assert player.first_name is not None
+    assert player.last_name is not None
+
+
 def test_serialized_player_has_no_none(player_gen: PlayerGenerator):
     player_gen.generate(10000)
     for player in player_gen.players_obj:
