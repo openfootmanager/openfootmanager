@@ -55,9 +55,9 @@ class ClubSquad:
 
     @classmethod
     def get_from_dict(cls, club: dict, players_list: list[PlayerTeam]):
-        team_id = UUID(int=club["id"])
+        club_id = UUID(int=club["id"])
         return ClubSquad(
-            Club(team_id, club["name"], club["stadium_name"], club["stadium_capacity"]),
+            Club(club_id, club["name"], club["stadium_name"], club["stadium_capacity"]),
             squad=players_list,
         )
 

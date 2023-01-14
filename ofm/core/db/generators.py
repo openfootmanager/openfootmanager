@@ -219,8 +219,8 @@ class TeamGenerator(Generator):
     and a squad should be generated for each team.
     """
 
-    def __init__(self, team_definitions: list[dict], squad_definitions: list[dict], season_start: date):
-        self.team_definitions = team_definitions
+    def __init__(self, club_definitions: list[dict], squad_definitions: list[dict], season_start: date):
+        self.club_definitions = club_definitions
         self.season_start = season_start
         self.squad_definitions = squad_definitions
         self.player_gen = PlayerGenerator()
@@ -297,21 +297,21 @@ class TeamGenerator(Generator):
 
         return ClubSquad(team, squad)
 
-    def generate(self, *args):
-        teams = [Club.get_from_dict(team) for team in self.team_definitions]
-        team_squads = []
-        for team in teams:
+    def generate(self, *args) -> list[ClubSquad]:
+        clubs = [Club.get_from_dict(club) for club in self.club_definitions]
+        club_squad = []
+        for team in clubs:
             found = False
             for squad_def in self.squad_definitions:
                 if team.club_id.int == squad_def["id"]:
                     found = True
-                    team_squads.append(self.generate_squad(team, squad_def))
+                    club_squad.append(self.generate_squad(team, squad_def))
                     break
 
             if not found:
                 raise GenerateSquadError(f"Squad definition not found for team {team.name}")
 
-        if not team_squads:
-            raise GenerateSquadError(f"Team Squads are empty!")
+        if not club_squad:
+            raise GenerateSquadError(f"Club Squads are empty!")
 
-        return team_squads
+        return club_squad
