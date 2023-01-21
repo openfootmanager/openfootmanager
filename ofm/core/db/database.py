@@ -18,7 +18,7 @@ import json
 import uuid
 from typing import Optional, List
 
-from ofm.core.football.club import Club, ClubSquad
+from ofm.core.football.club import Club
 from ofm.core.football.player import Player, Positions, PlayerTeam
 from ofm.core.settings import Settings
 from .generators import PlayerGenerator, TeamGenerator
@@ -68,14 +68,27 @@ class DB:
         with open(self.players_file, "r") as fp:
             return json.load(fp)
 
+    def load_club_definitions(self):
+        with open(self.clubs_def_file, 'r') as fp:
+            return json.load(fp)
+
+    def load_squad_definitions(self):
+        with open(self.squads_def_file, 'r') as fp:
+            return json.load(fp)
+
     def load_player_objects(self, players: list[dict]) -> list[Player]:
         return [Player.get_from_dict(player) for player in players]
 
-    def load_club_objects(self, clubs: list[dict]) -> list[Club]:
-        return [Club.get_from_dict(team) for team in clubs]
+    def load_club_objects(self, clubs: list[dict], players: list[Player]) -> list[Club]:
+        _clubs = []
+        for club in clubs:
+            squad = self.get_player_team_from_dicts(club["squad"], players)
+            _clubs.append(Club.get_from_dict(club, squad))
 
-    def load_club_squad_objects(self, clubs: list[dict], players: list[PlayerTeam]):
-        return [ClubSquad.get_from_dict(club, players) for club in clubs]
+        if not _clubs:
+            raise DatabaseLoadError("Could not load clubs from definition")
+
+        return _clubs
 
     def get_player_object_from_id(self, player_id: uuid.UUID, players: list[dict]) -> Player:
         if not players:
@@ -90,14 +103,20 @@ class DB:
     def get_player_team_from_dicts(self, squad_ids: list[dict], players: list[Player]) -> list[PlayerTeam]:
         squad = []
         for player in players:
+            found = False
             for pl_id in squad_ids:
                 if player.player_id.int == pl_id["player_id"]:
                     squad.append(PlayerTeam.get_from_dict(pl_id, players))
+                    found = True
+                    break
 
-        if squad:
-            return squad
-        else:
+            if not found:
+                raise DatabaseLoadError(f"Player ID not found in the database!")
+
+        if not squad:
             raise PlayerTeamLoadError("Squad not found in database of players!")
+
+        return squad
 
     def generate_players(self, amount: int = 50 * 22, region: str = None,
                          desired_pos: Optional[List[Positions]] = None):
@@ -106,14 +125,6 @@ class DB:
         players_dict = players.get_players_dictionaries()
         with open(self.players_file, "w") as fp:
             json.dump(players_dict, fp)
-
-    def load_club_definitions(self):
-        with open(self.clubs_def_file, 'r') as fp:
-            return json.load(fp)
-
-    def load_squad_definitions(self):
-        with open(self.squads_def_file, 'r') as fp:
-            return json.load(fp)
 
     def generate_teams(self, clubs_def: Optional[list[dict]], squads_def: Optional[list[dict]],
                        season_start: datetime.date = datetime.date.today()):

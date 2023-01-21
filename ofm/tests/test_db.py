@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import uuid
+from unittest.mock import patch, mock_open
 from ofm.core.db.generators import PlayerGenerator
 from ofm.core.db.database import DB, DatabaseLoadError
 from ofm.core.settings import Settings
@@ -31,6 +32,66 @@ def db(tmp_path) -> DB:
     settings.res = res
     settings.db = db
     return DB(settings)
+
+
+def get_squads_def() -> list[dict]:
+    return [
+        {
+            "id": 1,
+            "nationalities": [
+                {
+                    "name": "Germany",
+                    "probability": 0.90,
+                },
+                {
+                    "name": "France",
+                    "probability": 0.05,
+                },
+                {
+                    "name": "Spain",
+                    "probability": 0.05,
+                }
+            ],
+            "mu": 80,
+            "sigma": 20,
+        },
+        {
+            "id": 2,
+            "nationalities": [
+                {
+                    "name": "Spain",
+                    "probability": 0.90
+                },
+                {
+                    "name": "Germany",
+                    "probability": 0.05
+                },
+                {
+                    "name": "France",
+                    "probability": 0.05
+                }
+            ],
+            "mu": 80,
+            "sigma": 20,
+        }
+    ]
+
+
+def get_club_mock_file() -> list[dict]:
+    return [
+        {
+            "id": 1,
+            "name": "Munchen",
+            "stadium_name": "Munchen National Stadium",
+            "stadium_capacity": 40100,
+        },
+        {
+            "id": 2,
+            "name": "Barcelona",
+            "stadium_name": "Barcelona National Stadium",
+            "stadium_capacity": 50000,
+        },
+    ]
 
 
 def test_generate_players(db: DB):
@@ -62,5 +123,10 @@ def test_load_player_from_dict(db: DB):
     assert db.load_player_objects([player_dict]) == [player]
 
 
-def test_generate_teams(db: DB):
-    pass
+# def test_generate_teams(db: DB):
+#     open_mock = mock_open()
+#     with patch("db.generate_teams", open_mock, create=True):
+#
+#     db.generate_teams(get_club_mock_file(), get_squads_def())
+#     players_list = db.load_players()
+#     players = db.load_player_objects(players_list)

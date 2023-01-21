@@ -103,12 +103,14 @@ def test_get_club_from_mock_file():
         Club(
             uuid.UUID(int=1),
             "Munchen",
+            [],
             "Munchen National Stadium",
             40100,
         ),
         Club(
             uuid.UUID(int=2),
             "Barcelona",
+            [],
             "Barcelona National Stadium",
             50000,
         )
@@ -118,7 +120,7 @@ def test_get_club_from_mock_file():
     for region in mock_definition_file["regions"]:
         for countries in region["countries"]:
             for team in countries["clubs"]:
-                teams.append(Club.get_from_dict(team))
+                teams.append(Club.get_from_dict(team, []))
 
     assert teams == expected_teams
 
@@ -143,6 +145,6 @@ def test_generate_team_squads():
     team_squads = team_gen.generate()
     for t_squad in team_squads:
         assert len(t_squad.squad) == 18
-        assert isinstance(t_squad.club, Club)
+        assert isinstance(t_squad, Club)
         for player in t_squad.squad:
             assert isinstance(player, PlayerTeam)

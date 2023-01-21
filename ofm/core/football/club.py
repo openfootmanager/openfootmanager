@@ -26,15 +26,17 @@ class Club:
     club_id: UUID
     name: str
     # TODO: Implement a serializable stadium object
+    squad: list[PlayerTeam]
     stadium: str
     stadium_capacity: int
 
     @classmethod
-    def get_from_dict(cls, club: dict):
+    def get_from_dict(cls, club: dict, players: list[PlayerTeam]):
         club_id = UUID(int=club["id"])
         return Club(
             club_id,
             club["name"],
+            players,
             club["stadium_name"],
             club["stadium_capacity"],
         )
@@ -43,28 +45,9 @@ class Club:
         return {
             "id": self.club_id.int,
             "name": self.name,
+            "squad": [player.details.player_id.int for player in self.squad],
             "stadium_name": self.stadium,
             "stadium_capacity": self.stadium_capacity,
-        }
-
-
-@dataclass
-class ClubSquad:
-    club: Club
-    squad: list[PlayerTeam]
-
-    @classmethod
-    def get_from_dict(cls, club: dict, players_list: list[PlayerTeam]):
-        club_id = UUID(int=club["id"])
-        return ClubSquad(
-            Club(club_id, club["name"], club["stadium_name"], club["stadium_capacity"]),
-            squad=players_list,
-        )
-
-    def serialize(self) -> dict:
-        return {
-            "id": self.club.club_id.int,
-            "squad": [player.details.player_id.int for player in self.squad]
         }
 
 

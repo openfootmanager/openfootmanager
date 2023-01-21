@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
 from ofm.core.football.player import Player, Positions, PreferredFoot, PlayerTeam
 from ofm.core.football.playercontract import PlayerContract
-from ofm.core.football.club import Club, ClubSquad
+from ofm.core.football.club import Club
 from ofm.defaults import NAMES_FILE
 
 
@@ -248,7 +248,7 @@ class TeamGenerator(Generator):
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 
-    def generate_squad(self, team: Club, squad_definition: dict) -> ClubSquad:
+    def generate_squad(self, team_id: uuid.UUID, squad_definition: dict) -> list[PlayerTeam]:
         # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
         needed_positions = [
             Positions.GK,
@@ -289,29 +289,30 @@ class TeamGenerator(Generator):
         for player in players:
             squad.append(PlayerTeam(
                 player,
-                team.club_id,
+                team_id,
                 shirt_number,
                 self.generate_player_contract(player)
             ))
             shirt_number += 1
 
-        return ClubSquad(team, squad)
+        return squad
 
-    def generate(self, *args) -> list[ClubSquad]:
-        clubs = [Club.get_from_dict(club) for club in self.club_definitions]
-        club_squad = []
-        for team in clubs:
+    def generate(self, *args) -> list[Club]:
+        clubs = []
+        for team in self.club_definitions:
             found = False
             for squad_def in self.squad_definitions:
-                if team.club_id.int == squad_def["id"]:
+                if team["id"] == squad_def["id"]:
                     found = True
-                    club_squad.append(self.generate_squad(team, squad_def))
+                    club_id = uuid.UUID(int=team["id"])
+                    squad = self.generate_squad(club_id, squad_def)
+                    clubs.append(Club.get_from_dict(team, squad))
                     break
 
             if not found:
-                raise GenerateSquadError(f"Squad definition not found for team {team.name}")
+                raise GenerateSquadError(f"Squad definition not found for team {team['name']}")
 
-        if not club_squad:
+        if not clubs:
             raise GenerateSquadError(f"Club Squads are empty!")
 
-        return club_squad
+        return clubs
