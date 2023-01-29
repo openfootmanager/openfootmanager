@@ -105,7 +105,7 @@ class DB:
         for player in players:
             found = False
             for pl_id in squad_ids:
-                if player.player_id.int == pl_id["player_id"]:
+                if player.player_id.int == pl_id["id"]:
                     squad.append(PlayerTeam.get_from_dict(pl_id, players))
                     found = True
                     break

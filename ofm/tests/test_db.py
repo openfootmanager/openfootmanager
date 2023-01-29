@@ -15,9 +15,9 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import uuid
-from unittest.mock import patch, mock_open
+from unittest.mock import Mock
 from ofm.core.db.generators import PlayerGenerator
-from ofm.core.db.database import DB, DatabaseLoadError
+from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
 from ofm.core.settings import Settings
 
 
@@ -121,6 +121,20 @@ def test_load_player_from_dict(db: DB):
     player = PlayerGenerator().generate_player()
     player_dict = player.serialize()
     assert db.load_player_objects([player_dict]) == [player]
+
+
+def test_raises_database_load_error_get_player_team_from_dict(db: DB):
+    players = [Mock(player_id=uuid.uuid4())]
+    squad_ids = [{"id": 1}]
+    with pytest.raises(DatabaseLoadError):
+        db.get_player_team_from_dicts(squad_ids, players)
+
+
+def test_raises_error_get_player_team_from_dict(db: DB):
+    players = []
+    squad_ids = [{"id": 1}]
+    with pytest.raises(PlayerTeamLoadError):
+        db.get_player_team_from_dicts(squad_ids, players)
 
 
 # def test_generate_teams(db: DB):
