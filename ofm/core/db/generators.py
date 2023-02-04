@@ -249,7 +249,7 @@ class TeamGenerator(Generator):
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 
     def generate_squad(self, team_id: uuid.UUID, squad_definition: dict) -> list[PlayerTeam]:
-        # A team must have at least 2 GKs, 6 defenders, 6 midfielders and 4 forwards to play
+        # A team must have some options for the bench, 22-23 players at least
         needed_positions = [
             Positions.GK,
             Positions.DF,
@@ -264,8 +264,12 @@ class TeamGenerator(Generator):
             Positions.FW,
             # Reserves
             Positions.GK,
+            Positions.GK,
             Positions.DF,
             Positions.DF,
+            Positions.DF,
+            Positions.DF,
+            Positions.MF,
             Positions.MF,
             Positions.MF,
             Positions.FW,

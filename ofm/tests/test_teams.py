@@ -144,7 +144,7 @@ def test_generate_team_squads():
     team_gen = TeamGenerator(team_def, squad_def, datetime.date.today())
     team_squads = team_gen.generate()
     for t_squad in team_squads:
-        assert len(t_squad.squad) == 18
+        assert len(t_squad.squad) == 22
         assert isinstance(t_squad, Club)
         for player in t_squad.squad:
             assert isinstance(player, PlayerTeam)
