@@ -188,6 +188,7 @@ class PlayerSimulation:
         self.statistics = PlayerStats(player.details.player_id)
         self.is_injured = False
         self.injury_type = None
+        self.subbed = False
 
     def calculate_current_skill(self) -> int:
         if self.current_position in self.player.details.positions:

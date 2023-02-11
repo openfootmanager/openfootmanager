@@ -21,6 +21,10 @@ from .player import PlayerSimulation, Player, PlayerTeam
 from .formation import Formation
 
 
+class PlayerSubstitutionError(Exception):
+    pass
+
+
 @dataclass
 class Club:
     club_id: UUID
@@ -75,15 +79,13 @@ class TeamSimulation:
         pass
 
     def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
-        pass
-
-    def remove_player(self, player: PlayerSimulation):
-        """
-        Remove player if it got injured, or received a red card.
-        :param player:
-        :return:
-        """
-        self.players.remove(player)
+        if player2.subbed or (player1.statistics.red_cards != 0):
+            raise PlayerSubstitutionError("Player cannot be subbed!")
+        subbed_player_index = self.players.index(player1)
+        sub_player_index = self.bench.index(player2)
+        player1.subbed = True
+        self.players[subbed_player_index] = player2
+        self.bench[sub_player_index] = player1
 
 
 @dataclass
