@@ -16,7 +16,7 @@
 import datetime
 import json
 import uuid
-from typing import Optional, List
+from typing import Optional
 
 from ofm.core.football.club import Club
 from ofm.core.football.player import Player, Positions, PlayerTeam
@@ -37,27 +37,27 @@ class DB:
         self.settings = settings
 
     @property
-    def players_file(self):
+    def players_file(self) -> str:
         return self.settings.players_file
 
     @property
-    def squads_file(self):
+    def squads_file(self) -> str:
         return self.settings.squads_file
 
     @property
-    def player_teams_file(self):
+    def player_teams_file(self) -> str:
         return self.settings.player_teams
 
     @property
-    def clubs_file(self):
+    def clubs_file(self) -> str:
         return self.settings.clubs_file
 
     @property
-    def squads_def_file(self):
+    def squads_def_file(self) -> str:
         return self.settings.squads_def
 
     @property
-    def clubs_def_file(self):
+    def clubs_def_file(self) -> str:
         return self.settings.clubs_def
 
     def load_clubs(self) -> list[dict]:
@@ -68,11 +68,11 @@ class DB:
         with open(self.players_file, "r") as fp:
             return json.load(fp)
 
-    def load_club_definitions(self):
+    def load_club_definitions(self) -> list[dict]:
         with open(self.clubs_def_file, 'r') as fp:
             return json.load(fp)
 
-    def load_squad_definitions(self):
+    def load_squad_definitions(self) -> list[dict]:
         with open(self.squads_def_file, 'r') as fp:
             return json.load(fp)
 
@@ -119,21 +119,24 @@ class DB:
         return squad
 
     def generate_players(self, amount: int = 50 * 22, region: str = None,
-                         desired_pos: Optional[List[Positions]] = None):
+                         desired_pos: Optional[list[Positions]] = None) -> list[dict]:
         players = PlayerGenerator()
         players.generate(amount, region, desired_pos)
         players_dict = players.get_players_dictionaries()
         with open(self.players_file, "w") as fp:
             json.dump(players_dict, fp)
+        return players_dict
 
     def generate_teams(self, clubs_def: Optional[list[dict]], squads_def: Optional[list[dict]],
-                       season_start: datetime.date = datetime.date.today()):
-        if not clubs_def:
+                       season_start: datetime.date = datetime.date.today()) -> list[dict]:
+        if clubs_def is None:
             clubs_def = self.load_club_definitions()
-        if not squads_def:
+        if squads_def is None:
             squads_def = self.load_squad_definitions()
-        team_generator = TeamGenerator(clubs_def, squads_def, season_start)
-        teams = team_generator.generate()
-        squads_dict = [team.serialize() for team in teams]
-        with open(self.squads_file, "w") as fp:
-            json.dump(squads_dict, fp)
+
+        team_gen = TeamGenerator(clubs_def, squads_def, season_start)
+        clubs = team_gen.generate()
+        clubs_dict = [club.serialize() for club in clubs]
+        with open(self.clubs_file, 'w') as fp:
+            json.dump(clubs_dict, fp)
+        return clubs_dict

@@ -16,6 +16,7 @@
 import pytest
 import uuid
 from unittest.mock import Mock
+from hypothesis import given, strategies
 from ofm.core.db.generators import PlayerGenerator
 from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
 from ofm.core.settings import Settings
@@ -95,14 +96,15 @@ def get_club_mock_file() -> list[dict]:
 
 
 def test_generate_players(db: DB):
-    db.generate_players()
+    expected_players = db.generate_players()
     file_contents = db.load_players()
     assert file_contents is not None
+    assert expected_players == file_contents
 
 
 def test_get_non_existant_player_from_database(db: DB):
     with pytest.raises(DatabaseLoadError):
-        db.get_player_object_from_id(uuid.uuid4(), [{"id": 3333333333333333333333333333333333333}])
+        db.get_player_object_from_id(uuid.uuid4(), [{"id": uuid.uuid4().int}])
 
 
 def test_get_player_from_empty_players_list(db: DB):
@@ -137,10 +139,5 @@ def test_raises_error_get_player_team_from_dict(db: DB):
         db.get_player_team_from_dicts(squad_ids, players)
 
 
-# def test_generate_teams(db: DB):
-#     open_mock = mock_open()
-#     with patch("db.generate_teams", open_mock, create=True):
-#
-#     db.generate_teams(get_club_mock_file(), get_squads_def())
-#     players_list = db.load_players()
-#     players = db.load_player_objects(players_list)
+def test_generate_teams(db: DB):
+    pass

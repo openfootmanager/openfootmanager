@@ -13,6 +13,7 @@ sphinx = "*"
 pygments = "*"
 docutils = "*"
 pyyaml = "*"
+hypothesis = "*"
 
 [requires]
 python_version = "3"

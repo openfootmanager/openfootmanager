@@ -303,18 +303,20 @@ class TeamGenerator(Generator):
 
     def generate(self, *args) -> list[Club]:
         clubs = []
-        for team in self.club_definitions:
-            found = False
-            for squad_def in self.squad_definitions:
-                if team["id"] == squad_def["id"]:
-                    found = True
-                    club_id = uuid.UUID(int=team["id"])
-                    squad = self.generate_squad(club_id, squad_def)
-                    clubs.append(Club.get_from_dict(team, squad))
-                    break
+        for region in self.club_definitions:
+            for nation in region["countries"]:
+                for team in nation["teams"]:
+                    found = False
+                    for squad_def in self.squad_definitions:
+                        if team["id"] == squad_def["id"]:
+                            found = True
+                            club_id = uuid.UUID(int=team["id"])
+                            squad = self.generate_squad(club_id, squad_def)
+                            clubs.append(Club.get_from_dict(team, squad))
+                            break
 
-            if not found:
-                raise GenerateSquadError(f"Squad definition not found for team {team['name']}")
+                    if not found:
+                        raise GenerateSquadError(f"Squad definition not found for team {team['name']}")
 
         if not clubs:
             raise GenerateSquadError(f"Club Squads are empty!")
