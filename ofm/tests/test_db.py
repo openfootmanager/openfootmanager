@@ -127,14 +127,14 @@ def test_load_player_from_dict(db: DB):
 
 def test_raises_database_load_error_get_player_team_from_dict(db: DB):
     players = [Mock(player_id=uuid.uuid4())]
-    squad_ids = [{"id": 1}]
+    squad_ids = [{"id": uuid.uuid4().int}]
     with pytest.raises(DatabaseLoadError):
         db.get_player_team_from_dicts(squad_ids, players)
 
 
 def test_raises_error_get_player_team_from_dict(db: DB):
     players = []
-    squad_ids = [{"id": 1}]
+    squad_ids = [{"id": uuid.uuid4().int}]
     with pytest.raises(PlayerTeamLoadError):
         db.get_player_team_from_dicts(squad_ids, players)
 
