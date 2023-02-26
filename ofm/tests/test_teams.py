@@ -127,20 +127,7 @@ def test_get_club_from_mock_file():
 
 def test_generate_team_squads():
     squad_def = get_squads_def()
-    team_def = [
-        {
-            "id": 1,
-            "name": "Munchen",
-            "stadium_name": "Munchen National Stadium",
-            "stadium_capacity": 40100,
-        },
-        {
-            "id": 2,
-            "name": "Barcelona",
-            "stadium_name": "Barcelona National Stadium",
-            "stadium_capacity": 50000,
-        },
-    ]
+    team_def = get_club_mock_file()
     team_gen = TeamGenerator(team_def, squad_def, datetime.date.today())
     team_squads = team_gen.generate()
     for t_squad in team_squads:

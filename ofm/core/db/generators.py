@@ -219,7 +219,7 @@ class TeamGenerator(Generator):
     and a squad should be generated for each team.
     """
 
-    def __init__(self, club_definitions: list[dict], squad_definitions: list[dict], season_start: date):
+    def __init__(self, club_definitions: dict, squad_definitions: list[dict], season_start: date):
         self.club_definitions = club_definitions
         self.season_start = season_start
         self.squad_definitions = squad_definitions
@@ -303,9 +303,9 @@ class TeamGenerator(Generator):
 
     def generate(self, *args) -> list[Club]:
         clubs = []
-        for region in self.club_definitions:
-            for nation in region["countries"]:
-                for team in nation["teams"]:
+        for region in self.club_definitions["regions"]:
+            for country in region["countries"]:
+                for team in country["clubs"]:
                     found = False
                     for squad_def in self.squad_definitions:
                         if team["id"] == squad_def["id"]:
