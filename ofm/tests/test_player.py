@@ -33,56 +33,80 @@ def players_file(tmp_path):
     return d / "players.json"
 
 
+def get_player_obj(player_id: uuid.UUID):
+    return Player(
+        player_id,
+        "Brazil",
+        datetime.date(1996, 12, 14),
+        "John",
+        "Doe",
+        "J. Doe",
+        [Positions.FW, Positions.MF],
+        100.0,
+        100.0,
+        0.5,
+        80,
+        90,
+        5,
+        PreferredFoot.LEFT,
+        10000.00
+    )
+
+
+def get_player_dict(player_id: uuid.UUID):
+    positions = [Positions.FW, Positions.MF]
+    preferred_foot = PreferredFoot.LEFT
+    return {
+        "id": player_id.int,
+        "nationality": "Brazil",
+        "dob": "1996-12-14",
+        "first_name": "John",
+        "last_name": "Doe",
+        "short_name": "J. Doe",
+        "positions": [position.value for position in positions],
+        "fitness": 100.0,
+        "stamina": 100.0,
+        "form": 0.5,
+        "skill": 80,
+        "potential_skill": 90,
+        "international_reputation": 5,
+        "preferred_foot": PreferredFoot(preferred_foot),
+        "value": 10000.00
+    }
+
+
+def get_player_team() -> tuple[PlayerTeam, Player, dict]:
+    player_id = uuid.uuid4()
+    team_id = uuid.uuid4()
+    shirt_number = 10
+    contract_dict = {
+        "wage": 10000.00,
+        "started": "2020-01-01",
+        "end": "2021-01-01",
+        "bonus_for_goal": 500.00,
+        "bonus_for_def": 500.00,
+    }
+    player = get_player_obj(player_id)
+    player_team_dict = {
+        "player_id": player_id.int,
+        "team_id": team_id.int,
+        "shirt_number": shirt_number,
+        "contract": contract_dict,
+    }
+    expected_contract = PlayerContract.get_from_dict(contract_dict)
+    player_team = PlayerTeam(
+        player,
+        team_id,
+        shirt_number,
+        expected_contract
+    )
+    return player_team, player, player_team_dict
+
+
 def test_get_from_dictionary():
     player_id = uuid.uuid4()
-    nationality = "Brazil"
-    dob = "1996-12-14"
-    first_name = "John"
-    last_name = "Doe"
-    short_name = "J. Doe"
-    positions = [Positions.FW, Positions.MF]
-    fitness = 100.0
-    stamina = 100.0
-    form = 0.5
-    skill = 80
-    potential_skill = 90
-    international_reputation = 5
-    preferred_foot = PreferredFoot.LEFT
-    value = 10000.00
-    player_dict = {
-        "id": player_id.int,
-        "nationality": nationality,
-        "dob": dob,
-        "first_name": first_name,
-        "last_name": last_name,
-        "short_name": short_name,
-        "positions": [position.value for position in positions],
-        "fitness": fitness,
-        "stamina": stamina,
-        "form": form,
-        "skill": skill,
-        "potential_skill": potential_skill,
-        "international_reputation": international_reputation,
-        "preferred_foot": PreferredFoot(preferred_foot),
-        "value": value
-    }
-    expected_player = Player(
-        player_id,
-        nationality,
-        datetime.datetime.strptime(dob, "%Y-%m-%d").date(),
-        first_name,
-        last_name,
-        short_name,
-        positions,
-        fitness,
-        stamina,
-        form,
-        skill,
-        potential_skill,
-        international_reputation,
-        preferred_foot,
-        value
-    )
+    player_dict = get_player_dict(player_id)
+    expected_player = get_player_obj(player_id)
     player = Player.get_from_dict(player_dict)
     assert expected_player == player
 
@@ -111,118 +135,12 @@ def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
 
 
 def test_player_team_get_from_dictionary():
-    player_id = uuid.uuid4()
-    team_id = uuid.uuid4()
-    shirt_number = 10
-    nationality = "Brazil"
-    dob = "1996-12-14"
-    first_name = "John"
-    last_name = "Doe"
-    short_name = "J. Doe"
-    positions = [Positions.FW, Positions.MF]
-    fitness = 100.0
-    stamina = 100.0
-    form = 0.5
-    skill = 80
-    potential_skill = 90
-    international_reputation = 5
-    preferred_foot = PreferredFoot.LEFT
-    value = 10000.00
-    contract_dict = {
-        "wage": 10000.00,
-        "started": "2020-01-01",
-        "end": "2021-01-01",
-        "bonus_for_goal": 500.00,
-        "bonus_for_def": 500.00,
-    }
-    player = Player(
-        player_id,
-        nationality,
-        datetime.datetime.strptime(dob, "%Y-%m-%d").date(),
-        first_name,
-        last_name,
-        short_name,
-        positions,
-        fitness,
-        stamina,
-        form,
-        skill,
-        potential_skill,
-        international_reputation,
-        preferred_foot,
-        value
-    )
-    player_team_dict = {
-        "player_id": player_id.int,
-        "team_id": team_id.int,
-        "shirt_number": shirt_number,
-        "contract": contract_dict,
-    }
-    expected_contract = PlayerContract.get_from_dict(contract_dict)
-    expected_player_team = PlayerTeam(
-        player,
-        team_id,
-        shirt_number,
-        expected_contract
-    )
+    expected_player_team, player, player_team_dict = get_player_team()
     assert PlayerTeam.get_from_dict(player_team_dict, [player]) == expected_player_team
 
 
 def test_serialize_player_team():
-    player_id = uuid.uuid4()
-    team_id = uuid.uuid4()
-    shirt_number = 10
-    nationality = "Brazil"
-    dob = "1996-12-14"
-    first_name = "John"
-    last_name = "Doe"
-    short_name = "J. Doe"
-    positions = [Positions.FW, Positions.MF]
-    fitness = 100.0
-    stamina = 100.0
-    form = 0.5
-    skill = 80
-    potential_skill = 90
-    international_reputation = 5
-    preferred_foot = PreferredFoot.LEFT
-    value = 10000.00
-    contract_dict = {
-        "wage": 10000.00,
-        "started": "2020-01-01",
-        "end": "2021-01-01",
-        "bonus_for_goal": 500.00,
-        "bonus_for_def": 500.00,
-    }
-    player = Player(
-        player_id,
-        nationality,
-        datetime.datetime.strptime(dob, "%Y-%m-%d").date(),
-        first_name,
-        last_name,
-        short_name,
-        positions,
-        fitness,
-        stamina,
-        form,
-        skill,
-        potential_skill,
-        international_reputation,
-        preferred_foot,
-        value
-    )
-    expected_player_team_dict = {
-        "player_id": player_id.int,
-        "team_id": team_id.int,
-        "shirt_number": shirt_number,
-        "contract": contract_dict,
-    }
-    expected_contract = PlayerContract.get_from_dict(contract_dict)
-    player_team = PlayerTeam(
-        player,
-        team_id,
-        shirt_number,
-        expected_contract
-    )
+    player_team, player, expected_player_team_dict = get_player_team()
     assert player_team.serialize() == expected_player_team_dict
 
 
