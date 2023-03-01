@@ -54,8 +54,8 @@ class Player:
     fitness: float
     stamina: float
     form: float
-    skill: int
-    potential_skill: int
+    skill: dict
+    potential_skill: dict
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float

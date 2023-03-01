@@ -14,11 +14,19 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .core.settings import Settings
+from .core.db.database import DB
 
 
 class OFM:
     def __init__(self):
         self.settings = Settings()
+        self.settings.get_settings()
+        self.db = DB(self.settings)
     
     def run(self):
         pass
+
+
+if __name__ == '__main__':
+    ofm = OFM()
+    ofm.run()

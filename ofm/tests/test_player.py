@@ -33,7 +33,7 @@ def players_file(tmp_path):
     return d / "players.json"
 
 
-def get_player_obj(player_id: uuid.UUID):
+def get_player_obj(player_id: uuid.UUID) -> Player:
     return Player(
         player_id,
         "Brazil",
@@ -45,15 +45,25 @@ def get_player_obj(player_id: uuid.UUID):
         100.0,
         100.0,
         0.5,
-        80,
-        90,
+        {
+            "atk": 80,
+            "mid": 75,
+            "def": 30,
+            "gk": 20,
+        },
+        {
+            "atk": 90,
+            "mid": 75,
+            "def": 30,
+            "gk": 20,
+        },
         5,
         PreferredFoot.LEFT,
         10000.00
     )
 
 
-def get_player_dict(player_id: uuid.UUID):
+def get_player_dict(player_id: uuid.UUID) -> dict:
     positions = [Positions.FW, Positions.MF]
     preferred_foot = PreferredFoot.LEFT
     return {
@@ -67,8 +77,18 @@ def get_player_dict(player_id: uuid.UUID):
         "fitness": 100.0,
         "stamina": 100.0,
         "form": 0.5,
-        "skill": 80,
-        "potential_skill": 90,
+        "skill": {
+            "atk": 80,
+            "mid": 75,
+            "def": 30,
+            "gk": 20,
+        },
+        "potential_skill": {
+            "atk": 90,
+            "mid": 75,
+            "def": 30,
+            "gk": 20,
+        },
         "international_reputation": 5,
         "preferred_foot": PreferredFoot(preferred_foot),
         "value": 10000.00
@@ -148,20 +168,17 @@ def test_get_player_from_player_id(player_gen: PlayerGenerator):
     player_gen.generate(100)
     players = player_gen.players_obj.copy()
     player = players[0]
-
     assert get_player_from_player_id(player.player_id, players) == player
 
 
 def test_serialized_player_equals_to_obj(player_gen: PlayerGenerator):
     player = player_gen.generate_player()
     player_dict = player.serialize()
-    
     assert Player.get_from_dict(player_dict) == player
 
 
 def test_generate_player_from_unknown_region(player_gen: PlayerGenerator):
     player = player_gen.generate_player(region="Senegal")
-
     assert player.first_name is not None
     assert player.last_name is not None
 

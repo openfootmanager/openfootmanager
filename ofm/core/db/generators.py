@@ -102,10 +102,19 @@ class PlayerGenerator(Generator):
         # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
 
-    def generate_skill(self, mu: int = 50, sigma: int = 20) -> int:
+    def _get_skill_from_position(self, position: Positions, positions: list[Positions], mu: int, sigma: int):
+        skill = random.randint(20, 45)
+        if position in positions:
+            skill = int(random.gauss(mu, sigma))
+            skill = min(skill, self.max_skill_lvl)
+            skill = max(20, skill)
+
+        return skill
+
+    def generate_skill(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> dict:
         """
         Generates the player's skill lvl. Region-tuned skill-lvl might come later,
-        but for now, just generates players with skill lvls from 30 to 99.
+        but for now, just generates players with skill lvls from 20 to 99.
 
         I'm capping skill lvls to not return negative values or values above 99.
 
@@ -117,21 +126,47 @@ class PlayerGenerator(Generator):
         if sigma is None:
             sigma = 20
 
-        skill = int(random.gauss(mu, sigma))
+        atk = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
+        mid = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
+        df = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
+        gk = self._get_skill_from_position(Positions.GK, positions, mu, sigma)
 
-        skill = min(skill, self.max_skill_lvl)
-        skill = max(30, skill)
+        return {
+            "atk": atk,
+            "mid": mid,
+            "def": df,
+            "gk": gk,
+        }
 
-        return skill
+    def _get_potential_skill_per_position(self, skill: int, position: Positions, positions: list[Positions], age_diff: int):
+        potential_skill = skill
+        if position in positions:
+            potential_skill += age_diff + random.randint(0, 25)
 
-    def generate_potential_skill(self, skill: int, age: int) -> int:
+        potential_skill = min(potential_skill, self.max_skill_lvl)
+        return potential_skill
+
+    def generate_potential_skill(self, skill: dict, positions: list[Positions], age: int) -> dict:
         """
         Generates the player's potential skill.
         """
-        # TODO: improve this algorithm
-        return random.randint(skill, self.max_skill_lvl)
+        age_diff = int((self.max_age.days * 365.25) - age)
+        if age_diff < 0:
+            age_diff = 0
 
-    def generate_positions(self, desired_pos: Optional[List[Positions]]) -> list[Positions]:
+        atk = self._get_potential_skill_per_position(skill['atk'], Positions.FW, positions, age_diff)
+        mid = self._get_potential_skill_per_position(skill['mid'], Positions.MF, positions, age_diff)
+        df = self._get_potential_skill_per_position(skill['def'], Positions.DF, positions, age_diff)
+        gk = self._get_potential_skill_per_position(skill['gk'], Positions.GK, positions, age_diff)
+
+        return {
+            "atk": atk,
+            "mid": mid,
+            "def": df,
+            "gk": gk,
+        }
+
+    def generate_positions(self, desired_pos: Optional[list[Positions]]) -> list[Positions]:
         if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
             return desired_pos
         positions = list(Positions)
@@ -141,25 +176,41 @@ class PlayerGenerator(Generator):
     def generate_preferred_foot() -> PreferredFoot:
         return random.choice(list(PreferredFoot))
 
-    def generate_player_value(self, skill: int) -> float:
+    def generate_player_value(self, skill: dict, age: int, potential_skill: dict, international_rep: int) -> float:
         """
         Should return how much a player's worth.
 
         Right now I'm just going to say it is skill * 1000.00. It's not too important to come up
         with an algorithm for that at the moment.
-        :param skill:
-        :return:
         """
-        # TODO: Implement an algorithm to calculate player value
-        # This algorithm should take into account the player's international reputation,
-        # The potential skill value and the current skill of the player
-        return skill * 1000.00
+        age_diff = int((self.max_age.days * 365.25) - age)
+        if age_diff < 0:
+            age_diff = 0
 
-    def generate_international_reputation(self, skill: int) -> int:
+        current_skill = max(skill.values())
+        pot_skill = max(potential_skill.values())
+        base_value = random.randint(55, 80) * 100
+
+        return base_value + (international_rep * 15000) + (age_diff * 1000) + (current_skill * 500) + (pot_skill * 100)
+
+    def generate_international_reputation(self, skill: dict) -> int:
         """
         Returns the player's international reputation. This number ranges from 0 to 5.
         """
-        return random.randint(0, 5)
+        max_skill = max(skill.values())
+
+        if max_skill < 65:
+            return 0
+        if 65 <= max_skill < 70:
+            return 1
+        if 70 <= max_skill < 75:
+            return 2
+        if 75 <= max_skill < 82:
+            return 3
+        if 82 <= max_skill < 90:
+            return 4
+        if max_skill >= 90:
+            return 5
 
     def get_players_dictionaries(self) -> List[dict]:
         if not self.players_obj:
@@ -180,10 +231,10 @@ class PlayerGenerator(Generator):
         age = int((self.today - dob).days * 0.0027379070)
         positions = self.generate_positions(desired_pos)
         preferred_foot = self.generate_preferred_foot()
-        skill = self.generate_skill(mu, sigma)
-        potential_skill = self.generate_potential_skill(skill, age)
+        skill = self.generate_skill(positions, mu, sigma)
+        potential_skill = self.generate_potential_skill(skill, positions, age)
         international_reputation = self.generate_international_reputation(skill)
-        value = self.generate_player_value(skill)
+        value = self.generate_player_value(skill, age, potential_skill, international_reputation)
 
         return Player(
             player_id,
@@ -242,9 +293,9 @@ class TeamGenerator(Generator):
         bonus_for_goal = 0
         bonus_for_def = 0
         if any(x in player.positions for x in [Positions.FW, Positions.MF]):
-            bonus_for_goal = player.value * ((player.skill / 2) / 100)
+            bonus_for_goal = player.value * ((max(player.skill.values()) / 2) / 100)
         if any(x in player.positions for x in [Positions.GK, Positions.DF]):
-            bonus_for_def = player.value * ((player.skill / 2) / 100)
+            bonus_for_def = player.value * ((max(player.skill.values()) / 2) / 100)
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 
