@@ -15,9 +15,10 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import uuid
+import datetime
 from unittest.mock import Mock
 from hypothesis import given, strategies
-from ofm.core.db.generators import PlayerGenerator
+from ofm.core.db.generators import PlayerGenerator, TeamGenerator
 from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
 from ofm.core.settings import Settings
 
@@ -78,21 +79,38 @@ def get_squads_def() -> list[dict]:
     ]
 
 
-def get_club_mock_file() -> list[dict]:
-    return [
-        {
-            "id": 1,
-            "name": "Munchen",
-            "stadium_name": "Munchen National Stadium",
-            "stadium_capacity": 40100,
-        },
-        {
-            "id": 2,
-            "name": "Barcelona",
-            "stadium_name": "Barcelona National Stadium",
-            "stadium_capacity": 50000,
-        },
-    ]
+def get_club_mock_file() -> dict:
+    return {
+        "regions": [
+            {
+                "name": "UEFA",
+                "countries": [
+                    {
+                        "name": "Germany",
+                        "clubs": [
+                            {
+                                "id": 1,
+                                "name": "Munchen",
+                                "stadium_name": "Munchen National Stadium",
+                                "stadium_capacity": 40100,
+                            }
+                        ]
+                    },
+                    {
+                        "name": "Spain",
+                        "clubs": [
+                            {
+                                "id": 2,
+                                "name": "Barcelona",
+                                "stadium_name": "Barcelona National Stadium",
+                                "stadium_capacity": 50000,
+                            },
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
 
 
 def test_generate_players(db: DB):

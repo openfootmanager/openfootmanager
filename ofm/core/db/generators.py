@@ -107,7 +107,7 @@ class PlayerGenerator(Generator):
         if position in positions:
             skill = int(random.gauss(mu, sigma))
             skill = min(skill, self.max_skill_lvl)
-            skill = max(20, skill)
+            skill = max(46, skill)
 
         return skill
 
@@ -217,6 +217,12 @@ class PlayerGenerator(Generator):
             raise GeneratePlayerError("Players objects were not generated!")
         return [player.serialize() for player in self.players_obj]
 
+    def generate_player_form(self) -> float:
+        return round(random.random() * 100, 2)
+
+    def generate_player_fitness(self) -> float:
+        return round(random.random(), 2)
+
     def generate_player(
             self,
             region: Optional[str] = None,
@@ -235,6 +241,8 @@ class PlayerGenerator(Generator):
         potential_skill = self.generate_potential_skill(skill, positions, age)
         international_reputation = self.generate_international_reputation(skill)
         value = self.generate_player_value(skill, age, potential_skill, international_reputation)
+        form = self.generate_player_form()
+        fitness = self.generate_player_fitness()
 
         return Player(
             player_id,
@@ -244,9 +252,9 @@ class PlayerGenerator(Generator):
             last_name,
             short_name,
             positions,
+            fitness,
             100.0,
-            100.0,
-            0.5,
+            form,
             skill,
             potential_skill,
             international_reputation,
@@ -270,7 +278,7 @@ class TeamGenerator(Generator):
     and a squad should be generated for each team.
     """
 
-    def __init__(self, club_definitions: dict, squad_definitions: list[dict], season_start: date):
+    def __init__(self, club_definitions: dict, squad_definitions: list[dict], season_start: date = date.today()):
         self.club_definitions = club_definitions
         self.season_start = season_start
         self.squad_definitions = squad_definitions
@@ -298,6 +306,23 @@ class TeamGenerator(Generator):
             bonus_for_def = player.value * ((max(player.skill.values()) / 2) / 100)
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
+
+    def generate_player_team(
+            self,
+            mu: int,
+            sigma: int,
+            nationality: str,
+            team_id: uuid.UUID,
+            shirt_number: int,
+            positions: Optional[list[Positions]],
+    ) -> PlayerTeam:
+        player = self.player_gen.generate_player(nationality, mu, sigma, positions)
+        return PlayerTeam(
+            player,
+            team_id,
+            shirt_number,
+            self.generate_player_contract(player)
+        )
 
     def generate_squad(self, team_id: uuid.UUID, squad_definition: dict) -> list[PlayerTeam]:
         # A team must have some options for the bench, 22-23 players at least
@@ -328,29 +353,21 @@ class TeamGenerator(Generator):
         ]
 
         # Variables for player generation
-        shirt_number = 1
+        shirt_number = range(1, len(needed_positions) + 1)
         mu = squad_definition["mu"]
         sigma = squad_definition["sigma"]
         nationalities, probabilities = self._get_nationalities(squad_definition)
-        players = []
 
-        # Generate players for squad
-        for position in needed_positions:
-            nationality = random.choices(nationalities, probabilities)[0]
-            players.append(self.player_gen.generate_player(nationality, mu, sigma, [position]))
-
-        # Generate the PlayerTeam object
-        squad = []
-        for player in players:
-            squad.append(PlayerTeam(
-                player,
+        return [
+            self.generate_player_team(
+                mu,
+                sigma,
+                random.choices(nationalities, probabilities)[0],
                 team_id,
-                shirt_number,
-                self.generate_player_contract(player)
-            ))
-            shirt_number += 1
-
-        return squad
+                shirt_number[i],
+                [needed_positions[i]]
+            ) for i, _ in enumerate(needed_positions)
+        ]
 
     def generate(self, *args) -> list[Club]:
         clubs = []
