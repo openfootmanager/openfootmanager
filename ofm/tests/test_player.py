@@ -16,7 +16,7 @@
 import pytest
 import uuid
 import datetime
-from ..core.football.player import Player, PlayerTeam, Positions, PreferredFoot, get_player_from_player_id
+from ..core.football.player import PlayerAttributes, Player, PlayerTeam, Positions, PreferredFoot, get_player_from_player_id
 from ..core.football.playercontract import PlayerContract
 from ..core.db.generators import PlayerGenerator
 
@@ -45,18 +45,8 @@ def get_player_obj(player_id: uuid.UUID) -> Player:
         100.0,
         100.0,
         0.5,
-        {
-            "atk": 80,
-            "mid": 75,
-            "def": 30,
-            "gk": 20,
-        },
-        {
-            "atk": 90,
-            "mid": 75,
-            "def": 30,
-            "gk": 20,
-        },
+        PlayerAttributes(80, 75, 30, 20),
+        PlayerAttributes(90, 75, 30, 20),
         5,
         PreferredFoot.LEFT,
         10000.00
@@ -77,16 +67,16 @@ def get_player_dict(player_id: uuid.UUID) -> dict:
         "fitness": 100.0,
         "stamina": 100.0,
         "form": 0.5,
-        "skill": {
-            "atk": 80,
-            "mid": 75,
-            "def": 30,
+        "attributes": {
+            "offense": 80,
+            "defense": 75,
+            "passing": 30,
             "gk": 20,
         },
-        "potential_skill": {
-            "atk": 90,
-            "mid": 75,
-            "def": 30,
+        "potential_attributes": {
+            "offense": 90,
+            "defense": 75,
+            "passing": 30,
             "gk": 20,
         },
         "international_reputation": 5,
@@ -143,8 +133,8 @@ def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
         "fitness",
         "stamina",
         "form",
-        "skill",
-        "potential_skill",
+        "attributes",
+        "potential_attributes",
         "international_reputation",
         "preferred_foot",
         "value"

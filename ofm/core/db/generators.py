@@ -19,7 +19,7 @@ import random
 import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Union
-from ofm.core.football.player import Player, Positions, PreferredFoot, PlayerTeam
+from ofm.core.football.player import PlayerAttributes, Player, Positions, PreferredFoot, PlayerTeam
 from ofm.core.football.playercontract import PlayerContract
 from ofm.core.football.club import Club
 from ofm.defaults import NAMES_FILE
@@ -103,18 +103,18 @@ class PlayerGenerator(Generator):
         return first_name, last_name, short_name
 
     def _get_skill_from_position(self, position: Positions, positions: list[Positions], mu: int, sigma: int):
-        skill = random.randint(20, 45)
         if position in positions:
             skill = int(random.gauss(mu, sigma))
             skill = min(skill, self.max_skill_lvl)
             skill = max(46, skill)
+        else:
+            skill = random.randint(20, 45)
 
         return skill
 
-    def generate_skill(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> dict:
+    def generate_attributes(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> PlayerAttributes:
         """
-        Generates the player's skill lvl. Region-tuned skill-lvl might come later,
-        but for now, just generates players with skill lvls from 20 to 99.
+        Generates the player's attributes. Generates players with attribute ranging from 20 to 99.
 
         I'm capping skill lvls to not return negative values or values above 99.
 
@@ -126,19 +126,14 @@ class PlayerGenerator(Generator):
         if sigma is None:
             sigma = 20
 
-        atk = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
-        mid = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
-        df = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
+        offense = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
+        passing = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
+        defense = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
         gk = self._get_skill_from_position(Positions.GK, positions, mu, sigma)
 
-        return {
-            "atk": atk,
-            "mid": mid,
-            "def": df,
-            "gk": gk,
-        }
+        return PlayerAttributes(offense, defense, passing, gk)
 
-    def _get_potential_skill_per_position(self, skill: int, position: Positions, positions: list[Positions], age_diff: int):
+    def _get_potential_attribute_per_position(self, skill: int, position: Positions, positions: list[Positions], age_diff: int):
         potential_skill = skill
         if position in positions:
             potential_skill += age_diff + random.randint(0, 25)
@@ -146,7 +141,7 @@ class PlayerGenerator(Generator):
         potential_skill = min(potential_skill, self.max_skill_lvl)
         return potential_skill
 
-    def generate_potential_skill(self, skill: dict, positions: list[Positions], age: int) -> dict:
+    def generate_potential_attributes(self, skill: PlayerAttributes, positions: list[Positions], age: int) -> PlayerAttributes:
         """
         Generates the player's potential skill.
         """
@@ -154,17 +149,12 @@ class PlayerGenerator(Generator):
         if age_diff < 0:
             age_diff = 0
 
-        atk = self._get_potential_skill_per_position(skill['atk'], Positions.FW, positions, age_diff)
-        mid = self._get_potential_skill_per_position(skill['mid'], Positions.MF, positions, age_diff)
-        df = self._get_potential_skill_per_position(skill['def'], Positions.DF, positions, age_diff)
-        gk = self._get_potential_skill_per_position(skill['gk'], Positions.GK, positions, age_diff)
+        offense = self._get_potential_attribute_per_position(skill.offense, Positions.FW, positions, age_diff)
+        passing = self._get_potential_attribute_per_position(skill.passing, Positions.MF, positions, age_diff)
+        defense = self._get_potential_attribute_per_position(skill.defense, Positions.DF, positions, age_diff)
+        gk = self._get_potential_attribute_per_position(skill.gk, Positions.GK, positions, age_diff)
 
-        return {
-            "atk": atk,
-            "mid": mid,
-            "def": df,
-            "gk": gk,
-        }
+        return PlayerAttributes(offense, defense, passing, gk)
 
     def generate_positions(self, desired_pos: Optional[list[Positions]]) -> list[Positions]:
         if desired_pos:  # might be useful if we want to generate teams later, so we don't get entirely random positions
@@ -193,11 +183,11 @@ class PlayerGenerator(Generator):
 
         return base_value + (international_rep * 15000) + (age_diff * 1000) + (current_skill * 500) + (pot_skill * 100)
 
-    def generate_international_reputation(self, skill: dict) -> int:
+    def generate_international_reputation(self, attributes: dict) -> int:
         """
         Returns the player's international reputation. This number ranges from 0 to 5.
         """
-        max_skill = max(skill.values())
+        max_skill = max(attributes.values())
 
         if max_skill < 65:
             return 0
@@ -237,10 +227,10 @@ class PlayerGenerator(Generator):
         age = int((self.today - dob).days * 0.0027379070)
         positions = self.generate_positions(desired_pos)
         preferred_foot = self.generate_preferred_foot()
-        skill = self.generate_skill(positions, mu, sigma)
-        potential_skill = self.generate_potential_skill(skill, positions, age)
-        international_reputation = self.generate_international_reputation(skill)
-        value = self.generate_player_value(skill, age, potential_skill, international_reputation)
+        attributes = self.generate_attributes(positions, mu, sigma)
+        potential_attributes = self.generate_potential_attributes(attributes, positions, age)
+        international_reputation = self.generate_international_reputation(attributes.serialize())
+        value = self.generate_player_value(attributes.serialize(), age, potential_attributes.serialize(), international_reputation)
         form = self.generate_player_form()
         fitness = self.generate_player_fitness()
 
@@ -255,8 +245,8 @@ class PlayerGenerator(Generator):
             fitness,
             100.0,
             form,
-            skill,
-            potential_skill,
+            attributes,
+            potential_attributes,
             international_reputation,
             preferred_foot,
             value,
@@ -301,9 +291,9 @@ class TeamGenerator(Generator):
         bonus_for_goal = 0
         bonus_for_def = 0
         if any(x in player.positions for x in [Positions.FW, Positions.MF]):
-            bonus_for_goal = player.value * ((max(player.skill.values()) / 2) / 100)
+            bonus_for_goal = player.value * ((max(player.attributes.serialize().values()) / 2) / 100)
         if any(x in player.positions for x in [Positions.GK, Positions.DF]):
-            bonus_for_def = player.value * ((max(player.skill.values()) / 2) / 100)
+            bonus_for_def = player.value * ((max(player.attributes.serialize().values()) / 2) / 100)
 
         return PlayerContract(wage, contract_started, contract_end, bonus_for_goal, bonus_for_def)
 

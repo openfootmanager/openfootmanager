@@ -43,6 +43,31 @@ def get_positions_from_dict(positions: list[int]):
 
 
 @dataclass
+class PlayerAttributes:
+    offense: int
+    defense: int
+    passing: int
+    gk: int
+
+    @classmethod
+    def get_from_dict(cls, attributes: dict[str, int]):
+        return cls(
+            attributes["offense"],
+            attributes["defense"],
+            attributes["passing"],
+            attributes["gk"]
+        )
+
+    def serialize(self) -> dict[str, int]:
+        return {
+            "offense": self.offense,
+            "defense": self.defense,
+            "passing": self.passing,
+            "gk": self.gk,
+        }
+
+
+@dataclass
 class Player:
     """
     Parameters
@@ -100,8 +125,8 @@ class Player:
     fitness: float
     stamina: float
     form: float
-    skill: dict
-    potential_skill: dict
+    attributes: PlayerAttributes
+    potential_attributes: PlayerAttributes
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float
@@ -119,8 +144,8 @@ class Player:
             player_dict["fitness"],
             player_dict["stamina"],
             player_dict["form"],
-            player_dict["skill"],
-            player_dict["potential_skill"],
+            PlayerAttributes.get_from_dict(player_dict["attributes"]),
+            PlayerAttributes.get_from_dict(player_dict["potential_attributes"]),
             player_dict["international_reputation"],
             player_dict["preferred_foot"],
             player_dict["value"]
@@ -130,7 +155,7 @@ class Player:
         return [position.value for position in self.positions]
 
     def get_best_position(self) -> Positions:
-        best_pos = max(self.skill)
+        best_pos = max(self.attributes.serialize())
         match best_pos:
             case "atk":
                 return Positions.FW
@@ -153,8 +178,8 @@ class Player:
             "fitness": self.fitness,
             "stamina": self.stamina,
             "form": self.form,
-            "skill": self.skill,
-            "potential_skill": self.potential_skill,
+            "attributes": self.attributes.serialize(),
+            "potential_attributes": self.potential_attributes.serialize(),
             "international_reputation": self.international_reputation,
             "preferred_foot": self.preferred_foot.value,
             "value": self.value
