@@ -26,13 +26,6 @@ def player_gen() -> PlayerGenerator:
     return PlayerGenerator()
 
 
-@pytest.fixture
-def players_file(tmp_path):
-    d = tmp_path / "db"
-    d.mkdir()
-    return d / "players.json"
-
-
 def get_player_obj(player_id: uuid.UUID) -> Player:
     return Player(
         player_id,
