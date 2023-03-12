@@ -32,9 +32,7 @@ def test_get_settings(settings, tmp_path):
         "db": os.path.join(tmp_path, "res", "db"),
         "save": os.path.join(tmp_path, "save"),
         "clubs_def": os.path.join(tmp_path, "res", "clubs_def.json"),
-        "squads_def": os.path.join(tmp_path, "res", "squads_def.json"),
         "squads": os.path.join(tmp_path, "res", "db", "squads.json"),
-        "player_teams": os.path.join(tmp_path, "res", "db", "player_teams.json"),
         "players": os.path.join(tmp_path, "res", "db", "players.json"),
         "clubs": os.path.join(tmp_path, "res", "db", "clubs.json")
     }

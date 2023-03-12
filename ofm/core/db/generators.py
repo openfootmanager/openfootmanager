@@ -13,15 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from datetime import datetime, date, timedelta
 import json
 import random
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime, date, timedelta
 from typing import Tuple, List, Optional, Union
+
+from ofm.core.football.club import Club
 from ofm.core.football.player import PlayerAttributes, Player, Positions, PreferredFoot, PlayerTeam
 from ofm.core.football.playercontract import PlayerContract
-from ofm.core.football.club import Club
 from ofm.defaults import NAMES_FILE
 
 
@@ -133,7 +134,8 @@ class PlayerGenerator(Generator):
 
         return PlayerAttributes(offense, defense, passing, gk)
 
-    def _get_potential_attribute_per_position(self, skill: int, position: Positions, positions: list[Positions], age_diff: int):
+    def _get_potential_attribute_per_position(self, skill: int, position: Positions, positions: list[Positions],
+                                              age_diff: int):
         potential_skill = skill
         if position in positions:
             potential_skill += age_diff + random.randint(0, 25)
@@ -141,7 +143,8 @@ class PlayerGenerator(Generator):
         potential_skill = min(potential_skill, self.max_skill_lvl)
         return potential_skill
 
-    def generate_potential_attributes(self, skill: PlayerAttributes, positions: list[Positions], age: int) -> PlayerAttributes:
+    def generate_potential_attributes(self, skill: PlayerAttributes, positions: list[Positions],
+                                      age: int) -> PlayerAttributes:
         """
         Generates the player's potential skill.
         """
@@ -230,7 +233,8 @@ class PlayerGenerator(Generator):
         attributes = self.generate_attributes(positions, mu, sigma)
         potential_attributes = self.generate_potential_attributes(attributes, positions, age)
         international_reputation = self.generate_international_reputation(attributes.serialize())
-        value = self.generate_player_value(attributes.serialize(), age, potential_attributes.serialize(), international_reputation)
+        value = self.generate_player_value(attributes.serialize(), age, potential_attributes.serialize(),
+                                           international_reputation)
         form = self.generate_player_form()
         fitness = self.generate_player_fitness()
 
@@ -268,10 +272,9 @@ class TeamGenerator(Generator):
     and a squad should be generated for each team.
     """
 
-    def __init__(self, club_definitions: dict, squad_definitions: list[dict], season_start: date = date.today()):
+    def __init__(self, club_definitions: list[dict], season_start: date = date.today()):
         self.club_definitions = club_definitions
         self.season_start = season_start
-        self.squad_definitions = squad_definitions
         self.player_gen = PlayerGenerator()
 
     def _get_nationalities(self, squad_definition: dict) -> Tuple[list[str], list[float]]:
@@ -286,7 +289,7 @@ class TeamGenerator(Generator):
     def generate_player_contract(self, player: Player) -> PlayerContract:
         wage = player.value / 12
         contract_started = self.season_start
-        contract_length = random.randint(1, 4) * timedelta(seconds=31556952)   # pick a contract length in years
+        contract_length = random.randint(1, 4) * timedelta(seconds=31556952)  # pick a contract length in years
         contract_end = contract_started + contract_length
         bonus_for_goal = 0
         bonus_for_def = 0
@@ -361,22 +364,11 @@ class TeamGenerator(Generator):
 
     def generate(self, *args) -> list[Club]:
         clubs = []
-        for region in self.club_definitions["regions"]:
-            for country in region["countries"]:
-                for team in country["clubs"]:
-                    found = False
-                    for squad_def in self.squad_definitions:
-                        if team["id"] == squad_def["id"]:
-                            found = True
-                            club_id = uuid.UUID(int=team["id"])
-                            squad = self.generate_squad(club_id, squad_def)
-                            clubs.append(Club.get_from_dict(team, squad))
-                            break
-
-                    if not found:
-                        raise GenerateSquadError(f"Squad definition not found for team {team['name']}")
-
-        if not clubs:
-            raise GenerateSquadError(f"Club Squads are empty!")
+        for club in self.club_definitions:
+            club_id = uuid.uuid4()
+            club.update({"id": club_id.int})
+            squad = self.generate_squad(club_id, club["squad_def"])
+            club_obj = Club.get_from_dict(club, squad)
+            clubs.append(club_obj)
 
         return clubs

@@ -13,52 +13,60 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
 import datetime
 import uuid
-from ..core.football.club import Club, TeamStats, TeamSimulation, PlayerTeam
+
 from ..core.db.generators import TeamGenerator
+from ..core.football.club import Club, PlayerTeam
 
 
 def get_squads_def() -> list[dict]:
     return [
         {
-            "id": 1,
-            "nationalities": [
-                {
-                    "name": "Germany",
-                    "probability": 0.90,
-                },
-                {
-                    "name": "France",
-                    "probability": 0.05,
-                },
-                {
-                    "name": "Spain",
-                    "probability": 0.05,
-                }
-            ],
-            "mu": 80,
-            "sigma": 20,
+            "name": "Munchen",
+            "stadium_name": "Munchen National Stadium",
+            "stadium_capacity": 40100,
+            "squad_def": {
+                "nationalities": [
+                    {
+                        "name": "Germany",
+                        "probability": 0.90,
+                    },
+                    {
+                        "name": "France",
+                        "probability": 0.05,
+                    },
+                    {
+                        "name": "Spain",
+                        "probability": 0.05,
+                    }
+                ],
+                "mu": 80,
+                "sigma": 20,
+            }
         },
         {
-            "id": 2,
-            "nationalities": [
-                {
-                    "name": "Spain",
-                    "probability": 0.90
-                },
-                {
-                    "name": "Germany",
-                    "probability": 0.05
-                },
-                {
-                    "name": "France",
-                    "probability": 0.05
-                }
-            ],
-            "mu": 80,
-            "sigma": 20,
+            "name": "Barcelona",
+            "stadium_name": "Barcelona National Stadium",
+            "stadium_capacity": 50000,
+            "squad_def": {
+                "nationalities": [
+                    {
+                        "name": "Spain",
+                        "probability": 0.90
+                    },
+                    {
+                        "name": "Germany",
+                        "probability": 0.05
+                    },
+                    {
+                        "name": "France",
+                        "probability": 0.05
+                    }
+                ],
+                "mu": 80,
+                "sigma": 20,
+            }
         }
     ]
 
@@ -75,6 +83,7 @@ def get_club_mock_file() -> dict:
                             {
                                 "id": 1,
                                 "name": "Munchen",
+                                "squad": [],
                                 "stadium_name": "Munchen National Stadium",
                                 "stadium_capacity": 40100,
                             }
@@ -86,6 +95,7 @@ def get_club_mock_file() -> dict:
                             {
                                 "id": 2,
                                 "name": "Barcelona",
+                                "squad": [],
                                 "stadium_name": "Barcelona National Stadium",
                                 "stadium_capacity": 50000,
                             },
@@ -126,9 +136,8 @@ def test_get_club_from_mock_file():
 
 
 def test_generate_team_squads():
-    squad_def = get_squads_def()
-    team_def = get_club_mock_file()
-    team_gen = TeamGenerator(team_def, squad_def, datetime.date.today())
+    clubs_def = get_squads_def()
+    team_gen = TeamGenerator(clubs_def, datetime.date.today())
     team_squads = team_gen.generate()
     for t_squad in team_squads:
         assert len(t_squad.squad) == 22

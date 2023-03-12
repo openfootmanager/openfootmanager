@@ -35,7 +35,6 @@ class Settings:
         self.clubs_def: str = os.path.join(self.res, "clubs_def.json")
         self.squads_def: str = os.path.join(self.res, "squads_def.json")
         self.squads_file: str = os.path.join(self.db, "squads.json")
-        self.player_teams: str = os.path.join(self.db, "player_teams.json")
         self.players_file: str = os.path.join(self.db, "players.json")
         self.clubs_file: str = os.path.join(self.db, "clubs.json")
         self.settings_file: str = settings
@@ -47,9 +46,7 @@ class Settings:
             "db": self.db,
             "save": self.save,
             "clubs_def": self.clubs_def,
-            "squads_def": self.squads_def,
             "squads": self.squads_file,
-            "player_teams": self.player_teams,
             "players": self.players_file,
             "clubs": self.clubs_file,
         }
@@ -60,9 +57,7 @@ class Settings:
         self.db = data['db']
         self.save = data['save']
         self.clubs_def = data['clubs_def']
-        self.squads_def = data['squads_def']
         self.squads_file = data['squads']
-        self.player_teams = data['player_teams']
         self.players_file = data['players']
         self.clubs_file = data['clubs']
 

@@ -147,7 +147,7 @@ class Player:
             PlayerAttributes.get_from_dict(player_dict["attributes"]),
             PlayerAttributes.get_from_dict(player_dict["potential_attributes"]),
             player_dict["international_reputation"],
-            player_dict["preferred_foot"],
+            PreferredFoot(player_dict["preferred_foot"]),
             player_dict["value"]
         )
 
@@ -276,13 +276,13 @@ class PlayerSimulation:
     def calculate_current_skill(self) -> int:
         match self.current_position:
             case Positions.FW:
-                return self.player.details.skill['atk']
+                return self.player.details.attributes.offense
             case Positions.MF:
-                return self.player.details.skill['mid']
+                return self.player.details.attributes.passing
             case Positions.DF:
-                return self.player.details.skill['def']
+                return self.player.details.attributes.defense
             case Positions.GK:
-                return self.player.details.skill['gk']
+                return self.player.details.attributes.gk
 
     def update_stamina(self):
         pass

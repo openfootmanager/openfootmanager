@@ -15,12 +15,11 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import uuid
-import datetime
 from unittest.mock import Mock
-from hypothesis import given, strategies
 from ofm.core.db.generators import PlayerGenerator, TeamGenerator
 from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
 from ofm.core.settings import Settings
+from .test_teams import get_squads_def
 
 
 @pytest.fixture
@@ -34,83 +33,6 @@ def db(tmp_path) -> DB:
     settings.res = res
     settings.db = db
     return DB(settings)
-
-
-def get_squads_def() -> list[dict]:
-    return [
-        {
-            "id": 1,
-            "nationalities": [
-                {
-                    "name": "Germany",
-                    "probability": 0.90,
-                },
-                {
-                    "name": "France",
-                    "probability": 0.05,
-                },
-                {
-                    "name": "Spain",
-                    "probability": 0.05,
-                }
-            ],
-            "mu": 80,
-            "sigma": 20,
-        },
-        {
-            "id": 2,
-            "nationalities": [
-                {
-                    "name": "Spain",
-                    "probability": 0.90
-                },
-                {
-                    "name": "Germany",
-                    "probability": 0.05
-                },
-                {
-                    "name": "France",
-                    "probability": 0.05
-                }
-            ],
-            "mu": 80,
-            "sigma": 20,
-        }
-    ]
-
-
-def get_club_mock_file() -> dict:
-    return {
-        "regions": [
-            {
-                "name": "UEFA",
-                "countries": [
-                    {
-                        "name": "Germany",
-                        "clubs": [
-                            {
-                                "id": 1,
-                                "name": "Munchen",
-                                "stadium_name": "Munchen National Stadium",
-                                "stadium_capacity": 40100,
-                            }
-                        ]
-                    },
-                    {
-                        "name": "Spain",
-                        "clubs": [
-                            {
-                                "id": 2,
-                                "name": "Barcelona",
-                                "stadium_name": "Barcelona National Stadium",
-                                "stadium_capacity": 50000,
-                            },
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
 
 
 def test_generate_players(db: DB):
@@ -145,8 +67,8 @@ def test_load_player_from_dict(db: DB):
 
 def test_raises_database_load_error_get_player_team_from_dict(db: DB):
     players = [Mock(player_id=uuid.uuid4())]
-    squad_ids = [{"id": uuid.uuid4().int}]
-    with pytest.raises(DatabaseLoadError):
+    squad_ids = [{"player_id": uuid.uuid4().int}]
+    with pytest.raises(PlayerTeamLoadError):
         db.get_player_team_from_dicts(squad_ids, players)
 
 
@@ -158,4 +80,11 @@ def test_raises_error_get_player_team_from_dict(db: DB):
 
 
 def test_generate_teams(db: DB):
-    pass
+    clubs_def = get_squads_def()
+    db.generate_teams_and_squads(clubs_def)
+    clubs_dict = db.load_clubs()
+    players_dict = db.load_players()
+    players_obj = db.load_player_objects(players_dict)
+    clubs_obj = db.load_club_objects(clubs_dict, players_obj)
+    assert [club.serialize() for club in clubs_obj] == clubs_dict
+    assert [player.serialize() for player in players_obj] == players_dict

@@ -45,16 +45,8 @@ class DB:
         return self.settings.squads_file
 
     @property
-    def player_teams_file(self) -> str:
-        return self.settings.player_teams
-
-    @property
     def clubs_file(self) -> str:
         return self.settings.clubs_file
-
-    @property
-    def squads_def_file(self) -> str:
-        return self.settings.squads_def
 
     @property
     def clubs_def_file(self) -> str:
@@ -72,8 +64,8 @@ class DB:
         with open(self.clubs_def_file, 'r') as fp:
             return json.load(fp)
 
-    def load_squad_definitions(self) -> list[dict]:
-        with open(self.squads_def_file, 'r') as fp:
+    def load_squads_file(self) -> list[dict]:
+        with open(self.squads_file, 'r') as fp:
             return json.load(fp)
 
     def load_player_objects(self, players: list[dict]) -> list[Player]:
@@ -82,13 +74,26 @@ class DB:
     def load_club_objects(self, clubs: list[dict], players: list[Player]) -> list[Club]:
         _clubs = []
         for club in clubs:
-            squad = self.get_player_team_from_dicts(club["squad"], players)
+            squad = self.get_player_team_from_dicts(self.load_club_squads(club["squad"]), players)
             _clubs.append(Club.get_from_dict(club, squad))
 
         if not _clubs:
             raise DatabaseLoadError("Could not load clubs from definition")
 
         return _clubs
+
+    def load_club_squads(self, squad_ids: list[int], squads: Optional[list[dict]] = None):
+        sq = []
+        if not squads:
+            squads = self.load_squads_file()
+
+        for player_id in squad_ids:
+            for squad in squads:
+                if squad["player_id"] == player_id:
+                    sq.append(squad)
+                    break
+
+        return sq
 
     def get_player_object_from_id(self, player_id: uuid.UUID, players: list[dict]) -> Player:
         if not players:
@@ -100,18 +105,13 @@ class DB:
 
         raise DatabaseLoadError("Player does not exist in database!")
 
-    def get_player_team_from_dicts(self, squad_ids: list[dict], players: list[Player]) -> list[PlayerTeam]:
+    def get_player_team_from_dicts(self, squads_dict: list[dict], players: list[Player]) -> list[PlayerTeam]:
         squad = []
         for player in players:
-            found = False
-            for pl_id in squad_ids:
-                if player.player_id.int == pl_id["id"]:
-                    squad.append(PlayerTeam.get_from_dict(pl_id, players))
-                    found = True
+            for playerteam_dict in squads_dict:
+                if player.player_id.int == playerteam_dict["player_id"]:
+                    squad.append(PlayerTeam.get_from_dict(playerteam_dict, players))
                     break
-
-            if not found:
-                raise DatabaseLoadError(f"Player ID not found in the database!")
 
         if not squad:
             raise PlayerTeamLoadError("Squad not found in database of players!")
@@ -127,16 +127,28 @@ class DB:
             json.dump(players_dict, fp)
         return players_dict
 
-    def generate_teams(self, clubs_def: Optional[list[dict]], squads_def: Optional[list[dict]],
-                       season_start: datetime.date = datetime.date.today()) -> list[dict]:
+    def generate_teams_and_squads(self, clubs_def: Optional[list[dict]],
+                                  season_start: datetime.date = datetime.date.today()):
         if clubs_def is None:
             clubs_def = self.load_club_definitions()
-        if squads_def is None:
-            squads_def = self.load_squad_definitions()
 
-        team_gen = TeamGenerator(clubs_def, squads_def, season_start)
+        team_gen = TeamGenerator(clubs_def, season_start)
         clubs = team_gen.generate()
         clubs_dict = [club.serialize() for club in clubs]
+
         with open(self.clubs_file, 'w') as fp:
             json.dump(clubs_dict, fp)
-        return clubs_dict
+
+        with open(self.players_file, 'w') as fp:
+            players_dict = []
+            for club in clubs:
+                for player in club.squad:
+                    players_dict.append(player.details.serialize())
+            json.dump(players_dict, fp)
+
+        with open(self.squads_file, 'w') as fp:
+            squads_dict = []
+            for club in clubs:
+                for player in club.squad:
+                    squads_dict.append(player.serialize())
+            json.dump(squads_dict, fp)

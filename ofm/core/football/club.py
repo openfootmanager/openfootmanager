@@ -14,11 +14,11 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass
-from uuid import UUID
 from typing import Tuple, Optional
+from uuid import UUID
 
-from .player import PlayerSimulation, Player, PlayerTeam
 from .formation import Formation
+from .player import PlayerSimulation, PlayerTeam
 
 
 class PlayerSubstitutionError(Exception):
@@ -44,7 +44,7 @@ class Club:
             club["stadium_name"],
             club["stadium_capacity"],
         )
-    
+
     def serialize(self) -> dict:
         return {
             "id": self.club_id.int,
@@ -106,4 +106,3 @@ class TeamStats:
     avg_rating: float = 0.0
     possession: float = 0.0
     goals_conceded: int = 0
-
