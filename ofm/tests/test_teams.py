@@ -129,9 +129,7 @@ def test_get_club_from_mock_file():
 
     for region in mock_definition_file["regions"]:
         for countries in region["countries"]:
-            for team in countries["clubs"]:
-                teams.append(Club.get_from_dict(team, []))
-
+            teams.extend(Club.get_from_dict(team, []) for team in countries["clubs"])
     assert teams == expected_teams
 
 

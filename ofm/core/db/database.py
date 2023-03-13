@@ -142,13 +142,11 @@ class DB:
         with open(self.players_file, 'w') as fp:
             players_dict = []
             for club in clubs:
-                for player in club.squad:
-                    players_dict.append(player.details.serialize())
+                players_dict.extend(player.details.serialize() for player in club.squad)
             json.dump(players_dict, fp)
 
         with open(self.squads_file, 'w') as fp:
             squads_dict = []
             for club in clubs:
-                for player in club.squad:
-                    squads_dict.append(player.serialize())
+                squads_dict.extend(player.serialize() for player in club.squad)
             json.dump(squads_dict, fp)
