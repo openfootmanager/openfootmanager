@@ -44,11 +44,9 @@ class PlayerAttributeGenerator(Generator):
         if position in positions:
             skill = int(random.gauss(mu, sigma))
             skill = min(skill, self.max_skill_lvl)
-            skill = max(46, skill)
+            return max(46, skill)
         else:
-            skill = random.randint(20, 45)
-
-        return skill
+            return random.randint(20, 45)
 
     def generate(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> PlayerAttributes:
         """
@@ -101,10 +99,7 @@ class PlayerGenerator(Generator):
 
     def _get_names_from_region(self, region: str) -> dict:
         for reg in self.names:
-            if reg["region"] == region:
-                return reg
-            else:
-                return random.choice(self.names)
+            return reg if reg["region"] == region else random.choice(self.names)
 
     def generate_id(self):
         return uuid.uuid4()
@@ -145,8 +140,7 @@ class PlayerGenerator(Generator):
         if position in positions:
             potential_skill += age_diff + random.randint(0, 25)
 
-        potential_skill = min(potential_skill, self.max_skill_lvl)
-        return potential_skill
+        return min(potential_skill, self.max_skill_lvl)
 
     def generate_potential_attributes(self, skill: PlayerAttributes, positions: list[Positions],
                                       age: int) -> PlayerAttributes:
@@ -154,9 +148,7 @@ class PlayerGenerator(Generator):
         Generates the player's potential skill.
         """
         age_diff = int((self.max_age.days * 365.25) - age)
-        if age_diff < 0:
-            age_diff = 0
-
+        age_diff = max(age_diff, 0)
         offense = self._get_potential_attribute_per_position(skill.offense, Positions.FW, positions, age_diff)
         passing = self._get_potential_attribute_per_position(skill.passing, Positions.MF, positions, age_diff)
         defense = self._get_potential_attribute_per_position(skill.defense, Positions.DF, positions, age_diff)
@@ -182,9 +174,7 @@ class PlayerGenerator(Generator):
         with an algorithm for that at the moment.
         """
         age_diff = int((self.max_age.days * 365.25) - age)
-        if age_diff < 0:
-            age_diff = 0
-
+        age_diff = max(age_diff, 0)
         current_skill = max(skill.values())
         pot_skill = max(potential_skill.values())
         base_value = random.randint(55, 80) * 100
@@ -205,10 +195,7 @@ class PlayerGenerator(Generator):
             return 2
         if 75 <= max_skill < 82:
             return 3
-        if 82 <= max_skill < 90:
-            return 4
-        if max_skill >= 90:
-            return 5
+        return 4 if 82 <= max_skill < 90 else 5
 
     def get_players_dictionaries(self) -> List[dict]:
         if not self.players_obj:

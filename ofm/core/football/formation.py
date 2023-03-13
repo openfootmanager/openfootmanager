@@ -38,8 +38,7 @@ class Formation:
         :return:
         """
         if self.validate_formation():
-            formation = ""
-            return formation
+            return ""
 
     def change_formation(self):
         """
