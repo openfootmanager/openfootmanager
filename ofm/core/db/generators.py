@@ -36,6 +36,42 @@ class GeneratePlayerError(Exception):
     pass
 
 
+class PlayerAttributeGenerator(Generator):
+    def __init__(self, max_skill_lvl):
+        self.max_skill_lvl = max_skill_lvl
+
+    def _get_skill_from_position(self, position: Positions, positions: list[Positions], mu: int, sigma: int):
+        if position in positions:
+            skill = int(random.gauss(mu, sigma))
+            skill = min(skill, self.max_skill_lvl)
+            skill = max(46, skill)
+        else:
+            skill = random.randint(20, 45)
+
+        return skill
+
+    def generate(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> PlayerAttributes:
+        """
+        Generates the player's attributes. Generates players with attribute ranging from 20 to 99.
+
+        I'm capping skill lvls to not return negative values or values above 99.
+
+        The planned skill rating should go from 0 to 99 in this simulation, just like other soccer games do.
+        """
+        if mu is None:
+            mu = 50
+
+        if sigma is None:
+            sigma = 20
+
+        offense = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
+        passing = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
+        defense = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
+        gk = self._get_skill_from_position(Positions.GK, positions, mu, sigma)
+
+        return PlayerAttributes(offense, defense, passing, gk)
+
+
 class PlayerGenerator(Generator):
     def __init__(self, today: Union[datetime, date] = date.today(), max_age: int = 35, min_age: int = 16,
                  max_skill_lvl: int = 99):
@@ -102,37 +138,6 @@ class PlayerGenerator(Generator):
         short_name = f'{first_name[0]}. {last_name}'
         # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
-
-    def _get_skill_from_position(self, position: Positions, positions: list[Positions], mu: int, sigma: int):
-        if position in positions:
-            skill = int(random.gauss(mu, sigma))
-            skill = min(skill, self.max_skill_lvl)
-            skill = max(46, skill)
-        else:
-            skill = random.randint(20, 45)
-
-        return skill
-
-    def generate_attributes(self, positions: list[Positions], mu: int = 50, sigma: int = 20) -> PlayerAttributes:
-        """
-        Generates the player's attributes. Generates players with attribute ranging from 20 to 99.
-
-        I'm capping skill lvls to not return negative values or values above 99.
-
-        The planned skill rating should go from 0 to 99 in this simulation, just like other soccer games do.
-        """
-        if mu is None:
-            mu = 50
-
-        if sigma is None:
-            sigma = 20
-
-        offense = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
-        passing = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
-        defense = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
-        gk = self._get_skill_from_position(Positions.GK, positions, mu, sigma)
-
-        return PlayerAttributes(offense, defense, passing, gk)
 
     def _get_potential_attribute_per_position(self, skill: int, position: Positions, positions: list[Positions],
                                               age_diff: int):
@@ -223,6 +228,7 @@ class PlayerGenerator(Generator):
             sigma: Optional[int] = 20,
             desired_pos: Optional[List[Positions]] = None
     ) -> Player:
+        attr_gen = PlayerAttributeGenerator(self.max_skill_lvl)
         player_id = self.generate_id()
         nationality = self.generate_nationality(region)
         first_name, last_name, short_name = self.generate_name(region)
@@ -230,8 +236,8 @@ class PlayerGenerator(Generator):
         age = int((self.today - dob).days * 0.0027379070)
         positions = self.generate_positions(desired_pos)
         preferred_foot = self.generate_preferred_foot()
-        attributes = self.generate_attributes(positions, mu, sigma)
-        potential_attributes = self.generate_potential_attributes(attributes, positions, age)
+        attributes = attr_gen.generate(positions, mu, sigma)
+        potential_attributes = attr_gen.generate(positions, mu, sigma)
         international_reputation = self.generate_international_reputation(attributes.serialize())
         value = self.generate_player_value(attributes.serialize(), age, potential_attributes.serialize(),
                                            international_reputation)
