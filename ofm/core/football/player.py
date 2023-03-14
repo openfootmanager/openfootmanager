@@ -13,7 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import datetime
 from typing import Union
 from uuid import UUID
@@ -51,20 +51,10 @@ class PlayerAttributes:
 
     @classmethod
     def get_from_dict(cls, attributes: dict[str, int]):
-        return cls(
-            attributes["offense"],
-            attributes["defense"],
-            attributes["passing"],
-            attributes["gk"]
-        )
+        return cls(**attributes)
 
     def serialize(self) -> dict[str, int]:
-        return {
-            "offense": self.offense,
-            "defense": self.defense,
-            "passing": self.passing,
-            "gk": self.gk,
-        }
+        return asdict(self)
 
 
 @dataclass
