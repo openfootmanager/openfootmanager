@@ -79,7 +79,7 @@ def test_raises_error_get_player_team_from_dict(db: DB):
         db.get_player_team_from_dicts(squad_ids, players)
 
 
-def test_generate_teams(db: DB):
+def test_generate_and_load_clubs_and_players(db: DB):
     clubs_def = get_squads_def()
     db.generate_teams_and_squads(clubs_def)
     clubs_dict = db.load_clubs()

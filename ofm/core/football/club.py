@@ -29,6 +29,8 @@ class PlayerSubstitutionError(Exception):
 class Club:
     club_id: UUID
     name: str
+    country: str
+    location: str
     # TODO: Implement a serializable stadium object
     squad: list[PlayerTeam]
     stadium: str
@@ -40,6 +42,8 @@ class Club:
         return Club(
             club_id,
             club["name"],
+            club["country"],
+            club["location"],
             players,
             club["stadium_name"],
             club["stadium_capacity"],
@@ -49,6 +53,8 @@ class Club:
         return {
             "id": self.club_id.int,
             "name": self.name,
+            "country": self.country,
+            "location": self.location,
             "squad": [player.details.player_id.int for player in self.squad],
             "stadium_name": self.stadium,
             "stadium_capacity": self.stadium_capacity,

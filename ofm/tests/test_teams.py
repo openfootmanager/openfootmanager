@@ -26,6 +26,8 @@ def get_squads_def() -> list[dict]:
             "name": "Munchen",
             "stadium_name": "Munchen National Stadium",
             "stadium_capacity": 40100,
+            "country": "Germany",
+            "location": "Munich",
             "squad_def": {
                 "nationalities": [
                     {
@@ -49,6 +51,8 @@ def get_squads_def() -> list[dict]:
             "name": "Barcelona",
             "stadium_name": "Barcelona National Stadium",
             "stadium_capacity": 50000,
+            "country": "Spain",
+            "location": "Barcelona",
             "squad_def": {
                 "nationalities": [
                     {
@@ -71,40 +75,27 @@ def get_squads_def() -> list[dict]:
     ]
 
 
-def get_club_mock_file() -> dict:
-    return {
-        "regions": [
-            {
-                "name": "UEFA",
-                "countries": [
-                    {
-                        "name": "Germany",
-                        "clubs": [
-                            {
-                                "id": 1,
-                                "name": "Munchen",
-                                "squad": [],
-                                "stadium_name": "Munchen National Stadium",
-                                "stadium_capacity": 40100,
-                            }
-                        ]
-                    },
-                    {
-                        "name": "Spain",
-                        "clubs": [
-                            {
-                                "id": 2,
-                                "name": "Barcelona",
-                                "squad": [],
-                                "stadium_name": "Barcelona National Stadium",
-                                "stadium_capacity": 50000,
-                            },
-                        ]
-                    }
-                ]
-            }
-        ]
-    }
+def get_club_mock_file() -> list[dict]:
+    return [
+        {
+            "id": 1,
+            "name": "Munchen",
+            "country": "Germany",
+            "location": "Munich",
+            "squad": [],
+            "stadium_name": "Munchen National Stadium",
+            "stadium_capacity": 40100,
+        },
+        {
+            "id": 2,
+            "name": "Barcelona",
+            "country": "Spain",
+            "location": "Barcelona",
+            "squad": [],
+            "stadium_name": "Barcelona National Stadium",
+            "stadium_capacity": 50000,
+        }
+    ]
 
 
 def test_get_club_from_mock_file():
@@ -113,6 +104,8 @@ def test_get_club_from_mock_file():
         Club(
             uuid.UUID(int=1),
             "Munchen",
+            "Germany",
+            "Munich",
             [],
             "Munchen National Stadium",
             40100,
@@ -120,17 +113,15 @@ def test_get_club_from_mock_file():
         Club(
             uuid.UUID(int=2),
             "Barcelona",
+            "Spain",
+            "Barcelona",
             [],
             "Barcelona National Stadium",
             50000,
         )
     ]
-    teams = []
-
-    for region in mock_definition_file["regions"]:
-        for countries in region["countries"]:
-            teams.extend(Club.get_from_dict(team, []) for team in countries["clubs"])
-    assert teams == expected_teams
+    clubs = [Club.get_from_dict(club, []) for club in mock_definition_file]
+    assert clubs == expected_teams
 
 
 def test_generate_team_squads():
