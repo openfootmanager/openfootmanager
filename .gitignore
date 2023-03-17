@@ -139,3 +139,4 @@ node_modules/
 Pipfile.lock
 
 /res/db/**
+**/settings.yaml

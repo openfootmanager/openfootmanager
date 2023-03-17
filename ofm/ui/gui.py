@@ -13,17 +13,36 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
-from .core.db.database import DB
-from ofm.ui.controllers import OFMController
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from .pages import *
 
 
-class OFM:
+class GUI:
     def __init__(self):
-        self.settings = Settings()
-        self.settings.get_settings()
-        self.db = DB(self.settings)
-        self.controller = OFMController(self.settings, self.db)
-    
-    def run(self):
-        self.controller.run()
+        self.window = ttk.Window(title="OpenFoot Manager", themename="cosmo")
+
+        width = 800
+        height = 600
+
+        self.window.geometry(f"{width}x{height}")
+        self.window.minsize(width, height)
+
+        self.window.rowconfigure(0, weight=1)
+        self.window.columnconfigure(0, weight=1)
+
+        self.pages = {
+            "home": self._add_frame(HomePage),
+            "debug_home": self._add_frame(DebugHomePage),
+        }
+
+        self.current_page = None
+
+    def _add_frame(self, frame) -> ttk.Frame:
+        f = frame(self.window)
+        f.grid(row=0, column=0, sticky=EW)
+        return f
+
+    def switch(self, name: str):
+        self.current_page = self.pages[name]
+        self.current_page.tkraise()

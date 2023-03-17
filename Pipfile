@@ -7,8 +7,7 @@ verify_ssl = true
 
 [packages]
 pytest = "*"
-pyside6 = "*"
-qtpy = "*"
+ttkbootstrap = "*"
 sphinx = "*"
 pygments = "*"
 docutils = "*"

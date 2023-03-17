@@ -13,17 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
-from .core.db.database import DB
-from ofm.ui.controllers import OFMController
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
-        self.settings.get_settings()
-        self.db = DB(self.settings)
-        self.controller = OFMController(self.settings, self.db)
-    
-    def run(self):
-        self.controller.run()
+class DebugHomePage(ttk.Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.title_label = ttk.Label(self, text="Debug Mode")
+        self.grid(row=0, column=0, padx=10, pady=10, sticky=NSEW)
+
+        self.match_sim_btn = ttk.Button(self, text="Match Simulation")
+        self.grid(row=1, column=0, padx=10, pady=10, sticky=NSEW)

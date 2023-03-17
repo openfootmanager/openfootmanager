@@ -13,17 +13,21 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
-from .core.db.database import DB
-from ofm.ui.controllers import OFMController
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+
+from ..gui import GUI
+from ..pages import HomePage
 
 
-class OFM:
-    def __init__(self):
-        self.settings = Settings()
-        self.settings.get_settings()
-        self.db = DB(self.settings)
-        self.controller = OFMController(self.settings, self.db)
-    
-    def run(self):
-        self.controller.run()
+class HomePageController:
+    def __init__(self, gui: GUI):
+        self.gui = gui
+        self.page: HomePage = gui.pages["home"]
+        self._bind()
+
+    def go_to_debug_page(self):
+        self.gui.switch("debug_home")
+
+    def _bind(self):
+        self.page.debug_mode_btn.config(command=self.go_to_debug_page)
