@@ -36,13 +36,16 @@ class GUI:
             "debug_home": self._add_frame(DebugHomePage),
         }
 
-        self.current_page = None
+        self.current_page = self.pages["home"]
 
     def _add_frame(self, frame) -> ttk.Frame:
         f = frame(self.window)
-        f.grid(row=0, column=0, sticky=EW)
+        f.place(anchor=CENTER, relx=.5, rely=.5)
         return f
 
     def switch(self, name: str):
+        self.current_page.place_forget()
         self.current_page = self.pages[name]
+        self.current_page.place(anchor=CENTER, relx=.5, rely=.5)
         self.current_page.tkraise()
+        

@@ -17,9 +17,17 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
 from ..gui import GUI
+from ..pages.debug_home import DebugHomePage
 
 
 class DebugPageController:
     def __init__(self, gui: GUI):
         self.gui = gui
-        self.page = gui.pages['debug_home']
+        self.page: DebugHomePage = gui.pages['debug_home']
+        self._bind()
+    
+    def go_to_home_page(self):
+        self.gui.switch("home")
+    
+    def _bind(self):
+        self.page.cancel_btn.config(command=self.go_to_home_page)
