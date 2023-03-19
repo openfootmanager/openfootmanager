@@ -13,21 +13,18 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
-
 from ..gui import GUI
 from ..pages.debug_home import DebugHomePage
 
 
 class DebugPageController:
-    def __init__(self, gui: GUI):
+    def __init__(self, gui: GUI, page: DebugHomePage):
         self.gui = gui
-        self.page: DebugHomePage = gui.pages['debug_home']
+        self.page = page
         self._bind()
-    
+
     def go_to_home_page(self):
         self.gui.switch("home")
-    
+
     def _bind(self):
         self.page.cancel_btn.config(command=self.go_to_home_page)

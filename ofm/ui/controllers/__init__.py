@@ -29,8 +29,8 @@ class OFMController:
         self.db = db
         self.gui = GUI()
         self.controllers = {
-            'home': HomePageController(self.gui),
-            'debug_home': DebugPageController(self.gui),
+            'home': HomePageController(self.gui, self.gui.pages["home"]),
+            'debug_home': DebugPageController(self.gui, self.gui.pages["debug_home"]),
         }
 
     def run(self):

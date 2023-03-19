@@ -18,9 +18,34 @@ from ttkbootstrap.constants import *
 from .pages import *
 
 
+FOOTBALL_THEME = {
+    "football": {
+        "type": "light",
+        "colors": {
+            "primary": "#56c2ad",
+            "secondary": "#6bc49a",
+            "success": "#29cc24",
+            "info": "#5968d5",
+            "warning": "#666e67",
+            "danger": "#007851",
+            "light": "#f1fffc",
+            "dark": "#514c50",
+            "bg": "#ebffd9",
+            "fg": "#5a5a5a",
+            "selectbg": "#56c2ad",
+            "selectfg": "#f1ffee",
+            "border": "#ced4da",
+            "inputfg": "#696969",
+            "inputbg": "#f1ffee",
+            "active": "#e5e5e5"
+        }
+    }
+}
+
+
 class GUI:
     def __init__(self):
-        self.window = ttk.Window(title="OpenFoot Manager", themename="cosmo")
+        self.window = ttk.Window(title="OpenFoot Manager", themename="minty")
 
         width = 800
         height = 600
@@ -41,6 +66,8 @@ class GUI:
     def _add_frame(self, frame) -> ttk.Frame:
         f = frame(self.window)
         f.place(anchor=CENTER, relx=.5, rely=.5)
+        # Necessary to hide all frames
+        f.place_forget()
         return f
 
     def switch(self, name: str):

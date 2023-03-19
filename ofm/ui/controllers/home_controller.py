@@ -21,9 +21,9 @@ from ..pages import HomePage
 
 
 class HomePageController:
-    def __init__(self, gui: GUI):
+    def __init__(self, gui: GUI, page: HomePage):
         self.gui = gui
-        self.page: HomePage = gui.pages["home"]
+        self.page = page
         self._bind()
 
     def go_to_debug_page(self):
