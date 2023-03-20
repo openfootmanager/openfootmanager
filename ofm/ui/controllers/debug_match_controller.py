@@ -13,6 +13,18 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .home import HomePage
-from .debug_home import DebugHomePage
-from .debug_match import DebugMatchPage
+from ..gui import GUI
+from ..pages.debug_match import DebugMatchPage
+
+
+class DebugMatchController:
+    def __init__(self, gui: GUI, page: DebugMatchPage):
+        self.gui = gui
+        self.page = page
+        self._bind()
+
+    def go_to_debug_home_page(self):
+        self.gui.switch("debug_home")
+
+    def _bind(self):
+        self.page.cancel_btn.config(command=self.go_to_debug_home_page)

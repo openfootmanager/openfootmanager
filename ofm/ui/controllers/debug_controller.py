@@ -26,5 +26,9 @@ class DebugPageController:
     def go_to_home_page(self):
         self.gui.switch("home")
 
+    def go_to_match_sim_page(self):
+        self.gui.switch("debug_match")
+
     def _bind(self):
+        self.page.match_sim_btn.config(command=self.go_to_match_sim_page)
         self.page.cancel_btn.config(command=self.go_to_home_page)

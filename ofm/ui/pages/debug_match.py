@@ -13,6 +13,20 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .home import HomePage
-from .debug_home import DebugHomePage
-from .debug_match import DebugMatchPage
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+
+
+class DebugMatchPage(ttk.Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.title_label = ttk.Label(self, text="Debug Match")
+        self.title_label.grid(row=0, column=0, padx=100, pady=100, sticky=NSEW)
+
+        self.new_game_btn = ttk.Button(self, text="New Game")
+        self.new_game_btn.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+
+        self.cancel_btn = ttk.Button(self, text="Cancel")
+        self.cancel_btn.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
+        

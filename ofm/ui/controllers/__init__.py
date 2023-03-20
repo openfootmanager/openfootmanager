@@ -18,6 +18,7 @@ from ofm.core.db.database import DB
 from ofm.ui.gui import GUI
 from .home_controller import HomePageController
 from .debug_controller import DebugPageController
+from .debug_match_controller import DebugMatchController
 
 
 class OFMController:
@@ -31,6 +32,7 @@ class OFMController:
         self.controllers = {
             'home': HomePageController(self.gui, self.gui.pages["home"]),
             'debug_home': DebugPageController(self.gui, self.gui.pages["debug_home"]),
+            'debug_match': DebugMatchController(self.gui, self.gui.pages["debug_match"]),
         }
 
     def run(self):

@@ -59,6 +59,7 @@ class GUI:
         self.pages = {
             "home": self._add_frame(HomePage),
             "debug_home": self._add_frame(DebugHomePage),
+            "debug_match": self._add_frame(DebugMatchPage),
         }
 
         self.current_page = self.pages["home"]
