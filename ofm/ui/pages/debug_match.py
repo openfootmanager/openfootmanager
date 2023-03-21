@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
+from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
 
 
@@ -22,11 +23,58 @@ class DebugMatchPage(ttk.Frame):
         super().__init__(*args, **kwargs)
 
         self.title_label = ttk.Label(self, text="Debug Match")
-        self.title_label.grid(row=0, column=0, padx=100, pady=100, sticky=NSEW)
+        self.title_label.grid(row=0, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
+
+
+        columns = [
+            {"text": "Name", "stretch": False},
+            {"text": "Position", "stretch": False},
+            {"text": "Stamina", "stretch": False}
+        ]
+
+        home_rows = [
+            ("Gomez", "FW", "100"),
+            ("Allejo", "FW", "100"),
+            ("Beranco", "MF", "100"),
+            ("Pardilla", "MF", "100"),
+            ("Santos", "MF", "100"),
+            ("Ferreira", "MF", "100"),
+            ("Roca", "DF", "100"),
+            ("Vincento", "DF", "100"),
+            ("Cicero", "DF", "100"),
+            ("Marengez", "DF", "100"),
+            ("Da Silva", "GK", "100"),
+        ]
+
+        away_rows = [
+            ("Estrade", "FW", "100"),
+            ("Capitale", "FW", "100"),
+            ("Hajo", "MF", "100"),
+            ("Redonda", "MF", "100"),
+            ("Vasquez", "MF", "100"),
+            ("Santos", "MF", "100"),
+            ("Basile", "DF", "100"),
+            ("Morelli", "DF", "100"),
+            ("Costa", "DF", "100"),
+            ("Alerto", "DF", "100"),
+            ("Pablo", "GK", "100"),
+        ]
+
+        self.home_team_table = Tableview(self, coldata=columns, rowdata=home_rows, searchable=False, autofit=True, paginated=False, pagesize=8, height=11)
+        self.home_team_table.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+
+        self.away_team_table = Tableview(self, coldata=columns, rowdata=away_rows, searchable=False, autofit=True, paginated=False, pagesize=8, height=11)
+        self.away_team_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+
+        self.game_progress_bar = ttk.Progressbar(self, value=50, bootstyle="striped")
+        self.game_progress_bar.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky=EW)
+
+        self.play_game_btn = ttk.Button(self, text="Play")
+        self.play_game_btn.grid(row=3, column=0,padx=10, pady=50, sticky=EW)
 
         self.new_game_btn = ttk.Button(self, text="New Game")
-        self.new_game_btn.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+        self.new_game_btn.grid(row=3, column=1, padx=10, pady=50, sticky=EW)
 
         self.cancel_btn = ttk.Button(self, text="Cancel")
-        self.cancel_btn.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
+        self.cancel_btn.grid(row=3, column=2, padx=10, pady=50, sticky=EW)
         
