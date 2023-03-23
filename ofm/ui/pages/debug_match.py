@@ -82,12 +82,12 @@ class DebugMatchPage(ttk.Frame):
         self.button_frame = ttk.Frame(self)
 
         self.play_game_btn = ttk.Button(self.button_frame, text="Play")
-        self.play_game_btn.pack(side="left", padx=10, fill="x")
+        self.play_game_btn.pack(side="left", padx=10)
 
         self.new_game_btn = ttk.Button(self.button_frame, text="New Game")
-        self.new_game_btn.pack(side="left", padx=10, fill="x")
+        self.new_game_btn.pack(side="left", padx=10)
 
         self.cancel_btn = ttk.Button(self.button_frame, text="Cancel")
-        self.cancel_btn.pack(side="left", padx=10, fill="both")
+        self.cancel_btn.pack(side="left", padx=10)
 
         self.button_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=10, sticky=NS)

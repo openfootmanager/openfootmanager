@@ -27,21 +27,24 @@ class DebugHomePage(ttk.Frame):
         self.match_sim_btn = ttk.Button(self, text="Match Simulation")
         self.match_sim_btn.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
 
+        self.team_selection_btn = ttk.Button(self, text="Team Selection")
+        self.team_selection_btn.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+
         self.team_formation_btn = ttk.Button(self, text="Team Formation")
-        self.team_formation_btn.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        self.team_formation_btn.grid(row=3, column=0, padx=10, pady=10, sticky=EW)
 
         self.championship_btn = ttk.Button(self, text="Championship")
-        self.championship_btn.grid(row=3, column=0, padx=10, pady=10, sticky=EW)
+        self.championship_btn.grid(row=4, column=0, padx=10, pady=10, sticky=EW)
 
         self.stats_explorer_btn = ttk.Button(self, text="Stats Explorer")
-        self.stats_explorer_btn.grid(row=4, column=0, padx=10, pady=10, sticky=EW)
+        self.stats_explorer_btn.grid(row=5, column=0, padx=10, pady=10, sticky=EW)
 
         self.player_profile_btn = ttk.Button(self, text="Player Profile")
-        self.player_profile_btn.grid(row=5, column=0, padx=10, pady=10, sticky=EW)
+        self.player_profile_btn.grid(row=6, column=0, padx=10, pady=10, sticky=EW)
 
         self.team_explorer_btn = ttk.Button(self, text="Team Explorer")
-        self.team_explorer_btn.grid(row=6, column=0, padx=10, pady=10, sticky=EW)
+        self.team_explorer_btn.grid(row=7, column=0, padx=10, pady=10, sticky=EW)
 
         self.cancel_btn = ttk.Button(self, text="Cancel")
-        self.cancel_btn.grid(row=7, column=0, padx=10, pady=10, sticky=EW)
+        self.cancel_btn.grid(row=8, column=0, padx=10, pady=10, sticky=EW)
         
