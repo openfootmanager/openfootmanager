@@ -23,8 +23,7 @@ class DebugMatchPage(ttk.Frame):
         super().__init__(*args, **kwargs)
 
         self.title_label = ttk.Label(self, text="Debug Match")
-        self.title_label.grid(row=0, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
-
+        self.title_label.grid(row=0, column=0, padx=10, pady=10, columnspan=3, sticky=NS)
 
         columns = [
             {"text": "Name", "stretch": False},
@@ -60,21 +59,31 @@ class DebugMatchPage(ttk.Frame):
             ("Pablo", "GK", "100"),
         ]
 
-        self.home_team_table = Tableview(self, coldata=columns, rowdata=home_rows, searchable=False, autofit=True, paginated=False, pagesize=8, height=11)
-        self.home_team_table.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+        self.home_team_score = ttk.Label(self, text="Brazil\t0")
+        self.home_team_score.grid(row=1, column=0,  padx=10, pady=10, sticky=E)
+
+        self.away_team_score = ttk.Label(self, text="0\tArgentina")
+        self.away_team_score.grid(row=1, column=1, padx=10, pady=10, sticky=W)
+
+        self.home_team_table = Tableview(self, coldata=columns, rowdata=home_rows, searchable=False, autofit=True,
+                                         paginated=False, pagesize=8, height=11)
+        self.home_team_table.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
 
         self.away_team_table = Tableview(self, coldata=columns, rowdata=away_rows, searchable=False, autofit=True, paginated=False, pagesize=8, height=11)
-        self.away_team_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+        self.away_team_table.grid(row=2, column=1, padx=10, pady=10, sticky=EW)
 
         self.game_progress_bar = ttk.Progressbar(self, value=50, bootstyle="striped")
-        self.game_progress_bar.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky=EW)
+        self.game_progress_bar.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky=EW)
+
+        self.game_minutes_elapsed = ttk.Label(self, text="0'")
+        self.game_minutes_elapsed.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky=NS)
 
         self.play_game_btn = ttk.Button(self, text="Play")
-        self.play_game_btn.grid(row=3, column=0,padx=10, pady=50, sticky=EW)
+        self.play_game_btn.grid(row=5, column=0, padx=10, pady=50, sticky=EW)
 
         self.new_game_btn = ttk.Button(self, text="New Game")
-        self.new_game_btn.grid(row=3, column=1, padx=10, pady=50, sticky=EW)
+        self.new_game_btn.grid(row=5, column=1, padx=10, pady=50, sticky=EW)
 
         self.cancel_btn = ttk.Button(self, text="Cancel")
-        self.cancel_btn.grid(row=3, column=2, padx=10, pady=50, sticky=EW)
+        self.cancel_btn.grid(row=5, column=2, padx=10, pady=50, sticky=EW)
         
