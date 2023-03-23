@@ -21,8 +21,8 @@ class DebugHomePage(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title_label = ttk.Label(self, text="Debug Mode")
-        self.title_label.grid(row=0, column=0, padx=100, pady=100, sticky=NSEW)
+        self.title_label = ttk.Label(self, text="Debug Mode", font='Arial 24 bold')
+        self.title_label.grid(row=0, column=0, padx=100, pady=45, sticky=NS)
 
         self.match_sim_btn = ttk.Button(self, text="Match Simulation")
         self.match_sim_btn.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
