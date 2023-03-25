@@ -19,6 +19,7 @@ from ofm.ui.gui import GUI
 from .home_controller import HomePageController
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
+from .team_selection_controller import TeamSelectionController
 
 
 class OFMController:
@@ -33,6 +34,7 @@ class OFMController:
             'home': HomePageController(self.gui, self.gui.pages["home"]),
             'debug_home': DebugPageController(self.gui, self.gui.pages["debug_home"]),
             'debug_match': DebugMatchController(self.gui, self.gui.pages["debug_match"]),
+            'team_selection': TeamSelectionController(self.gui, self.gui.pages["team_selection"])
         }
 
     def run(self):

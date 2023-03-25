@@ -60,6 +60,7 @@ class GUI:
             "home": self._add_frame(HomePage),
             "debug_home": self._add_frame(DebugHomePage),
             "debug_match": self._add_frame(DebugMatchPage),
+            "team_selection": self._add_frame(TeamSelectionPage)
         }
 
         self.current_page = self.pages["home"]
