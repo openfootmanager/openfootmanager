@@ -13,11 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass, asdict
 import datetime
+from dataclasses import asdict, dataclass
+from enum import Enum, IntEnum, auto
 from typing import Union
 from uuid import UUID
-from enum import StrEnum, IntEnum, auto
+
 from .playercontract import PlayerContract
 
 
@@ -105,6 +106,7 @@ class Player:
         How much the player is currently valued on the market. Takes into account the player's age, performance,
         form, skill, potential skill and international reputation.
     """
+
     player_id: UUID
     nationality: str
     dob: Union[datetime.datetime, datetime.date]
@@ -138,7 +140,7 @@ class Player:
             PlayerAttributes.get_from_dict(player_dict["potential_attributes"]),
             player_dict["international_reputation"],
             PreferredFoot(player_dict["preferred_foot"]),
-            player_dict["value"]
+            player_dict["value"],
         )
 
     def get_position_values(self):
@@ -172,7 +174,7 @@ class Player:
             "potential_attributes": self.potential_attributes.serialize(),
             "international_reputation": self.international_reputation,
             "preferred_foot": self.preferred_foot.value,
-            "value": self.value
+            "value": self.value,
         }
 
 
@@ -215,7 +217,7 @@ class PlayerTeam:
             "player_id": self.details.player_id.int,
             "team_id": self.team_id.int,
             "shirt_number": self.shirt_number,
-            "contract": self.contract.serialize()
+            "contract": self.contract.serialize(),
         }
 
 
@@ -231,7 +233,7 @@ def get_player_from_player_id(player_id: UUID, players: list[Player]) -> Player:
     raise GetPlayerException
 
 
-class PlayerInjuries(StrEnum):
+class PlayerInjuries(str, Enum):
     ANKLE_SP = "Ankle sprain"
     KNEE_SP = "Knee sprain"
     CALF_ST = "Calf strain"
@@ -249,10 +251,10 @@ class PlayerInjuries(StrEnum):
 
 class PlayerSimulation:
     def __init__(
-            self,
-            player: PlayerTeam,
-            current_position: Positions,
-            stamina: float,
+        self,
+        player: PlayerTeam,
+        current_position: Positions,
+        stamina: float,
     ):
         self.player = player
         self.current_position = current_position
