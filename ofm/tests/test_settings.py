@@ -13,15 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
 import os
 
+import pytest
 from ofm.core.settings import Settings
 
 
 @pytest.fixture
 def settings(tmp_path):
-    f = tmp_path / 'settings.yaml'
+    f = tmp_path / "settings.yaml"
     return Settings(tmp_path, f)
 
 
@@ -34,9 +34,8 @@ def test_get_settings(settings, tmp_path):
         "clubs_def": os.path.join(tmp_path, "res", "clubs_def.json"),
         "squads": os.path.join(tmp_path, "res", "db", "squads.json"),
         "players": os.path.join(tmp_path, "res", "db", "players.json"),
-        "clubs": os.path.join(tmp_path, "res", "db", "clubs.json")
+        "clubs": os.path.join(tmp_path, "res", "db", "clubs.json"),
     }
     settings.create_settings()
     settings.load_settings()
     assert settings.get_data() == expected_data
-    

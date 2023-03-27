@@ -20,5 +20,3 @@ from ofm.ofm import OFM
 @pytest.fixture
 def ofm():
     return OFM()
-
-

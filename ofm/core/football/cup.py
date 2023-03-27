@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 class Cup:
     """
     A Cup is a competition that is composed mainly of knockout tournaments, such as the Spanish Cup, Coupe de France,
@@ -21,4 +22,5 @@ class Cup:
 
     This can't be used for the World Cup. Instead, see the @Championship class
     """
+
     pass

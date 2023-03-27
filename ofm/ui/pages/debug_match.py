@@ -14,16 +14,18 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
-from ttkbootstrap.tableview import Tableview
 from ttkbootstrap.constants import *
+from ttkbootstrap.tableview import Tableview
 
 
 class DebugMatchPage(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title_label = ttk.Label(self, text="Debug Match", font='Arial 24 bold')
-        self.title_label.grid(row=0, column=0, padx=10, pady=10, columnspan=3, sticky=NS)
+        self.title_label = ttk.Label(self, text="Debug Match", font="Arial 24 bold")
+        self.title_label.grid(
+            row=0, column=0, padx=10, pady=10, columnspan=3, sticky=NS
+        )
 
         columns = [
             {"text": "Name", "stretch": False},
@@ -60,24 +62,47 @@ class DebugMatchPage(ttk.Frame):
             ("Pablo", "GK", "100", "87"),
         ]
 
-        self.home_team_score = ttk.Label(self, text="Brazil\t0", font='Arial 15 bold')
-        self.home_team_score.grid(row=1, column=0,  padx=10, pady=10, sticky=E)
+        self.home_team_score = ttk.Label(self, text="Brazil\t0", font="Arial 15 bold")
+        self.home_team_score.grid(row=1, column=0, padx=10, pady=10, sticky=E)
 
-        self.away_team_score = ttk.Label(self, text="0\tArgentina", font='Arial 15 bold')
+        self.away_team_score = ttk.Label(
+            self, text="0\tArgentina", font="Arial 15 bold"
+        )
         self.away_team_score.grid(row=1, column=1, padx=10, pady=10, sticky=W)
 
-        self.home_team_table = Tableview(self, coldata=columns, rowdata=home_rows, searchable=False, autofit=True,
-                                         paginated=False, pagesize=8, height=11)
+        self.home_team_table = Tableview(
+            self,
+            coldata=columns,
+            rowdata=home_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
         self.home_team_table.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
 
-        self.away_team_table = Tableview(self, coldata=columns, rowdata=away_rows, searchable=False, autofit=True, paginated=False, pagesize=8, height=11)
+        self.away_team_table = Tableview(
+            self,
+            coldata=columns,
+            rowdata=away_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
         self.away_team_table.grid(row=2, column=1, padx=10, pady=10, sticky=EW)
 
         self.game_progress_bar = ttk.Progressbar(self, value=50, bootstyle="striped")
-        self.game_progress_bar.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky=EW)
+        self.game_progress_bar.grid(
+            row=3, column=0, columnspan=2, padx=10, pady=10, sticky=EW
+        )
 
         self.game_minutes_elapsed = ttk.Label(self, text="0'")
-        self.game_minutes_elapsed.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky=NS)
+        self.game_minutes_elapsed.grid(
+            row=4, column=0, columnspan=2, padx=10, pady=10, sticky=NS
+        )
 
         self.button_frame = ttk.Frame(self)
 
@@ -90,4 +115,6 @@ class DebugMatchPage(ttk.Frame):
         self.cancel_btn = ttk.Button(self.button_frame, text="Cancel")
         self.cancel_btn.pack(side="left", padx=10)
 
-        self.button_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=10, sticky=NS)
+        self.button_frame.grid(
+            row=5, column=0, columnspan=2, padx=10, pady=10, sticky=NS
+        )

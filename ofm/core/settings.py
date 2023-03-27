@@ -14,18 +14,18 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
-import yaml
-from typing import Union
 from pathlib import Path
+from typing import Union
 
+import yaml
 from ofm.defaults import PROJECT_DIR
 
 
 class Settings:
     def __init__(
-            self,
-            root_dir: Union[str, Path] = PROJECT_DIR,
-            settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml")
+        self,
+        root_dir: Union[str, Path] = PROJECT_DIR,
+        settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml"),
     ):
         self.root_dir = root_dir
         self.res: str = os.path.join(root_dir, "res")
@@ -50,24 +50,24 @@ class Settings:
             "players": self.players_file,
             "clubs": self.clubs_file,
         }
-    
+
     def parse_settings(self, data: dict) -> None:
-        self.res = data['res']
-        self.images = data['images']
-        self.db = data['db']
-        self.save = data['save']
-        self.clubs_def = data['clubs_def']
-        self.squads_file = data['squads']
-        self.players_file = data['players']
-        self.clubs_file = data['clubs']
+        self.res = data["res"]
+        self.images = data["images"]
+        self.db = data["db"]
+        self.save = data["save"]
+        self.clubs_def = data["clubs_def"]
+        self.squads_file = data["squads"]
+        self.players_file = data["players"]
+        self.clubs_file = data["clubs"]
 
     def load_settings(self) -> None:
-        with open(self.settings_file, 'r') as fp:
+        with open(self.settings_file, "r") as fp:
             data = yaml.safe_load(fp)
             self.parse_settings(data)
 
     def create_settings(self) -> None:
-        with open(self.settings_file, 'w') as fp:
+        with open(self.settings_file, "w") as fp:
             yaml.safe_dump(self.get_data(), fp)
 
     def get_settings(self) -> None:
@@ -75,4 +75,3 @@ class Settings:
             self.load_settings()
         else:
             self.create_settings()
-
