@@ -13,18 +13,18 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .fixture import Fixture
 from ..football.club import TeamSimulation
+from .fixture import Fixture
 
 
 class LiveGame:
     def __init__(
-            self,
-            fixture: Fixture,
-            home_team: TeamSimulation,
-            away_team: TeamSimulation,
-            possible_extra_time: bool,
-            possible_penalties: bool
+        self,
+        fixture: Fixture,
+        home_team: TeamSimulation,
+        away_team: TeamSimulation,
+        possible_extra_time: bool,
+        possible_penalties: bool,
     ):
         self.fixture = fixture
         self.home_team = home_team

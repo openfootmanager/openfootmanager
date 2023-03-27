@@ -19,7 +19,14 @@ from ..football.club import Club
 
 
 class Fixture:
-    def __init__(self, fixture_id: UUID, championship_id: UUID, home_team: Club, away_team: Club, stadium: str):
+    def __init__(
+        self,
+        fixture_id: UUID,
+        championship_id: UUID,
+        home_team: Club,
+        away_team: Club,
+        stadium: str,
+    ):
         self.fixture_id = fixture_id
         self.championship_id = championship_id
         self.home_team = home_team

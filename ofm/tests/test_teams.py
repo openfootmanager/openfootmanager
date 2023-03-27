@@ -41,11 +41,11 @@ def get_squads_def() -> list[dict]:
                     {
                         "name": "Spain",
                         "probability": 0.05,
-                    }
+                    },
                 ],
                 "mu": 80,
                 "sigma": 20,
-            }
+            },
         },
         {
             "name": "Barcelona",
@@ -55,23 +55,14 @@ def get_squads_def() -> list[dict]:
             "location": "Barcelona",
             "squad_def": {
                 "nationalities": [
-                    {
-                        "name": "Spain",
-                        "probability": 0.90
-                    },
-                    {
-                        "name": "Germany",
-                        "probability": 0.05
-                    },
-                    {
-                        "name": "France",
-                        "probability": 0.05
-                    }
+                    {"name": "Spain", "probability": 0.90},
+                    {"name": "Germany", "probability": 0.05},
+                    {"name": "France", "probability": 0.05},
                 ],
                 "mu": 80,
                 "sigma": 20,
-            }
-        }
+            },
+        },
     ]
 
 
@@ -94,7 +85,7 @@ def get_club_mock_file() -> list[dict]:
             "squad": [],
             "stadium_name": "Barcelona National Stadium",
             "stadium_capacity": 50000,
-        }
+        },
     ]
 
 
@@ -118,7 +109,7 @@ def test_get_club_from_mock_file():
             [],
             "Barcelona National Stadium",
             50000,
-        )
+        ),
     ]
     clubs = [Club.get_from_dict(club, []) for club in mock_definition_file]
     assert clubs == expected_teams

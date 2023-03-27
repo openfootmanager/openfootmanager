@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 class Championship:
     """
     A Championship is a mixed-form competition, which has multiple formats, like a Group stage and Play Offs stage.
@@ -21,4 +22,5 @@ class Championship:
     Can be used for international competitions such as Champions League, Europa League, Copa Libertadores, and
     even World Cup formats.
     """
+
     pass

@@ -13,12 +13,21 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
-import uuid
 import datetime
-from ..core.football.player import PlayerAttributes, Player, PlayerTeam, Positions, PreferredFoot, get_player_from_player_id
-from ..core.football.playercontract import PlayerContract
+import uuid
+
+import pytest
+
 from ..core.db.generators import PlayerGenerator
+from ..core.football.player import (
+    Player,
+    PlayerAttributes,
+    PlayerTeam,
+    Positions,
+    PreferredFoot,
+    get_player_from_player_id,
+)
+from ..core.football.playercontract import PlayerContract
 
 
 @pytest.fixture
@@ -42,7 +51,7 @@ def get_player_obj(player_id: uuid.UUID) -> Player:
         PlayerAttributes(90, 75, 30, 20),
         5,
         PreferredFoot.LEFT,
-        10000.00
+        10000.00,
     )
 
 
@@ -74,7 +83,7 @@ def get_player_dict(player_id: uuid.UUID) -> dict:
         },
         "international_reputation": 5,
         "preferred_foot": PreferredFoot(preferred_foot),
-        "value": 10000.00
+        "value": 10000.00,
     }
 
 
@@ -97,12 +106,7 @@ def get_player_team() -> tuple[PlayerTeam, Player, dict]:
         "contract": contract_dict,
     }
     expected_contract = PlayerContract.get_from_dict(contract_dict)
-    player_team = PlayerTeam(
-        player,
-        team_id,
-        shirt_number,
-        expected_contract
-    )
+    player_team = PlayerTeam(player, team_id, shirt_number, expected_contract)
     return player_team, player, player_team_dict
 
 
@@ -130,7 +134,7 @@ def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
         "potential_attributes",
         "international_reputation",
         "preferred_foot",
-        "value"
+        "value",
     )
     player = player_gen.generate_player()
     player_dict = player.serialize()

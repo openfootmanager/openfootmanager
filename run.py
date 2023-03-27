@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from ofm.ofm import OFM
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = OFM()
     app.run()

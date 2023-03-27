@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 from uuid import UUID
 
 from .formation import Formation
@@ -63,12 +63,12 @@ class Club:
 
 class TeamSimulation:
     def __init__(
-            self,
-            club: Club,
-            players: list[PlayerSimulation] = None,
-            bench: list[PlayerSimulation] = None,
-            formation: Optional[Formation] = None,
-            max_substitutions: int = 3,
+        self,
+        club: Club,
+        players: list[PlayerSimulation] = None,
+        bench: list[PlayerSimulation] = None,
+        formation: Optional[Formation] = None,
+        max_substitutions: int = 3,
     ):
         self.club: Club = club
         self.players: list[PlayerSimulation] = players

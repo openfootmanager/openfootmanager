@@ -13,9 +13,10 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .core.settings import Settings
-from .core.db.database import DB
 from ofm.ui.controllers import OFMController
+
+from .core.db.database import DB
+from .core.settings import Settings
 
 
 class OFM:
@@ -24,6 +25,6 @@ class OFM:
         self.settings.get_settings()
         self.db = DB(self.settings)
         self.controller = OFMController(self.settings, self.db)
-    
+
     def run(self):
         self.controller.run()

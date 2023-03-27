@@ -13,7 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .home import HomePage
 from .debug_home import DebugHomePage
 from .debug_match import DebugMatchPage
+from .home import HomePage
 from .team_selection import TeamSelectionPage

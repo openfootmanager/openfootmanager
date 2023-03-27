@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
-
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 RES_DIR = os.path.join(PROJECT_DIR, "res")
 NAMES_FILE = os.path.join(RES_DIR, "names.json")

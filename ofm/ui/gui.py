@@ -15,8 +15,8 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from .pages import *
 
+from .pages import *
 
 FOOTBALL_THEME = {
     "football": {
@@ -37,8 +37,8 @@ FOOTBALL_THEME = {
             "border": "#ced4da",
             "inputfg": "#696969",
             "inputbg": "#f1ffee",
-            "active": "#e5e5e5"
-        }
+            "active": "#e5e5e5",
+        },
     }
 }
 
@@ -60,14 +60,14 @@ class GUI:
             "home": self._add_frame(HomePage),
             "debug_home": self._add_frame(DebugHomePage),
             "debug_match": self._add_frame(DebugMatchPage),
-            "team_selection": self._add_frame(TeamSelectionPage)
+            "team_selection": self._add_frame(TeamSelectionPage),
         }
 
         self.current_page = self.pages["home"]
 
     def _add_frame(self, frame) -> ttk.Frame:
         f = frame(self.window)
-        f.place(anchor=CENTER, relx=.5, rely=.5)
+        f.place(anchor=CENTER, relx=0.5, rely=0.5)
         # Necessary to hide all frames
         f.place_forget()
         return f
@@ -75,6 +75,5 @@ class GUI:
     def switch(self, name: str):
         self.current_page.place_forget()
         self.current_page = self.pages[name]
-        self.current_page.place(anchor=CENTER, relx=.5, rely=.5)
+        self.current_page.place(anchor=CENTER, relx=0.5, rely=0.5)
         self.current_page.tkraise()
-        
