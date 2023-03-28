@@ -333,12 +333,10 @@ class TeamGenerator(Generator):
     def _get_nationalities(
         self, country: str, countries: list
     ) -> Tuple[list[str], list[float]]:
-        nationalities = []
-        probabilities = []
         # native
         native: float = 0.85
-        nationalities.append(country)
-        probabilities.append(native)
+        nationalities = [country]
+        probabilities = [native]
         # foreigner
         foreigner: float = 1 - native
         coeff = int(foreigner / 0.05)
@@ -439,8 +437,7 @@ class TeamGenerator(Generator):
         country_conf: str = ""
         countries_list = []
         for element in confederation:
-            for local in element["countries"]:
-                countries_list.append(local)
+            countries_list.extend(iter(element["countries"]))
             if country in element["countries"]:
                 country_conf = element["region"]
         # remove club's country from list
