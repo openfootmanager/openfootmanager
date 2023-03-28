@@ -319,19 +319,33 @@ class TeamGenerator(Generator):
     and a squad should be generated for each team.
     """
 
-    def __init__(self, club_definitions: list[dict], season_start: date = date.today()):
+    def __init__(
+        self,
+        club_definitions: list[dict],
+        fifa_confederations: list[dict],
+        season_start: date = date.today(),
+    ) -> None:
+        self.fifa_confederations = fifa_confederations
         self.club_definitions = club_definitions
         self.season_start = season_start
         self.player_gen = PlayerGenerator()
 
     def _get_nationalities(
-        self, squad_definition: dict
+        self, country: str, countries: list
     ) -> Tuple[list[str], list[float]]:
         nationalities = []
         probabilities = []
-        for nat in squad_definition["nationalities"]:
-            nationalities.append(nat["name"])
-            probabilities.append(nat["probability"])
+        # native
+        native: float = 0.85
+        nationalities.append(country)
+        probabilities.append(native)
+        # foreigner
+        foreigner: float = 1 - native
+        coeff = int(foreigner / 0.05)
+        mini_list = random.sample(countries, coeff)
+        for ele in mini_list:
+            nationalities.append(ele)
+            probabilities.append(foreigner)
 
         return nationalities, probabilities
 
@@ -372,7 +386,7 @@ class TeamGenerator(Generator):
         )
 
     def generate_squad(
-        self, team_id: uuid.UUID, squad_definition: dict
+        self, team_id: uuid.UUID, country: str, squad_definition: dict, countries: list
     ) -> list[PlayerTeam]:
         # A team must have some options for the bench, 22-23 players at least
         needed_positions = [
@@ -405,7 +419,7 @@ class TeamGenerator(Generator):
         shirt_number = range(1, len(needed_positions) + 1)
         mu = squad_definition["mu"]
         sigma = squad_definition["sigma"]
-        nationalities, probabilities = self._get_nationalities(squad_definition)
+        nationalities, probabilities = self._get_nationalities(country, countries)
 
         return [
             self.generate_player_team(
@@ -419,12 +433,31 @@ class TeamGenerator(Generator):
             for i, _ in enumerate(needed_positions)
         ]
 
+    def extract_confederation(
+        self, country: str, confederation: list[dict]
+    ) -> Tuple[str, list]:
+        country_conf: str = ""
+        countries_list = []
+        for element in confederation:
+            for local in element["countries"]:
+                countries_list.append(local)
+            if country in element["countries"]:
+                country_conf = element["region"]
+        # remove club's country from list
+        countries_list.remove(country)
+        return country_conf, countries_list
+
     def generate(self, *args) -> list[Club]:
         clubs = []
         for club in self.club_definitions:
             club_id = uuid.uuid4()
             club.update({"id": club_id.int})
-            squad = self.generate_squad(club_id, club["squad_def"])
+            country_conf, countries_list = self.extract_confederation(
+                club["country"], self.fifa_confederations
+            )
+            squad = self.generate_squad(
+                club_id, club["country"], club["squad_def"], countries_list
+            )
             club_obj = Club.get_from_dict(club, squad)
             clubs.append(club_obj)
 

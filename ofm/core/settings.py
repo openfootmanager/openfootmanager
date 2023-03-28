@@ -26,13 +26,15 @@ class Settings:
         self,
         root_dir: Union[str, Path] = PROJECT_DIR,
         settings: Union[str, Path] = os.path.join(PROJECT_DIR, "settings.yaml"),
-    ):
+    ) -> None:
         self.root_dir = root_dir
         self.res: str = os.path.join(root_dir, "res")
         self.images: str = os.path.join(root_dir, "images")
         self.db: str = os.path.join(self.res, "db")
         self.save: str = os.path.join(root_dir, "save")
         self.clubs_def: str = os.path.join(self.res, "clubs_def.json")
+        self.fifa_codes: str = os.path.join(self.res, "fifa-country-codes.json")
+        self.fifa_conf: str = os.path.join(self.res, "fifa-confederations.json")
         self.squads_def: str = os.path.join(self.res, "squads_def.json")
         self.squads_file: str = os.path.join(self.db, "squads.json")
         self.players_file: str = os.path.join(self.db, "players.json")
@@ -46,6 +48,8 @@ class Settings:
             "db": self.db,
             "save": self.save,
             "clubs_def": self.clubs_def,
+            "fifa_codes": self.fifa_codes,
+            "fifa_conf": self.fifa_conf,
             "squads": self.squads_file,
             "players": self.players_file,
             "clubs": self.clubs_file,
@@ -57,6 +61,8 @@ class Settings:
         self.db = data["db"]
         self.save = data["save"]
         self.clubs_def = data["clubs_def"]
+        self.fifa_codes = data["fifa_codes"]
+        self.fifa_conf = data["fifa_conf"]
         self.squads_file = data["squads"]
         self.players_file = data["players"]
         self.clubs_file = data["clubs"]
