@@ -31,3 +31,6 @@ class LiveGame:
         self.away_team = away_team
         self.possible_extra_time = possible_extra_time
         self.possible_penalties = possible_penalties
+
+    def run(self):
+        pass

@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uuid
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -34,7 +35,18 @@ def db(tmp_path) -> DB:
     db.mkdir()
     settings.res = res
     settings.db = db
+    fifa_conf = res / "fifa_confederations.json"
+    with fifa_conf.open("w") as fp:
+        data = get_confederations_file()
+        json.dump(data, fp)
+
     return DB(settings)
+
+
+def get_confederations_file() -> list[dict]:
+    settings = Settings()
+    with open(settings.fifa_conf, "r") as fp:
+        return json.load(fp)
 
 
 def test_generate_players(db: DB):

@@ -15,9 +15,11 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import uuid
+import json
 
 from ..core.db.generators import TeamGenerator
 from ..core.football.club import Club, PlayerTeam
+from ..core.settings import Settings
 
 
 def get_squads_def() -> list[dict]:
@@ -70,13 +72,19 @@ def get_club_mock_file() -> list[dict]:
     ]
 
 
+def get_confederations_file() -> list[dict]:
+    settings = Settings()
+    with open(settings.fifa_conf, "r") as fp:
+        return json.load(fp)
+
+
 def test_get_club_from_mock_file():
     mock_definition_file = get_club_mock_file()
     expected_teams = [
         Club(
             uuid.UUID(int=1),
             "Munchen",
-            "Germany",
+            "GER",
             "Munich",
             [],
             "Munchen National Stadium",
@@ -85,7 +93,7 @@ def test_get_club_from_mock_file():
         Club(
             uuid.UUID(int=2),
             "Barcelona",
-            "Spain",
+            "ESP",
             "Barcelona",
             [],
             "Barcelona National Stadium",
@@ -98,7 +106,8 @@ def test_get_club_from_mock_file():
 
 def test_generate_team_squads():
     clubs_def = get_squads_def()
-    team_gen = TeamGenerator(clubs_def, datetime.date.today())
+    confederations_def = get_confederations_file()
+    team_gen = TeamGenerator(clubs_def, confederations_def, datetime.date.today())
     team_squads = team_gen.generate()
     for t_squad in team_squads:
         assert len(t_squad.squad) == 22
