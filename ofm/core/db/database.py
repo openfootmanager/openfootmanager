@@ -53,6 +53,14 @@ class DB:
     def clubs_def_file(self) -> str:
         return self.settings.clubs_def
 
+    @property
+    def fifa_codes_file(self) -> str:
+        return self.settings.fifa_codes
+
+    @property
+    def fifa_conf_file(self) -> str:
+        return self.settings.fifa_conf
+
     def load_clubs(self) -> list[dict]:
         with open(self.clubs_file, "r") as fp:
             return json.load(fp)
@@ -63,6 +71,14 @@ class DB:
 
     def load_club_definitions(self) -> list[dict]:
         with open(self.clubs_def_file, "r") as fp:
+            return json.load(fp)
+
+    def load_fifa_codes(self) -> dict:
+        with open(self.fifa_codes_file, "r") as fp:
+            return json.load(fp)
+
+    def load_fifa_conf(self) -> list[dict]:
+        with open(self.fifa_conf_file, "r") as fp:
             return json.load(fp)
 
     def load_squads_file(self) -> list[dict]:
@@ -148,7 +164,9 @@ class DB:
         if clubs_def is None:
             clubs_def = self.load_club_definitions()
 
-        team_gen = TeamGenerator(clubs_def, season_start)
+        fifa_conf = self.load_fifa_conf()
+
+        team_gen = TeamGenerator(clubs_def, fifa_conf, season_start)
         clubs = team_gen.generate()
         clubs_dict = [club.serialize() for club in clubs]
 

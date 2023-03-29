@@ -1,6 +1,6 @@
 [
   {
-    "region": "Albania",
+    "region": "ALB",
     "male": [
       "Aleks",
       "Alesandro",
@@ -86,7 +86,7 @@
     ]
   },
   {
-    "region": "Argentina",
+    "region": "ARG",
     "male": [
       "Sim\\u00f3n",
       "Paulo",
@@ -1470,7 +1470,7 @@
     ]
   },
   {
-    "region": "Armenia",
+    "region": "ARM",
     "male": [
       "\\u0531\\u0580\\u0574\\u0561\\u0576",
       "\\u0531\\u0580\\u0574\\u0565\\u0576",
@@ -1553,7 +1553,7 @@
     ]
   },
   {
-    "region": "Australia",
+    "region": "AUS",
     "male": [
       "Campbell",
       "Vince",
@@ -2121,7 +2121,7 @@
     ]
   },
   {
-    "region": "Austria",
+    "region": "AUT",
     "male": [
       "Michael",
       "Patrick",
@@ -2287,7 +2287,7 @@
     ]
   },
   {
-    "region": "Azerbaijan",
+    "region": "AZE",
     "male": [
       "Adil",
       "Adnan",
@@ -2530,7 +2530,7 @@
     ]
   },
   {
-    "region": "Bangladesh",
+    "region": "BAN",
     "male": [
       "Apurba",
       "Shafin",
@@ -2614,7 +2614,7 @@
     ]
   },
   {
-    "region": "Belgium",
+    "region": "BEL",
     "male": [
       "Olivier",
       "Thomas",
@@ -3051,7 +3051,7 @@
     ]
   },
   {
-    "region": "Bosnia and Herzegovina",
+    "region": "BIH",
     "male": [
       "Adam",
       "Adin",
@@ -3313,7 +3313,7 @@
     ]
   },
   {
-    "region": "Brazil",
+    "region": "BRA",
     "male": [
       "Ferreira",
       "Lu\\u00eds Fernando",
@@ -4231,7 +4231,7 @@
     ]
   },
   {
-    "region": "Bulgaria",
+    "region": "BUL",
     "male": [
       "Krassimir",
       "Stayko",
@@ -5022,7 +5022,7 @@
     ]
   },
   {
-    "region": "Canada",
+    "region": "CAN",
     "male": [
       "Alex",
       "Alexander",
@@ -5271,7 +5271,7 @@
     ]
   },
   {
-    "region": "China",
+    "region": "CHN",
     "male": [
       "\\u4f1f",
       "\\u521a",
@@ -5679,7 +5679,7 @@
     ]
   },
   {
-    "region": "Colombia",
+    "region": "COL",
     "male": [
       "Adolfo",
       "Alberto",
@@ -5871,7 +5871,7 @@
     ]
   },
   {
-    "region": "Costa Rica",
+    "region": "CRC",
     "male": [
       "Adrian",
       "Carlos Roberto",
@@ -5896,7 +5896,7 @@
     ]
   },
   {
-    "region": "Croatia",
+    "region": "CRO",
     "male": [
       "Ante",
       "Marko",
@@ -5946,7 +5946,7 @@
     ]
   },
   {
-    "region": "Czech",
+    "region": "CZE",
     "male": [
       "Adam",
       "Adri\\u00e1n",
@@ -7580,7 +7580,7 @@
     ]
   },
   {
-    "region": "Czech Republic",
+    "region": "CZE",
     "male": [
       "Jakub",
       "Tom\\u00e1\\u0161",
@@ -7608,7 +7608,7 @@
     ]
   },
   {
-    "region": "Denmark",
+    "region": "DEN",
     "male": [
       "Gunnar",
       "Mogens",
@@ -8389,7 +8389,7 @@
     ]
   },
   {
-    "region": "Egypt",
+    "region": "EGY",
     "male": [
       "\\u0645\\u062d\\u0645\\u062f",
       "\\u0623\\u062d\\u0645\\u062f",
@@ -8443,7 +8443,7 @@
     ]
   },
   {
-    "region": "England",
+    "region": "ENG",
     "male": [
       "Casey",
       "Ted",
@@ -12656,7 +12656,7 @@
     ]
   },
   {
-    "region": "Estonia",
+    "region": "EST",
     "male": [
       "Toomas",
       "Rasmus",
@@ -12838,7 +12838,7 @@
     ]
   },
   {
-    "region": "Finland",
+    "region": "FIN",
     "male": [
       "Juuso",
       "Janne",
@@ -14543,7 +14543,7 @@
     ]
   },
   {
-    "region": "France",
+    "region": "FRA",
     "male": [
       "Abdelhak",
       "Jessy",
@@ -17996,7 +17996,7 @@
     ]
   },
   {
-    "region": "Georgia",
+    "region": "GEO",
     "male": [
       "\\u10d2\\u10d8\\u10dd\\u10e0\\u10d2\\u10d8",
       "\\u10d3\\u10d0\\u10d5\\u10d8\\u10d7",
@@ -18127,7 +18127,7 @@
     ]
   },
   {
-    "region": "Germany",
+    "region": "GER",
     "male": [
       "Gunnar",
       "J\\u00fcrgen",
@@ -20498,7 +20498,7 @@
     ]
   },
   {
-    "region": "Greece",
+    "region": "GRE",
     "male": [
       "\\u0394\\u03b9\\u03cc\\u03bd\\u03c5\\u03c3\\u03bf\\u03c2",
       "Thomas",
@@ -21508,7 +21508,7 @@
     ]
   },
   {
-    "region": "Hungary",
+    "region": "HUN",
     "male": [
       "Art\\u00far",
       "Domokos",
@@ -22441,7 +22441,7 @@
     ]
   },
   {
-    "region": "India",
+    "region": "IND",
     "male": [
       "Aarav",
       "Aaryan",
@@ -22561,7 +22561,7 @@
     ]
   },
   {
-    "region": "Indonesia",
+    "region": "IDN",
     "male": [
       "Adam",
       "Adi",
@@ -22662,7 +22662,7 @@
     ]
   },
   {
-    "region": "Iran",
+    "region": "IRN",
     "male": [
       "\\u0627\\u0645\\u06cc\\u0631 \\u0639\\u0644\\u06cc",
       "\\u067e\\u0631\\u0647\\u0627\\u0645",
@@ -22871,7 +22871,7 @@
     ]
   },
   {
-    "region": "Ireland",
+    "region": "IRL",
     "male": [
       "Jack",
       "James",
@@ -22920,7 +22920,7 @@
     ]
   },
   {
-    "region": "Israel",
+    "region": "ISR",
     "male": [
       "Almog",
       "Liran",
@@ -23429,7 +23429,7 @@
     ]
   },
   {
-    "region": "Italy",
+    "region": "ITA",
     "male": [
       "Enea",
       "Costanzo",
@@ -27277,7 +27277,7 @@
     ]
   },
   {
-    "region": "Japan",
+    "region": "JPN",
     "male": [
       "\\u7fd4\\u5e73",
       "Masashi",
@@ -27728,7 +27728,7 @@
     ]
   },
   {
-    "region": "Korea",
+    "region": "KOR",
     "male": [
       "\\uac74\\uc6b0",
       "\\ub3c4\\uc724",
@@ -27916,7 +27916,7 @@
     ]
   },
   {
-    "region": "Kyrgyz Republic",
+    "region": "KGZ",
     "male": [
       "Abai",
       "Abdurazak",
@@ -28280,7 +28280,7 @@
     ]
   },
   {
-    "region": "Latvia",
+    "region": "LVA",
     "male": [
       "\\u0100dolfs",
       "Aivars",
@@ -28621,7 +28621,7 @@
     ]
   },
   {
-    "region": "Mexico",
+    "region": "MEX",
     "male": [
       "Jos\\u00e9 Luis",
       "Juan",
@@ -29130,7 +29130,7 @@
     ]
   },
   {
-    "region": "Morocco",
+    "region": "MAR",
     "male": [
       "Abdel",
       "Abderrahim",
@@ -29215,7 +29215,7 @@
     ]
   },
   {
-    "region": "Nepal",
+    "region": "NEP",
     "male": [
       "Aakash",
       "Abhinash",
@@ -29694,7 +29694,7 @@
     ]
   },
   {
-    "region": "Netherlands",
+    "region": "NED",
     "male": [
       "J\\u00fcrgen",
       "Thomas",
@@ -31310,7 +31310,7 @@
     ]
   },
   {
-    "region": "New Zealand",
+    "region": "NZL",
     "male": [
       "Aaron",
       "Adam",
@@ -31711,7 +31711,7 @@
     ]
   },
   {
-    "region": "Nigeria",
+    "region": "NGA",
     "male": [
       "Aanu",
       "Abey",
@@ -31820,7 +31820,7 @@
     ]
   },
   {
-    "region": "Norway",
+    "region": "NOR",
     "male": [
       "Gunnar",
       "Torbj\\u00f8rn",
@@ -32816,7 +32816,7 @@
     ]
   },
   {
-    "region": "Pakistan",
+    "region": "PAK",
     "male": [
       "Abdullah",
       "Adeel",
@@ -32965,7 +32965,7 @@
     ]
   },
   {
-    "region": "Peru",
+    "region": "PER",
     "male": [
       "Abel",
       "Adan",
@@ -33230,7 +33230,7 @@
     ]
   },
   {
-    "region": "Poland",
+    "region": "POL",
     "male": [
       "Mi\\u0142osz",
       "Onufry",
@@ -35098,7 +35098,7 @@
     ]
   },
   {
-    "region": "Portugal",
+    "region": "POR",
     "male": [
       "Paulo",
       "Alfredo",
@@ -35493,7 +35493,7 @@
     ]
   },
   {
-    "region": "Romania",
+    "region": "ROU",
     "male": [
       "Laz\\u0103r",
       "Petronel",
@@ -37184,7 +37184,7 @@
     ]
   },
   {
-    "region": "Russia",
+    "region": "RUS",
     "male": [
       "Almaz",
       "Kiril",
@@ -40011,7 +40011,7 @@
     ]
   },
   {
-    "region": "Saudi Arabia",
+    "region": "KSA",
     "male": [
       "\\u0623\\u062d\\u0645\\u062f",
       "\\u0623\\u0645\\u064a\\u0646",
@@ -40164,7 +40164,7 @@
     ]
   },
   {
-    "region": "Scotland",
+    "region": "SCO",
     "male": [
       "Aaron",
       "Adam",
@@ -41616,7 +41616,7 @@
     ]
   },
   {
-    "region": "Serbia",
+    "region": "SRB",
     "male": [
       "Adem",
       "Admir",
@@ -42388,7 +42388,7 @@
     ]
   },
   {
-    "region": "Slovakia",
+    "region": "SVK",
     "male": [
       "Adam",
       "Adolf",
@@ -43085,7 +43085,7 @@
     ]
   },
   {
-    "region": "Slovenia",
+    "region": "SVN",
     "male": [
       "Vinko",
       "Vojko",
@@ -43582,7 +43582,7 @@
     ]
   },
   {
-    "region": "Spain",
+    "region": "ESP",
     "male": [
       "Sim\\u00f3n",
       "Paulo",
@@ -44919,7 +44919,7 @@
     ]
   },
   {
-    "region": "Sweden",
+    "region": "SWE",
     "male": [
       "Gunnar",
       "Janne",
@@ -45743,7 +45743,7 @@
     ]
   },
   {
-    "region": "Switzerland",
+    "region": "SUI",
     "male": [
       "Hans",
       "Peter",
@@ -45813,7 +45813,7 @@
     ]
   },
   {
-    "region": "Tunisia",
+    "region": "TUN",
     "male": [
       "\\u0639\\u0628\\u062f \\u0627\\u0644\\u0646\\u0648\\u0631",
       "\\u062a\\u0648\\u0647\\u0627\\u0645\\u064a",
@@ -45927,7 +45927,7 @@
     ]
   },
   {
-    "region": "Turkey",
+    "region": "TUR",
     "male": [
       "G\\u00fcven\\u0131\\u015f\\u0131k",
       "R\\u0131za",
@@ -47120,7 +47120,7 @@
     ]
   },
   {
-    "region": "Ukraine",
+    "region": "UKR",
     "male": [
       "Kostantyn",
       "\\u0412\\u0456\\u043a\\u0442\\u043e\\u0440",
@@ -47852,7 +47852,7 @@
     ]
   },
   {
-    "region": "United States",
+    "region": "USA",
     "male": [
       "Aaron",
       "Adam",
@@ -48361,7 +48361,7 @@
     ]
   },
   {
-    "region": "United states",
+    "region": "USA",
     "male": [
       "Jimmy",
       "Brian",
@@ -49180,7 +49180,7 @@
     ]
   },
   {
-    "region": "Vietnam",
+    "region": "VIE",
     "male": [
       "An",
       "Anh",

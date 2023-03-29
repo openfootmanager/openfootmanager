@@ -32,6 +32,8 @@ def test_get_settings(settings, tmp_path):
         "db": os.path.join(tmp_path, "res", "db"),
         "save": os.path.join(tmp_path, "save"),
         "clubs_def": os.path.join(tmp_path, "res", "clubs_def.json"),
+        "fifa_codes": os.path.join(tmp_path, "res", "fifa-country-codes.json"),
+        "fifa_conf": os.path.join(tmp_path, "res", "fifa-confederations.json"),
         "squads": os.path.join(tmp_path, "res", "db", "squads.json"),
         "players": os.path.join(tmp_path, "res", "db", "players.json"),
         "clubs": os.path.join(tmp_path, "res", "db", "clubs.json"),

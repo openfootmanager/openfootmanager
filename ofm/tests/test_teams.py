@@ -26,23 +26,9 @@ def get_squads_def() -> list[dict]:
             "name": "Munchen",
             "stadium_name": "Munchen National Stadium",
             "stadium_capacity": 40100,
-            "country": "Germany",
+            "country": "GER",
             "location": "Munich",
             "squad_def": {
-                "nationalities": [
-                    {
-                        "name": "Germany",
-                        "probability": 0.90,
-                    },
-                    {
-                        "name": "France",
-                        "probability": 0.05,
-                    },
-                    {
-                        "name": "Spain",
-                        "probability": 0.05,
-                    },
-                ],
                 "mu": 80,
                 "sigma": 20,
             },
@@ -51,14 +37,9 @@ def get_squads_def() -> list[dict]:
             "name": "Barcelona",
             "stadium_name": "Barcelona National Stadium",
             "stadium_capacity": 50000,
-            "country": "Spain",
+            "country": "ESP",
             "location": "Barcelona",
             "squad_def": {
-                "nationalities": [
-                    {"name": "Spain", "probability": 0.90},
-                    {"name": "Germany", "probability": 0.05},
-                    {"name": "France", "probability": 0.05},
-                ],
                 "mu": 80,
                 "sigma": 20,
             },
@@ -71,7 +52,7 @@ def get_club_mock_file() -> list[dict]:
         {
             "id": 1,
             "name": "Munchen",
-            "country": "Germany",
+            "country": "GER",
             "location": "Munich",
             "squad": [],
             "stadium_name": "Munchen National Stadium",
@@ -80,7 +61,7 @@ def get_club_mock_file() -> list[dict]:
         {
             "id": 2,
             "name": "Barcelona",
-            "country": "Spain",
+            "country": "ESP",
             "location": "Barcelona",
             "squad": [],
             "stadium_name": "Barcelona National Stadium",
