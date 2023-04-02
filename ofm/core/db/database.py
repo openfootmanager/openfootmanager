@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import json
+import os
 import uuid
 from typing import Optional
 
@@ -115,6 +116,10 @@ class DB:
                     break
 
         return sq
+
+    def check_clubs_file(self) -> None:
+        if not os.path.exists(self.clubs_file):
+            self.generate_teams_and_squads(clubs_def=None)
 
     def get_player_object_from_id(
         self, player_id: uuid.UUID, players: list[dict]

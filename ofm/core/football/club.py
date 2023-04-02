@@ -81,6 +81,16 @@ class TeamSimulation:
         self.max_substitutions: int = max_substitutions
         self.stats: TeamStats = TeamStats(self.club.club_id)
 
+    @classmethod
+    def get_from_club(cls, club: Club):
+        players = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[:10]]
+        bench = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[11:]]
+        cls(
+            club,
+            players,
+            bench,
+        )
+
     def update_player_stamina(self):
         pass
 

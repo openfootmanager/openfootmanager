@@ -27,7 +27,7 @@ class DebugMatchPage(ttk.Frame):
             row=0, column=0, padx=10, pady=10, columnspan=3, sticky=NS
         )
 
-        columns = [
+        self.columns = [
             {"text": "Name", "stretch": False},
             {"text": "Position", "stretch": False},
             {"text": "Stamina", "stretch": False},
@@ -72,7 +72,7 @@ class DebugMatchPage(ttk.Frame):
 
         self.home_team_table = Tableview(
             self,
-            coldata=columns,
+            coldata=self.columns,
             rowdata=home_rows,
             searchable=False,
             autofit=True,
@@ -84,7 +84,7 @@ class DebugMatchPage(ttk.Frame):
 
         self.away_team_table = Tableview(
             self,
-            coldata=columns,
+            coldata=self.columns,
             rowdata=away_rows,
             searchable=False,
             autofit=True,
@@ -118,3 +118,28 @@ class DebugMatchPage(ttk.Frame):
         self.button_frame.grid(
             row=5, column=0, columnspan=2, padx=10, pady=10, sticky=NS
         )
+
+    def update_tables(self, home_team: list[tuple], away_team: list[tuple]):
+        self.home_team_table = Tableview(
+            self,
+            coldata=self.columns,
+            rowdata=home_team,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.home_team_table.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+
+        self.away_team_table = Tableview(
+            self,
+            coldata=self.columns,
+            rowdata=away_team,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.away_team_table.grid(row=2, column=1, padx=10, pady=10, sticky=EW)

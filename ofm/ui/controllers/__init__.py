@@ -36,7 +36,7 @@ class OFMController:
             "home": HomePageController(self.gui, self.gui.pages["home"]),
             "debug_home": DebugPageController(self.gui, self.gui.pages["debug_home"]),
             "debug_match": DebugMatchController(
-                self.gui, self.gui.pages["debug_match"]
+                self.gui, self.gui.pages["debug_match"], self.db,
             ),
             "team_selection": TeamSelectionController(
                 self.gui, self.gui.pages["team_selection"]
