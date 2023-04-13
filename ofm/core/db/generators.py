@@ -444,7 +444,8 @@ class TeamGenerator(Generator):
             if country in element["countries"]:
                 country_conf = element["region"]
         # remove club's country from list
-        countries_list.remove(country)
+        if country in countries_list:
+            countries_list.remove(country)
         return country_conf, countries_list
 
     def generate(self, *args) -> list[Club]:
@@ -456,7 +457,7 @@ class TeamGenerator(Generator):
                 club["country"], self.fifa_confederations
             )
             squad = self.generate_squad(
-                club_id, club["country"], club["squad_def"], countries_list
+                club_id, club["country"], club["squads_def"], countries_list
             )
             club_obj = Club.get_from_dict(club, squad)
             clubs.append(club_obj)

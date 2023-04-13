@@ -13,18 +13,24 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ..gui import GUI
+from .controllerinterface import ControllerInterface
 from ..pages.team_selection import TeamSelectionPage
 
 
-class TeamSelectionController:
-    def __init__(self, gui: GUI, page: TeamSelectionPage):
-        self.gui = gui
+class TeamSelectionController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: TeamSelectionPage):
+        self.controller = controller
         self.page = page
         self._bind()
 
+    def initialize(self):
+        pass
+
+    def switch(self, page):
+        self.controller.switch(page)
+
     def go_to_debug_home_page(self):
-        self.gui.switch("debug_home")
+        self.switch("debug_home")
 
     def _bind(self):
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)

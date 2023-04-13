@@ -138,5 +138,5 @@ node_modules/
 # Pipfile lock
 Pipfile.lock
 
-/res/db/**
+ofm/res/db/**
 **/settings.yaml

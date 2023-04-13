@@ -47,8 +47,8 @@ class GUI:
     def __init__(self):
         self.window = ttk.Window(title="OpenFoot Manager", themename="minty")
 
-        width = 800
-        height = 600
+        width = 900
+        height = 800
 
         self.window.geometry(f"{width}x{height}")
         self.window.minsize(width, height)

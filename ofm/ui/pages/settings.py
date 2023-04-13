@@ -15,25 +15,14 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from .controllerinterface import ControllerInterface
-from ..gui import GUI
-from ..pages import HomePage
 
 
-class HomePageController(ControllerInterface):
-    def __init__(self, controller: ControllerInterface, page: HomePage):
-        self.controller = controller
-        self.page = page
-        self._bind()
+class SettingsPage(ttk.Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def switch(self, page):
-        self.controller.switch(page)
+        self.title_label = ttk.Label(self, text="Settings", font="Arial 24 bold")
+        self.title_label.grid(row=0, column=0, padx=100, pady=45, sticky=NS)
 
-    def initialize(self):
-        pass
-
-    def go_to_debug_page(self):
-        self.switch("debug_home")
-
-    def _bind(self):
-        self.page.debug_mode_btn.config(command=self.go_to_debug_page)
+        self.cancel_btn = ttk.Button(self, text="Cancel")
+        self.cancel_btn.grid(row=8, column=0, padx=10, pady=10, sticky=EW)

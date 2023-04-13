@@ -118,6 +118,8 @@ class DB:
         return sq
 
     def check_clubs_file(self) -> None:
+        if not os.path.exists(self.settings.db):
+            os.makedirs(self.settings.db, exist_ok=True)
         if not os.path.exists(self.clubs_file):
             self.generate_teams_and_squads(clubs_def=None)
 

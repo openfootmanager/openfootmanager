@@ -13,24 +13,31 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from .controllerinterface import ControllerInterface
 from ..gui import GUI
 from ..pages.debug_home import DebugHomePage
 
 
-class DebugPageController:
-    def __init__(self, gui: GUI, page: DebugHomePage):
-        self.gui = gui
+class DebugPageController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: DebugHomePage):
+        self.controller = controller
         self.page = page
         self._bind()
 
+    def switch(self, page: str):
+        self.controller.switch(page)
+
+    def initialize(self):
+        pass
+
     def go_to_home_page(self):
-        self.gui.switch("home")
+        self.switch("home")
 
     def go_to_match_sim_page(self):
-        self.gui.switch("debug_match")
+        self.switch("debug_match")
 
     def go_to_team_selection_page(self):
-        self.gui.switch("team_selection")
+        self.switch("team_selection")
 
     def _bind(self):
         self.page.match_sim_btn.config(command=self.go_to_match_sim_page)

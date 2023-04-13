@@ -13,27 +13,18 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
-from .controllerinterface import ControllerInterface
-from ..gui import GUI
-from ..pages import HomePage
+from abc import ABC, abstractmethod
 
 
-class HomePageController(ControllerInterface):
-    def __init__(self, controller: ControllerInterface, page: HomePage):
-        self.controller = controller
-        self.page = page
-        self._bind()
-
-    def switch(self, page):
-        self.controller.switch(page)
-
-    def initialize(self):
+class ControllerInterface(ABC):
+    @abstractmethod
+    def _bind(self):
         pass
 
-    def go_to_debug_page(self):
-        self.switch("debug_home")
+    @abstractmethod
+    def switch(self, *args, **kwargs):
+        pass
 
-    def _bind(self):
-        self.page.debug_mode_btn.config(command=self.go_to_debug_page)
+    @abstractmethod
+    def initialize(self):
+        pass

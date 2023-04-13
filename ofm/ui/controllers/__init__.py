@@ -13,9 +13,10 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.db.database import DB
-from ofm.core.settings import Settings
-from ofm.ui.gui import GUI
+from ...core.db.database import DB
+from ...core.settings import Settings
+from ..gui import GUI
+from .controllerinterface import ControllerInterface
 
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
@@ -23,7 +24,7 @@ from .home_controller import HomePageController
 from .team_selection_controller import TeamSelectionController
 
 
-class OFMController:
+class OFMController(ControllerInterface):
     """
     Main controller that groups the OFM controllers
     """
@@ -33,16 +34,26 @@ class OFMController:
         self.db = db
         self.gui = GUI()
         self.controllers = {
-            "home": HomePageController(self.gui, self.gui.pages["home"]),
-            "debug_home": DebugPageController(self.gui, self.gui.pages["debug_home"]),
+            "home": HomePageController(self, self.gui.pages["home"]),
+            "debug_home": DebugPageController(self, self.gui.pages["debug_home"]),
             "debug_match": DebugMatchController(
-                self.gui, self.gui.pages["debug_match"], self.db,
+                self, self.gui.pages["debug_match"], self.db,
             ),
             "team_selection": TeamSelectionController(
-                self.gui, self.gui.pages["team_selection"]
+                self, self.gui.pages["team_selection"]
             ),
         }
 
+    def initialize(self):
+        pass
+
+    def _bind(self):
+        pass
+
+    def switch(self, page: str):
+        self.gui.switch(page)
+        self.controllers[page].initialize()
+
     def run(self):
-        self.gui.switch("home")
+        self.switch("home")
         self.gui.window.mainloop()

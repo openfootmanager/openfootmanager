@@ -15,22 +15,30 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 
-from ..gui import GUI
+
+from .controllerinterface import ControllerInterface
 from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.club import TeamSimulation
 from ...core.football.player import PlayerSimulation
 
 
-class DebugMatchController:
-    def __init__(self, gui: GUI, page: DebugMatchPage, db: DB):
-        self.gui = gui
+class DebugMatchController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: DebugMatchPage, db: DB):
+        self.controller = controller
         self.page = page
         self.db = db
         self.teams = None
         self._bind()
 
-    def load_random_teams(self):
+    def switch(self, page: str):
+        self.controller.switch(page)
+
+    def initialize(self):
+        self.teams = self.load_random_teams()
+        self.update_player_table()
+
+    def load_random_teams(self) -> list[TeamSimulation]:
         """
         Naive implementation of loading random teams. We can transfer this to a
         Core module later to avoid having the low-level implementation on the Controller side.
@@ -65,7 +73,7 @@ class DebugMatchController:
         self.page.update_tables(home_team, away_team)
 
     def go_to_debug_home_page(self):
-        self.gui.switch("debug_home")
+        self.switch("debug_home")
 
     def _bind(self):
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)

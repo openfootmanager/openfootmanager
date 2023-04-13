@@ -45,7 +45,7 @@ class Club:
             club["country"],
             club["location"],
             players,
-            club["stadium_name"],
+            club["stadium"],
             club["stadium_capacity"],
         )
 
@@ -56,7 +56,7 @@ class Club:
             "country": self.country,
             "location": self.location,
             "squad": [player.details.player_id.int for player in self.squad],
-            "stadium_name": self.stadium,
+            "stadium": self.stadium,
             "stadium_capacity": self.stadium_capacity,
         }
 
