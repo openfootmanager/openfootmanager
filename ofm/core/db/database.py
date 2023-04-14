@@ -63,23 +63,23 @@ class DB:
         return self.settings.fifa_conf
 
     def load_clubs(self) -> list[dict]:
-        with open(self.clubs_file, "r") as fp:
+        with open(self.clubs_file, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def load_players(self) -> list[dict]:
-        with open(self.players_file, "r") as fp:
+        with open(self.players_file, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def load_club_definitions(self) -> list[dict]:
-        with open(self.clubs_def_file, "r") as fp:
+        with open(self.clubs_def_file, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def load_fifa_codes(self) -> dict:
-        with open(self.fifa_codes_file, "r") as fp:
+        with open(self.fifa_codes_file, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def load_fifa_conf(self) -> list[dict]:
-        with open(self.fifa_conf_file, "r") as fp:
+        with open(self.fifa_conf_file, "r", encoding="utf-8") as fp:
             return json.load(fp)
 
     def load_squads_file(self) -> list[dict]:

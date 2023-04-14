@@ -120,6 +120,8 @@ class DebugMatchPage(ttk.Frame):
         )
 
     def update_tables(self, home_team: list[tuple], away_team: list[tuple]):
+        self.home_team_score.destroy()
+        self.away_team_score.destroy()
         self.home_team_table = Tableview(
             self,
             coldata=self.columns,
@@ -130,6 +132,7 @@ class DebugMatchPage(ttk.Frame):
             pagesize=8,
             height=11,
         )
+        self.home_team_table.autofit_columns()
         self.home_team_table.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
 
         self.away_team_table = Tableview(
@@ -142,4 +145,17 @@ class DebugMatchPage(ttk.Frame):
             pagesize=8,
             height=11,
         )
+        self.away_team_table.autofit_columns()
         self.away_team_table.grid(row=2, column=1, padx=10, pady=10, sticky=EW)
+
+    def update_team_names(self, home_team: str, away_team: str):
+        self.home_team_score.destroy()
+        self.away_team_score.destroy()
+
+        self.home_team_score = ttk.Label(self, text=f"{home_team}\t0", font="Arial 15 bold")
+        self.home_team_score.grid(row=1, column=0, padx=10, pady=10, sticky=E)
+
+        self.away_team_score = ttk.Label(
+            self, text=f"0\t{away_team}", font="Arial 15 bold"
+        )
+        self.away_team_score.grid(row=1, column=1, padx=10, pady=10, sticky=W)

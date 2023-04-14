@@ -68,9 +68,11 @@ class DebugMatchController(ControllerInterface):
         away_team = self.get_player_data(self.teams[1])
 
         self.page.update_tables(home_team, away_team)
+        self.page.update_team_names(self.teams[0].club.name, self.teams[1].club.name)
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")
 
     def _bind(self):
+        self.page.new_game_btn.config(command=self.initialize)
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)

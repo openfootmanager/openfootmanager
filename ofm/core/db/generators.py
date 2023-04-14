@@ -147,7 +147,7 @@ class PlayerGenerator(Generator):
         names = self._get_names_from_region(region)
         first_name = random.choice(names["male"])
         last_name = random.choice(names["surnames"])
-        short_name = f"{first_name[0]}. {last_name}"
+        short_name = f"{last_name}"
         # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
 

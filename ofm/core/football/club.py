@@ -41,7 +41,7 @@ class Club:
         club_id = UUID(int=club["id"])
         return cls(
             club_id,
-            club["name"],
+            club["name"].encode("utf-8").decode("unicode_escape"),
             club["country"],
             club["location"],
             players,
