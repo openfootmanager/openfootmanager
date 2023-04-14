@@ -55,8 +55,8 @@ class DebugMatchController(ControllerInterface):
     def get_player_data(self, team: TeamSimulation):
         return [
             (
-                player.player.details.short_name,
-                player.current_position.name,
+                player.player.details.short_name.encode("utf-8").decode("unicode_escape"),
+                player.current_position.name.encode("utf-8").decode("unicode_escape"),
                 player.current_stamina,
                 player.current_skill
             )
@@ -68,7 +68,10 @@ class DebugMatchController(ControllerInterface):
         away_team = self.get_player_data(self.teams[1])
 
         self.page.update_tables(home_team, away_team)
-        self.page.update_team_names(self.teams[0].club.name, self.teams[1].club.name)
+        self.page.update_team_names(
+            self.teams[0].club.name.encode("utf-8").decode("unicode_escape"),
+            self.teams[1].club.name.encode("utf-8").decode("unicode_escape")
+        )
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")

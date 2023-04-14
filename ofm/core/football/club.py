@@ -41,7 +41,7 @@ class Club:
         club_id = UUID(int=club["id"])
         return cls(
             club_id,
-            club["name"].encode("utf-8").decode("unicode_escape"),
+            club["name"],
             club["country"],
             club["location"],
             players,
@@ -83,8 +83,8 @@ class TeamSimulation:
 
     @classmethod
     def get_from_club(cls, club: Club):
-        players = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[:10]]
-        bench = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[11:]]
+        players = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[:11]]
+        bench = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[12:]]
         return cls(
             club,
             players,
