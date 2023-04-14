@@ -99,6 +99,6 @@ def test_generate_and_load_clubs_and_players(db: DB):
     clubs_dict = db.load_clubs()
     players_dict = db.load_players()
     players_obj = db.load_player_objects(players_dict)
-    clubs_obj = db.load_club_objects(clubs_dict, players_obj)
+    clubs_obj = db.load_club_objects(clubs_dict, players_dict)
     assert [club.serialize() for club in clubs_obj] == clubs_dict
     assert [player.serialize() for player in players_obj] == players_dict

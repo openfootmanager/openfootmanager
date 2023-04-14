@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 
-
 from .controllerinterface import ControllerInterface
 from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
@@ -48,12 +47,10 @@ class DebugMatchController(ControllerInterface):
 
         clubs = self.db.load_clubs()
         players = self.db.load_players()
-        players_obj = self.db.load_player_objects(players)
-        clubs_obj = self.db.load_club_objects(clubs, players_obj)
 
-        teams = random.sample(clubs_obj, 2)
-        teams = [TeamSimulation.get_from_club(team) for team in teams]
-        return teams
+        clubs = random.sample(clubs, 2)
+        teams = self.db.load_club_objects(clubs, players)
+        return [TeamSimulation.get_from_club(team) for team in teams]
 
     def get_player_data(self, team: TeamSimulation):
         return [

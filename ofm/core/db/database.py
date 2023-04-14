@@ -89,11 +89,12 @@ class DB:
     def load_player_objects(self, players: list[dict]) -> list[Player]:
         return [Player.get_from_dict(player) for player in players]
 
-    def load_club_objects(self, clubs: list[dict], players: list[Player]) -> list[Club]:
+    def load_club_objects(self, clubs: list[dict], players: list[dict]) -> list[Club]:
         _clubs = []
         for club in clubs:
+            players_ = [Player.get_from_dict(player) for player in players if player["id"] in club["squad"]]
             squad = self.get_player_team_from_dicts(
-                self.load_club_squads(club["squad"]), players
+                self.load_club_squads(club["id"]), players_
             )
             _clubs.append(Club.get_from_dict(club, squad))
 
@@ -103,19 +104,12 @@ class DB:
         return _clubs
 
     def load_club_squads(
-        self, squad_ids: list[int], squads: Optional[list[dict]] = None
+        self, team_id: int, squads: Optional[list[dict]] = None
     ):
-        sq = []
         if not squads:
             squads = self.load_squads_file()
 
-        for player_id in squad_ids:
-            for squad in squads:
-                if squad["player_id"] == player_id:
-                    sq.append(squad)
-                    break
-
-        return sq
+        return [d for d in squads if d["team_id"] == team_id]
 
     def check_clubs_file(self) -> None:
         if not os.path.exists(self.settings.db):
@@ -139,8 +133,8 @@ class DB:
         self, squads_dict: list[dict], players: list[Player]
     ) -> list[PlayerTeam]:
         squad = []
-        for player in players:
-            for playerteam_dict in squads_dict:
+        for playerteam_dict in squads_dict:
+            for player in players:
                 if player.player_id.int == playerteam_dict["player_id"]:
                     squad.append(PlayerTeam.get_from_dict(playerteam_dict, players))
                     break

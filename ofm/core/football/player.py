@@ -149,11 +149,11 @@ class Player:
     def get_best_position(self) -> Positions:
         best_pos = max(self.attributes.serialize())
         match best_pos:
-            case "atk":
+            case "offense":
                 return Positions.FW
-            case "mid":
+            case "defense":
                 return Positions.MF
-            case "def":
+            case "passing":
                 return Positions.DF
             case "gk":
                 return Positions.GK

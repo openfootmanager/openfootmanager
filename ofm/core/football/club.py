@@ -39,7 +39,7 @@ class Club:
     @classmethod
     def get_from_dict(cls, club: dict, players: list[PlayerTeam]):
         club_id = UUID(int=club["id"])
-        return Club(
+        return cls(
             club_id,
             club["name"],
             club["country"],
@@ -85,7 +85,7 @@ class TeamSimulation:
     def get_from_club(cls, club: Club):
         players = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[:10]]
         bench = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[11:]]
-        cls(
+        return cls(
             club,
             players,
             bench,
