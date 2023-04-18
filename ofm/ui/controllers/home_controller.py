@@ -35,5 +35,9 @@ class HomePageController(ControllerInterface):
     def go_to_debug_page(self):
         self.switch("debug_home")
 
+    def go_to_settings_page(self):
+        self.switch("settings")
+
     def _bind(self):
         self.page.debug_mode_btn.config(command=self.go_to_debug_page)
+        self.page.settings_btn.config(command=self.go_to_settings_page)

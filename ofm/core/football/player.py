@@ -57,6 +57,18 @@ class PlayerAttributes:
     def serialize(self) -> dict[str, int]:
         return asdict(self)
 
+    def get_best_position(self) -> Positions:
+        skill = self.serialize()
+        best_pos = max(skill, key=skill.get)
+        if best_pos == "offense":
+            return Positions.FW
+        if best_pos == "passing":
+            return Positions.MF
+        if best_pos == "defense":
+            return Positions.DF
+        if best_pos == "gk":
+            return Positions.GK
+
 
 @dataclass
 class Player:
@@ -147,16 +159,7 @@ class Player:
         return [position.value for position in self.positions]
 
     def get_best_position(self) -> Positions:
-        best_pos = max(self.attributes.serialize())
-        match best_pos:
-            case "offense":
-                return Positions.FW
-            case "defense":
-                return Positions.MF
-            case "passing":
-                return Positions.DF
-            case "gk":
-                return Positions.GK
+        return self.attributes.get_best_position()
 
     def serialize(self) -> dict:
         return {

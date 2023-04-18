@@ -13,8 +13,24 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .debug_home import DebugHomePage
-from .debug_match import DebugMatchPage
-from .home import HomePage
-from .team_selection import TeamSelectionPage
-from .settings import SettingsPage
+from .controllerinterface import ControllerInterface
+from ..pages.settings import SettingsPage
+
+
+class SettingsController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: SettingsPage):
+        self.controller = controller
+        self.page = page
+        self._bind()
+
+    def initialize(self):
+        pass
+
+    def switch(self, page):
+        self.controller.switch(page)
+
+    def go_to_debug_home_page(self):
+        self.switch("home")
+
+    def _bind(self):
+        self.page.cancel_btn.config(command=self.go_to_debug_home_page)
