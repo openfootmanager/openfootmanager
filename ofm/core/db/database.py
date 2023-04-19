@@ -171,16 +171,16 @@ class DB:
         clubs = team_gen.generate()
         clubs_dict = [club.serialize() for club in clubs]
 
-        with open(self.clubs_file, "w") as fp:
+        with open(self.clubs_file, "w", encoding="utf-8") as fp:
             json.dump(clubs_dict, fp)
 
-        with open(self.players_file, "w") as fp:
+        with open(self.players_file, "w", encoding="utf-8") as fp:
             players_dict = []
             for club in clubs:
                 players_dict.extend(player.details.serialize() for player in club.squad)
             json.dump(players_dict, fp)
 
-        with open(self.squads_file, "w") as fp:
+        with open(self.squads_file, "w", encoding="utf-8") as fp:
             squads_dict = []
             for club in clubs:
                 squads_dict.extend(player.serialize() for player in club.squad)

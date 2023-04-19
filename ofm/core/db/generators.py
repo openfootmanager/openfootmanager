@@ -216,10 +216,10 @@ class PlayerGenerator(Generator):
 
         return (
             base_value
-            + (international_rep * 15000)
-            + (age_diff * 1000)
-            + (current_skill * 500)
-            + (pot_skill * 100)
+            + (international_rep * 150)
+            + (age_diff * 100)
+            + (current_skill * 50)
+            + (pot_skill * 10)
         )
 
     def generate_international_reputation(self, attributes: dict) -> int:

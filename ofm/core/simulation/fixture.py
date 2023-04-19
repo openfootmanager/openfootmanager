@@ -23,13 +23,12 @@ class Fixture:
         self,
         fixture_id: UUID,
         championship_id: UUID,
-        home_team: Club,
-        away_team: Club,
+        home_team: UUID,
+        away_team: UUID,
         stadium: str,
     ):
         self.fixture_id = fixture_id
         self.championship_id = championship_id
         self.home_team = home_team
         self.away_team = away_team
-        self.teams = [self.home_team, self.away_team]
         self.stadium = stadium
