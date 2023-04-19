@@ -185,6 +185,9 @@ class DebugMatchPage(ttk.Frame):
         self.notebook.grid(row=1, column=0, sticky=NSEW)
 
     def update_tables(self, home_team: list[tuple], away_team: list[tuple]):
+        self.home_team_table.destroy()
+        self.away_team_table.destroy()
+
         self.home_team_table = Tableview(
             self.player_details_tab,
             coldata=self.columns,
@@ -221,12 +224,12 @@ class DebugMatchPage(ttk.Frame):
         self.home_team_score.grid(row=0, column=0, padx=10, pady=10, sticky=E)
 
         self.away_team_score = ttk.Label(
-            self.player_details_tab, text=f"0\t{away_team}", font="Arial 13 bold"
+            self.player_details_tab, text=f"0\t{away_team}", font="Arial 15 bold"
         )
         self.away_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=W)
 
         # Team Stats tab
-        self.home_team_stats_name = ttk.Label(self.player_stats_tab, text=f"{home_team}\t0", font="Arial 15 bold")
+        self.home_team_stats_name = ttk.Label(self.player_stats_tab, text=f"{home_team}\t0", font="Arial 13 bold")
         self.home_team_stats_name.grid(row=0, pady=5, column=0, sticky=E)
 
         self.away_team_stats_name = ttk.Label(
