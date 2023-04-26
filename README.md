@@ -2,11 +2,9 @@
 
 ![Openfoot logo](images/openfoot.png)
 
-# OPENFOOTMANAGER PROJECT
+# OPENFOOT MANAGER PROJECT
 
 **OpenFoot Manager** (temporary name) is a free and open source football/soccer manager game, licensed under the [GPLv3](LICENSE.md), inspired by the famous franchise Football Manager&trade;, and based on the source code of [Bygfoot](https://bygfoot.sourceforge.io/new/), an abandoned manager game.
-
-Unlike Bygfoot, which is written in C and uses GTK, **OpenFoot Manager** is written in **Python** and plans to use a modern GUI framework such as Kivy. We may also consider to use JavaScript frameworks such as Electron + React to create a nice User Interface, integrating it with a Python Shell.
 
 The purpose of this project is to provide an interesting and fun game for simulating a manager's life in a simple way: managing a team, dealing with players, finances and many other features. Resembling the gameplay of Football Manager, FIFA Manager, Championship Manager, Elifoot, Bygfoot, Brasfoot etc. this game aims to become a complete alternative for these games.
 
@@ -39,7 +37,7 @@ The game will have a number of features inspired by other established games on t
 ### ADDITIONAL FEATURES
 
 - [ ] 3D simulation of matches
-- [ ] Further expand database
+- [ ] Expand database
 - [ ] Sponsorship with products that boost player's performances
 - [ ] Mod support
 
