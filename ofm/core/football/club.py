@@ -31,6 +31,7 @@ class Club:
     name: str
     country: str
     location: str
+    default_formation: str
     # TODO: Implement a serializable stadium object
     squad: list[PlayerTeam]
     stadium: str
@@ -44,6 +45,7 @@ class Club:
             club["name"],
             club["country"],
             club["location"],
+            club["default_formation"],
             players,
             club["stadium"],
             club["stadium_capacity"],
@@ -55,6 +57,7 @@ class Club:
             "name": self.name,
             "country": self.country,
             "location": self.location,
+            "default_formation": self.default_formation,
             "squad": [player.details.player_id.int for player in self.squad],
             "stadium": self.stadium,
             "stadium_capacity": self.stadium_capacity,
@@ -65,43 +68,18 @@ class TeamSimulation:
     def __init__(
         self,
         club: Club,
-        players: list[PlayerSimulation] = None,
-        bench: list[PlayerSimulation] = None,
-        formation: Optional[Formation] = None,
-        max_substitutions: int = 3,
+        formation: Formation,
     ):
         self.club: Club = club
-        self.players: list[PlayerSimulation] = players
-        self.bench: list[PlayerSimulation] = bench
         self.formation: Formation = formation
         self.in_possession: bool = False
         self.substitutions: int = 0
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
         self.score: int = 0
-        self.max_substitutions: int = max_substitutions
         self.stats: TeamStats = TeamStats(self.club.club_id)
-
-    @classmethod
-    def get_from_club(cls, club: Club):
-        players = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[:11]]
-        bench = [PlayerSimulation(player, player.details.get_best_position(), 100.0) for player in club.squad[12:]]
-        return cls(
-            club,
-            players,
-            bench,
-        )
 
     def update_player_stamina(self):
         pass
-
-    def substitute_player(self, player1: PlayerSimulation, player2: PlayerSimulation):
-        if player2.subbed or (player1.statistics.red_cards != 0):
-            raise PlayerSubstitutionError("Player cannot be subbed!")
-        subbed_player_index = self.players.index(player1)
-        sub_player_index = self.bench.index(player2)
-        player1.subbed = True
-        self.players[subbed_player_index] = player2
-        self.bench[sub_player_index] = player1
 
 
 @dataclass

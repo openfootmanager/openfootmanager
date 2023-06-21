@@ -13,39 +13,94 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from .player import PlayerSimulation, PlayerTeam, Positions
 
-from .player import PlayerSimulation
+
+FORMATION_STRINGS = [
+    "3-4-3",
+    "3-5-2",
+    "3-6-1",
+    "4-4-2",
+    "4-3-3",
+    "4-5-1",
+    "5-4-1",
+    "5-3-2",
+]
+
+
+class FormationError(Exception):
+    pass
 
 
 @dataclass
 class Formation:
-    players: list[PlayerSimulation]
+    formation_string: str
+    gk: PlayerSimulation = None
+    df: list[PlayerSimulation] = field(default_factory=list)
+    mf: list[PlayerSimulation] = field(default_factory=list)
+    fw: list[PlayerSimulation] = field(default_factory=list)
+    bench: list[PlayerSimulation] = field(default_factory=list)
+    _players: list[PlayerSimulation] = field(default_factory=list)
+
+    def get_num_players(self) -> tuple[int, int, int]:
+        defenders, midfielders, forwards = self.formation_string.split('-')
+        return int(defenders), int(midfielders), int(forwards)
+
+    def add_player(self, position: int, player: PlayerTeam):
+        player_sim = PlayerSimulation(player, Positions.GK, player.details.stamina)
+        df, mf, fw = self.get_num_players()
+        if position == 0:
+            self.gk = player_sim
+        elif 0 < position <= df and len(self.df) < df:
+            player_sim.current_position = Positions.DF
+            self.df.append(player_sim)
+        elif df < position <= df + mf and len(self.mf) < mf:
+            player_sim.current_position = Positions.MF
+            self.mf.append(player_sim)
+        elif df + mf < position <= df + mf + fw and len(self.fw) < fw:
+            player_sim.current_position = Positions.FW
+            self.fw.append(player_sim)
+        else:
+            player_sim.current_position = player_sim.player.details.get_best_position()
+            self.bench.append(player_sim)
+
+    def substitute_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation):
+        current_position = player_out.current_position
+        player_out.subbed = True
+
+        player_in.current_position = current_position
+        if current_position == Positions.GK:
+            self.gk = player_in
+            index = self.bench.index(player_in)
+            self.bench[index] = player_out
+        elif current_position == Positions.DF:
+            index = self.df.index(player_out)
+            index_out = self.bench.index(player_in)
+            self.df[index] = player_in
+            self.bench[index_out] = player_out
+        elif current_position == Positions.MF:
+            index = self.mf.index(player_out)
+            index_out = self.bench.index(player_in)
+            self.mf[index] = player_in
+            self.bench[index_out] = player_out
+        elif current_position == Positions.FW:
+            index = self.fw.index(player_out)
+            index_out = self.bench.index(player_in)
+            self.fw[index] = player_in
+            self.bench[index_out] = player_out
+
+    @property
+    def players(self):
+        self._players = [self.gk]
+        self._players.extend(self.df)
+        self._players.extend(self.mf)
+        self._players.extend(self.fw)
+        return self._players
+
+    def __post_init__(self):
+        if not self.validate_formation():
+            raise FormationError("Invalid formation string!")
 
     def validate_formation(self) -> bool:
-        """
-        Validates if the given formation is valid.
-
-        This method calculates the number of players, and returns if the formation is a valid formation.
-        This should point out if players are missing from the formation.
-        :return:
-        """
-        pass
-
-    def get_formation(self) -> str:
-        """
-        This returns the formation string, such as 4-4-2, 3-5-2, 4-3-3, etc.
-        :return:
-        """
-        if self.validate_formation():
-            return ""
-
-    def change_formation(self):
-        """
-        Changes the player formation.
-        :return:
-        """
-        pass
-
-    def update_formation(self):
-        pass
+        return self.formation_string in FORMATION_STRINGS

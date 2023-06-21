@@ -13,8 +13,11 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ..football.club import TeamSimulation
+import random
+
 from .fixture import Fixture
+from ..football.club import TeamSimulation
+from .event import SimulationEvent, EventType, PitchPosition, Possession
 
 
 class LiveGame:
@@ -29,8 +32,38 @@ class LiveGame:
         self.fixture = fixture
         self.home_team = home_team
         self.away_team = away_team
-        self.possible_extra_time = possible_extra_time
-        self.possible_penalties = possible_penalties
+        self.attendance = self.calculate_attendance()
+        self.engine = SimulationEngine(possible_penalties, possible_extra_time)
+
+    def calculate_attendance(self) -> int:
+        pass
 
     def run(self):
-        pass
+        while not self.engine.is_game_over and not self.engine.is_half_time:
+            event = self.engine.generate_events()
+            event.calculate_event(self.home_team, self.away_team)
+
+
+class SimulationEngine:
+    def __init__(
+            self,
+            possible_penalties: bool,
+            possible_extra_time: bool,
+    ):
+        self.minutes = 0.0
+        self.is_half_time = False
+        self.is_game_over = False
+        self.possible_penalties = possible_penalties
+        self.possible_extra_time = possible_extra_time
+        self.event_history = []
+        self.possession = random.choice(list(Possession))
+        self.pitch_position = PitchPosition.MIDFIELD_CENTER
+
+    def generate_events(self) -> SimulationEvent:
+        events = list(EventType)
+        if not self.event_history:
+            event_type = EventType.START_MATCH
+        else:
+            event_type = EventType.PASS
+
+        return SimulationEvent(event_type, self.minutes, self.possession, self.pitch_position)

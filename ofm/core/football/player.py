@@ -184,7 +184,9 @@ class Player:
 @dataclass
 class PlayerStats:
     player_id: UUID
+    minutes_played: float = 0.0
     shots: int = 0
+    shots_missed: int = 0
     assists: int = 0
     fouls: int = 0
     goals: int = 0
@@ -194,7 +196,7 @@ class PlayerStats:
     injuries: int = 0
     yellow_cards: int = 0
     red_cards: int = 0
-    avg_rating: float = 0.0
+    rating: float = 0.0
     win_streak: int = 0
 
 

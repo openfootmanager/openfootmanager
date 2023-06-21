@@ -50,7 +50,7 @@ class DebugMatchController(ControllerInterface):
 
         clubs = random.sample(clubs, 2)
         teams = self.db.load_club_objects(clubs, players)
-        return [TeamSimulation.get_from_club(team) for team in teams]
+
 
     def get_player_data(self, team: TeamSimulation):
         return [

@@ -15,8 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from uuid import UUID
 
-from ..football.club import Club
-
 
 class Fixture:
     def __init__(

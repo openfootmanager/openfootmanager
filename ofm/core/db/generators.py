@@ -389,6 +389,8 @@ class TeamGenerator(Generator):
         self, team_id: uuid.UUID, country: str, squad_definition: dict, countries: list
     ) -> list[PlayerTeam]:
         # A team must have some options for the bench, 22-23 players at least
+        # Using 4-4-2 as default formation in this case, but teams might have different
+        # default formations
         needed_positions = [
             Positions.GK,
             Positions.DF,
