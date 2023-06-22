@@ -16,7 +16,9 @@
 import pytest
 from ofm.core.football.player import PlayerTeam, Player, PlayerSimulation, Positions
 from ofm.core.football.formation import Formation, FormationError
-from .test_player import  get_player_team
+from ofm.core.db.generators import TeamGenerator
+from .test_player import get_player_team
+from .test_teams import get_squads_def, get_confederations_file
 
 
 def test_invalid_formation():
@@ -57,3 +59,40 @@ def test_add_fw_to_formation():
         formation.add_player(i + 9, player)
         assert formation.fw[i].player == player
         assert formation.fw[i].current_position == Positions.FW
+
+
+def test_add_players_to_formation():
+    formation = Formation("4-4-2")
+    for i in range(11):
+        player, _, __ = get_player_team()
+        formation.add_player(i, player)
+
+    assert len(formation.df) == 4
+    assert len(formation.mf) == 4
+    assert len(formation.fw) == 2
+
+
+def test_add_players_to_formation_and_bench():
+    formation = Formation("4-4-2")
+    for i in range(16):
+        player, _, __ = get_player_team()
+        formation.add_player(i, player)
+
+    assert len(formation.df) == 4
+    assert len(formation.mf) == 4
+    assert len(formation.fw) == 2
+    assert len(formation.bench) == 5
+
+
+def test_formation_get_best_players():
+    team_gen = TeamGenerator(get_squads_def(), get_confederations_file())
+    clubs = team_gen.generate()
+
+    formation = Formation("4-4-2")
+    formation.get_best_players(clubs[0].squad)
+
+    assert len(formation.players) == 11
+    assert len(formation.bench) > 0
+    assert len(formation.df) == 4
+    assert len(formation.mf) == 4
+    assert len(formation.fw) == 2
