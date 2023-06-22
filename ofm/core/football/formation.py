@@ -56,7 +56,6 @@ class Formation:
             players_in_position.sort(key=lambda x: x.details.attributes.get_overall(position), reverse=True)
             return players_in_position
 
-
     def get_best_players(self, players: list[PlayerTeam]):
         df, mf, fw = self.get_num_players()
         for position in range(11):
@@ -77,6 +76,7 @@ class Formation:
                 players.remove(player)
 
         self.bench = [PlayerSimulation(player, player.details.get_best_position(), player.details.stamina) for player in players]
+        self.bench.sort(key=lambda x: x.current_position)
 
     def add_player(self, position: int, player: PlayerTeam):
         player_sim = PlayerSimulation(player, Positions.GK, player.details.stamina)

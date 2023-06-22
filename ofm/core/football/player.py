@@ -275,15 +275,17 @@ class PlayerSimulation:
     ):
         self.player = player
         self.current_position = current_position
-        self.current_skill = self.calculate_current_skill()
+        self._current_skill = 0.0
         self.current_stamina = stamina
         self.statistics = PlayerStats(player.details.player_id)
         self.is_injured = False
         self.injury_type = None
         self.subbed = False
 
-    def calculate_current_skill(self) -> int:
-        return self.player.details.attributes.get_overall(self.current_position)
+    @property
+    def current_skill(self) -> int:
+        self._current_skill = self.player.details.attributes.get_overall(self.current_position)
+        return self._current_skill
 
     def update_stamina(self):
         pass
