@@ -19,7 +19,7 @@ import sphinx
 # -- Project information -----------------------------------------------------
 
 project = "Openfootmanager"
-copyright = "2022, Pedrenrique G. Guimaraes"
+copyright = "2023, Pedrenrique G. Guimaraes"
 author = "Pedrenrique G. Guimaraes"
 
 # The full version, including alpha/beta/rc tags

@@ -25,6 +25,7 @@ class DebugMatchPage(ttk.Frame):
         self.notebook = ttk.Notebook(self)
 
         self.player_details_tab = ttk.Frame(self.notebook)
+        self.player_reserves_tab = ttk.Frame(self.notebook)
         self.player_stats_tab = ttk.Frame(self.notebook)
 
         self.title_label = ttk.Label(self, text="Debug Match", font="Arial 24 bold")
@@ -109,11 +110,39 @@ class DebugMatchPage(ttk.Frame):
             row=3, column=0, columnspan=2, padx=10, pady=10, sticky=NS
         )
 
+        # Reserves
+        self.home_team_reserves_name = ttk.Label(self.player_reserves_tab, text="Brazil\t0", font="Arial 15 bold")
+        self.away_team_reserves_name = ttk.Label(self.player_reserves_tab, text="0\tArgentina", font="Arial 15 bold")
+
+        self.home_team_reserves_table = Tableview(
+            self.player_reserves_tab,
+            coldata=self.columns,
+            rowdata=home_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.home_team_reserves_table.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+
+        self.away_team_reserves_table = Tableview(
+            self.player_reserves_tab,
+            coldata=self.columns,
+            rowdata=away_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.away_team_reserves_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+
         # Team Stats
         self.home_team_stats_name = ttk.Label(self.player_stats_tab, text="Brazil\t0", font="Arial 15 bold")
         self.home_team_stats_name.grid(row=0, column=0)
         self.away_team_stats_name = ttk.Label(self.player_stats_tab, text="0\tArgentina", font="Arial 15 bold")
-        self.home_team_stats_name.grid(row=0, column=2)
+        self.away_team_stats_name.grid(row=0, column=2)
 
         self.home_team_stats_name.grid(row=0, column=0)
         self.home_team_stats = [
@@ -178,15 +207,19 @@ class DebugMatchPage(ttk.Frame):
         )
 
         self.player_details_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.player_reserves_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
         self.player_stats_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
 
         self.notebook.add(self.player_details_tab, text="Players", sticky=NS)
+        self.notebook.add(self.player_reserves_tab, text="Reserves", sticky=NS)
         self.notebook.add(self.player_stats_tab, text="Stats", sticky=NS)
         self.notebook.grid(row=1, column=0, sticky=NSEW)
 
-    def update_tables(self, home_team: list[tuple], away_team: list[tuple]):
+    def update_tables(self, home_team: list[tuple], away_team: list[tuple], home_reserves: list[tuple], away_reserves: list[tuple]):
         self.home_team_table.destroy()
         self.away_team_table.destroy()
+        self.home_team_reserves_table.destroy()
+        self.away_team_reserves_table.destroy()
 
         self.home_team_table = Tableview(
             self.player_details_tab,
@@ -214,19 +247,51 @@ class DebugMatchPage(ttk.Frame):
         self.away_team_table.autofit_columns()
         self.away_team_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
+        self.home_team_reserves_table = Tableview(
+            self.player_reserves_tab,
+            coldata=self.columns,
+            rowdata=home_reserves,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.home_team_reserves_table.autofit_columns()
+        self.home_team_reserves_table.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+
+        self.away_team_reserves_table = Tableview(
+            self.player_reserves_tab,
+            coldata=self.columns,
+            rowdata=away_reserves,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=8,
+            height=11,
+        )
+        self.away_team_reserves_table.autofit_columns()
+        self.away_team_reserves_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+
     def update_team_names(self, home_team: str, away_team: str):
         self.home_team_score.destroy()
         self.away_team_score.destroy()
+        self.home_team_reserves_name.destroy()
+        self.away_team_reserves_name.destroy()
         self.home_team_stats_name.destroy()
         self.away_team_stats_name.destroy()
 
         self.home_team_score = ttk.Label(self.player_details_tab, text=f"{home_team}\t0", font="Arial 15 bold")
         self.home_team_score.grid(row=0, column=0, padx=10, pady=10, sticky=E)
+        self.home_team_reserves_name = ttk.Label(self.player_reserves_tab, text=f"{home_team}\t0", font="Arial 15 bold")
+        self.home_team_reserves_name.grid(row=0, column=0, padx=10, pady=10, sticky=E)
 
         self.away_team_score = ttk.Label(
             self.player_details_tab, text=f"0\t{away_team}", font="Arial 15 bold"
         )
         self.away_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=W)
+        self.away_team_reserves_name = ttk.Label(self.player_reserves_tab, text=f"0\t{away_team}", font="Arial 15 bold")
+        self.away_team_reserves_name.grid(row=0, column=1, padx=10, pady=10, sticky=W)
 
         # Team Stats tab
         self.home_team_stats_name = ttk.Label(self.player_stats_tab, text=f"{home_team}\t0", font="Arial 13 bold")

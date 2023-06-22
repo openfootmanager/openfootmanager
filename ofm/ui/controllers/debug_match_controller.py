@@ -20,6 +20,7 @@ from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.club import TeamSimulation
 from ...core.football.player import PlayerSimulation
+from ...core.football.formation import Formation
 
 
 class DebugMatchController(ControllerInterface):
@@ -49,8 +50,18 @@ class DebugMatchController(ControllerInterface):
         players = self.db.load_players()
 
         clubs = random.sample(clubs, 2)
-        teams = self.db.load_club_objects(clubs, players)
+        team1, team2 = self.db.load_club_objects(clubs, players)
 
+        formation_team1 = Formation(team1.default_formation)
+        formation_team2 = Formation(team2.default_formation)
+
+        formation_team1.get_best_players(team1.squad)
+        formation_team2.get_best_players(team2.squad)
+
+        return [
+            TeamSimulation(team1, formation_team1),
+            TeamSimulation(team2, formation_team2),
+        ]
 
     def get_player_data(self, team: TeamSimulation):
         return [
@@ -60,14 +71,27 @@ class DebugMatchController(ControllerInterface):
                 player.current_stamina,
                 player.current_skill
             )
-            for player in team.players
+            for player in team.formation.players
+        ]
+
+    def get_reserve_players(self, team: TeamSimulation):
+        return [
+            (
+                player.player.details.short_name.encode("utf-8").decode("unicode_escape"),
+                player.current_position.name.encode("utf-8").decode("unicode_escape"),
+                player.current_stamina,
+                player.current_skill
+            )
+            for player in team.formation.bench
         ]
 
     def update_player_table(self):
         home_team = self.get_player_data(self.teams[0])
         away_team = self.get_player_data(self.teams[1])
+        home_reserves = self.get_reserve_players(self.teams[0])
+        away_reserves = self.get_reserve_players(self.teams[1])
 
-        self.page.update_tables(home_team, away_team)
+        self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
         self.page.update_team_names(
             self.teams[0].club.name.encode("utf-8").decode("unicode_escape"),
             self.teams[1].club.name.encode("utf-8").decode("unicode_escape")

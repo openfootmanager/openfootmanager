@@ -27,7 +27,7 @@ Previous attempts
 
 I am also working in a very similar project, that
 is currently more advanced feature-wise and is closer now to its first alpha release.
-The eSports Manager (github.com/sturdy-robot/esports-manager) project had
+The `eSports Manager <https://github.com/sturdy-robot/esports-manager>`_ project had
 a very similar issue when dealing with simulation.
 
 The approach used in eSM was the first thing I have tried in OFM,
@@ -76,5 +76,8 @@ simulation work with this approach, but I want to try something more robust.
 Looking for inspiration
 =======================
 
-WIP
+I read many papers and articles on the topic. Many data scientists and stats people use some sort
+of simulations like Markov Chains to simulate a game. But these are tuned by the probabilities
+drawn from real world data, and these vary wildly yearly. So how can I make this fit in a game?
+
 

@@ -47,6 +47,37 @@ class Formation:
         defenders, midfielders, forwards = self.formation_string.split('-')
         return int(defenders), int(midfielders), int(forwards)
 
+    def get_best_players_per_position(self, players: list[PlayerTeam], position: Positions) -> list[PlayerTeam]:
+        if players_in_position := [
+            player
+            for player in players
+            if player.details.get_best_position() == position
+        ]:
+            players_in_position.sort(key=lambda x: x.details.attributes.get_overall(position), reverse=True)
+            return players_in_position
+
+
+    def get_best_players(self, players: list[PlayerTeam]):
+        df, mf, fw = self.get_num_players()
+        for position in range(11):
+            pos = None
+            if position == 0:
+                pos = Positions.GK
+            elif 0 < position <= df and len(self.df) < df:
+                pos = Positions.DF
+            elif df < position <= df + mf and len(self.mf) < mf:
+                pos = Positions.MF
+            elif df + mf < position <= df + mf + fw and len(self.fw) < fw:
+                pos = Positions.FW
+
+            player = self.get_best_players_per_position(players.copy(), pos)[0]
+
+            if player:
+                self.add_player(position, player)
+                players.remove(player)
+
+        self.bench = [PlayerSimulation(player, player.details.get_best_position(), player.details.stamina) for player in players]
+
     def add_player(self, position: int, player: PlayerTeam):
         player_sim = PlayerSimulation(player, Positions.GK, player.details.stamina)
         df, mf, fw = self.get_num_players()

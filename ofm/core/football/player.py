@@ -57,6 +57,18 @@ class PlayerAttributes:
     def serialize(self) -> dict[str, int]:
         return asdict(self)
 
+    def get_overall(self, position: Positions) -> int:
+        if position == Positions.GK:
+            return self.gk
+        elif position == Positions.DF:
+            return self.defense
+        elif position == Positions.MF:
+            return self.passing
+        elif position == Positions.FW:
+            return self.offense
+        else:
+            return 0
+
     def get_best_position(self) -> Positions:
         skill = self.serialize()
         best_pos = max(skill, key=skill.get)
@@ -271,15 +283,7 @@ class PlayerSimulation:
         self.subbed = False
 
     def calculate_current_skill(self) -> int:
-        match self.current_position:
-            case Positions.FW:
-                return self.player.details.attributes.offense
-            case Positions.MF:
-                return self.player.details.attributes.passing
-            case Positions.DF:
-                return self.player.details.attributes.defense
-            case Positions.GK:
-                return self.player.details.attributes.gk
+        return self.player.details.attributes.get_overall(self.current_position)
 
     def update_stamina(self):
         pass
