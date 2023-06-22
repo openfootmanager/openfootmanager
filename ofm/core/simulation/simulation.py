@@ -46,9 +46,9 @@ class LiveGame:
 
 class SimulationEngine:
     def __init__(
-            self,
-            possible_penalties: bool,
-            possible_extra_time: bool,
+        self,
+        possible_penalties: bool,
+        possible_extra_time: bool,
     ):
         self.minutes = 0.0
         self.is_half_time = False
@@ -66,4 +66,6 @@ class SimulationEngine:
         else:
             event_type = EventType.PASS
 
-        return SimulationEvent(event_type, self.minutes, self.possession, self.pitch_position)
+        return SimulationEvent(
+            event_type, self.minutes, self.possession, self.pitch_position
+        )

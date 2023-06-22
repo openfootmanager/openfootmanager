@@ -66,10 +66,12 @@ class DebugMatchController(ControllerInterface):
     def get_player_data(self, team: TeamSimulation):
         return [
             (
-                player.player.details.short_name.encode("utf-8").decode("unicode_escape"),
+                player.player.details.short_name.encode("utf-8").decode(
+                    "unicode_escape"
+                ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
                 player.current_stamina,
-                player.current_skill
+                player.current_skill,
             )
             for player in team.formation.players
         ]
@@ -77,10 +79,12 @@ class DebugMatchController(ControllerInterface):
     def get_reserve_players(self, team: TeamSimulation):
         return [
             (
-                player.player.details.short_name.encode("utf-8").decode("unicode_escape"),
+                player.player.details.short_name.encode("utf-8").decode(
+                    "unicode_escape"
+                ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
                 player.current_stamina,
-                player.current_skill
+                player.current_skill,
             )
             for player in team.formation.bench
         ]
@@ -94,7 +98,7 @@ class DebugMatchController(ControllerInterface):
         self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
         self.page.update_team_names(
             self.teams[0].club.name.encode("utf-8").decode("unicode_escape"),
-            self.teams[1].club.name.encode("utf-8").decode("unicode_escape")
+            self.teams[1].club.name.encode("utf-8").decode("unicode_escape"),
         )
 
     def go_to_debug_home_page(self):

@@ -92,7 +92,11 @@ class DB:
     def load_club_objects(self, clubs: list[dict], players: list[dict]) -> list[Club]:
         _clubs = []
         for club in clubs:
-            players_ = [Player.get_from_dict(player) for player in players if player["id"] in club["squad"]]
+            players_ = [
+                Player.get_from_dict(player)
+                for player in players
+                if player["id"] in club["squad"]
+            ]
             squad = self.get_player_team_from_dicts(
                 self.load_club_squads(club["id"]), players_
             )
@@ -103,9 +107,7 @@ class DB:
 
         return _clubs
 
-    def load_club_squads(
-        self, team_id: int, squads: Optional[list[dict]] = None
-    ):
+    def load_club_squads(self, team_id: int, squads: Optional[list[dict]] = None):
         if not squads:
             squads = self.load_squads_file()
 

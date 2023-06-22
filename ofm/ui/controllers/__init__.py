@@ -38,14 +38,14 @@ class OFMController(ControllerInterface):
             "home": HomePageController(self, self.gui.pages["home"]),
             "debug_home": DebugPageController(self, self.gui.pages["debug_home"]),
             "debug_match": DebugMatchController(
-                self, self.gui.pages["debug_match"], self.db,
+                self,
+                self.gui.pages["debug_match"],
+                self.db,
             ),
             "team_selection": TeamSelectionController(
                 self, self.gui.pages["team_selection"]
             ),
-            "settings": SettingsController(
-                self, self.gui.pages["settings"]
-            )
+            "settings": SettingsController(self, self.gui.pages["settings"]),
         }
 
     def initialize(self):

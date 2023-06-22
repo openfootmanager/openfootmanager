@@ -44,16 +44,20 @@ class Formation:
     _players: list[PlayerSimulation] = field(default_factory=list)
 
     def get_num_players(self) -> tuple[int, int, int]:
-        defenders, midfielders, forwards = self.formation_string.split('-')
+        defenders, midfielders, forwards = self.formation_string.split("-")
         return int(defenders), int(midfielders), int(forwards)
 
-    def get_best_players_per_position(self, players: list[PlayerTeam], position: Positions) -> list[PlayerTeam]:
+    def get_best_players_per_position(
+        self, players: list[PlayerTeam], position: Positions
+    ) -> list[PlayerTeam]:
         if players_in_position := [
             player
             for player in players
             if player.details.get_best_position() == position
         ]:
-            players_in_position.sort(key=lambda x: x.details.attributes.get_overall(position), reverse=True)
+            players_in_position.sort(
+                key=lambda x: x.details.attributes.get_overall(position), reverse=True
+            )
             return players_in_position
 
     def get_best_players(self, players: list[PlayerTeam]):
@@ -75,7 +79,12 @@ class Formation:
                 self.add_player(position, player)
                 players.remove(player)
 
-        self.bench = [PlayerSimulation(player, player.details.get_best_position(), player.details.stamina) for player in players]
+        self.bench = [
+            PlayerSimulation(
+                player, player.details.get_best_position(), player.details.stamina
+            )
+            for player in players
+        ]
         self.bench.sort(key=lambda x: x.current_position)
 
     def add_player(self, position: int, player: PlayerTeam):
@@ -96,7 +105,9 @@ class Formation:
             player_sim.current_position = player_sim.player.details.get_best_position()
             self.bench.append(player_sim)
 
-    def substitute_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation):
+    def substitute_player(
+        self, player_out: PlayerSimulation, player_in: PlayerSimulation
+    ):
         current_position = player_out.current_position
         player_out.subbed = True
 

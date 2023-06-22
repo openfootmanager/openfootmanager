@@ -30,6 +30,7 @@ class PitchPosition(Enum):
     Positions on the pitch. According to what position the ball is on, the game may calculate a different outcome
     for each event.
     """
+
     DEF_BOX = 0
     DEF_LEFT = auto()
     DEF_RIGHT = auto()
@@ -51,6 +52,7 @@ class EventType(Enum):
     """
     Enum of possible events. Pretty much self-explanatory.
     """
+
     PASS = 0
     SHOT = auto()
     CROSS = auto()

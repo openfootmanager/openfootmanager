@@ -68,7 +68,9 @@ class DebugMatchPage(ttk.Frame):
             ("Pablo", "GK", "100", "87"),
         ]
 
-        self.home_team_score = ttk.Label(self.player_details_tab, text="Brazil\t0", font="Arial 15 bold")
+        self.home_team_score = ttk.Label(
+            self.player_details_tab, text="Brazil\t0", font="Arial 15 bold"
+        )
         self.home_team_score.grid(row=0, column=0, padx=10, pady=10, sticky=E)
 
         self.away_team_score = ttk.Label(
@@ -111,8 +113,12 @@ class DebugMatchPage(ttk.Frame):
         )
 
         # Reserves
-        self.home_team_reserves_name = ttk.Label(self.player_reserves_tab, text="Brazil\t0", font="Arial 15 bold")
-        self.away_team_reserves_name = ttk.Label(self.player_reserves_tab, text="0\tArgentina", font="Arial 15 bold")
+        self.home_team_reserves_name = ttk.Label(
+            self.player_reserves_tab, text="Brazil\t0", font="Arial 15 bold"
+        )
+        self.away_team_reserves_name = ttk.Label(
+            self.player_reserves_tab, text="0\tArgentina", font="Arial 15 bold"
+        )
 
         self.home_team_reserves_table = Tableview(
             self.player_reserves_tab,
@@ -139,9 +145,13 @@ class DebugMatchPage(ttk.Frame):
         self.away_team_reserves_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
         # Team Stats
-        self.home_team_stats_name = ttk.Label(self.player_stats_tab, text="Brazil\t0", font="Arial 15 bold")
+        self.home_team_stats_name = ttk.Label(
+            self.player_stats_tab, text="Brazil\t0", font="Arial 15 bold"
+        )
         self.home_team_stats_name.grid(row=0, column=0)
-        self.away_team_stats_name = ttk.Label(self.player_stats_tab, text="0\tArgentina", font="Arial 15 bold")
+        self.away_team_stats_name = ttk.Label(
+            self.player_stats_tab, text="0\tArgentina", font="Arial 15 bold"
+        )
         self.away_team_stats_name.grid(row=0, column=2)
 
         self.home_team_stats_name.grid(row=0, column=0)
@@ -158,7 +168,7 @@ class DebugMatchPage(ttk.Frame):
             ttk.Label(self.player_stats_tab, text="0"),
         ]
         for row, stat in enumerate(self.home_team_stats):
-            stat.grid(row=row+1, column=0, padx=5, pady=5, sticky=NW)
+            stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
 
         self.home_team_stats_name = ttk.Label(self, text="Brazil\t0")
         self.stats_descriptions = [
@@ -174,7 +184,7 @@ class DebugMatchPage(ttk.Frame):
             ttk.Label(self.player_stats_tab, text="Corners"),
         ]
         for row, stat in enumerate(self.stats_descriptions):
-            stat.grid(row=row+1, column=1, padx=5, pady=5, sticky=NS)
+            stat.grid(row=row + 1, column=1, padx=5, pady=5, sticky=NS)
 
         self.away_team_stats = [
             ttk.Label(self.player_stats_tab, text="0"),
@@ -189,7 +199,7 @@ class DebugMatchPage(ttk.Frame):
             ttk.Label(self.player_stats_tab, text="0"),
         ]
         for row, stat in enumerate(self.away_team_stats):
-            stat.grid(row=row+1, column=2, padx=5, pady=5, sticky=NE)
+            stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)
 
         self.button_frame = ttk.Frame(self)
 
@@ -215,7 +225,13 @@ class DebugMatchPage(ttk.Frame):
         self.notebook.add(self.player_stats_tab, text="Stats", sticky=NS)
         self.notebook.grid(row=1, column=0, sticky=NSEW)
 
-    def update_tables(self, home_team: list[tuple], away_team: list[tuple], home_reserves: list[tuple], away_reserves: list[tuple]):
+    def update_tables(
+        self,
+        home_team: list[tuple],
+        away_team: list[tuple],
+        home_reserves: list[tuple],
+        away_reserves: list[tuple],
+    ):
         self.home_team_table.destroy()
         self.away_team_table.destroy()
         self.home_team_reserves_table.destroy()
@@ -281,20 +297,28 @@ class DebugMatchPage(ttk.Frame):
         self.home_team_stats_name.destroy()
         self.away_team_stats_name.destroy()
 
-        self.home_team_score = ttk.Label(self.player_details_tab, text=f"{home_team}\t0", font="Arial 15 bold")
+        self.home_team_score = ttk.Label(
+            self.player_details_tab, text=f"{home_team}\t0", font="Arial 15 bold"
+        )
         self.home_team_score.grid(row=0, column=0, padx=10, pady=10, sticky=E)
-        self.home_team_reserves_name = ttk.Label(self.player_reserves_tab, text=f"{home_team}\t0", font="Arial 15 bold")
+        self.home_team_reserves_name = ttk.Label(
+            self.player_reserves_tab, text=f"{home_team}\t0", font="Arial 15 bold"
+        )
         self.home_team_reserves_name.grid(row=0, column=0, padx=10, pady=10, sticky=E)
 
         self.away_team_score = ttk.Label(
             self.player_details_tab, text=f"0\t{away_team}", font="Arial 15 bold"
         )
         self.away_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=W)
-        self.away_team_reserves_name = ttk.Label(self.player_reserves_tab, text=f"0\t{away_team}", font="Arial 15 bold")
+        self.away_team_reserves_name = ttk.Label(
+            self.player_reserves_tab, text=f"0\t{away_team}", font="Arial 15 bold"
+        )
         self.away_team_reserves_name.grid(row=0, column=1, padx=10, pady=10, sticky=W)
 
         # Team Stats tab
-        self.home_team_stats_name = ttk.Label(self.player_stats_tab, text=f"{home_team}\t0", font="Arial 13 bold")
+        self.home_team_stats_name = ttk.Label(
+            self.player_stats_tab, text=f"{home_team}\t0", font="Arial 13 bold"
+        )
         self.home_team_stats_name.grid(row=0, pady=5, column=0, sticky=E)
 
         self.away_team_stats_name = ttk.Label(

@@ -284,7 +284,9 @@ class PlayerSimulation:
 
     @property
     def current_skill(self) -> int:
-        self._current_skill = self.player.details.attributes.get_overall(self.current_position)
+        self._current_skill = self.player.details.attributes.get_overall(
+            self.current_position
+        )
         return self._current_skill
 
     def update_stamina(self):
