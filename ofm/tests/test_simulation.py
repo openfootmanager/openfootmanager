@@ -133,3 +133,20 @@ def test_game_breaks_and_does_not_go_to_extra_time(live_game):
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
     assert live_game.is_half_time is False
+
+
+def test_game_breaks_and_does_not_go_to_penalties(live_game):
+    live_game.possible_extra_time = True
+    live_game.possible_penalties = True
+    live_game.run()  # first half
+    live_game.reset_after_half_time()
+    live_game.run()  # second half
+    live_game.reset_after_half_time()
+    live_game.run()  # first et half
+    live_game.reset_after_half_time()
+    live_game.engine.home_team.score = 1
+    live_game.engine.away_team.score = 0
+    live_game.run()
+    assert live_game.minutes == 120.0
+    assert live_game.is_game_over is True
+    assert live_game.is_half_time is False
