@@ -19,14 +19,12 @@ from unittest.mock import Mock
 
 import pytest
 from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
-from ofm.core.db.generators import PlayerGenerator, TeamGenerator
+from ofm.core.db.generators import PlayerGenerator
 from ofm.core.settings import Settings
-
-from .test_teams import get_squads_def
 
 
 @pytest.fixture
-def db(tmp_path) -> DB:
+def db(tmp_path, confederations_file) -> DB:
     settings_file = tmp_path / "settings.yaml"
     settings = Settings(tmp_path, settings_file)
     res = tmp_path / "res"
@@ -37,8 +35,7 @@ def db(tmp_path) -> DB:
     settings.db = db
     fifa_conf = res / "fifa_confederations.json"
     with fifa_conf.open("w") as fp:
-        data = get_confederations_file()
-        json.dump(data, fp)
+        json.dump(confederations_file, fp)
 
     return DB(settings)
 
@@ -93,9 +90,8 @@ def test_raises_error_get_player_team_from_dict(db: DB):
         db.get_player_team_from_dicts(squad_ids, players)
 
 
-def test_generate_and_load_clubs_and_players(db: DB):
-    clubs_def = get_squads_def()
-    db.generate_teams_and_squads(clubs_def)
+def test_generate_and_load_clubs_and_players(db: DB, squads_def):
+    db.generate_teams_and_squads(squads_def)
     clubs_dict = db.load_clubs()
     players_dict = db.load_players()
     players_obj = db.load_player_objects(players_dict)

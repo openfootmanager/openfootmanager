@@ -13,107 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import pytest
 import datetime
-import uuid
-import json
 
 from ..core.db.generators import TeamGenerator
 from ..core.football.club import Club, PlayerTeam
-from ..core.settings import Settings
 
 
-def get_squads_def() -> list[dict]:
-    return [
-        {
-            "name": "Munchen",
-            "stadium": "Munchen National Stadium",
-            "stadium_capacity": 40100,
-            "country": "GER",
-            "location": "Munich",
-            "default_formation": "4-4-2",
-            "squads_def": {
-                "mu": 80,
-                "sigma": 20,
-            },
-        },
-        {
-            "name": "Barcelona",
-            "stadium": "Barcelona National Stadium",
-            "stadium_capacity": 50000,
-            "country": "ESP",
-            "location": "Barcelona",
-            "default_formation": "4-3-3",
-            "squads_def": {
-                "mu": 80,
-                "sigma": 20,
-            },
-        },
-    ]
-
-
-def get_club_mock_file() -> list[dict]:
-    return [
-        {
-            "id": 1,
-            "name": "Munchen",
-            "country": "GER",
-            "location": "Munich",
-            "default_formation": "4-4-2",
-            "squad": [],
-            "stadium": "Munchen National Stadium",
-            "stadium_capacity": 40100,
-        },
-        {
-            "id": 2,
-            "name": "Barcelona",
-            "country": "ESP",
-            "location": "Barcelona",
-            "default_formation": "4-3-3",
-            "squad": [],
-            "stadium": "Barcelona National Stadium",
-            "stadium_capacity": 50000,
-        },
-    ]
-
-
-def get_confederations_file() -> list[dict]:
-    settings = Settings()
-    with open(settings.fifa_conf, "r") as fp:
-        return json.load(fp)
-
-
-def test_get_club_from_mock_file():
-    mock_definition_file = get_club_mock_file()
-    expected_teams = [
-        Club(
-            uuid.UUID(int=1),
-            "Munchen",
-            "GER",
-            "Munich",
-            "4-4-2",
-            [],
-            "Munchen National Stadium",
-            40100,
-        ),
-        Club(
-            uuid.UUID(int=2),
-            "Barcelona",
-            "ESP",
-            "Barcelona",
-            "4-3-3",
-            [],
-            "Barcelona National Stadium",
-            50000,
-        ),
-    ]
-    clubs = [Club.get_from_dict(club, []) for club in mock_definition_file]
-    assert clubs == expected_teams
-
-
-def test_generate_team_squads():
-    clubs_def = get_squads_def()
-    confederations_def = get_confederations_file()
-    team_gen = TeamGenerator(clubs_def, confederations_def, datetime.date.today())
+def test_generate_team_squads(squads_def, confederations_file):
+    team_gen = TeamGenerator(squads_def, confederations_file, datetime.date.today())
     clubs = team_gen.generate()
     for club in clubs:
         assert len(club.squad) >= 11

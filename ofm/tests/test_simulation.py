@@ -21,7 +21,6 @@ from ofm.core.db.generators import TeamGenerator
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import SimulationEngine, LiveGame
 from ofm.core.football.club import TeamSimulation, Formation
-from .test_teams import get_squads_def, get_confederations_file
 
 
 class MockSimulationEngine:
@@ -30,11 +29,11 @@ class MockSimulationEngine:
 
 
 @pytest.fixture
-def live_game(monkeypatch) -> LiveGame:
+def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
     def get_simulation_engine(*args, **kwargs):
         return MockSimulationEngine()
 
-    team_gen = TeamGenerator(get_squads_def(), get_confederations_file())
+    team_gen = TeamGenerator(squads_def, confederations_file)
 
     teams = team_gen.generate()
     home_team, away_team = teams[0], teams[1]
