@@ -25,7 +25,7 @@ from ..core.football.player import (
     Positions,
     PreferredFoot,
 )
-from ..core.football.club import Club, PlayerTeam
+from ..core.football.club import PlayerTeam
 from ..core.settings import Settings
 
 from ..core.football.playercontract import PlayerContract
@@ -173,30 +173,3 @@ def confederations_file() -> list[dict]:
     settings = Settings()
     with open(settings.fifa_conf, "r") as fp:
         return json.load(fp)
-
-
-def test_get_club_from_mock_file(mock_file):
-    expected_teams = [
-        Club(
-            uuid.UUID(int=1),
-            "Munchen",
-            "GER",
-            "Munich",
-            "4-4-2",
-            [],
-            "Munchen National Stadium",
-            40100,
-        ),
-        Club(
-            uuid.UUID(int=2),
-            "Barcelona",
-            "ESP",
-            "Barcelona",
-            "4-3-3",
-            [],
-            "Barcelona National Stadium",
-            50000,
-        ),
-    ]
-    clubs = [Club.get_from_dict(club, []) for club in mock_file]
-    assert clubs == expected_teams

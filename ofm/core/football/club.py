@@ -13,12 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
+
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple
 from uuid import UUID
 
 from .formation import Formation
 from .player import PlayerSimulation, PlayerTeam
+from ..simulation import PitchPosition
 
 
 class PlayerSubstitutionError(Exception):
@@ -77,6 +80,33 @@ class TeamSimulation:
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
         self.score: int = 0
         self.stats: TeamStats = TeamStats(self.club.club_id)
+
+    def get_player_in_possession(self, position: PitchPosition) -> PlayerSimulation:
+        if position == PitchPosition.DEF_BOX:
+            players = [self.formation.gk]
+            players.extend(self.formation.df)
+        elif position in [
+            PitchPosition.DEF_RIGHT,
+            PitchPosition.DEF_LEFT,
+            PitchPosition.DEF_MIDFIELD_LEFT,
+            PitchPosition.DEF_MIDFIELD_RIGHT,
+            PitchPosition.DEF_MIDFIELD_CENTER,
+        ]:
+            players = self.formation.df.copy()
+            players.extend(self.formation.mf)
+        elif position in [
+            PitchPosition.MIDFIELD_RIGHT,
+            PitchPosition.MIDFIELD_CENTER,
+            PitchPosition.MIDFIELD_LEFT,
+        ]:
+            players = self.formation.df.copy()
+            players.extend(self.formation.mf)
+            players.extend(self.formation.fw)
+        else:
+            players = self.formation.fw.copy()
+            players.extend(self.formation.mf)
+
+        return random.choice(players)
 
     def update_player_stamina(self):
         pass

@@ -53,7 +53,7 @@ def test_generate_players(db: DB):
     assert expected_players == file_contents
 
 
-def test_get_non_existant_player_from_database(db: DB):
+def test_get_non_existent_player_from_database(db: DB):
     with pytest.raises(DatabaseLoadError):
         db.get_player_object_from_id(uuid.uuid4(), [{"id": uuid.uuid4().int}])
 

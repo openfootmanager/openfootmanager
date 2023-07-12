@@ -13,11 +13,38 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
+import uuid
 import datetime
 
 from ..core.db.generators import TeamGenerator
 from ..core.football.club import Club, PlayerTeam
+
+
+def test_get_club_from_mock_file(mock_file):
+    expected_teams = [
+        Club(
+            uuid.UUID(int=1),
+            "Munchen",
+            "GER",
+            "Munich",
+            "4-4-2",
+            [],
+            "Munchen National Stadium",
+            40100,
+        ),
+        Club(
+            uuid.UUID(int=2),
+            "Barcelona",
+            "ESP",
+            "Barcelona",
+            "4-3-3",
+            [],
+            "Barcelona National Stadium",
+            50000,
+        ),
+    ]
+    clubs = [Club.get_from_dict(club, []) for club in mock_file]
+    assert clubs == expected_teams
 
 
 def test_generate_team_squads(squads_def, confederations_file):

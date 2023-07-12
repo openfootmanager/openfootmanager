@@ -13,3 +13,29 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from enum import Enum, auto
+
+class PitchPosition(Enum):
+    """
+    Positions on the pitch. According to what position the ball is on, the game may calculate a different outcome
+    for each event.
+    """
+
+    DEF_BOX = 0
+    DEF_LEFT = auto()
+    DEF_RIGHT = auto()
+    DEF_MIDFIELD_CENTER = auto()
+    DEF_MIDFIELD_LEFT = auto()
+    DEF_MIDFIELD_RIGHT = auto()
+    MIDFIELD_LEFT = auto()
+    MIDFIELD_CENTER = auto()
+    MIDFIELD_RIGHT = auto()
+    OFF_MIDFIELD_CENTER = auto()
+    OFF_MIDFIELD_LEFT = auto()
+    OFF_MIDFIELD_RIGHT = auto()
+    OFF_LEFT = auto()
+    OFF_RIGHT = auto()
+    OFF_BOX = auto()
+
+# Equivalent positions when changing possession
+PITCH_EQUIVALENTS = dict(zip(PitchPosition, reversed(list(PitchPosition))))

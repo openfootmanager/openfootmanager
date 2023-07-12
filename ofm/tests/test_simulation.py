@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 import uuid
-from decimal import Decimal
 
 from ofm.core.db.generators import TeamGenerator
 from ofm.core.simulation.fixture import Fixture
@@ -24,7 +23,7 @@ from ofm.core.football.club import TeamSimulation, Formation
 
 
 class MockSimulationEngine:
-    def run(self, minutes: Decimal):
+    def run(self):
         pass
 
 

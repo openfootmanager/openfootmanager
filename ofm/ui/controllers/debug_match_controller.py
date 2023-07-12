@@ -14,13 +14,16 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
+import uuid
+from threading import Thread
 
 from .controllerinterface import ControllerInterface
 from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.club import TeamSimulation
-from ...core.football.player import PlayerSimulation
 from ...core.football.formation import Formation
+from ...core.simulation.simulation import LiveGame
+from ...core.simulation.fixture import Fixture
 
 
 class DebugMatchController(ControllerInterface):
@@ -29,6 +32,8 @@ class DebugMatchController(ControllerInterface):
         self.page = page
         self.db = db
         self.teams = None
+        self.live_game = None
+        self.game_thread = None
         self._bind()
 
     def switch(self, page: str):
@@ -37,6 +42,36 @@ class DebugMatchController(ControllerInterface):
     def initialize(self):
         self.teams = self.load_random_teams()
         self.update_player_table()
+
+    def start_simulation(self):
+        if self.live_game is not None:
+            self.page.disable_button()
+            self.live_game.run()
+
+    def start_match(self):
+        fixture = Fixture(
+            uuid.uuid4(),
+            uuid.uuid4(),
+            self.teams[0].club.club_id,
+            self.teams[1].club.club_id,
+            self.teams[0].club.stadium
+        )
+        self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
+        try:
+            self.game_thread = Thread(target=self.start_simulation(), daemon=True)
+            self.game_thread.start()
+        except RuntimeError as e:
+            print(e)
+        self.check_thread_status()
+
+    def check_thread_status(self):
+        if self.game_thread is None:
+            return
+        if self.game_thread.is_alive():
+            self.page.after(100, lambda: self.check_thread_status())
+        else:
+            self.page.enable_button()
+            self.game_thread = None
 
     def load_random_teams(self) -> list[TeamSimulation]:
         """
@@ -99,11 +134,14 @@ class DebugMatchController(ControllerInterface):
         self.page.update_team_names(
             self.teams[0].club.name.encode("utf-8").decode("unicode_escape"),
             self.teams[1].club.name.encode("utf-8").decode("unicode_escape"),
+            str(self.teams[0].score),
+            str(self.teams[1].score),
         )
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")
 
     def _bind(self):
+        self.page.play_game_btn.config(command=self.start_match)
         self.page.new_game_btn.config(command=self.initialize)
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)
