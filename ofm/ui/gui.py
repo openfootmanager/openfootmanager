@@ -46,7 +46,6 @@ class GUI:
     def __init__(self):
         self.window = ttk.Window(title="OpenFoot Manager", themename="football")
 
-
         width = 900
         height = 800
 
@@ -69,13 +68,14 @@ class GUI:
 
     def fix_scaling(self):
         import tkinter.font
-        scaling = float(self.window.call('tk', 'scaling'))
+
+        scaling = float(self.window.call("tk", "scaling"))
         if scaling > 1.4:
             for name in tkinter.font.names(self.window):
                 font = tkinter.font.Font(root=self.window, name=name, exists=True)
-                size = int(font['size'])
+                size = int(font["size"])
                 if size < 0:
-                    font['size'] = round(-0.75*size)
+                    font["size"] = round(-0.75 * size)
 
     def _add_frame(self, frame) -> ttk.Frame:
         f = frame(self.window)

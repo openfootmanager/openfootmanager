@@ -54,7 +54,7 @@ class DebugMatchController(ControllerInterface):
             uuid.uuid4(),
             self.teams[0].club.club_id,
             self.teams[1].club.club_id,
-            self.teams[0].club.stadium
+            self.teams[0].club.stadium,
         )
         self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
         try:

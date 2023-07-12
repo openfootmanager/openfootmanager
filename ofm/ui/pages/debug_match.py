@@ -317,7 +317,9 @@ class DebugMatchPage(ttk.Frame):
     def enable_button(self):
         self.play_game_btn.config(state=ttk.NORMAL)
 
-    def update_team_names(self, home_team: str, away_team: str, home_team_score: str, away_team_score: str):
+    def update_team_names(
+        self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
+    ):
         self.home_team_name.destroy()
         self.away_team_name.destroy()
         self.home_team_score.destroy()

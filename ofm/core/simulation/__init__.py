@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum, auto
 
+
 class PitchPosition(Enum):
     """
     Positions on the pitch. According to what position the ball is on, the game may calculate a different outcome
@@ -36,6 +37,7 @@ class PitchPosition(Enum):
     OFF_LEFT = auto()
     OFF_RIGHT = auto()
     OFF_BOX = auto()
+
 
 # Equivalent positions when changing possession
 PITCH_EQUIVALENTS = dict(zip(PitchPosition, reversed(list(PitchPosition))))

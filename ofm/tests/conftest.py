@@ -30,6 +30,7 @@ from ..core.settings import Settings
 
 from ..core.football.playercontract import PlayerContract
 
+
 @pytest.fixture
 def player_gen() -> PlayerGenerator:
     return PlayerGenerator()

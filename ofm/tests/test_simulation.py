@@ -36,7 +36,13 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
 
     teams = team_gen.generate()
     home_team, away_team = teams[0], teams[1]
-    fixture = Fixture(uuid.uuid4(), uuid.uuid4(), home_team.club_id, away_team.club_id, home_team.stadium)
+    fixture = Fixture(
+        uuid.uuid4(),
+        uuid.uuid4(),
+        home_team.club_id,
+        away_team.club_id,
+        home_team.stadium,
+    )
 
     home_team_formation = Formation(home_team.default_formation)
     home_team_formation.get_best_players(home_team.squad)
@@ -44,7 +50,7 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
     away_team_formation = Formation(away_team.default_formation)
     away_team_sim = TeamSimulation(away_team, away_team_formation)
 
-    monkeypatch.setattr(SimulationEngine, 'run', get_simulation_engine)
+    monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
 
     return LiveGame(
         fixture,
@@ -82,9 +88,9 @@ def test_game_breaks_in_extra_time(live_game):
 
 def test_game_breaks_in_extra_time_half_time(live_game):
     live_game.possible_extra_time = True
-    live_game.run()     # first half
+    live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.run()     # second half
+    live_game.run()  # second half
     live_game.reset_after_half_time()
     live_game.run()
     assert live_game.minutes == 105.0
@@ -94,11 +100,11 @@ def test_game_breaks_in_extra_time_half_time(live_game):
 
 def test_game_breaks_after_extra_time(live_game):
     live_game.possible_extra_time = True
-    live_game.run() # first half
+    live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.run() # second half
+    live_game.run()  # second half
     live_game.reset_after_half_time()
-    live_game.run() # first et half
+    live_game.run()  # first et half
     live_game.reset_after_half_time()
     live_game.run()
     assert live_game.minutes == 120.0
@@ -123,11 +129,11 @@ def test_game_breaks_to_penalty_shootout(live_game):
 
 def test_game_breaks_and_does_not_go_to_extra_time(live_game):
     live_game.possible_extra_time = True
-    live_game.run()     # first half
+    live_game.run()  # first half
     live_game.reset_after_half_time()
     live_game.engine.home_team.score = 1
     live_game.engine.away_team.score = 0
-    live_game.run()     # second half
+    live_game.run()  # second half
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
     assert live_game.is_half_time is False
