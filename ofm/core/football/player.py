@@ -115,10 +115,10 @@ class Player:
         Indicates how confident the player is for a game. Values range from 0.0 to 1.0. Higher values indicate that
         the player is more confident, and can perform better in a game. It can be improved after winning important
         games, scoring streaks, getting a good performance/rating in a game or winning a title.
-    skill: dict
+    attributes: PlayerAttributes
         Set of skills that a player possesses, such as attacking, defending, midfield and goalkeeper skills. The higher
         the values, the better the player performs in such areas. Skill values range from 0 to 99.
-    potential_skill: dict
+    potential_skill: int
         Indicates potential overall that a player can reach. These are only metrics that are used
         to calculate player's prospects. The values have the same range as the skill values.
     international_reputation: int
