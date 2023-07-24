@@ -119,7 +119,7 @@ class Player:
         Set of skills that a player possesses, such as attacking, defending, midfield and goalkeeper skills. The higher
         the values, the better the player performs in such areas. Skill values range from 0 to 99.
     potential_skill: dict
-        Indicates potential values that a player can reach with training. These are only metrics that are used
+        Indicates potential overall that a player can reach. These are only metrics that are used
         to calculate player's prospects. The values have the same range as the skill values.
     international_reputation: int
         Indicates how the player is valued outside his country. Values range from 0 to 5. Players with higher
@@ -142,7 +142,7 @@ class Player:
     stamina: float
     form: float
     attributes: PlayerAttributes
-    potential_attributes: PlayerAttributes
+    potential_skill: int
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float
@@ -161,7 +161,7 @@ class Player:
             player_dict["stamina"],
             player_dict["form"],
             PlayerAttributes.get_from_dict(player_dict["attributes"]),
-            PlayerAttributes.get_from_dict(player_dict["potential_attributes"]),
+            player_dict["potential_skill"],
             player_dict["international_reputation"],
             PreferredFoot(player_dict["preferred_foot"]),
             player_dict["value"],
@@ -186,7 +186,7 @@ class Player:
             "stamina": self.stamina,
             "form": self.form,
             "attributes": self.attributes.serialize(),
-            "potential_attributes": self.potential_attributes.serialize(),
+            "potential_skill": self.potential_skill,
             "international_reputation": self.international_reputation,
             "preferred_foot": self.preferred_foot.value,
             "value": self.value,

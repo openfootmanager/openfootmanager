@@ -43,7 +43,7 @@ def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
         "stamina",
         "form",
         "attributes",
-        "potential_attributes",
+        "potential_skill",
         "international_reputation",
         "preferred_foot",
         "value",

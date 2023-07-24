@@ -151,37 +151,22 @@ class PlayerGenerator(Generator):
         # TODO: Generate some nicknames for players, but for now just keep it that way
         return first_name, last_name, short_name
 
-    def _get_potential_attribute_per_position(
-        self, skill: int, position: Positions, positions: list[Positions], age_diff: int
-    ):
-        potential_skill = skill
-        if position in positions:
-            potential_skill += age_diff + random.randint(0, 25)
-
-        return min(potential_skill, self.max_skill_lvl)
-
-    def generate_potential_attributes(
+    def generate_potential_skill(
         self, skill: PlayerAttributes, positions: list[Positions], age: int
-    ) -> PlayerAttributes:
+    ) -> int:
         """
         Generates the player's potential skill.
         """
         age_diff = int((self.max_age.days * 365.25) - age)
         age_diff = max(age_diff, 0)
-        offense = self._get_potential_attribute_per_position(
-            skill.offense, Positions.FW, positions, age_diff
-        )
-        passing = self._get_potential_attribute_per_position(
-            skill.passing, Positions.MF, positions, age_diff
-        )
-        defense = self._get_potential_attribute_per_position(
-            skill.defense, Positions.DF, positions, age_diff
-        )
-        gk = self._get_potential_attribute_per_position(
-            skill.gk, Positions.GK, positions, age_diff
-        )
-
-        return PlayerAttributes(offense, defense, passing, gk)
+        ovr = skill.get_overall(positions[0])
+        
+        if age_diff == 0:
+            potential = ovr
+        else:
+            potential = ovr + random.randint(0, 20)
+            potential = min(potential, 99)
+        return potential
 
     def generate_positions(
         self, desired_pos: Optional[list[Positions]]
@@ -200,18 +185,18 @@ class PlayerGenerator(Generator):
         return random.choice(list(PreferredFoot))
 
     def generate_player_value(
-        self, skill: dict, age: int, potential_skill: dict, international_rep: int
+        self, skill: dict, age: int, potential_skill: int, international_rep: int
     ) -> float:
         """
         Should return how much a player's worth.
 
-        Right now I'm just going to say it is skill * 1000.00. It's not too important to come up
+        Right now I'm just going to implement a basic value. It's not too important to come up
         with an algorithm for that at the moment.
         """
         age_diff = int((self.max_age.days * 365.25) - age)
         age_diff = max(age_diff, 0)
         current_skill = max(skill.values())
-        pot_skill = max(potential_skill.values())
+        pot_skill = potential_skill
         base_value = random.randint(55, 80) * 100
 
         return (
@@ -265,14 +250,14 @@ class PlayerGenerator(Generator):
         positions = self.generate_positions(desired_pos)
         preferred_foot = self.generate_preferred_foot()
         attributes = attr_gen.generate(positions, mu, sigma)
-        potential_attributes = attr_gen.generate(positions, mu, sigma)
+        potential_skill = self.generate_potential_skill(attributes, positions, age)
         international_reputation = self.generate_international_reputation(
             attributes.serialize()
         )
         value = self.generate_player_value(
             attributes.serialize(),
             age,
-            potential_attributes.serialize(),
+            potential_skill,
             international_reputation,
         )
         form = self.generate_player_form()
@@ -290,7 +275,7 @@ class PlayerGenerator(Generator):
             100.0,
             form,
             attributes,
-            potential_attributes,
+            potential_skill,
             international_reputation,
             preferred_foot,
             value,
