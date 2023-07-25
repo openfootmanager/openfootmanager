@@ -16,6 +16,8 @@
 import random
 from enum import Enum, auto
 from dataclasses import dataclass
+
+from ofm.core.football.club import TeamSimulation
 from ..football.club import TeamSimulation
 from abc import abstractmethod
 from copy import deepcopy
@@ -24,6 +26,7 @@ from . import PitchPosition, PITCH_EQUIVALENTS
 
 class EventType(Enum):
     PASS = 0
+    DRIBBLE = auto()
     SHOT = auto()
     CROSS = auto()
     FOUL = auto()
@@ -38,6 +41,8 @@ class EventOutcome(Enum):
     PASS_SUCCESS = auto()
     PASS_INTERCEPT = auto()
     PASS_OFFSIDE = auto()
+    DRIBBLE_FAIL = auto()
+    DRIBBLE_SUCCESS = auto()
     CROSS_MISS = auto()
     CROSS_SUCCESS = auto()
     CROSS_INTERCEPT = auto()
@@ -48,6 +53,7 @@ class EventOutcome(Enum):
     SHOT_MISS = auto()
     SHOT_HIT_POST = auto()
     SHOT_SAVED = auto()
+    SHOT_BLOCKED = auto()
     GOAL = auto()
     OWN_GOAL = auto()
 
@@ -81,14 +87,15 @@ class EventFactory:
             return [[EventType.PASS], [1.0]]
 
         transition_matrix = [
-            [4, 0, 1, 1, 0, 0, 0, 0],  # PASS
-            [2, 1, 1, 1, 0, 1, 1, 0],  # SHOT
-            [1, 0, 1, 1, 0, 1, 1, 0],  # CROSS
-            [0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
-            [1, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-            [1, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
-            [1, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
-            [0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
+            [4, 2, 1, 1, 0, 0, 0, 0, 0],  # PASS
+            [2, 2, 1, 1, 1, 0, 0, 0, 0],  # DRIBBLE
+            [1, 1, 1, 1, 1, 1, 1, 0, 0],  # SHOT
+            [1, 1, 1, 0, 1, 1, 0, 1, 1],  # CROSS
+            [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
+            [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+            [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+            [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
+            [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
         ]
 
         # Depending on the position, some events will be added to the matrix
@@ -117,6 +124,8 @@ class EventFactory:
         state = deepcopy(_state)
         if event_type == EventType.PASS:
             return PassEvent(EventType.PASS, state)
+        elif event_type == EventType.DRIBBLE:
+            return DribbleEvent(EventType.DRIBBLE)
         elif event_type == EventType.FOUL:
             return FoulEvent(EventType.FOUL, state)
         elif event_type == EventType.SHOT:
@@ -142,13 +151,28 @@ class PassEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
+        """
+        Calculate the outcome of an event in a soccer game.
+
+        This function takes in the attacking team and defending team as parameters and returns the resulting game state after the event.
+        The event is simulated using a transition matrix that represents the probabilities of transitioning from one position on the field to another.
+        The transition matrix is based on the team's strategy.
+
+        Parameters:
+        - attacking_team (TeamSimulation): The attacking team in the game.
+        - defending_team (TeamSimulation): The defending team in the game.
+
+        Returns:
+        - GameState: The resulting game state after the event.
+
+        """
         # Transition matrix for each position on the field
         # TODO: Transition matrix should depend on team's strategy
         transition_matrix = [
             [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
             [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+            [1, 4, 6, 8, 5, 2, 4, 2, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
+            [1, 2, 4, 2, 5, 6, 2, 4, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
@@ -157,9 +181,9 @@ class PassEvent(SimulationEvent):
             [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 8, 6, 14],  # OFF_LEFT
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 8, 6, 14],  # OFF_RIGHT
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 8, 8, 14],  # OFF_BOX
         ]
         probabilities = transition_matrix[self.state.position.value]
         end_position = random.choices(list(PitchPosition), probabilities)[0]
@@ -180,13 +204,13 @@ class PassEvent(SimulationEvent):
         outcome_probability = [
             int(
                 abs(distance)
-                / attacking_player.player.details.attributes.passing
+                / attacking_player.player.details.attributes.intelligence
                 * luck_factor
                 * 10
             ),
             0,
-            int(attacking_player.player.details.attributes.passing * luck_factor * 10),
-            int(defending_player.player.details.attributes.defense * luck_factor * 10),
+            int(attacking_player.player.details.attributes.intelligence * luck_factor * 10),
+            int(defending_player.player.details.attributes.defensive * luck_factor * 10),
         ]
 
         if end_position in [
@@ -199,7 +223,7 @@ class PassEvent(SimulationEvent):
         ]:
             outcome_probability[1] = int(
                 distance
-                / attacking_player.player.details.attributes.passing
+                / attacking_player.player.details.attributes.intelligence
                 * luck_factor
                 * 10
             )
@@ -236,6 +260,10 @@ class CornerKickEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
+        transition_matrix = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 8, 14],  # OFF_LEFT
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 8, 14],  # OFF_RIGHT
+        ]
         print(f"Corner {self.state.position}")
         return GameState(self.state.minutes + 0.1, self.state.position)
 
@@ -247,7 +275,17 @@ class ShotEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"Shot {self.state.position}")
+        event_outcomes = [
+            EventOutcome.SHOT_HIT_POST,
+            EventOutcome.SHOT_MISS,
+            EventOutcome.SHOT_SAVED,
+            EventOutcome.SHOT_BLOCKED,
+            EventOutcome.GOAL,
+            EventOutcome.OWN_GOAL,
+        ]
+        player_shot = attacking_team.get_player_in_possession(self.state.position)
+        print(f"{player_shot.player.details.short_name} shoots!")
+        event_probabilities = []
         return GameState(self.state.minutes + 0.1, self.state.position)
 
 
@@ -269,7 +307,7 @@ class GoalKickEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"Goal Kick {self.state.position}")
+        print(f"Goal Kick {self.state.position.name}")
         return GameState(self.state.minutes + 0.1, self.state.position)
 
 
@@ -280,5 +318,16 @@ class FreeKickEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"FreeKick {self.state.position}")
+        print(f"FreeKick {self.state.position.name}")
+        return GameState(self.state.minutes + 0.1, self.state.position)
+
+
+@dataclass
+class DribbleEvent(SimulationEvent):
+    def calculate_event(
+        self,
+        attacking_team: TeamSimulation,
+        defending_team: TeamSimulation
+    ) -> GameState:
+        print(f"Dribble {self.state.position.name}")
         return GameState(self.state.minutes + 0.1, self.state.position)

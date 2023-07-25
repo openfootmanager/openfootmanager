@@ -21,10 +21,10 @@ import datetime
 from ..core.db.generators import PlayerGenerator
 from ..core.football.player import (
     Player,
-    PlayerAttributes,
     Positions,
     PreferredFoot,
 )
+from ..core.football.player_attributes import *
 from ..core.football.club import PlayerTeam
 from ..core.settings import Settings
 
@@ -37,7 +37,17 @@ def player_gen() -> PlayerGenerator:
 
 
 @pytest.fixture
-def player_obj() -> Player:
+def player_attributes() -> PlayerAttributes:
+    return PlayerAttributes(
+        OffensiveAttributes(85, 80, 75, 88, 90),
+        PhysicalAttributes(80, 75, 40),
+        DefensiveAttributes(54, 65, 50),
+        IntelligenceAttributes(60, 88, 82, 87, 80, 83, 75),
+        GkAttributes(20, 10),
+    )
+
+@pytest.fixture
+def player_obj(player_attributes: PlayerAttributes) -> Player:
     return Player(
         uuid.UUID(int=1),
         "Brazil",
@@ -49,7 +59,7 @@ def player_obj() -> Player:
         100.0,
         100.0,
         0.5,
-        PlayerAttributes(80, 75, 30, 20),
+        player_attributes,
         90,
         5,
         PreferredFoot.LEFT,
@@ -58,7 +68,7 @@ def player_obj() -> Player:
 
 
 @pytest.fixture
-def player_dict() -> dict:
+def player_dict(player_attributes: PlayerAttributes) -> dict:
     positions = [Positions.FW, Positions.MF]
     preferred_foot = PreferredFoot.LEFT
     return {
@@ -72,12 +82,7 @@ def player_dict() -> dict:
         "fitness": 100.0,
         "stamina": 100.0,
         "form": 0.5,
-        "attributes": {
-            "offense": 80,
-            "defense": 75,
-            "passing": 30,
-            "gk": 20,
-        },
+        "attributes": player_attributes.serialize(),
         "potential_skill": 90,
         "international_reputation": 5,
         "preferred_foot": PreferredFoot(preferred_foot),

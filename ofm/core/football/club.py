@@ -18,9 +18,11 @@ import random
 from dataclasses import dataclass
 from typing import Tuple
 from uuid import UUID
+from enum import Enum, auto
 
 from .formation import Formation
 from .player import PlayerSimulation, PlayerTeam
+from .team_strategy import TeamStrategy
 from ..simulation import PitchPosition
 
 
@@ -72,6 +74,7 @@ class TeamSimulation:
         self,
         club: Club,
         formation: Formation,
+        strategy: TeamStrategy = TeamStrategy.NORMAL,
     ):
         self.club: Club = club
         self.formation: Formation = formation
@@ -79,6 +82,7 @@ class TeamSimulation:
         self.substitutions: int = 0
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
         self.score: int = 0
+        self.team_strategy: TeamStrategy = strategy
         self.stats: TeamStats = TeamStats(self.club.club_id)
 
     def get_player_in_possession(self, position: PitchPosition) -> PlayerSimulation:

@@ -20,13 +20,8 @@ from typing import Union
 from uuid import UUID
 
 from .playercontract import PlayerContract
-
-
-class Positions(IntEnum):
-    GK = auto()
-    DF = auto()
-    MF = auto()
-    FW = auto()
+from .positions import Positions
+from .player_attributes import PlayerAttributes
 
 
 class PreferredFoot(IntEnum):
@@ -41,45 +36,6 @@ def get_players_from_dict_list(players_dict: list) -> list:
 
 def get_positions_from_dict(positions: list[int]):
     return [Positions(position) for position in positions]
-
-
-@dataclass
-class PlayerAttributes:
-    offense: int
-    defense: int
-    passing: int
-    gk: int
-
-    @classmethod
-    def get_from_dict(cls, attributes: dict[str, int]):
-        return cls(**attributes)
-
-    def serialize(self) -> dict[str, int]:
-        return asdict(self)
-
-    def get_overall(self, position: Positions) -> int:
-        if position == Positions.GK:
-            return self.gk
-        elif position == Positions.DF:
-            return self.defense
-        elif position == Positions.MF:
-            return self.passing
-        elif position == Positions.FW:
-            return self.offense
-        else:
-            return 0
-
-    def get_best_position(self) -> Positions:
-        skill = self.serialize()
-        best_pos = max(skill, key=skill.get)
-        if best_pos == "offense":
-            return Positions.FW
-        if best_pos == "passing":
-            return Positions.MF
-        if best_pos == "defense":
-            return Positions.DF
-        if best_pos == "gk":
-            return Positions.GK
 
 
 @dataclass
@@ -171,7 +127,7 @@ class Player:
         return [position.value for position in self.positions]
 
     def get_best_position(self) -> Positions:
-        return self.attributes.get_best_position()
+        return self.positions[0]
 
     def serialize(self) -> dict:
         return {

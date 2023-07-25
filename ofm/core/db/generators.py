@@ -23,13 +23,27 @@ from typing import List, Optional, Tuple, Union
 from ofm.core.football.club import Club
 from ofm.core.football.player import (
     Player,
-    PlayerAttributes,
     PlayerTeam,
     Positions,
     PreferredFoot,
 )
+from ofm.core.football.player_attributes import (
+    PlayerAttributes,
+    OffensiveAttributes,
+    DefensiveAttributes,
+    PhysicalAttributes,
+    IntelligenceAttributes,
+    GkAttributes,
+)
 from ofm.core.football.playercontract import PlayerContract
 from ofm.defaults import NAMES_FILE
+
+
+def generate_skill_values(mu: int, sigma: int) -> int:
+    value = random.gauss(mu, sigma)
+    value = min(value, 99)
+    value = max(value, 25)
+    return int(value)
 
 
 class Generator(ABC):
@@ -45,16 +59,103 @@ class GeneratePlayerError(Exception):
 class PlayerAttributeGenerator(Generator):
     def __init__(self, max_skill_lvl):
         self.max_skill_lvl = max_skill_lvl
+    
+    def generate_offensive_attributes(self, mu: int, sigma: int) -> OffensiveAttributes:
+        return OffensiveAttributes(
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+        )
 
-    def _get_skill_from_position(
-        self, position: Positions, positions: list[Positions], mu: int, sigma: int
-    ):
-        if position in positions:
-            skill = int(random.gauss(mu, sigma))
-            skill = min(skill, self.max_skill_lvl)
-            return max(46, skill)
-        else:
-            return random.randint(20, 45)
+    def generate_defensive_attributes(self, mu: int, sigma: int) -> DefensiveAttributes:
+        return DefensiveAttributes(
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+        )
+
+    def generate_physical_attributes(self, mu: int, sigma: int) -> PhysicalAttributes:
+        return PhysicalAttributes(
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+        )
+
+    def generate_intelligence_attributes(self, mu: int, sigma: int) -> IntelligenceAttributes:
+        return IntelligenceAttributes(
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+        )
+
+    def generate_gk_attributes(self, mu: int, sigma: int) -> GkAttributes:
+        return GkAttributes(
+            generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
+        )
+
+    def get_gk_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
+        gk = self.generate_gk_attributes(mu, sigma)
+        offensive = self.generate_offensive_attributes(35, 10)
+        defensive = self.generate_defensive_attributes(mu, sigma)
+        physical = self.generate_physical_attributes(mu, sigma)
+        intelligence = self.generate_intelligence_attributes(mu, sigma)
+        return PlayerAttributes(
+            offensive,
+            physical,
+            defensive,
+            intelligence,
+            gk
+        )
+
+    def get_df_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
+        gk = self.generate_gk_attributes(35, 10)
+        offensive = self.generate_offensive_attributes(45, 10)
+        defensive = self.generate_defensive_attributes(mu, sigma)
+        physical = self.generate_physical_attributes(mu, sigma)
+        intelligence = self.generate_intelligence_attributes(mu, sigma)
+        return PlayerAttributes(
+            offensive,
+            physical,
+            defensive,
+            intelligence,
+            gk
+        )
+
+    def get_mf_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
+        gk = self.generate_gk_attributes(35, 10)
+        offensive = self.generate_offensive_attributes(50, 20)
+        defensive = self.generate_defensive_attributes(mu, sigma)
+        physical = self.generate_physical_attributes(mu, sigma)
+        intelligence = self.generate_intelligence_attributes(mu, sigma)
+        return PlayerAttributes(
+            offensive,
+            physical,
+            defensive,
+            intelligence,
+            gk
+        )
+
+    def get_fw_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
+        gk = self.generate_gk_attributes(35, 10)
+        offensive = self.generate_offensive_attributes(mu, sigma)
+        defensive = self.generate_defensive_attributes(45, 10)
+        physical = self.generate_physical_attributes(mu, sigma)
+        intelligence = self.generate_intelligence_attributes(mu, sigma)
+        return PlayerAttributes(
+            offensive,
+            physical,
+            defensive,
+            intelligence,
+            gk
+        )
+
 
     def generate(
         self, positions: list[Positions], mu: int = 50, sigma: int = 20
@@ -72,12 +173,17 @@ class PlayerAttributeGenerator(Generator):
         if sigma is None:
             sigma = 20
 
-        offense = self._get_skill_from_position(Positions.FW, positions, mu, sigma)
-        passing = self._get_skill_from_position(Positions.MF, positions, mu, sigma)
-        defense = self._get_skill_from_position(Positions.DF, positions, mu, sigma)
-        gk = self._get_skill_from_position(Positions.GK, positions, mu, sigma)
+        match positions[0]:
+            case Positions.GK:
+                attributes = self.get_gk_attributes(mu, sigma)
+            case Positions.DF:
+                attributes = self.get_df_attributes(mu, sigma)
+            case Positions.MF:
+                attributes = self.get_mf_attributes(mu, sigma)
+            case Positions.FW:
+                attributes = self.get_fw_attributes(mu, sigma)
 
-        return PlayerAttributes(offense, defense, passing, gk)
+        return attributes
 
 
 class PlayerGenerator(Generator):
@@ -195,7 +301,6 @@ class PlayerGenerator(Generator):
         """
         age_diff = int((self.max_age.days * 365.25) - age)
         age_diff = max(age_diff, 0)
-        current_skill = max(skill.values())
         pot_skill = potential_skill
         base_value = random.randint(55, 80) * 100
 
@@ -203,25 +308,26 @@ class PlayerGenerator(Generator):
             base_value
             + (international_rep * 150)
             + (age_diff * 100)
-            + (current_skill * 50)
+            + (skill * 50)
             + (pot_skill * 10)
         )
 
-    def generate_international_reputation(self, attributes: dict) -> int:
+    def generate_international_reputation(self, max_skill: int) -> int:
         """
         Returns the player's international reputation. This number ranges from 0 to 5.
         """
-        max_skill = max(attributes.values())
-
         if max_skill < 65:
             return 0
-        if 65 <= max_skill < 70:
+        elif max_skill < 70:
             return 1
-        if 70 <= max_skill < 75:
+        elif max_skill < 75:
             return 2
-        if 75 <= max_skill < 82:
+        elif max_skill < 82:
             return 3
-        return 4 if 82 <= max_skill < 90 else 5
+        elif max_skill < 90:
+            return 4
+        else:
+            return 5
 
     def get_players_dictionaries(self) -> List[dict]:
         if not self.players_obj:
@@ -252,10 +358,10 @@ class PlayerGenerator(Generator):
         attributes = attr_gen.generate(positions, mu, sigma)
         potential_skill = self.generate_potential_skill(attributes, positions, age)
         international_reputation = self.generate_international_reputation(
-            attributes.serialize()
+            attributes.get_overall(positions[0]),
         )
         value = self.generate_player_value(
-            attributes.serialize(),
+            attributes.get_overall(positions[0]),
             age,
             potential_skill,
             international_reputation,
@@ -343,13 +449,14 @@ class TeamGenerator(Generator):
         contract_end = contract_started + contract_length
         bonus_for_goal = 0
         bonus_for_def = 0
+        position = player.get_best_position()
         if any(x in player.positions for x in [Positions.FW, Positions.MF]):
             bonus_for_goal = player.value * (
-                (max(player.attributes.serialize().values()) / 2) / 100
+                (player.attributes.get_overall(position) / 2) / 100
             )
         if any(x in player.positions for x in [Positions.GK, Positions.DF]):
             bonus_for_def = player.value * (
-                (max(player.attributes.serialize().values()) / 2) / 100
+                (player.attributes.get_overall(position) / 2) / 100
             )
 
         return PlayerContract(
