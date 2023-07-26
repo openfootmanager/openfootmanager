@@ -16,6 +16,7 @@
 import random
 from enum import Enum, auto
 from dataclasses import dataclass
+from typing import Optional
 
 from ofm.core.football.club import TeamSimulation
 from ..football.club import TeamSimulation
@@ -68,7 +69,7 @@ class GameState:
 class SimulationEvent:
     event_type: EventType
     state: GameState
-    outcome: EventOutcome = None
+    outcome: Optional[EventOutcome] = None
 
     @abstractmethod
     def calculate_event(
@@ -82,7 +83,7 @@ class SimulationEvent:
 class EventFactory:
     def get_possible_events(
         self, state: GameState, last_event: EventType
-    ) -> list[list[EventType], list[float]]:
+    ) -> list[list[EventType] | list[float]]:
         if last_event is None:
             return [[EventType.PASS], [1.0]]
 
@@ -125,7 +126,7 @@ class EventFactory:
         if event_type == EventType.PASS:
             return PassEvent(EventType.PASS, state)
         elif event_type == EventType.DRIBBLE:
-            return DribbleEvent(EventType.DRIBBLE)
+            return DribbleEvent(EventType.DRIBBLE, state)
         elif event_type == EventType.FOUL:
             return FoulEvent(EventType.FOUL, state)
         elif event_type == EventType.SHOT:
@@ -204,13 +205,13 @@ class PassEvent(SimulationEvent):
         outcome_probability = [
             int(
                 abs(distance)
-                / attacking_player.player.details.attributes.intelligence
+                / attacking_player.player.details.attributes.intelligence.passing
                 * luck_factor
                 * 10
             ),
             0,
-            int(attacking_player.player.details.attributes.intelligence * luck_factor * 10),
-            int(defending_player.player.details.attributes.defensive * luck_factor * 10),
+            int(attacking_player.player.details.attributes.intelligence.passing * luck_factor * 10),
+            int(defending_player.player.details.attributes.defensive.interception * luck_factor * 10),
         ]
 
         if end_position in [
@@ -223,7 +224,7 @@ class PassEvent(SimulationEvent):
         ]:
             outcome_probability[1] = int(
                 distance
-                / attacking_player.player.details.attributes.intelligence
+                / attacking_player.player.details.attributes.intelligence.passing
                 * luck_factor
                 * 10
             )
