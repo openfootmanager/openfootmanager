@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from typing import Optional
 from dataclasses import dataclass, field
 from .player import PlayerSimulation, PlayerTeam, Positions
 
@@ -36,7 +37,7 @@ class FormationError(Exception):
 @dataclass
 class Formation:
     formation_string: str
-    gk: PlayerSimulation = None
+    gk: Optional[PlayerSimulation] = None
     df: list[PlayerSimulation] = field(default_factory=list)
     mf: list[PlayerSimulation] = field(default_factory=list)
     fw: list[PlayerSimulation] = field(default_factory=list)
@@ -59,6 +60,8 @@ class Formation:
                 key=lambda x: x.details.attributes.get_overall(position), reverse=True
             )
             return players_in_position
+
+        raise FormationError("Invalid position.")
 
     def get_best_players(self, players: list[PlayerTeam]):
         df, mf, fw = self.get_num_players()

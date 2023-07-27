@@ -16,9 +16,8 @@
 import random
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Optional
 from uuid import UUID
-from enum import Enum, auto
 
 from .formation import Formation
 from .player import PlayerSimulation, PlayerTeam
@@ -85,7 +84,11 @@ class TeamSimulation:
         self.team_strategy: TeamStrategy = strategy
         self.stats: TeamStats = TeamStats(self.club.club_id)
 
-    def get_player_in_possession(self, position: PitchPosition) -> PlayerSimulation:
+    def get_player_on_pitch(
+        self,
+        position: PitchPosition,
+        player_possession: Optional[PlayerSimulation] = None,
+    ) -> PlayerSimulation:
         if position == PitchPosition.DEF_BOX:
             players = [self.formation.gk]
             players.extend(self.formation.df)
@@ -126,8 +129,7 @@ class TeamStats:
     own_goals: int = 0
     penalties: int = 0
     corners: int = 0
-    throw_ins: int = 0
-    kick_offs: int = 0
+    goal_kicks: int = 0
     injuries: int = 0
     yellow_cards: int = 0
     red_cards: int = 0

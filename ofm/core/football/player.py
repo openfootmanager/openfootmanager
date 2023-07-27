@@ -245,5 +245,13 @@ class PlayerSimulation:
         )
         return self._current_skill
 
+    @property
+    def attributes(self):
+        return self.player.details.attributes
+
+    @attributes.setter
+    def attributes(self, value: PlayerAttributes):
+        self.player.details.attributes = value
+
     def update_stamina(self):
         pass

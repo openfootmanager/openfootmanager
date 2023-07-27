@@ -22,12 +22,26 @@ class TeamStrategy(Enum):
     COUNTER_ATTACK = auto()
     DEFEND = auto()
     ALL_ATTACK = auto()
-    
+
 
 class TeamStrategyFactory:
     def get_game_transition_matrix(self, strategy: TeamStrategy):
-        pass
-    
+        match strategy:
+            case TeamStrategy.NORMAL:
+                return [
+                    [4, 2, 1, 1, 0, 0, 0, 0, 0],  # PASS
+                    [2, 2, 1, 1, 1, 0, 0, 0, 0],  # DRIBBLE
+                    [1, 1, 1, 1, 1, 1, 1, 0, 0],  # SHOT
+                    [1, 1, 1, 0, 1, 1, 0, 1, 1],  # CROSS
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
+                    [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                    [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                    [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
+                    [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
+                ]
+            case TeamStrategy.KEEP_POSSESSION:
+                pass
+
     def get_pass_transition_matrix(self, strategy: TeamStrategy):
         match strategy:
             case TeamStrategy.NORMAL:
@@ -35,15 +49,63 @@ class TeamStrategyFactory:
                     [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
                     [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                    ],  # DEF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4],  # MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_RIGHT
-                    [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        4,
+                        6,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        8,
+                        8,
+                    ],  # OFF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        14,
+                        8,
+                        8,
+                        6,
+                    ],  # OFF_MIDFIELD_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX
@@ -53,15 +115,63 @@ class TeamStrategyFactory:
                     [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
                     [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                    ],  # DEF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4],  # MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_RIGHT
-                    [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        4,
+                        6,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        8,
+                        8,
+                    ],  # OFF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        14,
+                        8,
+                        8,
+                        6,
+                    ],  # OFF_MIDFIELD_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX
@@ -71,15 +181,63 @@ class TeamStrategyFactory:
                     [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
                     [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                    ],  # DEF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4],  # MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_RIGHT
-                    [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        4,
+                        6,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        8,
+                        8,
+                    ],  # OFF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        14,
+                        8,
+                        8,
+                        6,
+                    ],  # OFF_MIDFIELD_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX
@@ -89,15 +247,63 @@ class TeamStrategyFactory:
                     [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
                     [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                    ],  # DEF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4],  # MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_RIGHT
-                    [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        4,
+                        6,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        8,
+                        8,
+                    ],  # OFF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        14,
+                        8,
+                        8,
+                        6,
+                    ],  # OFF_MIDFIELD_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX
@@ -107,15 +313,63 @@ class TeamStrategyFactory:
                     [1, 4, 6, 8, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1],  # BOX
                     [1, 4, 6, 8, 5, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_LEFT_BOX
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_BOX
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                    ],  # DEF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # DEF_RIGHT_MIDFIELD
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4],  # MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 4],  # MIDFIELD_RIGHT
-                    [1, 1, 1, 1, 1, 1, 4, 6, 4, 8, 6, 6, 8, 8, 8],  # OFF_MIDFIELD_CENTER
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        4,
+                        6,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        8,
+                        8,
+                    ],  # OFF_MIDFIELD_CENTER
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 6],  # OFF_MIDFIELD_LEFT
-                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 8, 8, 6],  # OFF_MIDFIELD_RIGHT
+                    [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        14,
+                        8,
+                        8,
+                        6,
+                    ],  # OFF_MIDFIELD_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_LEFT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 6, 14],  # OFF_RIGHT
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 8, 14],  # OFF_BOX

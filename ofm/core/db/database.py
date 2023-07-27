@@ -149,7 +149,7 @@ class DB:
     def generate_players(
         self,
         amount: int = 50 * 22,
-        region: str = None,
+        region: Optional[str] = None,
         desired_pos: Optional[list[Positions]] = None,
     ) -> list[dict]:
         players = PlayerGenerator()

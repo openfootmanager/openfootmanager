@@ -41,3 +41,21 @@ class PitchPosition(Enum):
 
 # Equivalent positions when changing possession
 PITCH_EQUIVALENTS = dict(zip(PitchPosition, reversed(list(PitchPosition))))
+
+OFF_POSITIONS = [
+    PitchPosition.OFF_MIDFIELD_CENTER,
+    PitchPosition.OFF_MIDFIELD_LEFT,
+    PitchPosition.OFF_MIDFIELD_RIGHT,
+    PitchPosition.OFF_LEFT,
+    PitchPosition.OFF_RIGHT,
+    PitchPosition.OFF_BOX,
+]
+
+DEF_POSITIONS = [
+    PitchPosition.DEF_BOX,
+    PitchPosition.DEF_LEFT,
+    PitchPosition.DEF_RIGHT,
+    PitchPosition.DEF_MIDFIELD_CENTER,
+    PitchPosition.DEF_MIDFIELD_LEFT,
+    PitchPosition.DEF_MIDFIELD_RIGHT,
+]

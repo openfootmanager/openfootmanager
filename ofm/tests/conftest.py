@@ -43,8 +43,9 @@ def player_attributes() -> PlayerAttributes:
         PhysicalAttributes(80, 75, 40),
         DefensiveAttributes(54, 65, 50),
         IntelligenceAttributes(60, 88, 82, 87, 80, 83, 75),
-        GkAttributes(20, 10),
+        GkAttributes(20, 20, 10),
     )
+
 
 @pytest.fixture
 def player_obj(player_attributes: PlayerAttributes) -> Player:

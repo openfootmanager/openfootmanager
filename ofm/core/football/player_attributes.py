@@ -25,10 +25,10 @@ class Attributes(ABC):
 
     def serialize(self) -> dict[str, int]:
         return asdict(self)
-    
+
     def get_overall(self) -> int:
         attrs = asdict(self)
-        return sum(attrs.values()) / len(attrs)
+        return int(sum(attrs.values()) / len(attrs))
 
 
 @dataclass
@@ -68,6 +68,7 @@ class IntelligenceAttributes(Attributes):
 @dataclass
 class GkAttributes(Attributes):
     reflexes: int
+    jumping: int
     positioning: int
 
 
@@ -113,45 +114,49 @@ class PlayerAttributes:
                 return self.get_mf_overall()
             case Positions.FW:
                 return self.get_fw_overall()
-        
+
         return 0
 
     def get_gk_overall(self) -> int:
         return int(
             (
-                self.gk.get_overall() * 3 \
-                + self.defensive.get_overall() * 2 \
-                + self.physical.get_overall() \
+                self.gk.get_overall() * 3
+                + self.defensive.get_overall() * 2
+                + self.physical.get_overall()
                 + self.intelligence.get_overall()
-            ) / 6
+            )
+            / 6
         )
 
     def get_df_overall(self) -> int:
         return int(
             (
-                self.defensive.get_overall() * 3 \
-                + self.physical.get_overall() * 2 \
-                + self.intelligence.get_overall() \
+                self.defensive.get_overall() * 3
+                + self.physical.get_overall() * 2
+                + self.intelligence.get_overall()
                 + self.offensive.get_overall()
-            ) / 7
+            )
+            / 7
         )
 
     def get_mf_overall(self) -> int:
         return int(
             (
-                self.defensive.get_overall() \
-                + self.physical.get_overall() * 2 \
-                + self.intelligence.get_overall() * 3 \
+                self.defensive.get_overall()
+                + self.physical.get_overall() * 2
+                + self.intelligence.get_overall() * 3
                 + self.offensive.get_overall()
-            ) / 7
+            )
+            / 7
         )
 
     def get_fw_overall(self) -> int:
         return int(
             (
-                self.defensive.get_overall() \
-                + self.physical.get_overall() \
-                + self.intelligence.get_overall() * 2 \
+                self.defensive.get_overall()
+                + self.physical.get_overall()
+                + self.intelligence.get_overall() * 2
                 + self.offensive.get_overall() * 3
-            ) / 7
+            )
+            / 7
         )

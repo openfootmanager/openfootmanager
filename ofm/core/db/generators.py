@@ -59,7 +59,7 @@ class GeneratePlayerError(Exception):
 class PlayerAttributeGenerator(Generator):
     def __init__(self, max_skill_lvl):
         self.max_skill_lvl = max_skill_lvl
-    
+
     def generate_offensive_attributes(self, mu: int, sigma: int) -> OffensiveAttributes:
         return OffensiveAttributes(
             generate_skill_values(mu, sigma),
@@ -83,7 +83,9 @@ class PlayerAttributeGenerator(Generator):
             generate_skill_values(mu, sigma),
         )
 
-    def generate_intelligence_attributes(self, mu: int, sigma: int) -> IntelligenceAttributes:
+    def generate_intelligence_attributes(
+        self, mu: int, sigma: int
+    ) -> IntelligenceAttributes:
         return IntelligenceAttributes(
             generate_skill_values(mu, sigma),
             generate_skill_values(mu, sigma),
@@ -98,6 +100,7 @@ class PlayerAttributeGenerator(Generator):
         return GkAttributes(
             generate_skill_values(mu, sigma),
             generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
         )
 
     def get_gk_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
@@ -106,13 +109,7 @@ class PlayerAttributeGenerator(Generator):
         defensive = self.generate_defensive_attributes(mu, sigma)
         physical = self.generate_physical_attributes(mu, sigma)
         intelligence = self.generate_intelligence_attributes(mu, sigma)
-        return PlayerAttributes(
-            offensive,
-            physical,
-            defensive,
-            intelligence,
-            gk
-        )
+        return PlayerAttributes(offensive, physical, defensive, intelligence, gk)
 
     def get_df_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
         gk = self.generate_gk_attributes(35, 10)
@@ -120,13 +117,7 @@ class PlayerAttributeGenerator(Generator):
         defensive = self.generate_defensive_attributes(mu, sigma)
         physical = self.generate_physical_attributes(mu, sigma)
         intelligence = self.generate_intelligence_attributes(mu, sigma)
-        return PlayerAttributes(
-            offensive,
-            physical,
-            defensive,
-            intelligence,
-            gk
-        )
+        return PlayerAttributes(offensive, physical, defensive, intelligence, gk)
 
     def get_mf_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
         gk = self.generate_gk_attributes(35, 10)
@@ -134,13 +125,7 @@ class PlayerAttributeGenerator(Generator):
         defensive = self.generate_defensive_attributes(mu, sigma)
         physical = self.generate_physical_attributes(mu, sigma)
         intelligence = self.generate_intelligence_attributes(mu, sigma)
-        return PlayerAttributes(
-            offensive,
-            physical,
-            defensive,
-            intelligence,
-            gk
-        )
+        return PlayerAttributes(offensive, physical, defensive, intelligence, gk)
 
     def get_fw_attributes(self, mu: int, sigma: int) -> PlayerAttributes:
         gk = self.generate_gk_attributes(35, 10)
@@ -148,14 +133,7 @@ class PlayerAttributeGenerator(Generator):
         defensive = self.generate_defensive_attributes(45, 10)
         physical = self.generate_physical_attributes(mu, sigma)
         intelligence = self.generate_intelligence_attributes(mu, sigma)
-        return PlayerAttributes(
-            offensive,
-            physical,
-            defensive,
-            intelligence,
-            gk
-        )
-
+        return PlayerAttributes(offensive, physical, defensive, intelligence, gk)
 
     def generate(
         self, positions: list[Positions], mu: int = 50, sigma: int = 20
@@ -266,7 +244,7 @@ class PlayerGenerator(Generator):
         age_diff = int((self.max_age.days * 365.25) - age)
         age_diff = max(age_diff, 0)
         ovr = skill.get_overall(positions[0])
-        
+
         if age_diff == 0:
             potential = ovr
         else:
@@ -291,7 +269,7 @@ class PlayerGenerator(Generator):
         return random.choice(list(PreferredFoot))
 
     def generate_player_value(
-        self, skill: dict, age: int, potential_skill: int, international_rep: int
+        self, skill: int, age: int, potential_skill: int, international_rep: int
     ) -> float:
         """
         Should return how much a player's worth.
