@@ -15,6 +15,7 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 import uuid
+from typing import Optional
 from threading import Thread
 
 from .controllerinterface import ControllerInterface
@@ -31,9 +32,9 @@ class DebugMatchController(ControllerInterface):
         self.controller = controller
         self.page = page
         self.db = db
-        self.teams = None
-        self.live_game = None
-        self.game_thread = None
+        self.teams: Optional[list[TeamSimulation]] = None
+        self.live_game: Optional[LiveGame] = None
+        self.game_thread: Optional[Thread] = None
         self._bind()
 
     def switch(self, page: str):
@@ -49,6 +50,9 @@ class DebugMatchController(ControllerInterface):
             self.live_game.run()
 
     def start_match(self):
+        if self.teams is None:
+            return
+
         fixture = Fixture(
             uuid.uuid4(),
             uuid.uuid4(),
@@ -125,6 +129,9 @@ class DebugMatchController(ControllerInterface):
         ]
 
     def update_player_table(self):
+        if self.teams is None:
+            return
+
         home_team = self.get_player_data(self.teams[0])
         away_team = self.get_player_data(self.teams[1])
         home_reserves = self.get_reserve_players(self.teams[0])
