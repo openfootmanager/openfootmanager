@@ -17,9 +17,10 @@ import pytest
 import uuid
 
 from ofm.core.db.generators import TeamGenerator
+from ofm.core.football.player import PlayerSimulation
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import SimulationEngine, LiveGame
-from ofm.core.football.club import TeamSimulation, Formation
+from ofm.core.football.club import TeamSimulation, Formation, Goal
 
 
 class MockSimulationEngine:
@@ -59,6 +60,10 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
         False,
         False,
     )
+
+
+def get_goal(player_sim: PlayerSimulation) -> Goal:
+    return Goal(player_sim, 90.0)
 
 
 def test_game_breaks_in_half_time(live_game):
@@ -127,19 +132,18 @@ def test_game_breaks_to_penalty_shootout(live_game):
     assert live_game.is_half_time is True
 
 
-def test_game_breaks_and_does_not_go_to_extra_time(live_game):
+def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.score = 1
-    live_game.engine.away_team.score = 0
+    live_game.engine.home_team.add_goal(player_sim)
     live_game.run()  # second half
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
     assert live_game.is_half_time is False
 
 
-def test_game_breaks_and_does_not_go_to_penalties(live_game):
+def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.possible_penalties = True
     live_game.run()  # first half
@@ -148,8 +152,7 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game):
     live_game.reset_after_half_time()
     live_game.run()  # first et half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.score = 1
-    live_game.engine.away_team.score = 0
+    live_game.engine.home_team.add_goal(get_goal(player_sim))
     live_game.run()
     assert live_game.minutes == 120.0
     assert live_game.is_game_over is True

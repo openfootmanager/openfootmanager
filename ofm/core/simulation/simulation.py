@@ -13,8 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import random
 from decimal import Decimal, getcontext
+import random
 
 from .fixture import Fixture
 from ..football.club import TeamSimulation

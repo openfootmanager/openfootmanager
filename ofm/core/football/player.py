@@ -250,8 +250,8 @@ class PlayerSimulation:
         return self.player.details.attributes
 
     @attributes.setter
-    def attributes(self, value: PlayerAttributes):
-        self.player.details.attributes = value
+    def attributes(self, attributes: PlayerAttributes):
+        self.player.details.attributes = attributes
 
     def update_stamina(self):
         pass

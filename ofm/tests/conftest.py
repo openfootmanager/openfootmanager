@@ -21,6 +21,7 @@ import datetime
 from ..core.db.generators import PlayerGenerator
 from ..core.football.player import (
     Player,
+    PlayerSimulation,
     Positions,
     PreferredFoot,
 )
@@ -112,6 +113,12 @@ def player_team(player_obj) -> tuple[PlayerTeam, Player, dict]:
     expected_contract = PlayerContract.get_from_dict(contract_dict)
     player_team = PlayerTeam(player_obj, team_id, shirt_number, expected_contract)
     return player_team, player_obj, player_team_dict
+
+
+@pytest.fixture
+def player_sim(player_team: tuple[PlayerTeam, Player, dict]) -> PlayerSimulation:
+    position = player_team[0].details.get_best_position()
+    return PlayerSimulation(player_team[0], position, 100.0)
 
 
 @pytest.fixture

@@ -68,6 +68,12 @@ class Club:
         }
 
 
+@dataclass
+class Goal:
+    player: PlayerSimulation
+    minutes: float
+
+
 class TeamSimulation:
     def __init__(
         self,
@@ -80,9 +86,18 @@ class TeamSimulation:
         self.in_possession: bool = False
         self.substitutions: int = 0
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]]
-        self.score: int = 0
+        self.goals_history: list[Optional[Goal]] = []
+        self._score: int = 0
         self.team_strategy: TeamStrategy = strategy
         self.stats: TeamStats = TeamStats(self.club.club_id)
+
+    @property
+    def score(self) -> int:
+        self._score = len(self.goals_history)
+        return self._score
+
+    def add_goal(self, goal_data: Goal):
+        self.goals_history.append(goal_data)
 
     def get_player_on_pitch(
         self,
