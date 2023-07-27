@@ -81,7 +81,7 @@ class PlayerAttributes:
     gk: GkAttributes
 
     @classmethod
-    def get_from_dict(cls, attributes: dict[str, str | int]):
+    def get_from_dict(cls, attributes: dict[str, dict[str, int]]):
         offensive = OffensiveAttributes.get_from_dict(attributes["offensive"])
         physical = PhysicalAttributes.get_from_dict(attributes["physical"])
         defensive = DefensiveAttributes.get_from_dict(attributes["defensive"])
@@ -95,7 +95,7 @@ class PlayerAttributes:
             gk,
         )
 
-    def serialize(self) -> dict[str, str | int]:
+    def serialize(self) -> dict[str, dict[str, int]]:
         return {
             "offensive": self.offensive.serialize(),
             "physical": self.physical.serialize(),
