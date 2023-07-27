@@ -175,38 +175,21 @@ class PassEvent(SimulationEvent):
 
         outcome_probability = [
             int(
-                (
-                    attacking_player.attributes.intelligence.passing
-                    * luck_factor
-                    * 10
-                )
+                (attacking_player.attributes.intelligence.passing * luck_factor * 10)
                 / abs(distance)
             ),
             0,
-            int(
-                attacking_player.attributes.intelligence.passing
-                * luck_factor
-                * 10
-            ),
-            int(
-                defending_player.attributes.defensive.interception
-                * luck_factor
-                * 10
-            ),
+            int(attacking_player.attributes.intelligence.passing * luck_factor * 10),
+            int(defending_player.attributes.defensive.interception * luck_factor * 10),
         ]
 
         if end_position in OFF_POSITIONS:
             outcome_probability[1] = int(
-                (
-                    attacking_player.attributes.intelligence.passing
-                    * luck_factor
-                    * 10
-                )
+                (attacking_player.attributes.intelligence.passing * luck_factor * 10)
                 / abs(distance)
             )
 
         self.outcome = random.choices(outcomes, outcome_probability)[0]
-        minutes = self.state.minutes + 0.1
         if self.outcome in [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_INTERCEPT,
@@ -216,7 +199,7 @@ class PassEvent(SimulationEvent):
             defending_team.in_possession = True
             end_position = PITCH_EQUIVALENTS[end_position]
 
-        return GameState(minutes, end_position)
+        return GameState(self.state.minutes, end_position)
 
 
 @dataclass
