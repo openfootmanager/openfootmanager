@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import Enum, IntEnum, auto
 from typing import Union
 from uuid import UUID
@@ -186,9 +186,10 @@ class PlayerTeam:
         )
 
     def serialize(self) -> dict:
+        team_id = self.team_id.int if self.team_id else None
         return {
             "player_id": self.details.player_id.int,
-            "team_id": self.team_id.int,
+            "team_id": team_id,
             "shirt_number": self.shirt_number,
             "contract": self.contract.serialize(),
         }

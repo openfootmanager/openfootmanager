@@ -66,15 +66,16 @@ class Formation:
     def get_best_players(self, players: list[PlayerTeam]):
         df, mf, fw = self.get_num_players()
         for position in range(11):
-            pos = None
             if position == 0:
                 pos = Positions.GK
             elif 0 < position <= df and len(self.df) < df:
                 pos = Positions.DF
             elif df < position <= df + mf and len(self.mf) < mf:
                 pos = Positions.MF
-            elif df + mf < position <= df + mf + fw and len(self.fw) < fw:
+            elif position <= df + mf + fw and len(self.fw) < fw:
                 pos = Positions.FW
+            else:
+                raise FormationError("Unable to get best players!")
 
             player = self.get_best_players_per_position(players.copy(), pos)[0]
 
@@ -137,6 +138,10 @@ class Formation:
 
     @property
     def players(self):
+        if self.gk is None:
+            self._players = []
+            return self._players
+
         self._players = [self.gk]
         self._players.extend(self.df)
         self._players.extend(self.mf)
