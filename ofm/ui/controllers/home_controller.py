@@ -15,9 +15,10 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from .controllerinterface import ControllerInterface
+
 from ..gui import GUI
 from ..pages import HomePage
+from .controllerinterface import ControllerInterface
 
 
 class HomePageController(ControllerInterface):

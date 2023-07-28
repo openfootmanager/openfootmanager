@@ -15,16 +15,16 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 import uuid
-from typing import Optional
 from threading import Thread
+from typing import Optional
 
-from .controllerinterface import ControllerInterface
-from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.club import TeamSimulation
 from ...core.football.formation import Formation
-from ...core.simulation.simulation import LiveGame
 from ...core.simulation.fixture import Fixture
+from ...core.simulation.simulation import LiveGame
+from ..pages.debug_match import DebugMatchPage
+from .controllerinterface import ControllerInterface
 
 
 class DebugMatchController(ControllerInterface):

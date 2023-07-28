@@ -21,20 +21,14 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional, Tuple, Union
 
 from ofm.core.football.club import Club
-from ofm.core.football.player import (
-    Player,
-    PlayerTeam,
-    Positions,
-    PreferredFoot,
-)
-from ofm.core.football.player_attributes import (
-    PlayerAttributes,
-    OffensiveAttributes,
-    DefensiveAttributes,
-    PhysicalAttributes,
-    IntelligenceAttributes,
-    GkAttributes,
-)
+from ofm.core.football.player import (Player, PlayerTeam, Positions,
+                                      PreferredFoot)
+from ofm.core.football.player_attributes import (DefensiveAttributes,
+                                                 GkAttributes,
+                                                 IntelligenceAttributes,
+                                                 OffensiveAttributes,
+                                                 PhysicalAttributes,
+                                                 PlayerAttributes)
 from ofm.core.football.playercontract import PlayerContract
 from ofm.defaults import NAMES_FILE
 

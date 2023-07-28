@@ -16,5 +16,5 @@
 from .debug_home import DebugHomePage
 from .debug_match import DebugMatchPage
 from .home import HomePage
-from .team_selection import TeamSelectionPage
 from .settings import SettingsPage
+from .team_selection import TeamSelectionPage

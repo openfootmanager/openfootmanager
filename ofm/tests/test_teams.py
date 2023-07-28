@@ -13,8 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import uuid
 import datetime
+import uuid
 
 from ..core.db.generators import TeamGenerator
 from ..core.football.club import Club, PlayerTeam

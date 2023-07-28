@@ -14,15 +14,14 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 from uuid import UUID
 
+from ..simulation import PitchPosition
 from .formation import Formation
 from .player import PlayerSimulation, PlayerTeam
 from .team_strategy import TeamStrategy
-from ..simulation import PitchPosition
 
 
 class PlayerSubstitutionError(Exception):

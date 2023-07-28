@@ -14,15 +14,15 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from enum import Enum, auto
-from dataclasses import dataclass
-from typing import Optional
-
-from ..football.club import TeamSimulation, PlayerSimulation
-from ..football.team_strategy import TeamStrategyFactory
 from abc import abstractmethod
 from copy import deepcopy
-from . import OFF_POSITIONS, DEF_POSITIONS, PitchPosition, PITCH_EQUIVALENTS
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Optional
+
+from ..football.club import PlayerSimulation, TeamSimulation
+from ..football.team_strategy import TeamStrategyFactory
+from . import DEF_POSITIONS, OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
 
 
 class EventType(Enum):

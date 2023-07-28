@@ -16,6 +16,7 @@
 import os
 
 import pytest
+
 from ofm.core.settings import Settings
 
 

@@ -14,9 +14,10 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
-from ofm.core.football.player import Positions
-from ofm.core.football.formation import Formation, FormationError
+
 from ofm.core.db.generators import TeamGenerator
+from ofm.core.football.formation import Formation, FormationError
+from ofm.core.football.player import Positions
 
 
 def test_invalid_formation():

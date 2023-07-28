@@ -17,12 +17,11 @@ from ...core.db.database import DB
 from ...core.settings import Settings
 from ..gui import GUI
 from .controllerinterface import ControllerInterface
-
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
 from .home_controller import HomePageController
-from .team_selection_controller import TeamSelectionController
 from .settings_controller import SettingsController
+from .team_selection_controller import TeamSelectionController
 
 
 class OFMController(ControllerInterface):

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Union
 
 import yaml
+
 from ofm.defaults import PROJECT_DIR
 
 

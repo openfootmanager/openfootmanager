@@ -19,9 +19,9 @@ from enum import Enum, IntEnum, auto
 from typing import Union
 from uuid import UUID
 
+from .player_attributes import PlayerAttributes
 from .playercontract import PlayerContract
 from .positions import Positions
-from .player_attributes import PlayerAttributes
 
 
 class PreferredFoot(IntEnum):

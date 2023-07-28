@@ -13,11 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import uuid
 import json
+import uuid
 from unittest.mock import Mock
 
 import pytest
+
 from ofm.core.db.database import DB, DatabaseLoadError, PlayerTeamLoadError
 from ofm.core.db.generators import PlayerGenerator
 from ofm.core.settings import Settings

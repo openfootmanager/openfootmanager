@@ -13,14 +13,15 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
 import uuid
 
+import pytest
+
 from ofm.core.db.generators import TeamGenerator
+from ofm.core.football.club import Formation, Goal, TeamSimulation
 from ofm.core.football.player import PlayerSimulation
 from ofm.core.simulation.fixture import Fixture
-from ofm.core.simulation.simulation import SimulationEngine, LiveGame
-from ofm.core.football.club import TeamSimulation, Formation, Goal
+from ofm.core.simulation.simulation import LiveGame, SimulationEngine
 
 
 class MockSimulationEngine:

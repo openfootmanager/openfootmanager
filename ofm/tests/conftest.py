@@ -13,23 +13,19 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
+import datetime
 import json
 import uuid
-import datetime
+
+import pytest
 
 from ..core.db.generators import PlayerGenerator
-from ..core.football.player import (
-    Player,
-    PlayerSimulation,
-    Positions,
-    PreferredFoot,
-)
-from ..core.football.player_attributes import *
 from ..core.football.club import PlayerTeam
-from ..core.settings import Settings
-
+from ..core.football.player import (Player, PlayerSimulation, Positions,
+                                    PreferredFoot)
+from ..core.football.player_attributes import *
 from ..core.football.playercontract import PlayerContract
+from ..core.settings import Settings
 
 
 @pytest.fixture

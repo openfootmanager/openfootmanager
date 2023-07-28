@@ -13,13 +13,13 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal, getcontext
 import random
+from decimal import Decimal, getcontext
 
-from .fixture import Fixture
 from ..football.club import TeamSimulation
 from . import PitchPosition
-from .event import SimulationEvent, GameState, EventFactory
+from .event import EventFactory, GameState, SimulationEvent
+from .fixture import Fixture
 
 
 class LiveGame:

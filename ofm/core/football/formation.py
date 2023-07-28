@@ -13,10 +13,10 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Optional
 from dataclasses import dataclass, field
-from .player import PlayerSimulation, PlayerTeam, Positions
+from typing import Optional
 
+from .player import PlayerSimulation, PlayerTeam, Positions
 
 FORMATION_STRINGS = [
     "3-4-3",
