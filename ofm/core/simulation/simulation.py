@@ -16,7 +16,7 @@
 import random
 from decimal import Decimal, getcontext
 
-from ..football.club import TeamSimulation
+from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
 from .event import EventFactory, GameState, SimulationEvent
 from .fixture import Fixture
@@ -90,9 +90,9 @@ class SimulationEngine:
 
     def generate_event(self) -> SimulationEvent:
         event_factory = EventFactory()
-        last_event = self.event_history[-1].event_type if self.event_history else None
+        last_event = self.event_history[-1] if self.event_history else None
         possible_events, event_probabilities = event_factory.get_possible_events(
-            self.state, last_event
+            self.get_team_in_possession(), self.state, last_event
         )
         event_type = random.choices(possible_events, event_probabilities)[0]
         event = event_factory.get_event(self.state, event_type)

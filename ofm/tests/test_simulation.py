@@ -18,8 +18,9 @@ import uuid
 import pytest
 
 from ofm.core.db.generators import TeamGenerator
-from ofm.core.football.club import Formation, Goal, TeamSimulation
+from ofm.core.football.formation import Formation
 from ofm.core.football.player import PlayerSimulation
+from ofm.core.football.team_simulation import Goal, TeamSimulation
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
 

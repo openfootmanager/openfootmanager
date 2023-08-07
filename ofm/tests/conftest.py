@@ -21,7 +21,8 @@ import pytest
 
 from ..core.db.generators import PlayerGenerator
 from ..core.football.club import PlayerTeam
-from ..core.football.player import Player, PlayerSimulation, Positions, PreferredFoot
+from ..core.football.player import (Player, PlayerInjury, PlayerSimulation,
+                                    Positions, PreferredFoot)
 from ..core.football.player_attributes import *
 from ..core.football.playercontract import PlayerContract
 from ..core.settings import Settings
@@ -84,6 +85,8 @@ def player_dict(player_attributes: PlayerAttributes) -> dict:
         "international_reputation": 5,
         "preferred_foot": PreferredFoot(preferred_foot),
         "value": 10000.00,
+        "injured": False,
+        "injury_type": PlayerInjury.NO_INJURY,
     }
 
 

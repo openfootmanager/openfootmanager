@@ -19,8 +19,8 @@ from threading import Thread
 from typing import Optional
 
 from ...core.db.database import DB
-from ...core.football.club import TeamSimulation
 from ...core.football.formation import Formation
+from ...core.football.team_simulation import TeamSimulation
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import LiveGame
 from ..pages.debug_match import DebugMatchPage

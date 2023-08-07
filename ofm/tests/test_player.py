@@ -16,7 +16,8 @@
 import uuid
 
 from ..core.db.generators import PlayerGenerator
-from ..core.football.player import Player, PlayerTeam, get_player_from_player_id
+from ..core.football.player import (Player, PlayerTeam,
+                                    get_player_from_player_id)
 
 
 def test_get_from_dictionary(player_dict, player_obj):
@@ -42,6 +43,8 @@ def test_player_expected_keys_dictionary(player_gen: PlayerGenerator):
         "international_reputation",
         "preferred_foot",
         "value",
+        "injured",
+        "injury_type",
     )
     player = player_gen.generate_player()
     player_dict = player.serialize()
@@ -54,7 +57,7 @@ def test_player_team_get_from_dictionary(player_team):
 
 
 def test_serialize_player_team(player_team):
-    player_team, player, expected_player_team_dict = player_team
+    player_team, _, expected_player_team_dict = player_team
     assert player_team.serialize() == expected_player_team_dict
 
 

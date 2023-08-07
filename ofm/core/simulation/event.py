@@ -20,28 +20,18 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
 
-from ..football.club import PlayerSimulation, TeamSimulation
-from ..football.team_strategy import TeamStrategyFactory
-from . import DEF_POSITIONS, OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
-
-
-class EventType(Enum):
-    PASS = 0
-    DRIBBLE = auto()
-    SHOT = auto()
-    CROSS = auto()
-    FOUL = auto()
-    FREE_KICK = auto()
-    CORNER_KICK = auto()
-    GOAL_KICK = auto()
-    PENALTY_KICK = auto()
+from ..football.player import PlayerSimulation
+from ..football.team_simulation import TeamSimulation
+from . import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
+from .event_type import EventType
+from .team_strategy import *
 
 
 class EventOutcome(Enum):
     PASS_MISS = 0
     PASS_SUCCESS = auto()
     PASS_INTERCEPT = auto()
-    PASS_OFFSIDE = auto()
+    PASS_OFFSIDE = auto()  # only if PASS_SUCCESS happened first
     DRIBBLE_FAIL = auto()
     DRIBBLE_SUCCESS = auto()
     CROSS_MISS = auto()
@@ -53,16 +43,11 @@ class EventOutcome(Enum):
     FOUL_RED_CARD = auto()
     SHOT_MISS = auto()
     SHOT_HIT_POST = auto()
-    SHOT_SAVED = auto()
     SHOT_BLOCKED = auto()
-    GOAL = auto()
+    SHOT_ON_GOAL = auto()
+    SHOT_SAVED = auto()  # SHOT_SAVED only if SHOT_ON_GOAL happened first
+    GOAL = auto()  # GOAL only if SHOT_ON_GOAL happened first
     OWN_GOAL = auto()
-
-
-@dataclass
-class GameState:
-    minutes: float
-    position: PitchPosition
 
 
 @dataclass
@@ -72,7 +57,6 @@ class SimulationEvent:
     outcome: Optional[EventOutcome] = None
     player_event: Optional[PlayerSimulation] = None
     player2_event: Optional[PlayerSimulation] = None
-    strategy: TeamStrategyFactory = TeamStrategyFactory()
 
     @abstractmethod
     def calculate_event(
@@ -85,27 +69,26 @@ class SimulationEvent:
 
 class EventFactory:
     def get_possible_events(
-        self, state: GameState, last_event: EventType
+        self,
+        teams: tuple[TeamSimulation, TeamSimulation],
+        state: GameState,
+        last_event: Optional[SimulationEvent],
     ) -> list[list[EventType] | list[float]]:
         if last_event is None:
             return [[EventType.PASS], [1.0]]
 
-        team_strategy = self.state.attacking_team.team_strategy
-        transition_matrix = self.strategy.get_game_transition_matrix(team_strategy)
+        if last_event.outcome == EventOutcome.GOAL:
+            return [[EventType.PASS], [1.0]]
 
-        # Depending on the position, some events will be added to the matrix
-        if state.position in OFF_POSITIONS:
-            transition_matrix[EventType.PASS.value][EventType.SHOT.value] = 1
-            transition_matrix[EventType.CROSS.value][EventType.SHOT.value] = 1
-            transition_matrix[EventType.FREE_KICK.value][EventType.SHOT.value] = 1
-
-        if state.position == PitchPosition.OFF_BOX:
-            # Free kick still possible if it's an offensive foul
-            transition_matrix[EventType.FOUL.value][EventType.PENALTY_KICK.value] = 1
+        attacking_team = teams[0]
+        transition_matrix = team_general_strategy(attacking_team.team_strategy)
 
         return [
-            [EventType(i) for i, _ in enumerate(transition_matrix[last_event.value])],
-            list(transition_matrix[last_event.value]),
+            [
+                EventType(i)
+                for i, _ in enumerate(transition_matrix[last_event.event_type.value])
+            ],
+            list(transition_matrix[last_event.event_type.value]),
         ]
 
     def get_event(self, _state: GameState, event_type: EventType) -> SimulationEvent:
@@ -152,44 +135,65 @@ class PassEvent(SimulationEvent):
 
         Returns:
         - GameState: The resulting game state after the event.
-
         """
         # Transition matrix for each position on the field
         team_strategy = attacking_team.team_strategy
-        transition_matrix = self.strategy.get_pass_transition_matrix(team_strategy)
+        transition_matrix = team_pass_strategy(team_strategy)
         probabilities = transition_matrix[self.state.position.value]
         end_position = random.choices(list(PitchPosition), probabilities)[0]
         distance = (
             end_position.value - self.state.position.value
         )  # distance from current position to end position
-        attacking_player = attacking_team.get_player_on_pitch(self.state.position)
+
+        if attacking_team.player_in_possession is None:
+            attacking_team.player_in_possession = attacking_team.get_player_on_pitch(
+                self.state.position
+            )
+            defending_team.player_in_possession = None
+
+        attacking_player = attacking_team.player_in_possession
+        receiving_player = attacking_team.get_player_on_pitch(
+            end_position, attacking_player
+        )
         defending_player = defending_team.get_player_on_pitch(self.state.position)
         outcomes = [
             EventOutcome.PASS_MISS,
-            EventOutcome.PASS_OFFSIDE,
             EventOutcome.PASS_SUCCESS,
             EventOutcome.PASS_INTERCEPT,
         ]
 
-        luck_factor = random.random()
+        pass_success = (
+            (
+                attacking_player.attributes.intelligence.passing
+                + attacking_player.attributes.intelligence.vision
+            )
+            / 2
+        ) - distance
 
         outcome_probability = [
-            int(
-                (attacking_player.attributes.intelligence.passing * luck_factor * 10)
-                / abs(distance)
-            ),
-            0,
-            int(attacking_player.attributes.intelligence.passing * luck_factor * 10),
-            int(defending_player.attributes.defensive.interception * luck_factor * 10),
+            100.0 - pass_success,  # PASS_MISS
+            pass_success,  # PASS_SUCCESS
+            (
+                defending_player.attributes.defensive.positioning
+                + defending_player.attributes.defensive.interception
+            )
+            / 2,  # PASS_INTERCEPT
         ]
 
-        if end_position in OFF_POSITIONS:
-            outcome_probability[1] = int(
-                (attacking_player.attributes.intelligence.passing * luck_factor * 10)
-                / abs(distance)
-            )
-
         self.outcome = random.choices(outcomes, outcome_probability)[0]
+
+        if end_position in OFF_POSITIONS and self.outcome == EventOutcome.PASS_SUCCESS:
+            outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
+            not_offside_probability = (
+                receiving_player.attributes.offensive.positioning
+                + receiving_player.attributes.intelligence.team_work
+            ) / 2
+            outcome_probability = [
+                not_offside_probability,
+                100 - not_offside_probability,
+            ]
+            self.outcome = random.choices(outcomes, outcome_probability)[0]
+
         if self.outcome in [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_INTERCEPT,
@@ -197,7 +201,11 @@ class PassEvent(SimulationEvent):
         ]:
             attacking_team.in_possession = False
             defending_team.in_possession = True
+            attacking_team.player_in_possession = None
+            defending_team.player_in_possession = defending_player
             end_position = PITCH_EQUIVALENTS[end_position]
+        else:
+            attacking_team.player_in_possession = receiving_player
 
         return GameState(self.state.minutes, end_position)
 
@@ -209,8 +217,11 @@ class FoulEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"Foul {self.state.position}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        player_fouled = attacking_team.get_player_on_pitch(self.state.position)
+        player_fouling = defending_team.get_player_on_pitch(self.state.position)
+
+        foul_seriousness = player_fouled
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -220,12 +231,8 @@ class CornerKickEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        transition_matrix = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 8, 14],  # OFF_LEFT
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 8, 14],  # OFF_RIGHT
-        ]
         print(f"Corner {self.state.position}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -238,15 +245,13 @@ class ShotEvent(SimulationEvent):
         event_outcomes = [
             EventOutcome.SHOT_HIT_POST,
             EventOutcome.SHOT_MISS,
-            EventOutcome.SHOT_SAVED,
             EventOutcome.SHOT_BLOCKED,
-            EventOutcome.GOAL,
-            EventOutcome.OWN_GOAL,
+            EventOutcome.SHOT_ON_GOAL,
         ]
         player_shot = attacking_team.get_player_on_pitch(self.state.position)
         print(f"{player_shot.player.details.short_name} shoots!")
         event_probabilities = []
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -257,7 +262,7 @@ class CrossEvent(SimulationEvent):
         defending_team: TeamSimulation,
     ) -> GameState:
         print(f"Cross {self.state.position}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -268,7 +273,7 @@ class GoalKickEvent(SimulationEvent):
         defending_team: TeamSimulation,
     ) -> GameState:
         print(f"Goal Kick {self.state.position.name}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -279,7 +284,7 @@ class FreeKickEvent(SimulationEvent):
         defending_team: TeamSimulation,
     ) -> GameState:
         print(f"FreeKick {self.state.position.name}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        return GameState(self.state.minutes, self.state.position)
 
 
 @dataclass
@@ -287,5 +292,34 @@ class DribbleEvent(SimulationEvent):
     def calculate_event(
         self, attacking_team: TeamSimulation, defending_team: TeamSimulation
     ) -> GameState:
-        print(f"Dribble {self.state.position.name}")
-        return GameState(self.state.minutes + 0.1, self.state.position)
+        attacking_player = attacking_team.player_in_possession
+        defending_player = defending_team.get_player_on_pitch(self.state.position)
+
+        outcomes = [
+            EventOutcome.DRIBBLE_SUCCESS,
+            EventOutcome.DRIBBLE_FAIL,
+        ]
+
+        outcome_probability = [
+            (
+                attacking_player.attributes.intelligence.ball_control
+                + attacking_player.attributes.intelligence.dribbling
+                + attacking_player.attributes.intelligence.skills
+            )
+            / 3,
+            (
+                defending_player.attributes.defensive.positioning
+                + defending_player.attributes.defensive.tackling
+                + defending_player.attributes.physical.strength
+            )
+            / 3,
+        ]
+
+        self.outcome = random.choices(outcomes, outcome_probability)[0]
+
+        if self.outcome == EventOutcome.DRIBBLE_FAIL:
+            self.attacking_team.in_possession = False
+            self.attacking_team.player_in_possession = None
+            self.defending_team.player_in_possession = defending_player
+            self.defending_team.in_possession = True
+        return GameState(self.state.minutes, self.state.position)

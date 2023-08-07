@@ -15,10 +15,11 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 from dataclasses import dataclass
-from enum import Enum, IntEnum, auto
-from typing import Union
+from enum import IntEnum, auto
+from typing import Optional, Union
 from uuid import UUID
 
+from .injury import PlayerInjury
 from .player_attributes import PlayerAttributes
 from .playercontract import PlayerContract
 from .positions import Positions
@@ -102,6 +103,8 @@ class Player:
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float
+    injured: bool = False
+    injury_type: PlayerInjury = PlayerInjury.NO_INJURY
 
     @classmethod
     def get_from_dict(cls, player_dict: dict):
@@ -121,6 +124,8 @@ class Player:
             player_dict["international_reputation"],
             PreferredFoot(player_dict["preferred_foot"]),
             player_dict["value"],
+            player_dict["injured"],
+            player_dict["injury_type"],
         )
 
     def get_position_values(self):
@@ -146,6 +151,8 @@ class Player:
             "international_reputation": self.international_reputation,
             "preferred_foot": self.preferred_foot.value,
             "value": self.value,
+            "injured": self.injured,
+            "injury_type": self.injury_type,
         }
 
 
@@ -205,22 +212,6 @@ def get_player_from_player_id(player_id: UUID, players: list[Player]) -> Player:
             return player
 
     raise GetPlayerException
-
-
-class PlayerInjuries(str, Enum):
-    ANKLE_SP = "Ankle sprain"
-    KNEE_SP = "Knee sprain"
-    CALF_ST = "Calf strain"
-    KNEECAP_BURSITIS = "Kneecap bursitis"
-    RIB_BROK = "Broken rib"
-    CLAVICLE_FRAC = "Fractured clavicle"
-    ARM_FRAC = "Fractured arm"
-    FOOT_FRAC = "Fractured foot"
-    WRIST_FRAC = "Fractured wrist"
-    ANKLE_FRAC = "Fractured ankle"
-    CONCUSSION = "Concussion"
-    LIGAMENT_TORN = "Torn ligament"
-    MENISCAL_TORN = "Torn meniscal"
 
 
 class PlayerSimulation:
