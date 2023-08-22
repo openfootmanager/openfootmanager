@@ -71,6 +71,10 @@ class GkAttributes(Attributes):
     reflexes: int
     jumping: int
     positioning: int
+    penalty: int
+
+    def get_general_overall(self) -> int:
+        return (self.reflexes + self.jumping + self.positioning) / 3
 
 
 @dataclass
