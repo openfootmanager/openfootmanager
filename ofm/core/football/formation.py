@@ -43,7 +43,30 @@ class Formation:
     fw: list[PlayerSimulation] = field(default_factory=list)
     bench: list[PlayerSimulation] = field(default_factory=list)
     _players: list[PlayerSimulation] = field(default_factory=list)
+    _all_players: list[PlayerSimulation] = field(default_factory=list)
 
+    def __post_init__(self):
+        if not self.validate_formation():
+            raise FormationError("Invalid formation string!")
+    
+    @property
+    def players(self):
+        if self.gk is None:
+            self._players = []
+            return self._players
+
+        self._players = [self.gk]
+        self._players.extend(self.df)
+        self._players.extend(self.mf)
+        self._players.extend(self.fw)
+        return self._players
+
+    @property
+    def all_players(self):
+        self._all_players = self.players
+        self._all_players.extend(self.bench)
+        return self._all_players
+    
     def get_num_players(self) -> tuple[int, int, int]:
         defenders, midfielders, forwards = self.formation_string.split("-")
         return int(defenders), int(midfielders), int(forwards)
@@ -135,22 +158,6 @@ class Formation:
             index_out = self.bench.index(player_in)
             self.fw[index] = player_in
             self.bench[index_out] = player_out
-
-    @property
-    def players(self):
-        if self.gk is None:
-            self._players = []
-            return self._players
-
-        self._players = [self.gk]
-        self._players.extend(self.df)
-        self._players.extend(self.mf)
-        self._players.extend(self.fw)
-        return self._players
-
-    def __post_init__(self):
-        if not self.validate_formation():
-            raise FormationError("Invalid formation string!")
 
     def validate_formation(self) -> bool:
         return self.formation_string in FORMATION_STRINGS
