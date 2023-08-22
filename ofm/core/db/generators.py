@@ -95,6 +95,7 @@ class PlayerAttributeGenerator(Generator):
             generate_skill_values(mu, sigma),
             generate_skill_values(mu, sigma),
             generate_skill_values(mu, sigma),
+            generate_skill_values(mu, sigma),
         )
 
     def get_gk_attributes(self, mu: int, sigma: int) -> PlayerAttributes:

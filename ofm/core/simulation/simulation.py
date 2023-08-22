@@ -110,16 +110,20 @@ class SimulationEngine:
             if self.starting_the_game == self.home_team:
                 self.away_team.in_possession = False
                 self.home_team.in_possession = True
+                self.home_team.player_in_possession = self.home_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
             else:
                 self.home_team.in_possession = False
                 self.away_team.in_possession = True
+                self.away_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
         if self.state.minutes in [45.1, 105.1]:
             if self.starting_the_game == self.home_team:
                 self.away_team.in_possession = True
                 self.home_team.in_possession = False
+                self.away_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
             else:
                 self.home_team.in_possession = True
                 self.away_team.in_possession = False
+                self.home_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
 
         if self.home_team.in_possession:
             return self.home_team, self.away_team

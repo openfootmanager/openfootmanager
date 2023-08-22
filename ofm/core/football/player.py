@@ -16,7 +16,7 @@
 import datetime
 from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Optional, Union
+from typing import Union
 from uuid import UUID
 
 from .injury import PlayerInjury
@@ -160,19 +160,24 @@ class Player:
 class PlayerStats:
     player_id: UUID
     minutes_played: float = 0.0
+    passes: int = 0
+    passes_missed: int = 0
     shots: int = 0
+    shots_on_target: int = 0
     shots_missed: int = 0
+    shots_blocked: int = 0
+    interceptions: int = 0
     assists: int = 0
     fouls: int = 0
     goals: int = 0
     goals_conceded: int = 0  # only for GK
+    shots_saved: int = 0
     own_goals: int = 0
     penalties: int = 0
     injuries: int = 0
     yellow_cards: int = 0
     red_cards: int = 0
     rating: float = 0.0
-    win_streak: int = 0
 
 
 @dataclass
@@ -229,6 +234,10 @@ class PlayerSimulation:
         self.is_injured = False
         self.injury_type = None
         self.subbed = False
+
+    @property
+    def sent_off(self) -> bool:
+        return self.statistics.red_cards == 1
 
     @property
     def current_skill(self) -> int:
