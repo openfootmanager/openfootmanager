@@ -28,7 +28,7 @@ class TeamStrategy(Enum):
     ALL_ATTACK = auto()
 
 
-def team_pass_strategy(strategy: TeamStrategy) -> list[list[int]]:
+def team_pass_strategy(strategy: TeamStrategy) -> list[list[float]]:
     match strategy:
         case TeamStrategy.NORMAL:
             return [
@@ -1333,7 +1333,7 @@ def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
         case TeamStrategy.DEFEND:
             # TODO: implement transition matrix for DEFEND TeamStrategy
             pass
-        case TeamStrategy.COUNTER_ATTACk:
+        case TeamStrategy.COUNTER_ATTACK:
             # TODO: implement transition matrix for COUNTER_ATTACK TeamStrategy
             pass
         case TeamStrategy.ALL_ATTACK:
@@ -1347,11 +1347,11 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
             transition_matrix = [
                 [4, 2, 0, 1, 1, 0, 0, 0, 0],  # PASS
                 [2, 2, 0, 1, 1, 0, 0, 0, 0],  # DRIBBLE
-                [1, 1, 0, 1, 1, 1, 1, 0, 0],  # SHOT
-                [1, 1, 0, 0, 1, 1, 0, 1, 0],  # CROSS
+                [1, 1, 0, 1, 1, 0, 0, 0, 0],  # SHOT
+                [1, 1, 0, 0, 1, 0, 0, 0, 0],  # CROSS
                 [0, 0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                [4, 2, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                [4, 2, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
                 [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
                 [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
             ]
@@ -1368,11 +1368,11 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
             transition_matrix = [
                 [5, 1, 0, 1, 0, 0, 0, 0, 0],  # PASS
                 [1, 2, 0, 1, 1, 0, 0, 0, 0],  # DRIBBLE
-                [1, 1, 0, 1, 1, 1, 1, 0, 0],  # SHOT
-                [1, 1, 0, 0, 1, 1, 0, 1, 0],  # CROSS
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                [1, 1, 0, 1, 1, 0, 0, 0, 0],  # SHOT
+                [1, 1, 0, 0, 1, 0, 0, 0, 0],  # CROSS
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
+                [5, 1, 1, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                [5, 1, 1, 1, 0, 0, 0, 0, 0],  # CORNER KICK
                 [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
                 [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
             ]
@@ -1388,13 +1388,13 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
                 transition_matrix[EventType.SHOT.value][EventType.SHOT.value] = 2
         case TeamStrategy.DEFEND:
             transition_matrix = [
-                [3, 2, 0, 1, 0, 0, 0, 0, 0],  # PASS
+                [3, 2, 0, 1, 1, 0, 0, 0, 0],  # PASS
                 [2, 2, 0, 1, 1, 0, 0, 0, 0],  # DRIBBLE
-                [1, 1, 0, 1, 1, 1, 1, 0, 0],  # SHOT
-                [1, 1, 0, 0, 1, 1, 0, 1, 0],  # CROSS
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                [1, 1, 0, 1, 1, 0, 0, 0, 0],  # SHOT
+                [1, 1, 0, 0, 1, 0, 0, 0, 0],  # CROSS
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
                 [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
                 [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
             ]
@@ -1409,15 +1409,15 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
                 # In a defensive pitch position. Let's make sure it only tries it in the offensive positions
                 transition_matrix[EventType.SHOT.value][EventType.SHOT.value] = 1
 
-        case TeamStrategy.COUNTER_ATTACk:
+        case TeamStrategy.COUNTER_ATTACK:
             transition_matrix = [
-                [1, 2, 0, 1, 0, 0, 0, 0, 0],  # PASS
+                [1, 2, 0, 1, 1, 0, 0, 0, 0],  # PASS
                 [2, 2, 0, 1, 1, 0, 0, 0, 0],  # DRIBBLE
-                [1, 1, 0, 1, 1, 1, 1, 0, 0],  # SHOT
-                [1, 1, 0, 0, 1, 1, 0, 1, 0],  # CROSS
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                [1, 1, 0, 1, 1, 0, 0, 0, 0],  # SHOT
+                [1, 1, 0, 0, 1, 0, 0, 0, 0],  # CROSS
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
                 [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
                 [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
             ]
@@ -1435,11 +1435,11 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
             transition_matrix = [
                 [3, 2, 0, 2, 0, 0, 0, 0, 0],  # PASS
                 [2, 3, 0, 2, 2, 0, 0, 0, 0],  # DRIBBLE
-                [2, 2, 0, 2, 2, 2, 2, 0, 0],  # SHOT
-                [1, 1, 0, 0, 1, 1, 0, 1, 0],  # CROSS
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],  # FOUL
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
-                [1, 0, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
+                [2, 2, 0, 2, 2, 0, 0, 0, 0],  # SHOT
+                [1, 1, 0, 0, 1, 0, 0, 0, 0],  # CROSS
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],  # FOUL
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # FREE KICK
+                [1, 1, 0, 1, 0, 0, 0, 0, 0],  # CORNER KICK
                 [1, 0, 0, 1, 0, 0, 0, 0, 0],  # GOAL KICK
                 [0, 0, 1, 0, 0, 0, 0, 0, 0],  # PENALTY KICK
             ]
