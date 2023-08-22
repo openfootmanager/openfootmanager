@@ -23,6 +23,9 @@ from ofm.core.football.player import PlayerSimulation
 from ofm.core.football.team_simulation import Goal, TeamSimulation
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
+from ofm.core.simulation.event import EventFactory, EventType, SimulationEvent 
+from ofm.core.simulation.game_state import GameState
+from ofm.core.simulation import PitchPosition
 
 
 class MockSimulationEngine:
@@ -51,6 +54,7 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
     home_team_formation.get_best_players(home_team.squad)
     home_team_sim = TeamSimulation(home_team, home_team_formation)
     away_team_formation = Formation(away_team.default_formation)
+    away_team_formation.get_best_players(away_team.squad)
     away_team_sim = TeamSimulation(away_team, away_team_formation)
 
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
@@ -64,8 +68,11 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
     )
 
 
-def get_goal(player_sim: PlayerSimulation) -> Goal:
-    return Goal(player_sim, 90.0)
+def test_formations_are_complete(live_game: LiveGame):
+    assert live_game.engine.home_team.formation.players is not None
+    assert live_game.engine.away_team.formation.players is not None
+    assert live_game.engine.home_team.formation.bench is not None
+    assert live_game.engine.away_team.formation.bench is not None
 
 
 def test_game_breaks_in_half_time(live_game):
@@ -138,7 +145,7 @@ def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(player_sim)
+    live_game.engine.home_team.add_goal(Goal(player_sim, 45.0))
     live_game.run()  # second half
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
@@ -154,8 +161,19 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
     live_game.reset_after_half_time()
     live_game.run()  # first et half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(get_goal(player_sim))
+    live_game.engine.home_team.add_goal(Goal(player_sim, 90.0))
     live_game.run()
     assert live_game.minutes == 120.0
     assert live_game.is_game_over is True
     assert live_game.is_half_time is False
+
+
+def test_game_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_possible_events(
+        [live_game.engine.home_team, live_game.engine.away_team],
+        GameState(0.0, PitchPosition.MIDFIELD_CENTER),
+        None
+    )
+    assert event[0][0] == EventType.PASS
+    
