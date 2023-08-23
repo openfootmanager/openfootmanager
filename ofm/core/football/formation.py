@@ -48,7 +48,7 @@ class Formation:
     def __post_init__(self):
         if not self.validate_formation():
             raise FormationError("Invalid formation string!")
-    
+
     @property
     def players(self):
         if self.gk is None:
@@ -66,7 +66,7 @@ class Formation:
         self._all_players = self.players
         self._all_players.extend(self.bench)
         return self._all_players
-    
+
     def get_num_players(self) -> tuple[int, int, int]:
         defenders, midfielders, forwards = self.formation_string.split("-")
         return int(defenders), int(midfielders), int(forwards)

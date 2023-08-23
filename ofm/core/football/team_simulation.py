@@ -28,6 +28,7 @@ from .player import PlayerSimulation
 class SubbingError(Exception):
     pass
 
+
 @dataclass
 class Goal:
     player: PlayerSimulation
@@ -90,7 +91,7 @@ class TeamSimulation:
 
         if self.player_in_possession is not None:
             players.remove(self.player_in_possession)
-        
+
         # Red card players cannot receive the ball
         for player in players:
             if player.sent_off:
@@ -101,17 +102,28 @@ class TeamSimulation:
     def update_stats(self):
         players = self.formation.all_players
         self.stats.update_stats(players)
-        
+
     def sub_player(self, sub_player: PlayerSimulation, subbed_player: PlayerSimulation):
         if subbed_player.subbed:
             raise SubbingError("Player is already subbed!")
         if subbed_player.sent_off:
             raise SubbingError("Cannot sub a player that has been sent off!")
-        
+
         self.substitutions += 1
-        
+
         self.sub_history.append((sub_player, subbed_player))
         self.formation.substitute_player(sub_player, subbed_player)
+
+    def get_best_penalty_taker(self) -> PlayerSimulation:
+        best_penalty_taker = None
+        for player in self.formation.players:
+            if player.attributes.offensive.penalty:
+                if best_penalty_taker is None:
+                    best_penalty_taker = player
+                elif player.attributes.offensive.penalty > best_penalty_taker.attributes.offensive.penalty:
+                    best_penalty_taker = player
+        
+        return best_penalty_taker
     
     def update_player_stamina(self):
         pass
@@ -138,15 +150,19 @@ class TeamStats:
     avg_rating: float = 0.0
     possession: float = 0.0
     goals_conceded: int = 0
-    
+
     def update_stats(self, players: list[PlayerSimulation]):
         self.fouls = sum(player.statistics.fouls for player in players)
         self.goals = sum(player.statistics.goals for player in players)
         self.yellow_cards = sum(player.statistics.yellow_cards for player in players)
         self.red_cards = sum(player.statistics.red_cards for player in players)
-        self.goals_conceded = sum(player.statistics.goals_conceded for player in players)
+        self.goals_conceded = sum(
+            player.statistics.goals_conceded for player in players
+        )
         self.shots = sum(player.statistics.shots for player in players)
-        self.shots_on_target = sum(player.statistics.shots_on_target for player in players)
+        self.shots_on_target = sum(
+            player.statistics.shots_on_target for player in players
+        )
         self.passes = sum(player.statistics.passes for player in players)
         self.passes_missed = sum(player.statistics.passes_missed for player in players)
         self.interceptions = sum(player.statistics.interceptions for player in players)

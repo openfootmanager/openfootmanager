@@ -23,7 +23,7 @@ from ofm.core.football.player import PlayerSimulation
 from ofm.core.football.team_simulation import Goal, TeamSimulation
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
-from ofm.core.simulation.event import EventFactory, EventType, SimulationEvent 
+from ofm.core.simulation.event import EventFactory, EventType, SimulationEvent
 from ofm.core.simulation.game_state import GameState
 from ofm.core.simulation import PitchPosition
 
@@ -173,7 +173,6 @@ def test_game_starts_with_pass_event(live_game):
     event = event_factory.get_possible_events(
         [live_game.engine.home_team, live_game.engine.away_team],
         GameState(0.0, PitchPosition.MIDFIELD_CENTER),
-        None
+        None,
     )
     assert event[0][0] == EventType.PASS
-    

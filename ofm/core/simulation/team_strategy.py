@@ -1340,6 +1340,9 @@ def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
             # TODO: implement transition matrix for ALL_ATTACK TeamStrategy
             pass
 
+def team_goal_kick_strategy(strategy: TeamStrategy, state: GameState) -> list[list[int]]:
+    pass
+
 
 def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list[int]]:
     match strategy:
@@ -1453,9 +1456,5 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
                 # If a change of possession occurs after a shot, a defensive team could still try to shoot
                 # In a defensive pitch position. Let's make sure it only tries it in the offensive positions
                 transition_matrix[EventType.SHOT.value][EventType.SHOT.value] = 3
-
-    if state.position == PitchPosition.OFF_BOX:
-        transition_matrix[EventType.FOUL.value][EventType.FREE_KICK.value] = 0
-        transition_matrix[EventType.FOUL.value][EventType.PENALTY_KICK.value] = 1
 
     return transition_matrix

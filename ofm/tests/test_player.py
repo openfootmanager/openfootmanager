@@ -16,8 +16,7 @@
 import uuid
 
 from ..core.db.generators import PlayerGenerator
-from ..core.football.player import (Player, PlayerTeam,
-                                    get_player_from_player_id)
+from ..core.football.player import Player, PlayerTeam, get_player_from_player_id
 
 
 def test_get_from_dictionary(player_dict, player_obj):
