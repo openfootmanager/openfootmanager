@@ -21,9 +21,7 @@ class PlayerStatsTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.home_team_stats_name = ttk.Label(
-            self, text="Brazil", font="Arial 15 bold"
-        )
+        self.home_team_stats_name = ttk.Label(self, text="Brazil", font="Arial 15 bold")
         self.home_team_stats_name.grid(row=0, column=0)
         self.away_team_stats_name = ttk.Label(
             self, text="Argentina", font="Arial 15 bold"
@@ -92,4 +90,3 @@ class PlayerStatsTab(ttk.Frame):
             self, text=f"{away_team_score}\t{away_team}", font="Arial 13 bold"
         )
         self.away_team_stats_name.grid(row=0, pady=5, column=2, sticky=W)
-   

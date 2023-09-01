@@ -21,7 +21,7 @@ from enum import Enum, auto
 from typing import Optional
 
 from ..football.player import PlayerSimulation
-from ..football.team_simulation import TeamSimulation, Goal
+from ..football.team_simulation import Goal, TeamSimulation
 from . import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
 from .event_type import EventType
 from .game_state import GameState

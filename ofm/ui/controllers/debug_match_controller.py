@@ -18,13 +18,13 @@ import uuid
 from threading import Thread
 from typing import Optional
 
+from .controllerinterface import ControllerInterface
+from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.team_simulation import TeamSimulation
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import LiveGame
-from ..pages.debug_match import DebugMatchPage
-from .controllerinterface import ControllerInterface
 
 
 class DebugMatchController(ControllerInterface):

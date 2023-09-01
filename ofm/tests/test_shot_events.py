@@ -13,14 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.simulation.event import (
-    EventType,
-    ShotEvent,
-    EventOutcome,
-    GameState,
-    PitchPosition,
-    TeamSimulation,
-)
+from ofm.core.simulation.event import (EventOutcome, EventType, GameState,
+                                       PitchPosition, ShotEvent,
+                                       TeamSimulation)
 
 
 def get_shot_event() -> ShotEvent:

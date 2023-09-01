@@ -13,12 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .live_game_tab import LiveGameTab
-from .player_stats_tab import PlayerStatsTab
-from .player_details_tab import PlayerDetailsTab
-
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
+
+from .live_game_tab import LiveGameTab
+from .player_details_tab import PlayerDetailsTab
+from .player_stats_tab import PlayerStatsTab
 
 
 class DebugMatchPage(ttk.Frame):

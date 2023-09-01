@@ -21,17 +21,12 @@ import pytest
 
 from ..core.db.generators import PlayerGenerator, TeamGenerator
 from ..core.football.club import PlayerTeam
-from ..core.football.team_simulation import TeamSimulation
 from ..core.football.formation import Formation
-from ..core.football.player import (
-    Player,
-    PlayerInjury,
-    PlayerSimulation,
-    Positions,
-    PreferredFoot,
-)
+from ..core.football.player import (Player, PlayerInjury, PlayerSimulation,
+                                    Positions, PreferredFoot)
 from ..core.football.player_attributes import *
 from ..core.football.playercontract import PlayerContract
+from ..core.football.team_simulation import TeamSimulation
 from ..core.settings import Settings
 
 

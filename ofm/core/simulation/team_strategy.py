@@ -15,8 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum, auto
 
-from . import OFF_POSITIONS, PitchPosition
-from .event_type import EventType
 from .game_state import GameState
 
 

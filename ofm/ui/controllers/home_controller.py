@@ -13,12 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 
-from ..gui import GUI
-from ..pages import HomePage
 from .controllerinterface import ControllerInterface
+from ..pages import HomePage
 
 
 class HomePageController(ControllerInterface):
