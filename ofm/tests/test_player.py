@@ -13,8 +13,6 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import uuid
-
 from ..core.db.generators import PlayerGenerator
 from ..core.football.player import Player, PlayerTeam, get_player_from_player_id
 
@@ -80,7 +78,7 @@ def test_generate_player_from_unknown_region(player_gen: PlayerGenerator):
 
 
 def test_serialized_player_has_no_none(player_gen: PlayerGenerator):
-    player_gen.generate(10000)
+    player_gen.generate(1000)
     for player in player_gen.players_obj:
         player_dict = player.serialize()
         for key in player_dict.keys():

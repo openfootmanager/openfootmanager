@@ -17,14 +17,12 @@ import uuid
 
 import pytest
 
-from ofm.core.db.generators import TeamGenerator
-from ofm.core.football.formation import Formation
-from ofm.core.football.team_simulation import Goal, TeamSimulation
-from ofm.core.simulation.fixture import Fixture
-from ofm.core.simulation.simulation import LiveGame, SimulationEngine
-from ofm.core.simulation.event import EventFactory, EventType
-from ofm.core.simulation.game_state import GameState
+from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
+from ofm.core.simulation.event import EventFactory, EventType
+from ofm.core.simulation.fixture import Fixture
+from ofm.core.simulation.game_state import GameState
+from ofm.core.simulation.simulation import LiveGame, SimulationEngine
 
 
 class MockSimulationEngine:

@@ -13,7 +13,6 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import pytest
 from ofm.core.simulation.event import (
     EventType,
     ShotEvent,
@@ -132,7 +131,7 @@ def test_shot_saved_secured_event(simulation_teams, monkeypatch):
     home_team.player_in_possession = home_team.get_player_on_pitch(event.state.position)
     away_team.in_possession = False
     away_team.player_in_possession = None
-    state = event.calculate_event(home_team, away_team)
+    event.calculate_event(home_team, away_team)
     assert event.outcome == EventOutcome.SHOT_SAVED_SECURED
     assert event.attacking_player.statistics.shots == 1
     assert event.attacking_player.statistics.shots_on_target == 1
@@ -345,7 +344,7 @@ def test_shot_goal_event(simulation_teams, monkeypatch):
     home_team.player_in_possession = home_team.get_player_on_pitch(event.state.position)
     away_team.in_possession = False
     away_team.player_in_possession = None
-    state = event.calculate_event(home_team, away_team)
+    event.calculate_event(home_team, away_team)
     assert event.outcome == EventOutcome.GOAL
     assert event.attacking_player.statistics.shots == 1
     assert event.attacking_player.statistics.shots_on_target == 1
@@ -357,3 +356,39 @@ def test_shot_goal_event(simulation_teams, monkeypatch):
     assert away_team.stats.goals_conceded == 1
     assert home_team.score == 1
     assert away_team.score == 0
+
+
+def test_goals_from_different_players(simulation_teams, monkeypatch):
+    def get_shot_on_goal(
+        self, shot_on_goal: float, defending_team: TeamSimulation
+    ) -> EventOutcome:
+        return EventOutcome.SHOT_ON_GOAL
+
+    def get_shot_on_goal_outcomes(self, shot_on_goal: float) -> EventOutcome:
+        return EventOutcome.GOAL
+
+    monkeypatch.setattr(ShotEvent, "get_shot_on_goal", get_shot_on_goal)
+    monkeypatch.setattr(
+        ShotEvent, "get_shot_on_goal_outcomes", get_shot_on_goal_outcomes
+    )
+    event = get_shot_event()
+    home_team, away_team = simulation_teams
+    home_team.in_possession = True
+    home_team.player_in_possession = home_team.formation.fw[0]
+    first_player = home_team.player_in_possession
+    away_team.in_possession = False
+    away_team.player_in_possession = None
+    event.calculate_event(home_team, away_team)
+    home_team.in_possession = True
+    home_team.player_in_possession = home_team.formation.mf[0]
+    second_player = home_team.player_in_possession
+    away_team.in_possession = False
+    away_team.player_in_possession = None
+    event = get_shot_event()
+    event.calculate_event(home_team, away_team)
+    assert first_player.statistics.goals == 1
+    assert second_player.statistics.goals == 1
+    assert event.defending_player.statistics.goals_conceded == 2
+    assert home_team.stats.goals == 2
+    assert home_team.goals_history[0].player == first_player
+    assert home_team.goals_history[1].player == second_player
