@@ -256,3 +256,9 @@ class PlayerSimulation:
 
     def update_stamina(self):
         pass
+
+    def __str__(self):
+        return self.player.details.short_name
+
+    def __repr__(self):
+        return self.player.details.short_name

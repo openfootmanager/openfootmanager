@@ -118,7 +118,7 @@ class EventFactory:
             EventOutcome.SHOT_RIGHT_CORNER_KICK,
         ]:
             return [[EventType.CORNER_KICK], [1.0]]
-        elif last_event.event_type == EventType.FOUL:
+        elif isinstance(last_event, FoulEvent):
             if (
                 last_event.foul_type == FoulTypes.DEFENSIVE_FOUL
                 and state.position == PitchPosition.OFF_BOX
@@ -137,15 +137,6 @@ class EventFactory:
             ],
             list(transition_matrix[last_event.event_type.value]),
         ]
-
-    def check_for_goals(self, last_event: SimulationEvent):
-        if last_event.outcome == EventOutcome.GOAL:
-            last_event.attacking_player.statistics.goals += 1
-            last_event.defending_player.statistics.goals_conceded += 1
-            for team in self.teams:
-                team.update_stats()
-            self.state.position = PitchPosition.MIDFIELD_CENTER
-            return [[EventType.PASS], [1.0]]
 
     def get_event(self, _state: GameState, event_type: EventType) -> SimulationEvent:
         state = deepcopy(_state)
@@ -175,30 +166,18 @@ class EventFactory:
 class PassEvent(SimulationEvent):
     receiving_player: Optional[PlayerSimulation] = None
 
-    def calculate_event(
-        self,
-        attacking_team: TeamSimulation,
-        defending_team: TeamSimulation,
-    ) -> GameState:
-        # Transition matrix for each position on the field
+    def get_end_position(self, attacking_team) -> PitchPosition:
         team_strategy = attacking_team.team_strategy
         transition_matrix = team_pass_strategy(team_strategy)
         probabilities = transition_matrix[self.state.position.value]
-        end_position = random.choices(list(PitchPosition), probabilities)[0]
-        distance = abs(
-            end_position.value - self.state.position.value
-        )  # distance from current position to end position
+        return random.choices(list(PitchPosition), probabilities)[0]
 
-        self.attacking_player = attacking_team.player_in_possession
-        self.receiving_player = attacking_team.get_player_on_pitch(end_position)
-        self.defending_player = defending_team.get_player_on_pitch(self.state.position)
+    def get_pass_primary_outcome(self, distance) -> EventOutcome:
         outcomes = [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_SUCCESS,
             EventOutcome.PASS_INTERCEPT,
         ]
-
-        self.attacking_player.statistics.passes += 1
 
         pass_success = (
             (
@@ -218,19 +197,40 @@ class PassEvent(SimulationEvent):
             / 2,  # PASS_INTERCEPT
         ]
 
-        self.outcome = random.choices(outcomes, outcome_probability)[0]
+        return random.choices(outcomes, outcome_probability)[0]
+
+    def get_secondary_outcome(self) -> EventOutcome:
+        outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
+        not_offside_probability = (
+            self.receiving_player.attributes.offensive.positioning
+            + self.receiving_player.attributes.intelligence.team_work
+        ) / 2
+        outcome_probability = [
+            not_offside_probability,
+            100 - not_offside_probability,
+        ]
+        return random.choices(outcomes, outcome_probability)[0]
+
+    def calculate_event(
+        self,
+        attacking_team: TeamSimulation,
+        defending_team: TeamSimulation,
+    ) -> GameState:
+        # Transition matrix for each position on the field
+        end_position = self.get_end_position(attacking_team)
+        distance = abs(
+            end_position.value - self.state.position.value
+        )  # distance from current position to end position
+
+        self.attacking_player = attacking_team.player_in_possession
+        self.receiving_player = attacking_team.get_player_on_pitch(end_position)
+        self.defending_player = defending_team.get_player_on_pitch(end_position)
+        self.attacking_player.statistics.passes += 1
+
+        self.outcome = self.get_pass_primary_outcome(distance)
 
         if end_position in OFF_POSITIONS and self.outcome == EventOutcome.PASS_SUCCESS:
-            outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
-            not_offside_probability = (
-                self.receiving_player.attributes.offensive.positioning
-                + self.receiving_player.attributes.intelligence.team_work
-            ) / 2
-            outcome_probability = [
-                not_offside_probability,
-                100 - not_offside_probability,
-            ]
-            self.outcome = random.choices(outcomes, outcome_probability)[0]
+            self.outcome = self.get_secondary_outcome()
 
         if self.outcome in [
             EventOutcome.PASS_MISS,
@@ -239,15 +239,17 @@ class PassEvent(SimulationEvent):
         ]:
             self.attacking_player.statistics.passes_missed += 1
             print(f"{self.attacking_player} failed to pass the ball!")
-            if EventOutcome.PASS_INTERCEPT:
+            if self.outcome == EventOutcome.PASS_INTERCEPT:
                 self.defending_player.statistics.interceptions += 1
-            return self.change_possession(
+            self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
         else:
             print(f"{self.attacking_player} passed the ball to {self.receiving_player}")
             attacking_team.player_in_possession = self.receiving_player
 
+        attacking_team.update_stats()
+        defending_team.update_stats()
         return GameState(self.state.minutes, end_position)
 
 
@@ -332,24 +334,22 @@ class CornerKickEvent(SimulationEvent):
 
 @dataclass
 class ShotEvent(SimulationEvent):
-    def calculate_event(
-        self,
-        attacking_team: TeamSimulation,
-        defending_team: TeamSimulation,
-    ) -> GameState:
+    def get_shot_saved_outcomes(self) -> EventOutcome:
+        final_outcomes = [
+            EventOutcome.SHOT_RIGHT_CORNER_KICK,
+            EventOutcome.SHOT_LEFT_CORNER_KICK,
+            EventOutcome.SHOT_SAVED_SECURED,
+        ]
+        print(f"{self.defending_player} saved the ball!")
+        return random.choice(final_outcomes)
+
+    def get_shot_on_goal(
+        self, shot_on_goal: float, defending_team: TeamSimulation
+    ) -> EventOutcome:
         basic_event_outcomes = [
             EventOutcome.SHOT_MISS,
             EventOutcome.SHOT_ON_GOAL,
         ]
-        self.attacking_player = attacking_team.player_in_possession
-        self.defending_player = defending_team.get_player_on_pitch(self.state)
-        self.attacking_player.statistics.shots += 1
-
-        print(f"{self.attacking_player.player.details.short_name} shoots!")
-        shot_on_goal = (
-            self.attacking_player.attributes.offensive.shot_accuracy
-            + self.attacking_player.offensive.shot_power
-        ) / 2
         event_probabilities = [
             100 - shot_on_goal,
             shot_on_goal,
@@ -365,86 +365,125 @@ class ShotEvent(SimulationEvent):
                 / 2
             ]
 
-        first_outcome = random.choices(basic_event_outcomes, event_probabilities)[0]
+        return random.choices(basic_event_outcomes, event_probabilities)[0]
+
+    def get_shot_blocked(self):
+        outcomes = [
+            EventOutcome.SHOT_BLOCKED_CHANGE,
+            EventOutcome.SHOT_BLOCKED_BACK,
+        ]
+        outcome = random.choice(outcomes)
+        print(f"{self.defending_player} blocked the shot!")
+
+        return outcome
+
+    def get_shot_on_goal_outcomes(self, shot_on_goal) -> EventOutcome:
+        outcomes = [
+            EventOutcome.SHOT_HIT_POST,
+            EventOutcome.SHOT_SAVED,
+            EventOutcome.GOAL,
+        ]
+        gk_skills = self.defending_player.attributes.gk.get_general_overall()
+        probabilities = [
+            100 - shot_on_goal,
+            gk_skills,
+            110 - gk_skills,  # Even very good goalies can let balls pass sometimes
+        ]
+        return random.choices(outcomes, probabilities)
+
+    def get_shot_hit_post(self) -> EventOutcome:
+        final_outcomes = [
+            EventOutcome.SHOT_HIT_POST,
+            EventOutcome.SHOT_HIT_POST_CHANGE,
+            EventOutcome.SHOT_GOAL_KICK,
+        ]
+        print(f"The ball hit the post!")
+
+        return random.choice(final_outcomes)
+
+    def calculate_event(
+        self,
+        attacking_team: TeamSimulation,
+        defending_team: TeamSimulation,
+    ) -> GameState:
+        self.attacking_player = attacking_team.player_in_possession
+        self.defending_player = defending_team.get_player_on_pitch(self.state.position)
+        self.attacking_player.statistics.shots += 1
+
+        shot_on_goal = (
+            self.attacking_player.attributes.offensive.shot_accuracy
+            + self.attacking_player.attributes.offensive.shot_power
+        ) / 2
+
+        print(f"{self.attacking_player} shoots!")
+
+        first_outcome = self.get_shot_on_goal(shot_on_goal, defending_team)
 
         if first_outcome == EventOutcome.SHOT_MISS:
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = EventOutcome.SHOT_GOAL_KICK
         elif first_outcome == EventOutcome.SHOT_BLOCKED:
-            outcomes = [
-                EventOutcome.SHOT_BLOCKED_CHANGE,
-                EventOutcome.SHOT_BLOCKED_BACK,
-            ]
-            self.outcome = random.choice(outcomes)
-            print(f"{self.defending_player} blocked the shot!")
-
             self.attacking_player.statistics.shots_missed += 1
             self.defending_player.statistics.shots_blocked += 1
-
-            if self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE:
-                return self.change_possession(
-                    attacking_team,
-                    defending_team,
-                    self.defending_player,
-                    self.state.position,
-                )
+            self.outcome = self.get_shot_blocked()
         elif first_outcome == EventOutcome.SHOT_ON_GOAL:
             self.defending_player = defending_team.formation.gk
             self.state.position = PitchPosition.OFF_BOX
             self.attacking_player.statistics.shots_on_target += 1
-            outcomes = [
-                EventOutcome.SHOT_HIT_POST,
-                EventOutcome.SHOT_SAVED,
-                EventOutcome.GOAL,
-            ]
-            gk_skills = self.defending_player.attributes.gk.get_general_overall()
-            probabilities = [
-                100 - shot_on_goal,
-                gk_skills,
-                110 - gk_skills,  # Even very good goalies can let balls pass sometimes
-            ]
-            self.outcome = random.choices(outcomes, probabilities)
-            if self.outcome == EventOutcome.SHOT_HIT_POST:
-                final_outcomes = [
-                    EventOutcome.SHOT_HIT_POST_CHANGE,
-                    EventOutcome.SHOT_GOAL_KICK,
-                ]
-                self.outcome = random.choice(final_outcomes)
-                print(f"The ball hit the post!")
-                if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE:
-                    return self.change_possession(
-                        attacking_team,
-                        defending_team,
-                        self.defending_player,
-                        self.state.position,
-                    )
-            elif self.outcome == EventOutcome.SHOT_SAVED:
-                final_outcomes = [
-                    EventOutcome.SHOT_RIGHT_CORNER_KICK,
-                    EventOutcome.SHOT_LEFT_CORNER_KICK,
-                    EventOutcome.SHOT_SAVED_SECURED,
-                ]
-                self.defending_player.statistics.shots_saved += 1
-                self.attacking_player.statistics.shots_missed += 1
-                print(f"{self.defending_player} saved the ball!")
-                self.outcome = random.choice(final_outcomes)
-            elif self.outcome == EventOutcome.GOAL:
-                self.state.position = PitchPosition.MIDFIELD_CENTER
-                defending_player = defending_team.get_player_on_pitch(
-                    self.state.position
-                )
-                self.change_possession(
-                    attacking_team,
-                    defending_team,
-                    defending_player,
-                    self.state.position,
-                )
-        
-        if self.outcome == EventOutcome.SHOT_SAVED_SECURED:
-            self.change_possession(attacking_team, defending_team, self.defending_player, self.state.position)
+            self.outcome = self.get_shot_on_goal_outcomes(shot_on_goal)
+
+        if self.outcome == EventOutcome.SHOT_HIT_POST:
+            self.outcome = self.get_shot_hit_post()
+        elif self.outcome == EventOutcome.SHOT_SAVED:
+            self.defending_player.statistics.shots_saved += 1
+            self.attacking_player.statistics.shots_missed += 1
+            self.outcome = self.get_shot_saved_outcomes()
+        elif self.outcome == EventOutcome.GOAL:
+            self.attacking_player.statistics.goals += 1
+            self.defending_player.statistics.goals_conceded += 1
+            self.state.position = PitchPosition.MIDFIELD_CENTER
+            attacking_team.add_goal(Goal(self.attacking_player, self.state.minutes))
+            defending_player = defending_team.get_player_on_pitch(self.state.position)
+            self.state = self.change_possession(
+                attacking_team,
+                defending_team,
+                defending_player,
+                self.state.position,
+            )
+        elif self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE:
+            self.state = self.change_possession(
+                attacking_team,
+                defending_team,
+                self.defending_player,
+                self.state.position,
+            )
+
+        if self.outcome == EventOutcome.SHOT_GOAL_KICK:
+            self.state = self.change_possession(
+                attacking_team,
+                defending_team,
+                defending_team.formation.gk,
+                self.state.position,
+            )
+        if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE:
+            self.state = self.change_possession(
+                attacking_team,
+                defending_team,
+                self.defending_player,
+                self.state.position,
+            )
+        elif self.outcome == EventOutcome.SHOT_SAVED_SECURED:
+            self.change_possession(
+                attacking_team,
+                defending_team,
+                self.defending_player,
+                self.state.position,
+            )
         elif self.outcome == EventOutcome.SHOT_RIGHT_CORNER_KICK:
+            attacking_team.stats.corners += 1
             self.state.position = PitchPosition.OFF_RIGHT
         elif self.outcome == EventOutcome.SHOT_LEFT_CORNER_KICK:
+            attacking_team.stats.corners += 1
             self.state.position = PitchPosition.OFF_LEFT
 
         attacking_team.update_stats()
@@ -473,7 +512,7 @@ class GoalKickEvent(SimulationEvent):
         defending_team: TeamSimulation,
     ) -> GameState:
         self.attacking_player = attacking_team.formation.gk
-        
+
         team_strategy = attacking_team.team_strategy
 
         print(f"Goal Kick {self.state.position.name}")
@@ -539,10 +578,10 @@ class DribbleEvent(SimulationEvent):
         self.outcome = random.choices(outcomes, outcome_probability)[0]
 
         if self.outcome == EventOutcome.DRIBBLE_FAIL:
-            self.attacking_team.in_possession = False
-            self.attacking_team.player_in_possession = None
-            self.defending_team.player_in_possession = self.defending_player
-            self.defending_team.in_possession = True
+            attacking_team.in_possession = False
+            attacking_team.player_in_possession = None
+            defending_team.player_in_possession = self.defending_player
+            defending_team.in_possession = True
             end_position = PITCH_EQUIVALENTS[end_position]
         return GameState(self.state.minutes, end_position)
 
@@ -557,13 +596,12 @@ class PenaltyKickEvent(SimulationEvent):
         self.defending_player = defending_team.formation.gk
         self.attacking_player = attacking_team.get_best_penalty_taker()
 
-        outcomes = [
-            EventOutcome.SHOT_ON_GOAL,
-            EventOutcome.SHOT_MISS
-        ]
+        outcomes = [EventOutcome.SHOT_ON_GOAL, EventOutcome.SHOT_MISS]
 
-        shot_success = (self.attacking_player.attributes.offensive.penalty * 2
-             + self.attacking_player.attributes.offensive.shot_accuracy) / 3
+        shot_success = (
+            self.attacking_player.attributes.offensive.penalty * 2
+            + self.attacking_player.attributes.offensive.shot_accuracy
+        ) / 3
 
         outcome_probability = [
             shot_success,
@@ -576,10 +614,7 @@ class PenaltyKickEvent(SimulationEvent):
 
         if outcome == EventOutcome.SHOT_ON_GOAL:
             self.attacking_player.statistics.shots_on_target += 1
-            outcomes = [
-                EventOutcome.SHOT_SAVED,
-                EventOutcome.GOAL
-            ]
+            outcomes = [EventOutcome.SHOT_SAVED, EventOutcome.GOAL]
             gk_skills = (
                 self.defending_player.attributes.gk.penalty * 2
                 + self.defending_player.attributes.gk.jumping
@@ -594,22 +629,24 @@ class PenaltyKickEvent(SimulationEvent):
             outcomes = [
                 EventOutcome.SHOT_LEFT_CORNER_KICK,
                 EventOutcome.SHOT_RIGHT_CORNER_KICK,
-                EventOutcome.SHOT_SAVED_SECURED
+                EventOutcome.SHOT_SAVED_SECURED,
             ]
             self.defending_player.statistics.shots_saved += 1
             self.outcome = random.choice(outcomes)
         if self.outcome == EventOutcome.SHOT_MISS:
-            outcomes = [
-                EventOutcome.SHOT_HIT_POST,
-                EventOutcome.SHOT_GOAL_KICK
-            ]
+            outcomes = [EventOutcome.SHOT_HIT_POST, EventOutcome.SHOT_GOAL_KICK]
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = random.choice(outcomes)
         elif self.outcome == EventOutcome.SHOT_SAVED_SECURED:
-            self.change_possession(attacking_team, defending_team, self.defending_player, self.state.position)
+            self.change_possession(
+                attacking_team,
+                defending_team,
+                self.defending_player,
+                self.state.position,
+            )
         elif self.outcome == EventOutcome.SHOT_RIGHT_CORNER_KICK:
             self.state.position = PitchPosition.OFF_RIGHT
         elif self.outcome == EventOutcome.SHOT_LEFT_CORNER_KICK:
             self.state.position = PitchPosition.OFF_LEFT
-        
+
         return GameState(self.state.minutes, self.state.position)

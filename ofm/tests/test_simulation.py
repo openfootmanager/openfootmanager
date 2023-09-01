@@ -19,11 +19,10 @@ import pytest
 
 from ofm.core.db.generators import TeamGenerator
 from ofm.core.football.formation import Formation
-from ofm.core.football.player import PlayerSimulation
 from ofm.core.football.team_simulation import Goal, TeamSimulation
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
-from ofm.core.simulation.event import EventFactory, EventType, SimulationEvent
+from ofm.core.simulation.event import EventFactory, EventType
 from ofm.core.simulation.game_state import GameState
 from ofm.core.simulation import PitchPosition
 
@@ -34,14 +33,13 @@ class MockSimulationEngine:
 
 
 @pytest.fixture
-def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
+def live_game(monkeypatch, simulation_teams) -> LiveGame:
     def get_simulation_engine(*args, **kwargs):
         return MockSimulationEngine()
 
-    team_gen = TeamGenerator(squads_def, confederations_file)
-
-    teams = team_gen.generate()
-    home_team, away_team = teams[0], teams[1]
+    home_team_sim, away_team_sim = simulation_teams
+    home_team = home_team_sim.club
+    away_team = away_team_sim.club
     fixture = Fixture(
         uuid.uuid4(),
         uuid.uuid4(),
@@ -49,13 +47,6 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
         away_team.club_id,
         home_team.stadium,
     )
-
-    home_team_formation = Formation(home_team.default_formation)
-    home_team_formation.get_best_players(home_team.squad)
-    home_team_sim = TeamSimulation(home_team, home_team_formation)
-    away_team_formation = Formation(away_team.default_formation)
-    away_team_formation.get_best_players(away_team.squad)
-    away_team_sim = TeamSimulation(away_team, away_team_formation)
 
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
 

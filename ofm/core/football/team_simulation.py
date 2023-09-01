@@ -67,7 +67,7 @@ class TeamSimulation:
     ) -> PlayerSimulation:
         if position == PitchPosition.DEF_BOX:
             players = [self.formation.gk]
-            players.extend(self.formation.df)
+            players.extend(self.formation.df.copy())
         elif position in [
             PitchPosition.DEF_RIGHT,
             PitchPosition.DEF_LEFT,
@@ -76,20 +76,23 @@ class TeamSimulation:
             PitchPosition.DEF_MIDFIELD_CENTER,
         ]:
             players = self.formation.df.copy()
-            players.extend(self.formation.mf)
+            players.extend(self.formation.mf.copy())
         elif position in [
             PitchPosition.MIDFIELD_RIGHT,
             PitchPosition.MIDFIELD_CENTER,
             PitchPosition.MIDFIELD_LEFT,
         ]:
             players = self.formation.df.copy()
-            players.extend(self.formation.mf)
-            players.extend(self.formation.fw)
+            players.extend(self.formation.mf.copy())
+            players.extend(self.formation.fw.copy())
         else:
             players = self.formation.fw.copy()
-            players.extend(self.formation.mf)
+            players.extend(self.formation.mf.copy())
 
-        if self.player_in_possession is not None:
+        if (
+            self.player_in_possession is not None
+            and self.player_in_possession in players
+        ):
             players.remove(self.player_in_possession)
 
         # Red card players cannot receive the ball
@@ -120,11 +123,14 @@ class TeamSimulation:
             if player.attributes.offensive.penalty:
                 if best_penalty_taker is None:
                     best_penalty_taker = player
-                elif player.attributes.offensive.penalty > best_penalty_taker.attributes.offensive.penalty:
+                elif (
+                    player.attributes.offensive.penalty
+                    > best_penalty_taker.attributes.offensive.penalty
+                ):
                     best_penalty_taker = player
-        
+
         return best_penalty_taker
-    
+
     def update_player_stamina(self):
         pass
 

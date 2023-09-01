@@ -19,8 +19,10 @@ import uuid
 
 import pytest
 
-from ..core.db.generators import PlayerGenerator
+from ..core.db.generators import PlayerGenerator, TeamGenerator
 from ..core.football.club import PlayerTeam
+from ..core.football.team_simulation import TeamSimulation
+from ..core.football.formation import Formation
 from ..core.football.player import (
     Player,
     PlayerInjury,
@@ -185,3 +187,20 @@ def confederations_file() -> list[dict]:
     settings = Settings()
     with open(settings.fifa_conf, "r") as fp:
         return json.load(fp)
+
+
+@pytest.fixture
+def simulation_teams(squads_def, confederations_file) -> tuple[TeamSimulation, TeamSimulation]:
+    team_gen = TeamGenerator(squads_def, confederations_file)
+
+    teams = team_gen.generate()
+    home_team, away_team = teams[0], teams[1]
+
+    home_team_formation = Formation(home_team.default_formation)
+    home_team_formation.get_best_players(home_team.squad)
+    home_team_sim = TeamSimulation(home_team, home_team_formation)
+    away_team_formation = Formation(away_team.default_formation)
+    away_team_formation.get_best_players(away_team.squad)
+    away_team_sim = TeamSimulation(away_team, away_team_formation)
+
+    return home_team_sim, away_team_sim
