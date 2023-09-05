@@ -55,9 +55,9 @@ def team_pass_strategy(strategy: TeamStrategy) -> list[list[int]]:
             pass
         case TeamStrategy.ALL_ATTACK:
             pass
-        
 
-#fmt: on
+
+# fmt: on
 def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
     match strategy:
         case TeamStrategy.NORMAL:
@@ -76,7 +76,10 @@ def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
             # TODO: implement transition matrix for ALL_ATTACK TeamStrategy
             pass
 
-def team_goal_kick_strategy(strategy: TeamStrategy, state: GameState) -> list[list[int]]:
+
+def team_goal_kick_strategy(
+    strategy: TeamStrategy, state: GameState
+) -> list[list[int]]:
     pass
 
 
@@ -109,6 +112,7 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
                 [4, 2, 0, 2, 1, 0, 0, 0, 0],  # PASS
             ]
 
-
     return transition_matrix
+
+
 # fmt: on

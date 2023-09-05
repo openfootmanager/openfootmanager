@@ -107,15 +107,13 @@ class Formation:
                 players.remove(player)
 
         self.bench = [
-            PlayerSimulation(
-                player, player.details.get_best_position(), player.details.stamina
-            )
+            PlayerSimulation(player, player.details.get_best_position())
             for player in players
         ]
         self.bench.sort(key=lambda x: x.current_position)
 
     def add_player(self, position: int, player: PlayerTeam):
-        player_sim = PlayerSimulation(player, Positions.GK, player.details.stamina)
+        player_sim = PlayerSimulation(player, Positions.GK)
         df, mf, fw = self.get_num_players()
         if position == 0:
             self.gk = player_sim

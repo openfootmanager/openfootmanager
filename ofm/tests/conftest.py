@@ -22,8 +22,13 @@ import pytest
 from ..core.db.generators import PlayerGenerator, TeamGenerator
 from ..core.football.club import PlayerTeam
 from ..core.football.formation import Formation
-from ..core.football.player import (Player, PlayerInjury, PlayerSimulation,
-                                    Positions, PreferredFoot)
+from ..core.football.player import (
+    Player,
+    PlayerInjury,
+    PlayerSimulation,
+    Positions,
+    PreferredFoot,
+)
 from ..core.football.player_attributes import *
 from ..core.football.playercontract import PlayerContract
 from ..core.football.team_simulation import TeamSimulation
@@ -118,7 +123,7 @@ def player_team(player_obj) -> tuple[PlayerTeam, Player, dict]:
 @pytest.fixture
 def player_sim(player_team: tuple[PlayerTeam, Player, dict]) -> PlayerSimulation:
     position = player_team[0].details.get_best_position()
-    return PlayerSimulation(player_team[0], position, 100.0)
+    return PlayerSimulation(player_team[0], position)
 
 
 @pytest.fixture
@@ -185,7 +190,9 @@ def confederations_file() -> list[dict]:
 
 
 @pytest.fixture
-def simulation_teams(squads_def, confederations_file) -> tuple[TeamSimulation, TeamSimulation]:
+def simulation_teams(
+    squads_def, confederations_file
+) -> tuple[TeamSimulation, TeamSimulation]:
     team_gen = TeamGenerator(squads_def, confederations_file)
 
     teams = team_gen.generate()

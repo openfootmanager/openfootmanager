@@ -131,6 +131,18 @@ class TeamSimulation:
 
         return best_penalty_taker
 
+    def get_best_free_kick_taker(self) -> PlayerSimulation:
+        best_free_kick_taker = None
+        for player in self.formation.players:
+            if player.attributes.offensive.free_kick:
+                if best_free_kick_taker is None:
+                    best_free_kick_taker = player
+                elif (
+                    player.attributes.offensive.free_kick
+                    > best_free_kick_taker.attributes.offensive.free_kick
+                ):
+                    best_free_kick_taker = player
+
     def update_player_stamina(self):
         pass
 

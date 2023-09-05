@@ -20,12 +20,17 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
 
-from ..football.player import PlayerSimulation
+from ..football.player import PlayerSimulation, PlayerInjury
 from ..football.team_simulation import Goal, TeamSimulation
 from . import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
 from .event_type import EventType
 from .game_state import GameState
-from .team_strategy import *
+from .team_strategy import (
+    team_general_strategy,
+    team_pass_strategy,
+    team_cross_strategy,
+    team_goal_kick_strategy,
+)
 
 
 class EventOutcome(Enum):
@@ -65,6 +70,12 @@ class EventOutcome(Enum):
 class FoulTypes(Enum):
     OFFENSIVE_FOUL = auto()
     DEFENSIVE_FOUL = auto()
+
+
+class FreeKickType(Enum):
+    DIRECT_SHOT = auto()
+    CROSS = auto()
+    PASS = auto()
 
 
 @dataclass
@@ -179,13 +190,23 @@ class PassEvent(SimulationEvent):
             EventOutcome.PASS_INTERCEPT,
         ]
 
-        pass_success = (
-            (
-                self.attacking_player.attributes.intelligence.passing
-                + self.attacking_player.attributes.intelligence.vision
-            )
-            / 2
-        ) - distance
+        if self.event_type == EventType.FREE_KICK:
+            pass_success = (
+                (
+                    self.attacking_player.attributes.intelligence.passing
+                    + self.attacking_player.attributes.intelligence.vision
+                    + self.attacking_player.attributes.offensive.free_kick * 2
+                )
+                / 4
+            ) - distance
+        else:
+            pass_success = (
+                (
+                    self.attacking_player.attributes.intelligence.passing
+                    + self.attacking_player.attributes.intelligence.vision
+                )
+                / 2
+            ) - distance
 
         outcome_probability = [
             100.0 - pass_success,  # PASS_MISS
@@ -222,9 +243,11 @@ class PassEvent(SimulationEvent):
             end_position.value - self.state.position.value
         )  # distance from current position to end position
 
-        self.attacking_player = attacking_team.player_in_possession
+        if self.attacking_player is None:
+            self.attacking_player = attacking_team.player_in_possession
+        if self.defending_player is None:
+            self.defending_player = defending_team.get_player_on_pitch(end_position)
         self.receiving_player = attacking_team.get_player_on_pitch(end_position)
-        self.defending_player = defending_team.get_player_on_pitch(end_position)
         self.attacking_player.statistics.passes += 1
 
         self.outcome = self.get_pass_primary_outcome(distance)
@@ -257,6 +280,75 @@ class PassEvent(SimulationEvent):
 class FoulEvent(SimulationEvent):
     foul_type: Optional[FoulTypes] = None
 
+    def get_foul_type(self) -> FoulTypes:
+        type_of_foul = [
+            FoulTypes.OFFENSIVE_FOUL,
+            FoulTypes.DEFENSIVE_FOUL,
+        ]
+
+        return random.choice(type_of_foul)
+
+    def get_player_injury(
+        self, offending_player: PlayerSimulation, fouled_player: PlayerSimulation
+    ):
+        fouled_player_resistance = (
+            (
+                fouled_player.attributes.physical.endurance
+                + fouled_player.attributes.physical.strength
+                + fouled_player.player.details.fitness * 2
+            )
+            / 4
+        ) - (100 - fouled_player.player.details.stamina)
+        offending_player_aggression = (
+            offending_player.attributes.defensive.tackling
+            + offending_player.attributes.physical.strength
+            + offending_player.attributes.defensive.positioning
+        ) / 3
+
+        enduring_probability = fouled_player_resistance + offending_player_aggression
+        not_enduring_prob = 200 - enduring_probability
+
+        # light_inj + medium_inj + severe_inj + career_ending = not_enduring_prob
+
+        endures = [
+            PlayerInjury.NO_INJURY,
+            None,
+        ]
+
+        probability_of_injury = [enduring_probability, not_enduring_prob]
+
+        enduring = random.choices(endures, probability_of_injury)[0]
+
+        if enduring is not None:
+            return enduring
+
+        injuries = list(PlayerInjury)
+        injuries.remove(PlayerInjury.NO_INJURY)
+
+        injuries_prob = [
+            0.90,
+            0.08,
+            0.00099,
+            0.00001,
+        ]
+        return random.choices(injuries, injuries_prob)[0]
+
+    def get_player_card(self, player_injury: PlayerInjury) -> EventOutcome:
+        if player_injury in [
+            PlayerInjury.SEVERE_INJURY,
+            PlayerInjury.CAREER_ENDING_INJURY,
+        ]:
+            return EventOutcome.FOUL_RED_CARD
+        elif player_injury == PlayerInjury.MEDIUM_INJURY:
+            return EventOutcome.FOUL_YELLOW_CARD
+
+        outcomes = [
+            EventOutcome.FOUL_WARNING,
+            EventOutcome.FOUL_YELLOW_CARD,
+        ]
+
+        return random.choice(outcomes)
+
     def calculate_event(
         self,
         attacking_team: TeamSimulation,
@@ -265,44 +357,27 @@ class FoulEvent(SimulationEvent):
         self.attacking_player = attacking_team.player_in_possession
         self.defending_player = defending_team.get_player_on_pitch(self.state.position)
 
-        type_of_foul = [
-            FoulTypes.OFFENSIVE_FOUL,
-            FoulTypes.DEFENSIVE_FOUL,
-        ]
-
-        self.foul_type = random.choice(type_of_foul)
+        self.foul_type = self.get_foul_type()
 
         if self.foul_type == FoulTypes.OFFENSIVE_FOUL:
-            self.attacking_player.statistics.fouls += 1
             fouled_player = self.defending_player
             offending_player = self.attacking_player
         else:
-            self.defending_player.statistics.fouls += 1
             fouled_player = self.attacking_player
             offending_player = self.defending_player
 
-        fouled_player_resistance = (
-            (
-                fouled_player.attributes.physical.endurance
-                + fouled_player.attributes.physical.strength
-                + fouled_player.player.details.fitness
-            )
-            / 3
-        ) - (100 - fouled_player.player.details.stamina)
-        offending_player_aggression = (
-            offending_player.attributes.defensive.tackling
-            + offending_player.attributes.physical.strength
-            + offending_player.attributes.defensive.positioning
-        ) / 3
+        offending_player.statistics.fouls += 1
 
-        # TODO: Calculate player injury
+        injury_type = self.get_player_injury(offending_player, fouled_player)
+        fouled_player.injury_type = injury_type
 
-        outcomes = [
-            EventOutcome.FOUL_WARNING,
-            EventOutcome.FOUL_RED_CARD,
-            EventOutcome.FOUL_YELLOW_CARD,
-        ]
-        outcome_probability = []
+        if injury_type in [
+            PlayerInjury.SEVERE_INJURY,
+            PlayerInjury.CAREER_ENDING_INJURY,
+        ]:
+            self.outcome = EventOutcome.FOUL_RED_CARD
+        else:
+            self.outcome = self.get_player_card(injury_type)
 
         if self.outcome == EventOutcome.FOUL_YELLOW_CARD:
             offending_player.statistics.yellow_cards += 1
@@ -406,14 +481,25 @@ class ShotEvent(SimulationEvent):
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        self.attacking_player = attacking_team.player_in_possession
-        self.defending_player = defending_team.get_player_on_pitch(self.state.position)
+        if self.attacking_player is None:
+            self.attacking_player = attacking_team.player_in_possession
+        if self.defending_player is None:
+            self.defending_player = defending_team.get_player_on_pitch(
+                self.state.position
+            )
         self.attacking_player.statistics.shots += 1
 
-        shot_on_goal = (
-            self.attacking_player.attributes.offensive.shot_accuracy
-            + self.attacking_player.attributes.offensive.shot_power
-        ) / 2
+        if self.event_type == EventType.FREE_KICK:
+            shot_on_goal = (
+                self.attacking_player.attributes.offensive.shot_accuracy
+                + self.attacking_player.attributes.offensive.shot_power
+                + self.attacking_player.attributes.offensive.free_kick * 2
+            ) / 4
+        else:
+            shot_on_goal = (
+                self.attacking_player.attributes.offensive.shot_accuracy
+                + self.attacking_player.attributes.offensive.shot_power
+            ) / 2
 
         print(f"{self.attacking_player} shoots!")
 
@@ -521,13 +607,60 @@ class GoalKickEvent(SimulationEvent):
 
 @dataclass
 class FreeKickEvent(SimulationEvent):
+    free_kick_type: Optional[FreeKickType] = None
+
+    def get_free_kick_type(self):
+        free_kick_types = [
+            FreeKickType.PASS,
+            FreeKickType.CROSS,
+        ]
+
+        if self.state.position in OFF_POSITIONS:
+            free_kick_types.append(FreeKickType.DIRECT_SHOT)
+
+        return random.choice(free_kick_types)
+
     def calculate_event(
         self,
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"FreeKick {self.state.position.name}")
-        return GameState(self.state.minutes, self.state.position)
+        if self.state.position in OFF_POSITIONS:
+            self.attacking_player = attacking_team.get_best_free_kick_taker()
+        else:
+            self.attacking_player = attacking_team.get_player_on_pitch(
+                self.state.position
+            )
+
+        self.free_kick_type = self.get_free_kick_type()
+
+        if self.free_kick_type == FreeKickType.PASS:
+            pass_event = PassEvent(
+                EventType.FREE_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+                defending_player=self.defending_player,
+            )
+            return pass_event.calculate_event(attacking_team, defending_team)
+        if self.free_kick_type == FreeKickType.DIRECT_SHOT:
+            shot_event = ShotEvent(
+                EventType.FREE_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+                defending_player=self.defending_player,
+            )
+            return shot_event.calculate_event(attacking_team, defending_team)
+        if self.free_kick_type.CROSS:
+            cross_event = CrossEvent(
+                EventType.FREE_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+                defending_player=self.defending_player,
+            )
+            return cross_event.calculate_event(attacking_team, defending_team)
 
 
 @dataclass
