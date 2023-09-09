@@ -26,9 +26,11 @@ from .shot_event import ShotEvent
 from ..event import EventOutcome, SimulationEvent
 from ..event_type import EventType, FoulType, FreeKickType
 from ...football.player import PlayerSimulation, PlayerInjury
+from copy import deepcopy
 from ...football.team_simulation import Goal, TeamSimulation
 from .. import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
 from ..game_state import GameState
+from ..team_strategy import team_general_strategy
 
 
 class EventFactory:
@@ -52,7 +54,7 @@ class EventFactory:
             return [[EventType.CORNER_KICK], [1.0]]
         elif isinstance(last_event, FoulEvent):
             if (
-                last_event.foul_type == FoulTypes.DEFENSIVE_FOUL
+                last_event.foul_type == FoulType.DEFENSIVE_FOUL
                 and state.position == PitchPosition.OFF_BOX
             ):
                 return [[EventType.PENALTY_KICK], [1.0]]
