@@ -17,11 +17,11 @@ from ofm.core.simulation.event import (
     EventOutcome,
     EventType,
     GameState,
-    FoulEvent,
     PitchPosition,
-    FoulTypes,
-    PlayerInjury,
 )
+from ofm.core.football.player import PlayerInjury
+from ofm.core.simulation.event_type import FoulType
+from ofm.core.simulation.events import FoulEvent
 
 
 def get_foul_event() -> FoulEvent:
@@ -29,8 +29,8 @@ def get_foul_event() -> FoulEvent:
 
 
 def test_no_card_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.NO_INJURY
@@ -56,8 +56,8 @@ def test_no_card_foul_event(simulation_teams, monkeypatch):
 
 
 def test_yellow_card_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.NO_INJURY
@@ -83,8 +83,8 @@ def test_yellow_card_foul_event(simulation_teams, monkeypatch):
 
 
 def test_two_yellow_cards_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.NO_INJURY
@@ -112,8 +112,8 @@ def test_two_yellow_cards_foul_event(simulation_teams, monkeypatch):
 
 
 def test_red_card_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.NO_INJURY
@@ -139,8 +139,8 @@ def test_red_card_foul_event(simulation_teams, monkeypatch):
 
 
 def test_severe_injury_red_card_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.SEVERE_INJURY
@@ -162,8 +162,8 @@ def test_severe_injury_red_card_foul_event(simulation_teams, monkeypatch):
 
 
 def test_career_ending_injury_red_card_foul_event(simulation_teams, monkeypatch):
-    def get_foul_type(self) -> FoulTypes:
-        return FoulTypes.DEFENSIVE_FOUL
+    def get_foul_type(self) -> FoulType:
+        return FoulType.DEFENSIVE_FOUL
 
     def get_player_injury(self, *args, **kwargs) -> PlayerInjury:
         return PlayerInjury.CAREER_ENDING_INJURY

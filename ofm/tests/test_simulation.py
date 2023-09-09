@@ -19,7 +19,8 @@ import pytest
 
 from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
-from ofm.core.simulation.event import EventFactory, EventType
+from ofm.core.simulation.event_type import EventType
+from ofm.core.simulation.events import EventFactory
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.game_state import GameState
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine

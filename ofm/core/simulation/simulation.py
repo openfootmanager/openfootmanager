@@ -18,8 +18,8 @@ from decimal import Decimal, getcontext
 
 from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
-from .event import (EventFactory, EventOutcome, EventType, GameState,
-                    SimulationEvent)
+from .event import GameState, SimulationEvent
+from .events import EventFactory
 from .fixture import Fixture
 
 

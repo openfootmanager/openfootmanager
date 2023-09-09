@@ -13,27 +13,27 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from enum import Enum, auto
+from ofm.core.simulation.event import (
+    EventOutcome,
+    EventType,
+    GameState,
+    PitchPosition,
+)
+
+from ofm.core.simulation.events import CrossEvent
 
 
-class FoulType(Enum):
-    OFFENSIVE_FOUL = auto()
-    DEFENSIVE_FOUL = auto()
+def get_cross_event() -> CrossEvent:
+    return CrossEvent(EventType.PASS, GameState(0.0, PitchPosition.OFF_MIDFIELD_CENTER))
 
 
-class FreeKickType(Enum):
-    DIRECT_SHOT = auto()
-    CROSS = auto()
-    PASS = auto()
-
-
-class EventType(Enum):
-    PASS = 0
-    DRIBBLE = auto()
-    SHOT = auto()
-    CROSS = auto()
-    FOUL = auto()
-    FREE_KICK = auto()
-    CORNER_KICK = auto()
-    GOAL_KICK = auto()
-    PENALTY_KICK = auto()
+# def test_normal_cross_event(simulation_teams):
+#     event = get_cross_event()
+#     home_team, away_team = simulation_teams
+#     home_team.in_possession = True
+#     home_team.player_in_possession = home_team.get_player_on_pitch(event.state.position)
+#     away_team.in_possession = False
+#     away_team.player_in_possession = None
+#     first_player = home_team.player_in_possession
+#     event.calculate_event(home_team, away_team)
+#     assert event.receiving_player != first_player

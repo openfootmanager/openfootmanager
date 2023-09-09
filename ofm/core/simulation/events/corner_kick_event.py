@@ -13,27 +13,21 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from enum import Enum, auto
+import random
+from dataclasses import dataclass
+
+from ...football.team_simulation import TeamSimulation
+from .. import PitchPosition
+from ..event import SimulationEvent, EventOutcome
+from ..game_state import GameState
 
 
-class FoulType(Enum):
-    OFFENSIVE_FOUL = auto()
-    DEFENSIVE_FOUL = auto()
-
-
-class FreeKickType(Enum):
-    DIRECT_SHOT = auto()
-    CROSS = auto()
-    PASS = auto()
-
-
-class EventType(Enum):
-    PASS = 0
-    DRIBBLE = auto()
-    SHOT = auto()
-    CROSS = auto()
-    FOUL = auto()
-    FREE_KICK = auto()
-    CORNER_KICK = auto()
-    GOAL_KICK = auto()
-    PENALTY_KICK = auto()
+@dataclass
+class CornerKickEvent(SimulationEvent):
+    def calculate_event(
+        self,
+        attacking_team: TeamSimulation,
+        defending_team: TeamSimulation,
+    ) -> GameState:
+        print(f"Corner {self.state.position}")
+        return GameState(self.state.minutes, self.state.position)

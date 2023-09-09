@@ -13,8 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ofm.core.simulation.event import (EventOutcome, EventType, GameState,
-                                       PassEvent, PitchPosition)
+from ofm.core.simulation.event import EventOutcome, EventType, GameState, PitchPosition
+from ofm.core.simulation.events import PassEvent
 
 
 def get_pass_event() -> PassEvent:
