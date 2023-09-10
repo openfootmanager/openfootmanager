@@ -109,7 +109,7 @@ class DebugMatchController(ControllerInterface):
                     "unicode_escape"
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
-                player.current_stamina,
+                player.stamina,
                 player.current_skill,
             )
             for player in team.formation.players
@@ -122,7 +122,7 @@ class DebugMatchController(ControllerInterface):
                     "unicode_escape"
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
-                player.current_stamina,
+                player.stamina,
                 player.current_skill,
             )
             for player in team.formation.bench

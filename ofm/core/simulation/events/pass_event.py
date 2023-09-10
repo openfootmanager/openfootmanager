@@ -31,6 +31,9 @@ class PassEvent(SimulationEvent):
     receiving_player: Optional[PlayerSimulation] = None
 
     def get_end_position(self, attacking_team) -> PitchPosition:
+        if self.event_type == EventType.CORNER_KICK:
+            return self.state.position
+
         team_strategy = attacking_team.team_strategy
         transition_matrix = team_pass_strategy(team_strategy)
         probabilities = transition_matrix[self.state.position.value]
@@ -105,7 +108,11 @@ class PassEvent(SimulationEvent):
 
         self.outcome = self.get_pass_primary_outcome(distance)
 
-        if end_position in OFF_POSITIONS and self.outcome == EventOutcome.PASS_SUCCESS:
+        if (
+            end_position in OFF_POSITIONS
+            and self.outcome == EventOutcome.PASS_SUCCESS
+            and self.event_type != EventType.CORNER_KICK
+        ):
             self.outcome = self.get_secondary_outcome()
 
         if self.outcome in [

@@ -120,28 +120,54 @@ class TeamSimulation:
     def get_best_penalty_taker(self) -> PlayerSimulation:
         best_penalty_taker = None
         for player in self.formation.players:
-            if player.attributes.offensive.penalty:
-                if best_penalty_taker is None:
-                    best_penalty_taker = player
-                elif (
-                    player.attributes.offensive.penalty
-                    > best_penalty_taker.attributes.offensive.penalty
-                ):
-                    best_penalty_taker = player
+            if player.sent_off:
+                continue
+            if best_penalty_taker is None:
+                best_penalty_taker = player
+            elif (
+                player.attributes.offensive.penalty
+                > best_penalty_taker.attributes.offensive.penalty
+            ):
+                best_penalty_taker = player
 
         return best_penalty_taker
 
     def get_best_free_kick_taker(self) -> PlayerSimulation:
         best_free_kick_taker = None
         for player in self.formation.players:
-            if player.attributes.offensive.free_kick:
-                if best_free_kick_taker is None:
-                    best_free_kick_taker = player
-                elif (
-                    player.attributes.offensive.free_kick
-                    > best_free_kick_taker.attributes.offensive.free_kick
+            if player.sent_off:
+                continue
+            if best_free_kick_taker is None:
+                best_free_kick_taker = player
+            elif (
+                player.attributes.offensive.free_kick
+                > best_free_kick_taker.attributes.offensive.free_kick
+            ):
+                best_free_kick_taker = player
+
+        return best_free_kick_taker
+
+    def get_best_corner_kick_taker(self, is_pass: bool) -> PlayerSimulation:
+        best_corner_kick_taker = None
+        for player in self.formation.players:
+            if player.sent_off:
+                continue
+            if best_corner_kick_taker is None:
+                best_corner_kick_taker = player
+            elif is_pass:
+                if (
+                    player.attributes.intelligence.passing
+                    > best_corner_kick_taker.attributes.intelligence.passing
                 ):
-                    best_free_kick_taker = player
+                    best_corner_kick_taker = player
+            else:
+                if (
+                    player.attributes.intelligence.crossing
+                    > best_corner_kick_taker.attributes.intelligence.crossing
+                ):
+                    best_corner_kick_taker = player
+
+        return best_corner_kick_taker
 
     def update_player_stamina(self):
         pass
@@ -154,6 +180,8 @@ class TeamStats:
     shots_on_target: int = 0
     passes: int = 0
     passes_missed: int = 0
+    crosses: int = 0
+    crosses_missed: int = 0
     interceptions: int = 0
     assists: int = 0
     fouls: int = 0
@@ -183,5 +211,9 @@ class TeamStats:
         )
         self.passes = sum(player.statistics.passes for player in players)
         self.passes_missed = sum(player.statistics.passes_missed for player in players)
+        self.crosses = sum(player.statistics.crosses for player in players)
+        self.crosses_missed = sum(
+            player.statistics.crosses_missed for player in players
+        )
         self.interceptions = sum(player.statistics.interceptions for player in players)
         self.assists = sum(player.statistics.assists for player in players)

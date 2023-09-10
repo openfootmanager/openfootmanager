@@ -48,13 +48,13 @@ class ShotEvent(SimulationEvent):
 
         if self.defending_player != defending_team.formation.gk:
             basic_event_outcomes.append(EventOutcome.SHOT_BLOCKED)
-            event_probabilities = [
+            event_probabilities.append(
                 (
                     self.defending_player.attributes.defensive.positioning
                     + self.defending_player.attributes.defensive.interception
                 )
                 / 2
-            ]
+            )
 
         return random.choices(basic_event_outcomes, event_probabilities)[0]
 

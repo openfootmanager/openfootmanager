@@ -164,6 +164,8 @@ class PlayerStats:
     minutes_played: float = 0.0
     passes: int = 0
     passes_missed: int = 0
+    crosses: int = 0
+    crosses_missed: int = 0
     shots: int = 0
     shots_on_target: int = 0
     shots_missed: int = 0

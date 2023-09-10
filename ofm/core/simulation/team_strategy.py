@@ -41,7 +41,7 @@ def team_pass_strategy(strategy: TeamStrategy) -> list[list[int]]:
                 [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # MIDFIELD_CENTER
                 [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # MIDFIELD_RIGHT
                 [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_CENTER
-                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05] ,  # OFF_MIDFIELD_LEFT
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_LEFT
                 [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_RIGHT
                 [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15],  # OFF_LEFT
                 [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15],  # OFF_RIGHT
@@ -59,10 +59,26 @@ def team_pass_strategy(strategy: TeamStrategy) -> list[list[int]]:
 
 # fmt: on
 def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
+    # fmt: off
     match strategy:
         case TeamStrategy.NORMAL:
-            # TODO: implement transition matrix for NORMAL TeamStrategy
-            pass
+            return [
+                [0.1, 0.2, 0.1, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1],  # DEF_BOX
+                [0.2, 0.1, 0.3, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # DEF_LEFT
+                [0.2, 0.3, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # DEF_RIGHT
+                [0.15, 0.1, 0.1, 0.1, 0.2, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # DEF_MIDFIELD_CENTER
+                [0.15, 0.1, 0.1, 0.2, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # DEF_MIDFIELD_LEFT
+                [0.15, 0.1, 0.1, 0.2, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # DEF_MIDFIELD_RIGHT
+                [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # MIDFIELD_LEFT
+                [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # MIDFIELD_CENTER
+                [0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],  # MIDFIELD_RIGHT
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_CENTER
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_LEFT
+                [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05],  # OFF_MIDFIELD_RIGHT
+                [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15],  # OFF_LEFT
+                [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15],  # OFF_RIGHT
+                [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.15],  # OFF_BOX
+            ]
         case TeamStrategy.KEEP_POSSESSION:
             # TODO: implement transition matrix for KEEP_POSSESSION TeamStrategy
             pass
@@ -77,10 +93,30 @@ def team_cross_strategy(strategy: TeamStrategy) -> list[list[int]]:
             pass
 
 
+# fmt:on
 def team_goal_kick_strategy(
     strategy: TeamStrategy, state: GameState
 ) -> list[list[int]]:
     pass
+
+
+def team_corner_kick_strategy(strategy: TeamStrategy) -> list[float]:
+    """
+    Returns the probability to either pass the ball or to cross the ball in a corner kick
+
+    Returns: [PASS_PROB, CROSS_PROB]
+    """
+    match strategy:
+        case TeamStrategy.NORMAL:
+            return [0.5, 0.5]
+        case TeamStrategy.KEEP_POSSESSION:
+            return [0.8, 0.2]
+        case TeamStrategy.DEFEND:
+            return [0.4, 0.6]
+        case TeamStrategy.COUNTER_ATTACK:
+            return [0.3, 0.7]
+        case TeamStrategy.ALL_ATTACK:
+            return [0.1, 0.9]
 
 
 def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list[int]]:
@@ -113,6 +149,4 @@ def team_general_strategy(strategy: TeamStrategy, state: GameState) -> list[list
             ]
 
     return transition_matrix
-
-
 # fmt: on

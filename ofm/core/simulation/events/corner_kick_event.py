@@ -15,19 +15,61 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from .. import PitchPosition
 from ..event import SimulationEvent, EventOutcome
+from ..event_type import EventType
 from ..game_state import GameState
+from ..team_strategy import team_corner_kick_strategy
+
+from .pass_event import PassEvent
+from .cross_event import CrossEvent
+
+
+class CornerKickType(Enum):
+    PASS = auto()
+    CROSS = auto()
 
 
 @dataclass
 class CornerKickEvent(SimulationEvent):
+    corner_kick_type: Optional[CornerKickType] = None
+    sub_event: Optional[PassEvent | CrossEvent] = None
+
+    def get_corner_kick_type(self, attacking_team: TeamSimulation) -> CornerKickType:
+        team_strategy = attacking_team.team_strategy
+        probabilities = team_corner_kick_strategy(team_strategy)
+        corner_types = list(CornerKickType)
+        return random.choices(corner_types, probabilities)
+
     def calculate_event(
         self,
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
-        print(f"Corner {self.state.position}")
+        self.corner_kick_type = self.get_corner_kick_type(attacking_team)
+        is_pass = self.corner_kick_type == CornerKickType.PASS
+        self.attacking_player = attacking_team.get_best_corner_kick_taker(is_pass)
+
+        if self.corner_kick_type == CornerKickType.PASS:
+            self.sub_event = PassEvent(
+                EventType.CORNER_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+            )
+        else:
+            self.sub_event = CrossEvent(
+                EventType.CORNER_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+            )
+
+        self.state = self.sub_event.calculate_event(attacking_team, defending_team)
+        self.defending_player = self.sub_event.defending_player
+        self.outcome = self.sub_event.outcome
+
         return GameState(self.state.minutes, self.state.position)

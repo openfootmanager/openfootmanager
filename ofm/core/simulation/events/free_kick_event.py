@@ -30,6 +30,7 @@ from .cross_event import CrossEvent
 @dataclass
 class FreeKickEvent(SimulationEvent):
     free_kick_type: Optional[FreeKickType] = None
+    sub_event: Optional[PassEvent | ShotEvent | CrossEvent] = None
 
     def get_free_kick_type(self):
         free_kick_types = [
@@ -57,29 +58,29 @@ class FreeKickEvent(SimulationEvent):
         self.free_kick_type = self.get_free_kick_type()
 
         if self.free_kick_type == FreeKickType.PASS:
-            pass_event = PassEvent(
+            self.sub_event = PassEvent(
                 EventType.FREE_KICK,
                 self.state,
                 outcome=None,
                 attacking_player=self.attacking_player,
-                defending_player=self.defending_player,
             )
-            return pass_event.calculate_event(attacking_team, defending_team)
-        if self.free_kick_type == FreeKickType.DIRECT_SHOT:
-            shot_event = ShotEvent(
+        elif self.free_kick_type == FreeKickType.DIRECT_SHOT:
+            self.sub_event = ShotEvent(
                 EventType.FREE_KICK,
                 self.state,
                 outcome=None,
                 attacking_player=self.attacking_player,
-                defending_player=self.defending_player,
             )
-            return shot_event.calculate_event(attacking_team, defending_team)
-        if self.free_kick_type.CROSS:
-            cross_event = CrossEvent(
+        else:
+            self.sub_event = CrossEvent(
                 EventType.FREE_KICK,
                 self.state,
                 outcome=None,
                 attacking_player=self.attacking_player,
-                defending_player=self.defending_player,
             )
-            return cross_event.calculate_event(attacking_team, defending_team)
+
+        self.state = self.sub_event.calculate_event(attacking_team, defending_team)
+        self.defending_player = self.sub_event.defending_player
+        self.outcome = self.sub_event.outcome
+
+        return GameState(self.state.minutes, self.state.position)

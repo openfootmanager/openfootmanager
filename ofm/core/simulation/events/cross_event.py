@@ -21,6 +21,7 @@ from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS, PitchPosition
 from ..event import SimulationEvent, EventOutcome
+from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_cross_strategy
 
@@ -30,10 +31,62 @@ class CrossEvent(SimulationEvent):
     receiving_player: Optional[PlayerSimulation] = None
 
     def get_end_position(self, attacking_team) -> PitchPosition:
+        if self.event_type == EventType.CORNER_KICK:
+            return PitchPosition.OFF_BOX
+
         team_strategy = attacking_team.team_strategy
         transition_matrix = team_cross_strategy(team_strategy)
         probabilities = transition_matrix[self.state.position.value]
         return random.choices(list(PitchPosition), probabilities)[0]
+
+    def get_cross_primary_outcome(self, distance) -> EventOutcome:
+        outcomes = [
+            EventOutcome.CROSS_MISS,
+            EventOutcome.CROSS_SUCCESS,
+            EventOutcome.CROSS_INTERCEPT,
+        ]
+
+        if self.event_type == EventType.FREE_KICK:
+            cross_success = (
+                (
+                    self.attacking_player.attributes.intelligence.crossing
+                    + self.attacking_player.attributes.intelligence.vision
+                    + self.attacking_player.attributes.offensive.free_kick * 2
+                )
+                / 4
+            ) - distance
+        else:
+            cross_success = (
+                (
+                    self.attacking_player.attributes.intelligence.crossing
+                    + self.attacking_player.attributes.intelligence.vision
+                )
+                / 2
+            ) - distance
+
+        outcome_probability = [
+            100.0 - cross_success,  # CROSS_MISS
+            cross_success,  # CROSS_SUCCESS
+            (
+                self.defending_player.attributes.defensive.positioning
+                + self.defending_player.attributes.defensive.interception
+            )
+            / 2,  # CROSS_INTERCEPT
+        ]
+
+        return random.choices(outcomes, outcome_probability)[0]
+
+    def get_secondary_outcome(self) -> EventOutcome:
+        outcomes = [EventOutcome.CROSS_SUCCESS, EventOutcome.CROSS_OFFSIDE]
+        not_offside_probability = (
+            self.receiving_player.attributes.offensive.positioning
+            + self.receiving_player.attributes.intelligence.team_work
+        ) / 2
+        outcome_probability = [
+            not_offside_probability,
+            100 - not_offside_probability,
+        ]
+        return random.choices(outcomes, outcome_probability)[0]
 
     def calculate_event(
         self,
@@ -55,4 +108,31 @@ class CrossEvent(SimulationEvent):
 
         self.outcome = self.get_cross_primary_outcome(distance)
 
+        if (
+            end_position in OFF_POSITIONS
+            and self.outcome == EventOutcome.CROSS_SUCCESS
+            and self.event_type != EventType.CORNER_KICK
+        ):
+            self.outcome = self.get_secondary_outcome()
+
+        if self.outcome in [
+            EventOutcome.CROSS_MISS,
+            EventOutcome.CROSS_INTERCEPT,
+            EventOutcome.CROSS_OFFSIDE,
+        ]:
+            self.attacking_player.statistics.crosses_missed += 1
+            print(f"{self.attacking_player} failed to cross the ball!")
+            if self.outcome == EventOutcome.CROSS_INTERCEPT:
+                self.defending_player.statistics.interceptions += 1
+            self.state = self.change_possession(
+                attacking_team, defending_team, self.defending_player, end_position
+            )
+        else:
+            print(
+                f"{self.attacking_player} crossed the ball to {self.receiving_player}"
+            )
+            attacking_team.player_in_possession = self.receiving_player
+
+        attacking_team.update_stats()
+        defending_team.update_stats()
         return GameState(self.state.minutes, self.state.position)
