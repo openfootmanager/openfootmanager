@@ -48,6 +48,7 @@ class DebugMatchController(ControllerInterface):
         if self.live_game is not None:
             self.page.disable_button()
             self.live_game.run()
+            self.update_player_table()
 
     def start_match(self):
         if self.teams is None:
@@ -128,6 +129,25 @@ class DebugMatchController(ControllerInterface):
             for player in team.formation.bench
         ]
 
+    def get_team_stats(self, team: TeamSimulation):
+        if team.stats.passes > 0:
+            pass_accuracy = int(((team.stats.passes - team.stats.passes_missed) / team.stats.passes) * 100)
+        else:
+            pass_accuracy = 0
+
+        return [
+            team.stats.shots,
+            team.stats.shots_on_target,
+            team.stats.possession,
+            team.stats.passes,
+            pass_accuracy,
+            team.stats.fouls,
+            team.stats.yellow_cards,
+            team.stats.red_cards,
+            0,
+            team.stats.corners,
+        ]
+
     def update_player_table(self):
         if self.teams is None:
             return
@@ -144,6 +164,9 @@ class DebugMatchController(ControllerInterface):
             str(self.teams[0].score),
             str(self.teams[1].score),
         )
+        home_team_stats = self.get_team_stats(self.teams[0])
+        away_team_stats = self.get_team_stats(self.teams[1])
+        self.page.update_team_stats(home_team_stats, away_team_stats)
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")

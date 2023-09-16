@@ -57,7 +57,7 @@ def test_shot_blocked_change_event(simulation_teams, monkeypatch):
         return EventOutcome.SHOT_BLOCKED
 
     def get_shot_blocked(self) -> EventOutcome:
-        return EventOutcome.SHOT_BLOCKED_CHANGE
+        return EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION
 
     monkeypatch.setattr(ShotEvent, "get_shot_on_goal", get_shot_on_goal)
     monkeypatch.setattr(ShotEvent, "get_shot_blocked", get_shot_blocked)
@@ -68,7 +68,7 @@ def test_shot_blocked_change_event(simulation_teams, monkeypatch):
     away_team.in_possession = False
     away_team.player_in_possession = None
     state = event.calculate_event(home_team, away_team)
-    assert event.outcome == EventOutcome.SHOT_BLOCKED_CHANGE
+    assert event.outcome == EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION
     assert event.attacking_player.statistics.shots == 1
     assert event.attacking_player.statistics.shots_missed == 1
     assert event.defending_player.statistics.shots_blocked == 1
@@ -152,7 +152,7 @@ def test_shot_hit_post_change_event(simulation_teams, monkeypatch):
         return EventOutcome.SHOT_HIT_POST
 
     def get_shot_hit_post(self) -> EventOutcome:
-        return EventOutcome.SHOT_HIT_POST_CHANGE
+        return EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION
 
     monkeypatch.setattr(ShotEvent, "get_shot_on_goal", get_shot_on_goal)
     monkeypatch.setattr(
@@ -166,7 +166,7 @@ def test_shot_hit_post_change_event(simulation_teams, monkeypatch):
     away_team.in_possession = False
     away_team.player_in_possession = None
     state = event.calculate_event(home_team, away_team)
-    assert event.outcome == EventOutcome.SHOT_HIT_POST_CHANGE
+    assert event.outcome == EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION
     assert event.attacking_player.statistics.shots == 1
     assert event.attacking_player.statistics.shots_on_target == 1
     assert away_team.formation.gk == event.defending_player

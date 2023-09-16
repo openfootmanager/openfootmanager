@@ -13,76 +13,40 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import random
 from dataclasses import dataclass
+from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from .. import PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent
+from ..event_type import EventType
 from ..game_state import GameState
+from .shot_event import ShotEvent
 
 
 @dataclass
 class PenaltyKickEvent(SimulationEvent):
+    sub_event: Optional[ShotEvent] = None
+
     def calculate_event(
         self,
         attacking_team: TeamSimulation,
         defending_team: TeamSimulation,
     ) -> GameState:
+        print("Penalty Kick!")
         self.defending_player = defending_team.formation.gk
         self.attacking_player = attacking_team.get_best_penalty_taker()
 
-        outcomes = [EventOutcome.SHOT_ON_GOAL, EventOutcome.SHOT_MISS]
-
-        shot_success = (
-            self.attacking_player.attributes.offensive.penalty * 2
-            + self.attacking_player.attributes.offensive.shot_accuracy
-        ) / 3
-
-        outcome_probability = [
-            shot_success,
-            110 - shot_success,
-        ]
-
-        self.attacking_player.statistics.shots += 1
-
-        outcome = random.choices(outcomes, outcome_probability)[0]
-
-        if outcome == EventOutcome.SHOT_ON_GOAL:
-            self.attacking_player.statistics.shots_on_target += 1
-            outcomes = [EventOutcome.SHOT_SAVED, EventOutcome.GOAL]
-            gk_skills = (
-                self.defending_player.attributes.gk.penalty * 2
-                + self.defending_player.attributes.gk.jumping
-            ) / 3
-            outcome_probability = [
-                gk_skills,
-                125 - gk_skills,
-            ]
-            self.outcome = random.choices(outcomes, outcome_probability)[0]
-
-        if self.outcome == EventOutcome.SHOT_SAVED:
-            outcomes = [
-                EventOutcome.SHOT_LEFT_CORNER_KICK,
-                EventOutcome.SHOT_RIGHT_CORNER_KICK,
-                EventOutcome.SHOT_SAVED_SECURED,
-            ]
-            self.defending_player.statistics.shots_saved += 1
-            self.outcome = random.choice(outcomes)
-        if self.outcome == EventOutcome.SHOT_MISS:
-            outcomes = [EventOutcome.SHOT_HIT_POST, EventOutcome.SHOT_GOAL_KICK]
-            self.attacking_player.statistics.shots_missed += 1
-            self.outcome = random.choice(outcomes)
-        elif self.outcome == EventOutcome.SHOT_SAVED_SECURED:
-            self.change_possession(
-                attacking_team,
-                defending_team,
-                self.defending_player,
-                self.state.position,
-            )
-        elif self.outcome == EventOutcome.SHOT_RIGHT_CORNER_KICK:
-            self.state.position = PitchPosition.OFF_RIGHT
-        elif self.outcome == EventOutcome.SHOT_LEFT_CORNER_KICK:
-            self.state.position = PitchPosition.OFF_LEFT
+        print(f"{self.attacking_player} goes to the ball")
+        self.sub_event = ShotEvent(
+            EventType.PENALTY_KICK,
+            self.state,
+            outcome=None,
+            attacking_player=self.attacking_player,
+            defending_player=self.defending_player,
+        )
+        self.state = self.sub_event.calculate_event(attacking_team, defending_team)
+        self.attacking_player = self.sub_event.attacking_player
+        self.defending_player = self.sub_event.defending_player
+        self.outcome = self.sub_event.outcome
 
         return GameState(self.state.minutes, self.state.position)

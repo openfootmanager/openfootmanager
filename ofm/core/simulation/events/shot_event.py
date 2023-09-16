@@ -60,7 +60,7 @@ class ShotEvent(SimulationEvent):
 
     def get_shot_blocked(self):
         outcomes = [
-            EventOutcome.SHOT_BLOCKED_CHANGE,
+            EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION,
             EventOutcome.SHOT_BLOCKED_BACK,
         ]
         outcome = random.choice(outcomes)
@@ -74,18 +74,26 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_SAVED,
             EventOutcome.GOAL,
         ]
-        gk_skills = self.defending_player.attributes.gk.get_general_overall()
+        if self.event_type == EventType.PENALTY_KICK:
+            gk_skills = (
+                self.defending_player.attributes.gk.penalty * 2
+                + self.defending_player.attributes.gk.jumping
+                + self.defending_player.attributes.gk.positioning
+            ) / 4
+        else:
+            gk_skills = self.defending_player.attributes.gk.get_general_overall()
+
         probabilities = [
-            100 - shot_on_goal,
+            110 - shot_on_goal,
             gk_skills,
-            110 - gk_skills,  # Even very good goalies can let balls pass sometimes
+            125 - gk_skills,  # Even very good goalies can let balls pass sometimes
         ]
         return random.choices(outcomes, probabilities)
 
     def get_shot_hit_post(self) -> EventOutcome:
         final_outcomes = [
             EventOutcome.SHOT_HIT_POST,
-            EventOutcome.SHOT_HIT_POST_CHANGE,
+            EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
             EventOutcome.SHOT_GOAL_KICK,
         ]
         print(f"The ball hit the post!")
@@ -111,6 +119,12 @@ class ShotEvent(SimulationEvent):
                 + self.attacking_player.attributes.offensive.shot_power
                 + self.attacking_player.attributes.offensive.free_kick * 2
             ) / 4
+        elif self.event_type == EventType.PENALTY_KICK:
+            shot_on_goal = (
+                self.attacking_player.attributes.offensive.penalty * 2
+                + self.attacking_player.attributes.offensive.shot_power
+                + self.attacking_player.attributes.offensive.shot_accuracy
+            ) / 4
         else:
             shot_on_goal = (
                 self.attacking_player.attributes.offensive.shot_accuracy
@@ -135,12 +149,15 @@ class ShotEvent(SimulationEvent):
             self.outcome = self.get_shot_on_goal_outcomes(shot_on_goal)
 
         if self.outcome == EventOutcome.SHOT_HIT_POST:
+            print(f"{self.attacking_player} hits the post!")
             self.outcome = self.get_shot_hit_post()
         elif self.outcome == EventOutcome.SHOT_SAVED:
+            print(f"{self.defending_player} saves the shot!")
             self.defending_player.statistics.shots_saved += 1
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = self.get_shot_saved_outcomes()
         elif self.outcome == EventOutcome.GOAL:
+            print(f"GOOOOOOAL! {self.attacking_player} scores!")
             self.attacking_player.statistics.goals += 1
             self.defending_player.statistics.goals_conceded += 1
             self.state.position = PitchPosition.MIDFIELD_CENTER
@@ -152,7 +169,7 @@ class ShotEvent(SimulationEvent):
                 defending_player,
                 self.state.position,
             )
-        elif self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE:
+        elif self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,
@@ -167,7 +184,7 @@ class ShotEvent(SimulationEvent):
                 defending_team.formation.gk,
                 self.state.position,
             )
-        if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE:
+        if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,

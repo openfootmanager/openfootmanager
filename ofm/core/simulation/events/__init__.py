@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
 from typing import Optional
 from .cross_event import CrossEvent
 from .dribble_event import DribbleEvent
@@ -24,8 +25,7 @@ from .goal_kick_event import GoalKickEvent
 from .penalty_kick_event import PenaltyKickEvent
 from .shot_event import ShotEvent
 from ..event import EventOutcome, SimulationEvent
-from ..event_type import EventType, FoulType, FreeKickType
-from ...football.player import PlayerSimulation, PlayerInjury
+from ..event_type import EventType, FoulType
 from copy import deepcopy
 from ...football.team_simulation import Goal, TeamSimulation
 from .. import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
@@ -34,43 +34,48 @@ from ..team_strategy import team_general_strategy
 
 
 class EventFactory:
-    def get_possible_events(
+    def get_event_type(
         self,
         teams: tuple[TeamSimulation, TeamSimulation],
         state: GameState,
         last_event: Optional[SimulationEvent],
-    ) -> list[list[EventType] | list[float]]:
+    ) -> EventType:
         if last_event is None:
-            return [[EventType.PASS], [1.0]]
+            return EventType.PASS
+
+        if state.minutes in [45.1, 90.1, 105.1]:
+            return EventType.PASS
 
         if last_event.outcome == EventOutcome.GOAL:
-            return [[EventType.PASS], [1.0]]
+            return EventType.PASS
         elif last_event.outcome == EventOutcome.SHOT_GOAL_KICK:
-            return [[EventType.GOAL_KICK], [1.0]]
+            return EventType.GOAL_KICK
         elif last_event.outcome in [
             EventOutcome.SHOT_LEFT_CORNER_KICK,
             EventOutcome.SHOT_RIGHT_CORNER_KICK,
         ]:
-            return [[EventType.CORNER_KICK], [1.0]]
+            return EventType.CORNER_KICK
         elif isinstance(last_event, FoulEvent):
             if (
                 last_event.foul_type == FoulType.DEFENSIVE_FOUL
                 and state.position == PitchPosition.OFF_BOX
             ):
-                return [[EventType.PENALTY_KICK], [1.0]]
+                return EventType.PENALTY_KICK
             else:
-                return [[EventType.FREE_KICK], [1.0]]
+                return EventType.FREE_KICK
 
-        attacking_team = teams[0]
-        transition_matrix = team_general_strategy(attacking_team.team_strategy, state)
+        attacking_team, defensive_team = teams
+        transition_matrix = team_general_strategy(
+            attacking_team.team_strategy, defensive_team.team_strategy, state
+        )
 
-        return [
-            [
-                EventType(i)
-                for i, _ in enumerate(transition_matrix[last_event.event_type.value])
-            ],
-            list(transition_matrix[last_event.event_type.value]),
+        events = [
+            EventType.PASS,
+            EventType.CROSS,
+            EventType.FOUL,
+            EventType.SHOT,
         ]
+        return random.choices(events, transition_matrix)[0]
 
     def get_event(self, _state: GameState, event_type: EventType) -> SimulationEvent:
         state = deepcopy(_state)

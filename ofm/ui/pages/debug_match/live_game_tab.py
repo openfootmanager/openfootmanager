@@ -14,8 +14,48 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from ttkbootstrap.tableview import Tableview
 
 
 class LiveGameTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.columns = [
+            {"text": "Minutes", "stretch": True},
+            {"text": "Commentary", "stretch": True},
+        ]
+
+        self.default_rows = [
+            ("0.00", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"),
+        ]
+
+        self.output = Tableview(
+            self,
+            coldata=self.columns,
+            rowdata=self.default_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=1000,
+            height=15,
+        )
+        self.output.grid(row=0, column=0, sticky=EW)
+
+    def update_table(self, data):
+        self.output.insert_row(data)
+
+    def reset_table(self, data):
+        self.output.destroy()
+        self.output = Tableview(
+            self,
+            coldata=self.columns,
+            rowdata=self.default_rows,
+            searchable=False,
+            autofit=True,
+            paginated=False,
+            pagesize=1000,
+            height=11,
+        )
+        self.output.grid(row=0, column=0, sticky=EW)

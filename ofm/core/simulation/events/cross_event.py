@@ -33,10 +33,20 @@ class CrossEvent(SimulationEvent):
     def get_end_position(self, attacking_team) -> PitchPosition:
         if self.event_type == EventType.CORNER_KICK:
             return PitchPosition.OFF_BOX
+        if self.event_type == EventType.GOAL_KICK:
+            positions = [
+                PitchPosition.MIDFIELD_CENTER,
+                PitchPosition.MIDFIELD_RIGHT,
+                PitchPosition.MIDFIELD_LEFT,
+                PitchPosition.OFF_MIDFIELD_LEFT,
+                PitchPosition.OFF_MIDFIELD_RIGHT,
+                PitchPosition.OFF_MIDFIELD_CENTER,
+            ]
+            return random.choice(positions)
 
         team_strategy = attacking_team.team_strategy
         transition_matrix = team_cross_strategy(team_strategy)
-        probabilities = transition_matrix[self.state.position.value]
+        probabilities = transition_matrix[self.state.position]
         return random.choices(list(PitchPosition), probabilities)[0]
 
     def get_cross_primary_outcome(self, distance) -> EventOutcome:

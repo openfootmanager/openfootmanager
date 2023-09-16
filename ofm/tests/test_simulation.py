@@ -20,7 +20,7 @@ import pytest
 from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
-from ofm.core.simulation.events import EventFactory
+from ofm.core.simulation.events import EventFactory, PassEvent
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.game_state import GameState
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
@@ -160,9 +160,39 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
 
 def test_game_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    event = event_factory.get_possible_events(
-        [live_game.engine.home_team, live_game.engine.away_team],
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
         GameState(0.0, PitchPosition.MIDFIELD_CENTER),
         None,
     )
-    assert event[0][0] == EventType.PASS
+    assert event == EventType.PASS
+
+
+def test_half_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(45.1, PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(45.1, PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS
+
+
+def test_extra_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(90.1, PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(90.1, PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS
+
+
+def test_extra_half_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(105.1, PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(105.1, PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS

@@ -16,17 +16,31 @@
 import random
 from dataclasses import dataclass
 from typing import Optional
+from enum import Enum, auto
 
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
-from .. import PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent
+from ..event_type import EventType
 from ..game_state import GameState
+from .pass_event import PassEvent
+from .cross_event import CrossEvent
+
+
+class GoalKickType(Enum):
+    PASS = auto()
+    CROSS = auto()
 
 
 @dataclass
 class GoalKickEvent(SimulationEvent):
+    goal_kick_type: Optional[GoalKickType] = None
     receiving_player: Optional[PlayerSimulation] = None
+    sub_event: Optional[PassEvent | CrossEvent] = None
+
+    def get_goal_kick_type(self):
+        goal_kick_types = list(GoalKickType)
+        return random.choice(goal_kick_types)
 
     def calculate_event(
         self,
@@ -36,4 +50,26 @@ class GoalKickEvent(SimulationEvent):
         self.attacking_player = attacking_team.formation.gk
 
         print(f"Goal Kick {self.state.position.name}")
+
+        self.goal_kick_type = self.get_goal_kick_type()
+
+        if self.goal_kick_type == GoalKickType.PASS:
+            self.sub_event = PassEvent(
+                EventType.GOAL_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+            )
+        else:
+            self.sub_event = CrossEvent(
+                EventType.GOAL_KICK,
+                self.state,
+                outcome=None,
+                attacking_player=self.attacking_player,
+            )
+
+        self.state = self.sub_event.calculate_event(attacking_team, defending_team)
+        self.outcome = self.sub_event.outcome
+        self.defending_player = self.sub_event.defending_player
+
         return GameState(self.state.minutes, self.state.position)

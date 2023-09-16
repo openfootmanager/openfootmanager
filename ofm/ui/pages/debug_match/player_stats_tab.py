@@ -90,3 +90,14 @@ class PlayerStatsTab(ttk.Frame):
             self, text=f"{away_team_score}\t{away_team}", font="Arial 13 bold"
         )
         self.away_team_stats_name.grid(row=0, pady=5, column=2, sticky=W)
+
+    def update_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
+        for row, stat in enumerate(self.home_team_stats):
+            stat.destroy()
+            stat = ttk.Label(self, text=home_team_stats[row])
+            stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
+
+        for row, stat in enumerate(self.away_team_stats):
+            stat.destroy()
+            stat = ttk.Label(self, text=away_team_stats[row])
+            stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)

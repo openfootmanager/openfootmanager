@@ -42,14 +42,14 @@ class EventOutcome(Enum):
     SHOT_MISS = auto()
     SHOT_ON_GOAL = auto()
     SHOT_BLOCKED = auto()
-    SHOT_BLOCKED_CHANGE = auto()  # Only if SHOT_BLOCKED happened first
+    SHOT_BLOCKED_CHANGE_POSSESSION = auto()  # Only if SHOT_BLOCKED happened first
     SHOT_BLOCKED_BACK = auto()  # Only if SHOT_BLOCKED happened first
     SHOT_SAVED = auto()  # Only if SHOT_ON_GOAL happened first
     SHOT_SAVED_SECURED = (
         auto()
     )  # Only if SHOT_SAVED happend first. Keeps the ball after saving.
     SHOT_HIT_POST = auto()  # Only if SHOT_ON_GOAL happened first
-    SHOT_HIT_POST_CHANGE = (
+    SHOT_HIT_POST_CHANGE_POSSESSION = (
         auto()
     )  # Only if SHOT_HIT_POST happened first. Changes possession after the event.
     SHOT_LEFT_CORNER_KICK = auto()  # Only if SHOT_MISS or SHOT_SAVED happened first
@@ -87,5 +87,4 @@ class SimulationEvent:
         defending_team.in_possession = True
         defending_team.player_in_possession = defending_player
         position = PITCH_EQUIVALENTS[position]
-        print(f"Ball is now with team {defending_team}")
         return GameState(self.state.minutes, position)

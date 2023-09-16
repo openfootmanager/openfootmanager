@@ -18,6 +18,7 @@ from ttkbootstrap.constants import *
 from ttkbootstrap.themes.user import USER_THEMES
 
 from .pages import *
+from ..defaults import FONTS
 
 USER_THEMES["football"] = {
     "type": "light",
@@ -41,10 +42,32 @@ USER_THEMES["football"] = {
     },
 }
 
+USER_THEMES["darkfootball"] = {
+    "type": "dark",
+    "colors": {
+        "primary": "#00bc8c",
+        "secondary": "#0c4444",
+        "success": "#00bcd1",
+        "info": "#3498db",
+        "warning": "#f39c12",
+        "danger": "#e74c3c",
+        "light": "#ADB5BD",
+        "dark": "#303030",
+        "bg": "#222222",
+        "fg": "#ffffff",
+        "selectbg": "#555555",
+        "selectfg": "#ffffff",
+        "border": "#222222",
+        "inputfg": "#ffffff",
+        "inputbg": "#2f2f2f",
+        "active": "#1F1F1F"
+    },
+}
+
 
 class GUI:
     def __init__(self):
-        self.window = ttk.Window(title="OpenFoot Manager", themename="football")
+        self.window = ttk.Window(title="OpenFoot Manager", themename="darkfootball")
 
         width = 1200
         height = 900

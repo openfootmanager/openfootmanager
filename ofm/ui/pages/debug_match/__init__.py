@@ -24,7 +24,6 @@ from .player_stats_tab import PlayerStatsTab
 class DebugMatchPage(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.notebook = ttk.Notebook(self)
 
         self.player_details_tab = PlayerDetailsTab(self.notebook)
@@ -86,3 +85,6 @@ class DebugMatchPage(ttk.Frame):
         self.player_details_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
         self.player_reserves_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
         self.player_stats_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
+
+    def update_team_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
+        self.player_stats_tab.update_stats(home_team_stats, away_team_stats)

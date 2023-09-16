@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from decimal import Decimal
 from dataclasses import dataclass
 
 from . import PitchPosition
@@ -20,5 +21,5 @@ from . import PitchPosition
 
 @dataclass
 class GameState:
-    minutes: float
+    minutes: Decimal
     position: PitchPosition

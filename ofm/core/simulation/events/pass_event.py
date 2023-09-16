@@ -36,7 +36,7 @@ class PassEvent(SimulationEvent):
 
         team_strategy = attacking_team.team_strategy
         transition_matrix = team_pass_strategy(team_strategy)
-        probabilities = transition_matrix[self.state.position.value]
+        probabilities = transition_matrix[self.state.position]
         return random.choices(list(PitchPosition), probabilities)[0]
 
     def get_pass_primary_outcome(self, distance) -> EventOutcome:
