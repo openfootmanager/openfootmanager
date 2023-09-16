@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
+from decimal import Decimal
 from dataclasses import dataclass
 from typing import Optional, Tuple
 from uuid import UUID
@@ -32,7 +33,7 @@ class SubbingError(Exception):
 @dataclass
 class Goal:
     player: PlayerSimulation
-    minutes: float
+    minutes: Decimal
 
 
 class TeamSimulation:
