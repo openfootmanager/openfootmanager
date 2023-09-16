@@ -94,8 +94,12 @@ class FoulEvent(SimulationEvent):
             EventOutcome.FOUL_WARNING,
             EventOutcome.FOUL_YELLOW_CARD,
         ]
+        probability = [
+            95,
+            5
+        ]
 
-        return random.choice(outcomes)
+        return random.choices(outcomes, probability)[0]
 
     def calculate_event(
         self,

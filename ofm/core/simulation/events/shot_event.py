@@ -86,9 +86,9 @@ class ShotEvent(SimulationEvent):
         probabilities = [
             110 - shot_on_goal,
             gk_skills,
-            125 - gk_skills,  # Even very good goalies can let balls pass sometimes
+            120 - gk_skills,  # Even very good goalies can let balls pass sometimes
         ]
-        return random.choices(outcomes, probabilities)
+        return random.choices(outcomes, probabilities)[0]
 
     def get_shot_hit_post(self) -> EventOutcome:
         final_outcomes = [
