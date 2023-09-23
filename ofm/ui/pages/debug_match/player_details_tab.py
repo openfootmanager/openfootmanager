@@ -16,6 +16,7 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.tableview import Tableview
+from .team_names_component import TeamNamesComponent
 
 
 class PlayerDetailsTab(ttk.Frame):
@@ -56,27 +57,7 @@ class PlayerDetailsTab(ttk.Frame):
             ("Pablo", "GK", "100", "87"),
         ]
 
-        self.scores_details = ttk.Frame(self)
-
-        self.home_team_name = ttk.Label(
-            self.scores_details, text="Brazil", font="Arial 15 bold"
-        )
-        self.home_team_name.grid(row=0, column=0, padx=10, pady=10, sticky=W)
-
-        self.home_team_score = ttk.Label(
-            self.scores_details, text="0", font="Arial 15 bold"
-        )
-        self.home_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
-
-        self.away_team_score = ttk.Label(
-            self.scores_details, text="0", font="Arial 15 bold"
-        )
-        self.away_team_score.grid(row=0, column=2, padx=10, pady=10, sticky=EW)
-
-        self.away_team_name = ttk.Label(
-            self.scores_details, text="Argentina", font="Arial 15 bold"
-        )
-        self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
+        self.scores_details = TeamNamesComponent(self)
 
         self.home_team_table = Tableview(
             self,
@@ -141,27 +122,4 @@ class PlayerDetailsTab(ttk.Frame):
     def update_team_names(
         self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
     ):
-        self.home_team_name.destroy()
-        self.away_team_name.destroy()
-        self.home_team_score.destroy()
-        self.away_team_score.destroy()
-
-        self.home_team_name = ttk.Label(
-            self.scores_details, text=f"{home_team}", font="Arial 15 bold"
-        )
-        self.home_team_name.grid(row=0, column=0, padx=10, pady=10, sticky=W)
-
-        self.home_team_score = ttk.Label(
-            self.scores_details, text=f"{home_team_score}", font="Arial 15 bold"
-        )
-        self.home_team_score.grid(row=0, column=1, padx=15, pady=10, sticky=NS)
-
-        self.away_team_score = ttk.Label(
-            self.scores_details, text=f"{away_team_score}", font="Arial 15 bold"
-        )
-        self.away_team_score.grid(row=0, column=2, padx=15, pady=10, sticky=NS)
-
-        self.away_team_name = ttk.Label(
-            self.scores_details, text=f"{away_team}", font="Arial 15 bold"
-        )
-        self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
+        self.scores_details.update_team_names(home_team, home_team_score, away_team, away_team_score)

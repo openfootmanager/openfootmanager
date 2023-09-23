@@ -84,7 +84,7 @@ class DebugMatchController(ControllerInterface):
         Core module later to avoid having the low-level implementation on the Controller side.
         """
         # Creates files if they don't exist
-        self.db.check_clubs_file()
+        self.db.check_clubs_file(amount=50)
 
         clubs = self.db.load_clubs()
         players = self.db.load_players()

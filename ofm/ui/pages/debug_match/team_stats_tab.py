@@ -15,20 +15,15 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
+from .team_names_component import TeamNamesComponent
 
 
-class PlayerStatsTab(ttk.Frame):
+class TeamStatsTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.home_team_stats_name = ttk.Label(self, text="Brazil", font="Arial 15 bold")
-        self.home_team_stats_name.grid(row=0, column=0)
-        self.away_team_stats_name = ttk.Label(
-            self, text="Argentina", font="Arial 15 bold"
-        )
-        self.away_team_stats_name.grid(row=0, column=2)
-
-        self.home_team_stats_name.grid(row=0, column=0)
+        self.team_names = TeamNamesComponent(self)
+        self.team_names.grid(row=0, column=0, columnspan=2)
         self.home_team_stats = [
             ttk.Label(self, text="0"),
             ttk.Label(self, text="0"),
@@ -79,17 +74,7 @@ class PlayerStatsTab(ttk.Frame):
     def update_team_names(
         self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
     ):
-        self.home_team_stats_name.destroy()
-        self.away_team_stats_name.destroy()
-        self.home_team_stats_name = ttk.Label(
-            self, text=f"{home_team}\t{home_team_score}", font="Arial 13 bold"
-        )
-        self.home_team_stats_name.grid(row=0, pady=5, column=0, sticky=E)
-
-        self.away_team_stats_name = ttk.Label(
-            self, text=f"{away_team_score}\t{away_team}", font="Arial 13 bold"
-        )
-        self.away_team_stats_name.grid(row=0, pady=5, column=2, sticky=W)
+        self.team_names.update_team_names(home_team, home_team_score, away_team, away_team_score)
 
     def update_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         for row, stat in enumerate(self.home_team_stats):

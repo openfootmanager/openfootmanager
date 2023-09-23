@@ -18,7 +18,8 @@ from ttkbootstrap.constants import *
 
 from .live_game_tab import LiveGameTab
 from .player_details_tab import PlayerDetailsTab
-from .player_stats_tab import PlayerStatsTab
+from .team_stats_tab import TeamStatsTab
+from .game_events_tab import GameEventsTab
 
 
 class DebugMatchPage(ttk.Frame):
@@ -28,8 +29,9 @@ class DebugMatchPage(ttk.Frame):
 
         self.player_details_tab = PlayerDetailsTab(self.notebook)
         self.player_reserves_tab = PlayerDetailsTab(self.notebook)
-        self.player_stats_tab = PlayerStatsTab(self.notebook)
+        self.team_stats_tab = TeamStatsTab(self.notebook)
         self.live_game_tab = LiveGameTab(self.notebook)
+        self.game_events_tab = GameEventsTab(self.notebook)
 
         self.title_label = ttk.Label(self, text="Debug Match", font="Arial 24 bold")
         self.title_label.grid(
@@ -53,13 +55,14 @@ class DebugMatchPage(ttk.Frame):
 
         self.player_details_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
         self.player_reserves_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
-        self.player_stats_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.team_stats_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
         self.live_game_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
 
         self.notebook.add(self.live_game_tab, text="Live Game", sticky=NS)
+        self.notebook.add(self.game_events_tab, text="Events", sticky=NS)
         self.notebook.add(self.player_details_tab, text="Players", sticky=NS)
         self.notebook.add(self.player_reserves_tab, text="Reserves", sticky=NS)
-        self.notebook.add(self.player_stats_tab, text="Stats", sticky=NS)
+        self.notebook.add(self.team_stats_tab, text="Stats", sticky=NS)
 
         self.notebook.grid(row=1, column=0, sticky=NSEW)
 
@@ -84,7 +87,9 @@ class DebugMatchPage(ttk.Frame):
     ):
         self.player_details_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
         self.player_reserves_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
-        self.player_stats_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
+        self.team_stats_tab.update_team_names(home_team, away_team, home_team_score, away_team_score)
+        self.live_game_tab.update_team_names(home_team, home_team_score, away_team, away_team_score)
+        self.game_events_tab.update_team_names(home_team, home_team_score, away_team, away_team_score)
 
     def update_team_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
-        self.player_stats_tab.update_stats(home_team_stats, away_team_stats)
+        self.team_stats_tab.update_stats(home_team_stats, away_team_stats)
