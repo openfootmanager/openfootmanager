@@ -78,6 +78,8 @@ class GUI:
         self.window.rowconfigure(0, weight=1)
         self.window.columnconfigure(0, weight=1)
 
+        self.style = ttk.Style()
+
         self.pages = {
             "home": self._add_frame(HomePage),
             "debug_home": self._add_frame(DebugHomePage),

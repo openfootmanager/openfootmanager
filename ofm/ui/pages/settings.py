@@ -24,5 +24,14 @@ class SettingsPage(ttk.Frame):
         self.title_label = ttk.Label(self, text="Settings", font="Arial 24 bold")
         self.title_label.grid(row=0, column=0, padx=100, pady=45, sticky=NS)
 
+        self.style = ttk.Style()
+        self.theme_names = ttk.Style().theme_names()
+
+        self.theme_label = ttk.Label(self, text="Theme: ")
+        self.theme_combo_box = ttk.Combobox(self, values=self.theme_names)
+        self.theme_combo_box.current(self.theme_names.index(self.style.theme.name))
         self.cancel_btn = ttk.Button(self, text="Cancel")
+
+        self.theme_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+        self.theme_combo_box.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
         self.cancel_btn.grid(row=8, column=0, padx=10, pady=10, sticky=EW)

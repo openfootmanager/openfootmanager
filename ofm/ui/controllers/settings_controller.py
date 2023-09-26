@@ -29,8 +29,14 @@ class SettingsController(ControllerInterface):
     def switch(self, page):
         self.controller.switch(page)
 
+    def select_theme(self, e):
+        theme = self.page.theme_combo_box.get()
+        self.controller.gui.style.theme_use(theme)
+        self.page.theme_combo_box.selection_clear()
+
     def go_to_debug_home_page(self):
         self.switch("home")
 
     def _bind(self):
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)
+        self.page.theme_combo_box.bind("<<ComboboxSelected>>", self.select_theme)
