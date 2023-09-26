@@ -71,9 +71,12 @@ class DribbleEvent(SimulationEvent):
         self.outcome = random.choices(outcomes, outcome_probability)[0]
 
         if self.outcome == EventOutcome.DRIBBLE_FAIL:
+            self.commentary.append(f"{self.defending_player} steals the ball!")
             attacking_team.in_possession = False
             attacking_team.player_in_possession = None
             defending_team.player_in_possession = self.defending_player
             defending_team.in_possession = True
             end_position = PITCH_EQUIVALENTS[end_position]
+        else:
+            self.commentary.append(f"{self.attacking_player} dribbles the defender!")
         return GameState(self.state.minutes, end_position)

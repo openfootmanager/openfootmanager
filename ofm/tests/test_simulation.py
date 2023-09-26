@@ -16,6 +16,7 @@
 import uuid
 
 import pytest
+from decimal import Decimal
 
 from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
@@ -135,7 +136,7 @@ def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, 45.0))
+    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(45.0)))
     live_game.run()  # second half
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
@@ -151,7 +152,7 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
     live_game.reset_after_half_time()
     live_game.run()  # first et half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, 90.0))
+    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(90.0)))
     live_game.run()
     assert live_game.minutes == 120.0
     assert live_game.is_game_over is True
@@ -162,7 +163,7 @@ def test_game_starts_with_pass_event(live_game):
     event_factory = EventFactory()
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(0.0, PitchPosition.MIDFIELD_CENTER),
+        GameState(Decimal(0.0), PitchPosition.MIDFIELD_CENTER),
         None,
     )
     assert event == EventType.PASS
@@ -172,8 +173,8 @@ def test_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(45.1, PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(45.1, PitchPosition.MIDFIELD_CENTER)),
+        GameState(Decimal(45.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
     )
     assert event == EventType.PASS
 
@@ -182,8 +183,8 @@ def test_extra_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(90.1, PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(90.1, PitchPosition.MIDFIELD_CENTER)),
+        GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
     )
     assert event == EventType.PASS
 
@@ -192,7 +193,7 @@ def test_extra_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(105.1, PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(105.1, PitchPosition.MIDFIELD_CENTER)),
+        GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER)),
     )
     assert event == EventType.PASS

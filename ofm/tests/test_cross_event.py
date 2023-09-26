@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from decimal import Decimal
 from ofm.core.simulation.event import (
     EventOutcome,
     EventType,
@@ -25,7 +26,7 @@ from ofm.core.simulation.events import CrossEvent
 
 def get_cross_event() -> CrossEvent:
     return CrossEvent(
-        EventType.CROSS, GameState(0.0, PitchPosition.OFF_MIDFIELD_CENTER)
+        EventType.CROSS, GameState(Decimal(0.0), PitchPosition.OFF_MIDFIELD_CENTER)
     )
 
 

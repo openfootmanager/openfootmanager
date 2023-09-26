@@ -13,13 +13,14 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from decimal import Decimal
 from ofm.core.simulation.event import EventOutcome, EventType, GameState, PitchPosition
 from ofm.core.simulation.events import PassEvent, CrossEvent, ShotEvent
 from ofm.core.simulation.events.free_kick_event import FreeKickType, FreeKickEvent
 
 
 def get_free_kick_event() -> FreeKickEvent:
-    return FreeKickEvent(EventType.FREE_KICK, GameState(0.0, PitchPosition.OFF_LEFT))
+    return FreeKickEvent(EventType.FREE_KICK, GameState(Decimal(0.0), PitchPosition.OFF_LEFT))
 
 
 def test_normal_free_kick_event(simulation_teams):

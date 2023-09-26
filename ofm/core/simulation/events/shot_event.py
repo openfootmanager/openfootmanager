@@ -31,7 +31,7 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_LEFT_CORNER_KICK,
             EventOutcome.SHOT_SAVED_SECURED,
         ]
-        print(f"{self.defending_player} saved the ball!")
+        self.commentary.append(f"{self.defending_player} saved the ball!")
         return random.choice(final_outcomes)
 
     def get_shot_on_goal(
@@ -64,7 +64,7 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_BLOCKED_BACK,
         ]
         outcome = random.choice(outcomes)
-        print(f"{self.defending_player} blocked the shot!")
+        self.commentary.append(f"{self.defending_player} blocked the shot!")
 
         return outcome
 
@@ -96,7 +96,7 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
             EventOutcome.SHOT_GOAL_KICK,
         ]
-        print(f"The ball hit the post!")
+        self.commentary.append(f"The ball hit the post!")
 
         return random.choice(final_outcomes)
 
@@ -131,7 +131,7 @@ class ShotEvent(SimulationEvent):
                 + self.attacking_player.attributes.offensive.shot_power
             ) / 2
 
-        print(f"{self.attacking_player} shoots!")
+        self.commentary.append(f"{self.attacking_player} shoots!")
 
         first_outcome = self.get_shot_on_goal(shot_on_goal, defending_team)
 
@@ -149,15 +149,15 @@ class ShotEvent(SimulationEvent):
             self.outcome = self.get_shot_on_goal_outcomes(shot_on_goal)
 
         if self.outcome == EventOutcome.SHOT_HIT_POST:
-            print(f"{self.attacking_player} hits the post!")
+            self.commentary.append(f"{self.attacking_player} hits the post!")
             self.outcome = self.get_shot_hit_post()
         elif self.outcome == EventOutcome.SHOT_SAVED:
-            print(f"{self.defending_player} saves the shot!")
+            self.commentary.append(f"{self.defending_player} saves the shot!")
             self.defending_player.statistics.shots_saved += 1
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = self.get_shot_saved_outcomes()
         elif self.outcome == EventOutcome.GOAL:
-            print(f"GOOOOOOAL! {self.attacking_player} scores!")
+            self.commentary.append(f"GOOOOOOAL! {self.attacking_player} scores!")
             self.attacking_player.statistics.goals += 1
             self.defending_player.statistics.goals_conceded += 1
             self.state.position = PitchPosition.MIDFIELD_CENTER

@@ -131,16 +131,14 @@ class CrossEvent(SimulationEvent):
             EventOutcome.CROSS_OFFSIDE,
         ]:
             self.attacking_player.statistics.crosses_missed += 1
-            print(f"{self.attacking_player} failed to cross the ball!")
+            self.commentary.append(f"{self.attacking_player} failed to cross the ball!")
             if self.outcome == EventOutcome.CROSS_INTERCEPT:
                 self.defending_player.statistics.interceptions += 1
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
         else:
-            print(
-                f"{self.attacking_player} crossed the ball to {self.receiving_player}"
-            )
+            self.commentary.append(f"{self.attacking_player} crossed the ball to {self.receiving_player}")
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()

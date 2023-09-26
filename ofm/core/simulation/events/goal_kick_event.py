@@ -49,7 +49,7 @@ class GoalKickEvent(SimulationEvent):
     ) -> GameState:
         self.attacking_player = attacking_team.formation.gk
 
-        print(f"Goal Kick {self.state.position.name}")
+        self.commentary.append(f"Goal Kick {self.state.position.name}")
 
         self.goal_kick_type = self.get_goal_kick_type()
 

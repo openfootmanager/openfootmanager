@@ -53,6 +53,8 @@ class CornerKickEvent(SimulationEvent):
         is_pass = self.corner_kick_type == CornerKickType.PASS
         self.attacking_player = attacking_team.get_best_corner_kick_taker(is_pass)
 
+        self.commentary.append(f"{self.attacking_player} goes to the ball to take the corner kick!")
+
         if self.corner_kick_type == CornerKickType.PASS:
             self.sub_event = PassEvent(
                 EventType.CORNER_KICK,

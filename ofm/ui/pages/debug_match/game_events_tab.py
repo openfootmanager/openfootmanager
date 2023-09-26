@@ -15,7 +15,6 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from ttkbootstrap.tableview import Tableview
 from .team_names_component import TeamNamesComponent
 
 
@@ -24,10 +23,34 @@ class GameEventsTab(ttk.Frame):
         super().__init__(*args, **kwargs)
 
         self.scores_details = TeamNamesComponent(self)
-
         self.scores_details.grid(row=0, column=0, columnspan=2)
+
+        self.home_team_events = []
+        self.away_team_events = []
+
         self.place(anchor=CENTER, relx=0.5, rely=0.5)
 
     def update_team_names(self, home_team_name, home_team_score, away_team_name, away_team_score):
         self.scores_details.update_team_names(home_team_name, home_team_score, away_team_name, away_team_score)
 
+    def update_events(self, home_team_event: list[str], away_team_event: list[str]):
+        if self.home_team_events:
+            for event in self.home_team_events:
+                event.destroy()
+            self.home_team_events = []
+        if self.away_team_events:
+            for event in self.away_team_events:
+                event.destroy()
+            self.away_team_events = []
+
+        if home_team_event:
+            for event in home_team_event:
+                self.home_team_events.append(ttk.Label(self, text=event))
+            for row, event in enumerate(self.home_team_events):
+                event.grid(row=row + 1, column=1, padx=5, pady=5, sticky=NS)
+        if away_team_event:
+            for event in away_team_event:
+                self.away_team_events.append(ttk.Label(self, text=event))
+
+            for row, event in enumerate(self.away_team_events):
+                event.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NE)

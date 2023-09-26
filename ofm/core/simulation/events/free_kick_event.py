@@ -57,6 +57,8 @@ class FreeKickEvent(SimulationEvent):
 
         self.free_kick_type = self.get_free_kick_type()
 
+        self.commentary.append(f"{self.attacking_player} goes to the ball to take the free kick!")
+
         if self.free_kick_type == FreeKickType.PASS:
             self.sub_event = PassEvent(
                 EventType.FREE_KICK,

@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
 
@@ -66,6 +66,7 @@ class SimulationEvent:
     outcome: Optional[EventOutcome] = None
     attacking_player: Optional[PlayerSimulation] = None
     defending_player: Optional[PlayerSimulation] = None
+    commentary: list[str] = field(default_factory=list)
 
     @abstractmethod
     def calculate_event(

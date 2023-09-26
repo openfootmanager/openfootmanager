@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from decimal import Decimal
 from ofm.core.simulation.event import (
     EventOutcome,
     EventType,
@@ -25,7 +26,7 @@ from ofm.core.simulation.events import FoulEvent
 
 
 def get_foul_event() -> FoulEvent:
-    return FoulEvent(EventType.FOUL, GameState(0.0, PitchPosition.OFF_MIDFIELD_CENTER))
+    return FoulEvent(EventType.FOUL, GameState(Decimal(0.0), PitchPosition.OFF_MIDFIELD_CENTER))
 
 
 def test_no_card_foul_event(simulation_teams, monkeypatch):

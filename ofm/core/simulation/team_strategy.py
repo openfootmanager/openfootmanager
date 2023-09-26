@@ -37,19 +37,16 @@ def get_team_foul_values(strategy: TeamStrategy) -> int:
         case TeamStrategy.KEEP_POSSESSION:
             return 1
         case TeamStrategy.DEFEND:
-            return 15
+            return 20
         case TeamStrategy.COUNTER_ATTACK:
-            return 5
-        case TeamStrategy.ALL_ATTACK:
             return 10
+        case TeamStrategy.ALL_ATTACK:
+            return 15
 
 
 def team_pass_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]:
     """
     Returns the transition matrix of PitchPositions for passing.
-
-    Each column of the matrix is the target PitchPosition, while the row is the current PitchPosition.
-    The columns and rows follow the order of the PitchPosition enum.
     """
     # fmt: off
     match strategy:
@@ -186,28 +183,28 @@ def team_general_strategy(
             probability = [20, 20, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 30
+                probability[3] = 15
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 10
+                probability[3] = 5
                 probability[1] = 30
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 20
+                probability[3] = 10
         case TeamStrategy.KEEP_POSSESSION:
             probability = [80, 15, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 40
+                probability[3] = 20
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 10
+                probability[3] = 5
                 probability[1] = 40
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 20
+                probability[3] = 15
         case TeamStrategy.DEFEND:
             probability = [20, 60, foul_value, 0]
 
@@ -225,27 +222,27 @@ def team_general_strategy(
             probability = [20, 70, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 35
+                probability[3] = 20
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 20
+                probability[3] = 5
                 probability[1] = 50
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 30
+                probability[3] = 15
         case TeamStrategy.ALL_ATTACK:
             probability = [15, 60, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 50
+                probability[3] = 15
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 20
+                probability[3] = 5
                 probability[1] = 70
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 30
+                probability[3] = 10
 
     return probability

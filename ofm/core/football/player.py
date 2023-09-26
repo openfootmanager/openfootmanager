@@ -275,7 +275,7 @@ class PlayerSimulation:
         self.player.details.attributes = attributes
 
     def __str__(self):
-        return self.player.details.short_name
+        return self.player.details.short_name.encode("utf-8").decode("unicode_escape")
 
     def __repr__(self):
-        return self.player.details.short_name
+        return self.player.details.short_name.encode("utf-8").decode("unicode_escape")

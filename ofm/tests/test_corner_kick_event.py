@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from decimal import Decimal
 from ofm.core.simulation.event import EventOutcome, EventType, GameState, PitchPosition
 from ofm.core.simulation.events import PassEvent, CrossEvent
 from ofm.core.simulation.events.corner_kick_event import CornerKickType, CornerKickEvent
@@ -20,7 +21,7 @@ from ofm.core.simulation.events.corner_kick_event import CornerKickType, CornerK
 
 def get_corner_kick_event() -> CornerKickEvent:
     return CornerKickEvent(
-        EventType.CORNER_KICK, GameState(0.0, PitchPosition.OFF_LEFT)
+        EventType.CORNER_KICK, GameState(Decimal(0.0), PitchPosition.OFF_LEFT)
     )
 
 

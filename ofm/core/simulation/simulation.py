@@ -81,7 +81,6 @@ class LiveGame:
             if self.game_is_not_in_break():
                 self.engine.run()
                 self.minutes += Decimal(0.1)
-        print(f"Score is {self.engine.home_team.score} - {self.engine.away_team.score}")
 
 
 class SimulationEngine:

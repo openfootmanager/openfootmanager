@@ -43,12 +43,16 @@ class DebugMatchController(ControllerInterface):
     def initialize(self):
         self.teams = self.load_random_teams()
         self.update_player_table()
+        self.update_live_game_events()
+        self.update_game_events()
 
     def start_simulation(self):
         if self.live_game is not None:
             self.page.disable_button()
             self.live_game.run()
             self.update_player_table()
+            self.update_live_game_events()
+            self.update_game_events()
 
     def start_match(self):
         if self.teams is None:
@@ -167,6 +171,30 @@ class DebugMatchController(ControllerInterface):
         home_team_stats = self.get_team_stats(self.teams[0])
         away_team_stats = self.get_team_stats(self.teams[1])
         self.page.update_team_stats(home_team_stats, away_team_stats)
+
+    def update_live_game_events(self):
+        if not self.live_game:
+            self.page.update_live_game([])
+            return
+
+        events = []
+        for event in self.live_game.engine.event_history:
+            events.extend(event.commentary)
+        self.page.update_live_game(events)
+
+    def update_game_events(self):
+        # TODO: Add yellow and red cards and substitutions
+        home_team_events = []
+        away_team_events = []
+        if self.live_game:
+            for goal in self.live_game.engine.home_team.goals_history:
+                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                home_team_events.append(text)
+            for goal in self.live_game.engine.away_team.goals_history:
+                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                away_team_events.append(text)
+
+        self.page.update_game_events(home_team_events, away_team_events)
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")

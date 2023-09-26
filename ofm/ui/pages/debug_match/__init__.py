@@ -93,3 +93,9 @@ class DebugMatchPage(ttk.Frame):
 
     def update_team_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         self.team_stats_tab.update_stats(home_team_stats, away_team_stats)
+
+    def update_live_game(self, live_game_events: list[str]):
+        self.live_game_tab.update_events(live_game_events)
+
+    def update_game_events(self, home_team_events: list[str], away_team_events: list[str]):
+        self.game_events_tab.update_events(home_team_events, away_team_events)
