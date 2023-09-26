@@ -25,9 +25,9 @@ class LiveGameTab(ttk.Frame):
         self.scores_details = TeamNamesComponent(self)
 
         self.scores_details.grid(row=0, column=0, columnspan=2)
-        self.game_events = ttk.ScrolledText(self, height=10)
-        self.game_events.config(state=DISABLED)
-        self.game_events.grid(row=1, column=0, padx=10, pady=10)
+        self.live_game_events = ttk.ScrolledText(self, height=10)
+        self.live_game_events.config(state=DISABLED)
+        self.live_game_events.grid(row=1, column=0, padx=10, pady=10)
 
         self.game_progress = ttk.Progressbar(self, orient=HORIZONTAL, length=500, mode="determinate", bootstyle="striped")
         self.game_progress.grid(row=2, column=0, columnspan=2)
@@ -37,11 +37,11 @@ class LiveGameTab(ttk.Frame):
     def update_team_names(self, home_team_name, home_team_score, away_team_name, away_team_score):
         self.scores_details.update_team_names(home_team_name, home_team_score, away_team_name, away_team_score)
 
-    def update_events(self, game_events: list[str]):
-        self.game_events.delete(1.0, END)
+    def update_live_game_events(self, game_events: list[str]):
+        self.live_game_events.delete(1.0, END)
         text = ""
         for event in game_events:
             text = text + event + "\n"
-
-        self.game_events.insert(ttk.END, text)
-        self.game_events.grid(row=1, column=0, padx=10, pady=10)
+        self.live_game_events.config(state="normal")
+        self.live_game_events.insert(ttk.END, text)
+        self.live_game_events.config(state=DISABLED)

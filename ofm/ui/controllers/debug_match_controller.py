@@ -49,7 +49,8 @@ class DebugMatchController(ControllerInterface):
     def start_simulation(self):
         if self.live_game is not None:
             self.page.disable_button()
-            self.live_game.run()
+            if not self.live_game.is_game_over:
+                self.live_game.run()
             self.update_player_table()
             self.update_live_game_events()
             self.update_game_events()
@@ -77,6 +78,9 @@ class DebugMatchController(ControllerInterface):
         if self.game_thread is None:
             return
         if self.game_thread.is_alive():
+            self.update_game_events()
+            self.update_live_game_events()
+            self.update_player_table()
             self.page.after(100, lambda: self.check_thread_status())
         else:
             self.page.enable_button()
