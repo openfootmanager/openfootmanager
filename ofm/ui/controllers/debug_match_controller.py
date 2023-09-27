@@ -42,31 +42,34 @@ class DebugMatchController(ControllerInterface):
 
     def initialize(self):
         self.teams = self.load_random_teams()
+        self.live_game = None
         self.update_player_table()
         self.update_live_game_events()
         self.update_game_events()
 
     def start_simulation(self):
-        if self.live_game is not None:
-            self.page.disable_button()
-            if not self.live_game.is_game_over:
-                self.live_game.run()
-            self.update_player_table()
-            self.update_live_game_events()
-            self.update_game_events()
+        if self.live_game is None:
+            fixture = Fixture(
+                uuid.uuid4(),
+                uuid.uuid4(),
+                self.teams[0].club.club_id,
+                self.teams[1].club.club_id,
+                self.teams[0].club.stadium,
+            )
+            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
+
+        self.page.disable_button()
+        if self.live_game.is_half_time:
+            self.live_game.reset_after_half_time()
+        if not self.live_game.is_game_over:
+            self.live_game.run()
+        self.update_player_table()
+        self.update_live_game_events()
+        self.update_game_events()
 
     def start_match(self):
         if self.teams is None:
             return
-
-        fixture = Fixture(
-            uuid.uuid4(),
-            uuid.uuid4(),
-            self.teams[0].club.club_id,
-            self.teams[1].club.club_id,
-            self.teams[0].club.stadium,
-        )
-        self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
         try:
             self.game_thread = Thread(target=self.start_simulation(), daemon=True)
             self.game_thread.start()
@@ -183,7 +186,13 @@ class DebugMatchController(ControllerInterface):
 
         events = []
         for event in self.live_game.engine.event_history:
-            events.extend(event.commentary)
+            minutes = event.state.minutes
+            commentary = ""
+            for comment in event.commentary:
+                commentary += comment + "\n"
+            if commentary:
+                events.append(f"{int(minutes)}' - {commentary}")
+
         self.page.update_live_game(events)
 
     def update_game_events(self):

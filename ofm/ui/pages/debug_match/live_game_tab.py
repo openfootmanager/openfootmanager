@@ -38,10 +38,12 @@ class LiveGameTab(ttk.Frame):
         self.scores_details.update_team_names(home_team_name, home_team_score, away_team_name, away_team_score)
 
     def update_live_game_events(self, game_events: list[str]):
-        self.live_game_events.delete(1.0, END)
-        text = ""
-        for event in game_events:
-            text = text + event + "\n"
         self.live_game_events.config(state="normal")
+        text = ""
+        if game_events:
+            for event in game_events:
+                text = text + event + "\n"
+
+        self.live_game_events.delete(1.0, END)
         self.live_game_events.insert(ttk.END, text)
         self.live_game_events.config(state=DISABLED)
