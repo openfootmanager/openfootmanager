@@ -45,8 +45,12 @@ def test_free_kick_pass_miss_event(simulation_teams, monkeypatch):
     def get_pass_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.PASS_MISS
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.PASS_MISS
+
     monkeypatch.setattr(FreeKickEvent, "get_free_kick_type", get_free_kick_type)
     monkeypatch.setattr(PassEvent, "get_pass_primary_outcome", get_pass_primary_outcome)
+    monkeypatch.setattr(PassEvent, "get_intercept_prob", get_intercept_prob)
     event = get_free_kick_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True
@@ -70,8 +74,12 @@ def test_free_kick_pass_intercept_event(simulation_teams, monkeypatch):
     def get_pass_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.PASS_INTERCEPT
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.PASS_INTERCEPT
+
     monkeypatch.setattr(FreeKickEvent, "get_free_kick_type", get_free_kick_type)
     monkeypatch.setattr(PassEvent, "get_pass_primary_outcome", get_pass_primary_outcome)
+    monkeypatch.setattr(PassEvent, "get_intercept_prob", get_intercept_prob)
     event = get_free_kick_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True

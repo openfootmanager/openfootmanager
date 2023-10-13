@@ -43,35 +43,38 @@ class PassEvent(SimulationEvent):
         outcomes = [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_SUCCESS,
-            EventOutcome.PASS_INTERCEPT,
         ]
 
         if self.event_type == EventType.FREE_KICK:
             pass_success = (
-                (
-                    self.attacking_player.attributes.intelligence.passing
-                    + self.attacking_player.attributes.intelligence.vision
-                    + self.attacking_player.attributes.offensive.free_kick * 2
-                )
-                / 4
-            ) - distance
+                self.attacking_player.attributes.intelligence.passing
+                + self.attacking_player.attributes.intelligence.vision
+                + self.attacking_player.attributes.offensive.free_kick
+            ) / (distance + 1) * 100
+            pass_miss = 2 - pass_success
         else:
             pass_success = (
-                (
-                    self.attacking_player.attributes.intelligence.passing
-                    + self.attacking_player.attributes.intelligence.vision
-                )
-                / 2
-            ) - distance
+                self.attacking_player.attributes.intelligence.passing
+                + self.attacking_player.attributes.intelligence.vision
+            ) / (distance + 1) * 100
+            pass_miss = 1.34 - pass_success
 
         outcome_probability = [
-            100.0 - pass_success,  # PASS_MISS
+            pass_miss,  # PASS_MISS
             pass_success,  # PASS_SUCCESS
-            (
-                self.defending_player.attributes.defensive.positioning
-                + self.defending_player.attributes.defensive.interception
-            )
-            / 2,  # PASS_INTERCEPT
+        ]
+
+        return random.choices(outcomes, outcome_probability)[0]
+
+    def get_intercept_prob(self) -> EventOutcome:
+        outcomes = [EventOutcome.PASS_MISS, EventOutcome.PASS_INTERCEPT]
+        pass_intercept = (
+            self.defending_player.attributes.defensive.positioning
+            + self.defending_player.attributes.defensive.interception
+        )
+        outcome_probability = [
+            200 - pass_intercept,
+            pass_intercept,
         ]
 
         return random.choices(outcomes, outcome_probability)[0]
@@ -81,10 +84,10 @@ class PassEvent(SimulationEvent):
         not_offside_probability = (
             self.receiving_player.attributes.offensive.positioning
             + self.receiving_player.attributes.intelligence.team_work
-        ) / 2
+        )
         outcome_probability = [
             not_offside_probability,
-            100 - not_offside_probability,
+            200 - not_offside_probability,
         ]
         return random.choices(outcomes, outcome_probability)[0]
 
@@ -107,6 +110,9 @@ class PassEvent(SimulationEvent):
         self.attacking_player.statistics.passes += 1
 
         self.outcome = self.get_pass_primary_outcome(distance)
+
+        if self.outcome == EventOutcome.PASS_MISS:
+            self.outcome = self.get_intercept_prob()
 
         if (
             end_position in OFF_POSITIONS
