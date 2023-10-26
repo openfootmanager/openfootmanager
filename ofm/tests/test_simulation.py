@@ -16,16 +16,15 @@
 import uuid
 
 import pytest
+from decimal import Decimal
 
-from ofm.core.db.generators import TeamGenerator
-from ofm.core.football.formation import Formation
-from ofm.core.football.player import PlayerSimulation
-from ofm.core.football.team_simulation import Goal, TeamSimulation
-from ofm.core.simulation.fixture import Fixture
-from ofm.core.simulation.simulation import LiveGame, SimulationEngine
-from ofm.core.simulation.event import EventFactory, EventType, SimulationEvent 
-from ofm.core.simulation.game_state import GameState
+from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
+from ofm.core.simulation.event_type import EventType
+from ofm.core.simulation.events import EventFactory, PassEvent
+from ofm.core.simulation.fixture import Fixture
+from ofm.core.simulation.game_state import GameState
+from ofm.core.simulation.simulation import LiveGame, SimulationEngine
 
 
 class MockSimulationEngine:
@@ -34,14 +33,13 @@ class MockSimulationEngine:
 
 
 @pytest.fixture
-def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
+def live_game(monkeypatch, simulation_teams) -> LiveGame:
     def get_simulation_engine(*args, **kwargs):
         return MockSimulationEngine()
 
-    team_gen = TeamGenerator(squads_def, confederations_file)
-
-    teams = team_gen.generate()
-    home_team, away_team = teams[0], teams[1]
+    home_team_sim, away_team_sim = simulation_teams
+    home_team = home_team_sim.club
+    away_team = away_team_sim.club
     fixture = Fixture(
         uuid.uuid4(),
         uuid.uuid4(),
@@ -49,13 +47,6 @@ def live_game(monkeypatch, squads_def, confederations_file) -> LiveGame:
         away_team.club_id,
         home_team.stadium,
     )
-
-    home_team_formation = Formation(home_team.default_formation)
-    home_team_formation.get_best_players(home_team.squad)
-    home_team_sim = TeamSimulation(home_team, home_team_formation)
-    away_team_formation = Formation(away_team.default_formation)
-    away_team_formation.get_best_players(away_team.squad)
-    away_team_sim = TeamSimulation(away_team, away_team_formation)
 
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
 
@@ -145,7 +136,7 @@ def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.run()  # first half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, 45.0))
+    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(45.0)))
     live_game.run()  # second half
     assert live_game.minutes == 90.0
     assert live_game.is_game_over is True
@@ -161,7 +152,7 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
     live_game.reset_after_half_time()
     live_game.run()  # first et half
     live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, 90.0))
+    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(90.0)))
     live_game.run()
     assert live_game.minutes == 120.0
     assert live_game.is_game_over is True
@@ -170,10 +161,39 @@ def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
 
 def test_game_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    event = event_factory.get_possible_events(
-        [live_game.engine.home_team, live_game.engine.away_team],
-        GameState(0.0, PitchPosition.MIDFIELD_CENTER),
-        None
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(Decimal(0.0), PitchPosition.MIDFIELD_CENTER),
+        None,
     )
-    assert event[0][0] == EventType.PASS
-    
+    assert event == EventType.PASS
+
+
+def test_half_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(Decimal(45.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS
+
+
+def test_extra_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS
+
+
+def test_extra_half_time_starts_with_pass_event(live_game):
+    event_factory = EventFactory()
+    event = event_factory.get_event_type(
+        (live_game.engine.home_team, live_game.engine.away_team),
+        GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER),
+        PassEvent(EventType.PASS, GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER)),
+    )
+    assert event == EventType.PASS

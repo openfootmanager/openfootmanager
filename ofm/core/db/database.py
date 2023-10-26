@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
+import random
 import json
 import os
 import uuid
@@ -22,7 +23,6 @@ from typing import Optional
 from ofm.core.football.club import Club
 from ofm.core.football.player import Player, PlayerTeam, Positions
 from ofm.core.settings import Settings
-
 from .generators import PlayerGenerator, TeamGenerator
 
 
@@ -113,11 +113,11 @@ class DB:
 
         return [d for d in squads if d["team_id"] == team_id]
 
-    def check_clubs_file(self) -> None:
+    def check_clubs_file(self, amount: Optional[int] = None) -> None:
         if not os.path.exists(self.settings.db):
             os.makedirs(self.settings.db, exist_ok=True)
-        if not os.path.exists(self.clubs_file):
-            self.generate_teams_and_squads(clubs_def=None)
+        if not os.path.exists(self.clubs_file) or not os.path.exists(self.players_file) or not os.path.exists(self.squads_file):
+            self.generate_teams_and_squads(clubs_def=None, amount=amount)
 
     def get_player_object_from_id(
         self, player_id: uuid.UUID, players: list[dict]
@@ -163,9 +163,13 @@ class DB:
         self,
         clubs_def: Optional[list[dict]],
         season_start: datetime.date = datetime.date.today(),
+        amount: Optional[int] = None,
     ):
         if clubs_def is None:
             clubs_def = self.load_club_definitions()
+
+        if amount:
+            clubs_def = random.sample(clubs_def, amount)
 
         fifa_conf = self.load_fifa_conf()
 

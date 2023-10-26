@@ -13,9 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ..gui import GUI
-from ..pages.debug_home import DebugHomePage
 from .controllerinterface import ControllerInterface
+from ..pages.debug_home import DebugHomePage
 
 
 class DebugPageController(ControllerInterface):

@@ -16,6 +16,17 @@
 from enum import Enum, auto
 
 
+class FoulType(Enum):
+    OFFENSIVE_FOUL = auto()
+    DEFENSIVE_FOUL = auto()
+
+
+class FreeKickType(Enum):
+    DIRECT_SHOT = auto()
+    CROSS = auto()
+    PASS = auto()
+
+
 class EventType(Enum):
     PASS = 0
     DRIBBLE = auto()

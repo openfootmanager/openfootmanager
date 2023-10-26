@@ -18,7 +18,8 @@ from decimal import Decimal, getcontext
 
 from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
-from .event import EventFactory, GameState, SimulationEvent
+from .event import GameState, SimulationEvent
+from .events import EventFactory
 from .fixture import Fixture
 
 
@@ -31,7 +32,6 @@ class LiveGame:
         possible_extra_time: bool,
         possible_penalties: bool,
     ):
-        self.minutes = Decimal(0.0)
         self.fixture = fixture
         self.is_half_time = False
         self.is_game_over = False
@@ -41,13 +41,21 @@ class LiveGame:
         self.attendance = self.calculate_attendance()
         self.engine = SimulationEngine(home_team, away_team)
 
+    @property
+    def minutes(self):
+        return self.engine.state.minutes
+
+    @minutes.setter
+    def minutes(self, minutes):
+        self.engine.state.minutes = minutes
+
     def calculate_attendance(self) -> int:
         pass
 
     def reset_after_half_time(self):
         if not self.penalty_shootout:
             self.is_half_time = False
-            self.minutes += Decimal(0.1)
+            self.engine.state.minutes += Decimal(0.1)
 
     def game_is_not_in_break(self) -> bool:
         if self.minutes == 120.0:
@@ -85,17 +93,16 @@ class SimulationEngine:
         self.home_team = home_team
         self.away_team = away_team
         self.event_history = []
-        self.state = GameState(0.0, PitchPosition.MIDFIELD_CENTER)
+        self.state = GameState(Decimal(0.0), PitchPosition.MIDFIELD_CENTER)
         self.starting_the_game = random.choice([self.home_team, self.away_team])
+        self.event_factory = EventFactory()
 
     def generate_event(self) -> SimulationEvent:
-        event_factory = EventFactory()
         last_event = self.event_history[-1] if self.event_history else None
-        possible_events, event_probabilities = event_factory.get_possible_events(
+        event_type = self.event_factory.get_event_type(
             self.get_team_in_possession(), self.state, last_event
         )
-        event_type = random.choices(possible_events, event_probabilities)[0]
-        event = event_factory.get_event(self.state, event_type)
+        event = self.event_factory.get_event(self.state, event_type)
         self.event_history.append(event)
         return event
 
@@ -110,20 +117,28 @@ class SimulationEngine:
             if self.starting_the_game == self.home_team:
                 self.away_team.in_possession = False
                 self.home_team.in_possession = True
-                self.home_team.player_in_possession = self.home_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                self.home_team.player_in_possession = (
+                    self.home_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                )
             else:
                 self.home_team.in_possession = False
                 self.away_team.in_possession = True
-                self.away_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
-        if self.state.minutes in [45.1, 105.1]:
+                self.away_team.player_in_possession = (
+                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                )
+        elif self.state.minutes in [45.1, 105.1]:
             if self.starting_the_game == self.home_team:
                 self.away_team.in_possession = True
                 self.home_team.in_possession = False
-                self.away_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                self.away_team.player_in_possession = (
+                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                )
             else:
                 self.home_team.in_possession = True
                 self.away_team.in_possession = False
-                self.home_team.player_in_possession = self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                self.home_team.player_in_possession = (
+                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+                )
 
         if self.home_team.in_possession:
             return self.home_team, self.away_team
@@ -133,5 +148,4 @@ class SimulationEngine:
     def run(self):
         event = self.generate_event()
         attacking_team, defending_team = self.get_team_in_possession()
-        print(f"{attacking_team.club.name} has the ball")
         self.state = event.calculate_event(attacking_team, defending_team)

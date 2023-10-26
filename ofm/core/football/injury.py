@@ -13,23 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from enum import Enum
+from enum import Enum, auto
 
 
-class PlayerInjury(str, Enum):
-    NO_INJURY = "No injury"
-    SHOULDER_DS = "Dislocated shoulder"
-    ANKLE_SP = "Ankle sprain"
-    KNEE_SP = "Knee sprain"
-    CALF_ST = "Calf strain"
-    KNEECAP_BURSITIS = "Kneecap bursitis"
-    RIB_BROK = "Broken rib"
-    HIP_BROK = "Broken hip"
-    CLAVICLE_FRAC = "Fractured clavicle"
-    ARM_FRAC = "Fractured arm"
-    FOOT_FRAC = "Fractured foot"
-    WRIST_FRAC = "Fractured wrist"
-    ANKLE_FRAC = "Fractured ankle"
-    CONCUSSION = "Concussion"
-    LIGAMENT_TORN = "Torn ligament"
-    MENISCAL_TORN = "Torn meniscal"
+class PlayerInjury(Enum):
+    NO_INJURY = auto()
+    LIGHT_INJURY = auto()
+    MEDIUM_INJURY = auto()
+    SEVERE_INJURY = auto()
+    CAREER_ENDING_INJURY = auto()
+
+
+# TODO: Implement types of injury and an InjuryManager class to determine how long the player
+#   will be out

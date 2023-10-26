@@ -25,16 +25,16 @@ class HomePage(ttk.Frame):
 
         self.logo_label = ttk.Label(self, image=self.logo)
         self.logo_label.image = self.logo
-        self.logo_label.grid(row=0, column=0, padx=10, pady=75, sticky=NSEW)
+        self.logo_label.grid(row=0, column=0, padx=20, pady=75, sticky=NSEW)
 
         self.debug_mode_btn = ttk.Button(self, text="Start Debug Mode")
-        self.debug_mode_btn.grid(row=1, column=0, padx=200, pady=5, sticky=NSEW)
+        self.debug_mode_btn.grid(row=1, column=0, padx=120, pady=15, sticky=NSEW)
 
         self.new_game_btn = ttk.Button(self, text="New Game")
-        self.new_game_btn.grid(row=2, column=0, padx=200, pady=5, sticky=NSEW)
+        self.new_game_btn.grid(row=2, column=0, padx=120, pady=15, sticky=NSEW)
 
         self.load_game_btn = ttk.Button(self, text="Load Game")
-        self.load_game_btn.grid(row=3, column=0, padx=200, pady=5, sticky=NSEW)
+        self.load_game_btn.grid(row=3, column=0, padx=120, pady=15, sticky=NSEW)
 
         self.settings_btn = ttk.Button(self, text="Settings")
-        self.settings_btn.grid(row=4, column=0, padx=200, pady=5, sticky=NSEW)
+        self.settings_btn.grid(row=4, column=0, padx=120, pady=15, sticky=NSEW)

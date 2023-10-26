@@ -60,3 +60,9 @@ class Club:
             "stadium": self.stadium,
             "stadium_capacity": self.stadium_capacity,
         }
+
+    def __repr__(self):
+        return self.name.encode("utf-8").decode("unicode_escape")
+
+    def __str__(self):
+        return self.name.encode("utf-8").decode("unicode_escape")

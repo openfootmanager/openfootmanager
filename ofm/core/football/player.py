@@ -103,8 +103,11 @@ class Player:
     international_reputation: int
     preferred_foot: PreferredFoot
     value: float
-    injured: bool = False
     injury_type: PlayerInjury = PlayerInjury.NO_INJURY
+
+    @property
+    def is_injured(self) -> bool:
+        return self.injury_type != PlayerInjury.NO_INJURY
 
     @classmethod
     def get_from_dict(cls, player_dict: dict):
@@ -124,8 +127,7 @@ class Player:
             player_dict["international_reputation"],
             PreferredFoot(player_dict["preferred_foot"]),
             player_dict["value"],
-            player_dict["injured"],
-            player_dict["injury_type"],
+            PlayerInjury(player_dict["injury_type"]),
         )
 
     def get_position_values(self):
@@ -151,8 +153,8 @@ class Player:
             "international_reputation": self.international_reputation,
             "preferred_foot": self.preferred_foot.value,
             "value": self.value,
-            "injured": self.injured,
-            "injury_type": self.injury_type,
+            "injured": self.is_injured,
+            "injury_type": self.injury_type.value,
         }
 
 
@@ -162,6 +164,8 @@ class PlayerStats:
     minutes_played: float = 0.0
     passes: int = 0
     passes_missed: int = 0
+    crosses: int = 0
+    crosses_missed: int = 0
     shots: int = 0
     shots_on_target: int = 0
     shots_missed: int = 0
@@ -224,16 +228,32 @@ class PlayerSimulation:
         self,
         player: PlayerTeam,
         current_position: Positions,
-        stamina: float,
     ):
         self.player = player
         self.current_position = current_position
         self._current_skill = 0.0
-        self.current_stamina = stamina
         self.statistics = PlayerStats(player.details.player_id)
-        self.is_injured = False
-        self.injury_type = None
         self.subbed = False
+
+    @property
+    def stamina(self) -> float:
+        return self.player.details.stamina
+
+    @stamina.setter
+    def stamina(self, value: float):
+        self.player.details.stamina = value
+
+    @property
+    def is_injured(self) -> bool:
+        return self.player.details.is_injured
+
+    @property
+    def injury_type(self) -> PlayerInjury:
+        return self.player.details.injury_type
+
+    @injury_type.setter
+    def injury_type(self, value: PlayerInjury):
+        self.player.details.injury_type = value
 
     @property
     def sent_off(self) -> bool:
@@ -254,5 +274,8 @@ class PlayerSimulation:
     def attributes(self, attributes: PlayerAttributes):
         self.player.details.attributes = attributes
 
-    def update_stamina(self):
-        pass
+    def __str__(self):
+        return self.player.details.short_name.encode("utf-8").decode("unicode_escape")
+
+    def __repr__(self):
+        return self.player.details.short_name.encode("utf-8").decode("unicode_escape")

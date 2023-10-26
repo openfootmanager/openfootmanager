@@ -18,13 +18,13 @@ import uuid
 from threading import Thread
 from typing import Optional
 
+from .controllerinterface import ControllerInterface
+from ..pages.debug_match import DebugMatchPage
 from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.team_simulation import TeamSimulation
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import LiveGame
-from ..pages.debug_match import DebugMatchPage
-from .controllerinterface import ControllerInterface
 
 
 class DebugMatchController(ControllerInterface):
@@ -42,25 +42,34 @@ class DebugMatchController(ControllerInterface):
 
     def initialize(self):
         self.teams = self.load_random_teams()
+        self.live_game = None
         self.update_player_table()
+        self.update_live_game_events()
+        self.update_game_events()
 
     def start_simulation(self):
-        if self.live_game is not None:
-            self.page.disable_button()
+        if self.live_game is None:
+            fixture = Fixture(
+                uuid.uuid4(),
+                uuid.uuid4(),
+                self.teams[0].club.club_id,
+                self.teams[1].club.club_id,
+                self.teams[0].club.stadium,
+            )
+            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
+
+        self.page.disable_button()
+        if self.live_game.is_half_time:
+            self.live_game.reset_after_half_time()
+        if not self.live_game.is_game_over:
             self.live_game.run()
+        self.update_player_table()
+        self.update_live_game_events()
+        self.update_game_events()
 
     def start_match(self):
         if self.teams is None:
             return
-
-        fixture = Fixture(
-            uuid.uuid4(),
-            uuid.uuid4(),
-            self.teams[0].club.club_id,
-            self.teams[1].club.club_id,
-            self.teams[0].club.stadium,
-        )
-        self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
         try:
             self.game_thread = Thread(target=self.start_simulation(), daemon=True)
             self.game_thread.start()
@@ -72,6 +81,9 @@ class DebugMatchController(ControllerInterface):
         if self.game_thread is None:
             return
         if self.game_thread.is_alive():
+            self.update_game_events()
+            self.update_live_game_events()
+            self.update_player_table()
             self.page.after(100, lambda: self.check_thread_status())
         else:
             self.page.enable_button()
@@ -83,7 +95,7 @@ class DebugMatchController(ControllerInterface):
         Core module later to avoid having the low-level implementation on the Controller side.
         """
         # Creates files if they don't exist
-        self.db.check_clubs_file()
+        self.db.check_clubs_file(amount=50)
 
         clubs = self.db.load_clubs()
         players = self.db.load_players()
@@ -109,7 +121,7 @@ class DebugMatchController(ControllerInterface):
                     "unicode_escape"
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
-                player.current_stamina,
+                player.stamina,
                 player.current_skill,
             )
             for player in team.formation.players
@@ -122,10 +134,29 @@ class DebugMatchController(ControllerInterface):
                     "unicode_escape"
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
-                player.current_stamina,
+                player.stamina,
                 player.current_skill,
             )
             for player in team.formation.bench
+        ]
+
+    def get_team_stats(self, team: TeamSimulation):
+        if team.stats.passes > 0:
+            pass_accuracy = int(((team.stats.passes - team.stats.passes_missed) / team.stats.passes) * 100)
+        else:
+            pass_accuracy = 0
+
+        return [
+            team.stats.shots,
+            team.stats.shots_on_target,
+            team.stats.possession,
+            team.stats.passes,
+            pass_accuracy,
+            team.stats.fouls,
+            team.stats.yellow_cards,
+            team.stats.red_cards,
+            0,
+            team.stats.corners,
         ]
 
     def update_player_table(self):
@@ -144,6 +175,39 @@ class DebugMatchController(ControllerInterface):
             str(self.teams[0].score),
             str(self.teams[1].score),
         )
+        home_team_stats = self.get_team_stats(self.teams[0])
+        away_team_stats = self.get_team_stats(self.teams[1])
+        self.page.update_team_stats(home_team_stats, away_team_stats)
+
+    def update_live_game_events(self):
+        if not self.live_game:
+            self.page.update_live_game([])
+            return
+
+        events = []
+        for event in self.live_game.engine.event_history:
+            minutes = event.state.minutes
+            commentary = ""
+            for comment in event.commentary:
+                commentary += comment + "\n"
+            if commentary:
+                events.append(f"{int(minutes)}' - {commentary}")
+
+        self.page.update_live_game(events)
+
+    def update_game_events(self):
+        # TODO: Add yellow and red cards and substitutions
+        home_team_events = []
+        away_team_events = []
+        if self.live_game:
+            for goal in self.live_game.engine.home_team.goals_history:
+                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                home_team_events.append(text)
+            for goal in self.live_game.engine.away_team.goals_history:
+                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                away_team_events.append(text)
+
+        self.page.update_game_events(home_team_events, away_team_events)
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")

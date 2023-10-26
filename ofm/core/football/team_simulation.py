@@ -14,24 +14,26 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
+from decimal import Decimal
 from dataclasses import dataclass
 from typing import Optional, Tuple
 from uuid import UUID
 
-from ..simulation import PitchPosition
-from ..simulation.team_strategy import TeamStrategy
 from .club import Club
 from .formation import Formation
 from .player import PlayerSimulation
+from ..simulation import PitchPosition
+from ..simulation.team_strategy import TeamStrategy
 
 
 class SubbingError(Exception):
     pass
 
+
 @dataclass
 class Goal:
     player: PlayerSimulation
-    minutes: float
+    minutes: Decimal
 
 
 class TeamSimulation:
@@ -66,7 +68,7 @@ class TeamSimulation:
     ) -> PlayerSimulation:
         if position == PitchPosition.DEF_BOX:
             players = [self.formation.gk]
-            players.extend(self.formation.df)
+            players.extend(self.formation.df.copy())
         elif position in [
             PitchPosition.DEF_RIGHT,
             PitchPosition.DEF_LEFT,
@@ -75,22 +77,25 @@ class TeamSimulation:
             PitchPosition.DEF_MIDFIELD_CENTER,
         ]:
             players = self.formation.df.copy()
-            players.extend(self.formation.mf)
+            players.extend(self.formation.mf.copy())
         elif position in [
             PitchPosition.MIDFIELD_RIGHT,
             PitchPosition.MIDFIELD_CENTER,
             PitchPosition.MIDFIELD_LEFT,
         ]:
             players = self.formation.df.copy()
-            players.extend(self.formation.mf)
-            players.extend(self.formation.fw)
+            players.extend(self.formation.mf.copy())
+            players.extend(self.formation.fw.copy())
         else:
             players = self.formation.fw.copy()
-            players.extend(self.formation.mf)
+            players.extend(self.formation.mf.copy())
 
-        if self.player_in_possession is not None:
+        if (
+            self.player_in_possession is not None
+            and self.player_in_possession in players
+        ):
             players.remove(self.player_in_possession)
-        
+
         # Red card players cannot receive the ball
         for player in players:
             if player.sent_off:
@@ -101,18 +106,70 @@ class TeamSimulation:
     def update_stats(self):
         players = self.formation.all_players
         self.stats.update_stats(players)
-        
+
     def sub_player(self, sub_player: PlayerSimulation, subbed_player: PlayerSimulation):
         if subbed_player.subbed:
             raise SubbingError("Player is already subbed!")
         if subbed_player.sent_off:
             raise SubbingError("Cannot sub a player that has been sent off!")
-        
+
         self.substitutions += 1
-        
+
         self.sub_history.append((sub_player, subbed_player))
         self.formation.substitute_player(sub_player, subbed_player)
-    
+
+    def get_best_penalty_taker(self) -> PlayerSimulation:
+        best_penalty_taker = None
+        for player in self.formation.players:
+            if player.sent_off:
+                continue
+            if best_penalty_taker is None:
+                best_penalty_taker = player
+            elif (
+                player.attributes.offensive.penalty
+                > best_penalty_taker.attributes.offensive.penalty
+            ):
+                best_penalty_taker = player
+
+        return best_penalty_taker
+
+    def get_best_free_kick_taker(self) -> PlayerSimulation:
+        best_free_kick_taker = None
+        for player in self.formation.players:
+            if player.sent_off:
+                continue
+            if best_free_kick_taker is None:
+                best_free_kick_taker = player
+            elif (
+                player.attributes.offensive.free_kick
+                > best_free_kick_taker.attributes.offensive.free_kick
+            ):
+                best_free_kick_taker = player
+
+        return best_free_kick_taker
+
+    def get_best_corner_kick_taker(self, is_pass: bool) -> PlayerSimulation:
+        best_corner_kick_taker = None
+        for player in self.formation.players:
+            if player.sent_off:
+                continue
+            if best_corner_kick_taker is None:
+                best_corner_kick_taker = player
+            elif is_pass:
+                if (
+                    player.attributes.intelligence.passing
+                    > best_corner_kick_taker.attributes.intelligence.passing
+                ):
+                    best_corner_kick_taker = player
+            else:
+                if (
+                    player.attributes.intelligence.crossing
+                    > best_corner_kick_taker.attributes.intelligence.crossing
+                ):
+                    best_corner_kick_taker = player
+
+        return best_corner_kick_taker
+
     def update_player_stamina(self):
         pass
 
@@ -124,6 +181,8 @@ class TeamStats:
     shots_on_target: int = 0
     passes: int = 0
     passes_missed: int = 0
+    crosses: int = 0
+    crosses_missed: int = 0
     interceptions: int = 0
     assists: int = 0
     fouls: int = 0
@@ -138,16 +197,24 @@ class TeamStats:
     avg_rating: float = 0.0
     possession: float = 0.0
     goals_conceded: int = 0
-    
+
     def update_stats(self, players: list[PlayerSimulation]):
         self.fouls = sum(player.statistics.fouls for player in players)
         self.goals = sum(player.statistics.goals for player in players)
         self.yellow_cards = sum(player.statistics.yellow_cards for player in players)
         self.red_cards = sum(player.statistics.red_cards for player in players)
-        self.goals_conceded = sum(player.statistics.goals_conceded for player in players)
+        self.goals_conceded = sum(
+            player.statistics.goals_conceded for player in players
+        )
         self.shots = sum(player.statistics.shots for player in players)
-        self.shots_on_target = sum(player.statistics.shots_on_target for player in players)
+        self.shots_on_target = sum(
+            player.statistics.shots_on_target for player in players
+        )
         self.passes = sum(player.statistics.passes for player in players)
         self.passes_missed = sum(player.statistics.passes_missed for player in players)
+        self.crosses = sum(player.statistics.crosses for player in players)
+        self.crosses_missed = sum(
+            player.statistics.crosses_missed for player in players
+        )
         self.interceptions = sum(player.statistics.interceptions for player in players)
         self.assists = sum(player.statistics.assists for player in players)

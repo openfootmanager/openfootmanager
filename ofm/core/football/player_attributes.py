@@ -74,7 +74,7 @@ class GkAttributes(Attributes):
     penalty: int
 
     def get_general_overall(self) -> int:
-        return (self.reflexes + self.jumping + self.positioning) / 3
+        return int((self.reflexes + self.jumping + self.positioning) / 3)
 
 
 @dataclass
@@ -130,7 +130,7 @@ class PlayerAttributes:
                 + self.physical.get_overall()
                 + self.intelligence.get_overall()
             )
-            / 6
+            / 7
         )
 
     def get_df_overall(self) -> int:
