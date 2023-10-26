@@ -79,10 +79,17 @@ class TeamStatsTab(ttk.Frame):
     def update_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         for row, stat in enumerate(self.home_team_stats):
             stat.destroy()
-            stat = ttk.Label(self, text=home_team_stats[row])
-            stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
 
         for row, stat in enumerate(self.away_team_stats):
             stat.destroy()
-            stat = ttk.Label(self, text=away_team_stats[row])
-            stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)
+
+        self.home_team_stats.clear()
+        self.away_team_stats.clear()
+
+        for row, _ in enumerate(self.stats_descriptions):
+            home_stat = ttk.Label(self, text=home_team_stats[row])
+            away_stat = ttk.Label(self, text=away_team_stats[row])
+            self.home_team_stats.append(home_stat)
+            self.away_team_stats.append(away_stat)
+            home_stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
+            away_stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)

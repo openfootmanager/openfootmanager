@@ -183,59 +183,59 @@ def team_general_strategy(
             probability = [20, 20, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 15
+                probability[3] = 5
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 5
+                probability[3] = 2
                 probability[1] = 30
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 10
+                probability[3] = 1
         case TeamStrategy.KEEP_POSSESSION:
             probability = [80, 15, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 20
+                probability[3] = 5
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 5
+                probability[3] = 2
                 probability[1] = 40
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 15
+                probability[3] = 1
         case TeamStrategy.DEFEND:
             probability = [20, 60, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 10
+                probability[3] = 3
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 5
+                probability[3] = 2
                 probability[1] = 40
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 5
+                probability[3] = 1
         case TeamStrategy.COUNTER_ATTACK:
             probability = [20, 70, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 20
+                probability[3] = 8
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 5
+                probability[3] = 2
                 probability[1] = 50
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 15
+                probability[3] = 1
         case TeamStrategy.ALL_ATTACK:
             probability = [15, 60, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 15
+                probability[3] = 10
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
@@ -243,6 +243,6 @@ def team_general_strategy(
                 probability[3] = 5
                 probability[1] = 70
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 10
+                probability[3] = 2
 
     return probability
