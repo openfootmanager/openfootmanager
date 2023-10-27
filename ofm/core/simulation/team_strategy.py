@@ -232,7 +232,7 @@ def team_general_strategy(
     probability = [20, 20, foul_value, 0]
     match attacking_team_strategy:
         case TeamStrategy.NORMAL:
-            probability = [20, 20, foul_value, 0]
+            probability = [40, 40, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
                 probability[3] = 5
@@ -271,7 +271,7 @@ def team_general_strategy(
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
                 probability[3] = 1
         case TeamStrategy.COUNTER_ATTACK:
-            probability = [20, 70, foul_value, 0]
+            probability = [30, 50, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
                 probability[3] = 8

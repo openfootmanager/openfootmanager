@@ -37,20 +37,22 @@ class GameEventsTab(ttk.Frame):
         if self.home_team_events:
             for event in self.home_team_events:
                 event.destroy()
-            self.home_team_events = []
+
         if self.away_team_events:
             for event in self.away_team_events:
                 event.destroy()
-            self.away_team_events = []
+
+        self.home_team_events.clear()
+        self.away_team_events.clear()
 
         if home_team_event:
             for event in home_team_event:
                 self.home_team_events.append(ttk.Label(self, text=event))
             for row, event in enumerate(self.home_team_events):
-                event.grid(row=row + 1, column=1, padx=5, pady=5, sticky=NS)
+                event.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NS)
         if away_team_event:
             for event in away_team_event:
                 self.away_team_events.append(ttk.Label(self, text=event))
 
             for row, event in enumerate(self.away_team_events):
-                event.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NE)
+                event.grid(row=row + 1, column=1, padx=5, pady=5, sticky=NE)
