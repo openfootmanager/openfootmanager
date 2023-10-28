@@ -32,13 +32,13 @@ def get_team_foul_values(strategy: TeamStrategy) -> int:
     """
     match strategy:
         case TeamStrategy.NORMAL:
-            return 5
+            return 4
         case TeamStrategy.KEEP_POSSESSION:
-            return 1
+            return 2
         case TeamStrategy.DEFEND:
-            return 20
+            return 8
         case TeamStrategy.COUNTER_ATTACK:
-            return 10
+            return 7
 
 
 def team_pass_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]:
@@ -232,7 +232,7 @@ def team_general_strategy(
     probability = [20, 20, foul_value, 0]
     match attacking_team_strategy:
         case TeamStrategy.NORMAL:
-            probability = [40, 40, foul_value, 0]
+            probability = [40, 10, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
                 probability[3] = 5
@@ -245,7 +245,7 @@ def team_general_strategy(
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
                 probability[3] = 1
         case TeamStrategy.KEEP_POSSESSION:
-            probability = [80, 15, foul_value, 0]
+            probability = [80, 10, foul_value, 0]
 
             if state.position == PitchPosition.OFF_BOX:
                 probability[3] = 5
@@ -254,7 +254,7 @@ def team_general_strategy(
                 PitchPosition.OFF_RIGHT,
             ]:
                 probability[3] = 2
-                probability[1] = 40
+                probability[1] = 20
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
                 probability[3] = 1
         case TeamStrategy.DEFEND:

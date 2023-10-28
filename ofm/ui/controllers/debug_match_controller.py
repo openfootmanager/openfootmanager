@@ -155,7 +155,7 @@ class DebugMatchController(ControllerInterface):
             team.stats.fouls,
             team.stats.yellow_cards,
             team.stats.red_cards,
-            0,
+            team.stats.offsides,
             team.stats.corners,
         ]
 
@@ -170,8 +170,8 @@ class DebugMatchController(ControllerInterface):
 
         self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
         self.page.update_team_names(
-            self.teams[0].club.name.encode("utf-8").decode("unicode_escape"),
-            self.teams[1].club.name.encode("utf-8").decode("unicode_escape"),
+            self.teams[0].club.name,
+            self.teams[1].club.name,
             str(self.teams[0].score),
             str(self.teams[1].score),
         )

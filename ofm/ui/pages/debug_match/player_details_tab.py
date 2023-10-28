@@ -16,7 +16,6 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.tableview import Tableview
-from .team_names_component import TeamNamesComponent
 
 
 class PlayerDetailsTab(ttk.Frame):
@@ -57,8 +56,6 @@ class PlayerDetailsTab(ttk.Frame):
             ("Pablo", "GK", "100", "87"),
         ]
 
-        self.scores_details = TeamNamesComponent(self)
-
         self.home_team_table = Tableview(
             self,
             coldata=self.columns,
@@ -69,6 +66,7 @@ class PlayerDetailsTab(ttk.Frame):
             pagesize=8,
             height=11,
         )
+        self.home_team_table.grid(row=0, column=0, padx=10, pady=10, sticky=EW)
 
         self.away_team_table = Tableview(
             self,
@@ -80,8 +78,7 @@ class PlayerDetailsTab(ttk.Frame):
             pagesize=8,
             height=11,
         )
-        self.away_team_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
-        self.scores_details.grid(row=0, column=0, columnspan=2)
+        self.away_team_table.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
 
         self.place(anchor=CENTER, relx=0.5, rely=0.5)
 
@@ -104,7 +101,7 @@ class PlayerDetailsTab(ttk.Frame):
             height=11,
         )
         self.home_team_table.autofit_columns()
-        self.home_team_table.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+        self.home_team_table.grid(row=0, column=0, padx=10, pady=10, sticky=EW)
 
         self.away_team_table = Tableview(
             self,
@@ -117,9 +114,5 @@ class PlayerDetailsTab(ttk.Frame):
             height=11,
         )
         self.away_team_table.autofit_columns()
-        self.away_team_table.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+        self.away_team_table.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
 
-    def update_team_names(
-        self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
-    ):
-        self.scores_details.update_team_names(home_team, home_team_score, away_team, away_team_score)

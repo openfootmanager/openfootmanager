@@ -88,13 +88,15 @@ class CrossEvent(SimulationEvent):
 
     def get_secondary_outcome(self) -> EventOutcome:
         outcomes = [EventOutcome.CROSS_SUCCESS, EventOutcome.CROSS_OFFSIDE]
-        not_offside_probability = (
-            self.receiving_player.attributes.offensive.positioning
-            + self.receiving_player.attributes.intelligence.team_work
-        ) / 2
+
+        offside_probability = 5 / (
+            200 + self.attacking_player.attributes.offensive.positioning
+            + self.attacking_player.attributes.intelligence.team_work
+        )
+
         outcome_probability = [
-            not_offside_probability,
-            100 - not_offside_probability,
+            1 - offside_probability,
+            offside_probability,
         ]
         return random.choices(outcomes, outcome_probability)[0]
 
@@ -120,6 +122,7 @@ class CrossEvent(SimulationEvent):
 
         if (
             end_position in OFF_POSITIONS
+            and self.state.position.value < end_position.value
             and self.outcome == EventOutcome.CROSS_SUCCESS
             and self.event_type != EventType.CORNER_KICK
         ):

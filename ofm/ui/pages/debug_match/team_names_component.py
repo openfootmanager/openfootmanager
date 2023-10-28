@@ -48,21 +48,24 @@ class TeamNamesComponent(ttk.Frame):
         self.away_team_score.destroy()
 
         self.home_team_name = ttk.Label(
-            self, text=f"{home_team_name}", font="Arial 15 bold"
+            self, text=f"{home_team_name}", font="Arial 18 bold"
         )
         self.home_team_name.grid(row=0, column=0, padx=10, pady=10, sticky=W)
 
+        spacing = ttk.Label(self, text="-", font="Arial 18 bold")
+        spacing.grid(row=0, column=2, padx=10, pady=10, stick=EW)
+
         self.home_team_score = ttk.Label(
-            self, text=f"{home_team_score}", font="Arial 15 bold"
+            self, text=f"{home_team_score}", font="Arial 18 bold"
         )
         self.home_team_score.grid(row=0, column=1, padx=15, pady=10, sticky=NS)
 
         self.away_team_score = ttk.Label(
             self, text=f"{away_team_score}", font="Arial 15 bold"
         )
-        self.away_team_score.grid(row=0, column=2, padx=15, pady=10, sticky=NS)
+        self.away_team_score.grid(row=0, column=3, padx=15, pady=10, sticky=NS)
 
         self.away_team_name = ttk.Label(
             self, text=f"{away_team_name}", font="Arial 15 bold"
         )
-        self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
+        self.away_team_name.grid(row=0, column=4, padx=10, pady=10, sticky=E)
