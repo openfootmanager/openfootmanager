@@ -197,6 +197,7 @@ class TeamStats:
     avg_rating: float = 0.0
     possession: float = 0.0
     goals_conceded: int = 0
+    offsides: int = 0
 
     def update_stats(self, players: list[PlayerSimulation]):
         self.fouls = sum(player.statistics.fouls for player in players)

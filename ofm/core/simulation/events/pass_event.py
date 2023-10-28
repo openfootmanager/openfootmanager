@@ -81,13 +81,15 @@ class PassEvent(SimulationEvent):
 
     def get_secondary_outcome(self) -> EventOutcome:
         outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
-        not_offside_probability = (
-            self.receiving_player.attributes.offensive.positioning
-            + self.receiving_player.attributes.intelligence.team_work
+
+        offside_probability = 5 / (
+            200 + self.attacking_player.attributes.offensive.positioning
+            + self.attacking_player.attributes.intelligence.team_work
         )
+
         outcome_probability = [
-            not_offside_probability,
-            200 - not_offside_probability,
+            1 - offside_probability,
+            offside_probability,
         ]
         return random.choices(outcomes, outcome_probability)[0]
 
@@ -116,6 +118,7 @@ class PassEvent(SimulationEvent):
 
         if (
             end_position in OFF_POSITIONS
+            and self.state.position.value < end_position.value
             and self.outcome == EventOutcome.PASS_SUCCESS
             and self.event_type != EventType.CORNER_KICK
         ):
@@ -130,6 +133,9 @@ class PassEvent(SimulationEvent):
             self.commentary.append(f"{self.attacking_player} failed to pass the ball!")
             if self.outcome == EventOutcome.PASS_INTERCEPT:
                 self.defending_player.statistics.interceptions += 1
+            if self.outcome == EventOutcome.PASS_OFFSIDE:
+                attacking_team.stats.offsides += 1
+                self.commentary.append(f"{self.receiving_player} was offside!")
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )

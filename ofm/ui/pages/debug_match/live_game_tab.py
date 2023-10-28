@@ -15,27 +15,17 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from .team_names_component import TeamNamesComponent
 
 
 class LiveGameTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.scores_details = TeamNamesComponent(self)
-
-        self.scores_details.grid(row=0, column=0, columnspan=2)
         self.live_game_events = ttk.ScrolledText(self, height=10)
         self.live_game_events.config(state=DISABLED)
-        self.live_game_events.grid(row=1, column=0, padx=10, pady=10)
-
-        self.game_progress = ttk.Progressbar(self, orient=HORIZONTAL, length=500, mode="determinate", bootstyle="striped")
-        self.game_progress.grid(row=2, column=0, columnspan=2)
+        self.live_game_events.grid(row=0, column=0, padx=10, pady=10)
 
         self.place(anchor=CENTER, relx=0.5, rely=0.5)
-
-    def update_team_names(self, home_team_name, home_team_score, away_team_name, away_team_score):
-        self.scores_details.update_team_names(home_team_name, home_team_score, away_team_name, away_team_score)
 
     def update_live_game_events(self, game_events: list[str]):
         self.live_game_events.config(state="normal")

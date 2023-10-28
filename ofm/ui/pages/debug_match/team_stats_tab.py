@@ -15,15 +15,12 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from .team_names_component import TeamNamesComponent
 
 
 class TeamStatsTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.team_names = TeamNamesComponent(self)
-        self.team_names.grid(row=0, column=0, columnspan=2)
         self.home_team_stats = [
             ttk.Label(self, text="0"),
             ttk.Label(self, text="0"),
@@ -37,7 +34,7 @@ class TeamStatsTab(ttk.Frame):
             ttk.Label(self, text="0"),
         ]
         for row, stat in enumerate(self.home_team_stats):
-            stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
+            stat.grid(row=row, column=0, padx=10, pady=5, sticky=NW)
 
         self.stats_descriptions = [
             ttk.Label(self, text="Shots"),
@@ -52,7 +49,7 @@ class TeamStatsTab(ttk.Frame):
             ttk.Label(self, text="Corners"),
         ]
         for row, stat in enumerate(self.stats_descriptions):
-            stat.grid(row=row + 1, column=1, padx=5, pady=5, sticky=NS)
+            stat.grid(row=row, column=1, padx=70, pady=5, sticky=NS)
 
         self.away_team_stats = [
             ttk.Label(self, text="0"),
@@ -67,14 +64,9 @@ class TeamStatsTab(ttk.Frame):
             ttk.Label(self, text="0"),
         ]
         for row, stat in enumerate(self.away_team_stats):
-            stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)
+            stat.grid(row=row, column=2, padx=10, pady=5, sticky=NE)
 
         self.place(anchor=CENTER, relx=0.5, rely=0.5)
-
-    def update_team_names(
-        self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
-    ):
-        self.team_names.update_team_names(home_team, home_team_score, away_team, away_team_score)
 
     def update_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         for row, stat in enumerate(self.home_team_stats):
@@ -91,5 +83,5 @@ class TeamStatsTab(ttk.Frame):
             away_stat = ttk.Label(self, text=away_team_stats[row])
             self.home_team_stats.append(home_stat)
             self.away_team_stats.append(away_stat)
-            home_stat.grid(row=row + 1, column=0, padx=5, pady=5, sticky=NW)
-            away_stat.grid(row=row + 1, column=2, padx=5, pady=5, sticky=NE)
+            home_stat.grid(row=row, column=0, padx=5, pady=5, sticky=NW)
+            away_stat.grid(row=row, column=2, padx=5, pady=5, sticky=NE)
