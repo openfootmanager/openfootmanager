@@ -145,11 +145,18 @@ class DebugMatchController(ControllerInterface):
             pass_accuracy = int(((team.stats.passes - team.stats.passes_missed) / team.stats.passes) * 100)
         else:
             pass_accuracy = 0
-
+        if self.live_game is not None:
+            if self.live_game.minutes != 0:
+                minutes = self.live_game.minutes
+            else:
+                minutes = 1
+            possession = int((team.stats.possession / float(minutes)) * 100)
+        else:
+            possession = 0
         return [
             team.stats.shots,
             team.stats.shots_on_target,
-            team.stats.possession,
+            possession,
             team.stats.passes,
             pass_accuracy,
             team.stats.fouls,

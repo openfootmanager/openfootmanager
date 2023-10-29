@@ -148,4 +148,5 @@ class SimulationEngine:
     def run(self):
         event = self.generate_event()
         attacking_team, defending_team = self.get_team_in_possession()
+        attacking_team.stats.possession += 0.1
         self.state = event.calculate_event(attacking_team, defending_team)
