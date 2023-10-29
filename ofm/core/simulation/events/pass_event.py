@@ -46,18 +46,21 @@ class PassEvent(SimulationEvent):
         ]
 
         if self.event_type == EventType.FREE_KICK:
-            pass_success = (
-                self.attacking_player.attributes.intelligence.passing
+            pass_miss = (50 + distance) / (
+                100
+                + self.attacking_player.attributes.intelligence.passing
                 + self.attacking_player.attributes.intelligence.vision
                 + self.attacking_player.attributes.offensive.free_kick
-            ) / (distance + 1) * 100
-            pass_miss = 2 - pass_success
+            )
         else:
-            pass_success = (
-                self.attacking_player.attributes.intelligence.passing
+
+            pass_miss = (25 + distance) / (
+                100
+                + self.attacking_player.attributes.intelligence.passing
                 + self.attacking_player.attributes.intelligence.vision
-            ) / (distance + 1) * 100
-            pass_miss = 1.34 - pass_success
+            )
+
+        pass_success = 1 - pass_miss
 
         outcome_probability = [
             pass_miss,  # PASS_MISS
