@@ -22,7 +22,7 @@ from uuid import UUID
 from .club import Club
 from .formation import Formation
 from .player import PlayerSimulation
-from ..simulation import PitchPosition, DEF_POSITIONS
+from ..simulation import PitchPosition
 from ..simulation.team_strategy import TeamStrategy
 
 

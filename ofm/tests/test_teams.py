@@ -55,7 +55,3 @@ def test_generate_team_squads(squads_def, confederations_file):
         assert isinstance(club, Club)
         for player in club.squad:
             assert isinstance(player, PlayerTeam)
-
-
-def test_get_player_on_pitch():
-    pass
