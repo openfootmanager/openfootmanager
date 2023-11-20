@@ -75,11 +75,19 @@ class FoulEvent(SimulationEvent):
 
         injuries_prob = [
             0.90,
-            0.08,
-            0.00099,
-            0.00001,
+            0.009,
+            0.000099,
+            0.000001,
         ]
-        return random.choices(injuries, injuries_prob)[0]
+        injury = random.choices(injuries, injuries_prob)[0]
+        if injury in [
+            PlayerInjury.MEDIUM_INJURY,
+            PlayerInjury.SEVERE_INJURY,
+            PlayerInjury.CAREER_ENDING_INJURY
+        ]:
+            fouled_player.able_to_play = False
+
+        return injury
 
     def get_player_card(self, player_injury: PlayerInjury) -> EventOutcome:
         if player_injury in [
@@ -123,13 +131,7 @@ class FoulEvent(SimulationEvent):
         injury_type = self.get_player_injury(offending_player, fouled_player)
         fouled_player.injury_type = injury_type
 
-        if injury_type in [
-            PlayerInjury.SEVERE_INJURY,
-            PlayerInjury.CAREER_ENDING_INJURY,
-        ]:
-            self.outcome = EventOutcome.FOUL_RED_CARD
-        else:
-            self.outcome = self.get_player_card(injury_type)
+        self.outcome = self.get_player_card(injury_type)
 
         if self.outcome == EventOutcome.FOUL_YELLOW_CARD:
             offending_player.statistics.yellow_cards += 1

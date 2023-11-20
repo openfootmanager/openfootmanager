@@ -22,7 +22,7 @@ from uuid import UUID
 from .club import Club
 from .formation import Formation
 from .player import PlayerSimulation
-from ..simulation import PitchPosition
+from ..simulation import PitchPosition, DEF_POSITIONS
 from ..simulation.team_strategy import TeamStrategy
 
 
@@ -66,42 +66,59 @@ class TeamSimulation:
         self,
         position: PitchPosition,
     ) -> PlayerSimulation:
+        players = self.formation.players.copy()
         if position == PitchPosition.DEF_BOX:
-            players = [self.formation.gk]
-            players.extend(self.formation.df.copy())
+            probabilities = [0.3]
+            df_prob = [0.5 / len(self.formation.df) for _ in range(len(self.formation.df))]
+            probabilities.extend(df_prob)
+            mf_prob = [0.1 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities.extend(mf_prob)
+            fw_prob = [0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.DEF_RIGHT,
             PitchPosition.DEF_LEFT,
             PitchPosition.DEF_MIDFIELD_LEFT,
-            PitchPosition.DEF_MIDFIELD_RIGHT,
             PitchPosition.DEF_MIDFIELD_CENTER,
+            PitchPosition.DEF_MIDFIELD_RIGHT,
         ]:
-            players = self.formation.df.copy()
-            players.extend(self.formation.mf.copy())
+            players.remove(self.formation.gk)
+            probabilities = [0.6 / len(self.formation.df) for _ in range(len(self.formation.df))]
+            mf_prob = [0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities.extend(mf_prob)
+            fw_prob = [0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.MIDFIELD_RIGHT,
             PitchPosition.MIDFIELD_CENTER,
             PitchPosition.MIDFIELD_LEFT,
         ]:
-            players = self.formation.df.copy()
-            players.extend(self.formation.mf.copy())
-            players.extend(self.formation.fw.copy())
+            players.remove(self.formation.gk)
+            probabilities = [0.2 / len(self.formation.df) for _ in range(len(self.formation.df))]
+            mf_prob = [0.5 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities.extend(mf_prob)
+            fw_prob = [0.3 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            probabilities.extend(fw_prob)
         else:
-            players = self.formation.fw.copy()
-            players.extend(self.formation.mf.copy())
+            players.remove(self.formation.gk)
+            probabilities = [0.1 / len(self.formation.df) for _ in range(len(self.formation.df))]
+            mf_prob = [0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities.extend(mf_prob)
+            fw_prob = [0.5 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            probabilities.extend(fw_prob)
 
-        if (
-            self.player_in_possession is not None
-            and self.player_in_possession in players
-        ):
-            players.remove(self.player_in_possession)
+        if self.player_in_possession is not None:
+            idx = players.index(self.player_in_possession)
+            players.pop(idx)
+            probabilities.pop(idx)
 
         # Red card players cannot receive the ball
-        for player in players:
-            if player.sent_off:
+        for player, probability in zip(players, probabilities):
+            if player.sent_off or not player.able_to_play:
                 players.remove(player)
+                probabilities.remove(probability)
 
-        return random.choice(players)
+        return random.choices(players, probabilities)[0]
 
     def update_stats(self):
         players = self.formation.all_players

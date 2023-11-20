@@ -133,10 +133,12 @@ class Formation:
     def substitute_player(
         self, player_out: PlayerSimulation, player_in: PlayerSimulation
     ):
+        if player_in not in self.all_players or player_out not in self.all_players:
+            raise FormationError("Invalid player!")
+
         current_position = player_out.current_position
         player_out.subbed = True
 
-        player_in.current_position = current_position
         if current_position == Positions.GK:
             self.gk = player_in
             index = self.bench.index(player_in)
@@ -156,6 +158,10 @@ class Formation:
             index_out = self.bench.index(player_in)
             self.fw[index] = player_in
             self.bench[index_out] = player_out
+        else:
+            raise FormationError("Invalid position!")
+
+        player_in.current_position = current_position
 
     def validate_formation(self) -> bool:
         return self.formation_string in FORMATION_STRINGS

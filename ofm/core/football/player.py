@@ -234,6 +234,7 @@ class PlayerSimulation:
         self._current_skill = 0.0
         self.statistics = PlayerStats(player.details.player_id)
         self.subbed = False
+        self.able_to_play = True
 
     @property
     def stamina(self) -> float:
@@ -273,6 +274,12 @@ class PlayerSimulation:
     @attributes.setter
     def attributes(self, attributes: PlayerAttributes):
         self.player.details.attributes = attributes
+
+    def __eq__(self, other):
+        if not isinstance(other, PlayerSimulation):
+            return False
+        return self.player.details.player_id == other.player.details.player_id
+
 
     def __str__(self):
         return self.player.details.short_name.encode("utf-8").decode("unicode_escape")
