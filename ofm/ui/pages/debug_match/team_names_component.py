@@ -22,22 +22,22 @@ class TeamNamesComponent(ttk.Frame):
         super().__init__(*args, **kwargs)
 
         self.home_team_name = ttk.Label(
-            self, text="Brazil", font="Arial 15 bold"
+            self, text="Brazil", font="Arial 18 bold"
         )
         self.home_team_name.grid(row=0, column=0, padx=10, pady=10, sticky=W)
 
         self.home_team_score = ttk.Label(
-            self, text="0", font="Arial 15 bold"
+            self, text="0", font="Arial 18 bold"
         )
         self.home_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
 
         self.away_team_score = ttk.Label(
-            self, text="0", font="Arial 15 bold"
+            self, text="0", font="Arial 18 bold"
         )
         self.away_team_score.grid(row=0, column=2, padx=10, pady=10, sticky=EW)
 
         self.away_team_name = ttk.Label(
-            self, text="Argentina", font="Arial 15 bold"
+            self, text="Argentina", font="Arial 18 bold"
         )
         self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
 
@@ -61,11 +61,11 @@ class TeamNamesComponent(ttk.Frame):
         self.home_team_score.grid(row=0, column=1, padx=15, pady=10, sticky=NS)
 
         self.away_team_score = ttk.Label(
-            self, text=f"{away_team_score}", font="Arial 15 bold"
+            self, text=f"{away_team_score}", font="Arial 18 bold"
         )
         self.away_team_score.grid(row=0, column=3, padx=15, pady=10, sticky=NS)
 
         self.away_team_name = ttk.Label(
-            self, text=f"{away_team_name}", font="Arial 15 bold"
+            self, text=f"{away_team_name}", font="Arial 18 bold"
         )
         self.away_team_name.grid(row=0, column=4, padx=10, pady=10, sticky=E)

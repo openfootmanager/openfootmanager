@@ -16,18 +16,19 @@
 import uuid
 
 import pytest
-from decimal import Decimal
+from datetime import timedelta
 
 from ofm.core.football.team_simulation import Goal
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
 from ofm.core.simulation.events import EventFactory, PassEvent
 from ofm.core.simulation.fixture import Fixture
-from ofm.core.simulation.game_state import GameState
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
 
 
 class MockSimulationEngine:
+
     def run(self):
         pass
 
@@ -48,7 +49,11 @@ def live_game(monkeypatch, simulation_teams) -> LiveGame:
         home_team.stadium,
     )
 
+    def get_event_duration(self):
+        return timedelta(seconds=5)
+
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
+    monkeypatch.setattr(SimulationEngine, "get_event_duration", get_event_duration)
 
     return LiveGame(
         fixture,
@@ -56,6 +61,7 @@ def live_game(monkeypatch, simulation_teams) -> LiveGame:
         away_team_sim,
         False,
         False,
+        True
     )
 
 
@@ -66,104 +72,102 @@ def test_formations_are_complete(live_game: LiveGame):
     assert live_game.engine.away_team.formation.bench is not None
 
 
+def test_penalty_shootout_enabled_if_extra_time_is_enabled(live_game):
+    live_game.possible_extra_time = True
+    assert live_game.possible_penalties is True
+
+
 def test_game_breaks_in_half_time(live_game):
+    live_game.no_break = False
+    assert live_game.state.status == SimulationStatus.NOT_STARTED
     live_game.run()
-    assert live_game.minutes == 45.0
-    assert live_game.is_half_time is True
+    assert live_game.minutes == timedelta(seconds=2700)
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
+    assert live_game.is_game_over is False
 
 
-def test_game_breaks_in_90_min(live_game):
+def test_game_ends_after_90_minutes(live_game):
+    assert live_game.state.status == SimulationStatus.NOT_STARTED
     live_game.run()
-    live_game.reset_after_half_time()
-    live_game.run()
-    assert live_game.minutes == 90.0
+    assert live_game.minutes == timedelta(minutes=90)
     assert live_game.is_game_over is True
-    assert live_game.is_half_time is False
+    assert live_game.state.status == SimulationStatus.FINISHED
 
 
 def test_game_breaks_in_extra_time(live_game):
+    live_game.no_break = False
     live_game.possible_extra_time = True
+    assert live_game.state.status == SimulationStatus.NOT_STARTED
     live_game.run()
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
     live_game.run()
-    assert live_game.minutes == 90.0
+    assert live_game.state.status == SimulationStatus.SECOND_HALF_BREAK
+    assert live_game.minutes == timedelta(minutes=90)
     assert live_game.is_game_over is False
-    assert live_game.is_half_time is True
 
 
 def test_game_breaks_in_extra_time_half_time(live_game):
+    live_game.no_break = False
     live_game.possible_extra_time = True
     live_game.run()  # first half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
     live_game.run()  # second half
-    live_game.reset_after_half_time()
-    live_game.run()
-    assert live_game.minutes == 105.0
-    assert live_game.is_game_over is False
-    assert live_game.is_half_time is True
-
-
-def test_game_breaks_after_extra_time(live_game):
-    live_game.possible_extra_time = True
-    live_game.run()  # first half
-    live_game.reset_after_half_time()
-    live_game.run()  # second half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.SECOND_HALF_BREAK
     live_game.run()  # first et half
-    live_game.reset_after_half_time()
-    live_game.run()
-    assert live_game.minutes == 120.0
-    assert live_game.is_game_over is True
-    assert live_game.is_half_time is False
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
+    assert live_game.minutes == timedelta(minutes=105)
+    assert live_game.is_game_over is False
 
 
 def test_game_breaks_to_penalty_shootout(live_game):
+    live_game.no_break = False
     live_game.possible_extra_time = True
-    live_game.possible_penalties = True
     live_game.run()  # first half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
     live_game.run()  # second half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.SECOND_HALF_BREAK
     live_game.run()  # first et half
-    live_game.reset_after_half_time()
-    live_game.run()
-    assert live_game.minutes == 120.0
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
+    live_game.run()  # second et half
+    assert live_game.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME_BREAK
+    assert live_game.minutes == timedelta(minutes=120)
     assert live_game.is_game_over is False
-    assert live_game.is_half_time is True
 
 
 def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
+    live_game.no_break = False
     live_game.possible_extra_time = True
     live_game.run()  # first half
-    live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(45.0)))
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
+    live_game.engine.home_team.add_goal(Goal(player_sim, timedelta(minutes=45)))
     live_game.run()  # second half
-    assert live_game.minutes == 90.0
+    assert live_game.state.status == SimulationStatus.FINISHED
+    assert live_game.minutes == timedelta(minutes=90)
     assert live_game.is_game_over is True
-    assert live_game.is_half_time is False
 
 
-def test_game_breaks_and_does_not_go_to_penalties(live_game, player_sim):
+def test_game_ends_in_120_minutes(live_game, player_sim):
+    live_game.no_break = False
     live_game.possible_extra_time = True
-    live_game.possible_penalties = True
     live_game.run()  # first half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
     live_game.run()  # second half
-    live_game.reset_after_half_time()
+    assert live_game.state.status == SimulationStatus.SECOND_HALF_BREAK
     live_game.run()  # first et half
-    live_game.reset_after_half_time()
-    live_game.engine.home_team.add_goal(Goal(player_sim, Decimal(90.0)))
-    live_game.run()
-    assert live_game.minutes == 120.0
+    assert live_game.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
+    live_game.engine.home_team.add_goal(Goal(player_sim, timedelta(minutes=90)))
+    live_game.run()  # second et half
+    assert live_game.state.status == SimulationStatus.FINISHED
+    assert live_game.minutes == timedelta(minutes=120)
     assert live_game.is_game_over is True
-    assert live_game.is_half_time is False
 
 
 def test_game_starts_with_pass_event(live_game):
     event_factory = EventFactory()
+    game_state = GameState(timedelta(minutes=0), SimulationStatus.NOT_STARTED, PitchPosition.MIDFIELD_CENTER)
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(Decimal(0.0), PitchPosition.MIDFIELD_CENTER),
+        game_state,
         None,
     )
     assert event == EventType.PASS
@@ -171,29 +175,58 @@ def test_game_starts_with_pass_event(live_game):
 
 def test_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
+    game_state = GameState(timedelta(minutes=45), SimulationStatus.FIRST_HALF_BREAK, PitchPosition.MIDFIELD_CENTER)
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(Decimal(45.1), PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
+        game_state,
+        PassEvent(EventType.PASS, game_state),
     )
     assert event == EventType.PASS
 
 
 def test_extra_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
+    game_state = GameState(timedelta(minutes=90), SimulationStatus.SECOND_HALF_BREAK, PitchPosition.MIDFIELD_CENTER)
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(Decimal(90.1), PitchPosition.MIDFIELD_CENTER)),
+        game_state,
+        PassEvent(EventType.PASS, game_state),
     )
     assert event == EventType.PASS
 
 
 def test_extra_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
+    game_state = GameState(timedelta(minutes=105), SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK, PitchPosition.MIDFIELD_CENTER)
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
-        GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER),
-        PassEvent(EventType.PASS, GameState(Decimal(105.1), PitchPosition.MIDFIELD_CENTER)),
+        game_state,
+        PassEvent(EventType.PASS, game_state),
     )
     assert event == EventType.PASS
+
+
+def test_get_added_time_in_45_minutes(live_game):
+    game_state = GameState(
+        timedelta(minutes=45),
+        SimulationStatus.FIRST_HALF,
+        PitchPosition.MIDFIELD_CENTER,
+    )
+    live_game.state = game_state
+    live_game.get_added_time()
+    assert live_game.state.in_additional_time is True
+    assert live_game.state.minutes == timedelta(minutes=45)
+    assert live_game.added_time is not None
+
+
+def test_get_added_time_before_45_minutes(live_game):
+    game_state = GameState(
+        timedelta(minutes=44),
+        SimulationStatus.FIRST_HALF,
+        PitchPosition.MIDFIELD_CENTER,
+    )
+    live_game.state = game_state
+    live_game.get_added_time()
+    assert live_game.state.in_additional_time is False
+    assert live_game.state.minutes == timedelta(minutes=44)
+    assert live_game.added_time is None

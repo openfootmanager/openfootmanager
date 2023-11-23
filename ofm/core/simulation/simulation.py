@@ -14,32 +14,48 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from decimal import Decimal, getcontext
+from datetime import timedelta
+from typing import Optional
 
 from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
-from .event import GameState, SimulationEvent
+from .event import SimulationEvent
+from .game_state import GameState, SimulationStatus
 from .events import EventFactory
 from .fixture import Fixture
 
 
 class LiveGame:
     def __init__(
-        self,
-        fixture: Fixture,
-        home_team: TeamSimulation,
-        away_team: TeamSimulation,
-        possible_extra_time: bool,
-        possible_penalties: bool,
+            self,
+            fixture: Fixture,
+            home_team: TeamSimulation,
+            away_team: TeamSimulation,
+            possible_extra_time: bool,
+            possible_penalties: bool,
+            no_break: bool,
+            delay: int = 0,
     ):
         self.fixture = fixture
-        self.is_half_time = False
         self.is_game_over = False
         self.possible_penalties = possible_penalties
-        self.possible_extra_time = possible_extra_time
+        self._possible_extra_time = possible_extra_time
+        self.no_break = no_break
+        self.delay = delay
         self.penalty_shootout = False
         self.attendance = self.calculate_attendance()
         self.engine = SimulationEngine(home_team, away_team)
+        self.added_time: Optional[timedelta] = None
+
+    @property
+    def possible_extra_time(self):
+        return self._possible_extra_time
+
+    @possible_extra_time.setter
+    def possible_extra_time(self, value: bool):
+        self._possible_extra_time = value
+        if not self.possible_penalties:
+            self.possible_penalties = True
 
     @property
     def minutes(self):
@@ -49,52 +65,145 @@ class LiveGame:
     def minutes(self, minutes):
         self.engine.state.minutes = minutes
 
+    @property
+    def state(self):
+        return self.engine.state
+
+    @state.setter
+    def state(self, state: GameState):
+        self.engine.state = state
+
+    def get_added_time(self):
+        if (
+                self.state.status == SimulationStatus.FIRST_HALF
+                and self.state.in_additional_time is False
+                and self.state.minutes == timedelta(minutes=45)
+        ) or (
+                self.state.status == SimulationStatus.SECOND_HALF
+                and self.state.in_additional_time is False
+                and self.state.minutes == timedelta(minutes=90)
+        ) or (
+                self.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME
+                and self.state.in_additional_time is False
+                and self.state.minutes == timedelta(minutes=105)
+        ) or (
+                self.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME
+                and self.state.in_additional_time is False
+                and self.state.minutes == timedelta(minutes=120)
+        ):
+            added_time = random.randint(0, 5)
+            self.state.in_additional_time = True
+            self.added_time = timedelta(minutes=added_time)
+
     def calculate_attendance(self) -> int:
         pass
 
-    def reset_after_half_time(self):
-        if not self.penalty_shootout:
-            self.is_half_time = False
-            self.engine.state.minutes += Decimal(0.1)
+    def reset_state_additional_time(self):
+        self.state.in_additional_time = False
+        self.state.additional_time_elapsed = timedelta(0)
 
-    def game_is_not_in_break(self) -> bool:
-        if self.minutes == 120.0:
-            if self.possible_penalties and self.engine.is_game_a_draw():
-                self.is_half_time = True
-                self.penalty_shootout = True
-            else:
-                self.is_game_over = True
-            return False
-        elif self.minutes in [45.0, 105.0]:
-            self.is_half_time = True
-            return False
-        elif self.minutes == 90.0:
-            if self.possible_extra_time and self.engine.is_game_a_draw():
-                self.is_half_time = True
-            else:
-                self.is_game_over = True
-            return False
-        return True
+    def transition_game_status(self):
+        if self.state.status == SimulationStatus.NOT_STARTED:
+            self.state.status = SimulationStatus.FIRST_HALF
+        elif self.state.status == SimulationStatus.FIRST_HALF and self.state.minutes == timedelta(minutes=45):
+            if not self.state.in_additional_time:
+                self.get_added_time()
+            elif self.state.additional_time_elapsed.total_seconds() >= self.added_time.total_seconds():
+                self.state.status = SimulationStatus.FIRST_HALF_BREAK
+                self.reset_state_additional_time()
+        elif self.state.status == SimulationStatus.FIRST_HALF_BREAK:
+            self.state.status = SimulationStatus.SECOND_HALF
+        elif self.state.status == SimulationStatus.SECOND_HALF and self.state.minutes == timedelta(minutes=90):
+            if not self.state.in_additional_time:
+                self.get_added_time()
+            elif self.state.additional_time_elapsed.total_seconds() >= self.added_time.total_seconds():
+                if self.possible_extra_time and self.engine.is_game_a_draw():
+                    self.state.status = SimulationStatus.SECOND_HALF_BREAK
+                    self.reset_state_additional_time()
+                else:
+                    self.state.status = SimulationStatus.FINISHED
+                    self.is_game_over = True
+        elif self.state.status == SimulationStatus.SECOND_HALF_BREAK:
+            self.state.status = SimulationStatus.FIRST_HALF_EXTRA_TIME
+        elif self.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME and self.state.minutes == timedelta(
+                minutes=105):
+            if not self.state.in_additional_time:
+                self.get_added_time()
+            elif self.state.additional_time_elapsed.total_seconds() >= self.added_time.total_seconds():
+                self.state.status = SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
+                self.reset_state_additional_time()
+        elif self.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK:
+            self.state.status = SimulationStatus.SECOND_HALF_EXTRA_TIME
+        elif self.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME and self.state.minutes == timedelta(
+                minutes=120):
+            if not self.state.in_additional_time:
+                self.get_added_time()
+            elif self.state.additional_time_elapsed.total_seconds() >= self.added_time.total_seconds():
+                if self.engine.is_game_a_draw():
+                    self.state.status = SimulationStatus.SECOND_HALF_EXTRA_TIME_BREAK
+                else:
+                    self.state.status = SimulationStatus.FINISHED
+                    self.is_game_over = True
+        elif self.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME_BREAK:
+            self.state.status = SimulationStatus.PENALTY_SHOOTOUT
+
+    def add_minutes(self):
+        duration = self.engine.get_event_duration()
+        self.state.minutes += duration
+
+        if self.state.minutes >= timedelta(minutes=45) and self.state.status == SimulationStatus.FIRST_HALF:
+            additional_time = self.state.minutes - timedelta(minutes=45)
+            self.state.additional_time_elapsed += additional_time
+            self.state.minutes = timedelta(minutes=45)
+        elif self.state.minutes >= timedelta(minutes=90) and self.state.status == SimulationStatus.SECOND_HALF:
+            additional_time = self.state.minutes - timedelta(minutes=90)
+            self.state.additional_time_elapsed += additional_time
+            self.state.minutes = timedelta(minutes=90)
+        elif self.state.minutes >= timedelta(minutes=105) and self.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME:
+            additional_time = self.state.minutes - timedelta(minutes=105)
+            self.state.additional_time_elapsed += additional_time
+            self.state.minutes = timedelta(minutes=105)
+        elif self.state.minutes >= timedelta(minutes=120) and self.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME:
+            additional_time = self.state.minutes - timedelta(minutes=120)
+            self.state.additional_time_elapsed += additional_time
+            self.state.minutes = timedelta(minutes=120)
+
+    def is_game_on_break(self) -> bool:
+        return (
+            self.state.status == SimulationStatus.FIRST_HALF_BREAK
+            or self.state.status == SimulationStatus.SECOND_HALF_BREAK
+            or self.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
+            or self.state.status == SimulationStatus.SECOND_HALF_EXTRA_TIME_BREAK
+        )
 
     def run(self):
-        while not self.is_game_over and not self.is_half_time:
-            if self.game_is_not_in_break():
-                self.engine.run()
-                self.minutes += Decimal(0.1)
+        while not self.is_game_over:
+            self.engine.run()
+            self.add_minutes()
+            self.transition_game_status()
+            if not self.no_break and self.is_game_on_break():
+                break
 
 
 class SimulationEngine:
     def __init__(
-        self,
-        home_team: TeamSimulation,
-        away_team: TeamSimulation,
+            self,
+            home_team: TeamSimulation,
+            away_team: TeamSimulation,
     ):
-        getcontext().prec = 5
         self.home_team = home_team
         self.away_team = away_team
         self.event_history = []
-        self.state = GameState(Decimal(0.0), PitchPosition.MIDFIELD_CENTER)
+        self.state = GameState(
+            timedelta(seconds=0),
+            SimulationStatus.NOT_STARTED,
+            PitchPosition.MIDFIELD_CENTER
+        )
         self.starting_the_game = random.choice([self.home_team, self.away_team])
+        if self.starting_the_game == self.home_team:
+            self.secondary_start = self.away_team
+        else:
+            self.secondary_start = self.home_team
         self.event_factory = EventFactory()
 
     def generate_event(self) -> SimulationEvent:
@@ -113,40 +222,29 @@ class SimulationEngine:
         """
         Returns (Attacking Team, Defending Team)
         """
-        if self.state.minutes in [0.0, 90.1]:
-            if self.starting_the_game == self.home_team:
-                self.away_team.in_possession = False
-                self.home_team.in_possession = True
-                self.home_team.player_in_possession = (
-                    self.home_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
-                )
-            else:
-                self.home_team.in_possession = False
-                self.away_team.in_possession = True
-                self.away_team.player_in_possession = (
-                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
-                )
-        elif self.state.minutes in [45.1, 105.1]:
-            if self.starting_the_game == self.home_team:
-                self.away_team.in_possession = True
-                self.home_team.in_possession = False
-                self.away_team.player_in_possession = (
-                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
-                )
-            else:
-                self.home_team.in_possession = True
-                self.away_team.in_possession = False
-                self.home_team.player_in_possession = (
-                    self.away_team.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
-                )
+        if self.state.status in [SimulationStatus.NOT_STARTED, SimulationStatus.SECOND_HALF_BREAK]:
+            self.starting_the_game.in_possession = True
+            self.secondary_start.in_possession = False
+            self.starting_the_game.player_in_possession = (
+                self.starting_the_game.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+            )
+        elif self.state.status in [SimulationStatus.FIRST_HALF_BREAK, SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK]:
+            self.starting_the_game.in_possession = False
+            self.secondary_start.in_possession = True
+            self.secondary_start.player_in_possession = (
+                self.secondary_start.get_player_on_pitch(PitchPosition.MIDFIELD_CENTER)
+            )
 
         if self.home_team.in_possession:
             return self.home_team, self.away_team
         else:
             return self.away_team, self.home_team
 
+    def get_event_duration(self):
+        if self.event_history:
+            return timedelta(seconds=self.event_history[-1].duration)
+
     def run(self):
         event = self.generate_event()
         attacking_team, defending_team = self.get_team_in_possession()
-        attacking_team.stats.possession += 0.1
         self.state = event.calculate_event(attacking_team, defending_team)

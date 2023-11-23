@@ -13,6 +13,7 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import random
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -67,6 +68,10 @@ class SimulationEvent:
     attacking_player: Optional[PlayerSimulation] = None
     defending_player: Optional[PlayerSimulation] = None
     commentary: list[str] = field(default_factory=list)
+    duration: int = 0
+
+    def __post_init__(self):
+        self.duration = random.randint(1, 8)
 
     @abstractmethod
     def calculate_event(
@@ -88,4 +93,4 @@ class SimulationEvent:
         defending_team.in_possession = True
         defending_team.player_in_possession = defending_player
         position = PITCH_EQUIVALENTS[position]
-        return GameState(self.state.minutes, position)
+        return GameState(self.state.minutes, self.state.status, position)

@@ -34,7 +34,7 @@ class DribbleEvent(SimulationEvent):
         # Player moves the ball according to the transition matrix
         # I'm using the pass transition matrix, we can rename it accordingly
         transition_matrix = team_pass_strategy(attacking_team.team_strategy)
-        probability = transition_matrix[self.state.position.value]
+        probability = transition_matrix[self.state.position]
         end_position = random.choices(list(PitchPosition), probability)[0]
 
         # Dribble distance
@@ -76,7 +76,9 @@ class DribbleEvent(SimulationEvent):
             attacking_team.player_in_possession = None
             defending_team.player_in_possession = self.defending_player
             defending_team.in_possession = True
-            end_position = PITCH_EQUIVALENTS[end_position]
+            self.state.position = PITCH_EQUIVALENTS[end_position]
         else:
+            self.state.position = end_position
             self.commentary.append(f"{self.attacking_player} dribbles the defender!")
-        return GameState(self.state.minutes, end_position)
+
+        return self.state

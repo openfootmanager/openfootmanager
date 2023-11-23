@@ -143,9 +143,10 @@ class PassEvent(SimulationEvent):
                 attacking_team, defending_team, self.defending_player, end_position
             )
         else:
+            self.state.position = end_position
             self.commentary.append(f"{self.attacking_player} passed the ball to {self.receiving_player}")
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()
         defending_team.update_stats()
-        return GameState(self.state.minutes, end_position)
+        return self.state

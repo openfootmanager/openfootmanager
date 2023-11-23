@@ -17,6 +17,7 @@ import random
 import uuid
 from threading import Thread
 from typing import Optional
+from datetime import timedelta
 
 from .controllerinterface import ControllerInterface
 from ..pages.debug_match import DebugMatchPage
@@ -56,11 +57,9 @@ class DebugMatchController(ControllerInterface):
                 self.teams[1].club.club_id,
                 self.teams[0].club.stadium,
             )
-            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False)
+            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False, True)
 
         self.page.disable_button()
-        if self.live_game.is_half_time:
-            self.live_game.reset_after_half_time()
         if not self.live_game.is_game_over:
             self.live_game.run()
         self.update_player_table()
@@ -146,11 +145,11 @@ class DebugMatchController(ControllerInterface):
         else:
             pass_accuracy = 0
         if self.live_game is not None:
-            if self.live_game.minutes != 0:
-                minutes = self.live_game.minutes
+            if self.live_game.minutes != timedelta(seconds=0):
+                minutes = self.live_game.minutes.total_seconds()
+                possession = (team.stats.possession / float(minutes)) * 100
             else:
-                minutes = 1
-            possession = int((team.stats.possession / float(minutes)) * 100)
+                possession = 0
         else:
             possession = 0
         return [
@@ -193,7 +192,7 @@ class DebugMatchController(ControllerInterface):
 
         events = []
         for event in self.live_game.engine.event_history:
-            minutes = event.state.minutes
+            minutes = event.state.minutes.total_seconds() / 60
             commentary = ""
             for comment in event.commentary:
                 commentary += comment + "\n"
@@ -208,10 +207,10 @@ class DebugMatchController(ControllerInterface):
         away_team_events = []
         if self.live_game:
             for goal in self.live_game.engine.home_team.goals_history:
-                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                text = f"⚽ {goal.__repr__()}"
                 home_team_events.append(text)
             for goal in self.live_game.engine.away_team.goals_history:
-                text = f"⚽ {goal.player} {int(goal.minutes)}'"
+                text = f"⚽ {goal.__repr__()}"
                 away_team_events.append(text)
 
         self.page.update_game_events(home_team_events, away_team_events)

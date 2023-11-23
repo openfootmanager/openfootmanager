@@ -27,9 +27,9 @@ from .shot_event import ShotEvent
 from ..event import EventOutcome, SimulationEvent
 from ..event_type import EventType, FoulType
 from copy import deepcopy
-from ...football.team_simulation import Goal, TeamSimulation
-from .. import OFF_POSITIONS, PITCH_EQUIVALENTS, PitchPosition
-from ..game_state import GameState
+from ...football.team_simulation import TeamSimulation
+from .. import PitchPosition
+from ..game_state import GameState, SimulationStatus
 from ..team_strategy import team_general_strategy
 
 
@@ -40,10 +40,12 @@ class EventFactory:
         state: GameState,
         last_event: Optional[SimulationEvent],
     ) -> EventType:
-        if last_event is None:
-            return EventType.PASS
-
-        if state.minutes in [45.1, 90.1, 105.1]:
+        if state.status in [
+            SimulationStatus.NOT_STARTED,
+            SimulationStatus.FIRST_HALF_BREAK,
+            SimulationStatus.SECOND_HALF_BREAK,
+            SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK,
+        ]:
             return EventType.PASS
 
         if last_event.outcome == EventOutcome.GOAL:
@@ -72,6 +74,7 @@ class EventFactory:
         events = [
             EventType.PASS,
             EventType.CROSS,
+            EventType.DRIBBLE,
             EventType.FOUL,
             EventType.SHOT,
         ]

@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from decimal import Decimal
+from datetime import timedelta
 from dataclasses import dataclass
 from typing import Optional, Tuple
 from uuid import UUID
@@ -30,10 +30,17 @@ class SubbingError(Exception):
     pass
 
 
-@dataclass
+@dataclass(repr=False)
 class Goal:
     player: PlayerSimulation
-    minutes: Decimal
+    minutes: timedelta
+    additional_time: timedelta = timedelta(0)
+
+    def __repr__(self):
+        minutes = str(int(self.minutes.total_seconds() / 60))
+        if self.additional_time > timedelta(0):
+            minutes = f"{minutes} + {self.additional_time.total_seconds()}"
+        return f"{self.player} {minutes}'"
 
 
 class TeamSimulation:
@@ -107,7 +114,7 @@ class TeamSimulation:
             fw_prob = [0.5 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
             probabilities.extend(fw_prob)
 
-        if self.player_in_possession is not None:
+        if self.player_in_possession is not None and self.player_in_possession in players:
             idx = players.index(self.player_in_possession)
             players.pop(idx)
             probabilities.pop(idx)

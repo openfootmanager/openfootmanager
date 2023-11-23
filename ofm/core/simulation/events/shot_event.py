@@ -16,6 +16,7 @@
 import random
 from dataclasses import dataclass
 
+from datetime import timedelta
 from ...football.team_simulation import TeamSimulation, Goal
 from .. import PitchPosition
 from ..event import SimulationEvent, EventOutcome
@@ -157,11 +158,17 @@ class ShotEvent(SimulationEvent):
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = self.get_shot_saved_outcomes()
         elif self.outcome == EventOutcome.GOAL:
-            self.commentary.append(f"GOOOOOOAL! {self.attacking_player} scores!")
+            self.commentary.append(f"GOAL! {self.attacking_player} scores!")
             self.attacking_player.statistics.goals += 1
             self.defending_player.statistics.goals_conceded += 1
             self.state.position = PitchPosition.MIDFIELD_CENTER
-            attacking_team.add_goal(Goal(self.attacking_player, self.state.minutes))
+
+            if self.state.in_additional_time:
+                additional_time = self.state.additional_time_elapsed
+            else:
+                additional_time = timedelta(0)
+
+            attacking_team.add_goal(Goal(self.attacking_player, self.state.minutes, additional_time))
             defending_player = defending_team.get_player_on_pitch(self.state.position)
             self.state = self.change_possession(
                 attacking_team,
@@ -207,4 +214,4 @@ class ShotEvent(SimulationEvent):
 
         attacking_team.update_stats()
         defending_team.update_stats()
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

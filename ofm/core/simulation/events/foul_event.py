@@ -147,4 +147,4 @@ class FoulEvent(SimulationEvent):
             offending_player.statistics.red_cards += 1
             self.commentary.append(f"{offending_player} received a red card!")
 
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

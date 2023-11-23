@@ -13,20 +13,20 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal
+from datetime import timedelta
 from ofm.core.simulation.event import (
     EventOutcome,
     EventType,
-    GameState,
     PitchPosition,
 )
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 from ofm.core.simulation.events import CrossEvent
 
 
 def get_cross_event() -> CrossEvent:
     return CrossEvent(
-        EventType.CROSS, GameState(Decimal(0.0), PitchPosition.OFF_MIDFIELD_CENTER)
+        EventType.CROSS, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT)
     )
 
 

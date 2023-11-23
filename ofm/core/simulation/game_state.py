@@ -13,13 +13,31 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal
+from datetime import timedelta
 from dataclasses import dataclass
+from enum import Enum, auto
 
 from . import PitchPosition
 
 
+class SimulationStatus(Enum):
+    NOT_STARTED = auto()
+    FIRST_HALF = auto()
+    FIRST_HALF_BREAK = auto()
+    SECOND_HALF = auto()
+    SECOND_HALF_BREAK = auto()
+    FIRST_HALF_EXTRA_TIME = auto()
+    FIRST_HALF_EXTRA_TIME_BREAK = auto()
+    SECOND_HALF_EXTRA_TIME = auto()
+    SECOND_HALF_EXTRA_TIME_BREAK = auto()
+    PENALTY_SHOOTOUT = auto()
+    FINISHED = auto()
+
+
 @dataclass
 class GameState:
-    minutes: Decimal
+    minutes: timedelta
+    status: SimulationStatus
     position: PitchPosition
+    in_additional_time: bool = False
+    additional_time_elapsed: timedelta = timedelta(0)

@@ -13,13 +13,14 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal
-from ofm.core.simulation.event import EventOutcome, EventType, GameState, PitchPosition
+from datetime import timedelta
+from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 from ofm.core.simulation.events import PassEvent
 
 
 def get_pass_event() -> PassEvent:
-    return PassEvent(EventType.PASS, GameState(Decimal(0.0), PitchPosition.OFF_MIDFIELD_CENTER))
+    return PassEvent(EventType.PASS, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_MIDFIELD_CENTER))
 
 
 def test_normal_pass_event(simulation_teams):

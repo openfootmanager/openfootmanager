@@ -85,4 +85,4 @@ class FreeKickEvent(SimulationEvent):
         self.defending_player = self.sub_event.defending_player
         self.outcome = self.sub_event.outcome
 
-        return GameState(self.state.minutes, self.state.position)
+        return self.state
