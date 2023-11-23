@@ -147,11 +147,12 @@ class DebugMatchController(ControllerInterface):
         if self.live_game is not None:
             if self.live_game.minutes != timedelta(seconds=0):
                 minutes = self.live_game.total_elapsed_time.total_seconds()
-                possession = int((team.stats.possession / float(minutes)) * 100)
+                possession = (team.stats.possession / float(minutes)) * 100
+                possession = f"{possession:.2f}%"
             else:
-                possession = 0
+                possession = "0%"
         else:
-            possession = 0
+            possession = "0%"
         return [
             team.stats.shots,
             team.stats.shots_on_target,
