@@ -46,6 +46,7 @@ class LiveGame:
         self.attendance = self.calculate_attendance()
         self.engine = SimulationEngine(home_team, away_team)
         self.added_time: Optional[timedelta] = None
+        self.total_elapsed_time: timedelta = timedelta(0)
 
     @property
     def possible_extra_time(self):
@@ -150,6 +151,7 @@ class LiveGame:
     def add_minutes(self):
         duration = self.engine.get_event_duration()
         self.state.minutes += duration
+        self.total_elapsed_time += duration
 
         if self.state.minutes >= timedelta(minutes=45) and self.state.status == SimulationStatus.FIRST_HALF:
             additional_time = self.state.minutes - timedelta(minutes=45)
@@ -248,3 +250,4 @@ class SimulationEngine:
         event = self.generate_event()
         attacking_team, defending_team = self.get_team_in_possession()
         self.state = event.calculate_event(attacking_team, defending_team)
+        attacking_team.stats.possession += event.duration
