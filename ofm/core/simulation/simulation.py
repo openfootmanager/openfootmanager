@@ -14,6 +14,8 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
+import time
+from enum import Enum
 from datetime import timedelta
 from typing import Optional
 
@@ -25,6 +27,14 @@ from .events import EventFactory
 from .fixture import Fixture
 
 
+class DelayValue(Enum):
+    NONE = 0
+    SHORT = 0.005
+    MEDIUM = 0.01
+    LONG = 0.1
+    VERY_LONG = 1
+
+
 class LiveGame:
     def __init__(
             self,
@@ -34,7 +44,7 @@ class LiveGame:
             possible_extra_time: bool,
             possible_penalties: bool,
             no_break: bool,
-            delay: int = 0,
+            delay: DelayValue = DelayValue.NONE,
     ):
         self.fixture = fixture
         self.is_game_over = False
@@ -185,6 +195,8 @@ class LiveGame:
             self.transition_game_status()
             if not self.no_break and self.is_game_on_break():
                 break
+            if self.delay.value > 0:
+                time.sleep(self.delay.value)
 
 
 class SimulationEngine:

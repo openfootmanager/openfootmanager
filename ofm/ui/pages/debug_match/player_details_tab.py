@@ -66,7 +66,11 @@ class PlayerDetailsTab(ttk.Frame):
             pagesize=8,
             height=11,
         )
-        self.home_team_table.grid(row=0, column=0, padx=10, pady=10, sticky=EW)
+        self.home_team_table.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky=EW)
+        self.home_team_strategy_label = ttk.Label(self, text="Strategy: ")
+        self.home_team_strategy = ttk.Label(self, text="")
+        self.home_team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+        self.home_team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
         self.away_team_table = Tableview(
             self,
@@ -78,7 +82,11 @@ class PlayerDetailsTab(ttk.Frame):
             pagesize=8,
             height=11,
         )
-        self.away_team_table.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
+        self.away_team_table.grid(row=0, column=2, padx=10, pady=10, columnspan=2, sticky=EW)
+        self.away_team_strategy_label = ttk.Label(self, text="Strategy: ")
+        self.away_team_strategy = ttk.Label(self, text="")
+        self.away_team_strategy_label.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
+        self.away_team_strategy.grid(row=1, column=3, padx=10, pady=10, sticky=EW)
 
         self.place(anchor=CENTER, relx=0.5, rely=0.5)
 
@@ -87,32 +95,16 @@ class PlayerDetailsTab(ttk.Frame):
         home_team: list[tuple],
         away_team: list[tuple],
     ):
-        self.home_team_table.destroy()
-        self.away_team_table.destroy()
-
-        self.home_team_table = Tableview(
-            self,
-            coldata=self.columns,
-            rowdata=home_team,
-            searchable=False,
-            autofit=True,
-            paginated=False,
-            pagesize=8,
-            height=11,
-        )
+        self.home_team_table.delete_rows()
+        self.home_team_table.insert_rows(END, home_team)
         self.home_team_table.autofit_columns()
-        self.home_team_table.grid(row=0, column=0, padx=10, pady=10, sticky=EW)
+        self.home_team_table.load_table_data()
 
-        self.away_team_table = Tableview(
-            self,
-            coldata=self.columns,
-            rowdata=away_team,
-            searchable=False,
-            autofit=True,
-            paginated=False,
-            pagesize=8,
-            height=11,
-        )
+        self.away_team_table.delete_rows()
+        self.away_team_table.insert_rows(END, away_team)
         self.away_team_table.autofit_columns()
-        self.away_team_table.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
+        self.away_team_table.load_table_data()
 
+    def update_strategy(self, home_team_strategy: str, away_team_strategy: str):
+        self.home_team_strategy.config(text=home_team_strategy)
+        self.away_team_strategy.config(text=away_team_strategy)

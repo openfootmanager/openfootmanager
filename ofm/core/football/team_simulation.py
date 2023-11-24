@@ -39,7 +39,7 @@ class Goal:
     def __repr__(self):
         minutes = str(int(self.minutes.total_seconds() / 60))
         if self.additional_time > timedelta(0):
-            minutes = f"{minutes} + {self.additional_time.total_seconds()}"
+            minutes = f"{minutes} + {int(self.additional_time.total_seconds())}"
         return f"{self.player} {minutes}'"
 
 

@@ -20,12 +20,12 @@ from typing import Optional
 from datetime import timedelta
 
 from .controllerinterface import ControllerInterface
-from ..pages.debug_match import DebugMatchPage
+from ..pages.debug_match import DebugMatchPage, DelayComboBoxValues
 from ...core.db.database import DB
 from ...core.football.formation import Formation
-from ...core.football.team_simulation import TeamSimulation
+from ...core.football.team_simulation import TeamSimulation, TeamStrategy
 from ...core.simulation.fixture import Fixture
-from ...core.simulation.simulation import LiveGame
+from ...core.simulation.simulation import LiveGame, SimulationStatus, DelayValue
 
 
 class DebugMatchController(ControllerInterface):
@@ -44,9 +44,7 @@ class DebugMatchController(ControllerInterface):
     def initialize(self):
         self.teams = self.load_random_teams()
         self.live_game = None
-        self.update_player_table()
-        self.update_live_game_events()
-        self.update_game_events()
+        self.update_game_data()
 
     def start_simulation(self):
         if self.live_game is None:
@@ -57,20 +55,18 @@ class DebugMatchController(ControllerInterface):
                 self.teams[1].club.club_id,
                 self.teams[0].club.stadium,
             )
-            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False, True)
+            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False, True, delay=DelayValue.NONE)
 
         self.page.disable_button()
         if not self.live_game.is_game_over:
             self.live_game.run()
-        self.update_player_table()
-        self.update_live_game_events()
-        self.update_game_events()
+        self.update_game_data()
 
     def start_match(self):
         if self.teams is None:
             return
         try:
-            self.game_thread = Thread(target=self.start_simulation(), daemon=True)
+            self.game_thread = Thread(target=self.start_simulation, daemon=True)
             self.game_thread.start()
         except RuntimeError as e:
             print(e)
@@ -80,13 +76,19 @@ class DebugMatchController(ControllerInterface):
         if self.game_thread is None:
             return
         if self.game_thread.is_alive():
-            self.update_game_events()
-            self.update_live_game_events()
-            self.update_player_table()
+            self.update_game_data()
             self.page.after(100, lambda: self.check_thread_status())
         else:
             self.page.enable_button()
             self.game_thread = None
+
+    def update_game_data(self):
+        self.update_player_table()
+        self.update_team_strategy()
+        self.update_live_game_events()
+        self.update_game_events()
+        self.update_game_time()
+        self.update_game_delay()
 
     def load_random_teams(self) -> list[TeamSimulation]:
         """
@@ -109,8 +111,8 @@ class DebugMatchController(ControllerInterface):
         formation_team2.get_best_players(team2.squad)
 
         return [
-            TeamSimulation(team1, formation_team1),
-            TeamSimulation(team2, formation_team2),
+            TeamSimulation(team1, formation_team1, strategy=random.choice(list(TeamStrategy))),
+            TeamSimulation(team2, formation_team2, strategy=random.choice(list(TeamStrategy))),
         ]
 
     def get_player_data(self, team: TeamSimulation):
@@ -185,6 +187,36 @@ class DebugMatchController(ControllerInterface):
         home_team_stats = self.get_team_stats(self.teams[0])
         away_team_stats = self.get_team_stats(self.teams[1])
         self.page.update_team_stats(home_team_stats, away_team_stats)
+
+    def update_team_strategy(self):
+        if self.teams:
+            self.page.update_team_strategy(self.teams[0].team_strategy.name, self.teams[1].team_strategy.name)
+
+    def update_game_time(self):
+        if not self.live_game:
+            self.page.progress_bar["maximum"] = 90*60
+            self.page.progress_bar["value"] = 0
+            self.page.minutes_elapsed.config(text="0'")
+            return
+        if self.live_game.state.status == SimulationStatus.SECOND_HALF_BREAK:
+            self.page.progress_bar["maximum"] = 120*60
+        self.page.progress_bar["value"] = self.live_game.minutes.total_seconds()
+        self.page.minutes_elapsed.config(text=f"{int(self.live_game.minutes.total_seconds() / 60)}'")
+
+    def update_game_delay(self):
+        delay = self.page.delay_box.get()
+        if self.live_game:
+            match delay:
+                case DelayComboBoxValues.NONE.value:
+                    self.live_game.delay = DelayValue.NONE
+                case DelayComboBoxValues.MEDIUM.value:
+                    self.live_game.delay = DelayValue.MEDIUM
+                case DelayComboBoxValues.SHORT.value:
+                    self.live_game.delay = DelayValue.SHORT
+                case DelayComboBoxValues.LONG.value:
+                    self.live_game.delay = DelayValue.LONG
+                case DelayComboBoxValues.VERY_LONG.value:
+                    self.live_game.delay = DelayValue.VERY_LONG
 
     def update_live_game_events(self):
         if not self.live_game:
