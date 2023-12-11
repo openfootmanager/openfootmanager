@@ -104,7 +104,7 @@ class LiveGame:
         ):
             added_time = random.randint(0, 5)
             self.state.in_additional_time = True
-            self.added_time = timedelta(minutes=added_time)
+            self.added_time = timedelta(minutes=float(added_time))
 
     def calculate_attendance(self) -> int:
         pass

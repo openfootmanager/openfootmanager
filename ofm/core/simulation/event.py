@@ -75,10 +75,10 @@ class SimulationEvent:
     attacking_player: Optional[PlayerSimulation] = None
     defending_player: Optional[PlayerSimulation] = None
     commentary: list[str] = field(default_factory=list)
-    duration: int = 0
+    duration: float = 0.0
 
     def __post_init__(self):
-        self.duration = random.randint(1, 8)
+        self.duration = float(random.randint(1, 8))
 
     @abstractmethod
     def calculate_event(
