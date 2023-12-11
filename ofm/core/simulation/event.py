@@ -60,10 +60,17 @@ class EventOutcome(Enum):
     OWN_GOAL = auto()
 
 
+class CommentaryImportance(Enum):
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+
+
 @dataclass
 class SimulationEvent:
     event_type: EventType
     state: GameState
+    commentary_importance = CommentaryImportance
     outcome: Optional[EventOutcome] = None
     attacking_player: Optional[PlayerSimulation] = None
     defending_player: Optional[PlayerSimulation] = None

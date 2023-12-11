@@ -20,7 +20,7 @@ from typing import Optional
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS, PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent, EventOutcome, CommentaryImportance
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_pass_strategy
@@ -28,6 +28,7 @@ from ..team_strategy import team_pass_strategy
 
 @dataclass
 class PassEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.LOW
     receiving_player: Optional[PlayerSimulation] = None
 
     def get_end_position(self, attacking_team) -> PitchPosition:

@@ -32,6 +32,12 @@ class DelayComboBoxValues(Enum):
     VERY_LONG = "Very Long (1s)"
 
 
+class CommentaryVerbosity(Enum):
+    ALL = "All Events"
+    HIGHLIGHTS = "Highlights"
+    SHOTS_ONLY = "Shots and Goals Only"
+
+
 class DebugMatchPage(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,6 +73,15 @@ class DebugMatchPage(ttk.Frame):
         self.delay_box.set(DelayComboBoxValues.NONE.value)
         self.delay_box.grid(row=4, column=1, padx=5, pady=5, sticky=NSEW)
 
+        self.commentary_label = ttk.Label(self, text="Commentary verbosity:")
+        self.commentary_label.grid(row=5, column=0, padx=5, pady=5, sticky=W)
+        self.commentary_box = ttk.Combobox(
+            self,
+            values=list(x.value for x in CommentaryVerbosity),
+        )
+        self.commentary_box.set(CommentaryVerbosity.ALL.value)
+        self.commentary_box.grid(row=5, column=1, padx=5, pady=5, sticky=NSEW)
+
         self.button_frame = ttk.Frame(self)
 
         self.play_game_btn = ttk.Button(self.button_frame, text="Play")
@@ -79,7 +94,7 @@ class DebugMatchPage(ttk.Frame):
         self.cancel_btn.pack(side="left", padx=10)
 
         self.button_frame.grid(
-            row=5, column=0, columnspan=2, padx=10, pady=10, sticky=NS
+            row=6, column=0, columnspan=2, padx=10, pady=10, sticky=NS
         )
 
         self.player_details_tab.place(anchor=CENTER, relx=0.5, rely=0.5)

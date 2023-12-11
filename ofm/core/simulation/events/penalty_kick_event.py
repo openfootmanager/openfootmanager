@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent
+from ..event import SimulationEvent, CommentaryImportance
 from ..event_type import EventType
 from ..game_state import GameState
 from .shot_event import ShotEvent
@@ -25,6 +25,7 @@ from .shot_event import ShotEvent
 
 @dataclass
 class PenaltyKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.HIGH
     sub_event: Optional[ShotEvent] = None
 
     def calculate_event(

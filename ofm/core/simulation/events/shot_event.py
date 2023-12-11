@@ -19,13 +19,15 @@ from dataclasses import dataclass
 from datetime import timedelta
 from ...football.team_simulation import TeamSimulation, Goal
 from .. import PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent, EventOutcome, CommentaryImportance
 from ..event_type import EventType
 from ..game_state import GameState
 
 
 @dataclass
 class ShotEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.HIGH
+
     def get_shot_saved_outcomes(self) -> EventOutcome:
         final_outcomes = [
             EventOutcome.SHOT_RIGHT_CORNER_KICK,

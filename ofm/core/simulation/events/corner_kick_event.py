@@ -19,7 +19,7 @@ from enum import Enum, auto
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent, CommentaryImportance
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_corner_kick_strategy
@@ -35,6 +35,7 @@ class CornerKickType(Enum):
 
 @dataclass
 class CornerKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.MEDIUM
     corner_kick_type: Optional[CornerKickType] = None
     sub_event: Optional[PassEvent | CrossEvent] = None
 

@@ -18,13 +18,14 @@ from dataclasses import dataclass
 
 from ...football.team_simulation import TeamSimulation
 from .. import PitchPosition, PITCH_EQUIVALENTS
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent, EventOutcome, CommentaryImportance
 from ..game_state import GameState
 from ..team_strategy import team_pass_strategy
 
 
 @dataclass
 class DribbleEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.LOW
     def calculate_event(
         self, attacking_team: TeamSimulation, defending_team: TeamSimulation
     ) -> GameState:

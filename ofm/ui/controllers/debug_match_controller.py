@@ -20,12 +20,13 @@ from typing import Optional
 from datetime import timedelta
 
 from .controllerinterface import ControllerInterface
-from ..pages.debug_match import DebugMatchPage, DelayComboBoxValues
+from ..pages.debug_match import DebugMatchPage, DelayComboBoxValues, CommentaryVerbosity
 from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import LiveGame, SimulationStatus, DelayValue
+from ...core.simulation.event import CommentaryImportance
 
 
 class DebugMatchController(ControllerInterface):
@@ -218,6 +219,19 @@ class DebugMatchController(ControllerInterface):
                 case DelayComboBoxValues.VERY_LONG.value:
                     self.live_game.delay = DelayValue.VERY_LONG
 
+    def update_commentary_verbosity(self) -> list[CommentaryImportance]:
+        commentary_verbosity = self.page.commentary_box.get()
+        if self.live_game:
+            match commentary_verbosity:
+                case CommentaryVerbosity.ALL.value:
+                    return list(CommentaryImportance)
+                case CommentaryVerbosity.HIGHLIGHTS.value:
+                    return [CommentaryImportance.MEDIUM, CommentaryImportance.HIGH]
+                case CommentaryVerbosity.SHOTS_ONLY.value:
+                    return [CommentaryImportance.HIGH]
+
+        return list(CommentaryImportance)
+
     def update_live_game_events(self):
         if not self.live_game:
             self.page.update_live_game([])
@@ -228,7 +242,9 @@ class DebugMatchController(ControllerInterface):
             minutes = event.state.minutes.total_seconds() / 60
             commentary = ""
             for comment in event.commentary:
-                commentary += comment + "\n"
+                commentary_verbosity = self.update_commentary_verbosity()
+                if event.commentary_importance in commentary_verbosity:
+                    commentary += comment + "\n"
             if commentary:
                 events.append(f"{int(minutes)}' - {commentary}")
 

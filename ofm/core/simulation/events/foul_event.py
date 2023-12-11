@@ -19,13 +19,14 @@ from typing import Optional
 
 from ...football.player import PlayerSimulation, PlayerInjury
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, EventOutcome
+from ..event import SimulationEvent, EventOutcome, CommentaryImportance
 from ..event_type import FoulType
 from ..game_state import GameState
 
 
 @dataclass
 class FoulEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.MEDIUM
     foul_type: Optional[FoulType] = None
 
     def get_foul_type(self) -> FoulType:

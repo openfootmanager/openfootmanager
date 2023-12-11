@@ -20,7 +20,7 @@ from enum import Enum, auto
 
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent
+from ..event import SimulationEvent, CommentaryImportance
 from ..event_type import EventType
 from ..game_state import GameState
 from .pass_event import PassEvent
@@ -34,6 +34,7 @@ class GoalKickType(Enum):
 
 @dataclass
 class GoalKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.LOW
     goal_kick_type: Optional[GoalKickType] = None
     receiving_player: Optional[PlayerSimulation] = None
     sub_event: Optional[PassEvent | CrossEvent] = None

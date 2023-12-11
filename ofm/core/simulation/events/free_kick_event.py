@@ -19,7 +19,7 @@ from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS
-from ..event import SimulationEvent
+from ..event import SimulationEvent, CommentaryImportance
 from ..event_type import EventType, FreeKickType
 from ..game_state import GameState
 from .shot_event import ShotEvent
@@ -29,6 +29,7 @@ from .cross_event import CrossEvent
 
 @dataclass
 class FreeKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.MEDIUM
     free_kick_type: Optional[FreeKickType] = None
     sub_event: Optional[PassEvent | ShotEvent | CrossEvent] = None
 
