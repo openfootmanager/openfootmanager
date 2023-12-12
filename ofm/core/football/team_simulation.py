@@ -48,11 +48,13 @@ class TeamSimulation:
         self,
         club: Club,
         formation: Formation,
+        max_substitutions: int = 5,
         strategy: TeamStrategy = TeamStrategy.NORMAL,
     ):
         self.club: Club = club
         self.formation: Formation = formation
         self.in_possession: bool = False
+        self.max_substitutions: int = max_substitutions
         self.substitutions: int = 0
         self.player_in_possession: Optional[PlayerSimulation] = None
         self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]] = []
@@ -131,16 +133,18 @@ class TeamSimulation:
         players = self.formation.all_players
         self.stats.update_stats(players)
 
-    def sub_player(self, sub_player: PlayerSimulation, subbed_player: PlayerSimulation):
-        if subbed_player.subbed:
+    def sub_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation):
+        if player_out.subbed:
             raise SubbingError("Player is already subbed!")
-        if subbed_player.sent_off:
+        if player_out.sent_off or player_in.sent_off:
             raise SubbingError("Cannot sub a player that has been sent off!")
+        if self.substitutions == self.max_substitutions:
+            raise SubbingError(f"Already made {self.max_substitutions} substitutions!")
 
         self.substitutions += 1
 
-        self.sub_history.append((sub_player, subbed_player))
-        self.formation.substitute_player(sub_player, subbed_player)
+        self.sub_history.append((player_out, player_in))
+        self.formation.substitute_player(player_out, player_in)
 
     def get_best_penalty_taker(self) -> PlayerSimulation:
         best_penalty_taker = None

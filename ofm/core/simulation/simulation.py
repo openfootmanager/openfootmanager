@@ -45,6 +45,7 @@ class LiveGame:
             possible_penalties: bool,
             no_break: bool,
             delay: DelayValue = DelayValue.NONE,
+            max_substitutions: int = 5,
     ):
         self.fixture = fixture
         self.is_game_over = False
@@ -54,7 +55,7 @@ class LiveGame:
         self.delay = delay
         self.penalty_shootout = False
         self.attendance = self.calculate_attendance()
-        self.engine = SimulationEngine(home_team, away_team)
+        self.engine = SimulationEngine(home_team, away_team, max_substitutions)
         self.added_time: Optional[timedelta] = None
         self.total_elapsed_time: timedelta = timedelta(0)
 
@@ -204,9 +205,12 @@ class SimulationEngine:
             self,
             home_team: TeamSimulation,
             away_team: TeamSimulation,
+            max_substitutions: int,
     ):
         self.home_team = home_team
         self.away_team = away_team
+        self.home_team.max_substitutions = max_substitutions
+        self.away_team.max_substitutions = max_substitutions
         self.event_history = []
         self.state = GameState(
             timedelta(seconds=0),

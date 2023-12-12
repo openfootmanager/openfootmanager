@@ -18,13 +18,14 @@ import uuid
 import pytest
 from datetime import timedelta
 
-from ofm.core.football.team_simulation import Goal
+from ofm.core.football.team_simulation import Goal, SubbingError
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
 from ofm.core.simulation.events import EventFactory, PassEvent
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.game_state import GameState, SimulationStatus
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
+from ofm.core.football.formation import FormationError
 
 
 class MockSimulationEngine:
@@ -230,3 +231,61 @@ def test_get_added_time_before_45_minutes(live_game):
     assert live_game.state.in_additional_time is False
     assert live_game.state.minutes == timedelta(minutes=44)
     assert live_game.added_time is None
+
+
+def test_substitute_same_player(live_game):
+    home_team = live_game.engine.home_team
+    with pytest.raises(ValueError):
+        home_team.sub_player(home_team.formation.fw[0], home_team.formation.fw[0])
+
+
+def test_substitute_invalid_player(live_game):
+    home_team = live_game.engine.home_team
+    away_team = live_game.engine.away_team
+    with pytest.raises(FormationError):
+        home_team.sub_player(home_team.formation.fw[0], away_team.formation.fw[0])
+
+
+def test_substitute_player(live_game):
+    home_team = live_game.engine.home_team
+    player_in = home_team.formation.bench[0]
+    player_out = home_team.formation.fw[0]
+    home_team.sub_player(player_out, player_in)
+    assert player_in == home_team.formation.fw[0]
+    assert player_out in home_team.formation.bench
+    assert home_team.sub_history[0] == (player_out, player_in)
+
+
+def test_substitute_invalid_order(live_game):
+    home_team = live_game.engine.home_team
+    player_in = home_team.formation.bench[0]
+    player_out = home_team.formation.fw[0]
+    with pytest.raises(ValueError):
+        home_team.sub_player(player_in, player_out)
+
+
+def test_substitute_no_available_substitutions(live_game):
+    home_team = live_game.engine.home_team
+    home_team.substitutions = 5
+    player_in = home_team.formation.bench[0]
+    player_out = home_team.formation.fw[0]
+    with pytest.raises(SubbingError):
+        home_team.sub_player(player_out, player_in)
+
+
+def test_substitute_sent_off_player(live_game):
+    home_team = live_game.engine.home_team
+    player_in = home_team.formation.bench[0]
+    player_out = home_team.formation.fw[0]
+    player_out.statistics.red_cards = 1
+    with pytest.raises(SubbingError):
+        home_team.sub_player(player_out, player_in)
+
+
+def test_substitute_player_in_was_sent_off(live_game):
+    home_team = live_game.engine.home_team
+    player_in = home_team.formation.bench[0]
+    player_in.statistics.red_cards = 1
+    player_out = home_team.formation.fw[0]
+    with pytest.raises(SubbingError):
+        home_team.sub_player(player_out, player_in)

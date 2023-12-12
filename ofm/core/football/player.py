@@ -280,7 +280,6 @@ class PlayerSimulation:
             return False
         return self.player.details.player_id == other.player.details.player_id
 
-
     def __str__(self):
         return self.player.details.short_name.encode("utf-8").decode("unicode_escape")
 
