@@ -15,18 +15,19 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 import uuid
+from datetime import timedelta
 from threading import Thread
 from typing import Optional
-from datetime import timedelta
 
-from .controllerinterface import ControllerInterface
-from ..pages.debug_match import DebugMatchPage, DelayComboBoxValues, CommentaryVerbosity
 from ...core.db.database import DB
 from ...core.football.formation import Formation
+from ...core.football.player import PlayerSimulation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
-from ...core.simulation.fixture import Fixture
-from ...core.simulation.simulation import LiveGame, SimulationStatus, DelayValue
 from ...core.simulation.event import CommentaryImportance
+from ...core.simulation.fixture import Fixture
+from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
+from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
+from .controllerinterface import ControllerInterface
 
 
 class DebugMatchController(ControllerInterface):
@@ -56,7 +57,15 @@ class DebugMatchController(ControllerInterface):
                 self.teams[1].club.club_id,
                 self.teams[0].club.stadium,
             )
-            self.live_game = LiveGame(fixture, self.teams[0], self.teams[1], False, False, True, delay=DelayValue.NONE)
+            self.live_game = LiveGame(
+                fixture,
+                self.teams[0],
+                self.teams[1],
+                False,
+                False,
+                True,
+                delay=DelayValue.NONE,
+            )
 
         self.page.disable_button()
         if not self.live_game.is_game_over:
@@ -112,11 +121,15 @@ class DebugMatchController(ControllerInterface):
         formation_team2.get_best_players(team2.squad)
 
         return [
-            TeamSimulation(team1, formation_team1, strategy=random.choice(list(TeamStrategy))),
-            TeamSimulation(team2, formation_team2, strategy=random.choice(list(TeamStrategy))),
+            TeamSimulation(
+                team1, formation_team1, strategy=random.choice(list(TeamStrategy))
+            ),
+            TeamSimulation(
+                team2, formation_team2, strategy=random.choice(list(TeamStrategy))
+            ),
         ]
 
-    def get_player_data(self, team: TeamSimulation):
+    def get_player_data(self, team: TeamSimulation, players: list[PlayerSimulation]):
         return [
             (
                 player.player.details.short_name.encode("utf-8").decode(
@@ -124,27 +137,18 @@ class DebugMatchController(ControllerInterface):
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
                 player.stamina,
+                "Yes" if player.is_injured else "No",
                 player.current_skill,
             )
             for player in team.formation.players
         ]
 
-    def get_reserve_players(self, team: TeamSimulation):
-        return [
-            (
-                player.player.details.short_name.encode("utf-8").decode(
-                    "unicode_escape"
-                ),
-                player.current_position.name.encode("utf-8").decode("unicode_escape"),
-                player.stamina,
-                player.current_skill,
-            )
-            for player in team.formation.bench
-        ]
-
     def get_team_stats(self, team: TeamSimulation):
         if team.stats.passes > 0:
-            pass_accuracy = int(((team.stats.passes - team.stats.passes_missed) / team.stats.passes) * 100)
+            pass_accuracy = int(
+                ((team.stats.passes - team.stats.passes_missed) / team.stats.passes)
+                * 100
+            )
         else:
             pass_accuracy = 0
         if self.live_game is not None:
@@ -173,10 +177,14 @@ class DebugMatchController(ControllerInterface):
         if self.teams is None:
             return
 
-        home_team = self.get_player_data(self.teams[0])
-        away_team = self.get_player_data(self.teams[1])
-        home_reserves = self.get_reserve_players(self.teams[0])
-        away_reserves = self.get_reserve_players(self.teams[1])
+        home_team = self.get_player_data(self.teams[0], self.teams[0].formation.players)
+        away_team = self.get_player_data(self.teams[1], self.teams[1].formation.bench)
+        home_reserves = self.get_player_data(
+            self.teams[0], self.teams[1].formation.players
+        )
+        away_reserves = self.get_player_data(
+            self.teams[1], self.teams[1].formation.players
+        )
 
         self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
         self.page.update_team_names(
@@ -191,18 +199,22 @@ class DebugMatchController(ControllerInterface):
 
     def update_team_strategy(self):
         if self.teams:
-            self.page.update_team_strategy(self.teams[0].team_strategy.name, self.teams[1].team_strategy.name)
+            self.page.update_team_strategy(
+                self.teams[0].team_strategy.name, self.teams[1].team_strategy.name
+            )
 
     def update_game_time(self):
         if not self.live_game:
-            self.page.progress_bar["maximum"] = 90*60
+            self.page.progress_bar["maximum"] = 90 * 60
             self.page.progress_bar["value"] = 0
             self.page.minutes_elapsed.config(text="0'")
             return
         if self.live_game.state.status == SimulationStatus.SECOND_HALF_BREAK:
-            self.page.progress_bar["maximum"] = 120*60
+            self.page.progress_bar["maximum"] = 120 * 60
         self.page.progress_bar["value"] = self.live_game.minutes.total_seconds()
-        self.page.minutes_elapsed.config(text=f"{int(self.live_game.minutes.total_seconds() / 60)}'")
+        self.page.minutes_elapsed.config(
+            text=f"{int(self.live_game.minutes.total_seconds() / 60)}'"
+        )
 
     def update_game_delay(self):
         delay = self.page.delay_box.get()

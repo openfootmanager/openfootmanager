@@ -17,10 +17,10 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
-from ...football.player import PlayerSimulation, PlayerInjury
+from ...football.player import PlayerInjury, PlayerSimulation
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, EventOutcome, CommentaryImportance
-from ..event_type import FoulType
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
+from ..event_type import FoulStrength, FoulType
 from ..game_state import GameState
 
 
@@ -39,25 +39,35 @@ class FoulEvent(SimulationEvent):
 
     def get_player_injury(
         self, offending_player: PlayerSimulation, fouled_player: PlayerSimulation
-    ):
-        fouled_player_resistance = (
-            (
-                fouled_player.attributes.physical.endurance
-                + fouled_player.attributes.physical.strength
-                + fouled_player.player.details.fitness * 2
-            )
-            / 4
-        ) - (100 - fouled_player.player.details.stamina)
+    ) -> PlayerInjury:
         offending_player_aggression = (
             offending_player.attributes.defensive.tackling
             + offending_player.attributes.physical.strength
             + offending_player.attributes.defensive.positioning
-        ) / 3
+        ) / 300
 
-        enduring_probability = fouled_player_resistance + offending_player_aggression
-        not_enduring_prob = 200 - enduring_probability
+        foul_seriousness_values = [FoulStrength.LIGHT, None]
 
-        # light_inj + medium_inj + severe_inj + career_ending = not_enduring_prob
+        foul_seriousness = random.choices(
+            foul_seriousness_values,
+            [offending_player_aggression, 1 - offending_player_aggression],
+        )
+
+        if foul_seriousness is not None:
+            return PlayerInjury.NO_INJURY
+
+        foul_seriousness = random.choices(
+            [FoulStrength.MEDIUM, FoulStrength.HIGH], [0.9, 0.1]
+        )
+
+        fouled_player_resistance = (
+            fouled_player.attributes.physical.endurance
+            + fouled_player.attributes.physical.strength
+            + fouled_player.player.details.fitness * 2
+        ) / 400
+
+        not_enduring_prob = fouled_player_resistance
+        enduring_probability = 1 - not_enduring_prob
 
         endures = [
             PlayerInjury.NO_INJURY,
@@ -80,11 +90,17 @@ class FoulEvent(SimulationEvent):
             0.000099,
             0.000001,
         ]
+        if foul_seriousness == FoulStrength.MEDIUM:
+            injuries.remove(PlayerInjury.SEVERE_INJURY)
+            injuries.remove(PlayerInjury.CAREER_ENDING_INJURY)
+            injuries_prob.remove(0.000099)
+            injuries_prob.remove(0.000001)
+
         injury = random.choices(injuries, injuries_prob)[0]
         if injury in [
             PlayerInjury.MEDIUM_INJURY,
             PlayerInjury.SEVERE_INJURY,
-            PlayerInjury.CAREER_ENDING_INJURY
+            PlayerInjury.CAREER_ENDING_INJURY,
         ]:
             fouled_player.able_to_play = False
 
@@ -103,10 +119,7 @@ class FoulEvent(SimulationEvent):
             EventOutcome.FOUL_WARNING,
             EventOutcome.FOUL_YELLOW_CARD,
         ]
-        probability = [
-            95,
-            5
-        ]
+        probability = [98, 2]
 
         return random.choices(outcomes, probability)[0]
 

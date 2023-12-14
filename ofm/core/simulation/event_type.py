@@ -21,6 +21,12 @@ class FoulType(Enum):
     DEFENSIVE_FOUL = auto()
 
 
+class FoulStrength(Enum):
+    LIGHT = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+
+
 class FreeKickType(Enum):
     DIRECT_SHOT = auto()
     CROSS = auto()
