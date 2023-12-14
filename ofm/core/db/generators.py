@@ -35,7 +35,7 @@ from ofm.defaults import NAMES_FILE
 
 def generate_skill_values(mu: int, sigma: int) -> int:
     value = random.gauss(mu, sigma)
-    value = min(value, 99)
+    value = min(value, 95)
     value = max(value, 25)
     return int(value)
 

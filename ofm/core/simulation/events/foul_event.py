@@ -75,7 +75,7 @@ class FoulEvent(SimulationEvent):
         injuries.remove(PlayerInjury.NO_INJURY)
 
         injuries_prob = [
-            0.90,
+            0.99,
             0.009,
             0.000099,
             0.000001,

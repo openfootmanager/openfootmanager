@@ -110,7 +110,7 @@ class Formation:
             PlayerSimulation(player, player.details.get_best_position())
             for player in players
         ]
-        self.bench.sort(key=lambda x: x.current_position)
+        self.bench.sort(key=lambda x: x.current_position.value)
 
     def add_player(self, position: int, player: PlayerTeam):
         player_sim = PlayerSimulation(player, Positions.GK)
