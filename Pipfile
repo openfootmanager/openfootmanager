@@ -13,6 +13,7 @@ pygments = "*"
 docutils = "*"
 pyyaml = "*"
 hypothesis = "*"
+pre-commit = "*"
 
 [requires]
 python_version = "3"
