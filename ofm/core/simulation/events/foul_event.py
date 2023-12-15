@@ -51,14 +51,14 @@ class FoulEvent(SimulationEvent):
         foul_seriousness = random.choices(
             foul_seriousness_values,
             [offending_player_aggression, 1 - offending_player_aggression],
-        )
+        )[0]
 
         if foul_seriousness is not None:
             return PlayerInjury.NO_INJURY
 
         foul_seriousness = random.choices(
             [FoulStrength.MEDIUM, FoulStrength.HIGH], [0.9, 0.1]
-        )
+        )[0]
 
         fouled_player_resistance = (
             fouled_player.attributes.physical.endurance
