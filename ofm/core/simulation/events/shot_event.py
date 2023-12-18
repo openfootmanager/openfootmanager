@@ -15,11 +15,11 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 from dataclasses import dataclass
-
 from datetime import timedelta
-from ...football.team_simulation import TeamSimulation, Goal
+
+from ...football.team_simulation import Goal, TeamSimulation
 from .. import PitchPosition
-from ..event import SimulationEvent, EventOutcome, CommentaryImportance
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 
@@ -99,7 +99,6 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
             EventOutcome.SHOT_GOAL_KICK,
         ]
-        self.commentary.append(f"The ball hit the post!")
 
         return random.choice(final_outcomes)
 
@@ -170,7 +169,9 @@ class ShotEvent(SimulationEvent):
             else:
                 additional_time = timedelta(0)
 
-            attacking_team.add_goal(Goal(self.attacking_player, self.state.minutes, additional_time))
+            attacking_team.add_goal(
+                Goal(self.attacking_player, self.state.minutes, additional_time)
+            )
             defending_player = defending_team.get_player_on_pitch(self.state.position)
             self.state = self.change_possession(
                 attacking_team,
@@ -178,33 +179,25 @@ class ShotEvent(SimulationEvent):
                 defending_player,
                 self.state.position,
             )
-        elif self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION:
+
+        if self.outcome in [
+            EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION,
+            EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
+        ]:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,
                 self.defending_player,
                 self.state.position,
             )
-
-        if self.outcome == EventOutcome.SHOT_GOAL_KICK:
+        elif self.outcome in [
+            EventOutcome.SHOT_GOAL_KICK,
+            EventOutcome.SHOT_SAVED_SECURED,
+        ]:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,
                 defending_team.formation.gk,
-                self.state.position,
-            )
-        if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION:
-            self.state = self.change_possession(
-                attacking_team,
-                defending_team,
-                self.defending_player,
-                self.state.position,
-            )
-        elif self.outcome == EventOutcome.SHOT_SAVED_SECURED:
-            self.change_possession(
-                attacking_team,
-                defending_team,
-                self.defending_player,
                 self.state.position,
             )
         elif self.outcome == EventOutcome.SHOT_RIGHT_CORNER_KICK:
