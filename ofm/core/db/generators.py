@@ -278,12 +278,15 @@ class PlayerGenerator(Generator):
         pot_skill = potential_skill
         base_value = random.randint(55, 80) * 100
 
-        return (
-            base_value
-            + (international_rep * 150)
-            + (age_diff * 100)
-            + (skill * 50)
-            + (pot_skill * 10)
+        return round(
+            (
+                base_value
+                + (international_rep * 150)
+                + (age_diff * 100)
+                + (skill * 50)
+                + (pot_skill * 10)
+            ),
+            2,
         )
 
     def generate_international_reputation(self, max_skill: int) -> int:

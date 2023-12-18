@@ -282,8 +282,8 @@ class PlayerSimulation:
         form = self.player.details.form
 
         # Using a half-life formula for stamina
-        self.stamina = self.initial_stamina * (
-            2 ** (-elapsed_time / (144 * fitness * form))
+        self.stamina = round(
+            self.initial_stamina * (2 ** (-elapsed_time / (144 * fitness * form))), 2
         )
 
     def __eq__(self, other):
