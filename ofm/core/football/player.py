@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
+import math
 from dataclasses import dataclass
 from enum import IntEnum, auto
 from typing import Union
@@ -233,6 +234,7 @@ class PlayerSimulation:
         self.current_position = current_position
         self._current_skill = 0.0
         self.statistics = PlayerStats(player.details.player_id)
+        self.initial_stamina = player.details.stamina
         self.subbed = False
         self.able_to_play = True
 
@@ -274,6 +276,15 @@ class PlayerSimulation:
     @attributes.setter
     def attributes(self, attributes: PlayerAttributes):
         self.player.details.attributes = attributes
+
+    def update_stamina(self, elapsed_time: float):
+        fitness = self.player.details.fitness
+        form = self.player.details.form
+
+        # Using a half-life formula for stamina
+        self.stamina = self.initial_stamina * (
+            2 ** (-elapsed_time / (144 * fitness * form))
+        )
 
     def __eq__(self, other):
         if not isinstance(other, PlayerSimulation):

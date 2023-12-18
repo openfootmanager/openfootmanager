@@ -21,14 +21,15 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional, Tuple, Union
 
 from ofm.core.football.club import Club
-from ofm.core.football.player import (Player, PlayerTeam, Positions,
-                                      PreferredFoot)
-from ofm.core.football.player_attributes import (DefensiveAttributes,
-                                                 GkAttributes,
-                                                 IntelligenceAttributes,
-                                                 OffensiveAttributes,
-                                                 PhysicalAttributes,
-                                                 PlayerAttributes)
+from ofm.core.football.player import Player, PlayerTeam, Positions, PreferredFoot
+from ofm.core.football.player_attributes import (
+    DefensiveAttributes,
+    GkAttributes,
+    IntelligenceAttributes,
+    OffensiveAttributes,
+    PhysicalAttributes,
+    PlayerAttributes,
+)
 from ofm.core.football.playercontract import PlayerContract
 from ofm.defaults import NAMES_FILE
 
@@ -308,10 +309,14 @@ class PlayerGenerator(Generator):
         return [player.serialize() for player in self.players_obj]
 
     def generate_player_form(self) -> float:
-        return round(random.random() * 100, 2)
+        form = round(random.random(), 2)
+        form = max(0.1, form)
+        return form
 
     def generate_player_fitness(self) -> float:
-        return round(random.random(), 2)
+        fitness = round(random.random() * 100, 2)
+        fitness = max(10.0, fitness)
+        return fitness
 
     def generate_player(
         self,

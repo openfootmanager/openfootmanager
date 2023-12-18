@@ -14,16 +14,16 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from datetime import timedelta
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Optional, Tuple
 from uuid import UUID
 
+from ..simulation import PitchPosition
+from ..simulation.team_strategy import TeamStrategy
 from .club import Club
 from .formation import Formation
 from .player import PlayerSimulation
-from ..simulation import PitchPosition
-from ..simulation.team_strategy import TeamStrategy
 
 
 class SubbingError(Exception):
@@ -78,11 +78,17 @@ class TeamSimulation:
         players = self.formation.players.copy()
         if position == PitchPosition.DEF_BOX:
             probabilities = [0.3]
-            df_prob = [0.5 / len(self.formation.df) for _ in range(len(self.formation.df))]
+            df_prob = [
+                0.5 / len(self.formation.df) for _ in range(len(self.formation.df))
+            ]
             probabilities.extend(df_prob)
-            mf_prob = [0.1 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            mf_prob = [
+                0.1 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+            ]
             probabilities.extend(mf_prob)
-            fw_prob = [0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            fw_prob = [
+                0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+            ]
             probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.DEF_RIGHT,
@@ -92,10 +98,16 @@ class TeamSimulation:
             PitchPosition.DEF_MIDFIELD_RIGHT,
         ]:
             players.remove(self.formation.gk)
-            probabilities = [0.6 / len(self.formation.df) for _ in range(len(self.formation.df))]
-            mf_prob = [0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities = [
+                0.6 / len(self.formation.df) for _ in range(len(self.formation.df))
+            ]
+            mf_prob = [
+                0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+            ]
             probabilities.extend(mf_prob)
-            fw_prob = [0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            fw_prob = [
+                0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+            ]
             probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.MIDFIELD_RIGHT,
@@ -103,20 +115,35 @@ class TeamSimulation:
             PitchPosition.MIDFIELD_LEFT,
         ]:
             players.remove(self.formation.gk)
-            probabilities = [0.2 / len(self.formation.df) for _ in range(len(self.formation.df))]
-            mf_prob = [0.5 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities = [
+                0.2 / len(self.formation.df) for _ in range(len(self.formation.df))
+            ]
+            mf_prob = [
+                0.5 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+            ]
             probabilities.extend(mf_prob)
-            fw_prob = [0.3 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            fw_prob = [
+                0.3 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+            ]
             probabilities.extend(fw_prob)
         else:
             players.remove(self.formation.gk)
-            probabilities = [0.1 / len(self.formation.df) for _ in range(len(self.formation.df))]
-            mf_prob = [0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))]
+            probabilities = [
+                0.1 / len(self.formation.df) for _ in range(len(self.formation.df))
+            ]
+            mf_prob = [
+                0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+            ]
             probabilities.extend(mf_prob)
-            fw_prob = [0.5 / len(self.formation.fw) for _ in range(len(self.formation.fw))]
+            fw_prob = [
+                0.5 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+            ]
             probabilities.extend(fw_prob)
 
-        if self.player_in_possession is not None and self.player_in_possession in players:
+        if (
+            self.player_in_possession is not None
+            and self.player_in_possession in players
+        ):
             idx = players.index(self.player_in_possession)
             players.pop(idx)
             probabilities.pop(idx)
@@ -198,8 +225,9 @@ class TeamSimulation:
 
         return best_corner_kick_taker
 
-    def update_player_stamina(self):
-        pass
+    def update_player_stamina(self, duration: float):
+        for player in self.formation.players:
+            player.update_stamina(duration)
 
 
 @dataclass
