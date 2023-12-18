@@ -151,6 +151,15 @@ class DebugMatchController(ControllerInterface):
             )
         else:
             pass_accuracy = 0
+
+        if team.stats.crosses > 0:
+            cross_accuracy = int(
+                ((team.stats.crosses - team.stats.crosses_missed) / team.stats.crosses)
+                * 100
+            )
+        else:
+            cross_accuracy = 0
+
         if self.live_game is not None:
             if self.live_game.minutes != timedelta(seconds=0):
                 minutes = self.live_game.total_elapsed_time.total_seconds()
@@ -166,6 +175,8 @@ class DebugMatchController(ControllerInterface):
             possession,
             team.stats.passes,
             pass_accuracy,
+            team.stats.crosses,
+            cross_accuracy,
             team.stats.fouls,
             team.stats.yellow_cards,
             team.stats.red_cards,

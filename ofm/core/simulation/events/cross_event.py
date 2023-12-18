@@ -20,7 +20,7 @@ from typing import Optional
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS, PitchPosition
-from ..event import SimulationEvent, EventOutcome, CommentaryImportance
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_cross_strategy
@@ -54,35 +54,40 @@ class CrossEvent(SimulationEvent):
         outcomes = [
             EventOutcome.CROSS_MISS,
             EventOutcome.CROSS_SUCCESS,
-            EventOutcome.CROSS_INTERCEPT,
         ]
 
         if self.event_type == EventType.FREE_KICK:
-            cross_success = (
-                (
-                    self.attacking_player.attributes.intelligence.crossing
-                    + self.attacking_player.attributes.intelligence.vision
-                    + self.attacking_player.attributes.offensive.free_kick * 2
-                )
-                / 4
-            ) - distance
+            cross_miss = (50 + distance) / (
+                100
+                + self.attacking_player.attributes.intelligence.crossing
+                + self.attacking_player.attributes.intelligence.vision
+                + self.attacking_player.attributes.offensive.free_kick
+            )
         else:
-            cross_success = (
-                (
-                    self.attacking_player.attributes.intelligence.crossing
-                    + self.attacking_player.attributes.intelligence.vision
-                )
-                / 2
-            ) - distance
+            cross_miss = (25 + distance) / (
+                100
+                + self.attacking_player.attributes.intelligence.crossing
+                + self.attacking_player.attributes.intelligence.vision
+            )
+
+        cross_success = 1 - cross_miss
 
         outcome_probability = [
-            100.0 - cross_success,  # CROSS_MISS
+            cross_miss,  # CROSS_MISS
             cross_success,  # CROSS_SUCCESS
-            (
-                self.defending_player.attributes.defensive.positioning
-                + self.defending_player.attributes.defensive.interception
-            )
-            / 2,  # CROSS_INTERCEPT
+        ]
+
+        return random.choices(outcomes, outcome_probability)[0]
+
+    def get_intercept_prob(self) -> EventOutcome:
+        outcomes = [EventOutcome.CROSS_MISS, EventOutcome.CROSS_INTERCEPT]
+        cross_intercept = (
+            self.defending_player.attributes.defensive.positioning
+            + self.defending_player.attributes.defensive.interception
+        )
+        outcome_probability = [
+            200 - cross_intercept,
+            cross_intercept,
         ]
 
         return random.choices(outcomes, outcome_probability)[0]
@@ -91,7 +96,8 @@ class CrossEvent(SimulationEvent):
         outcomes = [EventOutcome.CROSS_SUCCESS, EventOutcome.CROSS_OFFSIDE]
 
         offside_probability = 5 / (
-            200 + self.attacking_player.attributes.offensive.positioning
+            200
+            + self.attacking_player.attributes.offensive.positioning
             + self.attacking_player.attributes.intelligence.team_work
         )
 
@@ -121,6 +127,9 @@ class CrossEvent(SimulationEvent):
 
         self.outcome = self.get_cross_primary_outcome(distance)
 
+        if self.outcome == EventOutcome.CROSS_MISS:
+            self.outcome = self.get_intercept_prob()
+
         if (
             end_position in OFF_POSITIONS
             and self.state.position.value < end_position.value
@@ -138,12 +147,17 @@ class CrossEvent(SimulationEvent):
             self.commentary.append(f"{self.attacking_player} failed to cross the ball!")
             if self.outcome == EventOutcome.CROSS_INTERCEPT:
                 self.defending_player.statistics.interceptions += 1
+            if self.outcome == EventOutcome.CROSS_OFFSIDE:
+                attacking_team.stats.offsides += 1
+                self.commentary.append(f"{self.attacking_player} was offside!")
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
         else:
             self.state.position = end_position
-            self.commentary.append(f"{self.attacking_player} crossed the ball to {self.receiving_player}")
+            self.commentary.append(
+                f"{self.attacking_player} crossed the ball to {self.receiving_player}"
+            )
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()

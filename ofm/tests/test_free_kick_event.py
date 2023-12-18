@@ -14,14 +14,20 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from datetime import timedelta
+
 from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
+from ofm.core.simulation.events import CrossEvent, PassEvent, ShotEvent
+from ofm.core.simulation.events.free_kick_event import FreeKickEvent, FreeKickType
 from ofm.core.simulation.game_state import GameState, SimulationStatus
-from ofm.core.simulation.events import PassEvent, CrossEvent, ShotEvent
-from ofm.core.simulation.events.free_kick_event import FreeKickType, FreeKickEvent
 
 
 def get_free_kick_event() -> FreeKickEvent:
-    return FreeKickEvent(EventType.FREE_KICK, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT))
+    return FreeKickEvent(
+        EventType.FREE_KICK,
+        GameState(
+            timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT
+        ),
+    )
 
 
 def test_normal_free_kick_event(simulation_teams):
@@ -170,10 +176,14 @@ def test_free_kick_cross_miss_event(simulation_teams, monkeypatch):
     def get_cross_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.CROSS_MISS
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.CROSS_MISS
+
     monkeypatch.setattr(FreeKickEvent, "get_free_kick_type", get_free_kick_type)
     monkeypatch.setattr(
         CrossEvent, "get_cross_primary_outcome", get_cross_primary_outcome
     )
+    monkeypatch.setattr(CrossEvent, "get_intercept_prob", get_intercept_prob)
     event = get_free_kick_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True
@@ -195,12 +205,16 @@ def test_free_kick_cross_intercept_event(simulation_teams, monkeypatch):
         return FreeKickType.CROSS
 
     def get_cross_primary_outcome(self, distance) -> EventOutcome:
+        return EventOutcome.CROSS_MISS
+
+    def get_intercept_prob(self) -> EventOutcome:
         return EventOutcome.CROSS_INTERCEPT
 
     monkeypatch.setattr(FreeKickEvent, "get_free_kick_type", get_free_kick_type)
     monkeypatch.setattr(
         CrossEvent, "get_cross_primary_outcome", get_cross_primary_outcome
     )
+    monkeypatch.setattr(CrossEvent, "get_intercept_prob", get_intercept_prob)
     event = get_free_kick_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True

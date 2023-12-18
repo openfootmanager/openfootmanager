@@ -14,19 +14,18 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from datetime import timedelta
-from ofm.core.simulation.event import (
-    EventOutcome,
-    EventType,
-    PitchPosition,
-)
-from ofm.core.simulation.game_state import GameState, SimulationStatus
 
+from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
 from ofm.core.simulation.events import CrossEvent
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
 def get_cross_event() -> CrossEvent:
     return CrossEvent(
-        EventType.CROSS, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT)
+        EventType.CROSS,
+        GameState(
+            timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT
+        ),
     )
 
 
@@ -65,9 +64,13 @@ def test_cross_miss_event(simulation_teams, monkeypatch):
     def get_cross_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.CROSS_MISS
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.CROSS_MISS
+
     monkeypatch.setattr(
         CrossEvent, "get_cross_primary_outcome", get_cross_primary_outcome
     )
+    monkeypatch.setattr(CrossEvent, "get_intercept_prob", get_intercept_prob)
     event = get_cross_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True
@@ -88,9 +91,13 @@ def test_cross_intercept_event(simulation_teams, monkeypatch):
     def get_cross_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.CROSS_INTERCEPT
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.CROSS_INTERCEPT
+
     monkeypatch.setattr(
         CrossEvent, "get_cross_primary_outcome", get_cross_primary_outcome
     )
+    monkeypatch.setattr(CrossEvent, "get_intercept_prob", get_intercept_prob)
     event = get_cross_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True

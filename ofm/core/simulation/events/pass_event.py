@@ -20,7 +20,7 @@ from typing import Optional
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS, PitchPosition
-from ..event import SimulationEvent, EventOutcome, CommentaryImportance
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_pass_strategy
@@ -54,7 +54,6 @@ class PassEvent(SimulationEvent):
                 + self.attacking_player.attributes.offensive.free_kick
             )
         else:
-
             pass_miss = (25 + distance) / (
                 100
                 + self.attacking_player.attributes.intelligence.passing
@@ -87,7 +86,8 @@ class PassEvent(SimulationEvent):
         outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
 
         offside_probability = 5 / (
-            200 + self.attacking_player.attributes.offensive.positioning
+            200
+            + self.attacking_player.attributes.offensive.positioning
             + self.attacking_player.attributes.intelligence.team_work
         )
 
@@ -145,7 +145,9 @@ class PassEvent(SimulationEvent):
             )
         else:
             self.state.position = end_position
-            self.commentary.append(f"{self.attacking_player} passed the ball to {self.receiving_player}")
+            self.commentary.append(
+                f"{self.attacking_player} passed the ball to {self.receiving_player}"
+            )
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()
