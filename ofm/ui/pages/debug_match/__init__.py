@@ -13,15 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from enum import Enum
+
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-from enum import Enum
+from .game_events_tab import GameEventsTab
 from .live_game_tab import LiveGameTab
 from .player_details_tab import PlayerDetailsTab
-from .team_stats_tab import TeamStatsTab
-from .game_events_tab import GameEventsTab
 from .team_names_component import TeamNamesComponent
+from .team_stats_tab import TeamStatsTab
 
 
 class DelayComboBoxValues(Enum):
@@ -57,7 +58,9 @@ class DebugMatchPage(ttk.Frame):
         self.scores_details = TeamNamesComponent(self)
         self.scores_details.grid(row=1, column=0, columnspan=2)
 
-        self.progress_bar = ttk.Progressbar(self, length=550, maximum=90*60, bootstyle="striped")
+        self.progress_bar = ttk.Progressbar(
+            self, length=550, maximum=90 * 60, bootstyle="striped"
+        )
         self.progress_bar.grid(row=3, column=0, columnspan=2, pady=20, sticky=NSEW)
 
         self.minutes_elapsed = ttk.Label(self, text="0'")
@@ -131,7 +134,9 @@ class DebugMatchPage(ttk.Frame):
     def update_team_names(
         self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
     ):
-        self.scores_details.update_team_names(home_team, home_team_score, away_team, away_team_score)
+        self.scores_details.update_team_names(
+            home_team, home_team_score, away_team, away_team_score
+        )
 
     def update_team_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         self.team_stats_tab.update_stats(home_team_stats, away_team_stats)
@@ -139,11 +144,13 @@ class DebugMatchPage(ttk.Frame):
     def update_live_game(self, live_game_events: list[str]):
         self.live_game_tab.update_live_game_events(live_game_events)
 
-    def update_game_events(self, home_team_events: list[str], away_team_events: list[str]):
+    def update_game_events(
+        self, home_team_events: list[str], away_team_events: list[str]
+    ):
         self.game_events_tab.update_events(home_team_events, away_team_events)
 
     def update_game_progress(self, minutes_elapsed: int):
-        self.progress_bar['value'] = minutes_elapsed
+        self.progress_bar["value"] = minutes_elapsed
         self.minutes_elapsed.config(text=str(minutes_elapsed) + "'")
 
     def update_team_strategy(self, home_team_strategy: str, away_team_strategy: str):

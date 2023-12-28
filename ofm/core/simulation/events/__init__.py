@@ -14,23 +14,24 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from typing import Optional
-from .cross_event import CrossEvent
-from .dribble_event import DribbleEvent
-from .free_kick_event import FreeKickEvent
-from .corner_kick_event import CornerKickEvent
-from .pass_event import PassEvent
-from .foul_event import FoulEvent
-from .goal_kick_event import GoalKickEvent
-from .penalty_kick_event import PenaltyKickEvent
-from .shot_event import ShotEvent
-from ..event import EventOutcome, SimulationEvent
-from ..event_type import EventType, FoulType
 from copy import deepcopy
+from typing import Optional
+
 from ...football.team_simulation import TeamSimulation
 from .. import PitchPosition
+from ..event import EventOutcome, SimulationEvent
+from ..event_type import EventType, FoulType
 from ..game_state import GameState, SimulationStatus
 from ..team_strategy import team_general_strategy
+from .corner_kick_event import CornerKickEvent
+from .cross_event import CrossEvent
+from .dribble_event import DribbleEvent
+from .foul_event import FoulEvent
+from .free_kick_event import FreeKickEvent
+from .goal_kick_event import GoalKickEvent
+from .pass_event import PassEvent
+from .penalty_kick_event import PenaltyKickEvent
+from .shot_event import ShotEvent
 
 
 class EventFactory:

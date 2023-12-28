@@ -14,19 +14,23 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from datetime import timedelta
-from ofm.core.simulation.event import (
-    EventOutcome,
-    EventType,
-    PitchPosition,
-)
-from ofm.core.simulation.game_state import GameState, SimulationStatus
+
 from ofm.core.football.player import PlayerInjury
+from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
 from ofm.core.simulation.event_type import FoulType
 from ofm.core.simulation.events import FoulEvent
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
 def get_foul_event() -> FoulEvent:
-    return FoulEvent(EventType.FOUL, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.MIDFIELD_CENTER))
+    return FoulEvent(
+        EventType.FOUL,
+        GameState(
+            timedelta(minutes=10),
+            SimulationStatus.FIRST_HALF,
+            PitchPosition.MIDFIELD_CENTER,
+        ),
+    )
 
 
 def test_no_card_foul_event(simulation_teams, monkeypatch):

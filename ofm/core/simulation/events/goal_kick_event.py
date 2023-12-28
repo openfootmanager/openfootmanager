@@ -15,16 +15,16 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum, auto
+from typing import Optional
 
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, CommentaryImportance
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
-from .pass_event import PassEvent
 from .cross_event import CrossEvent
+from .pass_event import PassEvent
 
 
 class GoalKickType(Enum):

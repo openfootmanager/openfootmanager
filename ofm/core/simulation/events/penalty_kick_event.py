@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, CommentaryImportance
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from .shot_event import ShotEvent

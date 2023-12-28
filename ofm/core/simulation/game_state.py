@@ -13,8 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from datetime import timedelta
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum, auto
 
 from . import PitchPosition

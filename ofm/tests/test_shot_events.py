@@ -14,18 +14,24 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from datetime import timedelta
+
 from ofm.core.simulation.event import (
     EventOutcome,
     EventType,
     PitchPosition,
     TeamSimulation,
 )
-from ofm.core.simulation.game_state import GameState, SimulationStatus
 from ofm.core.simulation.events import ShotEvent
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
 def get_shot_event() -> ShotEvent:
-    return ShotEvent(EventType.SHOT, GameState(timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_BOX))
+    return ShotEvent(
+        EventType.SHOT,
+        GameState(
+            timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_BOX
+        ),
+    )
 
 
 def test_shot_miss_event(simulation_teams, monkeypatch):

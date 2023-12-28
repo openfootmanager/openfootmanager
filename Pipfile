@@ -15,6 +15,7 @@ pyyaml = "*"
 hypothesis = "*"
 pre-commit = "*"
 isort = "*"
+black = "*"
 
 [requires]
 python_version = "3"

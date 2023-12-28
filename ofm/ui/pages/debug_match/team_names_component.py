@@ -21,27 +21,21 @@ class TeamNamesComponent(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.home_team_name = ttk.Label(
-            self, text="Brazil", font="Arial 18 bold"
-        )
+        self.home_team_name = ttk.Label(self, text="Brazil", font="Arial 18 bold")
         self.home_team_name.grid(row=0, column=0, padx=10, pady=10, sticky=W)
 
-        self.home_team_score = ttk.Label(
-            self, text="0", font="Arial 18 bold"
-        )
+        self.home_team_score = ttk.Label(self, text="0", font="Arial 18 bold")
         self.home_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
 
-        self.away_team_score = ttk.Label(
-            self, text="0", font="Arial 18 bold"
-        )
+        self.away_team_score = ttk.Label(self, text="0", font="Arial 18 bold")
         self.away_team_score.grid(row=0, column=2, padx=10, pady=10, sticky=EW)
 
-        self.away_team_name = ttk.Label(
-            self, text="Argentina", font="Arial 18 bold"
-        )
+        self.away_team_name = ttk.Label(self, text="Argentina", font="Arial 18 bold")
         self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
 
-    def update_team_names(self, home_team_name, home_team_score, away_team_name, away_team_score):
+    def update_team_names(
+        self, home_team_name, home_team_score, away_team_name, away_team_score
+    ):
         self.home_team_name.config(text=f"{home_team_name}")
         self.home_team_score.config(text=f"{home_team_score}")
 

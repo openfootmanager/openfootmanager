@@ -14,10 +14,11 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import uuid
-
-import pytest
 from datetime import timedelta
 
+import pytest
+
+from ofm.core.football.formation import FormationError
 from ofm.core.football.team_simulation import Goal, SubbingError
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
@@ -25,11 +26,9 @@ from ofm.core.simulation.events import EventFactory, PassEvent
 from ofm.core.simulation.fixture import Fixture
 from ofm.core.simulation.game_state import GameState, SimulationStatus
 from ofm.core.simulation.simulation import LiveGame, SimulationEngine
-from ofm.core.football.formation import FormationError
 
 
 class MockSimulationEngine:
-
     def run(self):
         pass
 
@@ -56,14 +55,7 @@ def live_game(monkeypatch, simulation_teams) -> LiveGame:
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
     monkeypatch.setattr(SimulationEngine, "get_event_duration", get_event_duration)
 
-    return LiveGame(
-        fixture,
-        home_team_sim,
-        away_team_sim,
-        False,
-        False,
-        True
-    )
+    return LiveGame(fixture, home_team_sim, away_team_sim, False, False, True)
 
 
 def test_formations_are_complete(live_game: LiveGame):
@@ -165,7 +157,11 @@ def test_game_ends_in_120_minutes(live_game, player_sim):
 
 def test_game_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    game_state = GameState(timedelta(minutes=0), SimulationStatus.NOT_STARTED, PitchPosition.MIDFIELD_CENTER)
+    game_state = GameState(
+        timedelta(minutes=0),
+        SimulationStatus.NOT_STARTED,
+        PitchPosition.MIDFIELD_CENTER,
+    )
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
         game_state,
@@ -176,7 +172,11 @@ def test_game_starts_with_pass_event(live_game):
 
 def test_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    game_state = GameState(timedelta(minutes=45), SimulationStatus.FIRST_HALF_BREAK, PitchPosition.MIDFIELD_CENTER)
+    game_state = GameState(
+        timedelta(minutes=45),
+        SimulationStatus.FIRST_HALF_BREAK,
+        PitchPosition.MIDFIELD_CENTER,
+    )
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
         game_state,
@@ -187,7 +187,11 @@ def test_half_time_starts_with_pass_event(live_game):
 
 def test_extra_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    game_state = GameState(timedelta(minutes=90), SimulationStatus.SECOND_HALF_BREAK, PitchPosition.MIDFIELD_CENTER)
+    game_state = GameState(
+        timedelta(minutes=90),
+        SimulationStatus.SECOND_HALF_BREAK,
+        PitchPosition.MIDFIELD_CENTER,
+    )
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
         game_state,
@@ -198,7 +202,11 @@ def test_extra_time_starts_with_pass_event(live_game):
 
 def test_extra_half_time_starts_with_pass_event(live_game):
     event_factory = EventFactory()
-    game_state = GameState(timedelta(minutes=105), SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK, PitchPosition.MIDFIELD_CENTER)
+    game_state = GameState(
+        timedelta(minutes=105),
+        SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK,
+        PitchPosition.MIDFIELD_CENTER,
+    )
     event = event_factory.get_event_type(
         (live_game.engine.home_team, live_game.engine.away_team),
         game_state,

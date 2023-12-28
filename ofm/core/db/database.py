@@ -14,15 +14,16 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
-import random
 import json
 import os
+import random
 import uuid
 from typing import Optional
 
 from ofm.core.football.club import Club
 from ofm.core.football.player import Player, PlayerTeam, Positions
 from ofm.core.settings import Settings
+
 from .generators import PlayerGenerator, TeamGenerator
 
 
@@ -116,7 +117,11 @@ class DB:
     def check_clubs_file(self, amount: Optional[int] = None) -> None:
         if not os.path.exists(self.settings.db):
             os.makedirs(self.settings.db, exist_ok=True)
-        if not os.path.exists(self.clubs_file) or not os.path.exists(self.players_file) or not os.path.exists(self.squads_file):
+        if (
+            not os.path.exists(self.clubs_file)
+            or not os.path.exists(self.players_file)
+            or not os.path.exists(self.squads_file)
+        ):
             self.generate_teams_and_squads(clubs_def=None, amount=amount)
 
     def get_player_object_from_id(

@@ -15,9 +15,9 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum, auto
 
-from . import PitchPosition, OFF_POSITIONS
-from .game_state import GameState
 from ..simulation.event_type import EventType
+from . import OFF_POSITIONS, PitchPosition
+from .game_state import GameState
 
 
 class TeamStrategy(Enum):
@@ -178,9 +178,9 @@ def team_corner_kick_strategy(strategy: TeamStrategy) -> list[float]:
 
 
 def team_general_strategy(
-        attacking_team_strategy: TeamStrategy,
-        def_team_strategy: TeamStrategy,
-        state: GameState,
+    attacking_team_strategy: TeamStrategy,
+    def_team_strategy: TeamStrategy,
+    state: GameState,
 ) -> list[int]:
     """
     Gets the probability of the events from the attacking team.

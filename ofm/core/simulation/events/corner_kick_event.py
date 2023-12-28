@@ -19,13 +19,12 @@ from enum import Enum, auto
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, CommentaryImportance
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_corner_kick_strategy
-
-from .pass_event import PassEvent
 from .cross_event import CrossEvent
+from .pass_event import PassEvent
 
 
 class CornerKickType(Enum):
@@ -54,7 +53,9 @@ class CornerKickEvent(SimulationEvent):
         is_pass = self.corner_kick_type == CornerKickType.PASS
         self.attacking_player = attacking_team.get_best_corner_kick_taker(is_pass)
 
-        self.commentary.append(f"{self.attacking_player} goes to the ball to take the corner kick!")
+        self.commentary.append(
+            f"{self.attacking_player} goes to the ball to take the corner kick!"
+        )
 
         if self.corner_kick_type == CornerKickType.PASS:
             self.sub_event = PassEvent(

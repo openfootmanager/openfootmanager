@@ -19,12 +19,12 @@ from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS
-from ..event import SimulationEvent, CommentaryImportance
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType, FreeKickType
 from ..game_state import GameState
-from .shot_event import ShotEvent
-from .pass_event import PassEvent
 from .cross_event import CrossEvent
+from .pass_event import PassEvent
+from .shot_event import ShotEvent
 
 
 @dataclass
@@ -58,7 +58,9 @@ class FreeKickEvent(SimulationEvent):
 
         self.free_kick_type = self.get_free_kick_type()
 
-        self.commentary.append(f"{self.attacking_player} goes to the ball to take the free kick!")
+        self.commentary.append(
+            f"{self.attacking_player} goes to the ball to take the free kick!"
+        )
 
         if self.free_kick_type == FreeKickType.PASS:
             self.sub_event = PassEvent(
