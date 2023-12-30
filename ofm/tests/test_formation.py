@@ -13,10 +13,12 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from copy import deepcopy
+
 import pytest
 
 from ofm.core.db.generators import TeamGenerator
-from ofm.core.football.formation import Formation, FormationError
+from ofm.core.football.formation import FORMATION_STRINGS, Formation, FormationError
 from ofm.core.football.player import Positions
 
 
@@ -89,3 +91,17 @@ def test_formation_get_best_players(squads_def, confederations_file):
     assert len(formation.df) == 4
     assert len(formation.mf) == 4
     assert len(formation.fw) == 2
+
+
+def test_formation_change_formation(simulation_teams):
+    formation = simulation_teams[0].formation
+    original_formation = deepcopy(formation)
+
+    formations = FORMATION_STRINGS.copy()
+    formations.remove(formation.formation_string)
+    for f in formations:
+        formation.change_formation(f)
+        assert formation.formation_string == f
+        assert original_formation != formation
+        assert original_formation.gk == formation.gk
+        assert original_formation.players == formation.players

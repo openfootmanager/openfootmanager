@@ -41,12 +41,6 @@ def db(tmp_path, confederations_file) -> DB:
     return DB(settings)
 
 
-def get_confederations_file() -> list[dict]:
-    settings = Settings()
-    with open(settings.fifa_conf, "r") as fp:
-        return json.load(fp)
-
-
 def test_generate_players(db: DB):
     expected_players = db.generate_players()
     file_contents = db.load_players()

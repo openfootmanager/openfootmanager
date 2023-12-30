@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 from .player import PlayerSimulation, PlayerTeam, Positions
 
@@ -112,8 +112,11 @@ class Formation:
         ]
         self.bench.sort(key=lambda x: x.current_position.value)
 
-    def add_player(self, position: int, player: PlayerTeam):
-        player_sim = PlayerSimulation(player, Positions.GK)
+    def add_player(self, position: int, player: Union[PlayerTeam, PlayerSimulation]):
+        if isinstance(player, PlayerTeam):
+            player_sim = PlayerSimulation(player, Positions.GK)
+        else:
+            player_sim = player
         df, mf, fw = self.get_num_players()
         if position == 0:
             self.gk = player_sim
@@ -129,6 +132,20 @@ class Formation:
         else:
             player_sim.current_position = player_sim.player.details.get_best_position()
             self.bench.append(player_sim)
+
+    def change_formation(self, formation_string: str):
+        self.formation_string = formation_string
+
+        if not self.validate_formation():
+            raise FormationError("Invalid formation string!")
+
+        players = self.players.copy()
+        self.gk = None
+        self.df = []
+        self.mf = []
+        self.fw = []
+        for pos, player in enumerate(players):
+            self.add_player(pos, player)
 
     def substitute_player(
         self, player_out: PlayerSimulation, player_in: PlayerSimulation
