@@ -17,7 +17,7 @@ import random
 from dataclasses import dataclass
 from datetime import timedelta
 
-from ...football.team_simulation import Goal, TeamSimulation
+from ...football.team_simulation import GameEvent, TeamSimulation
 from .. import PitchPosition
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
@@ -170,7 +170,7 @@ class ShotEvent(SimulationEvent):
                 additional_time = timedelta(0)
 
             attacking_team.add_goal(
-                Goal(self.attacking_player, self.state.minutes, additional_time)
+                GameEvent(self.attacking_player, self.state.minutes, additional_time)
             )
             defending_player = defending_team.get_player_on_pitch(self.state.position)
             self.state = self.change_possession(

@@ -31,7 +31,7 @@ class SubbingError(Exception):
 
 
 @dataclass(repr=False)
-class Goal:
+class GameEvent:
     player: PlayerSimulation
     minutes: timedelta
     additional_time: timedelta = timedelta(0)
@@ -57,8 +57,11 @@ class TeamSimulation:
         self.max_substitutions: int = max_substitutions
         self.substitutions: int = 0
         self.player_in_possession: Optional[PlayerSimulation] = None
-        self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]] = []
-        self.goals_history: list[Optional[Goal]] = []
+        self.game_events: list[Optional[GameEvent]] = []
+        self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation, timedelta]] = []
+        self.goals_history: list[Optional[GameEvent]] = []
+        self.red_card_history: list[Optional[GameEvent]] = []
+        self.yellow_card_history: list[Optional[GameEvent]] = []
         self._score: int = 0
         self.team_strategy: TeamStrategy = strategy
         self.stats: TeamStats = TeamStats(self.club.club_id)
@@ -68,8 +71,20 @@ class TeamSimulation:
         self._score = len(self.goals_history)
         return self._score
 
-    def add_goal(self, goal_data: Goal):
+    def add_game_event(self, game_event: GameEvent):
+        self.game_events.append(game_event)
+
+    def add_goal(self, goal_data: GameEvent):
         self.goals_history.append(goal_data)
+        self.game_events.append(goal_data)
+
+    def add_yellow_card(self, yellow_card: GameEvent):
+        self.yellow_card_history.append(yellow_card)
+        self.game_events.append(yellow_card)
+
+    def add_red_card(self, red_card: GameEvent):
+        self.red_card_history.append(red_card)
+        self.game_events.append(red_card)
 
     def get_player_on_pitch(
         self,
@@ -160,7 +175,7 @@ class TeamSimulation:
         players = self.formation.all_players
         self.stats.update_stats(players)
 
-    def sub_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation):
+    def sub_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation, time: timedelta):
         if player_out.subbed:
             raise SubbingError("Player is already subbed!")
         if player_out.sent_off or player_in.sent_off:
@@ -170,7 +185,7 @@ class TeamSimulation:
 
         self.substitutions += 1
 
-        self.sub_history.append((player_out, player_in))
+        self.sub_history.append((player_out, player_in, time))
         self.formation.substitute_player(player_out, player_in)
 
     def get_best_penalty_taker(self) -> PlayerSimulation:

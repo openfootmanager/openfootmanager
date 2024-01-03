@@ -23,7 +23,7 @@ from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.player import PlayerSimulation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
-from ...core.simulation.event import CommentaryImportance
+from ...core.simulation.event import CommentaryImportance, EventOutcome
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
 from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
@@ -278,11 +278,26 @@ class DebugMatchController(ControllerInterface):
         home_team_events = []
         away_team_events = []
         if self.live_game:
-            for goal in self.live_game.engine.home_team.goals_history:
-                text = f"⚽ {goal.__repr__()}"
+            for event in self.live_game.engine.home_team.game_events:
+                text = ""
+                if event in self.live_game.engine.home_team.goals_history:
+                    text = f"⚽ {event.__repr__()}"
+                if event in self.live_game.engine.home_team.yellow_card_history:
+                    text = f"🟨 {event.__repr__()}"
+                if event in self.live_game.engine.home_team.red_card_history:
+                    text = f"🟥 {event.__repr__()}"
+
                 home_team_events.append(text)
-            for goal in self.live_game.engine.away_team.goals_history:
-                text = f"⚽ {goal.__repr__()}"
+
+            for event in self.live_game.engine.away_team.game_events:
+                text = ""
+                if event in self.live_game.engine.away_team.goals_history:
+                    text = f"⚽ {event.__repr__()}"
+                if event in self.live_game.engine.away_team.yellow_card_history:
+                    text = f"🟨 {event.__repr__()}"
+                if event in self.live_game.engine.away_team.red_card_history:
+                    text = f"🟥 {event.__repr__()}"
+
                 away_team_events.append(text)
 
         self.page.update_game_events(home_team_events, away_team_events)

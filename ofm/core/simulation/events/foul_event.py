@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...football.player import PlayerInjury, PlayerSimulation
-from ...football.team_simulation import TeamSimulation
+from ...football.team_simulation import TeamSimulation, GameEvent
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import FoulStrength, FoulType
 from ..game_state import GameState
@@ -136,9 +136,11 @@ class FoulEvent(SimulationEvent):
         if self.foul_type == FoulType.OFFENSIVE_FOUL:
             fouled_player = self.defending_player
             offending_player = self.attacking_player
+            offending_team = attacking_team
         else:
             fouled_player = self.attacking_player
             offending_player = self.defending_player
+            offending_team = defending_team
 
         offending_player.statistics.fouls += 1
 
@@ -149,15 +151,18 @@ class FoulEvent(SimulationEvent):
 
         if self.outcome == EventOutcome.FOUL_YELLOW_CARD:
             offending_player.statistics.yellow_cards += 1
+            offending_team.add_yellow_card(GameEvent(offending_player, self.state.minutes, self.state.additional_time_elapsed))
             self.commentary.append(f"{offending_player} received a yellow card!")
 
         if offending_player.statistics.yellow_cards == 2:
             self.outcome = EventOutcome.FOUL_RED_CARD
+            offending_team.add_yellow_card(GameEvent(offending_player, self.state.minutes, self.state.additional_time_elapsed))
             self.commentary.append(
                 f"{offending_player} now has 2 yellow cards! That's a send off!"
             )
 
         if self.outcome == EventOutcome.FOUL_RED_CARD:
+            offending_team.add_red_card(GameEvent(offending_player, self.state.minutes, self.state.additional_time_elapsed))
             offending_player.statistics.red_cards += 1
             self.commentary.append(f"{offending_player} received a red card!")
 

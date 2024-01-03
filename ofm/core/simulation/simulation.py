@@ -250,7 +250,7 @@ class SimulationEngine:
         self.away_team = away_team
         self.home_team.max_substitutions = max_substitutions
         self.away_team.max_substitutions = max_substitutions
-        self.event_history = []
+        self.event_history: list[SimulationEvent] = []
         self.state = GameState(
             timedelta(seconds=0),
             SimulationStatus.NOT_STARTED,
