@@ -105,3 +105,12 @@ def test_formation_change_formation(simulation_teams):
         assert original_formation != formation
         assert original_formation.gk == formation.gk
         assert original_formation.players == formation.players
+        for player in formation.players:
+            if player == formation.gk:
+                assert player.current_position == Positions.GK
+            if player in formation.df:
+                assert player.current_position == Positions.DF
+            if player in formation.mf:
+                assert player.current_position == Positions.MF
+            if player in formation.fw:
+                assert player.current_position == Positions.FW
