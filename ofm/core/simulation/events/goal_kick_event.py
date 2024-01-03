@@ -72,5 +72,6 @@ class GoalKickEvent(SimulationEvent):
         self.state = self.sub_event.calculate_event(attacking_team, defending_team)
         self.outcome = self.sub_event.outcome
         self.defending_player = self.sub_event.defending_player
+        self.commentary.extend(self.sub_event.commentary)
 
         return self.state

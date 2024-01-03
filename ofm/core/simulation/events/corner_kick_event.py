@@ -75,5 +75,6 @@ class CornerKickEvent(SimulationEvent):
         self.state = self.sub_event.calculate_event(attacking_team, defending_team)
         self.defending_player = self.sub_event.defending_player
         self.outcome = self.sub_event.outcome
+        self.commentary.extend(self.sub_event.commentary)
 
         return self.state

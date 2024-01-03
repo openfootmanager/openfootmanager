@@ -21,7 +21,7 @@ class LiveGameTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.live_game_events = ttk.ScrolledText(self, height=10)
+        self.live_game_events = ttk.ScrolledText(self, height=15)
         self.live_game_events.config(state=DISABLED)
         self.live_game_events.grid(row=0, column=0, padx=10, pady=10)
 

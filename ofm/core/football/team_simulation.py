@@ -39,7 +39,7 @@ class GameEvent:
     def __repr__(self):
         minutes = str(int(self.minutes.total_seconds() / 60))
         if self.additional_time > timedelta(0):
-            minutes = f"{minutes} + {int(self.additional_time.total_seconds())}"
+            minutes = f"{minutes} + {int(self.additional_time.total_seconds() / 60)}"
         return f"{self.player} {minutes}'"
 
 
@@ -94,15 +94,15 @@ class TeamSimulation:
         if position == PitchPosition.DEF_BOX:
             probabilities = [0.3]
             df_prob = [
-                0.5 / len(self.formation.df) for _ in range(len(self.formation.df))
+                0.5 if player.able_to_play else 0 for player in self.formation.df
             ]
             probabilities.extend(df_prob)
             mf_prob = [
-                0.1 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+                0.1 if player.able_to_play else 0 for player in self.formation.mf
             ]
             probabilities.extend(mf_prob)
             fw_prob = [
-                0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+                0.1 if player.able_to_play else 0 for player in self.formation.fw
             ]
             probabilities.extend(fw_prob)
         elif position in [
@@ -114,14 +114,14 @@ class TeamSimulation:
         ]:
             players.remove(self.formation.gk)
             probabilities = [
-                0.6 / len(self.formation.df) for _ in range(len(self.formation.df))
+                0.6 if player.able_to_play else 0 for player in self.formation.df
             ]
             mf_prob = [
-                0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+                0.3 if player.able_to_play else 0 for player in self.formation.mf
             ]
             probabilities.extend(mf_prob)
             fw_prob = [
-                0.1 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+                0.1 if player.able_to_play else 0 for player in self.formation.fw
             ]
             probabilities.extend(fw_prob)
         elif position in [
@@ -131,27 +131,27 @@ class TeamSimulation:
         ]:
             players.remove(self.formation.gk)
             probabilities = [
-                0.2 / len(self.formation.df) for _ in range(len(self.formation.df))
+                0.2 if player.able_to_play else 0 for player in self.formation.df
             ]
             mf_prob = [
-                0.5 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+                0.5 if player.able_to_play else 0 for player in self.formation.mf
             ]
             probabilities.extend(mf_prob)
             fw_prob = [
-                0.3 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+                0.3 if player.able_to_play else 0 for player in self.formation.fw
             ]
             probabilities.extend(fw_prob)
         else:
             players.remove(self.formation.gk)
             probabilities = [
-                0.1 / len(self.formation.df) for _ in range(len(self.formation.df))
+                0.1 if player.able_to_play else 0 for player in self.formation.df
             ]
             mf_prob = [
-                0.3 / len(self.formation.mf) for _ in range(len(self.formation.mf))
+                0.3 if player.able_to_play else 0 for player in self.formation.mf
             ]
             probabilities.extend(mf_prob)
             fw_prob = [
-                0.5 / len(self.formation.fw) for _ in range(len(self.formation.fw))
+                0.5 if player.able_to_play else 0 for player in self.formation.fw
             ]
             probabilities.extend(fw_prob)
 
@@ -163,9 +163,9 @@ class TeamSimulation:
             players.pop(idx)
             probabilities.pop(idx)
 
-        # Red card players cannot receive the ball
+        # Players that received a red card or are unable to play because of an injury can't receive the ball
         for player, probability in zip(players, probabilities):
-            if player.sent_off or not player.able_to_play:
+            if not player.able_to_play:
                 players.remove(player)
                 probabilities.remove(probability)
 

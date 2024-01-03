@@ -49,5 +49,6 @@ class PenaltyKickEvent(SimulationEvent):
         self.attacking_player = self.sub_event.attacking_player
         self.defending_player = self.sub_event.defending_player
         self.outcome = self.sub_event.outcome
+        self.commentary.extend(self.sub_event.commentary)
 
         return self.state

@@ -70,7 +70,6 @@ class DebugMatchController(ControllerInterface):
         self.page.disable_button()
         if not self.live_game.is_game_over:
             self.live_game.run()
-        self.update_game_data()
 
     def start_match(self):
         if self.teams is None:
@@ -283,9 +282,9 @@ class DebugMatchController(ControllerInterface):
                 if event in self.live_game.engine.home_team.goals_history:
                     text = f"⚽ {event.__repr__()}"
                 if event in self.live_game.engine.home_team.yellow_card_history:
-                    text = f"🟨 {event.__repr__()}"
+                    text = f"🟨Y {event.__repr__()}"
                 if event in self.live_game.engine.home_team.red_card_history:
-                    text = f"🟥 {event.__repr__()}"
+                    text = f"🟥R {event.__repr__()}"
 
                 home_team_events.append(text)
 
@@ -294,9 +293,9 @@ class DebugMatchController(ControllerInterface):
                 if event in self.live_game.engine.away_team.goals_history:
                     text = f"⚽ {event.__repr__()}"
                 if event in self.live_game.engine.away_team.yellow_card_history:
-                    text = f"🟨 {event.__repr__()}"
+                    text = f"🟨Y {event.__repr__()}"
                 if event in self.live_game.engine.away_team.red_card_history:
-                    text = f"🟥 {event.__repr__()}"
+                    text = f"🟥R {event.__repr__()}"
 
                 away_team_events.append(text)
 

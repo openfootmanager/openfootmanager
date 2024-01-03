@@ -209,8 +209,12 @@ def team_general_strategy(
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 4
 
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
+
             if state.position == PitchPosition.OFF_BOX:
                 probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
@@ -231,8 +235,12 @@ def team_general_strategy(
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 2
 
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
+
             if state.position == PitchPosition.OFF_BOX:
                 probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
@@ -253,8 +261,12 @@ def team_general_strategy(
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 3
 
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
+
             if state.position == PitchPosition.OFF_BOX:
                 probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
