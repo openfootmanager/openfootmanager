@@ -13,36 +13,25 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from ..pages.debug_home import DebugHomePage
+
+from ..pages import PlayerProfilePage
 from .controllerinterface import ControllerInterface
 
 
-class DebugPageController(ControllerInterface):
-    def __init__(self, controller: ControllerInterface, page: DebugHomePage):
+class PlayerProfilePageController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: PlayerProfilePage):
         self.controller = controller
         self.page = page
         self._bind()
 
-    def switch(self, page: str):
+    def switch(self, page):
         self.controller.switch(page)
 
     def initialize(self):
         pass
 
-    def go_to_home_page(self):
-        self.switch("home")
-
-    def go_to_match_sim_page(self):
-        self.switch("debug_match")
-
-    def go_to_team_selection_page(self):
-        self.switch("team_selection")
-
-    def go_to_player_profile_page(self):
-        self.switch("player_profile")
+    def go_to_debug_page(self):
+        self.switch("debug_home")
 
     def _bind(self):
-        self.page.match_sim_btn.config(command=self.go_to_match_sim_page)
-        self.page.cancel_btn.config(command=self.go_to_home_page)
-        self.page.team_selection_btn.config(command=self.go_to_team_selection_page)
-        self.page.player_profile_btn.config(command=self.go_to_player_profile_page)
+        self.page.cancel_btn.config(command=self.go_to_debug_page)

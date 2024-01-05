@@ -18,3 +18,4 @@ from .debug_match import DebugMatchPage
 from .home import HomePage
 from .settings import SettingsPage
 from .team_selection import TeamSelectionPage
+from .player_profile import PlayerProfilePage

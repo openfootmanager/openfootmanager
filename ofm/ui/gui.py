@@ -73,6 +73,7 @@ class GUI:
         height = 968
 
         self.window.minsize(width, height)
+        self.window.geometry("")
         self.fix_scaling()
 
         self.window.rowconfigure(0, weight=1)
@@ -86,6 +87,7 @@ class GUI:
             "debug_match": self._add_frame(DebugMatchPage),
             "team_selection": self._add_frame(TeamSelectionPage),
             "settings": self._add_frame(SettingsPage),
+            "player_profile": self._add_frame(PlayerProfilePage),
         }
 
         self.current_page = self.pages["home"]

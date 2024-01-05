@@ -24,7 +24,6 @@ class HomePage(ttk.Frame):
         self.logo = ttk.PhotoImage(file="ofm/res/images/openfoot.png")
 
         self.logo_label = ttk.Label(self, image=self.logo)
-        self.logo_label.image = self.logo
         self.logo_label.grid(row=0, column=0, padx=20, pady=75, sticky=NSEW)
 
         self.debug_mode_btn = ttk.Button(self, text="Start Debug Mode")
