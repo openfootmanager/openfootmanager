@@ -40,7 +40,7 @@ class PassEvent(SimulationEvent):
         probabilities = transition_matrix[self.state.position]
         return random.choices(list(PitchPosition), probabilities)[0]
 
-    def get_pass_primary_outcome(self, distance) -> EventOutcome:
+    def get_pass_primary_outcome(self, distance: int) -> EventOutcome:
         outcomes = [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_SUCCESS,
@@ -140,6 +140,9 @@ class PassEvent(SimulationEvent):
             if self.outcome == EventOutcome.PASS_OFFSIDE:
                 attacking_team.stats.offsides += 1
                 self.commentary.append(f"{self.receiving_player} was offside!")
+            self.attacking_player.received_ball = None
+            self.defending_player.received_ball = None
+            self.receiving_player.received_ball = None
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
@@ -148,6 +151,9 @@ class PassEvent(SimulationEvent):
             self.commentary.append(
                 f"{self.attacking_player} passed the ball to {self.receiving_player}"
             )
+            self.attacking_player.received_ball = None
+            self.receiving_player.received_ball = self.attacking_player
+            self.defending_player.received_ball = None
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()

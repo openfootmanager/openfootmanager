@@ -130,6 +130,8 @@ class FoulEvent(SimulationEvent):
     ) -> GameState:
         self.attacking_player = attacking_team.player_in_possession
         self.defending_player = defending_team.get_player_on_pitch(self.state.position)
+        self.attacking_player.received_ball = None
+        self.defending_player.received_ball = None
 
         self.foul_type = self.get_foul_type()
 

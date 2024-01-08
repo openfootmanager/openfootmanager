@@ -14,10 +14,9 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
-import math
 from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Union
+from typing import Union, Optional
 from uuid import UUID
 
 from .injury import PlayerInjury
@@ -167,6 +166,8 @@ class PlayerStats:
     passes_missed: int = 0
     crosses: int = 0
     crosses_missed: int = 0
+    dribbles: int = 0
+    dribbles_failed: int = 0
     shots: int = 0
     shots_on_target: int = 0
     shots_missed: int = 0
@@ -235,6 +236,7 @@ class PlayerSimulation:
         self._current_skill = 0.0
         self.statistics = PlayerStats(player.details.player_id)
         self.initial_stamina = player.details.stamina
+        self.received_ball = Optional[PlayerSimulation]
         self.subbed = False
         self.able_to_play = True
 

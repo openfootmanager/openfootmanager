@@ -301,6 +301,8 @@ class TeamStats:
     passes_missed: int = 0
     crosses: int = 0
     crosses_missed: int = 0
+    dribbles: int = 0
+    dribbles_failed: int = 0
     interceptions: int = 0
     assists: int = 0
     fouls: int = 0
@@ -335,5 +337,7 @@ class TeamStats:
         self.crosses_missed = sum(
             player.statistics.crosses_missed for player in players
         )
+        self.dribbles = sum(player.statistics.dribbles for player in players)
+        self.dribbles_failed = sum(player.statistics.dribbles_failed for player in players)
         self.interceptions = sum(player.statistics.interceptions for player in players)
         self.assists = sum(player.statistics.assists for player in players)

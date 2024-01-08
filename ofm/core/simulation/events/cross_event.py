@@ -150,6 +150,9 @@ class CrossEvent(SimulationEvent):
             if self.outcome == EventOutcome.CROSS_OFFSIDE:
                 attacking_team.stats.offsides += 1
                 self.commentary.append(f"{self.attacking_player} was offside!")
+            self.attacking_player.received_ball = None
+            self.defending_player.received_ball = None
+            self.receiving_player.received_ball = None
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
@@ -158,6 +161,9 @@ class CrossEvent(SimulationEvent):
             self.commentary.append(
                 f"{self.attacking_player} crossed the ball to {self.receiving_player}"
             )
+            self.attacking_player.received_ball = None
+            self.defending_player.received_ball = None
+            self.receiving_player.received_ball = self.attacking_player
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()

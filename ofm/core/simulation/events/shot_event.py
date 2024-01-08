@@ -213,6 +213,8 @@ class ShotEvent(SimulationEvent):
             attacking_team.stats.corners += 1
             self.state.position = PitchPosition.OFF_LEFT
 
+        self.attacking_player.received_ball = None
+        self.defending_player.received_ball = None
         attacking_team.update_stats()
         defending_team.update_stats()
         return self.state
