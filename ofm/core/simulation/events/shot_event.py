@@ -162,6 +162,8 @@ class ShotEvent(SimulationEvent):
             self.commentary.append(f"GOAL! {self.attacking_player} scores!")
             self.attacking_player.statistics.goals += 1
             self.defending_player.statistics.goals_conceded += 1
+            if self.attacking_player.received_ball is not None:
+                self.attacking_player.received_ball.statistics.assists += 1
             self.state.position = PitchPosition.MIDFIELD_CENTER
 
             if self.state.in_additional_time:

@@ -236,7 +236,7 @@ class PlayerSimulation:
         self._current_skill = 0.0
         self.statistics = PlayerStats(player.details.player_id)
         self.initial_stamina = player.details.stamina
-        self.received_ball = Optional[PlayerSimulation]
+        self.received_ball: Optional[PlayerSimulation] = None
         self.subbed = False
         self.able_to_play = True
 
