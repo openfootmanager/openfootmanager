@@ -175,6 +175,9 @@ class TeamSimulation:
             PitchPosition.MIDFIELD_RIGHT,
             PitchPosition.MIDFIELD_CENTER,
             PitchPosition.MIDFIELD_LEFT,
+            PitchPosition.OFF_MIDFIELD_RIGHT,
+            PitchPosition.OFF_MIDFIELD_LEFT,
+            PitchPosition.OFF_MIDFIELD_CENTER
         ]:
             players.remove(self.formation.gk)
             probabilities = [
@@ -198,7 +201,7 @@ class TeamSimulation:
             ]
             probabilities.extend(mf_prob)
             fw_prob = [
-                0.5 if player.able_to_play else 0 for player in self.formation.fw
+                0.6 if player.able_to_play else 0 for player in self.formation.fw
             ]
             probabilities.extend(fw_prob)
 
@@ -210,11 +213,8 @@ class TeamSimulation:
             players.pop(idx)
             probabilities.pop(idx)
 
-        # Players that received a red card or are unable to play because of an injury can't receive the ball
-        for player, probability in zip(players, probabilities):
-            if not player.able_to_play:
-                players.remove(player)
-                probabilities.remove(probability)
+        probabilities = list(filter(lambda x: x > 0, probabilities))
+        players = list(filter(lambda x: x.able_to_play, players))
 
         return random.choices(players, probabilities)[0]
 

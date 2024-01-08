@@ -19,7 +19,7 @@ from datetime import timedelta
 import pytest
 
 from ofm.core.football.formation import FormationError
-from ofm.core.football.team_simulation import GameEventType, SubbingError
+from ofm.core.football.team_simulation import SubbingError, PlayerSimulation
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
 from ofm.core.simulation.events import EventFactory, PassEvent
@@ -297,3 +297,14 @@ def test_substitute_player_in_was_sent_off(live_game):
     player_out = home_team.formation.fw[0]
     with pytest.raises(SubbingError):
         home_team.sub_player(player_out, player_in, timedelta(minutes=45))
+
+
+def test_get_player_on_pitch(live_game):
+    home_team = live_game.engine.home_team
+    unable_player = home_team.formation.players[-1]
+    unable_player.able_to_play = False
+    for _ in range(1500):
+        for position in list(PitchPosition):
+            player = home_team.get_player_on_pitch(position)
+            assert isinstance(player, PlayerSimulation) is True
+            assert player != unable_player
