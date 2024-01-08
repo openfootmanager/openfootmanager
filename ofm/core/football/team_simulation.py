@@ -87,15 +87,49 @@ class TeamSimulation:
     def add_game_event(self, game_event: GameEvent):
         self.game_events.append(game_event)
 
-    def add_goal(self, goal_data: GameEvent):
+    def add_goal(
+            self,
+            player: PlayerSimulation,
+            minutes: timedelta,
+            additional_time: timedelta = timedelta(0),
+            penalty: bool = False
+    ):
+        goal_data = GameEvent(
+            player,
+            minutes,
+            GameEventType.GOAL if not penalty else GameEventType.PENALTY_GOAL,
+            additional_time,
+        )
         self.goals_history.append(goal_data)
         self.game_events.append(goal_data)
 
-    def add_yellow_card(self, yellow_card: GameEvent):
+    def add_yellow_card(
+            self,
+            player: PlayerSimulation,
+            minutes: timedelta,
+            additional_time: timedelta = timedelta(0)
+    ):
+        yellow_card = GameEvent(
+            player,
+            minutes,
+            GameEventType.YELLOW_CARD,
+            additional_time
+        )
         self.yellow_card_history.append(yellow_card)
         self.game_events.append(yellow_card)
 
-    def add_red_card(self, red_card: GameEvent):
+    def add_red_card(
+            self,
+            player: PlayerSimulation,
+            minutes: timedelta,
+            additional_time: timedelta = timedelta(0)
+    ):
+        red_card = GameEvent(
+            player,
+            minutes,
+            GameEventType.RED_CARD,
+            additional_time
+        )
         self.red_card_history.append(red_card)
         self.game_events.append(red_card)
 

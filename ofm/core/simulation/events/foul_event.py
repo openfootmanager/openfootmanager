@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...football.player import PlayerInjury, PlayerSimulation
-from ...football.team_simulation import TeamSimulation, GameEvent, GameEventType
+from ...football.team_simulation import TeamSimulation
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import FoulStrength, FoulType
 from ..game_state import GameState
@@ -152,12 +152,9 @@ class FoulEvent(SimulationEvent):
         if self.outcome == EventOutcome.FOUL_YELLOW_CARD:
             offending_player.statistics.yellow_cards += 1
             offending_team.add_yellow_card(
-                GameEvent(
-                    offending_player,
-                    self.state.minutes,
-                    GameEventType.YELLOW_CARD,
-                    self.state.additional_time_elapsed
-                )
+                offending_player,
+                self.state.minutes,
+                self.state.additional_time_elapsed
             )
             self.commentary.append(f"{offending_player} received a yellow card!")
 
@@ -169,12 +166,9 @@ class FoulEvent(SimulationEvent):
 
         if self.outcome == EventOutcome.FOUL_RED_CARD:
             offending_team.add_red_card(
-                GameEvent(
-                    offending_player,
-                    self.state.minutes,
-                    GameEventType.RED_CARD,
-                    self.state.additional_time_elapsed
-                )
+                offending_player,
+                self.state.minutes,
+                self.state.additional_time_elapsed
             )
             offending_player.statistics.red_cards += 1
             offending_player.able_to_play = False

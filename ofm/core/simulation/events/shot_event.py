@@ -17,7 +17,7 @@ import random
 from dataclasses import dataclass
 from datetime import timedelta
 
-from ...football.team_simulation import GameEvent, GameEventType, TeamSimulation
+from ...football.team_simulation import TeamSimulation
 from .. import PitchPosition
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
@@ -171,11 +171,11 @@ class ShotEvent(SimulationEvent):
 
             if self.event_type == EventType.PENALTY_KICK:
                 attacking_team.add_goal(
-                    GameEvent(self.attacking_player, self.state.minutes, GameEventType.PENALTY_GOAL, additional_time)
+                    self.attacking_player, self.state.minutes, additional_time, penalty=True
                 )
             else:
                 attacking_team.add_goal(
-                    GameEvent(self.attacking_player, self.state.minutes, GameEventType.GOAL, additional_time)
+                    self.attacking_player, self.state.minutes, additional_time, penalty=False
                 )
 
             defending_player = defending_team.get_player_on_pitch(self.state.position)

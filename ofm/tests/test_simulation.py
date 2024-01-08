@@ -19,7 +19,7 @@ from datetime import timedelta
 import pytest
 
 from ofm.core.football.formation import FormationError
-from ofm.core.football.team_simulation import GameEvent, SubbingError
+from ofm.core.football.team_simulation import GameEventType, SubbingError
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
 from ofm.core.simulation.events import EventFactory, PassEvent
@@ -132,7 +132,7 @@ def test_game_breaks_and_does_not_go_to_extra_time(live_game, player_sim):
     live_game.possible_extra_time = True
     live_game.run()  # first half
     assert live_game.state.status == SimulationStatus.FIRST_HALF_BREAK
-    live_game.engine.home_team.add_goal(GameEvent(player_sim, timedelta(minutes=45)))
+    live_game.engine.home_team.add_goal(player_sim, timedelta(minutes=45))
     live_game.run()  # second half
     assert live_game.state.status == SimulationStatus.FINISHED
     assert live_game.minutes == timedelta(minutes=90)
@@ -148,7 +148,7 @@ def test_game_ends_in_120_minutes(live_game, player_sim):
     assert live_game.state.status == SimulationStatus.SECOND_HALF_BREAK
     live_game.run()  # first et half
     assert live_game.state.status == SimulationStatus.FIRST_HALF_EXTRA_TIME_BREAK
-    live_game.engine.home_team.add_goal(GameEvent(player_sim, timedelta(minutes=90)))
+    live_game.engine.home_team.add_goal(player_sim, timedelta(minutes=90))
     live_game.run()  # second et half
     assert live_game.state.status == SimulationStatus.FINISHED
     assert live_game.minutes == timedelta(minutes=120)
