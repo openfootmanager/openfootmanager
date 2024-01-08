@@ -17,7 +17,7 @@ import random
 from dataclasses import dataclass
 from datetime import timedelta
 
-from ...football.team_simulation import GameEvent, TeamSimulation
+from ...football.team_simulation import GameEvent, GameEventType, TeamSimulation
 from .. import PitchPosition
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
@@ -38,7 +38,7 @@ class ShotEvent(SimulationEvent):
         return random.choice(final_outcomes)
 
     def get_shot_on_goal(
-        self, shot_on_goal: float, defending_team: TeamSimulation
+            self, shot_on_goal: float, defending_team: TeamSimulation
     ) -> EventOutcome:
         basic_event_outcomes = [
             EventOutcome.SHOT_MISS,
@@ -53,8 +53,8 @@ class ShotEvent(SimulationEvent):
             basic_event_outcomes.append(EventOutcome.SHOT_BLOCKED)
             event_probabilities.append(
                 (
-                    self.defending_player.attributes.defensive.positioning
-                    + self.defending_player.attributes.defensive.interception
+                        self.defending_player.attributes.defensive.positioning
+                        + self.defending_player.attributes.defensive.interception
                 )
                 / 2
             )
@@ -79,10 +79,10 @@ class ShotEvent(SimulationEvent):
         ]
         if self.event_type == EventType.PENALTY_KICK:
             gk_skills = (
-                self.defending_player.attributes.gk.penalty * 2
-                + self.defending_player.attributes.gk.jumping
-                + self.defending_player.attributes.gk.positioning
-            ) / 4
+                                self.defending_player.attributes.gk.penalty * 2
+                                + self.defending_player.attributes.gk.jumping
+                                + self.defending_player.attributes.gk.positioning
+                        ) / 4
         else:
             gk_skills = self.defending_player.attributes.gk.get_general_overall()
 
@@ -103,9 +103,9 @@ class ShotEvent(SimulationEvent):
         return random.choice(final_outcomes)
 
     def calculate_event(
-        self,
-        attacking_team: TeamSimulation,
-        defending_team: TeamSimulation,
+            self,
+            attacking_team: TeamSimulation,
+            defending_team: TeamSimulation,
     ) -> GameState:
         if self.attacking_player is None:
             self.attacking_player = attacking_team.player_in_possession
@@ -117,21 +117,21 @@ class ShotEvent(SimulationEvent):
 
         if self.event_type == EventType.FREE_KICK:
             shot_on_goal = (
-                self.attacking_player.attributes.offensive.shot_accuracy
-                + self.attacking_player.attributes.offensive.shot_power
-                + self.attacking_player.attributes.offensive.free_kick * 2
-            ) / 4
+                                   self.attacking_player.attributes.offensive.shot_accuracy
+                                   + self.attacking_player.attributes.offensive.shot_power
+                                   + self.attacking_player.attributes.offensive.free_kick * 2
+                           ) / 4
         elif self.event_type == EventType.PENALTY_KICK:
             shot_on_goal = (
-                self.attacking_player.attributes.offensive.penalty * 2
-                + self.attacking_player.attributes.offensive.shot_power
-                + self.attacking_player.attributes.offensive.shot_accuracy
-            ) / 4
+                                   self.attacking_player.attributes.offensive.penalty * 2
+                                   + self.attacking_player.attributes.offensive.shot_power
+                                   + self.attacking_player.attributes.offensive.shot_accuracy
+                           ) / 4
         else:
             shot_on_goal = (
-                self.attacking_player.attributes.offensive.shot_accuracy
-                + self.attacking_player.attributes.offensive.shot_power
-            ) / 2
+                                   self.attacking_player.attributes.offensive.shot_accuracy
+                                   + self.attacking_player.attributes.offensive.shot_power
+                           ) / 2
 
         self.commentary.append(f"{self.attacking_player} shoots!")
 
@@ -169,9 +169,15 @@ class ShotEvent(SimulationEvent):
             else:
                 additional_time = timedelta(0)
 
-            attacking_team.add_goal(
-                GameEvent(self.attacking_player, self.state.minutes, additional_time)
-            )
+            if self.event_type == EventType.PENALTY_KICK:
+                attacking_team.add_goal(
+                    GameEvent(self.attacking_player, self.state.minutes, GameEventType.PENALTY_GOAL, additional_time)
+                )
+            else:
+                attacking_team.add_goal(
+                    GameEvent(self.attacking_player, self.state.minutes, GameEventType.GOAL, additional_time)
+                )
+
             defending_player = defending_team.get_player_on_pitch(self.state.position)
             self.state = self.change_possession(
                 attacking_team,

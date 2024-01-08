@@ -16,6 +16,8 @@
 import random
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum, auto
+from math import ceil
 from typing import Optional, Tuple
 from uuid import UUID
 
@@ -30,17 +32,28 @@ class SubbingError(Exception):
     pass
 
 
+class GameEventType(Enum):
+    GOAL = auto()
+    PENALTY_GOAL = auto()
+    YELLOW_CARD = auto()
+    RED_CARD = auto()
+    OWN_GOAL = auto()
+
+
 @dataclass(repr=False)
 class GameEvent:
     player: PlayerSimulation
     minutes: timedelta
+    event_type: GameEventType
     additional_time: timedelta = timedelta(0)
 
     def __repr__(self):
-        minutes = str(int(self.minutes.total_seconds() / 60))
+        minutes = f"{int(self.minutes.total_seconds() / 60)}'"
         if self.additional_time > timedelta(0):
-            minutes = f"{minutes} + {int(self.additional_time.total_seconds() / 60)}"
-        return f"{self.player} {minutes}'"
+            minutes = f"{minutes} + {ceil(self.additional_time.total_seconds() / 60)}'"
+        if self.event_type == GameEventType.PENALTY_GOAL:
+            minutes += " (pen)"
+        return f"{self.player} {minutes}"
 
 
 class TeamSimulation:
