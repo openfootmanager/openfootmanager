@@ -71,7 +71,9 @@ class TeamSimulation:
         self.substitutions: int = 0
         self.player_in_possession: Optional[PlayerSimulation] = None
         self.game_events: list[Optional[GameEvent]] = []
-        self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation, timedelta]] = []
+        self.sub_history: list[
+            Tuple[PlayerSimulation, PlayerSimulation, timedelta]
+        ] = []
         self.goals_history: list[Optional[GameEvent]] = []
         self.red_card_history: list[Optional[GameEvent]] = []
         self.yellow_card_history: list[Optional[GameEvent]] = []
@@ -88,11 +90,11 @@ class TeamSimulation:
         self.game_events.append(game_event)
 
     def add_goal(
-            self,
-            player: PlayerSimulation,
-            minutes: timedelta,
-            additional_time: timedelta = timedelta(0),
-            penalty: bool = False
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
+        penalty: bool = False,
     ):
         goal_data = GameEvent(
             player,
@@ -104,32 +106,24 @@ class TeamSimulation:
         self.game_events.append(goal_data)
 
     def add_yellow_card(
-            self,
-            player: PlayerSimulation,
-            minutes: timedelta,
-            additional_time: timedelta = timedelta(0)
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
     ):
         yellow_card = GameEvent(
-            player,
-            minutes,
-            GameEventType.YELLOW_CARD,
-            additional_time
+            player, minutes, GameEventType.YELLOW_CARD, additional_time
         )
         self.yellow_card_history.append(yellow_card)
         self.game_events.append(yellow_card)
 
     def add_red_card(
-            self,
-            player: PlayerSimulation,
-            minutes: timedelta,
-            additional_time: timedelta = timedelta(0)
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
     ):
-        red_card = GameEvent(
-            player,
-            minutes,
-            GameEventType.RED_CARD,
-            additional_time
-        )
+        red_card = GameEvent(player, minutes, GameEventType.RED_CARD, additional_time)
         self.red_card_history.append(red_card)
         self.game_events.append(red_card)
 
@@ -177,7 +171,7 @@ class TeamSimulation:
             PitchPosition.MIDFIELD_LEFT,
             PitchPosition.OFF_MIDFIELD_RIGHT,
             PitchPosition.OFF_MIDFIELD_LEFT,
-            PitchPosition.OFF_MIDFIELD_CENTER
+            PitchPosition.OFF_MIDFIELD_CENTER,
         ]:
             players.remove(self.formation.gk)
             probabilities = [
@@ -222,7 +216,9 @@ class TeamSimulation:
         players = self.formation.all_players
         self.stats.update_stats(players)
 
-    def sub_player(self, player_out: PlayerSimulation, player_in: PlayerSimulation, time: timedelta):
+    def sub_player(
+        self, player_out: PlayerSimulation, player_in: PlayerSimulation, time: timedelta
+    ):
         if player_out.subbed:
             raise SubbingError("Player is already subbed!")
         if player_out.sent_off or player_in.sent_off:
@@ -338,6 +334,8 @@ class TeamStats:
             player.statistics.crosses_missed for player in players
         )
         self.dribbles = sum(player.statistics.dribbles for player in players)
-        self.dribbles_failed = sum(player.statistics.dribbles_failed for player in players)
+        self.dribbles_failed = sum(
+            player.statistics.dribbles_failed for player in players
+        )
         self.interceptions = sum(player.statistics.interceptions for player in players)
         self.assists = sum(player.statistics.assists for player in players)

@@ -16,7 +16,7 @@
 import datetime
 from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Union, Optional
+from typing import Optional, Union
 from uuid import UUID
 
 from .injury import PlayerInjury

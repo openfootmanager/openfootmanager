@@ -29,21 +29,38 @@ class PlayerProfilePage(ttk.Frame):
         self.canvas.create_image(0, 0, image=self.player_image, anchor=NW)
         self.canvas.grid(row=0, column=0, padx=20, pady=20, sticky=NSEW)
 
-        self.player_name_label = ttk.Label(self, text="Full Player Name", font=("Helvetica", 20))
+        self.player_name_label = ttk.Label(
+            self, text="Full Player Name", font=("Helvetica", 20)
+        )
         self.player_name_label.grid(row=0, column=1, padx=20, pady=20, sticky=NSEW)
 
-        self.player_birth_date_label = ttk.Label(self, text="Birth date: ", font=("Helvetica", 12))
-        self.player_birth_date_label.grid(row=1, column=0, padx=20, pady=10, sticky=NSEW)
+        self.player_birth_date_label = ttk.Label(
+            self, text="Birth date: ", font=("Helvetica", 12)
+        )
+        self.player_birth_date_label.grid(
+            row=1, column=0, padx=20, pady=10, sticky=NSEW
+        )
 
-        self.player_birth_date_value = ttk.Label(self, text="01-01-2020", font=("Helvetica", 12))
-        self.player_birth_date_value.grid(row=1, column=1, padx=10, pady=10, sticky=NSEW)
+        self.player_birth_date_value = ttk.Label(
+            self, text="01-01-2020", font=("Helvetica", 12)
+        )
+        self.player_birth_date_value.grid(
+            row=1, column=1, padx=10, pady=10, sticky=NSEW
+        )
 
-        self.player_nationality_label = ttk.Label(self, text="Nationality: ", font=("Helvetica", 12))
-        self.player_nationality_label.grid(row=2, column=0, padx=20, pady=10, sticky=NSEW)
+        self.player_nationality_label = ttk.Label(
+            self, text="Nationality: ", font=("Helvetica", 12)
+        )
+        self.player_nationality_label.grid(
+            row=2, column=0, padx=20, pady=10, sticky=NSEW
+        )
 
-        self.player_nationality_value = ttk.Label(self, text="Brazil", font=("Helvetica", 12))
-        self.player_nationality_value.grid(row=2, column=1, padx=10, pady=10, sticky=NSEW)
+        self.player_nationality_value = ttk.Label(
+            self, text="Brazil", font=("Helvetica", 12)
+        )
+        self.player_nationality_value.grid(
+            row=2, column=1, padx=10, pady=10, sticky=NSEW
+        )
 
         self.cancel_btn = ttk.Button(self, text="Cancel")
         self.cancel_btn.grid(row=3, column=0, padx=20, pady=10, sticky=NSEW)
-

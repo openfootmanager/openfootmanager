@@ -4,18 +4,19 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-
-[packages]
 pytest = "*"
-ttkbootstrap = "*"
-sphinx = "*"
-pygments = "*"
-docutils = "*"
-pyyaml = "*"
 hypothesis = "*"
 pre-commit = "*"
 isort = "*"
 black = "*"
+flake8 = "*"
+sphinx = "*"
+pygments = "*"
+docutils = "*"
+
+[packages]
+ttkbootstrap = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3"

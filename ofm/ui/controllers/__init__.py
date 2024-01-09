@@ -20,9 +20,9 @@ from .controllerinterface import ControllerInterface
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
 from .home_controller import HomePageController
+from .player_profile_controller import PlayerProfilePageController
 from .settings_controller import SettingsController
 from .team_selection_controller import TeamSelectionController
-from .player_profile_controller import PlayerProfilePageController
 
 
 class OFMController(ControllerInterface):
@@ -46,7 +46,9 @@ class OFMController(ControllerInterface):
                 self, self.gui.pages["team_selection"]
             ),
             "settings": SettingsController(self, self.gui.pages["settings"]),
-            "player_profile": PlayerProfilePageController(self, self.gui.pages["player_profile"]),
+            "player_profile": PlayerProfilePageController(
+                self, self.gui.pages["player_profile"]
+            ),
         }
 
     def initialize(self):

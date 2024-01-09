@@ -154,9 +154,7 @@ class FoulEvent(SimulationEvent):
         if self.outcome == EventOutcome.FOUL_YELLOW_CARD:
             offending_player.statistics.yellow_cards += 1
             offending_team.add_yellow_card(
-                offending_player,
-                self.state.minutes,
-                self.state.additional_time_elapsed
+                offending_player, self.state.minutes, self.state.additional_time_elapsed
             )
             self.commentary.append(f"{offending_player} received a yellow card!")
 
@@ -168,9 +166,7 @@ class FoulEvent(SimulationEvent):
 
         if self.outcome == EventOutcome.FOUL_RED_CARD:
             offending_team.add_red_card(
-                offending_player,
-                self.state.minutes,
-                self.state.additional_time_elapsed
+                offending_player, self.state.minutes, self.state.additional_time_elapsed
             )
             offending_player.statistics.red_cards += 1
             offending_player.able_to_play = False

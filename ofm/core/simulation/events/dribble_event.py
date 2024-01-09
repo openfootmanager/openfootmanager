@@ -58,7 +58,8 @@ class DribbleEvent(SimulationEvent):
                 self.defending_player.attributes.defensive.positioning
                 + self.defending_player.attributes.defensive.tackling
                 + self.defending_player.attributes.physical.strength
-            ) / 3,
+            )
+            / 3,
         ]
 
         return random.choices(outcomes, outcome_probability)[0]
@@ -72,9 +73,7 @@ class DribbleEvent(SimulationEvent):
         end_position = self.get_end_position(attacking_team)
 
         # Dribble distance
-        distance = abs(
-            end_position.value - self.state.position.value
-        )
+        distance = abs(end_position.value - self.state.position.value)
 
         self.attacking_player.statistics.dribbles += 1
 

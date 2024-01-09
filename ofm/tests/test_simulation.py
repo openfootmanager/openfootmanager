@@ -19,7 +19,7 @@ from datetime import timedelta
 import pytest
 
 from ofm.core.football.formation import FormationError
-from ofm.core.football.team_simulation import SubbingError, PlayerSimulation
+from ofm.core.football.team_simulation import PlayerSimulation, SubbingError
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
 from ofm.core.simulation.events import EventFactory, PassEvent
@@ -244,14 +244,18 @@ def test_get_added_time_before_45_minutes(live_game):
 def test_substitute_same_player(live_game):
     home_team = live_game.engine.home_team
     with pytest.raises(ValueError):
-        home_team.sub_player(home_team.formation.fw[0], home_team.formation.fw[0], timedelta(minutes=45))
+        home_team.sub_player(
+            home_team.formation.fw[0], home_team.formation.fw[0], timedelta(minutes=45)
+        )
 
 
 def test_substitute_invalid_player(live_game):
     home_team = live_game.engine.home_team
     away_team = live_game.engine.away_team
     with pytest.raises(FormationError):
-        home_team.sub_player(home_team.formation.fw[0], away_team.formation.fw[0], timedelta(minutes=45))
+        home_team.sub_player(
+            home_team.formation.fw[0], away_team.formation.fw[0], timedelta(minutes=45)
+        )
 
 
 def test_substitute_player(live_game):

@@ -18,7 +18,8 @@ from copy import deepcopy
 import pytest
 
 from ofm.core.db.generators import TeamGenerator
-from ofm.core.football.formation import FORMATION_STRINGS, Formation, FormationError
+from ofm.core.football.formation import (FORMATION_STRINGS, Formation,
+                                         FormationError)
 from ofm.core.football.player import Positions
 
 

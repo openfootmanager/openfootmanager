@@ -25,8 +25,10 @@ from ...core.football.player import PlayerSimulation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
 from ...core.simulation.event import CommentaryImportance, EventOutcome
 from ...core.simulation.fixture import Fixture
-from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
-from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
+from ...core.simulation.simulation import (DelayValue, LiveGame,
+                                           SimulationStatus)
+from ..pages.debug_match import (CommentaryVerbosity, DebugMatchPage,
+                                 DelayComboBoxValues)
 from .controllerinterface import ControllerInterface
 
 
