@@ -209,6 +209,8 @@ class TeamSimulation:
 
         probabilities = list(filter(lambda x: x > 0, probabilities))
         players = list(filter(lambda x: x.able_to_play, players))
+        if len(probabilities) != len(players):
+            return random.choice(players)
 
         return random.choices(players, probabilities)[0]
 
