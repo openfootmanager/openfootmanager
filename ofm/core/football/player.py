@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 import datetime
 from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 
 from .injury import PlayerInjury
@@ -166,6 +166,8 @@ class PlayerStats:
     passes_missed: int = 0
     crosses: int = 0
     crosses_missed: int = 0
+    dribbles: int = 0
+    dribbles_failed: int = 0
     shots: int = 0
     shots_on_target: int = 0
     shots_missed: int = 0
@@ -233,7 +235,10 @@ class PlayerSimulation:
         self.current_position = current_position
         self._current_skill = 0.0
         self.statistics = PlayerStats(player.details.player_id)
+        self.initial_stamina = player.details.stamina
+        self.received_ball: Optional[PlayerSimulation] = None
         self.subbed = False
+        self.able_to_play = True
 
     @property
     def stamina(self) -> float:
@@ -273,6 +278,20 @@ class PlayerSimulation:
     @attributes.setter
     def attributes(self, attributes: PlayerAttributes):
         self.player.details.attributes = attributes
+
+    def update_stamina(self, elapsed_time: float):
+        fitness = self.player.details.fitness
+        form = self.player.details.form
+
+        # Using a half-life formula for stamina
+        self.stamina = round(
+            self.initial_stamina * (2 ** (-elapsed_time / (144 * fitness * form))), 2
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, PlayerSimulation):
+            return False
+        return self.player.details.player_id == other.player.details.player_id
 
     def __str__(self):
         return self.player.details.short_name.encode("utf-8").decode("unicode_escape")

@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ class HomePage(ttk.Frame):
         self.logo = ttk.PhotoImage(file="ofm/res/images/openfoot.png")
 
         self.logo_label = ttk.Label(self, image=self.logo)
-        self.logo_label.image = self.logo
         self.logo_label.grid(row=0, column=0, padx=20, pady=75, sticky=NSEW)
 
         self.debug_mode_btn = ttk.Button(self, text="Start Debug Mode")

@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -13,15 +13,21 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal
-from ofm.core.simulation.event import EventOutcome, EventType, GameState, PitchPosition
-from ofm.core.simulation.events import PassEvent, CrossEvent
-from ofm.core.simulation.events.corner_kick_event import CornerKickType, CornerKickEvent
+from datetime import timedelta
+
+from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
+from ofm.core.simulation.events import CrossEvent, PassEvent
+from ofm.core.simulation.events.corner_kick_event import (CornerKickEvent,
+                                                          CornerKickType)
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
 def get_corner_kick_event() -> CornerKickEvent:
     return CornerKickEvent(
-        EventType.CORNER_KICK, GameState(Decimal(0.0), PitchPosition.OFF_LEFT)
+        EventType.CORNER_KICK,
+        GameState(
+            timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_LEFT
+        ),
     )
 
 
@@ -130,10 +136,14 @@ def test_corner_kick_cross_miss_event(simulation_teams, monkeypatch):
     def get_cross_primary_outcome(self, distance) -> EventOutcome:
         return EventOutcome.CROSS_MISS
 
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.CROSS_MISS
+
     monkeypatch.setattr(CornerKickEvent, "get_corner_kick_type", get_corner_kick_type)
     monkeypatch.setattr(
         CrossEvent, "get_cross_primary_outcome", get_cross_primary_outcome
     )
+    monkeypatch.setattr(CrossEvent, "get_intercept_prob", get_intercept_prob)
     event = get_corner_kick_event()
     home_team, away_team = simulation_teams
     home_team.in_possession = True

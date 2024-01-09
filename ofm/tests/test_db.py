@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -39,12 +39,6 @@ def db(tmp_path, confederations_file) -> DB:
         json.dump(confederations_file, fp)
 
     return DB(settings)
-
-
-def get_confederations_file() -> list[dict]:
-    settings = Settings()
-    with open(settings.fifa_conf, "r") as fp:
-        return json.load(fp)
 
 
 def test_generate_players(db: DB):

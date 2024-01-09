@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -13,19 +13,32 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from decimal import Decimal
-from ofm.core.simulation.event import (
-    EventOutcome,
-    EventType,
-    GameState,
-    PitchPosition,
-    TeamSimulation,
-)
-from ofm.core.simulation.events import ShotEvent
+from datetime import timedelta
+
+from ofm.core.simulation.event import (EventOutcome, EventType, PitchPosition,
+                                       TeamSimulation)
+from ofm.core.simulation.events import PassEvent, PenaltyKickEvent, ShotEvent
+from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
 def get_shot_event() -> ShotEvent:
-    return ShotEvent(EventType.SHOT, GameState(Decimal(0.0), PitchPosition.OFF_BOX))
+    return ShotEvent(
+        EventType.SHOT,
+        GameState(
+            timedelta(minutes=10), SimulationStatus.FIRST_HALF, PitchPosition.OFF_BOX
+        ),
+    )
+
+
+def get_pass_event() -> PassEvent:
+    return PassEvent(
+        EventType.PASS,
+        GameState(
+            timedelta(minutes=10),
+            SimulationStatus.FIRST_HALF,
+            PitchPosition.OFF_MIDFIELD_CENTER,
+        ),
+    )
 
 
 def test_shot_miss_event(simulation_teams, monkeypatch):
@@ -393,3 +406,92 @@ def test_goals_from_different_players(simulation_teams, monkeypatch):
     assert home_team.stats.goals == 2
     assert home_team.goals_history[0].player == first_player
     assert home_team.goals_history[1].player == second_player
+
+
+def test_goal_with_assist(simulation_teams, monkeypatch):
+    def get_shot_on_goal(
+        self, shot_on_goal: float, defending_team: TeamSimulation
+    ) -> EventOutcome:
+        return EventOutcome.SHOT_ON_GOAL
+
+    def get_shot_on_goal_outcomes(self, shot_on_goal: float) -> EventOutcome:
+        return EventOutcome.GOAL
+
+    def get_end_position(self, attacking_team) -> PitchPosition:
+        return PitchPosition.OFF_BOX
+
+    def get_pass_primary_outcome(self, distance) -> EventOutcome:
+        return EventOutcome.PASS_SUCCESS
+
+    def get_secondary_outcome(self) -> EventOutcome:
+        return EventOutcome.PASS_SUCCESS
+
+    monkeypatch.setattr(ShotEvent, "get_shot_on_goal", get_shot_on_goal)
+    monkeypatch.setattr(
+        ShotEvent, "get_shot_on_goal_outcomes", get_shot_on_goal_outcomes
+    )
+    monkeypatch.setattr(PassEvent, "get_end_position", get_end_position)
+    monkeypatch.setattr(PassEvent, "get_pass_primary_outcome", get_pass_primary_outcome)
+    monkeypatch.setattr(PassEvent, "get_secondary_outcome", get_secondary_outcome)
+
+    pass_event = get_pass_event()
+    shot_event = get_shot_event()
+    home_team, away_team = simulation_teams
+    home_team.in_possession = True
+    home_team.player_in_possession = home_team.formation.fw[0]
+    away_team.in_possession = False
+    away_team.player_in_possession = None
+    pass_event.calculate_event(home_team, away_team)
+    assert pass_event.outcome == EventOutcome.PASS_SUCCESS
+    assert pass_event.receiving_player.received_ball is not None
+    assert home_team.player_in_possession == pass_event.receiving_player
+    assistant = pass_event.receiving_player.received_ball
+    shot_event.calculate_event(home_team, away_team)
+    assert shot_event.outcome == EventOutcome.GOAL
+    assert shot_event.attacking_player.statistics.goals == 1
+    assert assistant.statistics.assists == 1
+
+
+def test_goal_after_pass_miss(simulation_teams, monkeypatch):
+    def get_shot_on_goal(
+        self, shot_on_goal: float, defending_team: TeamSimulation
+    ) -> EventOutcome:
+        return EventOutcome.SHOT_ON_GOAL
+
+    def get_shot_on_goal_outcomes(self, shot_on_goal: float) -> EventOutcome:
+        return EventOutcome.GOAL
+
+    def get_end_position(self, attacking_team) -> PitchPosition:
+        return PitchPosition.OFF_BOX
+
+    def get_pass_primary_outcome(self, distance) -> EventOutcome:
+        return EventOutcome.PASS_MISS
+
+    def get_intercept_prob(self) -> EventOutcome:
+        return EventOutcome.PASS_MISS
+
+    monkeypatch.setattr(ShotEvent, "get_shot_on_goal", get_shot_on_goal)
+    monkeypatch.setattr(
+        ShotEvent, "get_shot_on_goal_outcomes", get_shot_on_goal_outcomes
+    )
+    monkeypatch.setattr(PassEvent, "get_end_position", get_end_position)
+    monkeypatch.setattr(PassEvent, "get_pass_primary_outcome", get_pass_primary_outcome)
+    monkeypatch.setattr(PassEvent, "get_intercept_prob", get_intercept_prob)
+
+    pass_event = get_pass_event()
+    shot_event = get_shot_event()
+    home_team, away_team = simulation_teams
+    home_team.in_possession = True
+    home_team.player_in_possession = home_team.formation.fw[0]
+    away_team.in_possession = False
+    away_team.player_in_possession = None
+    pass_event.calculate_event(home_team, away_team)
+    assert pass_event.outcome == EventOutcome.PASS_MISS
+    assert pass_event.receiving_player.received_ball is None
+    assert home_team.player_in_possession is None
+    assert away_team.player_in_possession is not None
+    assert away_team.player_in_possession.received_ball is None
+    shot_event.calculate_event(away_team, home_team)
+    assert shot_event.outcome == EventOutcome.GOAL
+    assert shot_event.attacking_player.statistics.goals == 1
+    assert away_team.stats.assists == 0

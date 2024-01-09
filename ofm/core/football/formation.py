@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 from .player import PlayerSimulation, PlayerTeam, Positions
 
@@ -110,10 +110,13 @@ class Formation:
             PlayerSimulation(player, player.details.get_best_position())
             for player in players
         ]
-        self.bench.sort(key=lambda x: x.current_position)
+        self.bench.sort(key=lambda x: x.current_position.value)
 
-    def add_player(self, position: int, player: PlayerTeam):
-        player_sim = PlayerSimulation(player, Positions.GK)
+    def add_player(self, position: int, player: Union[PlayerTeam, PlayerSimulation]):
+        if isinstance(player, PlayerTeam):
+            player_sim = PlayerSimulation(player, Positions.GK)
+        else:
+            player_sim = player
         df, mf, fw = self.get_num_players()
         if position == 0:
             self.gk = player_sim
@@ -130,13 +133,29 @@ class Formation:
             player_sim.current_position = player_sim.player.details.get_best_position()
             self.bench.append(player_sim)
 
+    def change_formation(self, formation_string: str):
+        self.formation_string = formation_string
+
+        if not self.validate_formation():
+            raise FormationError("Invalid formation string!")
+
+        players = self.players.copy()
+        self.gk = None
+        self.df = []
+        self.mf = []
+        self.fw = []
+        for pos, player in enumerate(players):
+            self.add_player(pos, player)
+
     def substitute_player(
         self, player_out: PlayerSimulation, player_in: PlayerSimulation
     ):
+        if player_in not in self.all_players or player_out not in self.all_players:
+            raise FormationError("Invalid player!")
+
         current_position = player_out.current_position
         player_out.subbed = True
 
-        player_in.current_position = current_position
         if current_position == Positions.GK:
             self.gk = player_in
             index = self.bench.index(player_in)
@@ -156,6 +175,10 @@ class Formation:
             index_out = self.bench.index(player_in)
             self.fw[index] = player_in
             self.bench[index_out] = player_out
+        else:
+            raise FormationError("Invalid position!")
+
+        player_in.current_position = current_position
 
     def validate_formation(self) -> bool:
         return self.formation_string in FORMATION_STRINGS

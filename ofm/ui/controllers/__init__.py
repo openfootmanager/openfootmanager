@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -13,15 +13,16 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from ...core.db.database import DB
+from ...core.settings import Settings
+from ..gui import GUI
 from .controllerinterface import ControllerInterface
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
 from .home_controller import HomePageController
+from .player_profile_controller import PlayerProfilePageController
 from .settings_controller import SettingsController
 from .team_selection_controller import TeamSelectionController
-from ..gui import GUI
-from ...core.db.database import DB
-from ...core.settings import Settings
 
 
 class OFMController(ControllerInterface):
@@ -45,6 +46,9 @@ class OFMController(ControllerInterface):
                 self, self.gui.pages["team_selection"]
             ),
             "settings": SettingsController(self, self.gui.pages["settings"]),
+            "player_profile": PlayerProfilePageController(
+                self, self.gui.pages["player_profile"]
+            ),
         }
 
     def initialize(self):

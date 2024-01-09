@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -15,16 +15,19 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 from dataclasses import dataclass
+from datetime import timedelta
 
-from ...football.team_simulation import TeamSimulation, Goal
+from ...football.team_simulation import TeamSimulation
 from .. import PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 
 
 @dataclass
 class ShotEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.HIGH
+
     def get_shot_saved_outcomes(self) -> EventOutcome:
         final_outcomes = [
             EventOutcome.SHOT_RIGHT_CORNER_KICK,
@@ -96,7 +99,6 @@ class ShotEvent(SimulationEvent):
             EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
             EventOutcome.SHOT_GOAL_KICK,
         ]
-        self.commentary.append(f"The ball hit the post!")
 
         return random.choice(final_outcomes)
 
@@ -157,11 +159,33 @@ class ShotEvent(SimulationEvent):
             self.attacking_player.statistics.shots_missed += 1
             self.outcome = self.get_shot_saved_outcomes()
         elif self.outcome == EventOutcome.GOAL:
-            self.commentary.append(f"GOOOOOOAL! {self.attacking_player} scores!")
+            self.commentary.append(f"GOAL! {self.attacking_player} scores!")
             self.attacking_player.statistics.goals += 1
             self.defending_player.statistics.goals_conceded += 1
+            if self.attacking_player.received_ball is not None:
+                self.attacking_player.received_ball.statistics.assists += 1
             self.state.position = PitchPosition.MIDFIELD_CENTER
-            attacking_team.add_goal(Goal(self.attacking_player, self.state.minutes))
+
+            if self.state.in_additional_time:
+                additional_time = self.state.additional_time_elapsed
+            else:
+                additional_time = timedelta(0)
+
+            if self.event_type == EventType.PENALTY_KICK:
+                attacking_team.add_goal(
+                    self.attacking_player,
+                    self.state.minutes,
+                    additional_time,
+                    penalty=True,
+                )
+            else:
+                attacking_team.add_goal(
+                    self.attacking_player,
+                    self.state.minutes,
+                    additional_time,
+                    penalty=False,
+                )
+
             defending_player = defending_team.get_player_on_pitch(self.state.position)
             self.state = self.change_possession(
                 attacking_team,
@@ -169,33 +193,25 @@ class ShotEvent(SimulationEvent):
                 defending_player,
                 self.state.position,
             )
-        elif self.outcome == EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION:
+
+        if self.outcome in [
+            EventOutcome.SHOT_BLOCKED_CHANGE_POSSESSION,
+            EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION,
+        ]:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,
                 self.defending_player,
                 self.state.position,
             )
-
-        if self.outcome == EventOutcome.SHOT_GOAL_KICK:
+        elif self.outcome in [
+            EventOutcome.SHOT_GOAL_KICK,
+            EventOutcome.SHOT_SAVED_SECURED,
+        ]:
             self.state = self.change_possession(
                 attacking_team,
                 defending_team,
                 defending_team.formation.gk,
-                self.state.position,
-            )
-        if self.outcome == EventOutcome.SHOT_HIT_POST_CHANGE_POSSESSION:
-            self.state = self.change_possession(
-                attacking_team,
-                defending_team,
-                self.defending_player,
-                self.state.position,
-            )
-        elif self.outcome == EventOutcome.SHOT_SAVED_SECURED:
-            self.change_possession(
-                attacking_team,
-                defending_team,
-                self.defending_player,
                 self.state.position,
             )
         elif self.outcome == EventOutcome.SHOT_RIGHT_CORNER_KICK:
@@ -205,6 +221,8 @@ class ShotEvent(SimulationEvent):
             attacking_team.stats.corners += 1
             self.state.position = PitchPosition.OFF_LEFT
 
+        self.attacking_player.received_ball = None
+        self.defending_player.received_ball = None
         attacking_team.update_stats()
         defending_team.update_stats()
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

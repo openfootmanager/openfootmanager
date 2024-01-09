@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ from ofm.defaults import NAMES_FILE
 
 def generate_skill_values(mu: int, sigma: int) -> int:
     value = random.gauss(mu, sigma)
-    value = min(value, 99)
+    value = min(value, 95)
     value = max(value, 25)
     return int(value)
 
@@ -277,12 +277,15 @@ class PlayerGenerator(Generator):
         pot_skill = potential_skill
         base_value = random.randint(55, 80) * 100
 
-        return (
-            base_value
-            + (international_rep * 150)
-            + (age_diff * 100)
-            + (skill * 50)
-            + (pot_skill * 10)
+        return round(
+            (
+                base_value
+                + (international_rep * 150)
+                + (age_diff * 100)
+                + (skill * 50)
+                + (pot_skill * 10)
+            ),
+            2,
         )
 
     def generate_international_reputation(self, max_skill: int) -> int:
@@ -308,10 +311,14 @@ class PlayerGenerator(Generator):
         return [player.serialize() for player in self.players_obj]
 
     def generate_player_form(self) -> float:
-        return round(random.random() * 100, 2)
+        form = round(random.random(), 2)
+        form = max(0.1, form)
+        return form
 
     def generate_player_fitness(self) -> float:
-        return round(random.random(), 2)
+        fitness = round(random.random() * 100, 2)
+        fitness = max(10.0, fitness)
+        return fitness
 
     def generate_player(
         self,

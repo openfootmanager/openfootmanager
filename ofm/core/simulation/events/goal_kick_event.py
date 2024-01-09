@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -15,16 +15,16 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum, auto
+from typing import Optional
 
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
-from .pass_event import PassEvent
 from .cross_event import CrossEvent
+from .pass_event import PassEvent
 
 
 class GoalKickType(Enum):
@@ -34,6 +34,7 @@ class GoalKickType(Enum):
 
 @dataclass
 class GoalKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.LOW
     goal_kick_type: Optional[GoalKickType] = None
     receiving_player: Optional[PlayerSimulation] = None
     sub_event: Optional[PassEvent | CrossEvent] = None
@@ -71,5 +72,6 @@ class GoalKickEvent(SimulationEvent):
         self.state = self.sub_event.calculate_event(attacking_team, defending_team)
         self.outcome = self.sub_event.outcome
         self.defending_player = self.sub_event.defending_player
+        self.commentary.extend(self.sub_event.commentary)
 
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -19,13 +19,12 @@ from enum import Enum, auto
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent, EventOutcome
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_corner_kick_strategy
-
-from .pass_event import PassEvent
 from .cross_event import CrossEvent
+from .pass_event import PassEvent
 
 
 class CornerKickType(Enum):
@@ -35,6 +34,7 @@ class CornerKickType(Enum):
 
 @dataclass
 class CornerKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.MEDIUM
     corner_kick_type: Optional[CornerKickType] = None
     sub_event: Optional[PassEvent | CrossEvent] = None
 
@@ -53,7 +53,9 @@ class CornerKickEvent(SimulationEvent):
         is_pass = self.corner_kick_type == CornerKickType.PASS
         self.attacking_player = attacking_team.get_best_corner_kick_taker(is_pass)
 
-        self.commentary.append(f"{self.attacking_player} goes to the ball to take the corner kick!")
+        self.commentary.append(
+            f"{self.attacking_player} goes to the ball to take the corner kick!"
+        )
 
         if self.corner_kick_type == CornerKickType.PASS:
             self.sub_event = PassEvent(
@@ -73,5 +75,6 @@ class CornerKickEvent(SimulationEvent):
         self.state = self.sub_event.calculate_event(attacking_team, defending_team)
         self.defending_player = self.sub_event.defending_player
         self.outcome = self.sub_event.outcome
+        self.commentary.extend(self.sub_event.commentary)
 
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ...football.team_simulation import TeamSimulation
-from ..event import SimulationEvent
+from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from .shot_event import ShotEvent
@@ -25,6 +25,7 @@ from .shot_event import ShotEvent
 
 @dataclass
 class PenaltyKickEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.HIGH
     sub_event: Optional[ShotEvent] = None
 
     def calculate_event(
@@ -48,5 +49,6 @@ class PenaltyKickEvent(SimulationEvent):
         self.attacking_player = self.sub_event.attacking_player
         self.defending_player = self.sub_event.defending_player
         self.outcome = self.sub_event.outcome
+        self.commentary.extend(self.sub_event.commentary)
 
-        return GameState(self.state.minutes, self.state.position)
+        return self.state

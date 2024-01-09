@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -22,13 +22,8 @@ import pytest
 from ..core.db.generators import PlayerGenerator, TeamGenerator
 from ..core.football.club import PlayerTeam
 from ..core.football.formation import Formation
-from ..core.football.player import (
-    Player,
-    PlayerInjury,
-    PlayerSimulation,
-    Positions,
-    PreferredFoot,
-)
+from ..core.football.player import (Player, PlayerInjury, PlayerSimulation,
+                                    Positions, PreferredFoot)
 from ..core.football.player_attributes import *
 from ..core.football.playercontract import PlayerContract
 from ..core.football.team_simulation import TeamSimulation

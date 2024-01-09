@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ from typing import Optional
 from ...football.player import PlayerSimulation
 from ...football.team_simulation import TeamSimulation
 from .. import OFF_POSITIONS, PitchPosition
-from ..event import SimulationEvent, EventOutcome
+from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_pass_strategy
@@ -28,6 +28,7 @@ from ..team_strategy import team_pass_strategy
 
 @dataclass
 class PassEvent(SimulationEvent):
+    commentary_importance = CommentaryImportance.LOW
     receiving_player: Optional[PlayerSimulation] = None
 
     def get_end_position(self, attacking_team) -> PitchPosition:
@@ -39,7 +40,7 @@ class PassEvent(SimulationEvent):
         probabilities = transition_matrix[self.state.position]
         return random.choices(list(PitchPosition), probabilities)[0]
 
-    def get_pass_primary_outcome(self, distance) -> EventOutcome:
+    def get_pass_primary_outcome(self, distance: int) -> EventOutcome:
         outcomes = [
             EventOutcome.PASS_MISS,
             EventOutcome.PASS_SUCCESS,
@@ -53,7 +54,6 @@ class PassEvent(SimulationEvent):
                 + self.attacking_player.attributes.offensive.free_kick
             )
         else:
-
             pass_miss = (25 + distance) / (
                 100
                 + self.attacking_player.attributes.intelligence.passing
@@ -86,7 +86,8 @@ class PassEvent(SimulationEvent):
         outcomes = [EventOutcome.PASS_SUCCESS, EventOutcome.PASS_OFFSIDE]
 
         offside_probability = 5 / (
-            200 + self.attacking_player.attributes.offensive.positioning
+            200
+            + self.attacking_player.attributes.offensive.positioning
             + self.attacking_player.attributes.intelligence.team_work
         )
 
@@ -139,13 +140,22 @@ class PassEvent(SimulationEvent):
             if self.outcome == EventOutcome.PASS_OFFSIDE:
                 attacking_team.stats.offsides += 1
                 self.commentary.append(f"{self.receiving_player} was offside!")
+            self.attacking_player.received_ball = None
+            self.defending_player.received_ball = None
+            self.receiving_player.received_ball = None
             self.state = self.change_possession(
                 attacking_team, defending_team, self.defending_player, end_position
             )
         else:
-            self.commentary.append(f"{self.attacking_player} passed the ball to {self.receiving_player}")
+            self.state.position = end_position
+            self.commentary.append(
+                f"{self.attacking_player} passed the ball to {self.receiving_player}"
+            )
+            self.attacking_player.received_ball = None
+            self.receiving_player.received_ball = self.attacking_player
+            self.defending_player.received_ball = None
             attacking_team.player_in_possession = self.receiving_player
 
         attacking_team.update_stats()
         defending_team.update_stats()
-        return GameState(self.state.minutes, end_position)
+        return self.state

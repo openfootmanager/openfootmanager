@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ class TeamStatsTab(ttk.Frame):
             ttk.Label(self, text="Possession"),
             ttk.Label(self, text="Passes"),
             ttk.Label(self, text="Pass accuracy"),
+            ttk.Label(self, text="Crosses"),
+            ttk.Label(self, text="Cross accuracy"),
             ttk.Label(self, text="Fouls"),
             ttk.Label(self, text="Yellow cards"),
             ttk.Label(self, text="Red cards"),
@@ -52,6 +54,8 @@ class TeamStatsTab(ttk.Frame):
             stat.grid(row=row, column=1, padx=70, pady=5, sticky=NS)
 
         self.away_team_stats = [
+            ttk.Label(self, text="0"),
+            ttk.Label(self, text="0"),
             ttk.Label(self, text="0"),
             ttk.Label(self, text="0"),
             ttk.Label(self, text="0"),

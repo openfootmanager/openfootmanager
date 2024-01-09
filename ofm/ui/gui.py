@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.themes.user import USER_THEMES
 
-from .pages import *
 from ..defaults import FONTS
+from .pages import *
 
 USER_THEMES["football"] = {
     "type": "light",
@@ -60,7 +60,7 @@ USER_THEMES["darkfootball"] = {
         "border": "#222222",
         "inputfg": "#ffffff",
         "inputbg": "#2f2f2f",
-        "active": "#1F1F1F"
+        "active": "#1F1F1F",
     },
 }
 
@@ -69,10 +69,11 @@ class GUI:
     def __init__(self):
         self.window = ttk.Window(title="OpenFoot Manager", themename="darkfootball")
 
-        width = 1200
-        height = 900
+        width = 1360
+        height = 968
 
         self.window.minsize(width, height)
+        self.window.geometry("")
         self.fix_scaling()
 
         self.window.rowconfigure(0, weight=1)
@@ -86,6 +87,7 @@ class GUI:
             "debug_match": self._add_frame(DebugMatchPage),
             "team_selection": self._add_frame(TeamSelectionPage),
             "settings": self._add_frame(SettingsPage),
+            "player_profile": self._add_frame(PlayerProfilePage),
         }
 
         self.current_page = self.pages["home"]

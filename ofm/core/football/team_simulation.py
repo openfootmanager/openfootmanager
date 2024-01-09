@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -14,26 +14,46 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import random
-from decimal import Decimal
 from dataclasses import dataclass
+from datetime import timedelta
+from enum import Enum, auto
+from math import ceil
 from typing import Optional, Tuple
 from uuid import UUID
 
+from ..simulation import PitchPosition
+from ..simulation.team_strategy import TeamStrategy
 from .club import Club
 from .formation import Formation
 from .player import PlayerSimulation
-from ..simulation import PitchPosition
-from ..simulation.team_strategy import TeamStrategy
 
 
 class SubbingError(Exception):
     pass
 
 
-@dataclass
-class Goal:
+class GameEventType(Enum):
+    GOAL = auto()
+    PENALTY_GOAL = auto()
+    YELLOW_CARD = auto()
+    RED_CARD = auto()
+    OWN_GOAL = auto()
+
+
+@dataclass(repr=False)
+class GameEvent:
     player: PlayerSimulation
-    minutes: Decimal
+    minutes: timedelta
+    event_type: GameEventType
+    additional_time: timedelta = timedelta(0)
+
+    def __repr__(self):
+        minutes = f"{int(self.minutes.total_seconds() / 60)}'"
+        if self.additional_time > timedelta(0):
+            minutes = f"{minutes} + {ceil(self.additional_time.total_seconds() / 60)}'"
+        if self.event_type == GameEventType.PENALTY_GOAL:
+            minutes += " (pen)"
+        return f"{self.player} {minutes}"
 
 
 class TeamSimulation:
@@ -41,15 +61,22 @@ class TeamSimulation:
         self,
         club: Club,
         formation: Formation,
+        max_substitutions: int = 5,
         strategy: TeamStrategy = TeamStrategy.NORMAL,
     ):
         self.club: Club = club
         self.formation: Formation = formation
         self.in_possession: bool = False
+        self.max_substitutions: int = max_substitutions
         self.substitutions: int = 0
         self.player_in_possession: Optional[PlayerSimulation] = None
-        self.sub_history: list[Tuple[PlayerSimulation, PlayerSimulation]] = []
-        self.goals_history: list[Optional[Goal]] = []
+        self.game_events: list[Optional[GameEvent]] = []
+        self.sub_history: list[
+            Tuple[PlayerSimulation, PlayerSimulation, timedelta]
+        ] = []
+        self.goals_history: list[Optional[GameEvent]] = []
+        self.red_card_history: list[Optional[GameEvent]] = []
+        self.yellow_card_history: list[Optional[GameEvent]] = []
         self._score: int = 0
         self.team_strategy: TeamStrategy = strategy
         self.stats: TeamStats = TeamStats(self.club.club_id)
@@ -59,64 +86,152 @@ class TeamSimulation:
         self._score = len(self.goals_history)
         return self._score
 
-    def add_goal(self, goal_data: Goal):
+    def add_game_event(self, game_event: GameEvent):
+        self.game_events.append(game_event)
+
+    def add_goal(
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
+        penalty: bool = False,
+    ):
+        goal_data = GameEvent(
+            player,
+            minutes,
+            GameEventType.GOAL if not penalty else GameEventType.PENALTY_GOAL,
+            additional_time,
+        )
         self.goals_history.append(goal_data)
+        self.game_events.append(goal_data)
+
+    def add_yellow_card(
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
+    ):
+        yellow_card = GameEvent(
+            player, minutes, GameEventType.YELLOW_CARD, additional_time
+        )
+        self.yellow_card_history.append(yellow_card)
+        self.game_events.append(yellow_card)
+
+    def add_red_card(
+        self,
+        player: PlayerSimulation,
+        minutes: timedelta,
+        additional_time: timedelta = timedelta(0),
+    ):
+        red_card = GameEvent(player, minutes, GameEventType.RED_CARD, additional_time)
+        self.red_card_history.append(red_card)
+        self.game_events.append(red_card)
 
     def get_player_on_pitch(
         self,
         position: PitchPosition,
     ) -> PlayerSimulation:
+        players = self.formation.players.copy()
         if position == PitchPosition.DEF_BOX:
-            players = [self.formation.gk]
-            players.extend(self.formation.df.copy())
+            probabilities = [0.3]
+            df_prob = [
+                0.5 if player.able_to_play else 0 for player in self.formation.df
+            ]
+            probabilities.extend(df_prob)
+            mf_prob = [
+                0.1 if player.able_to_play else 0 for player in self.formation.mf
+            ]
+            probabilities.extend(mf_prob)
+            fw_prob = [
+                0.1 if player.able_to_play else 0 for player in self.formation.fw
+            ]
+            probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.DEF_RIGHT,
             PitchPosition.DEF_LEFT,
             PitchPosition.DEF_MIDFIELD_LEFT,
-            PitchPosition.DEF_MIDFIELD_RIGHT,
             PitchPosition.DEF_MIDFIELD_CENTER,
+            PitchPosition.DEF_MIDFIELD_RIGHT,
         ]:
-            players = self.formation.df.copy()
-            players.extend(self.formation.mf.copy())
+            players.remove(self.formation.gk)
+            probabilities = [
+                0.6 if player.able_to_play else 0 for player in self.formation.df
+            ]
+            mf_prob = [
+                0.3 if player.able_to_play else 0 for player in self.formation.mf
+            ]
+            probabilities.extend(mf_prob)
+            fw_prob = [
+                0.1 if player.able_to_play else 0 for player in self.formation.fw
+            ]
+            probabilities.extend(fw_prob)
         elif position in [
             PitchPosition.MIDFIELD_RIGHT,
             PitchPosition.MIDFIELD_CENTER,
             PitchPosition.MIDFIELD_LEFT,
+            PitchPosition.OFF_MIDFIELD_RIGHT,
+            PitchPosition.OFF_MIDFIELD_LEFT,
+            PitchPosition.OFF_MIDFIELD_CENTER,
         ]:
-            players = self.formation.df.copy()
-            players.extend(self.formation.mf.copy())
-            players.extend(self.formation.fw.copy())
+            players.remove(self.formation.gk)
+            probabilities = [
+                0.2 if player.able_to_play else 0 for player in self.formation.df
+            ]
+            mf_prob = [
+                0.5 if player.able_to_play else 0 for player in self.formation.mf
+            ]
+            probabilities.extend(mf_prob)
+            fw_prob = [
+                0.3 if player.able_to_play else 0 for player in self.formation.fw
+            ]
+            probabilities.extend(fw_prob)
         else:
-            players = self.formation.fw.copy()
-            players.extend(self.formation.mf.copy())
+            players.remove(self.formation.gk)
+            probabilities = [
+                0.1 if player.able_to_play else 0 for player in self.formation.df
+            ]
+            mf_prob = [
+                0.3 if player.able_to_play else 0 for player in self.formation.mf
+            ]
+            probabilities.extend(mf_prob)
+            fw_prob = [
+                0.6 if player.able_to_play else 0 for player in self.formation.fw
+            ]
+            probabilities.extend(fw_prob)
 
         if (
             self.player_in_possession is not None
             and self.player_in_possession in players
         ):
-            players.remove(self.player_in_possession)
+            idx = players.index(self.player_in_possession)
+            players.pop(idx)
+            probabilities.pop(idx)
 
-        # Red card players cannot receive the ball
-        for player in players:
-            if player.sent_off:
-                players.remove(player)
+        probabilities = list(filter(lambda x: x > 0, probabilities))
+        players = list(filter(lambda x: x.able_to_play, players))
+        if len(probabilities) != len(players):
+            return random.choice(players)
 
-        return random.choice(players)
+        return random.choices(players, probabilities)[0]
 
     def update_stats(self):
         players = self.formation.all_players
         self.stats.update_stats(players)
 
-    def sub_player(self, sub_player: PlayerSimulation, subbed_player: PlayerSimulation):
-        if subbed_player.subbed:
+    def sub_player(
+        self, player_out: PlayerSimulation, player_in: PlayerSimulation, time: timedelta
+    ):
+        if player_out.subbed:
             raise SubbingError("Player is already subbed!")
-        if subbed_player.sent_off:
+        if player_out.sent_off or player_in.sent_off:
             raise SubbingError("Cannot sub a player that has been sent off!")
+        if self.substitutions == self.max_substitutions:
+            raise SubbingError(f"Already made {self.max_substitutions} substitutions!")
 
         self.substitutions += 1
 
-        self.sub_history.append((sub_player, subbed_player))
-        self.formation.substitute_player(sub_player, subbed_player)
+        self.sub_history.append((player_out, player_in, time))
+        self.formation.substitute_player(player_out, player_in)
 
     def get_best_penalty_taker(self) -> PlayerSimulation:
         best_penalty_taker = None
@@ -170,8 +285,9 @@ class TeamSimulation:
 
         return best_corner_kick_taker
 
-    def update_player_stamina(self):
-        pass
+    def update_player_stamina(self, duration: float):
+        for player in self.formation.players:
+            player.update_stamina(duration)
 
 
 @dataclass
@@ -183,6 +299,8 @@ class TeamStats:
     passes_missed: int = 0
     crosses: int = 0
     crosses_missed: int = 0
+    dribbles: int = 0
+    dribbles_failed: int = 0
     interceptions: int = 0
     assists: int = 0
     fouls: int = 0
@@ -216,6 +334,10 @@ class TeamStats:
         self.crosses = sum(player.statistics.crosses for player in players)
         self.crosses_missed = sum(
             player.statistics.crosses_missed for player in players
+        )
+        self.dribbles = sum(player.statistics.dribbles for player in players)
+        self.dribbles_failed = sum(
+            player.statistics.dribbles_failed for player in players
         )
         self.interceptions = sum(player.statistics.interceptions for player in players)
         self.assists = sum(player.statistics.assists for player in players)

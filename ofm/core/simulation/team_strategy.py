@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -15,7 +15,8 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum, auto
 
-from . import PitchPosition
+from ..simulation.event_type import EventType
+from . import OFF_POSITIONS, PitchPosition
 from .game_state import GameState
 
 
@@ -23,7 +24,6 @@ class TeamStrategy(Enum):
     NORMAL = 0
     KEEP_POSSESSION = auto()
     COUNTER_ATTACK = auto()
-    DEFEND = auto()
 
 
 def get_team_foul_values(strategy: TeamStrategy) -> int:
@@ -35,10 +35,8 @@ def get_team_foul_values(strategy: TeamStrategy) -> int:
             return 4
         case TeamStrategy.KEEP_POSSESSION:
             return 2
-        case TeamStrategy.DEFEND:
-            return 8
         case TeamStrategy.COUNTER_ATTACK:
-            return 7
+            return 5
 
 
 def team_pass_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]:
@@ -82,24 +80,6 @@ def team_pass_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]
                 PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
                 PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
                 PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
-        case TeamStrategy.DEFEND:
-            return {
-                PitchPosition.DEF_BOX: [20, 30, 20, 20, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [15, 25, 10, 15, 10, 5, 5, 5, 2, 1, 1, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [15, 10, 25, 15, 5, 10, 2, 5, 5, 2, 0, 1, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [5, 10, 15, 25, 20, 15, 10, 5, 5, 2, 1, 2, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [2, 5, 5, 15, 15, 10, 15, 15, 2, 5, 5, 1, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [2, 1, 2, 15, 5, 15, 5, 15, 10, 5, 1, 5, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 5, 10, 5, 10, 20, 2, 15, 15, 2, 5, 2, 7],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 1, 5, 2, 5, 10, 5, 10, 10, 5, 3, 3, 7],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 1, 0, 1, 2, 15, 10, 15, 2, 15, 2, 5, 7],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 2, 2, 2, 15, 10, 10, 5, 5, 5],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 10, 0, 15, 0, 67],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 0, 10, 0, 15, 67],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 15, 15, 64],
             }
         case TeamStrategy.COUNTER_ATTACK:
             return {
@@ -161,24 +141,6 @@ def team_cross_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]
                 PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 0, 10, 0, 15, 67],
                 PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
             }
-        case TeamStrategy.DEFEND:
-            return {
-                PitchPosition.DEF_BOX: [20, 30, 20, 20, 5, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [15, 25, 10, 15, 10, 5, 5, 5, 2, 1, 1, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [15, 10, 25, 15, 5, 10, 2, 5, 5, 2, 0, 1, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [5, 10, 15, 25, 20, 15, 10, 5, 5, 2, 1, 2, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [2, 5, 5, 15, 15, 10, 15, 15, 2, 5, 5, 1, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [2, 1, 2, 15, 5, 15, 5, 15, 10, 5, 1, 5, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 5, 10, 5, 10, 20, 2, 15, 15, 2, 5, 2, 7],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 1, 5, 2, 5, 10, 5, 10, 10, 5, 3, 3, 7],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 1, 0, 1, 2, 15, 10, 15, 2, 15, 2, 5, 7],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 10, 15, 15, 10, 15, 10],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
         case TeamStrategy.COUNTER_ATTACK:
             return {
                 PitchPosition.DEF_BOX: [5, 10, 5, 15, 15, 10, 5, 5, 5, 5, 0, 0, 0, 0, 0],
@@ -211,77 +173,107 @@ def team_corner_kick_strategy(strategy: TeamStrategy) -> list[float]:
             return [0.5, 0.5]
         case TeamStrategy.KEEP_POSSESSION:
             return [0.8, 0.2]
-        case TeamStrategy.DEFEND:
-            return [0.4, 0.6]
         case TeamStrategy.COUNTER_ATTACK:
             return [0.3, 0.7]
 
 
 def team_general_strategy(
-        attacking_team_strategy: TeamStrategy,
-        def_team_strategy: TeamStrategy,
-        state: GameState,
+    attacking_team_strategy: TeamStrategy,
+    def_team_strategy: TeamStrategy,
+    state: GameState,
 ) -> list[int]:
     """
     Gets the probability of the events from the attacking team.
 
     Returns:
-        [ Probability of passing, probability of crossing, probability of foul, probability of shot ]
+        [ Probability of passing, probability of crossing, probability of dribble, probability of foul, probability of shot ]
     """
     foul_value = get_team_foul_values(def_team_strategy)
-    probability = [20, 20, foul_value, 0]
+    probability = {
+        EventType.PASS: 20,
+        EventType.CROSS: 20,
+        EventType.DRIBBLE: 2,
+        EventType.FOUL: foul_value,
+        EventType.SHOT: 0,
+    }
     match attacking_team_strategy:
         case TeamStrategy.NORMAL:
-            probability = [40, 10, foul_value, 0]
+            probability = {
+                EventType.PASS: 40,
+                EventType.CROSS: 10,
+                EventType.DRIBBLE: 1,
+                EventType.FOUL: foul_value,
+                EventType.SHOT: 0,
+            }
+
+            if state.position in OFF_POSITIONS:
+                probability[EventType.DRIBBLE] = 4
+
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 5
+                probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 2
-                probability[1] = 30
+                probability[EventType.SHOT] = 2
+                probability[EventType.CROSS] = 30
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 1
+                probability[EventType.SHOT] = 1
         case TeamStrategy.KEEP_POSSESSION:
-            probability = [80, 10, foul_value, 0]
+            probability = {
+                EventType.PASS: 80,
+                EventType.CROSS: 10,
+                EventType.DRIBBLE: 1,
+                EventType.FOUL: foul_value,
+                EventType.SHOT: 0,
+            }
+
+            if state.position in OFF_POSITIONS:
+                probability[EventType.DRIBBLE] = 2
+
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 5
+                probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 2
-                probability[1] = 20
+                probability[EventType.SHOT] = 2
+                probability[EventType.CROSS] = 20
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 1
-        case TeamStrategy.DEFEND:
-            probability = [20, 60, foul_value, 0]
-
-            if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 3
-            if state.position in [
-                PitchPosition.OFF_LEFT,
-                PitchPosition.OFF_RIGHT,
-            ]:
-                probability[3] = 2
-                probability[1] = 40
-            if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 1
+                probability[EventType.SHOT] = 1
         case TeamStrategy.COUNTER_ATTACK:
-            probability = [30, 50, foul_value, 0]
+            probability = {
+                EventType.PASS: 30,
+                EventType.CROSS: 50,
+                EventType.DRIBBLE: 2,
+                EventType.FOUL: foul_value,
+                EventType.SHOT: 0,
+            }
+
+            if state.position in OFF_POSITIONS:
+                probability[EventType.DRIBBLE] = 3
+
+            if state.position == PitchPosition.DEF_BOX:
+                probability[EventType.FOUL] = 1
 
             if state.position == PitchPosition.OFF_BOX:
-                probability[3] = 8
+                probability[EventType.SHOT] = 5
+                probability[EventType.FOUL] = 1
             if state.position in [
                 PitchPosition.OFF_LEFT,
                 PitchPosition.OFF_RIGHT,
             ]:
-                probability[3] = 2
-                probability[1] = 50
+                probability[EventType.SHOT] = 2
+                probability[EventType.CROSS] = 50
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
-                probability[3] = 1
+                probability[EventType.SHOT] = 1
 
-    return probability
+    return list(probability.values())

@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -13,14 +13,30 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from enum import Enum
+
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
+from .game_events_tab import GameEventsTab
 from .live_game_tab import LiveGameTab
 from .player_details_tab import PlayerDetailsTab
-from .team_stats_tab import TeamStatsTab
-from .game_events_tab import GameEventsTab
 from .team_names_component import TeamNamesComponent
+from .team_stats_tab import TeamStatsTab
+
+
+class DelayComboBoxValues(Enum):
+    NONE = "None"
+    SHORT = "Short (0.005s)"
+    MEDIUM = "Medium (0.01s)"
+    LONG = "Long (0.1s)"
+    VERY_LONG = "Very Long (1s)"
+
+
+class CommentaryVerbosity(Enum):
+    ALL = "All Events"
+    HIGHLIGHTS = "Highlights"
+    SHOTS_ONLY = "Shots and Goals Only"
 
 
 class DebugMatchPage(ttk.Frame):
@@ -42,11 +58,32 @@ class DebugMatchPage(ttk.Frame):
         self.scores_details = TeamNamesComponent(self)
         self.scores_details.grid(row=1, column=0, columnspan=2)
 
-        self.progress_bar = ttk.Progressbar(self, length=550, bootstyle="success-striped")
+        self.progress_bar = ttk.Progressbar(
+            self, length=550, maximum=90 * 60, bootstyle="striped"
+        )
         self.progress_bar.grid(row=3, column=0, columnspan=2, pady=20, sticky=NSEW)
 
         self.minutes_elapsed = ttk.Label(self, text="0'")
         self.minutes_elapsed.grid(row=3, column=2, padx=15, pady=20, sticky=NSEW)
+
+        self.delay_label = ttk.Label(self, text="Simulation delay:")
+        self.delay_label.grid(row=4, column=0, padx=5, pady=5, sticky=W)
+
+        self.delay_box = ttk.Combobox(
+            self,
+            values=list(x.value for x in DelayComboBoxValues),
+        )
+        self.delay_box.set(DelayComboBoxValues.NONE.value)
+        self.delay_box.grid(row=4, column=1, padx=5, pady=5, sticky=NSEW)
+
+        self.commentary_label = ttk.Label(self, text="Commentary verbosity:")
+        self.commentary_label.grid(row=5, column=0, padx=5, pady=5, sticky=W)
+        self.commentary_box = ttk.Combobox(
+            self,
+            values=list(x.value for x in CommentaryVerbosity),
+        )
+        self.commentary_box.set(CommentaryVerbosity.ALL.value)
+        self.commentary_box.grid(row=5, column=1, padx=5, pady=5, sticky=NSEW)
 
         self.button_frame = ttk.Frame(self)
 
@@ -60,7 +97,7 @@ class DebugMatchPage(ttk.Frame):
         self.cancel_btn.pack(side="left", padx=10)
 
         self.button_frame.grid(
-            row=4, column=0, columnspan=2, padx=10, pady=10, sticky=NS
+            row=6, column=0, columnspan=2, padx=10, pady=10, sticky=NS
         )
 
         self.player_details_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
@@ -88,14 +125,18 @@ class DebugMatchPage(ttk.Frame):
 
     def disable_button(self):
         self.play_game_btn.config(state=ttk.DISABLED)
+        self.new_game_btn.config(state=ttk.DISABLED)
 
     def enable_button(self):
         self.play_game_btn.config(state=ttk.NORMAL)
+        self.new_game_btn.config(state=ttk.NORMAL)
 
     def update_team_names(
         self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
     ):
-        self.scores_details.update_team_names(home_team, home_team_score, away_team, away_team_score)
+        self.scores_details.update_team_names(
+            home_team, home_team_score, away_team, away_team_score
+        )
 
     def update_team_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         self.team_stats_tab.update_stats(home_team_stats, away_team_stats)
@@ -103,9 +144,14 @@ class DebugMatchPage(ttk.Frame):
     def update_live_game(self, live_game_events: list[str]):
         self.live_game_tab.update_live_game_events(live_game_events)
 
-    def update_game_events(self, home_team_events: list[str], away_team_events: list[str]):
+    def update_game_events(
+        self, home_team_events: list[str], away_team_events: list[str]
+    ):
         self.game_events_tab.update_events(home_team_events, away_team_events)
 
     def update_game_progress(self, minutes_elapsed: int):
-        self.progress_bar['value'] = minutes_elapsed
+        self.progress_bar["value"] = minutes_elapsed
         self.minutes_elapsed.config(text=str(minutes_elapsed) + "'")
+
+    def update_team_strategy(self, home_team_strategy: str, away_team_strategy: str):
+        self.player_details_tab.update_strategy(home_team_strategy, away_team_strategy)

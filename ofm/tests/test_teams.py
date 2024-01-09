@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -55,7 +55,3 @@ def test_generate_team_squads(squads_def, confederations_file):
         assert isinstance(club, Club)
         for player in club.squad:
             assert isinstance(player, PlayerTeam)
-
-
-def test_get_player_on_pitch():
-    pass

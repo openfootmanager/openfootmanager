@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -16,5 +16,6 @@
 from .debug_home import DebugHomePage
 from .debug_match import DebugMatchPage
 from .home import HomePage
+from .player_profile import PlayerProfilePage
 from .settings import SettingsPage
 from .team_selection import TeamSelectionPage

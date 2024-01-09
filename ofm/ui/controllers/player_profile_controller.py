@@ -13,11 +13,25 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from enum import IntEnum, auto
+
+from ..pages import PlayerProfilePage
+from .controllerinterface import ControllerInterface
 
 
-class Positions(IntEnum):
-    GK = auto()
-    DF = auto()
-    MF = auto()
-    FW = auto()
+class PlayerProfilePageController(ControllerInterface):
+    def __init__(self, controller: ControllerInterface, page: PlayerProfilePage):
+        self.controller = controller
+        self.page = page
+        self._bind()
+
+    def switch(self, page):
+        self.controller.switch(page)
+
+    def initialize(self):
+        pass
+
+    def go_to_debug_page(self):
+        self.switch("debug_home")
+
+    def _bind(self):
+        self.page.cancel_btn.config(command=self.go_to_debug_page)

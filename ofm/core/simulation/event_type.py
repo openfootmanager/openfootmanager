@@ -1,5 +1,5 @@
 #      Openfoot Manager - A free and open source soccer management simulation
-#      Copyright (C) 2020-2023  Pedrenrique G. Guimarães
+#      Copyright (C) 2020-2024  Pedrenrique G. Guimarães
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU General Public License as published by
@@ -19,6 +19,12 @@ from enum import Enum, auto
 class FoulType(Enum):
     OFFENSIVE_FOUL = auto()
     DEFENSIVE_FOUL = auto()
+
+
+class FoulStrength(Enum):
+    LIGHT = auto()
+    MEDIUM = auto()
+    HIGH = auto()
 
 
 class FreeKickType(Enum):
