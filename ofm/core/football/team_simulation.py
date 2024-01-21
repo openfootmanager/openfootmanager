@@ -38,22 +38,46 @@ class GameEventType(Enum):
     YELLOW_CARD = auto()
     RED_CARD = auto()
     OWN_GOAL = auto()
+    SUBSTITUTION = auto()
 
 
-@dataclass(repr=False)
-class GameEvent:
+@dataclass
+class GameEventAdditionalTime:
+    additional_time: timedelta = timedelta(0)
+
+
+@dataclass
+class GameEventBase:
     player: PlayerSimulation
     minutes: timedelta
     event_type: GameEventType
-    additional_time: timedelta = timedelta(0)
 
+
+@dataclass(repr=False)
+class GameEvent(GameEventAdditionalTime, GameEventBase):
     def __repr__(self):
         minutes = f"{int(self.minutes.total_seconds() / 60)}'"
         if self.additional_time > timedelta(0):
             minutes = f"{minutes} + {ceil(self.additional_time.total_seconds() / 60)}'"
         if self.event_type == GameEventType.PENALTY_GOAL:
             minutes += " (pen)"
+        if self.event_type == GameEventType.OWN_GOAL:
+            minutes += " (o.g.)"
         return f"{self.player} {minutes}"
+
+
+@dataclass
+class SubstitutionEventBase(GameEventBase):
+    player_subbed_in: PlayerSimulation
+
+
+@dataclass(repr=False)
+class SubstitutionEvent(GameEventAdditionalTime, SubstitutionEventBase):
+    def __repr__(self):
+        minutes = f"{int(self.minutes.total_seconds() / 60)}'"
+        if self.additional_time > timedelta(0):
+            minutes = f"{minutes} + {ceil(self.additional_time.total_seconds() / 60)}'"
+        return f"{self.player} -> {self.player_subbed_in} {minutes}"
 
 
 class TeamSimulation:
@@ -71,9 +95,7 @@ class TeamSimulation:
         self.substitutions: int = 0
         self.player_in_possession: Optional[PlayerSimulation] = None
         self.game_events: list[Optional[GameEvent]] = []
-        self.sub_history: list[
-            Tuple[PlayerSimulation, PlayerSimulation, timedelta]
-        ] = []
+        self.sub_history: list[Optional[SubstitutionEvent]] = []
         self.goals_history: list[Optional[GameEvent]] = []
         self.red_card_history: list[Optional[GameEvent]] = []
         self.yellow_card_history: list[Optional[GameEvent]] = []
@@ -219,7 +241,11 @@ class TeamSimulation:
         self.stats.update_stats(players)
 
     def sub_player(
-        self, player_out: PlayerSimulation, player_in: PlayerSimulation, time: timedelta
+        self,
+        player_out: PlayerSimulation,
+        player_in: PlayerSimulation,
+        time: timedelta,
+        additional_time: timedelta,
     ):
         if player_out.subbed:
             raise SubbingError("Player is already subbed!")
@@ -230,7 +256,10 @@ class TeamSimulation:
 
         self.substitutions += 1
 
-        self.sub_history.append((player_out, player_in, time))
+        sub = SubstitutionEvent(
+            player_out, time, GameEventType.SUBSTITUTION, player_in, additional_time
+        )
+        self.sub_history.append(sub)
         self.formation.substitute_player(player_out, player_in)
 
     def get_best_penalty_taker(self) -> PlayerSimulation:
