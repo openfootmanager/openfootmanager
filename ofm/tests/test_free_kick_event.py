@@ -17,8 +17,7 @@ from datetime import timedelta
 
 from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
 from ofm.core.simulation.events import CrossEvent, PassEvent, ShotEvent
-from ofm.core.simulation.events.free_kick_event import (FreeKickEvent,
-                                                        FreeKickType)
+from ofm.core.simulation.events.free_kick_event import FreeKickEvent, FreeKickType
 from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 

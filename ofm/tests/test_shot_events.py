@@ -15,9 +15,13 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from datetime import timedelta
 
-from ofm.core.simulation.event import (EventOutcome, EventType, PitchPosition,
-                                       TeamSimulation)
-from ofm.core.simulation.events import PassEvent, PenaltyKickEvent, ShotEvent
+from ofm.core.simulation.event import (
+    EventOutcome,
+    EventType,
+    PitchPosition,
+    TeamSimulation,
+)
+from ofm.core.simulation.events import PassEvent, ShotEvent
 from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 

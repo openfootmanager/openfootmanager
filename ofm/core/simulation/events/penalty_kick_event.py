@@ -16,11 +16,11 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from ...football.team_simulation import TeamSimulation
+from .shot_event import ShotEvent
 from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
-from .shot_event import ShotEvent
+from ...football.team_simulation import TeamSimulation
 
 
 @dataclass

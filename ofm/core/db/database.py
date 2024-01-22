@@ -23,7 +23,6 @@ from typing import Optional
 from ofm.core.football.club import Club
 from ofm.core.football.player import Player, PlayerTeam, Positions
 from ofm.core.settings import Settings
-
 from .generators import PlayerGenerator, TeamGenerator
 
 

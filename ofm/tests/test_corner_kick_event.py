@@ -17,8 +17,7 @@ from datetime import timedelta
 
 from ofm.core.simulation.event import EventOutcome, EventType, PitchPosition
 from ofm.core.simulation.events import CrossEvent, PassEvent
-from ofm.core.simulation.events.corner_kick_event import (CornerKickEvent,
-                                                          CornerKickType)
+from ofm.core.simulation.events.corner_kick_event import CornerKickEvent, CornerKickType
 from ofm.core.simulation.game_state import GameState, SimulationStatus
 
 
