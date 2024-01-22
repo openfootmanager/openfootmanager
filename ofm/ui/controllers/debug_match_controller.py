@@ -19,17 +19,15 @@ from datetime import timedelta
 from threading import Thread
 from typing import Optional
 
+from .controllerinterface import ControllerInterface
+from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
 from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.player import PlayerSimulation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
-from ...core.simulation.event import CommentaryImportance, EventOutcome
+from ...core.simulation.event import CommentaryImportance
 from ...core.simulation.fixture import Fixture
-from ...core.simulation.simulation import (DelayValue, LiveGame,
-                                           SimulationStatus)
-from ..pages.debug_match import (CommentaryVerbosity, DebugMatchPage,
-                                 DelayComboBoxValues)
-from .controllerinterface import ControllerInterface
+from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
 
 
 class DebugMatchController(ControllerInterface):

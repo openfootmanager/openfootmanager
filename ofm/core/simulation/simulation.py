@@ -19,12 +19,12 @@ from datetime import timedelta
 from enum import Enum
 from typing import Optional
 
-from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
 from .event import SimulationEvent
 from .events import EventFactory
 from .fixture import Fixture
 from .game_state import GameState, SimulationStatus
+from ..football.team_simulation import TeamSimulation
 
 
 class DelayValue(Enum):

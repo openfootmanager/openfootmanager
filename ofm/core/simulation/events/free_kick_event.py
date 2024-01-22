@@ -17,14 +17,14 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
-from ...football.team_simulation import TeamSimulation
+from .cross_event import CrossEvent
+from .pass_event import PassEvent
+from .shot_event import ShotEvent
 from .. import OFF_POSITIONS
 from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType, FreeKickType
 from ..game_state import GameState
-from .cross_event import CrossEvent
-from .pass_event import PassEvent
-from .shot_event import ShotEvent
+from ...football.team_simulation import TeamSimulation
 
 
 @dataclass

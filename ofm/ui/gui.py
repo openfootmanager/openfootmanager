@@ -17,7 +17,6 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.themes.user import USER_THEMES
 
-from ..defaults import FONTS
 from .pages import *
 
 USER_THEMES["football"] = {
