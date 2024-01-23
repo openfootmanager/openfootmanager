@@ -19,8 +19,6 @@ from datetime import timedelta
 from threading import Thread
 from typing import Optional
 
-from .controllerinterface import ControllerInterface
-from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
 from ...core.db.database import DB
 from ...core.football.formation import Formation
 from ...core.football.player import PlayerSimulation
@@ -28,6 +26,8 @@ from ...core.football.team_simulation import TeamSimulation, TeamStrategy
 from ...core.simulation.event import CommentaryImportance
 from ...core.simulation.fixture import Fixture
 from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
+from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
+from .controllerinterface import ControllerInterface
 
 
 class DebugMatchController(ControllerInterface):
@@ -128,7 +128,7 @@ class DebugMatchController(ControllerInterface):
             ),
         ]
 
-    def get_player_data(self, team: TeamSimulation, players: list[PlayerSimulation]):
+    def get_player_data(self, players: list[PlayerSimulation]):
         return [
             (
                 player.player.details.short_name.encode("utf-8").decode(
@@ -139,7 +139,7 @@ class DebugMatchController(ControllerInterface):
                 "Yes" if player.is_injured else "No",
                 player.current_skill,
             )
-            for player in team.formation.players
+            for player in players
         ]
 
     def get_team_stats(self, team: TeamSimulation):
@@ -187,14 +187,10 @@ class DebugMatchController(ControllerInterface):
         if self.teams is None:
             return
 
-        home_team = self.get_player_data(self.teams[0], self.teams[0].formation.players)
-        away_team = self.get_player_data(self.teams[1], self.teams[1].formation.bench)
-        home_reserves = self.get_player_data(
-            self.teams[0], self.teams[1].formation.players
-        )
-        away_reserves = self.get_player_data(
-            self.teams[1], self.teams[1].formation.players
-        )
+        home_team = self.get_player_data(self.teams[0].formation.players)
+        away_team = self.get_player_data(self.teams[1].formation.players)
+        home_reserves = self.get_player_data(self.teams[1].formation.bench)
+        away_reserves = self.get_player_data(self.teams[1].formation.bench)
 
         self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
         self.page.update_team_names(
