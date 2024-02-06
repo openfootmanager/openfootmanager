@@ -19,12 +19,12 @@ from datetime import timedelta
 from enum import Enum
 from typing import Optional
 
+from ..football.team_simulation import TeamSimulation
 from . import PitchPosition
 from .event import SimulationEvent
 from .events import EventFactory
 from .fixture import Fixture
 from .game_state import GameState, SimulationStatus
-from ..football.team_simulation import TeamSimulation
 
 
 class DelayValue(Enum):
@@ -315,5 +315,5 @@ class SimulationEngine:
         self.state = event.calculate_event(attacking_team, defending_team)
         attacking_team.stats.possession += event.duration
 
-        self.home_team.update_player_stamina(event.state.minutes.total_seconds())
-        self.away_team.update_player_stamina(event.state.minutes.total_seconds())
+        self.home_team.update_player_stamina(event.duration)
+        self.away_team.update_player_stamina(event.duration)
