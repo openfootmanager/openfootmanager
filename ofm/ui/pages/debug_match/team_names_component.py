@@ -27,11 +27,14 @@ class TeamNamesComponent(ttk.Frame):
         self.home_team_score = ttk.Label(self, text="0", font="Arial 18 bold")
         self.home_team_score.grid(row=0, column=1, padx=10, pady=10, sticky=EW)
 
+        self.separator = ttk.Label(self, text="-", font="Arial 18 bold")
+        self.separator.grid(row=0, column=2, padx=10, pady=10)
+
         self.away_team_score = ttk.Label(self, text="0", font="Arial 18 bold")
-        self.away_team_score.grid(row=0, column=2, padx=10, pady=10, sticky=EW)
+        self.away_team_score.grid(row=0, column=3, padx=10, pady=10, sticky=EW)
 
         self.away_team_name = ttk.Label(self, text="Argentina", font="Arial 18 bold")
-        self.away_team_name.grid(row=0, column=3, padx=10, pady=10, sticky=E)
+        self.away_team_name.grid(row=0, column=4, padx=10, pady=10, sticky=E)
 
     def update_team_names(
         self, home_team_name, home_team_score, away_team_name, away_team_score

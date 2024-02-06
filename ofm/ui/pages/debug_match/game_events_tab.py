@@ -27,7 +27,7 @@ class GameEventsTab(ttk.Frame):
         self.separator = ttk.Separator(self, orient="vertical")
         self.separator.grid(row=0, column=1, rowspan=50, padx=10, pady=10, sticky=NSEW)
 
-        self.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.grid(row=0, column=0)
 
     def update_events(self, home_team_event: list[str], away_team_event: list[str]):
         if self.home_team_events:

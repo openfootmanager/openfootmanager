@@ -25,7 +25,7 @@ class LiveGameTab(ttk.Frame):
         self.live_game_events.config(state=DISABLED)
         self.live_game_events.grid(row=0, column=0, padx=10, pady=10)
 
-        self.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.grid(row=0, column=0)
 
     def update_live_game_events(self, game_events: list[str]):
         self.live_game_events.config(state="normal")

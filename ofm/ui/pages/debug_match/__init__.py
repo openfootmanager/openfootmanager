@@ -51,9 +51,7 @@ class DebugMatchPage(ttk.Frame):
         self.game_events_tab = GameEventsTab(self.notebook)
 
         self.title_label = ttk.Label(self, text="Debug Match", font="Arial 24 bold")
-        self.title_label.grid(
-            row=0, column=0, padx=10, pady=10, columnspan=3, sticky=NS
-        )
+        self.title_label.grid(row=0, column=0, padx=10, pady=10, columnspan=3)
 
         self.scores_details = TeamNamesComponent(self)
         self.scores_details.grid(row=1, column=0, columnspan=2)
@@ -88,17 +86,15 @@ class DebugMatchPage(ttk.Frame):
         self.button_frame = ttk.Frame(self)
 
         self.play_game_btn = ttk.Button(self.button_frame, text="Play")
-        self.play_game_btn.pack(side="left", padx=10)
+        self.play_game_btn.grid(row=0, column=1, padx=10, sticky=NSEW)
 
         self.new_game_btn = ttk.Button(self.button_frame, text="New Game")
-        self.new_game_btn.pack(side="left", padx=10)
+        self.new_game_btn.grid(row=0, column=2, padx=10, sticky=NSEW)
 
         self.cancel_btn = ttk.Button(self.button_frame, text="Cancel")
-        self.cancel_btn.pack(side="left", padx=10)
+        self.cancel_btn.grid(row=0, column=3, padx=10, sticky=NSEW)
 
-        self.button_frame.grid(
-            row=6, column=0, columnspan=2, padx=10, pady=10, sticky=NS
-        )
+        self.button_frame.grid(row=6, column=0, columnspan=3, padx=10, pady=10)
 
         self.player_details_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
         self.player_reserves_tab.place(anchor=CENTER, relx=0.5, rely=0.5)
@@ -111,7 +107,7 @@ class DebugMatchPage(ttk.Frame):
         self.notebook.add(self.player_reserves_tab, text="Reserves", sticky=NS)
         self.notebook.add(self.team_stats_tab, text="Stats", sticky=NS)
 
-        self.notebook.grid(row=2, column=0, columnspan=2, sticky=NSEW)
+        self.notebook.grid(row=2, column=0, columnspan=2)
 
     def update_tables(
         self,

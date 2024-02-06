@@ -70,7 +70,7 @@ class TeamStatsTab(ttk.Frame):
         for row, stat in enumerate(self.away_team_stats):
             stat.grid(row=row, column=2, padx=10, pady=5, sticky=NE)
 
-        self.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.grid(row=0, column=0)
 
     def update_stats(self, home_team_stats: list[int], away_team_stats: list[int]):
         for row, stat in enumerate(self.home_team_stats):

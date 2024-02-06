@@ -93,7 +93,7 @@ class PlayerDetailsTab(ttk.Frame):
         self.away_team_strategy_label.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
         self.away_team_strategy.grid(row=1, column=3, padx=10, pady=10, sticky=EW)
 
-        self.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.grid(row=0, column=0)
 
     def update_tables(
         self,
