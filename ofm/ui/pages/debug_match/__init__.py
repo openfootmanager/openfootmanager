@@ -21,6 +21,7 @@ from ttkbootstrap.constants import *
 from .game_events_tab import GameEventsTab
 from .live_game_tab import LiveGameTab
 from .player_details_tab import PlayerDetailsTab
+from .substitution_window import SubstitutionWindow
 from .team_names_component import TeamNamesComponent
 from .team_stats_tab import TeamStatsTab
 

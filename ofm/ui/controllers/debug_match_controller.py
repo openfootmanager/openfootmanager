@@ -16,7 +16,6 @@
 import random
 import uuid
 from datetime import timedelta
-from threading import Thread
 from typing import Optional
 
 from ...core.db.database import DB
@@ -25,9 +24,11 @@ from ...core.football.player import PlayerSimulation
 from ...core.football.team_simulation import TeamSimulation, TeamStrategy
 from ...core.simulation.event import CommentaryImportance
 from ...core.simulation.fixture import Fixture
+from ...core.simulation.live_game_manager import LiveGameManager
 from ...core.simulation.simulation import DelayValue, LiveGame, SimulationStatus
 from ..pages.debug_match import CommentaryVerbosity, DebugMatchPage, DelayComboBoxValues
 from .controllerinterface import ControllerInterface
+from .substitution_window_controller import SubstitutionWindowController
 
 
 class DebugMatchController(ControllerInterface):
@@ -36,9 +37,17 @@ class DebugMatchController(ControllerInterface):
         self.page = page
         self.db = db
         self.teams: Optional[list[TeamSimulation]] = None
-        self.live_game: Optional[LiveGame] = None
-        self.game_thread: Optional[Thread] = None
+        self.live_game_manager = LiveGameManager()
+        self.substitution_window: Optional[SubstitutionWindowController] = None
         self._bind()
+
+    @property
+    def live_game(self) -> Optional[LiveGame]:
+        return self.live_game_manager.live_game
+
+    @live_game.setter
+    def live_game(self, value):
+        self.live_game_manager.live_game = value
 
     def switch(self, page: str):
         self.controller.switch(page)
@@ -47,8 +56,10 @@ class DebugMatchController(ControllerInterface):
         self.teams = self.load_random_teams()
         self.live_game = None
         self.update_game_data()
+        self.update_away_team_substitution_button()
+        self.update_home_team_substitution_button()
 
-    def start_simulation(self):
+    def start_live_game(self):
         if self.live_game is None:
             fixture = Fixture(
                 uuid.uuid4(),
@@ -67,29 +78,23 @@ class DebugMatchController(ControllerInterface):
                 delay=DelayValue.NONE,
             )
 
-        self.page.disable_button()
-        if not self.live_game.is_game_over:
-            self.live_game.run()
-
     def start_match(self):
         if self.teams is None:
             return
-        try:
-            self.game_thread = Thread(target=self.start_simulation, daemon=True)
-            self.game_thread.start()
-        except RuntimeError as e:
-            print(e)
+        self.start_live_game()
+        self.update_game_data()
+        self.live_game_manager.run()
         self.check_thread_status()
 
     def check_thread_status(self):
-        if self.game_thread is None:
+        if self.live_game_manager.game_thread is None:
             return
-        if self.game_thread.is_alive():
+        if self.live_game_manager.game_thread.is_alive():
             self.update_game_data()
             self.page.after(100, lambda: self.check_thread_status())
         else:
             self.page.enable_button()
-            self.game_thread = None
+            self.live_game_manager.game_thread = None
 
     def update_game_data(self):
         self.update_player_table()
@@ -98,6 +103,8 @@ class DebugMatchController(ControllerInterface):
         self.update_game_events()
         self.update_game_time()
         self.update_game_delay()
+        self.update_home_team_substitution_button()
+        self.update_away_team_substitution_button()
 
     def load_random_teams(self) -> list[TeamSimulation]:
         """
@@ -297,6 +304,49 @@ class DebugMatchController(ControllerInterface):
 
         self.page.update_game_events(home_team_events, away_team_events)
 
+    def update_home_team_substitution_button(self):
+        if self.live_game:
+            if self.live_game.engine.started and not self.live_game.is_game_over:
+                if self.page.player_details_tab.substitute_home_team_value.get():
+                    self.page.player_details_tab.enable_home_team_substitution_button()
+                else:
+                    self.page.player_details_tab.disable_home_team_substitution_button()
+        else:
+            self.page.player_details_tab.disable_home_team_substitution_button()
+            self.page.player_details_tab.disable_away_team_substitution_button()
+
+    def update_away_team_substitution_button(self):
+        if self.live_game:
+            if self.live_game.engine.started and not self.live_game.is_game_over:
+                if self.page.player_details_tab.substitute_away_team_value.get():
+                    self.page.player_details_tab.enable_away_team_substitution_button()
+                else:
+                    self.page.player_details_tab.disable_away_team_substitution_button()
+
+    def substitute_home_team(self):
+        if self.live_game:
+            if self.live_game.engine.started and not self.live_game.is_game_over:
+                self.substitution_window = SubstitutionWindowController(
+                    self.page.winfo_toplevel(),
+                    self.live_game.engine.home_team,
+                    self.live_game_manager,
+                )
+                self.substitution_window.page.protocol(
+                    "WM_DELETE_WINDOW", self.start_match
+                )
+
+    def substitute_away_team(self):
+        if self.live_game:
+            if self.live_game.engine.started and not self.live_game.is_game_over:
+                self.substitution_window = SubstitutionWindowController(
+                    self.page.winfo_toplevel(),
+                    self.live_game.engine.away_team,
+                    self.live_game_manager,
+                )
+                self.substitution_window.page.protocol(
+                    "WM_DELETE_WINDOW", self.start_match
+                )
+
     def go_to_debug_home_page(self):
         self.switch("debug_home")
 
@@ -304,3 +354,15 @@ class DebugMatchController(ControllerInterface):
         self.page.play_game_btn.config(command=self.start_match)
         self.page.new_game_btn.config(command=self.initialize)
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)
+        self.page.player_details_tab.substitute_home_team_checkbox.config(
+            command=self.update_home_team_substitution_button
+        )
+        self.page.player_details_tab.substitute_away_team_checkbox.config(
+            command=self.update_away_team_substitution_button
+        )
+        self.page.player_details_tab.substitute_home_team_btn.config(
+            command=self.substitute_home_team
+        )
+        self.page.player_details_tab.substitute_away_team_btn.config(
+            command=self.substitute_away_team
+        )

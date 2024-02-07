@@ -58,6 +58,7 @@ class LiveGame:
         self.engine = SimulationEngine(home_team, away_team, max_substitutions)
         self.added_time: Optional[timedelta] = None
         self.total_elapsed_time: timedelta = timedelta(0)
+        self.running = False
 
     @property
     def possible_extra_time(self):
@@ -229,7 +230,10 @@ class LiveGame:
         )
 
     def run(self):
-        while not self.is_game_over:
+        if self.engine.started is False:
+            self.engine.started = True
+
+        while not self.is_game_over and self.running:
             self.engine.run()
             self.add_minutes()
             self.transition_game_status()
@@ -261,6 +265,7 @@ class SimulationEngine:
             self.secondary_start = self.away_team
         else:
             self.secondary_start = self.home_team
+        self.started = False
         self.event_factory = EventFactory()
 
     def generate_event(self) -> SimulationEvent:

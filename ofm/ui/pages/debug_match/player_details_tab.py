@@ -75,6 +75,22 @@ class PlayerDetailsTab(ttk.Frame):
         self.home_team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
         self.home_team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
+        self.substitute_home_team_value = ttk.BooleanVar()
+        self.substitute_home_team_checkbox = ttk.Checkbutton(
+            self,
+            text="Manual Substitutions",
+            variable=self.substitute_home_team_value,
+            onvalue=True,
+            offvalue=False,
+        )
+        self.substitute_home_team_checkbox.grid(
+            row=2, column=0, padx=10, pady=10, sticky=EW
+        )
+        self.substitute_home_team_btn = ttk.Button(self, text="Substitute")
+        self.substitute_home_team_btn.grid(
+            row=3, column=0, columnspan=2, padx=10, pady=10, sticky=NSEW
+        )
+
         self.away_team_table = Tableview(
             self,
             coldata=self.columns,
@@ -93,7 +109,35 @@ class PlayerDetailsTab(ttk.Frame):
         self.away_team_strategy_label.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
         self.away_team_strategy.grid(row=1, column=3, padx=10, pady=10, sticky=EW)
 
+        self.substitute_away_team_value = ttk.BooleanVar()
+        self.substitute_away_team_checkbox = ttk.Checkbutton(
+            self,
+            text="Manual Substitutions",
+            variable=self.substitute_away_team_value,
+            onvalue=True,
+            offvalue=False,
+        )
+        self.substitute_away_team_checkbox.grid(
+            row=2, column=2, padx=10, pady=10, sticky=EW
+        )
+        self.substitute_away_team_btn = ttk.Button(self, text="Substitute")
+        self.substitute_away_team_btn.grid(
+            row=3, column=2, columnspan=2, padx=10, pady=10, sticky=NSEW
+        )
+
         self.grid(row=0, column=0)
+
+    def enable_home_team_substitution_button(self):
+        self.substitute_home_team_btn.config(state=NORMAL)
+
+    def enable_away_team_substitution_button(self):
+        self.substitute_away_team_btn.config(state=NORMAL)
+
+    def disable_home_team_substitution_button(self):
+        self.substitute_home_team_btn.config(state=DISABLED)
+
+    def disable_away_team_substitution_button(self):
+        self.substitute_away_team_btn.config(state=DISABLED)
 
     def update_tables(
         self,
