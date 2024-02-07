@@ -16,11 +16,11 @@
 import random
 from dataclasses import dataclass
 
+from ...football.team_simulation import TeamSimulation
 from .. import PITCH_EQUIVALENTS, PitchPosition
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..game_state import GameState
 from ..team_strategy import team_pass_strategy
-from ...football.team_simulation import TeamSimulation
 
 
 @dataclass

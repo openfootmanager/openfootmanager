@@ -15,9 +15,9 @@
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum, auto
 
+from ..simulation.event_type import EventType
 from . import OFF_POSITIONS, PitchPosition
 from .game_state import GameState
-from ..simulation.event_type import EventType
 
 
 class TeamStrategy(Enum):

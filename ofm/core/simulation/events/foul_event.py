@@ -17,11 +17,11 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
+from ...football.player import PlayerInjury, PlayerSimulation
+from ...football.team_simulation import TeamSimulation
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import FoulStrength, FoulType
 from ..game_state import GameState
-from ...football.player import PlayerInjury, PlayerSimulation
-from ...football.team_simulation import TeamSimulation
 
 
 @dataclass

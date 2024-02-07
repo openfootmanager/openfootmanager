@@ -20,10 +20,10 @@ import pytest
 
 from ofm.core.football.formation import FormationError
 from ofm.core.football.team_simulation import (
+    GameEventType,
     PlayerSimulation,
     SubbingError,
     SubstitutionEvent,
-    GameEventType,
 )
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
