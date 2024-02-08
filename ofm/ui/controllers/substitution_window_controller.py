@@ -23,7 +23,7 @@ from ..pages.debug_match.substitution_window import SubstitutionWindow
 
 class SubstitutionWindowController:
     def __init__(
-            self, parent: Toplevel, team: TeamSimulation, live_game_manager: LiveGameManager
+        self, parent: Toplevel, team: TeamSimulation, live_game_manager: LiveGameManager
     ):
         self.page = SubstitutionWindow(parent)
         self.team = team

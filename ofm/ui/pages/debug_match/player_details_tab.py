@@ -118,8 +118,8 @@ class TeamTableComponent(ttk.Frame):
         self.substitute_team_btn.config(state=DISABLED)
 
     def update_table(
-            self,
-            team: list[tuple],
+        self,
+        team: list[tuple],
     ):
         self.team_table.delete_rows()
         self.team_table.insert_rows(END, team)

@@ -325,7 +325,7 @@ class DebugMatchController(ControllerInterface):
         if self.live_game:
             if self.live_game.engine.started and not self.live_game.is_game_over:
                 if (
-                        self.page.player_details_tab.home_team_data.substitute_team_value.get()
+                    self.page.player_details_tab.home_team_data.substitute_team_value.get()
                 ):
                     self.page.player_details_tab.enable_home_team_substitution_button()
                 else:
@@ -338,7 +338,7 @@ class DebugMatchController(ControllerInterface):
         if self.live_game:
             if self.live_game.engine.started and not self.live_game.is_game_over:
                 if (
-                        self.page.player_details_tab.away_team_data.substitute_team_value.get()
+                    self.page.player_details_tab.away_team_data.substitute_team_value.get()
                 ):
                     self.page.player_details_tab.enable_away_team_substitution_button()
                 else:
