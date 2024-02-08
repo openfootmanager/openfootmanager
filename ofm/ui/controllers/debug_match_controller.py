@@ -55,9 +55,8 @@ class DebugMatchController(ControllerInterface):
     def initialize(self):
         self.teams = self.load_random_teams()
         self.live_game = None
+        self.get_team_strategy()
         self.update_game_data()
-        self.update_away_team_substitution_button()
-        self.update_home_team_substitution_button()
 
     def start_live_game(self):
         if self.live_game is None:
@@ -212,9 +211,10 @@ class DebugMatchController(ControllerInterface):
 
     def update_team_strategy(self):
         if self.teams:
-            self.page.update_team_strategy(
-                self.teams[0].team_strategy.name, self.teams[1].team_strategy.name
-            )
+            home_team_strategy = self.page.player_details_tab.home_team_strategy.get()
+            away_team_strategy = self.page.player_details_tab.away_team_strategy.get()
+            self.teams[0].team_strategy = TeamStrategy[home_team_strategy]
+            self.teams[1].team_strategy = TeamStrategy[away_team_strategy]
 
     def update_game_time(self):
         if not self.live_game:
@@ -256,6 +256,15 @@ class DebugMatchController(ControllerInterface):
                     return [CommentaryImportance.HIGH]
 
         return list(CommentaryImportance)
+
+    def get_team_strategy(self):
+        strategies = [t.name for t in list(TeamStrategy)]
+        self.page.player_details_tab.home_team_strategy.config(values=strategies)
+        self.page.player_details_tab.away_team_strategy.config(values=strategies)
+        if self.teams:
+            home_team_strategy = self.teams[0].team_strategy.name
+            away_team_strategy = self.teams[1].team_strategy.name
+            self.page.update_team_strategy(home_team_strategy, away_team_strategy)
 
     def update_live_game_events(self):
         if not self.live_game:

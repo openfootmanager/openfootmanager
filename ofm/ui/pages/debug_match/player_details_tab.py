@@ -71,7 +71,7 @@ class PlayerDetailsTab(ttk.Frame):
             row=0, column=0, padx=10, pady=10, columnspan=2, sticky=EW
         )
         self.home_team_strategy_label = ttk.Label(self, text="Strategy: ")
-        self.home_team_strategy = ttk.Label(self, text="")
+        self.home_team_strategy = ttk.Combobox(self, values=[""])
         self.home_team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
         self.home_team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
@@ -105,7 +105,7 @@ class PlayerDetailsTab(ttk.Frame):
             row=0, column=2, padx=10, pady=10, columnspan=2, sticky=EW
         )
         self.away_team_strategy_label = ttk.Label(self, text="Strategy: ")
-        self.away_team_strategy = ttk.Label(self, text="")
+        self.away_team_strategy = ttk.Combobox(self, values=[""])
         self.away_team_strategy_label.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
         self.away_team_strategy.grid(row=1, column=3, padx=10, pady=10, sticky=EW)
 
@@ -155,5 +155,5 @@ class PlayerDetailsTab(ttk.Frame):
         self.away_team_table.load_table_data()
 
     def update_strategy(self, home_team_strategy: str, away_team_strategy: str):
-        self.home_team_strategy.config(text=home_team_strategy)
-        self.away_team_strategy.config(text=away_team_strategy)
+        self.home_team_strategy.set(home_team_strategy)
+        self.away_team_strategy.set(away_team_strategy)
