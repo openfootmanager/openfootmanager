@@ -21,6 +21,44 @@ from ttkbootstrap.tableview import Tableview
 class PlayerDetailsTab(ttk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.home_team_data = TeamTableComponent(self)
+        self.away_team_data = TeamTableComponent(self)
+
+        self.home_team_data.grid(row=0, column=0)
+        self.away_team_data.grid(row=0, column=1)
+
+        self.grid(row=0, column=0)
+
+    def enable_home_team_substitution_button(self):
+        self.home_team_data.enable_substitution_button()
+
+    def enable_away_team_substitution_button(self):
+        self.away_team_data.enable_substitution_button()
+
+    def disable_home_team_substitution_button(self):
+        self.home_team_data.disable_substitution_button()
+
+    def disable_away_team_substitution_button(self):
+        self.away_team_data.disable_substitution_button()
+
+    def update_tables(
+        self,
+        home_team: list[tuple],
+        away_team: list[tuple],
+    ):
+        self.home_team_data.update_table(home_team)
+        self.away_team_data.update_table(away_team)
+
+    def update_strategy(self, home_team_strategy: str, away_team_strategy: str):
+        self.home_team_data.update_strategy(home_team_strategy)
+        self.away_team_data.update_strategy(away_team_strategy)
+
+
+class TeamTableComponent(ttk.Frame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.columns = [
             {"text": "Name", "stretch": False},
             {"text": "Position", "stretch": False},
@@ -43,21 +81,7 @@ class PlayerDetailsTab(ttk.Frame):
             ("Da Silva", "GK", "100", "No", "92"),
         ]
 
-        away_rows = [
-            ("Estrade", "FW", "100", "No", "84"),
-            ("Capitale", "FW", "100", "No", "83"),
-            ("Hajo", "MF", "100", "No", "90"),
-            ("Redonda", "MF", "100", "No", "87"),
-            ("Vasquez", "MF", "100", "No", "80"),
-            ("Santos", "MF", "100", "No", "81"),
-            ("Basile", "DF", "100", "No", "83"),
-            ("Morelli", "DF", "100", "No", "82"),
-            ("Costa", "DF", "100", "No", "91"),
-            ("Alerto", "DF", "100", "No", "84"),
-            ("Pablo", "GK", "100", "No", "87"),
-        ]
-
-        self.home_team_table = Tableview(
+        self.team_table = Tableview(
             self,
             coldata=self.columns,
             rowdata=home_rows,
@@ -67,93 +91,40 @@ class PlayerDetailsTab(ttk.Frame):
             pagesize=8,
             height=11,
         )
-        self.home_team_table.grid(
-            row=0, column=0, padx=10, pady=10, columnspan=2, sticky=EW
-        )
-        self.home_team_strategy_label = ttk.Label(self, text="Strategy: ")
-        self.home_team_strategy = ttk.Combobox(self, values=[""])
-        self.home_team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
-        self.home_team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+        self.team_table.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky=EW)
+        self.team_strategy_label = ttk.Label(self, text="Strategy: ")
+        self.team_strategy = ttk.Combobox(self, values=[""])
+        self.team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+        self.team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
 
-        self.substitute_home_team_value = ttk.BooleanVar()
-        self.substitute_home_team_checkbox = ttk.Checkbutton(
+        self.substitute_team_value = ttk.BooleanVar()
+        self.substitute_team_checkbox = ttk.Checkbutton(
             self,
             text="Manual Substitutions",
-            variable=self.substitute_home_team_value,
+            variable=self.substitute_team_value,
             onvalue=True,
             offvalue=False,
         )
-        self.substitute_home_team_checkbox.grid(
-            row=2, column=0, padx=10, pady=10, sticky=EW
-        )
-        self.substitute_home_team_btn = ttk.Button(self, text="Substitute")
-        self.substitute_home_team_btn.grid(
+        self.substitute_team_checkbox.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        self.substitute_team_btn = ttk.Button(self, text="Substitute")
+        self.substitute_team_btn.grid(
             row=3, column=0, columnspan=2, padx=10, pady=10, sticky=NSEW
         )
 
-        self.away_team_table = Tableview(
+    def enable_substitution_button(self):
+        self.substitute_team_btn.config(state=NORMAL)
+
+    def disable_substitution_button(self):
+        self.substitute_team_btn.config(state=DISABLED)
+
+    def update_table(
             self,
-            coldata=self.columns,
-            rowdata=away_rows,
-            searchable=False,
-            autofit=True,
-            paginated=False,
-            pagesize=8,
-            height=11,
-        )
-        self.away_team_table.grid(
-            row=0, column=2, padx=10, pady=10, columnspan=2, sticky=EW
-        )
-        self.away_team_strategy_label = ttk.Label(self, text="Strategy: ")
-        self.away_team_strategy = ttk.Combobox(self, values=[""])
-        self.away_team_strategy_label.grid(row=1, column=2, padx=10, pady=10, sticky=EW)
-        self.away_team_strategy.grid(row=1, column=3, padx=10, pady=10, sticky=EW)
-
-        self.substitute_away_team_value = ttk.BooleanVar()
-        self.substitute_away_team_checkbox = ttk.Checkbutton(
-            self,
-            text="Manual Substitutions",
-            variable=self.substitute_away_team_value,
-            onvalue=True,
-            offvalue=False,
-        )
-        self.substitute_away_team_checkbox.grid(
-            row=2, column=2, padx=10, pady=10, sticky=EW
-        )
-        self.substitute_away_team_btn = ttk.Button(self, text="Substitute")
-        self.substitute_away_team_btn.grid(
-            row=3, column=2, columnspan=2, padx=10, pady=10, sticky=NSEW
-        )
-
-        self.grid(row=0, column=0)
-
-    def enable_home_team_substitution_button(self):
-        self.substitute_home_team_btn.config(state=NORMAL)
-
-    def enable_away_team_substitution_button(self):
-        self.substitute_away_team_btn.config(state=NORMAL)
-
-    def disable_home_team_substitution_button(self):
-        self.substitute_home_team_btn.config(state=DISABLED)
-
-    def disable_away_team_substitution_button(self):
-        self.substitute_away_team_btn.config(state=DISABLED)
-
-    def update_tables(
-        self,
-        home_team: list[tuple],
-        away_team: list[tuple],
+            team: list[tuple],
     ):
-        self.home_team_table.delete_rows()
-        self.home_team_table.insert_rows(END, home_team)
-        self.home_team_table.autofit_columns()
-        self.home_team_table.load_table_data()
+        self.team_table.delete_rows()
+        self.team_table.insert_rows(END, team)
+        self.team_table.autofit_columns()
+        self.team_table.load_table_data()
 
-        self.away_team_table.delete_rows()
-        self.away_team_table.insert_rows(END, away_team)
-        self.away_team_table.autofit_columns()
-        self.away_team_table.load_table_data()
-
-    def update_strategy(self, home_team_strategy: str, away_team_strategy: str):
-        self.home_team_strategy.set(home_team_strategy)
-        self.away_team_strategy.set(away_team_strategy)
+    def update_strategy(self, home_team_strategy: str):
+        self.team_strategy.set(home_team_strategy)

@@ -211,8 +211,12 @@ class DebugMatchController(ControllerInterface):
 
     def update_team_strategy(self):
         if self.teams:
-            home_team_strategy = self.page.player_details_tab.home_team_strategy.get()
-            away_team_strategy = self.page.player_details_tab.away_team_strategy.get()
+            home_team_strategy = (
+                self.page.player_details_tab.home_team_data.team_strategy.get()
+            )
+            away_team_strategy = (
+                self.page.player_details_tab.away_team_data.team_strategy.get()
+            )
             self.teams[0].team_strategy = TeamStrategy[home_team_strategy]
             self.teams[1].team_strategy = TeamStrategy[away_team_strategy]
 
@@ -259,8 +263,12 @@ class DebugMatchController(ControllerInterface):
 
     def get_team_strategy(self):
         strategies = [t.name for t in list(TeamStrategy)]
-        self.page.player_details_tab.home_team_strategy.config(values=strategies)
-        self.page.player_details_tab.away_team_strategy.config(values=strategies)
+        self.page.player_details_tab.home_team_data.team_strategy.config(
+            values=strategies
+        )
+        self.page.player_details_tab.away_team_data.team_strategy.config(
+            values=strategies
+        )
         if self.teams:
             home_team_strategy = self.teams[0].team_strategy.name
             away_team_strategy = self.teams[1].team_strategy.name
@@ -316,7 +324,9 @@ class DebugMatchController(ControllerInterface):
     def update_home_team_substitution_button(self):
         if self.live_game:
             if self.live_game.engine.started and not self.live_game.is_game_over:
-                if self.page.player_details_tab.substitute_home_team_value.get():
+                if (
+                        self.page.player_details_tab.home_team_data.substitute_team_value.get()
+                ):
                     self.page.player_details_tab.enable_home_team_substitution_button()
                 else:
                     self.page.player_details_tab.disable_home_team_substitution_button()
@@ -327,7 +337,9 @@ class DebugMatchController(ControllerInterface):
     def update_away_team_substitution_button(self):
         if self.live_game:
             if self.live_game.engine.started and not self.live_game.is_game_over:
-                if self.page.player_details_tab.substitute_away_team_value.get():
+                if (
+                        self.page.player_details_tab.away_team_data.substitute_team_value.get()
+                ):
                     self.page.player_details_tab.enable_away_team_substitution_button()
                 else:
                     self.page.player_details_tab.disable_away_team_substitution_button()
@@ -363,15 +375,15 @@ class DebugMatchController(ControllerInterface):
         self.page.play_game_btn.config(command=self.start_match)
         self.page.new_game_btn.config(command=self.initialize)
         self.page.cancel_btn.config(command=self.go_to_debug_home_page)
-        self.page.player_details_tab.substitute_home_team_checkbox.config(
+        self.page.player_details_tab.home_team_data.substitute_team_checkbox.config(
             command=self.update_home_team_substitution_button
         )
-        self.page.player_details_tab.substitute_away_team_checkbox.config(
+        self.page.player_details_tab.away_team_data.substitute_team_checkbox.config(
             command=self.update_away_team_substitution_button
         )
-        self.page.player_details_tab.substitute_home_team_btn.config(
+        self.page.player_details_tab.home_team_data.substitute_team_btn.config(
             command=self.substitute_home_team
         )
-        self.page.player_details_tab.substitute_away_team_btn.config(
+        self.page.player_details_tab.away_team_data.substitute_team_btn.config(
             command=self.substitute_away_team
         )
