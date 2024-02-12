@@ -208,6 +208,9 @@ class DebugMatchController(ControllerInterface):
         home_team_stats = self.get_team_stats(self.teams[0])
         away_team_stats = self.get_team_stats(self.teams[1])
         self.page.update_team_stats(home_team_stats, away_team_stats)
+        home_team_formation = self.teams[0].formation.formation_string
+        away_team_formation = self.teams[1].formation.formation_string
+        self.page.update_team_formation(home_team_formation, away_team_formation)
 
     def update_team_strategy(self):
         if self.teams:

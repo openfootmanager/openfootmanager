@@ -120,6 +120,13 @@ class SubstitutionWindow(ttk.Toplevel):
     def update_formations(self, formations: list[str]):
         self.formation_combobox["values"] = formations
 
+    def update_formation_box(self, formation: str):
+        formations = self.formation_combobox["values"]
+        if formation in formations:
+            self.formation_combobox.set(formation)
+        else:
+            self.formation_combobox.set(formations[0])
+
     def cancel_dialog(self):
         return Messagebox.yesno(
             parent=self,

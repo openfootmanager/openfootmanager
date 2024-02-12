@@ -152,3 +152,8 @@ class DebugMatchPage(ttk.Frame):
 
     def update_team_strategy(self, home_team_strategy: str, away_team_strategy: str):
         self.player_details_tab.update_strategy(home_team_strategy, away_team_strategy)
+
+    def update_team_formation(self, home_team_formation: str, away_team_formation: str):
+        self.player_details_tab.update_formation(
+            home_team_formation, away_team_formation
+        )

@@ -54,6 +54,10 @@ class PlayerDetailsTab(ttk.Frame):
         self.home_team_data.update_strategy(home_team_strategy)
         self.away_team_data.update_strategy(away_team_strategy)
 
+    def update_formation(self, home_team_formation: str, away_team_formation: str):
+        self.home_team_data.update_formation(home_team_formation)
+        self.away_team_data.update_formation(away_team_formation)
+
 
 class TeamTableComponent(ttk.Frame):
     def __init__(self, *args, **kwargs):
@@ -92,10 +96,17 @@ class TeamTableComponent(ttk.Frame):
             height=11,
         )
         self.team_table.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky=EW)
+
+        self.team_formation_value = ttk.StringVar()
+        self.team_formation_label = ttk.Label(
+            self, text="Formation: ", textvariable=self.team_formation_value
+        )
+        self.team_formation_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
+
         self.team_strategy_label = ttk.Label(self, text="Strategy: ")
         self.team_strategy = ttk.Combobox(self, values=[""])
-        self.team_strategy_label.grid(row=1, column=0, padx=10, pady=10, sticky=EW)
-        self.team_strategy.grid(row=1, column=1, padx=10, pady=10, sticky=EW)
+        self.team_strategy_label.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        self.team_strategy.grid(row=2, column=1, padx=10, pady=10, sticky=EW)
 
         self.substitute_team_value = ttk.BooleanVar()
         self.substitute_team_checkbox = ttk.Checkbutton(
@@ -105,10 +116,10 @@ class TeamTableComponent(ttk.Frame):
             onvalue=True,
             offvalue=False,
         )
-        self.substitute_team_checkbox.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        self.substitute_team_checkbox.grid(row=3, column=0, padx=10, pady=10, sticky=EW)
         self.substitute_team_btn = ttk.Button(self, text="Substitute")
         self.substitute_team_btn.grid(
-            row=3, column=0, columnspan=2, padx=10, pady=10, sticky=NSEW
+            row=4, column=0, columnspan=2, padx=10, pady=10, sticky=NSEW
         )
 
     def enable_substitution_button(self):
@@ -116,6 +127,9 @@ class TeamTableComponent(ttk.Frame):
 
     def disable_substitution_button(self):
         self.substitute_team_btn.config(state=DISABLED)
+
+    def update_formation(self, formation: str):
+        self.team_formation_value.set(f"Formation: {formation}")
 
     def update_table(
         self,
