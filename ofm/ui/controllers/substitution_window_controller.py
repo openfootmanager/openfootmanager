@@ -17,7 +17,6 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
-from enum import Enum, auto
 
 from ttkbootstrap import Toplevel
 
@@ -59,6 +58,7 @@ class SubstitutionWindowController:
         self, parent: Toplevel, team: TeamSimulation, live_game_manager: LiveGameManager
     ):
         self.page = SubstitutionWindow(parent)
+        self.original_team = team
         self.team = deepcopy(team)
         self.live_game_manager = live_game_manager
         self.commands: list[Command] = []
@@ -96,9 +96,10 @@ class SubstitutionWindowController:
         ]
 
     def update_team_formation(self, *args):
-        # TODO: build Commands list with formation
         formation = self.page.formation_combobox.get()
-        self.team.formation.change_formation(formation)
+        command = FormationChangeCommand(formation)
+        self.commands.append(command)
+        command.execute(self.team)
         self.update_formation_table()
 
     def update_formation_table(self):
@@ -110,11 +111,13 @@ class SubstitutionWindowController:
         self.page.update_reserves_table(player_data)
 
     def apply_changes(self):
-        # TODO: Apply commands list here
-        if self.team == self.live_game.engine.home_team:
-            self.live_game.engine.home_team = self.team
+        if self.original_team == self.live_game.engine.home_team:
+            team = self.live_game.engine.home_team
         else:
-            self.live_game.engine.away_team = self.team
+            team = self.live_game.engine.away_team
+
+        for command in self.commands:
+            command.execute(team)
 
         self.return_game()
 
