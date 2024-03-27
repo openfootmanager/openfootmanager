@@ -19,11 +19,11 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
 
+from ..football.player import PlayerSimulation
+from ..football.team_simulation import TeamSimulation
 from . import PITCH_EQUIVALENTS, PitchPosition
 from .event_type import EventType
 from .game_state import GameState
-from ..football.player import PlayerSimulation
-from ..football.team_simulation import TeamSimulation
 
 
 class EventOutcome(Enum):

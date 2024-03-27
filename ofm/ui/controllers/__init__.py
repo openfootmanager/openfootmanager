@@ -13,6 +13,9 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from ...core.db.database import DB
+from ...core.settings import Settings
+from ..gui import GUI
 from .controllerinterface import ControllerInterface
 from .debug_controller import DebugPageController
 from .debug_match_controller import DebugMatchController
@@ -20,9 +23,6 @@ from .home_controller import HomePageController
 from .player_profile_controller import PlayerProfilePageController
 from .settings_controller import SettingsController
 from .team_selection_controller import TeamSelectionController
-from ..gui import GUI
-from ...core.db.database import DB
-from ...core.settings import Settings
 
 
 class OFMController(ControllerInterface):

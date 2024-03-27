@@ -13,8 +13,8 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from .controllerinterface import ControllerInterface
 from ..pages.team_selection import TeamSelectionPage
+from .controllerinterface import ControllerInterface
 
 
 class TeamSelectionController(ControllerInterface):

@@ -20,10 +20,10 @@ import pytest
 
 from ofm.core.football.formation import FormationError
 from ofm.core.football.team_simulation import (
+    GameEventType,
     PlayerSimulation,
     SubbingError,
     SubstitutionEvent,
-    GameEventType,
 )
 from ofm.core.simulation import PitchPosition
 from ofm.core.simulation.event_type import EventType
@@ -60,7 +60,9 @@ def live_game(monkeypatch, simulation_teams) -> LiveGame:
     monkeypatch.setattr(SimulationEngine, "run", get_simulation_engine)
     monkeypatch.setattr(SimulationEngine, "get_event_duration", get_event_duration)
 
-    return LiveGame(fixture, home_team_sim, away_team_sim, False, False, True)
+    live_game = LiveGame(fixture, home_team_sim, away_team_sim, False, False, True)
+    live_game.running = True
+    return live_game
 
 
 def test_formations_are_complete(live_game: LiveGame):

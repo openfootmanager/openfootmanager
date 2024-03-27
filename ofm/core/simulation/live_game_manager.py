@@ -13,25 +13,27 @@
 #
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from threading import Thread
+from typing import Optional
 
-from ..pages import PlayerProfilePage
-from .controllerinterface import ControllerInterface
+from .simulation import LiveGame, TeamSimulation
 
 
-class PlayerProfilePageController(ControllerInterface):
-    def __init__(self, controller: ControllerInterface, page: PlayerProfilePage):
-        self.controller = controller
-        self.page = page
-        self._bind()
+class LiveGameManager:
+    def __init__(self):
+        self.game_thread: Optional[Thread] = None
+        self.live_game: Optional[LiveGame] = None
 
-    def switch(self, page):
-        self.controller.switch(page)
+    def start_live_game(self):
+        if not self.live_game.is_game_over:
+            self.live_game.run()
 
-    def initialize(self):
-        pass
-
-    def go_to_debug_page(self):
-        self.switch("debug_home")
-
-    def _bind(self):
-        self.page.cancel_btn.config(command=self.go_to_debug_page)
+    def run(self):
+        if self.live_game is None:
+            return
+        self.live_game.running = True
+        try:
+            self.game_thread = Thread(target=self.start_live_game, daemon=True)
+            self.game_thread.start()
+        except RuntimeError as e:
+            print(e)

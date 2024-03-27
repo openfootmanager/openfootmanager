@@ -104,13 +104,11 @@ class GUI:
 
     def _add_frame(self, frame) -> ttk.Frame:
         f = frame(self.window)
-        f.place(anchor=CENTER, relx=0.5, rely=0.5)
-        # Necessary to hide all frames
-        f.place_forget()
         return f
 
     def switch(self, name: str):
-        self.current_page.place_forget()
+        self.current_page.grid_forget()
         self.current_page = self.pages[name]
-        self.current_page.place(anchor=CENTER, relx=0.5, rely=0.5)
+        self.current_page.grid(row=0, column=0)
+        self.window.geometry("")
         self.current_page.tkraise()

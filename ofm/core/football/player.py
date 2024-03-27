@@ -239,6 +239,7 @@ class PlayerSimulation:
         self.received_ball: Optional[PlayerSimulation] = None
         self.subbed = False
         self.able_to_play = True
+        self.minutes_played = datetime.timedelta(seconds=0)
 
     @property
     def stamina(self) -> float:
@@ -283,9 +284,13 @@ class PlayerSimulation:
         fitness = self.player.details.fitness
         form = self.player.details.form
 
+        self.minutes_played += datetime.timedelta(seconds=elapsed_time)
+
         # Using a half-life formula for stamina
         self.stamina = round(
-            self.initial_stamina * (2 ** (-elapsed_time / (144 * fitness * form))), 2
+            self.initial_stamina
+            * (2 ** (-self.minutes_played.total_seconds() / (144 * fitness * form))),
+            2,
         )
 
     def __eq__(self, other):

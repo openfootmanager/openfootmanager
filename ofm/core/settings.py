@@ -57,16 +57,20 @@ class Settings:
         }
 
     def parse_settings(self, data: dict) -> None:
-        self.res = data["res"]
-        self.images = data["images"]
-        self.db = data["db"]
-        self.save = data["save"]
-        self.clubs_def = data["clubs_def"]
-        self.fifa_codes = data["fifa_codes"]
-        self.fifa_conf = data["fifa_conf"]
-        self.squads_file = data["squads"]
-        self.players_file = data["players"]
-        self.clubs_file = data["clubs"]
+        default_settings = self.get_data()
+        try:
+            self.res = data["res"]
+            self.images = data["images"]
+            self.db = data["db"]
+            self.save = data["save"]
+            self.clubs_def = data["clubs_def"]
+            self.fifa_codes = data["fifa_codes"]
+            self.fifa_conf = data["fifa_conf"]
+            self.squads_file = data["squads"]
+            self.players_file = data["players"]
+            self.clubs_file = data["clubs"]
+        except KeyError:
+            self.parse_settings(default_settings)
 
     def load_settings(self) -> None:
         with open(self.settings_file, "r") as fp:

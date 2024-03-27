@@ -17,6 +17,12 @@ import random
 from copy import deepcopy
 from typing import Optional
 
+from ...football.team_simulation import TeamSimulation
+from .. import PitchPosition
+from ..event import EventOutcome, SimulationEvent
+from ..event_type import EventType, FoulType
+from ..game_state import GameState, SimulationStatus
+from ..team_strategy import team_general_strategy
 from .corner_kick_event import CornerKickEvent
 from .cross_event import CrossEvent
 from .dribble_event import DribbleEvent
@@ -26,12 +32,6 @@ from .goal_kick_event import GoalKickEvent
 from .pass_event import PassEvent
 from .penalty_kick_event import PenaltyKickEvent
 from .shot_event import ShotEvent
-from .. import PitchPosition
-from ..event import EventOutcome, SimulationEvent
-from ..event_type import EventType, FoulType
-from ..game_state import GameState, SimulationStatus
-from ..team_strategy import team_general_strategy
-from ...football.team_simulation import TeamSimulation
 
 
 class EventFactory:

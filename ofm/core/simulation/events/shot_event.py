@@ -17,11 +17,11 @@ import random
 from dataclasses import dataclass
 from datetime import timedelta
 
+from ...football.team_simulation import TeamSimulation
 from .. import PitchPosition
 from ..event import CommentaryImportance, EventOutcome, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
-from ...football.team_simulation import TeamSimulation
 
 
 @dataclass

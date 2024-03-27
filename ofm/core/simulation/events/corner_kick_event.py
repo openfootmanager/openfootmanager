@@ -18,13 +18,13 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
 
-from .cross_event import CrossEvent
-from .pass_event import PassEvent
+from ...football.team_simulation import TeamSimulation
 from ..event import CommentaryImportance, SimulationEvent
 from ..event_type import EventType
 from ..game_state import GameState
 from ..team_strategy import team_corner_kick_strategy
-from ...football.team_simulation import TeamSimulation
+from .cross_event import CrossEvent
+from .pass_event import PassEvent
 
 
 class CornerKickType(Enum):
