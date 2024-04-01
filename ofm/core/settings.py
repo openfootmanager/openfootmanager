@@ -36,7 +36,6 @@ class Settings:
         self.clubs_def: str = os.path.join(self.res, "clubs_def.json")
         self.fifa_codes: str = os.path.join(self.res, "fifa_country_codes.json")
         self.fifa_conf: str = os.path.join(self.res, "fifa_confederations.json")
-        self.squads_def: str = os.path.join(self.res, "squads_def.json")
         self.squads_file: str = os.path.join(self.db, "squads.json")
         self.players_file: str = os.path.join(self.db, "players.json")
         self.clubs_file: str = os.path.join(self.db, "clubs.json")
