@@ -111,10 +111,11 @@ class TeamTableComponent(ttk.Frame):
         self.substitute_team_value = ttk.BooleanVar()
         self.substitute_team_checkbox = ttk.Checkbutton(
             self,
-            text="Manual Substitutions",
+            text="Automatic Substitutions",
             variable=self.substitute_team_value,
-            onvalue=True,
-            offvalue=False,
+            onvalue=False,
+            offvalue=True,
+            bootstyle="round-toggle",
         )
         self.substitute_team_checkbox.grid(row=3, column=0, padx=10, pady=10, sticky=EW)
         self.substitute_team_btn = ttk.Button(self, text="Substitute")

@@ -335,7 +335,6 @@ class DebugMatchController(ControllerInterface):
                     self.page.player_details_tab.disable_home_team_substitution_button()
         else:
             self.page.player_details_tab.disable_home_team_substitution_button()
-            self.page.player_details_tab.disable_away_team_substitution_button()
 
     def update_away_team_substitution_button(self):
         if self.live_game:
@@ -346,30 +345,24 @@ class DebugMatchController(ControllerInterface):
                     self.page.player_details_tab.enable_away_team_substitution_button()
                 else:
                     self.page.player_details_tab.disable_away_team_substitution_button()
+        else:
+            self.page.player_details_tab.disable_away_team_substitution_button()
+
+    def open_substitution_window(self, team: TeamSimulation):
+        if self.live_game:
+            if self.live_game.engine.started and not self.live_game.is_game_over:
+                self.substitution_window = SubstitutionWindowController(
+                    self.page.winfo_toplevel(), team, self.live_game_manager
+                )
+                self.substitution_window.page.protocol(
+                    "WM_DELETE_WINDOW", self.start_match()
+                )
 
     def substitute_home_team(self):
-        if self.live_game:
-            if self.live_game.engine.started and not self.live_game.is_game_over:
-                self.substitution_window = SubstitutionWindowController(
-                    self.page.winfo_toplevel(),
-                    self.live_game.engine.home_team,
-                    self.live_game_manager,
-                )
-                self.substitution_window.page.protocol(
-                    "WM_DELETE_WINDOW", self.start_match
-                )
+        self.open_substitution_window(self.live_game.engine.home_team)
 
     def substitute_away_team(self):
-        if self.live_game:
-            if self.live_game.engine.started and not self.live_game.is_game_over:
-                self.substitution_window = SubstitutionWindowController(
-                    self.page.winfo_toplevel(),
-                    self.live_game.engine.away_team,
-                    self.live_game_manager,
-                )
-                self.substitution_window.page.protocol(
-                    "WM_DELETE_WINDOW", self.start_match
-                )
+        self.open_substitution_window(self.live_game.engine.away_team)
 
     def go_to_debug_home_page(self):
         self.switch("debug_home")
