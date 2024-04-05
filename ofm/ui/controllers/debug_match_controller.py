@@ -81,6 +81,7 @@ class DebugMatchController(ControllerInterface):
         if self.teams is None:
             return
         self.start_live_game()
+        self.page.change_play_button_to_pause(self.stop_match)
         self.update_game_data()
         self.live_game_manager.run()
         self.check_thread_status()
@@ -92,7 +93,7 @@ class DebugMatchController(ControllerInterface):
             self.update_game_data()
             self.page.after(100, lambda: self.check_thread_status())
         else:
-            self.page.enable_button()
+            self.page.change_pause_button_to_play(self.start_match)
             self.update_game_data()
             self.live_game_manager.game_thread = None
 
@@ -352,12 +353,27 @@ class DebugMatchController(ControllerInterface):
     def open_substitution_window(self, team: TeamSimulation):
         if self.live_game:
             if self.live_game.engine.started and not self.live_game.is_game_over:
+                self.page.change_pause_button_to_play(self.start_match)
                 self.substitution_window = SubstitutionWindowController(
-                    self.page.winfo_toplevel(), team, self.live_game_manager
+                    self.page.winfo_toplevel(),
+                    team,
+                    self.live_game_manager,
+                    self.start_match,
                 )
-                self.substitution_window.page.protocol(
-                    "WM_DELETE_WINDOW", self.start_match()
-                )
+
+    def stop_match(self):
+        if self.live_game:
+            if self.live_game.running:
+                self.live_game.running = False
+
+    def close_substitution_window(self):
+        if self.substitution_window:
+            if not self.live_game.is_game_over:
+                self.live_game.running = True
+                self.start_match()
+
+            self.substitution_window.page.destroy()
+            self.substitution_window = None
 
     def substitute_home_team(self):
         self.open_substitution_window(self.live_game.engine.home_team)

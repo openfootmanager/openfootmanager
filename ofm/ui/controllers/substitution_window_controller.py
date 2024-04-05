@@ -14,9 +14,11 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from abc import ABC, abstractmethod
-from copy import deepcopy
+from copy import copy
 from dataclasses import dataclass
 from datetime import timedelta
+
+from typing import Callable
 
 from ttkbootstrap import Toplevel
 
@@ -55,12 +57,17 @@ class FormationChangeCommand(Command):
 
 class SubstitutionWindowController:
     def __init__(
-        self, parent: Toplevel, team: TeamSimulation, live_game_manager: LiveGameManager
+        self,
+        parent: Toplevel,
+        team: TeamSimulation,
+        live_game_manager: LiveGameManager,
+        start_match: Callable,
     ):
         self.page = SubstitutionWindow(parent)
         self.original_team = team
-        self.team = deepcopy(team)
+        self.team = copy(team)
         self.live_game_manager = live_game_manager
+        self.start_match = start_match
         self.commands: list[Command] = []
         self.initialize()
         self._bind()
@@ -125,6 +132,7 @@ class SubstitutionWindowController:
         if not self.live_game.is_game_over:
             self.live_game.running = True
 
+        self.start_match()
         self.page.destroy()
 
     def cancel(self):
@@ -139,3 +147,4 @@ class SubstitutionWindowController:
         self.page.formation_combobox.bind(
             "<<ComboboxSelected>>", self.update_team_formation
         )
+        self.page.protocol("WM_DELETE_WINDOW", self.cancel)

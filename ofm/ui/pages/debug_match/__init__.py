@@ -14,6 +14,7 @@
 #      You should have received a copy of the GNU General Public License
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from enum import Enum
+from typing import Callable
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -120,13 +121,11 @@ class DebugMatchPage(ttk.Frame):
         self.player_details_tab.update_tables(home_team, away_team)
         self.player_reserves_tab.update_tables(home_reserves, away_reserves)
 
-    def disable_button(self):
-        self.play_game_btn.config(state=ttk.DISABLED)
-        self.new_game_btn.config(state=ttk.DISABLED)
+    def change_play_button_to_pause(self, func: Callable):
+        self.play_game_btn.config(text="Pause", command=func)
 
-    def enable_button(self):
-        self.play_game_btn.config(state=ttk.NORMAL)
-        self.new_game_btn.config(state=ttk.NORMAL)
+    def change_pause_button_to_play(self, func: Callable):
+        self.play_game_btn.config(text="Play", command=func)
 
     def update_team_names(
         self, home_team: str, away_team: str, home_team_score: str, away_team_score: str
