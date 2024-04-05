@@ -147,6 +147,7 @@ class PlayerAttributeGenerator(Generator):
         if sigma is None:
             sigma = 20
 
+        attributes = 0  # just to stop the IDE from complaining
         match positions[0]:
             case Positions.GK:
                 attributes = self.get_gk_attributes(mu, sigma)
@@ -313,12 +314,12 @@ class PlayerGenerator(Generator):
 
     def generate_player_form(self) -> float:
         form = round(random.random(), 2)
-        form = max(0.1, form)
+        form = max(0.45, form)
         return form
 
     def generate_player_fitness(self) -> float:
         fitness = round(random.random() * 100, 2)
-        fitness = max(10.0, fitness)
+        fitness = max(35.0, fitness)
         return fitness
 
     def generate_player(
