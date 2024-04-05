@@ -26,139 +26,164 @@ class TeamStrategy(Enum):
     COUNTER_ATTACK = auto()
 
 
+# fmt: off
+STRATEGIES = {
+    TeamStrategy.NORMAL: {
+        "pass": {
+            PitchPosition.DEF_BOX: [1, 10, 10, 30, 10, 10, 5, 15, 5, 4, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [1, 10, 1, 20, 20, 1, 15, 20, 1, 5, 5, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [1, 1, 10, 20, 1, 20, 1, 20, 15, 5, 0, 5, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [0, 1, 1, 10, 15, 15, 10, 20, 10, 5, 5, 5, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 20, 15, 1, 20, 20, 0, 10, 10, 1, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 20, 1, 15, 0, 20, 20, 10, 1, 10, 1, 1, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 15, 30, 1, 20, 20, 1, 7, 1, 5],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 15, 20, 15, 15, 10, 10, 5, 5, 5],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 30, 15, 20, 1, 20, 1, 7, 5],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 25, 15, 15, 10, 10, 10],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 10, 0, 50, 0, 20],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 10, 0, 50, 20],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 25, 0, 60],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 25, 60],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 20, 20, 50],
+        },
+        "cross": {
+            PitchPosition.DEF_BOX: [5, 5, 5, 10, 15, 15, 10, 10, 10, 5, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
+        },
+        "general": {
+            EventType.PASS: 40,
+            EventType.CROSS: 10,
+            EventType.DRIBBLE: 1,
+            EventType.FOUL: 0,
+            EventType.SHOT: 0,
+        },
+        "corner_kick": [0.5, 0.5],
+        "foul": 4,
+    },
+    TeamStrategy.KEEP_POSSESSION: {
+        "pass": {
+            PitchPosition.DEF_BOX: [10, 20, 15, 20, 15, 10, 5, 3, 1, 1, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 10, 15, 15, 10, 15, 10],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
+        },
+        "cross": {
+            PitchPosition.DEF_BOX: [15, 20, 15, 20, 15, 10, 5, 5, 3, 1, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [10, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [10, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [5, 10, 15, 20, 20, 15, 10, 10, 5, 2, 2, 3, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [2, 5, 5, 15, 15, 10, 15, 20, 2, 5, 5, 1, 2, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [2, 1, 2, 15, 5, 15, 5, 15, 10, 5, 1, 5, 1, 2, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 5, 10, 5, 10, 20, 2, 15, 15, 2, 5, 2, 7],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 1, 5, 2, 5, 10, 5, 10, 10, 5, 3, 3, 7],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 1, 0, 1, 2, 15, 10, 15, 2, 15, 2, 5, 7],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 3, 3, 3, 15, 10, 10, 5, 5, 5],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 5, 0, 30, 0, 15],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 0, 5, 0, 30, 15],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 10, 0, 15, 0, 67],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 0, 10, 0, 15, 67],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
+        },
+        "general": {
+            EventType.PASS: 80,
+            EventType.CROSS: 10,
+            EventType.DRIBBLE: 1,
+            EventType.FOUL: 0,
+            EventType.SHOT: 0,
+        },
+        "corner_kick": [0.8, 0.2],
+        "foul": 2,
+    },
+    TeamStrategy.COUNTER_ATTACK: {
+        "pass": {
+            PitchPosition.DEF_BOX: [5, 10, 5, 15, 15, 10, 5, 5, 5, 5, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
+        },
+        "cross": {
+            PitchPosition.DEF_BOX: [5, 10, 5, 15, 15, 10, 5, 5, 5, 5, 0, 0, 0, 0, 0],
+            PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
+            PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
+            PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
+            PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
+            PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
+            PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
+            PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
+            PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
+            PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
+            PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
+            PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
+            PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 15, 0, 67],
+            PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 15, 67],
+            PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
+        },
+        "general": {
+            EventType.PASS: 30,
+            EventType.CROSS: 50,
+            EventType.DRIBBLE: 2,
+            EventType.FOUL: 0,
+            EventType.SHOT: 0,
+        },
+        "corner_kick": [0.3, 0.7],
+        "foul": 5,
+    }
+}
+
+
+# fmt: on
 def get_team_foul_values(strategy: TeamStrategy) -> int:
     """
     Teams without the ball dictate foul values
     """
-    match strategy:
-        case TeamStrategy.NORMAL:
-            return 4
-        case TeamStrategy.KEEP_POSSESSION:
-            return 2
-        case TeamStrategy.COUNTER_ATTACK:
-            return 5
+    return STRATEGIES[strategy]["foul"]
 
 
 def team_pass_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]:
     """
     Returns the transition matrix of PitchPositions for passing.
     """
-    # fmt: off
-    match strategy:
-        case TeamStrategy.NORMAL:
-            return {
-                PitchPosition.DEF_BOX: [1, 10, 10, 30, 10, 10, 5, 15, 5, 4, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [1, 10, 1, 20, 20, 1, 15, 20, 1, 5, 5, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [1, 1, 10, 20, 1, 20, 1, 20, 15, 5, 0, 5, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [0, 1, 1, 10, 15, 15, 10, 20, 10, 5, 5, 5, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 20, 15, 1, 20, 20, 0, 10, 10, 1, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 20, 1, 15, 0, 20, 20, 10, 1, 10, 1, 1, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 15, 30, 1, 20, 20, 1, 7, 1, 5],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 15, 20, 15, 15, 10, 10, 5, 5, 5],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 30, 15, 20, 1, 20, 1, 7, 5],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 25, 15, 15, 10, 10, 10],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 10, 0, 50, 0, 20],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 10, 0, 50, 20],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 25, 0, 60],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 25, 60],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 20, 20, 50],
-            }
-        case TeamStrategy.KEEP_POSSESSION:
-            return {
-                PitchPosition.DEF_BOX: [10, 20, 15, 20, 15, 10, 5, 3, 1, 1, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 10, 15, 15, 10, 15, 10],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
-        case TeamStrategy.COUNTER_ATTACK:
-            return {
-                PitchPosition.DEF_BOX: [5, 10, 5, 15, 15, 10, 5, 5, 5, 5, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
+    return STRATEGIES[strategy]["pass"]
 
 
 # fmt: on
 def team_cross_strategy(strategy: TeamStrategy) -> dict[PitchPosition, list[int]]:
-    # fmt: off
-    match strategy:
-        case TeamStrategy.NORMAL:
-            return {
-                PitchPosition.DEF_BOX: [5, 5, 5, 10, 15, 15, 10, 10, 10, 5, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 20, 0, 59],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 20, 59],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
-        case TeamStrategy.KEEP_POSSESSION:
-            return {
-                PitchPosition.DEF_BOX: [15, 20, 15, 20, 15, 10, 5, 5, 3, 1, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [10, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [10, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [5, 10, 15, 20, 20, 15, 10, 10, 5, 2, 2, 3, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [2, 5, 5, 15, 15, 10, 15, 20, 2, 5, 5, 1, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [2, 1, 2, 15, 5, 15, 5, 15, 10, 5, 1, 5, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 5, 10, 5, 10, 20, 2, 15, 15, 2, 5, 2, 7],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 1, 5, 2, 5, 10, 5, 10, 10, 5, 3, 3, 7],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 1, 0, 1, 2, 15, 10, 15, 2, 15, 2, 5, 7],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 3, 3, 3, 15, 10, 10, 5, 5, 5],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 10, 0, 15, 0, 67],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 1, 1, 5, 0, 10, 0, 15, 67],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
-        case TeamStrategy.COUNTER_ATTACK:
-            return {
-                PitchPosition.DEF_BOX: [5, 10, 5, 15, 15, 10, 5, 5, 5, 5, 0, 0, 0, 0, 0],
-                PitchPosition.DEF_LEFT: [5, 15, 5, 15, 15, 5, 10, 15, 5, 3, 2, 0, 1, 0, 0],
-                PitchPosition.DEF_RIGHT: [5, 5, 15, 15, 5, 15, 5, 15, 10, 3, 0, 2, 0, 1, 0],
-                PitchPosition.DEF_MIDFIELD_CENTER: [0, 2, 5, 15, 20, 20, 15, 15, 10, 3, 3, 3, 1, 1, 1],
-                PitchPosition.DEF_MIDFIELD_LEFT: [0, 0, 0, 15, 15, 5, 15, 20, 0, 10, 10, 2, 2, 1, 1],
-                PitchPosition.DEF_MIDFIELD_RIGHT: [0, 0, 0, 15, 5, 15, 0, 15, 20, 10, 1, 10, 1, 2, 1],
-                PitchPosition.MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 10, 20, 1, 15, 15, 1, 5, 1, 3],
-                PitchPosition.MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 10, 15, 10, 10, 10, 5, 3, 3, 3],
-                PitchPosition.MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 1, 20, 15, 15, 1, 15, 1, 5, 3],
-                PitchPosition.OFF_MIDFIELD_CENTER: [0, 0, 0, 0, 0, 0, 5, 5, 5, 15, 10, 10, 5, 5, 5],
-                PitchPosition.OFF_MIDFIELD_LEFT: [0, 0, 0, 0, 0, 0, 2, 3, 2, 10, 5, 0, 30, 0, 15],
-                PitchPosition.OFF_MIDFIELD_RIGHT: [0, 0, 0, 0, 0, 0, 2, 2, 3, 10, 0, 5, 0, 30, 15],
-                PitchPosition.OFF_LEFT: [0, 0, 0, 0, 0, 0, 1, 3, 2, 5, 10, 0, 15, 0, 67],
-                PitchPosition.OFF_RIGHT: [0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 10, 0, 15, 67],
-                PitchPosition.OFF_BOX: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 15, 15, 64],
-            }
+    return STRATEGIES[strategy]["cross"]
 
 
 # fmt: on
@@ -168,13 +193,7 @@ def team_corner_kick_strategy(strategy: TeamStrategy) -> list[float]:
 
     Returns: [PASS_PROB, CROSS_PROB]
     """
-    match strategy:
-        case TeamStrategy.NORMAL:
-            return [0.5, 0.5]
-        case TeamStrategy.KEEP_POSSESSION:
-            return [0.8, 0.2]
-        case TeamStrategy.COUNTER_ATTACK:
-            return [0.3, 0.7]
+    return STRATEGIES[strategy]["corner_kick"]
 
 
 def team_general_strategy(
@@ -189,23 +208,12 @@ def team_general_strategy(
         [ Probability of passing, probability of crossing, probability of dribble, probability of foul, probability of shot ]
     """
     foul_value = get_team_foul_values(def_team_strategy)
-    probability = {
-        EventType.PASS: 20,
-        EventType.CROSS: 20,
-        EventType.DRIBBLE: 2,
-        EventType.FOUL: foul_value,
-        EventType.SHOT: 0,
-    }
+
+    probability = STRATEGIES[attacking_team_strategy]["general"]
+    probability[EventType.FOUL] = foul_value
+
     match attacking_team_strategy:
         case TeamStrategy.NORMAL:
-            probability = {
-                EventType.PASS: 40,
-                EventType.CROSS: 10,
-                EventType.DRIBBLE: 1,
-                EventType.FOUL: foul_value,
-                EventType.SHOT: 0,
-            }
-
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 4
 
@@ -224,14 +232,6 @@ def team_general_strategy(
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
                 probability[EventType.SHOT] = 1
         case TeamStrategy.KEEP_POSSESSION:
-            probability = {
-                EventType.PASS: 80,
-                EventType.CROSS: 10,
-                EventType.DRIBBLE: 1,
-                EventType.FOUL: foul_value,
-                EventType.SHOT: 0,
-            }
-
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 2
 
@@ -250,14 +250,6 @@ def team_general_strategy(
             if state.position == PitchPosition.OFF_MIDFIELD_CENTER:
                 probability[EventType.SHOT] = 1
         case TeamStrategy.COUNTER_ATTACK:
-            probability = {
-                EventType.PASS: 30,
-                EventType.CROSS: 50,
-                EventType.DRIBBLE: 2,
-                EventType.FOUL: foul_value,
-                EventType.SHOT: 0,
-            }
-
             if state.position in OFF_POSITIONS:
                 probability[EventType.DRIBBLE] = 3
 
