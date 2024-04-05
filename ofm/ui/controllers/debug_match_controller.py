@@ -93,6 +93,7 @@ class DebugMatchController(ControllerInterface):
             self.page.after(100, lambda: self.check_thread_status())
         else:
             self.page.enable_button()
+            self.update_game_data()
             self.live_game_manager.game_thread = None
 
     def update_game_data(self):
