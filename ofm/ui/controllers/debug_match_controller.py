@@ -197,7 +197,7 @@ class DebugMatchController(ControllerInterface):
 
         home_team = self.get_player_data(self.teams[0].formation.players)
         away_team = self.get_player_data(self.teams[1].formation.players)
-        home_reserves = self.get_player_data(self.teams[1].formation.bench)
+        home_reserves = self.get_player_data(self.teams[0].formation.bench)
         away_reserves = self.get_player_data(self.teams[1].formation.bench)
 
         self.page.update_tables(home_team, away_team, home_reserves, away_reserves)
@@ -333,10 +333,13 @@ class DebugMatchController(ControllerInterface):
                     self.page.player_details_tab.home_team_data.substitute_team_value.get()
                 ):
                     self.page.player_details_tab.enable_home_team_substitution_button()
+                    self.page.player_reserves_tab.enable_home_team_substitution_button()
                 else:
                     self.page.player_details_tab.disable_home_team_substitution_button()
+                    self.page.player_reserves_tab.disable_home_team_substitution_button()
         else:
             self.page.player_details_tab.disable_home_team_substitution_button()
+            self.page.player_reserves_tab.disable_home_team_substitution_button()
 
     def update_away_team_substitution_button(self):
         if self.live_game:
@@ -345,10 +348,13 @@ class DebugMatchController(ControllerInterface):
                     self.page.player_details_tab.away_team_data.substitute_team_value.get()
                 ):
                     self.page.player_details_tab.enable_away_team_substitution_button()
+                    self.page.player_reserves_tab.enable_away_team_substitution_button()
                 else:
                     self.page.player_details_tab.disable_away_team_substitution_button()
+                    self.page.player_reserves_tab.disable_away_team_substitution_button()
         else:
             self.page.player_details_tab.disable_away_team_substitution_button()
+            self.page.player_reserves_tab.disable_away_team_substitution_button()
 
     def open_substitution_window(self, team: TeamSimulation):
         if self.live_game:
@@ -392,6 +398,12 @@ class DebugMatchController(ControllerInterface):
             command=self.update_home_team_substitution_button
         )
         self.page.player_details_tab.away_team_data.substitute_team_checkbox.config(
+            command=self.update_away_team_substitution_button
+        )
+        self.page.player_reserves_tab.home_team_data.substitute_team_checkbox.config(
+            command=self.update_home_team_substitution_button
+        )
+        self.page.player_reserves_tab.away_team_data.substitute_team_checkbox.config(
             command=self.update_away_team_substitution_button
         )
         self.page.player_details_tab.home_team_data.substitute_team_btn.config(
