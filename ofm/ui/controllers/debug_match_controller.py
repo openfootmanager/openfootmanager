@@ -285,15 +285,15 @@ class DebugMatchController(ControllerInterface):
             return
 
         events = []
+        commentary_verbosity = self.update_commentary_verbosity()
         for event in self.live_game.engine.event_history:
-            minutes = event.state.minutes.total_seconds() / 60
+            minutes = int(event.state.minutes.total_seconds() / 60)
             commentary = ""
             for comment in event.commentary:
-                commentary_verbosity = self.update_commentary_verbosity()
                 if event.commentary_importance in commentary_verbosity:
                     commentary += comment + "\n"
             if commentary:
-                events.append(f"{int(minutes)}' - {commentary}")
+                events.append(f"{minutes}' - {commentary}")
 
         self.page.update_live_game(events)
 

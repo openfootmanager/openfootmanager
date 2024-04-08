@@ -36,4 +36,5 @@ class LiveGameTab(ttk.Frame):
 
         self.live_game_events.delete(1.0, END)
         self.live_game_events.insert(ttk.END, text)
+        self.live_game_events.see(ttk.END)
         self.live_game_events.config(state=DISABLED)
