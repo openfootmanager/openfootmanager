@@ -71,7 +71,7 @@ STRATEGIES = {
             EventType.SHOT: 0,
         },
         "corner_kick": [0.5, 0.5],
-        "foul": 4,
+        "foul": 2,
     },
     TeamStrategy.KEEP_POSSESSION: {
         "pass": {
@@ -116,7 +116,7 @@ STRATEGIES = {
             EventType.SHOT: 0,
         },
         "corner_kick": [0.8, 0.2],
-        "foul": 2,
+        "foul": 1,
     },
     TeamStrategy.COUNTER_ATTACK: {
         "pass": {
@@ -161,7 +161,7 @@ STRATEGIES = {
             EventType.SHOT: 0,
         },
         "corner_kick": [0.3, 0.7],
-        "foul": 5,
+        "foul": 3,
     }
 }
 

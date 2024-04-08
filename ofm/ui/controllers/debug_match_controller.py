@@ -144,7 +144,7 @@ class DebugMatchController(ControllerInterface):
                 ),
                 player.current_position.name.encode("utf-8").decode("unicode_escape"),
                 player.stamina,
-                "Yes" if player.is_injured else "No",
+                f"Yes ({player.injury_type.name})" if player.is_injured else "No",
                 player.current_skill,
             )
             for player in players

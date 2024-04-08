@@ -41,19 +41,19 @@ class FoulEvent(SimulationEvent):
         self, offending_player: PlayerSimulation, fouled_player: PlayerSimulation
     ) -> PlayerInjury:
         offending_player_aggression = (
-            offending_player.attributes.defensive.tackling
+            offending_player.attributes.defensive.tackling * 2
             + offending_player.attributes.physical.strength
             + offending_player.attributes.defensive.positioning
-        ) / 300
+        ) / 400
 
-        foul_seriousness_values = [FoulStrength.LIGHT, None]
+        foul_seriousness_values = [None, FoulStrength.LIGHT]
 
         foul_seriousness = random.choices(
             foul_seriousness_values,
             [offending_player_aggression, 1 - offending_player_aggression],
         )[0]
 
-        if foul_seriousness is not None:
+        if foul_seriousness is None:
             return PlayerInjury.NO_INJURY
 
         foul_seriousness = random.choices(
