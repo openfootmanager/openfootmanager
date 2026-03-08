@@ -8,7 +8,7 @@ import { ThemeToggle } from "../components/ui";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import {
   ArrowLeft, Monitor, Moon, Sun, Gamepad2, Save,
-  Zap, Trash2, Download, Globe, Type, Maximize, Minimize,
+  Zap, Trash2, Download, Globe, Type, Maximize, Minimize, ChevronDown
 } from "lucide-react";
 
 const CURRENCY_OPTIONS = [
@@ -149,28 +149,34 @@ export default function Settings() {
           <SettingRow label={t('settings.language')} description={t('settings.languageDesc')}>
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-gray-400" />
+            <div className="relative">
               <select
                 value={settings.language}
                 onChange={(e) => handleUpdate({ language: e.target.value })}
-                className="bg-gray-50 dark:bg-navy-700 border border-gray-300 dark:border-navy-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                className="appearance-none w-full pl-3 pr-10 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
               >
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>{lang.label}</option>
                 ))}
               </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            </div>
             </div>
           </SettingRow>
 
           <SettingRow label={t('settings.currency')} description={t('settings.currencyDesc')}>
-            <select
-              value={settings.currency}
-              onChange={(e) => handleUpdate({ currency: e.target.value as AppSettings["currency"] })}
-              className="bg-gray-50 dark:bg-navy-700 border border-gray-300 dark:border-navy-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
-            >
-              {CURRENCY_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.symbol} {c.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={settings.currency}
+                onChange={(e) => handleUpdate({ currency: e.target.value as AppSettings["currency"] })}
+                className="appearance-none w-full pl-3 pr-10 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+              >
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.symbol} {c.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            </div>
           </SettingRow>
 
           <SettingRow label={t('settings.uiScale', 'UI Scale')} description={t('settings.uiScaleDesc', 'Adjust font size and spacing for readability')}>
@@ -210,15 +216,18 @@ export default function Settings() {
         {/* ─── Gameplay ─── */}
         <Section title={t('settings.gameplay')} icon={<Gamepad2 className="w-5 h-5" />}>
           <SettingRow label={t('settings.defaultMatchMode')} description={t('settings.defaultMatchModeDesc')}>
-            <select
-              value={settings.default_match_mode}
-              onChange={(e) => handleUpdate({ default_match_mode: e.target.value as AppSettings["default_match_mode"] })}
-              className="bg-gray-50 dark:bg-navy-700 border border-gray-300 dark:border-navy-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
-            >
-              {MATCH_MODE_KEYS.map((k) => (
-                <option key={k} value={k}>{t(`settings.matchModes.${k}`)}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={settings.default_match_mode}
+                onChange={(e) => handleUpdate({ default_match_mode: e.target.value as AppSettings["default_match_mode"] })}
+                className="appearance-none w-full pl-3 pr-10 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+              >
+                {MATCH_MODE_KEYS.map((k) => (
+                  <option key={k} value={k}>{t(`settings.matchModes.${k}`)}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            </div>
           </SettingRow>
 
           <SettingRow label={t('settings.matchSpeed')} description={t('settings.matchSpeedDesc')}>

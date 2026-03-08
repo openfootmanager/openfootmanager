@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { GameStateData, PlayerData } from "../store/gameStore";
 import { Card, Badge, ProgressBar } from "./ui";
-import { Star, ArrowRightLeft, Users, Shield, Crosshair, Zap, Target, RefreshCw, Flag, AlertTriangle, User, ShoppingCart, Repeat, GitCompareArrows } from "lucide-react";
+import { Star, ArrowRightLeft, Users, Shield, Crosshair, Zap, Target, RefreshCw, Flag, AlertTriangle, User, ShoppingCart, Repeat, GitCompareArrows, ChevronDown } from "lucide-react";
 import { formatVal, positionBadgeVariant, calcOvr, calcAge } from "../lib/helpers";
 import { TraitList } from "./TraitBadge";
 import { useTranslation } from "react-i18next";
@@ -538,18 +538,21 @@ function CompareView({
   const playerB = roster.find(p => p.id === compareB) || null;
 
   const renderSelector = (value: string | null, onChange: (id: string | null) => void, otherId: string | null) => (
-    <select
-      value={value || ""}
-      onChange={e => onChange(e.target.value || null)}
-      className="w-full text-sm font-heading font-bold bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-200 border-0 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-primary-500"
-    >
-      <option value="">{t('squadCompare.selectPlayerA')}...</option>
-      {roster.filter(p => p.id !== otherId).map(p => (
-        <option key={p.id} value={p.id}>
-          {p.full_name} ({p.position.substring(0, 3)}, OVR {calcOvr(p)})
-        </option>
-      ))}
-    </select>
+    <div className="relative flex-1">
+      <select
+        value={value || ""}
+        onChange={e => onChange(e.target.value || null)}
+        className="appearance-none w-full pl-3 pr-10 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-heading font-bold"
+      >
+        <option value="">{t('squadCompare.selectPlayerA')}...</option>
+        {roster.filter(p => p.id !== otherId).map(p => (
+          <option key={p.id} value={p.id}>
+            {p.full_name} ({p.position.substring(0, 3)}, OVR {calcOvr(p)})
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" />
+    </div>
   );
 
   const attrColor = (val: number) =>
