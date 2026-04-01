@@ -1,0 +1,1708 @@
+{
+  "app": {
+    "name": "OpenFoot Manager",
+    "version": "v0.1.2-alpha"
+  },
+  "menu": {
+    "newGame": "Yeni Oyun",
+    "loadGame": "Oyunu Yükle",
+    "settings": "Ayarlar",
+    "exitGame": "Oyundan Çık",
+    "noSaves": "Kayıtlı oyun bulunamadı.",
+    "loadingSaves": "Kayıtlar yükleniyor...",
+    "deleteConfirm": "<strong>{{name}}</strong> silinsin mi?",
+    "delete": "Sil",
+    "cancel": "İptal",
+    "manager": "Menajer: {{name}}",
+    "deleteSave": "Kaydı sil",
+    "noResults": "Sonuç yok",
+    "importedDescription": "İçe aktarılan dünya veritabanı"
+  },
+  "createManager": {
+    "title": "Menajer Oluştur",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "dob": "Doğum Tarihi",
+    "nationality": "Uyruk",
+    "countryOfOrigin": "Ülke/Bölge",
+    "selectNationality": "Uyruk seçin...",
+    "selectCountry": "Ülke/Bölge seçin...",
+    "searchNationalities": "Uyruk ara...",
+    "chooseWorld": "Dünya Seç",
+    "minAge": "Minimum yaş: 30",
+    "placeholderFirst": "örn. Fatih",
+    "placeholderLast": "örn. Terim"
+  },
+  "validation": {
+    "required": "{{field}} zorunludur",
+    "maxLength": "{{field}} {{max}} karakteri geçmemelidir",
+    "minAge": "Menajer en az 30 yaşında olmalıdır",
+    "invalidDate": "Geçersiz tarih",
+    "invalidDob": "Geçersiz doğum tarihi"
+  },
+  "worldSelect": {
+    "title": "Dünya Seç",
+    "scanning": "Veritabanları taranıyor...",
+    "importFile": "Dosyadan içe aktar",
+    "startCareer": "Kariyeri Başlat",
+    "creatingWorld": "Dünya oluşturuluyor...",
+    "teams": "{{count}} takım",
+    "players": "{{count}} oyuncu",
+    "randomWorld": "Rastgele Dünya",
+    "randomDescription": "8 takım, oyuncu ve personelden oluşan rastgele lig"
+  },
+  "dashboard": {
+    "home": "Ana Sayfa",
+    "inbox": "Gelen Kutusu",
+    "manager": "Menajer",
+    "squad": "Kadro",
+    "tactics": "Taktikler",
+    "training": "Antrenman",
+    "staff": "Personel",
+    "finances": "Finans",
+    "transfers": "Transferler",
+    "players": "Oyuncular",
+    "teams": "Takımlar",
+    "tournaments": "Turnuvalar",
+    "schedule": "Fikstür",
+    "news": "Haberler",
+    "settings": "Ayarlar",
+    "exitToMenu": "Menüye Dön",
+    "continue": "Devam Et",
+    "simulating": "Simülasyon çalışıyor...",
+    "loading": "Oyun durumu yükleniyor...",
+    "noResults": "Sonuç bulunamadı.",
+    "searchPlaceholder": "Oyuncu, takım ara...",
+    "sectionClub": "Kulüp",
+    "sectionWorld": "Dünya",
+    "searchTeams": "Takımlar",
+    "searchPlayers": "Oyuncular",
+    "scouting": "Scout",
+    "youthAcademy": "Altyapı",
+    "saveGame": "Oyunu kaydet",
+    "saving": "Kaydediliyor...",
+    "saved": "Kaydedildi!",
+    "collapseSidebar": "Yan menüyü daralt",
+    "expandSidebar": "Yan menüyü genişlet",
+    "alerts": {
+      "exhausted": "{{count}} oyuncu kritik durumda (<25%)",
+      "injuredStartingXi": "İlk 11'de {{count}} sakat oyuncu var, değiştirin",
+      "incompleteStartingXi": "İlk 11 eksik, kadronuzu ayarlayın",
+      "urgentUnread": "{{count}} acil mesaj okunmadı",
+      "matchTodayStartingXi": "Bugün maç var, ilk 11'inizi ayarlayın"
+    }
+  },
+  "continueMenu": {
+    "goToField": "Sahaya Çık",
+    "goToFieldDesc": "Tam maç kontrolü",
+    "watchSpectator": "Seyirci Olarak İzle",
+    "watchSpectatorDesc": "Maçı izle, kontrol etme",
+    "delegateAssistant": "Yardımcıya Devret",
+    "delegateAssistantDesc": "YZ her şeyi anında yönetir",
+    "skipToMatchDay": "Maç Gününe Atla",
+    "skipToMatchDayDesc": "Bir sonraki maçına kadar hızlı ilerle",
+    "matchDayTitle": "Maç Günü",
+    "delegateWarning": "Maçı yardımcınız yönetecek. Müdahale edemeyeceksiniz."
+  },
+  "exitConfirm": {
+    "title": "Ana menüye dönülsün mü?",
+    "message": "Ana menüye dönmeden önce oyun otomatik kaydedilecek.",
+    "cancel": "İptal",
+    "saveExit": "Kaydet ve Çık",
+    "savingTitle": "Oyun kaydediliyor...",
+    "savingMessage": "İlerleme kaydedilip ana menüye dönülüyor."
+  },
+  "closeConfirm": {
+    "title": "Kaydedilmemiş Değişiklikler",
+    "message": "Kaydedilmemiş değişiklikler var. Ne yapmak istiyorsunuz?",
+    "saveQuit": "Kaydet ve Çık",
+    "quitNoSave": "Kaydetmeden Çık"
+  },
+  "onboarding": {
+    "title": "Başlangıç",
+    "description": "Takımını yeni sezona hazırlamak için bu adımları tamamla. Özellikle personel, antrenman ve toparlanma üzerinde etkilidir.",
+    "reviewSquad": "Kadroya göz at",
+    "reviewSquadDesc": "Oyuncu istatistiklerini, kondisyonu ve özellikleri kontrol et",
+    "hireStaff": "Teknik ekip işe al",
+    "hireStaffDesc": "Personel antrenman kalitesini ve toparlanmayı artırır",
+    "setTactics": "Diziliş ve taktik belirle",
+    "setTacticsDesc": "Kadrona uygun diziliş ve oyun planını seç",
+    "configTraining": "Antrenmanı yapılandır",
+    "configTrainingDesc": "Oyuncu gelişimi için odak ve program seç",
+    "readMessages": "Mesajlarını oku",
+    "readMessagesDesc": "Yönetim ve personelden önemli bilgiler seni bekliyor"
+  },
+  "home": {
+    "nextMatch": "Sıradaki Maç",
+    "leaguePosition": "Lig Sırası",
+    "standings": "Puan Durumu",
+    "noLeague": "Henüz lig verisi yok.",
+    "squadOverview": "Kadro Özeti",
+    "avgCondition": "Ort. Kondisyon",
+    "avgOvr": "Ort. OVR",
+    "exhaustedPlayers": "{{count}} oyuncu bitkin",
+    "recentResults": "Son Sonuçlar",
+    "noMatches": "Henüz maç oynanmadı.",
+    "latestNews": "Son Haberler",
+    "allNews": "Tüm Haberler",
+    "noNews": "Henüz haber yok.",
+    "recentMessages": "Son Mesajlar",
+    "viewAll": "Tümünü Gör",
+    "noMessages": "Son mesaj yok.",
+    "unreadMessages": "{{count}} okunmamış mesaj",
+    "playerMomentum": "Oyuncu Formu",
+    "inForm": "Formda",
+    "lowMorale": "Düşük moral",
+    "winningStreak": "Galibiyet serisi",
+    "losingStreak": "Mağlubiyet serisi",
+    "unbeatenRun": "Yenilmezlik serisi",
+    "boardObjectives": "Yönetim Hedefleri",
+    "seasonComplete": "Sezon tamamlandı.",
+    "noLeagueSchedule": "Lig verisi yok.",
+    "scheduleLabel": "Fikstür:",
+    "home": "İç saha",
+    "away": "Deplasman",
+    "matchdayN": "{{n}}. hafta",
+    "met": "Tamamlandı",
+    "inProgress": "Devam ediyor",
+    "objectivesMet": "{{done}}/{{total}} hedef tamamlandı, yönetim memnuniyeti: %{{pct}}",
+    "unavailablePlayers": "Eksik Oyuncular",
+    "daysUnavailable": "{{count}} gün kaldı"
+  },
+  "teamSelect": {
+    "title": "Kulübünü Seç",
+    "subtitle": "Yönetmek istediğin takımı seç",
+    "confirming": "Onaylanıyor...",
+    "manage": "{{name}} takımını yönet",
+    "reputation": "İtibar",
+    "squad": "Kadro",
+    "finances": "Finans",
+    "avgOvr": "Ort. OVR",
+    "seats": "{{name}} - {{capacity}} koltuk",
+    "repWorldClass": "Dünya Klasiği",
+    "repStrong": "Güçlü",
+    "repAverage": "Orta",
+    "repDeveloping": "Gelişen"
+  },
+  "youthAcademy": {
+    "title": "Altyapı",
+    "playersUnder21": "{{count}} oyuncu ≤21",
+    "youthPlayers": "Genç Oyuncular",
+    "avgOvr": "Ort. OVR",
+    "avgPotential": "Ort. Potansiyel",
+    "highPotential": "Yüksek Potansiyel",
+    "youthCoach": "Gençlik antrenörü:",
+    "youthProspects": "Genç Yetenekler",
+    "noYouthPlayers": "Kadronuzda genç oyuncu (≤21) yok.",
+    "player": "Oyuncu",
+    "pos": "Poz",
+    "age": "Yaş",
+    "ovr": "OVR",
+    "potential": "Potansiyel",
+    "growth": "Gelişim",
+    "traits": "Özellikler",
+    "condition": "Kondisyon",
+    "potWorldClass": "Dünya Klasiği",
+    "potExcellent": "Mükemmel",
+    "potPromising": "Umut vadeden",
+    "potDecent": "İyi",
+    "potLimited": "Sınırlı"
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "loadingGameState": "Oyun durumu yükleniyor...",
+    "noResults": "Sonuç bulunamadı.",
+    "place": {
+      "1": "1.",
+      "2": "2.",
+      "3": "3.",
+      "other": "{{n}}."
+    },
+    "pts": "P",
+    "played": "O",
+    "won": "G",
+    "drawn": "B",
+    "lost": "M",
+    "gf": "AG",
+    "ga": "YG",
+    "gd": "A",
+    "injured": "Sakat",
+    "back": "Geri",
+    "all": "Tümü",
+    "allPlayers": "Tüm oyuncular",
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "save": "Kaydet",
+    "search": "Ara",
+    "noTeam": "Takım atanmadı.",
+    "unemployed": "Şu anda işsizsin.",
+    "freeAgent": "Boşta",
+    "unknown": "Bilinmiyor",
+    "present": "Günümüz",
+    "season": "Sezon {{n}}",
+    "matchday": "{{n}}. hafta",
+    "result": "sonuç",
+    "results": "sonuç",
+    "vs": "vs",
+    "age": "Yaş",
+    "ovr": "OVR",
+    "condition": "Kondisyon",
+    "morale": "Moral",
+    "value": "Değer",
+    "wage": "Maaş",
+    "name": "Ad",
+    "team": "Takım",
+    "player": "Oyuncu",
+    "actions": "İşlemler",
+    "position": "Pozisyon",
+    "nationality": "Uyruk",
+    "contract": "Sözleşme",
+    "status": "Durum",
+    "average": "Average",
+    "goalsFor": "GF",
+    "goalsAgainst": "GA",
+    "goalDifference": "GD",
+    "nPlayersFound": "{{count}} player(s) found",
+    "nResults": "{{count}} result(s)",
+    "showingFirst": "Showing first {{shown}} of {{total}} players. Refine your search to see more.",
+    "noPlayersMatch": "No players match your filters.",
+    "positions": {
+      "Goalkeeper": "Goalkeeper",
+      "Defender": "Defender",
+      "Midfielder": "Midfielder",
+      "Forward": "Forward"
+    },
+    "posAbbr": {
+      "Goalkeeper": "GK",
+      "Defender": "DEF",
+      "Midfielder": "MID",
+      "Forward": "FWD"
+    },
+    "playStyles": {
+      "Balanced": "Balanced",
+      "Attacking": "Attacking",
+      "Defensive": "Defensive",
+      "Possession": "Possession",
+      "Counter": "Counter",
+      "HighPress": "High Press"
+    },
+    "trainingSchedules": {
+      "Intense": "Intense",
+      "Balanced": "Balanced",
+      "Light": "Light"
+    },
+    "trainingFocuses": {
+      "Physical": "Physical",
+      "Technical": "Technical",
+      "Tactical": "Tactical",
+      "Defending": "Defending",
+      "Attacking": "Attacking",
+      "Recovery": "Recovery",
+      "General": "General"
+    },
+    "attributes": {
+      "pace": "Pace",
+      "stamina": "Stamina",
+      "strength": "Strength",
+      "agility": "Agility",
+      "passing": "Passing",
+      "shooting": "Shooting",
+      "tackling": "Tackling",
+      "dribbling": "Dribbling",
+      "defending": "Defending",
+      "positioning": "Positioning",
+      "vision": "Vision",
+      "decisions": "Decisions",
+      "composure": "Composure",
+      "aggression": "Aggression",
+      "teamwork": "Teamwork",
+      "leadership": "Leadership",
+      "handling": "Handling",
+      "reflexes": "Reflexes",
+      "aerial": "Aerial"
+    },
+    "moods": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "mixed": "Mixed",
+      "poor": "Poor"
+    },
+    "injuries": {
+      "minorMuscleStrain": "Minor muscle strain",
+      "twistedAnkle": "Twisted ankle",
+      "kneeBruise": "Knee bruise",
+      "hamstringTightness": "Hamstring tightness",
+      "calfStrain": "Calf strain"
+    },
+    "scoutRatings": {
+      "excellent": "Excellent",
+      "veryGood": "Very Good",
+      "good": "Good",
+      "average": "Average",
+      "belowAverage": "Below Average"
+    },
+    "scoutPotential": {
+      "worldClass": "World class potential",
+      "strong": "Strong development potential",
+      "moderate": "Moderate potential for growth",
+      "unclear": "Potential unclear — further scouting recommended"
+    },
+    "scoutConfidence": {
+      "high": "High",
+      "moderate": "Moderate",
+      "low": "Low"
+    },
+    "attrGroups": {
+      "physical": "Physical",
+      "technical": "Technical",
+      "mental": "Mental",
+      "goalkeeper": "Goalkeeper"
+    }
+  },
+  "teamSelection": {
+    "title": "Kulübünü Seç",
+    "subtitle": "Yönetmek istediğin takımı seç",
+    "confirming": "Onaylanıyor...",
+    "manage": "{{team}} takımını yönet",
+    "reputation": "İtibar",
+    "squad": "Kadro",
+    "finances": "Finans",
+    "avgOvr": "Ort. OVR",
+    "worldClass": "Dünya klası",
+    "strong": "Güçlü",
+    "average": "Orta",
+    "developing": "Gelişen"
+  },
+  "squad": {
+    "title": "{{team}} Kadrosu",
+    "playerCount": "{{count}} Oyuncu",
+    "noPlayers": "Kadronuzda oyuncu bulunamadı.",
+    "pos": "Poz",
+    "traits": "Özellikler",
+    "fullRoster": "Tam Kadro",
+    "compare": "Karşılaştır",
+    "selected": "seçildi",
+    "playersLabel": "oyuncu",
+    "noBench": "Yedek oyuncu yok.",
+    "viewProfile": "Profili görüntüle",
+    "swapPlayer": "Oyuncuyu değiştir",
+    "addToTransferList": "Transfer listesine ekle",
+    "removeFromTransferList": "Transfer listesinden çıkar",
+    "addToLoanList": "Kiralık listesine ekle",
+    "removeFromLoanList": "Kiralık listesinden çıkar",
+    "outOfPosition": "Mevki dışı",
+    "outOfPositionTooltip": "Oyuncu tercih ettiği rolün dışında oynuyor",
+    "dragHint": "Yedek oyuncuları sahaya sürükleyin veya ilk 11 oyuncularını yuvalar arasında değiştirin.",
+    "benchDragHint": "Oyuncuları doğrudan sahaya sürüklemek için yedek listesini kullanın.",
+    "dropPlayerHere": "Oyuncuyu buraya bırak",
+    "dragToPitch": "Sahaya sürükle",
+    "filterPlayers": "Oyuncu adı veya pozisyona göre filtrele",
+    "noBenchMatches": "Mevcut filtrelerle eşleşen yedek oyuncu yok.",
+    "noLineupMatches": "Mevcut filtrelerle eşleşen ilk 11 oyuncusu yok.",
+    "playStyleImpactTitle": "Bu neyi değiştirir",
+    "playStyleDescriptions": {
+      "Balanced": "Takımın topa sahipken ve savunmadayken dengeli kalmasını, düzenli bir şekil korumasını sağlar.",
+      "Attacking": "Daha fazla oyuncuyu ileri iter, ceza sahası çevresinde destek oluşturur ve daha fazla inisiyatif ister.",
+      "Defensive": "Takımın önce alanı savunmasına, kompakt kalmasına ve arkada boşluk vermemesine odaklanır.",
+      "Possession": "Topun sabırla dolaştırılmasını, temponun kontrol edilmesini ve daha temiz fırsatlar aranmasını teşvik eder.",
+      "Counter": "Top kazanıldıktan sonra rakip yerleşmeden boş alanlara hızlı çıkışı teşvik eder.",
+      "HighPress": "Takımın daha erken baskı yapmasını, topu ileride kazanmasını ve rakibi baskı altında tutmasını ister."
+    }
+  },
+  "tactics": {
+    "formationStyle": "Diziliş ve Stil",
+    "formation": "Diziliş",
+    "playStyle": "Oyun Stili",
+    "lineupTab": "Diziliş",
+    "rolesTab": "Duran Toplar ve Roller",
+    "teamRoles": "Takım Rolleri",
+    "viceCaptain": "Kaptan yardımcısı",
+    "setPiecesSection": "Duran Toplar",
+    "rolesHint": "Liderlik sırasını ve duran top uzmanlarını mevcut ilk 11 içinden seçin.",
+    "autoSelectAssignments": "Varsayılanları otomatik seç",
+    "noStartersForRoles": "Takım rolleri ve duran topları atamak için ilk 11'inizi belirleyin.",
+    "startingXI": "İlk 11 — {{formation}}",
+    "fullSquad": "Tam Kadro",
+    "pitchInteractionHint": "Oyuncuları saha ile yedek kulübesi arasında sürükleyin, bir oyuncuya tıklayıp inceleyin, ikinci oyuncuya tıklayıp karşılaştırın, sonra karşılaştırma panelinden değişimi onaylayın.",
+    "selectedPlayer": "Seçilen oyuncu",
+    "comparePlayer": "Karşılaştırılan oyuncu",
+    "selectSecondPlayer": "Özellikleri karşılaştırmak ve değişime hazırlanmak için diziliş ekranında ikinci bir oyuncu seçin.",
+    "compareSelectionHint": "Aşağıda iki oyuncuyu inceleyin, hazır olduğunuzda değişimi onaylayın.",
+    "confirmSwap": "Değişimi onayla",
+    "selectPitchPlayer": "Özelliklerini incelemek için dizilişte bir oyuncu seçin.",
+    "selectAnotherToSwap": "Karşılaştırmak ve değişimi onaylamak için ikinci bir oyuncu seçin."
+  },
+  "training": {
+    "weeklySchedule": "Haftalık Program",
+    "trainingFocus": "Antrenman Odağı",
+    "intensity": "Yoğunluk",
+    "squadFitness": "Takım Kondisyonu",
+    "playerFitness": "Oyuncu Kondisyonu",
+    "avgCondition": "Ort. Kondisyon",
+    "avgMorale": "Ort. Moral",
+    "train": "Antrenman",
+    "rest": "Dinlenme",
+    "todayIs": "Bugün <strong>{{day}}</strong> — {{type}}.",
+    "aTrainingDay": "antrenman günü",
+    "aRestDay": "dinlenme günü",
+    "currentlyTraining": "Şu an <strong>{{attrs}}</strong> üzerinde <strong>{{intensity}}</strong> yoğunlukta çalışılıyor.",
+    "recoveryNote": "Oyuncular tüm günlerde dinlenme ve kondisyon toparlanmasına odaklanacak.",
+    "effectiveFocus": "Odak",
+    "trainingAppliedNote": "Antrenman, zaman ilerletildiğinde planlı antrenman günlerinde uygulanır. Dinlenme günleri tam toparlanma sağlar.",
+    "criticalCondition": "{{count}} oyuncu kritik durumda (<25%)",
+    "exhaustedPlayers": "{{count}} oyuncu bitkin (<40%)",
+    "staffAlert": "Personel Uyarısı",
+    "staffWarning": "Personel İkazı",
+    "staffSuggestion": "Personel Önerisi",
+    "focuses": {
+      "Physical": {
+        "label": "Fiziksel",
+        "desc": "Dayanıklılık ve güç geliştir"
+      },
+      "Technical": {
+        "label": "Teknik",
+        "desc": "Top becerilerini geliştir"
+      },
+      "Tactical": {
+        "label": "Taktiksel",
+        "desc": "Oyun zekasını artır"
+      },
+      "Defending": {
+        "label": "Savunma",
+        "desc": "Arka hattı sağlamlaştır"
+      },
+      "Attacking": {
+        "label": "Hücum",
+        "desc": "Gol tehdidini artır"
+      },
+      "Recovery": {
+        "label": "Toparlanma",
+        "desc": "Dinlenme günü — maksimum yenilenme"
+      }
+    },
+    "intensities": {
+      "Low": {
+        "label": "Düşük",
+        "desc": "Hafif seans — daha az yorgunluk, daha yavaş gelişim"
+      },
+      "Medium": {
+        "label": "Orta",
+        "desc": "Dengeli iş yükü — standart sonuçlar"
+      },
+      "High": {
+        "label": "Yüksek",
+        "desc": "Yoğun çalışma — daha hızlı gelişim, daha fazla yorgunluk"
+      }
+    },
+    "schedules": {
+      "Intense": {
+        "label": "Yoğun",
+        "desc": "6 gün antrenman, 1 gün dinlenme",
+        "detail": "Maksimum oyuncu gelişimi. Sadece pazar tatil. Yorgunluk birikimi riski vardır."
+      },
+      "Balanced": {
+        "label": "Dengeli",
+        "desc": "4 gün antrenman, 3 gün dinlenme",
+        "detail": "Pzt, Sal, Per, Cum antrenman. Çar, Cmt, Paz dinlenme. Çoğu kadro için önerilir."
+      },
+      "Light": {
+        "label": "Hafif",
+        "desc": "2 gün antrenman, 5 gün dinlenme",
+        "detail": "Sadece Salı ve Perşembe antrenman. Toparlanmayı önceliklendirir. Yoğun maç fikstürü sonrası iyidir."
+      }
+    },
+    "days": {
+      "mon": "Pzt",
+      "tue": "Sal",
+      "wed": "Çar",
+      "thu": "Per",
+      "fri": "Cum",
+      "sat": "Cmt",
+      "sun": "Paz"
+    },
+    "groups": {
+      "trainingGroups": "Antrenman Grupları",
+      "trainingGroupsDesc": "Oyuncuları farklı antrenman odaklarına sahip gruplara ayırın. Grupsuz oyuncular takım varsayılanını kullanır.",
+      "addGroup": "Grup Ekle",
+      "groupName": "Grup Adı",
+      "groupFocus": "Odak",
+      "removeGroup": "Grubu Kaldır",
+      "ungrouped": "Grupsuz",
+      "noGroups": "Henüz antrenman grubu oluşturulmadı. Antrenmanı özelleştirmek için grup ekleyip oyuncu atayın.",
+      "group": "Grup",
+      "teamDefault": "Takım Varsayılanı",
+      "assignPlayer": "Gruba ata",
+      "removePlayer": "Gruptan çıkar",
+      "playerCount": "{{count}} oyuncu",
+      "maxGroups": "En fazla 5 antrenman grubuna izin verilir.",
+      "defaultGroupNames": {
+        "0": "Savunmacılar",
+        "1": "Orta Sahalar",
+        "2": "Hücumcular",
+        "3": "Gençler",
+        "4": "Toparlanma"
+      }
+    }
+  },
+  "staff": {
+    "myStaff": "Personelim ({{count}})",
+    "available": "Uygun Olanlar ({{count}})",
+    "searchStaff": "Personel ara...",
+    "noStaffMatch": "Filtrelerinize uyan personel yok.",
+    "noAvailableStaff": "Uygun personel bulunamadı.",
+    "releaseStaff": "Personeli serbest bırak",
+    "hireStaff": "Personeli işe al",
+    "best": "En iyi",
+    "roles": {
+      "AssistantManager": "Yardımcı Antrenör",
+      "Coach": "Antrenör",
+      "Scout": "Scout",
+      "Physio": "Fizyoterapist"
+    },
+    "attrs": {
+      "coaching": "Antrenörlük",
+      "judgingAbility": "Yetenek Değerlendirme",
+      "judgingPotential": "Potansiyel Değerlendirme",
+      "physiotherapy": "Fizyoterapi"
+    },
+    "specializations": {
+      "Fitness": "Kondisyon",
+      "Technique": "Technique",
+      "Tactics": "Taktik",
+      "Defending": "Savunma",
+      "Attacking": "Hücum",
+      "GoalKeeping": "Kalecilik",
+      "Youth": "Genç Gelişimi"
+    }
+  },
+  "finances": {
+    "overview": "Finansal Genel Bakış",
+    "wageBill": "Maaş Yükü",
+    "weeklyTotal": "Haftalık Toplam",
+    "budget": "Bütçe",
+    "underBudget": "Bütçe altında",
+    "overBudget": "Bütçe aşıldı!",
+    "payroll": "Bordro — En Çok Kazananlar",
+    "squadValue": "Kadro Değeri",
+    "clubBalance": "Kulüp Bakiyesi",
+    "wageBudget": "Maaş Bütçesi",
+    "transferBudget": "Transfer Bütçesi",
+    "seasonIncome": "Sezon Geliri",
+    "seasonExpenses": "Sezon Gideri",
+    "perWeekSuffix": "/hf",
+    "wagePerWeek": "Maaş/hf",
+    "marketValue": "Piyasa Değeri",
+    "until": "{{year}} yılına kadar"
+  },
+  "inbox": {
+    "title": "Gelen Kutusu",
+    "nMessages": "{{count}} mesaj",
+    "noMessages": "Mesaj yok",
+    "noMessagesInCategory": "Bu kategoride mesaj yok",
+    "selectMessage": "Okumak için bir mesaj seçin",
+    "backToInbox": "Gelen kutusuna dön",
+    "unread": "Okunmamış ({{count}})",
+    "urgent": "Acil",
+    "important": "Önemli",
+    "chooseResponse": "Cevabınızı seçin",
+    "responded": "Cevap gönderildi",
+    "markAllRead": "Tümünü okundu işaretle",
+    "clearOld": "Eskileri temizle",
+    "sortLabel": "Sırala",
+    "sortByDate": "Mesajları tarihe göre sırala",
+    "sortNewest": "Önce en yeni",
+    "sortOldest": "Önce en eski",
+    "selectMessages": "Mesaj seç",
+    "cancelSelection": "Seçimi iptal et",
+    "selectedCount": "{{count}} seçildi",
+    "deleteSelected": "Seçilenleri sil",
+    "deleteMessage": "Mesajı sil",
+    "deleteMessageTitle": "Mesaj silinsin mi?",
+    "deleteMessageBody": "\"{{subject}}\" kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+    "deleteSelectedTitle": "Seçili mesajlar silinsin mi?",
+    "deleteSelectedBody": "{{count}} seçili mesaj kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+    "deleteAction": "Sil",
+    "selectMessageForDeletion": "{{subject}} seç",
+    "categories": {
+      "Welcome": "Hoş Geldin",
+      "LeagueInfo": "Lig",
+      "MatchPreview": "Maç",
+      "MatchResult": "Sonuç",
+      "Transfer": "Transfer",
+      "BoardDirective": "Yönetim",
+      "PlayerMorale": "Moral",
+      "Injury": "Sakatlık",
+      "Training": "Antrenman",
+      "Finance": "Finans",
+      "Contract": "Sözleşme",
+      "ScoutReport": "Scout",
+      "Media": "Medya",
+      "System": "Sistem"
+    }
+  },
+  "manager": {
+    "managerOf": "{{team}} menajeri",
+    "reputation": "İtibar",
+    "careerStats": "Kariyer İstatistikleri",
+    "boardStatus": "Yönetim Durumu",
+    "satisfaction": "Memnuniyet",
+    "careerHistory": "Kariyer Geçmişi",
+    "club": "Kulüp",
+    "period": "Dönem",
+    "matches": "Maçlar",
+    "wins": "Galibiyet",
+    "draws": "Beraberlik",
+    "losses": "Mağlubiyet",
+    "trophies": "Kupalar",
+    "winPercent": "Galibiyet %",
+    "boardVeryPleased": "Yönetim çalışmanızdan çok memnun.",
+    "boardSatisfied": "Yönetim performansınızdan memnun.",
+    "boardConcerns": "Yönetimin sonuçlarla ilgili endişeleri var.",
+    "boardThreat": "Göreviniz ciddi biçimde tehlikede."
+  },
+  "boardObjectives": {
+    "objective": {
+      "LeaguePosition": "İlk {{target}} içinde bitir",
+      "Wins": "En az {{target}} maç kazan",
+      "GoalsScored": "En az {{target}} gol at"
+    }
+  },
+  "transfers": {
+    "centre": "Transfer Merkezi",
+    "transferWindow": "{{team}} — Transfer Dönemi",
+    "myTransferList": "Transfer Listem",
+    "transferMarket": "Transfer Pazarı",
+    "loanMarket": "Kiralık Pazarı",
+    "offers": "Teklifler",
+    "searchByName": "Ada göre ara...",
+    "noPlayersListed": "Transfer veya kiralık listesinde oyuncunuz yok.",
+    "goToProfile": "Bir oyuncuyu transfer veya kiralık listesine eklemek için profiline gidin.",
+    "noOffers": "Şu anda aktif transfer teklifi yok.",
+    "noTransferMarket": "Şu anda transfere açık oyuncu yok.",
+    "noLoanMarket": "Şu anda kiralığa açık oyuncu yok.",
+    "transfer": "Transfer",
+    "loan": "Kiralık",
+    "none": "Yok",
+    "listed": "Listede",
+    "makeBid": "Transfer Teklifi Yap",
+    "playerValue": "Değer: {{value}}",
+    "bidAmount": "Teklif Tutarı (€M)",
+    "bidAccepted": "Teklif kabul edildi! Oyuncu imzaladı.",
+    "bidRejected": "Teklif reddedildi — teklif çok düşük.",
+    "submitting": "Gönderiliyor...",
+    "submitBid": "Teklifi Gönder",
+    "close": "Kapat"
+  },
+  "schedule": {
+    "noSchedule": "Kullanılabilir lig fikstürü yok.",
+    "noLeague": "Kullanılabilir lig fikstürü yok.",
+    "fixtures": "Fikstür",
+    "standings": "Puan Durumu",
+    "matchday": "{{number}}. hafta",
+    "season": "{{number}}. sezon"
+  },
+  "players": {
+    "searchPlaceholder": "Ad veya uyruğa göre ara...",
+    "allPos": "Tüm Poz",
+    "allTeams": "Tüm Takımlar",
+    "nPlayersFound": "{{count}} oyuncu bulundu",
+    "noMatch": "Filtrelerinize uyan oyuncu yok.",
+    "showingFirst": "{{total}} oyuncunun ilk {{shown}} tanesi gösteriliyor. Daha fazlasını görmek için aramanızı daraltın.",
+    "showingRange": "{{from}}–{{to}} / {{total}}"
+  },
+  "teams": {
+    "yourTeam": "Takımın",
+    "squad": "Kadro",
+    "avgOvr": "Ort. OVR",
+    "rep": "İtb",
+    "est": "Kur."
+  },
+  "playersList": {
+    "searchPlaceholder": "Ad veya uyruğa göre ara...",
+    "allPos": "Tüm Poz",
+    "allTeams": "Tüm Takımlar",
+    "injured": "Sakat"
+  },
+  "teamsList": {
+    "yourTeam": "Takımın",
+    "pos": "Poz",
+    "rep": "İtb",
+    "est": "Kur. {{year}}"
+  },
+  "tournaments": {
+    "noTournaments": "Aktif turnuva yok.",
+    "noActive": "Aktif turnuva yok.",
+    "nTeams": "{{count}} takım",
+    "progress": "İlerleme",
+    "matches": "Maçlar",
+    "goals": "Goller",
+    "overview": "Genel Bakış",
+    "leagueTable": "Lig Tablosu",
+    "topScorers": "Gol Krallığı",
+    "noGoals": "Henüz gol atılmadı."
+  },
+  "news": {
+    "noNews": "Henüz haber yok.",
+    "newsWillAppear": "Sezon ilerledikçe haberler burada görünecek.",
+    "backToNews": "Haberlere dön",
+    "nArticles": "{{count}} haber",
+    "categories": {
+      "MatchReport": "Maç Raporu",
+      "LeagueRoundup": "Lig Özeti",
+      "StandingsUpdate": "Puan Durumu",
+      "TransferRumour": "Transfer",
+      "InjuryNews": "Sakatlık",
+      "SeasonPreview": "Sezon Önizlemesi",
+      "Editorial": "Editoryal",
+      "ManagerialChange": "Teknik Direktör"
+    }
+  },
+  "playerProfile": {
+    "contractInfo": "Sözleşme ve Bilgi",
+    "dateOfBirth": "Doğum Tarihi",
+    "noContract": "Sözleşme yok",
+    "weeklyWage": "Haftalık Maaş",
+    "attributes": "Özellikler",
+    "attributesHidden": "Özellikler Gizli",
+    "scoutToView": "Detaylı özellikleri görmek için bu oyuncuyu scout edin veya kadroya katın.",
+    "seasonStats": "Sezon İstatistikleri",
+    "apps": "Maç",
+    "goals": "Gol",
+    "assists": "Asist",
+    "mins": "Dak",
+    "cleanSheets": "Gol yememe",
+    "yellows": "Sarı",
+    "reds": "Kırmızı",
+    "avgRating": "Ort. Puan",
+    "careerHistory": "Kariyer Geçmişi",
+    "noCareer": "Henüz kariyer geçmişi yok — ilk sezon.",
+    "nApps": "{{count}} maç",
+    "nGoals": "{{count}} gol",
+    "nAssists": "{{count}} asist",
+    "daysRemaining": "{{count}} gün kaldı — Oyuncu seçime uygun değil"
+  },
+  "teamProfile": {
+    "clubInfo": "Kulüp Bilgisi",
+    "stadium": "Stadyum",
+    "capacity": "Kapasite",
+    "leaguePos": "Lig Sırası",
+    "leagueStanding": "Lig Durumu",
+    "squadOverview": "Kadro Özeti",
+    "squadSize": "Kadro Büyüklüğü",
+    "seasonHistory": "Sezon Geçmişi",
+    "balance": "Bakiye",
+    "totalWages": "Toplam Maaş",
+    "managerLabel": "Menajer:"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "display": "Görüntü",
+    "theme": "Tema",
+    "themeDesc": "Uygulama görünümünü seç",
+    "language": "Dil",
+    "languageDesc": "Arayüz dili",
+    "currency": "Para Birimi",
+    "currencyDesc": "Finansal değerlerin gösterimi",
+    "gameplay": "Oynanış",
+    "defaultMatchMode": "Varsayılan Maç Modu",
+    "defaultMatchModeDesc": "Devam Et'e bastığınızda maçların nasıl başlayacağı",
+    "matchSpeed": "Maç Hızı",
+    "matchSpeedDesc": "Canlı maçlar için varsayılan simülasyon hızı",
+    "matchCommentary": "Maç Anlatımı",
+    "matchCommentaryDesc": "Canlı maçlarda olay anlatımını göster",
+    "confirmAdvance": "İlerlemeden Önce Onayla",
+    "confirmAdvanceDesc": "Bir günü ilerletmeden önce onay iste",
+    "savesData": "Kayıtlar ve Veriler",
+    "autoSave": "Otomatik Kayıt",
+    "autoSaveDesc": "Her günün ardından oyunu otomatik kaydet",
+    "exportWorld": "Dünya Veritabanını Dışa Aktar",
+    "exportWorldDesc": "Mevcut dünya verisini paylaşılabilir JSON dosyası olarak kaydet",
+    "export": "Dışa Aktar",
+    "exportedTo": "Şuraya aktarıldı: {{path}}",
+    "clearSaves": "Tüm Kayıtları Sil",
+    "clearSavesDesc": "Tüm kayıtlı oyunları kalıcı olarak sil",
+    "clear": "Temizle",
+    "savesCleared": "Kayıtlar silindi!",
+    "about": "Hakkında",
+    "matchModes": {
+      "live": "Sahaya Çık",
+      "liveDesc": "Tam maç kontrolü",
+      "spectator": "Seyirci Olarak İzle",
+      "spectatorDesc": "Sadece izle, kontrol yok",
+      "delegate": "Yardımcıya Devret",
+      "delegateDesc": "YZ her şeyi yönetir"
+    },
+    "speeds": {
+      "slow": "Yavaş",
+      "normal": "Normal",
+      "fast": "Hızlı"
+    },
+    "uiScale": "Arayüz Ölçeği",
+    "uiScaleDesc": "Okunabilirlik için yazı ve aralık boyutlarını ayarla",
+    "highContrast": "Yüksek Kontrast",
+    "highContrastDesc": "Okunabilirlik için kontrastı artır",
+    "fullscreen": "Tam Ekran",
+    "fullscreenDesc": "Uygulamayı tam ekran kullan",
+    "enterFullscreen": "Aç",
+    "exitFullscreen": "Çık"
+  },
+  "preMatch": {
+    "formationFit": "Diziliş Uyumu",
+    "autoSelect": "En İyi İlk 11'i Otomatik Seç",
+    "selecting": "Seçiliyor...",
+    "startingXI": "İlk 11",
+    "substitutes": "Yedekler",
+    "opponent": "Rakip",
+    "nPlayers": "{{count}} oyuncu",
+    "nAvailable": "{{count}} uygun",
+    "noBench": "Uygun yedek oyuncu yok.",
+    "cancelSwap": "İptal",
+    "swapHint": "Değiştirmek için bir yedek oyuncu seçin",
+    "setPieces": "Duran Toplar ve Kaptan",
+    "lineup": "Diziliş",
+    "startMatch": "Maçı Başlat",
+    "captain": "Kaptan",
+    "penaltyTaker": "Penaltıcı",
+    "freeKickTaker": "Serbest Vuruşçu",
+    "cornerTaker": "Kornerci",
+    "fit": "FIT",
+    "keyStats": "Öne Çıkan İstatistikler"
+  },
+  "scouting": {
+    "title": "Scout Merkezi",
+    "scouts": "Scoutlar",
+    "activeAssignments": "Aktif Görevler",
+    "freeSlots": "Boş Slotlu Scoutlar",
+    "activeScoutingAssignments": "Aktif Scout Görevleri",
+    "yourScouts": "Scoutların",
+    "slots": "slot",
+    "judgingAbility": "Yetenek Değerlendirme",
+    "judgingPotential": "Potansiyel Değerlendirme",
+    "scoutingPlayer": "Scout ediliyor: <strong>{{name}}</strong> — {{days}}g kaldı",
+    "scoutLabel": "Scout: {{name}}",
+    "daysLeft": "{{days}} gün kaldı",
+    "noScouts": "Henüz scoutunuz yok.",
+    "noScoutsHint": "Oyuncu değerlendirmeye başlamak için Personel ekranından bir scout işe alın.",
+    "findPlayers": "Scout Edilecek Oyuncu Bul",
+    "searchPlaceholder": "Ad, uyruk veya takıma göre ara...",
+    "player": "Oyuncu",
+    "pos": "Poz",
+    "age": "Yaş",
+    "team": "Takım",
+    "value": "Değer",
+    "action": "Aksiyon",
+    "scoutingInProgress": "Scout ediliyor...",
+    "noScoutsFree": "Boşta scout yok",
+    "scoutBtn": "Scout",
+    "noPlayersFound": "Aramanıza uyan oyuncu bulunamadı.",
+    "showingRange": "{{total}} içinden {{from}}–{{to}} gösteriliyor",
+    "viewPlayer": "Görüntüle",
+    "condition": "Kondisyon",
+    "morale": "Moral",
+    "estimatedAttributes": "Tahmini Özellikler",
+    "undiscovered": "Keşfedilmedi",
+    "confidence": "Güven"
+  },
+  "match": {
+    "live": "Canlı",
+    "paused": "Duraklatıldı",
+    "events": "Olaylar",
+    "stats": "İstatistikler",
+    "lineups": "Dizilişler",
+    "simSpeed": "Simülasyon Hızı",
+    "pause": "Duraklat",
+    "slow": "Yavaş",
+    "normal": "Normal",
+    "fast": "Hızlı",
+    "max": "Max",
+    "step1Min": "1 Dakika İlerle",
+    "teamControls": "Takım Kontrolleri",
+    "subs": "Değişiklik",
+    "formation": "Diziliş",
+    "playStyle": "Oyun Stili",
+    "keyEvents": "Önemli Olaylar",
+    "noEventsYet": "Maç henüz başlamadı.",
+    "waitingKickoff": "Başlama vuruşu bekleniyor...",
+    "assist": "asist: {{name}}",
+    "subFor": "{{name}} yerine",
+    "possession": "Topa Sahip Olma",
+    "shots": "Şut",
+    "shotsOnTarget": "İsabetli Şut",
+    "fouls": "Faul",
+    "corners": "Korner",
+    "yellowCards": "Sarı Kart",
+    "bench": "Yedek Kulübesi",
+    "substitutions": "Oyuncu Değişiklikleri",
+    "substitutionsTitle": "Oyuncu Değişiklikleri",
+    "subsUsed": "{{used}}/{{max}} kullanıldı",
+    "allSubsUsed": "Tüm oyuncu değişiklikleri kullanıldı",
+    "selectPlayerOff": "Oyundan çıkacak oyuncuyu seç",
+    "takingOff": "Çıkan oyuncu: {{name}}",
+    "selectReplacement": "Yedek kulübesinden yerini alacak oyuncuyu seç",
+    "benchPlayers": "Yedek oyuncular",
+    "selectBenchToCompare": "Karşılaştırmak için bir yedek oyuncu seç",
+    "confirmSubstitution": "Değişikliği onayla",
+    "noBenchAvailable": "Uygun yedek oyuncu yok",
+    "history": "Geçmiş",
+    "player": "Oyuncu",
+    "fitness": "Kondisyon",
+    "halfTime": "Devre Arası",
+    "ht": "HT",
+    "fullTime": "Maç Sonu",
+    "ft": "FT",
+    "firstHalfEvents": "İlk Yarı Olayları",
+    "noMajorEvents": "Önemli olay yok.",
+    "teamTalk": "Takım Konuşması",
+    "teamTalkPrompt": "Devre arasında takıma nasıl hitap edeceğinizi seçin.",
+    "teamTalkOptions": {
+      "calm": {
+        "label": "Sakin Kalın",
+        "description": "Soğukkanlılığı koruyun ve oyun planına odaklanın."
+      },
+      "motivational": {
+        "label": "Motive Et",
+        "description": "Oyunculara en iyilerini vermeleri için ilham ver."
+      },
+      "assertive": {
+        "label": "Daha Fazlasını İste",
+        "description": "Bunun yeterli olmadığını söyle."
+      },
+      "aggressive": {
+        "label": "Ateşle",
+        "description": "Sert ve ateşli bir takım konuşması."
+      },
+      "praise": {
+        "label": "Öv",
+        "description": "Harika oynadıklarını söyle."
+      },
+      "disappointed": {
+        "label": "Hayal Kırıklığını Göster",
+        "description": "Gösterdikleri çabadan memnun olmadığını belirt."
+      }
+    },
+    "deliverTeamTalk": "Takım Konuşmasını Yap",
+    "delivered": "İletildi",
+    "spectatorMode": "Seyirci Modu",
+    "spectatorHT": "İki menajer de soyunma odasında takımlarıyla konuşuyor.",
+    "makeSubstitution": "Oyuncu Değişikliği Yap",
+    "waitingSecondHalf": "İkinci yarı bekleniyor...",
+    "makeChanges": "Değişikliklerini yap, sonra maça devam et.",
+    "resumeMatch": "Maça Devam Et",
+    "victory": "Galibiyet",
+    "defeat": "Mağlubiyet",
+    "draw": "Beraberlik",
+    "matchEvents": "Maç Olayları",
+    "quietMatch": "Sakin geçen bir maç.",
+    "quickStats": "Hızlı İstatistikler",
+    "postMatchTeamTalk": "Maç Sonu Takım Konuşması",
+    "addressPlayers": "Maçtan sonra oyuncularınıza hitap edin.",
+    "matchOver": "Maç Bitti",
+    "ratings": "{{team}} Puanları",
+    "motm": "Maçın Oyuncusu",
+    "scorers": "Scorers",
+    "noGoals": "Gol atılmadı.",
+    "matchComplete": "Maç tamamlandı.",
+    "addressPress": "Basına konuşun ya da geri dönün.",
+    "skip": "Skip",
+    "pressConference": "Basın Toplantısı",
+    "pressSubtitle": "Maç sonu basın toplantısı — {{team}}",
+    "skipConference": "Toplantıyı Geç →",
+    "submitting": "Gönderiliyor...",
+    "leaveConference": "Toplantıdan Ayrıl",
+    "nextQuestion": "Sonraki Soru",
+    "press": {
+      "result": {
+        "questions": {
+          "win": "A strong result today, {{userScore}}-{{oppScore}} against {{oppName}}. How pleased are you with the performance?",
+          "loss": "A tough result today, losing {{userScore}}-{{oppScore}} to {{oppName}}. What went wrong out there?",
+          "draw": "A {{userScore}}-{{oppScore}} draw against {{oppName}}. Is that a fair result?"
+        },
+        "responses": {
+          "win": {
+            "humble": {
+              "tone": "Humble",
+              "text": "The players worked hard. We prepared well and executed the game plan."
+            },
+            "confident": {
+              "tone": "Confident",
+              "text": "We were the better side from start to finish. A deserved result."
+            },
+            "deflect": {
+              "tone": "Deflect",
+              "text": "It's just three points. We move on to the next one."
+            }
+          },
+          "loss": {
+            "accept": {
+              "tone": "Accept",
+              "text": "We weren't good enough today. We have to look at what went wrong."
+            },
+            "defiant": {
+              "tone": "Defiant",
+              "text": "I don't think we deserved to lose. We created enough chances."
+            },
+            "deflect": {
+              "tone": "Deflect",
+              "text": "I'd rather not dwell on it. We'll be ready for the next match."
+            }
+          },
+          "draw": {
+            "fair": {
+              "tone": "Fair",
+              "text": "It was a fair result. Both teams had chances."
+            },
+            "frustrated": {
+              "tone": "Frustrated",
+              "text": "We should have won that. Too many missed opportunities."
+            },
+            "positive": {
+              "tone": "Positive",
+              "text": "A point is a point. There are positives to take from today."
+            }
+          }
+        }
+      },
+      "playerFocus": {
+        "questions": {
+          "scored": "{{playerName}} scored today. How important is their contribution to the team?",
+          "default": "Can you comment on {{playerName}}'s performance today?"
+        },
+        "responses": {
+          "praise": {
+            "tone": "Praise",
+            "text": "{{playerName}} has been fantastic. They're a key player for us and their work rate is exemplary."
+          },
+          "demanding": {
+            "tone": "Demanding",
+            "text": "{{playerName}} can do better. I expect more from a player of their quality."
+          },
+          "deflect": {
+            "tone": "Deflect",
+            "text": "I don't like to single out individuals. It's a team game."
+          }
+        }
+      },
+      "tactics": {
+        "question": "Can you talk us through your tactical approach today?",
+        "responses": {
+          "detailed": {
+            "tone": "Detailed",
+            "text": "We set up to control the midfield and use our width. I think the shape worked well."
+          },
+          "brief": {
+            "tone": "Brief",
+            "text": "We had a plan and the players executed it. That's all that matters."
+          },
+          "evasive": {
+            "tone": "Evasive",
+            "text": "I'd rather not give away too much. Every team has their secrets."
+          }
+        }
+      },
+      "fans": {
+        "questions": {
+          "win": "The fans were in great voice today. What does their support mean to you?",
+          "loss": "Some fans voiced frustration at full time. Do you have a message for them?",
+          "draw": "The atmosphere was tense at times today. How do you manage that pressure?"
+        },
+        "responses": {
+          "win": {
+            "grateful": {
+              "tone": "Humble",
+              "text": "The fans are incredible. They drive us forward every match and we owe them performances like today."
+            },
+            "shared": {
+              "tone": "Confident",
+              "text": "We all celebrate together — players, staff, and supporters. This is their victory too."
+            },
+            "deflect": {
+              "tone": "Deflect",
+              "text": "The fans know what we're about. We just focus on the pitch."
+            }
+          },
+          "loss": {
+            "apologize": {
+              "tone": "Accept",
+              "text": "I understand their frustration completely. They deserve better and we'll work hard to deliver."
+            },
+            "patience": {
+              "tone": "Focused",
+              "text": "I ask for patience. We're building something and bad days happen. We'll come back stronger."
+            },
+            "curt": {
+              "tone": "Curt",
+              "text": "I won't comment on things said in the heat of the moment. Let's move on."
+            }
+          },
+          "draw": {
+            "appreciate": {
+              "tone": "Positive",
+              "text": "I appreciate every single supporter who comes to watch us. Their energy lifts the team."
+            },
+            "understand": {
+              "tone": "Fair",
+              "text": "They want to see us win and so do I. We'll keep pushing until the results come."
+            },
+            "curt": {
+              "tone": "Curt",
+              "text": "I don't get involved with what happens in the stands. My focus is on the pitch."
+            }
+          }
+        }
+      },
+      "ahead": {
+        "question": "What's your focus going into the next match?",
+        "responses": {
+          "focused": {
+            "tone": "Focused",
+            "text": "Recovery first, then preparation. We take it one game at a time."
+          },
+          "ambitious": {
+            "tone": "Ambitious",
+            "text": "We want to keep building momentum. The target is clear."
+          },
+          "curt": {
+            "tone": "Curt",
+            "text": "Next question, please. We'll worry about that when it comes."
+          }
+        }
+      }
+    },
+    "pen": "PEN",
+    "home": "İç Saha",
+    "away": "Deplasman",
+    "matchDay": "Maç Günü",
+    "preMatchPrep": "Maç Öncesi Hazırlık",
+    "startingLineup": "Başlangıç Dizilişi",
+    "setPiecesCaptain": "Duran Toplar ve Kaptan",
+    "formationFit": "Diziliş Uyumu",
+    "selecting": "Seçiliyor...",
+    "autoSelectXI": "En İyi İlk 11'i Otomatik Seç",
+    "startingXI": "İlk 11",
+    "cancel": "İptal",
+    "nPlayers": "{{count}} oyuncu",
+    "swapPrompt": "Değiştirmek için bir yedek oyuncu seçin",
+    "substitutes": "Yedekler",
+    "nAvailable": "{{count}} uygun",
+    "noBenchAvailable2": "Uygun yedek oyuncu yok.",
+    "opponent": "Rakip",
+    "autoSelectTakers": "En İyi Kullanıcıları Otomatik Seç",
+    "captain": "Kaptan",
+    "penaltyTaker": "Penaltıcı",
+    "freeKickTaker": "Serbest Vuruşçu",
+    "cornerTaker": "Kornerci",
+    "startMatch": "Maçı Başlat",
+    "notAssigned": "Atanmadı",
+    "keyStats": "Öne Çıkan İstatistikler",
+    "continueDashboard": "Panele Devam Et"
+  },
+  "endOfSeason": {
+    "seasonComplete": "Sezon Tamamlandı",
+    "champions": "Şampiyonlar!",
+    "position": "Sıra",
+    "points": "Puan",
+    "finalStandings": "Final Sıralaması (İlk 5)",
+    "leagueChampions": "Lig Şampiyonu",
+    "startNextSeason": "Yeni Sezonu Başlat",
+    "processing": "İşleniyor...",
+    "statsArchived": "Oyuncu istatistikleri arşivlenecek. Yeni bir fikstür oluşturulacak.",
+    "newSeason": "{{n}}. Sezon",
+    "newScheduleReleased": "Yeni fikstür açıklandı. Bol şans!",
+    "goldenBoot": "Gol Krallığı",
+    "nGoals": "{{count}} gol",
+    "playerOfYear": "Yılın Oyuncusu",
+    "avgRating": "Ort. puan: {{rating}}",
+    "continueDashboard": "Panele Devam Et"
+  },
+  "squadCompare": {
+    "compare": "Karşılaştır"
+  },
+  "be": {
+    "sender": {
+      "boardOfDirectors": "Board of Directors",
+      "leagueOffice": "League Office",
+      "assistantManager": "Assistant Manager",
+      "matchReporter": "Match Reporter",
+      "headPhysio": "Head Physio",
+      "financialDirector": "Financial Director",
+      "commercialDirector": "Commercial Director",
+      "communityManager": "Community Manager",
+      "directorOfFootball": "Director of Football",
+      "intlLiaison": "International Liaison",
+      "player": "Player",
+      "pressOfficer": "Press Officer",
+      "scout": "Scout"
+    },
+    "role": {
+      "chairman": "Chairman",
+      "competitionSecretary": "Competition Secretary",
+      "assistantManager": "Assistant Manager",
+      "pressOfficer": "Press Officer",
+      "headPhysio": "Head Physio",
+      "financialDirector": "Financial Director",
+      "commercialDirector": "Commercial Director",
+      "communityManager": "Community Manager",
+      "directorOfFootball": "Director of Football",
+      "intlLiaison": "International Liaison",
+      "player": "Player",
+      "scout": "Scout"
+    },
+    "source": {
+      "sportsGazette": "Sports Gazette",
+      "footballHerald": "The Football Herald",
+      "matchDayPress": "Match Day Press",
+      "leagueChronicle": "League Chronicle",
+      "leagueWire": "League Wire"
+    },
+    "msg": {
+      "welcome": {
+        "subject0": "Welcome to {{team}}",
+        "subject1": "New Era at {{team}}",
+        "subject2": "{{team}} Awaits Your Leadership",
+        "body0": "The board of directors at {{team}} is delighted to welcome you as the new manager.\n\nWe have high hopes for your tenure and believe you can lead this club to glory. Your first task will be to review the squad and prepare a tactical plan for the upcoming season.\n\nWe wish you the best of luck.",
+        "body1": "On behalf of the entire {{team}} family, we are thrilled to announce your appointment as manager.\n\nThe fans are eager to see your vision for the team. Please take time to assess the squad, review our financial position, and set your tactical approach.\n\nThe board stands behind you.",
+        "body2": "Welcome to {{team}}! The supporters and staff are excited about the future under your guidance.\n\nWe recommend you start by reviewing your squad's strengths and weaknesses, then set up your preferred formation and training regime.\n\nThe upcoming season will be a true test — make us proud.",
+        "actionReview": "Review Squad",
+        "actionThank": "Thank the Board"
+      },
+      "schedule": {
+        "subject": "Season Schedule Released",
+        "body0": "The {{league}} schedule has been released. The season kicks off on {{start}}.\n\nReview the fixture list and ensure your squad is ready for the challenges ahead. Pre-season preparation will be crucial.",
+        "body1": "Fixture list confirmed! The {{league}} season begins on {{start}}.\n\nStudy the opening fixtures carefully — a strong start can set the tone for the whole campaign. Make sure your key players are match-fit.",
+        "actionView": "View Fixtures"
+      },
+      "preMatch": {
+        "subject": "Upcoming: vs {{opponent}} ({{venue}})",
+        "body0": "Your {{venue}} match against {{opponent}} is coming up on {{matchDate}}.\n\nMatchday {{matchday}} of the Premier Division. Make sure your starting XI is in good shape and your tactics are set.\n\nMake the most of playing at {{venue}}.",
+        "body1": "Reminder: you face {{opponent}} {{venue}} on {{matchDate}}.\n\nThis is Matchday {{matchday}} — review your squad fitness and consider any tactical adjustments.",
+        "actionTactics": "Set Tactics",
+        "actionScout": "Scout Opponent"
+      },
+      "matchResult": {
+        "subject": {
+          "victory": "Victory: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+          "defeat": "Defeat: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+          "draw": "Draw: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}"
+        },
+        "body": {
+          "victory0": "Full time: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nAn excellent result! The team put in a strong performance. Matchday {{matchday}} — keep this momentum going.",
+          "victory1": "Final whistle: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nThree points in the bag! The lads showed great character out there. Matchday {{matchday}} complete.",
+          "defeat0": "Full time: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nA disappointing result. We'll need to regroup and work on the areas that let us down. Matchday {{matchday}} — there's still time to turn things around.",
+          "defeat1": "Final score: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nNot the result we wanted. Matchday {{matchday}} — the board will want to see improvement. Review what went wrong and prepare for the next challenge.",
+          "draw": "Full time: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nA point earned in Matchday {{matchday}}. Depending on results elsewhere, this could be valuable. The team fought hard but couldn't find a winner."
+        },
+        "actionStandings": "View Standings"
+      },
+      "staffAdvice": {
+        "subject": "Staff Report — Coaching Vacancies",
+        "body": "Boss, I've had a look at the staff situation at {{team}} and wanted to flag a few things:\n\n• A good Coach will significantly improve training effectiveness — your players will develop faster.\n• A qualified Physio helps with injury prevention and speeds up recovery between matches.\n• Our Scouts can help identify transfer targets and assess opponents.\n\nI'd strongly recommend filling any vacancies before the season starts. You can find available staff in the Staff section.\n\nCheck it out when you get a chance.",
+        "actionView": "View Staff"
+      },
+      "boardExpect": {
+        "subject": "{{team}} — Season Objectives",
+        "body": "The board has set the following expectations for this season:\n\n• Finish in the top half of the table\n• Maintain financial stability\n• Develop young talent from the academy\n\nMeeting these objectives will strengthen your position. Failure to meet minimum expectations may result in a review of your tenure.\n\nWe trust in your abilities.",
+        "actionAccept": "Accept Objectives"
+      },
+      "boardObjectives": {
+        "subject": "Season {{season}} — Board Objectives",
+        "body": "The board has set the following objectives for this season:\n\n1. Finish in the top {{expectedPos}}\n2. Win at least {{winTarget}} matches\n3. Score at least {{goalsTarget}} goals\n\nMeeting these targets will improve the board's confidence in your management. Failure to meet expectations may result in reduced budgets or further consequences."
+      },
+      "financeCritical": {
+        "subject": "URGENT: Club in Debt",
+        "body": "The club is currently €{{amount}} in debt. This is an unsustainable situation.\n\nThe board demands immediate action to address the financial crisis. Consider selling players, reducing staff, or finding alternative income.\n\nFailure to resolve this may have serious consequences for your position."
+      },
+      "financeWarning": {
+        "subject": "Financial Warning — Low Reserves",
+        "body": "Our financial reserves are running low. At the current burn rate (€{{weeklyWages}}/week in wages), we have approximately {{weeksLeft}} weeks of funding remaining.\n\nI'd recommend reviewing the wage bill and exploring ways to boost income."
+      },
+      "wageOverBudget": {
+        "subject": "Wage Bill Exceeds Budget",
+        "body": "Our annual wage bill (€{{annualWages}}) currently exceeds the allocated wage budget (€{{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
+      },
+      "fitness": {
+        "critical": {
+          "subject": "URGENT: Squad Fitness Crisis",
+          "body": {
+            "intense": "Boss, we have a serious fitness crisis. {{criticalCount}} players are in critical condition and at risk of injury:\n\n{{players}}\n\nAverage squad fitness is at {{avgCondition}}%. With the current Intense schedule (6 days training), the squad is being pushed too hard. Switching to a Balanced schedule would give them recovery time.\n\nIf we push them further without rest, injuries are inevitable.",
+            "balanced": "Boss, we have a serious fitness crisis. {{criticalCount}} players are in critical condition and at risk of injury:\n\n{{players}}\n\nAverage squad fitness is at {{avgCondition}}%. Even on a Balanced schedule, the squad needs attention. Consider switching to a Light schedule temporarily.\n\nIf we push them further without rest, injuries are inevitable.",
+            "light": "Boss, we have a serious fitness crisis. {{criticalCount}} players are in critical condition and at risk of injury:\n\n{{players}}\n\nAverage squad fitness is at {{avgCondition}}%. The squad is already on a Light schedule — the issue may be high training intensity. Consider reducing intensity.\n\nIf we push them further without rest, injuries are inevitable."
+          }
+        },
+        "warning": {
+          "subject": "Squad Fitness Warning",
+          "body": {
+            "intense": "Boss, the squad is looking tired. Average fitness is {{avgCondition}}% and {{exhaustedCount}} players are below 40% condition.\n\nSwitching to a Balanced schedule would give the squad more recovery time.\n\nWe should consider giving the lads some rest before the next match.",
+            "balanced": "Boss, the squad is looking tired. Average fitness is {{avgCondition}}% and {{exhaustedCount}} players are below 40% condition.\n\nA Light schedule for a few days could help the squad bounce back.\n\nWe should consider giving the lads some rest before the next match.",
+            "light": "Boss, the squad is looking tired. Average fitness is {{avgCondition}}% and {{exhaustedCount}} players are below 40% condition.\n\nThe squad is already on a Light schedule, so recovery should come naturally. Just keep an eye on any particularly exhausted players.\n\nWe should consider giving the lads some rest before the next match."
+          }
+        },
+        "actionAdjust": "Adjust Training"
+      },
+      "event": {
+        "ack": "Understood",
+        "respond": "Respond"
+      },
+      "playerEvent": {
+        "respond": "Respond",
+        "options": {
+          "moraleCrisis": {
+            "encourage": {
+              "label": "Encourage them",
+              "description": "Show empathy and encourage the player to keep working hard."
+            },
+            "promiseTime": {
+              "label": "Promise more playing time",
+              "description": "Tell them they'll get their chance — bigger morale boost but sets expectations."
+            },
+            "workHarder": {
+              "label": "Tell them to work harder",
+              "description": "Tough love approach — could backfire or motivate them."
+            }
+          },
+          "benchComplaint": {
+            "explain": {
+              "label": "Explain the situation",
+              "description": "Calmly explain squad competition and rotation. Steady morale boost."
+            },
+            "promiseChance": {
+              "label": "Promise them a chance soon",
+              "description": "They'll be happier but will expect to start in upcoming matches."
+            },
+            "proveYourself": {
+              "label": "Tell them to prove themselves",
+              "description": "Challenge them to earn their place. Risky — could motivate or frustrate."
+            }
+          },
+          "happyPlayer": {
+            "praiseBack": {
+              "label": "Return the praise",
+              "description": "Tell them how much you value their contribution."
+            },
+            "stayProfessional": {
+              "label": "Stay professional",
+              "description": "Acknowledge their form but keep things measured."
+            },
+            "higherExpectations": {
+              "label": "Set higher expectations",
+              "description": "Challenge them to reach an even higher level. Could push or pressure."
+            }
+          },
+          "contractConcern": {
+            "reassure": {
+              "label": "Reassure them about renewal",
+              "description": "Tell them you want them to stay. Big morale boost."
+            },
+            "noncommittal": {
+              "label": "Be noncommittal",
+              "description": "Keep your options open. Player may become unsettled."
+            },
+            "noRenewal": {
+              "label": "Tell them you won't renew",
+              "description": "Honest but brutal. Morale will tank."
+            }
+          }
+        },
+        "effects": {
+          "moraleCrisis": {
+            "encourage": {
+              "positive": "Player feels a bit better. Morale {{delta}}",
+              "negative": "Player doesn't buy it. Morale {{delta}}"
+            },
+            "promiseTime": "Player is reassured by the promise. Morale {{delta}}. They'll expect to start soon.",
+            "workHarder": {
+              "positive": "Player accepts the challenge. Morale {{delta}}",
+              "negative": "Player is offended by the tough love. Morale {{delta}}"
+            }
+          },
+          "benchComplaint": {
+            "explain": {
+              "positive": "Player grudgingly accepts. Morale {{delta}}",
+              "negative": "Player isn't convinced. Morale {{delta}}"
+            },
+            "promiseChance": "Player is excited about the opportunity. Morale {{delta}}. They expect to start next match.",
+            "proveYourself": {
+              "positive": "Player is fired up to prove their worth. Morale {{delta}}",
+              "negative": "Player feels dismissed and insulted. Morale {{delta}}"
+            }
+          },
+          "happyPlayer": {
+            "praiseBack": "Player beams at the praise. Morale {{delta}}",
+            "stayProfessional": {
+              "positive": "Player nods professionally. Morale {{delta}}",
+              "negative": "Player wanted more warmth. Morale {{delta}}"
+            },
+            "higherExpectations": {
+              "positive": "Player rises to the challenge. Morale {{delta}}",
+              "negative": "Player feels the pressure is unfair. Morale {{delta}}"
+            }
+          },
+          "contractConcern": {
+            "reassure": "Player is reassured about their future. Morale {{delta}}",
+            "noncommittal": {
+              "positive": "Player grudgingly accepts for now. Morale {{delta}}",
+              "negative": "Player is unsettled and unhappy. Morale {{delta}}"
+            },
+            "noRenewal": "Player is devastated. Morale {{delta}}. They may affect the dressing room.",
+            "noRenewalWithDressingRoom": "Player is devastated. Morale {{delta}}. They may affect the dressing room. The dressing room mood dips — {{affected}} teammates lose morale."
+          }
+        }
+      },
+      "sponsor": {
+        "subject": "Sponsorship Offer — {{sponsor}}",
+        "body": "Good news, boss! {{sponsor}} has expressed interest in becoming a sponsor of {{team}}.\n\nThey are offering a one-time payment of €{{amount}} in exchange for advertising space at the training ground.\n\nThis seems like a reasonable deal, but it is your call.",
+        "options": {
+          "accept": {
+            "label": "Accept the deal",
+            "description": "Receive €{{amount}} in sponsorship income."
+          },
+          "decline": {
+            "label": "Decline politely",
+            "description": "Turn down the offer. No financial impact."
+          }
+        }
+      },
+      "trainingInjury": {
+        "subject": "Injury — {{player}} ({{injury}})",
+        "body0": "Bad news from the training ground. {{player}} has picked up a {{injury}} during today's session.\n\nThe medical team estimates {{days}} days on the sidelines. We'll monitor the recovery closely.",
+        "body1": "Unfortunately, {{player}} went down in training today with a {{injury}}.\n\nInitial assessment: out for approximately {{days}} days. We'll keep you updated on their progress."
+      },
+      "mediaPositive": {
+        "subject": "Positive Press — {{player}}",
+        "body": "The local papers are running a very positive piece on {{player}} today.\n\nThey are highlighting their excellent recent form and commitment to {{team}}. This kind of coverage is great for the player's confidence and the club's image."
+      },
+      "mediaNegative": {
+        "subject": "Negative Press — {{player}}",
+        "body": "Some unflattering coverage of {{player}} appeared in the tabloids today.\n\nJournalists are questioning their form and commitment to {{team}}. This could affect the player's morale — you might want to have a word."
+      },
+      "intlCallup": {
+        "subject": "International Call-Up — {{player}}",
+        "body": "{{player}} has been called up to the {{nationality}} national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels."
+      },
+      "community": {
+        "subject0": "Community Open Day",
+        "subject1": "Youth Coaching Session",
+        "subject2": "Charity Match Announcement",
+        "body0": "{{team}} hosted a community open day at the training ground today.\n\nFans got to meet the players and watch a training session. The atmosphere was fantastic and it's done wonders for team spirit.",
+        "body1": "Several first-team players from {{team}} volunteered for a youth coaching session at a local school.\n\nGreat PR for the club, and the players seem energized by the experience.",
+        "body2": "The club has organized a charity initiative in partnership with a local foundation.\n\n{{team}} continues to build strong ties with the community. The board is pleased with the positive image."
+      },
+      "moodReport": {
+        "subject": "Dressing Room Report — Mood: {{mood}}",
+        "body": "Here is your weekly dressing room report:\n\n• Overall mood: {{mood}} (avg morale: {{avgMorale}})\n• Players in high spirits (80+): {{highCount}}\n• Players with low morale (<40): {{lowCount}}\n• Total squad: {{total}}"
+      },
+      "boardConfidence": {
+        "subject": "Board Meeting — Results Under Scrutiny",
+        "body0": "The board has called an urgent meeting. Three consecutive defeats have raised serious concerns about the team's direction.\n\n\"We need to see improvement quickly. The fans are restless and results must change.\"\n\nHow do you respond?",
+        "body1": "After a string of poor results, the chairman has summoned you for a difficult conversation.\n\n\"We backed you with resources and time. The results simply aren't good enough. What's your plan?\"\n\nChoose your response carefully.",
+        "options": {
+          "reassureBoard": {
+            "label": "Reassure them with a plan",
+            "description": "Present a clear strategy for turning things around. Buys you time."
+          },
+          "acceptPressure": {
+            "label": "Accept responsibility",
+            "description": "Own the poor results. The board respects honesty."
+          },
+          "blameCircumstances": {
+            "label": "Point to injuries and bad luck",
+            "description": "Deflect blame to external factors. May or may not convince them."
+          }
+        }
+      },
+      "fanPetition": {
+        "subject0": "Fan Petition — More Attacking Football",
+        "subject1": "Fan Petition — Give Youth a Chance",
+        "subject2": "Fan Open Letter — Transparency",
+        "body0": "A group of {{team}} supporters has organized a petition calling for more attacking football.\n\n\"We pay good money to watch exciting football. We want to see the team go forward and entertain us!\"\n\nOver 500 signatures so far. How do you respond?",
+        "body1": "Supporters of {{team}} have started a campaign urging you to give more opportunities to young players from the academy.\n\n\"The future of our club depends on developing homegrown talent. Stop overlooking the kids!\"\n\nIt's getting traction on social media. What's your response?",
+        "body2": "An open letter from the {{team}} Supporters Trust has been published, asking for more transparency from the management.\n\n\"We want to understand the club's vision. Where are we heading? What's the long-term plan?\"\n\nThe local press is covering it. How do you handle this?",
+        "options": {
+          "listenFans": {
+            "label": "Engage with the fans",
+            "description": "Meet with fan representatives and listen to their concerns. Good for morale."
+          },
+          "ignoreFans": {
+            "label": "Focus on football",
+            "description": "Politely decline — football decisions stay in the dressing room."
+          },
+          "addressPublicly": {
+            "label": "Make a public statement",
+            "description": "Address the petition in a press conference. Transparent and proactive."
+          }
+        }
+      },
+      "rivalInterest": {
+        "subject": "Transfer Rumour — {{player}} linked with {{rival}}",
+        "body0": "We've received word that {{rival}} have been making enquiries about {{player}}.\n\nTheir scouts were spotted at our last few matches, and our sources suggest they may approach with a formal offer soon.\n\nHow would you like us to respond if they make contact?",
+        "body1": "The press are reporting that {{player}} is a target for {{rival}}.\n\nAccording to sources, the player has attracted attention after their recent performances. No formal bid yet, but it's only a matter of time.\n\nWhat's your stance?",
+        "options": {
+          "notForSale": {
+            "label": "Not for sale",
+            "description": "Make it clear the player is going nowhere. Boosts their morale."
+          },
+          "openToOffers": {
+            "label": "Open to offers",
+            "description": "Signal willingness to negotiate. Player may become unsettled."
+          },
+          "noComment": {
+            "label": "No comment",
+            "description": "Stay quiet and let things play out. Neutral stance."
+          }
+        }
+      },
+      "moraleCrisis": {
+        "subject": "{{player}} — Morale Crisis",
+        "body0": "Boss, {{player}} has asked for a private meeting. They seem really down lately and want to talk about their situation at the club.\n\nTheir morale is at {{morale}} — you should address this before it affects the dressing room.",
+        "body1": "{{player}} has been looking dejected in training. They've requested a chat with you about their current state of mind.\n\nMorale: {{morale}}. How you handle this could make or break their confidence."
+      },
+      "benchComplaint": {
+        "subject": "{{player}} — Wants More Game Time",
+        "body0": "Boss, {{player}} has come to see you. They're frustrated about their lack of game time in recent matches and want to know what they need to do to get back in the team.\n\n\"I feel like I've been training well, but I'm not getting a chance to show it on the pitch.\"",
+        "body1": "{{player}} knocked on your office door looking unhappy. They haven't featured in the last few matches and want answers.\n\n\"I came to this club to play football. If I'm not in your plans, I'd rather you tell me straight.\""
+      },
+      "happyPlayer": {
+        "subject": "{{player}} — Feeling Great",
+        "body0": "{{player}} stopped by your office with a big smile. They're feeling great about their form and the team's direction.\n\n\"Just wanted to say I'm really enjoying my football right now, boss. The mood in the dressing room is fantastic.\"",
+        "body1": "Your assistant mentions that {{player}} has been in excellent spirits lately. They approached you after training.\n\n\"Boss, I'm loving every minute here. Keep things going like this and I'll run through walls for you.\""
+      },
+      "contractConcern": {
+        "subject": "{{player}} — Contract Running Down",
+        "body0": "{{player}} has approached you regarding their contract situation. With only {{days}} days remaining on their deal, they want to know where they stand.\n\n\"Boss, my contract is running down. I need to know if I'm part of your plans going forward or if I should start looking elsewhere.\"",
+        "body1": "Your assistant flags that {{player}}'s contract expires in roughly {{months}} month(s). The player has been asking around the dressing room about their future.\n\nIt might be wise to have a conversation before they become unsettled — or before other clubs start circling."
+      },
+      "scoutReport": {
+        "subject": "Scout Report: {{player}}",
+        "body": "Your scout {{scout}} has completed their assessment of {{player}}. Full report available in the scouting section."
+      }
+    },
+    "news": {
+      "matchReport": {
+        "headline": {
+          "homeWin": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Hosts Triumph",
+            "1": "{{home}} Edge Past {{away}} in Matchday {{matchday}}",
+            "2": "Clinical {{home}} See Off {{away}}"
+          },
+          "awayWin": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Visitors Strike",
+            "1": "{{away}} Stun {{home}} on the Road",
+            "2": "Away Day Delight for {{away}}"
+          },
+          "draw": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Honours Even",
+            "1": "{{home}} and {{away}} Share the Spoils",
+            "2": "Stalemate at {{home}}'s Ground"
+          }
+        },
+        "body0": "In Matchday {{matchday}} action, the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. The result could have implications on the league standings as the season progresses.\n\nGoals: {{scorers}}",
+        "body1": "The match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}} in a Matchday {{matchday}} clash. Both sides gave their all in an engaging contest.\n\nGoals: {{scorers}}",
+        "body2": "Matchday {{matchday}} delivered another exciting encounter as {{home}} faced {{away}} ({{homeGoals}}-{{awayGoals}}). The fans were treated to a competitive fixture.\n\nGoals: {{scorers}}"
+      },
+      "roundup": {
+        "headline0": "Matchday {{matchday}} Round-Up: {{totalGoals}} Goals in Action-Packed Day",
+        "headline1": "Premier Division Matchday {{matchday}}: All the Results",
+        "headline2": "Goals Galore in Matchday {{matchday}} Action",
+        "body": "Matchday {{matchday}} is in the books. Here are the full results:\n\n{{results}}\n\n{{totalGoals}} goals scored across {{matchCount}} matches."
+      },
+      "standings": {
+        "headline0": "{{leader}} Lead the Way After Matchday {{matchday}}",
+        "headline1": "Premier Division Table: {{leader}} on Top",
+        "headline2": "Standings Update — Matchday {{matchday}}",
+        "body": "After Matchday {{matchday}}, {{leader}} sit at the top of the Premier Division table.\n\nStandings:\n{{standings}}"
+      },
+      "seasonPreview": {
+        "headline0": "Season Preview: {{teamCount}} Teams Battle for Glory",
+        "headline1": "Premier Division Season Set to Begin",
+        "headline2": "Can {{favourite}} Claim the Title? Season Preview",
+        "body": "The Premier Division is set to kick off with {{teamCount}} teams vying for the title.\n\nPre-season predictions have {{favourite}} as the early favourites, but {{darkHorse}} could be the dark horse to watch this campaign.\n\nWith new managers taking the reins at some clubs, this season promises to be one of the most competitive in recent memory. Every point will matter as the race for the title heats up.\n\nTeams: {{teamList}}"
+      }
+    }
+  },
+  "traits": {
+    "Speedster": {
+      "label": "Hız Canavarı",
+      "desc": "Olağanüstü sürat"
+    },
+    "Tank": {
+      "label": "Tank",
+      "desc": "Güçlü ve yorulmak bilmez"
+    },
+    "Agile": {
+      "label": "Çevik",
+      "desc": "Hızlı ve kıvrak"
+    },
+    "Tireless": {
+      "label": "Bitmez Tükenmez",
+      "desc": "Asla enerjisi bitmez"
+    },
+    "Playmaker": {
+      "label": "Oyun Kurucu",
+      "desc": "Vizyon sahibi yaratıcı pasör"
+    },
+    "Sharpshooter": {
+      "label": "Keskin Nişancı",
+      "desc": "Bitiriciliği çok yüksek"
+    },
+    "Dribbler": {
+      "label": "Top Cambazı",
+      "desc": "Topla çok becerikli"
+    },
+    "BallWinner": {
+      "label": "Top Kazanan",
+      "desc": "Topu durmaksızın geri kazanır"
+    },
+    "Rock": {
+      "label": "Kaya",
+      "desc": "Aşılması zor savunma duvarı"
+    },
+    "Leader": {
+      "label": "Lider",
+      "desc": "Takım arkadaşlarına ilham verir"
+    },
+    "CoolHead": {
+      "label": "Soğukkanlı",
+      "desc": "Baskı altında sakin kalır"
+    },
+    "Visionary": {
+      "label": "Vizyoner",
+      "desc": "Başkalarının göremediği pasları görür"
+    },
+    "HotHead": {
+      "label": "Çabuk Parlayan",
+      "desc": "Kolayca sinirlenir"
+    },
+    "TeamPlayer": {
+      "label": "Takım Oyuncusu",
+      "desc": "Takımı her zaman önde tutar"
+    },
+    "SafeHands": {
+      "label": "Güvenli Eller",
+      "desc": "Güvenilir bir kurtarıcı"
+    },
+    "CatReflexes": {
+      "label": "Kedi Refleksi",
+      "desc": "Şimşek hızında refleksler"
+    },
+    "AerialDominance": {
+      "label": "Hava Hakimiyeti",
+      "desc": "Ceza sahasında hava toplarına hakimdir"
+    },
+    "CompleteForward": {
+      "label": "Komple Forvet",
+      "desc": "Her yönüyle tehlikeli"
+    },
+    "Engine": {
+      "label": "Motor",
+      "desc": "İki ceza sahası arasında bitmeyen güç"
+    },
+    "SetPieceSpecialist": {
+      "label": "Duran Top Ustası",
+      "desc": "Duran toplarda ölümcül"
+    }
+  },
+  "date": {
+    "day": "DD",
+    "month": "Ay",
+    "year": "YYYY"
+  }
+}

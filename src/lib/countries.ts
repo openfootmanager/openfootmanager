@@ -11,6 +11,7 @@ import ptLocale from "i18n-iso-countries/langs/pt.json";
 import frLocale from "i18n-iso-countries/langs/fr.json";
 import deLocale from "i18n-iso-countries/langs/de.json";
 import itLocale from "i18n-iso-countries/langs/it.json";
+import trLocale from "i18n-iso-countries/langs/tr.json";
 
 // Register locales we support
 countries.registerLocale(enLocale);
@@ -19,6 +20,7 @@ countries.registerLocale(ptLocale);
 countries.registerLocale(frLocale);
 countries.registerLocale(deLocale);
 countries.registerLocale(itLocale);
+countries.registerLocale(trLocale);
 
 /**
  * Convert an ISO alpha-2 code to a flag emoji.

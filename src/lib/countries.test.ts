@@ -63,6 +63,9 @@ describe("countryName", () => {
 
     const nameIt = countryName("DE", "it");
     expect(nameIt).toBe("Germania");
+
+    const nameTr = countryName("DE", "tr");
+    expect(nameTr).toBe("Almanya");
   });
 
   it("falls back to English for unknown locale", () => {
@@ -107,6 +110,13 @@ describe("allCountries", () => {
     const germany = list.find((country) => country.code === "DE");
 
     expect(germany?.name).toBe("Germania");
+  });
+
+  it("returns Turkish country names when requested", () => {
+    const list = allCountries("tr");
+    const germany = list.find((country) => country.code === "DE");
+
+    expect(germany?.name).toBe("Almanya");
   });
 });
 

@@ -15,7 +15,15 @@ export function findNextFixture(fixtures: FixtureData[], teamId: string): Fixtur
   );
 }
 
-const LANG_LOCALE: Record<string, string> = { en: "en-US", es: "es-ES", pt: "pt-BR", fr: "fr-FR", de: "de-DE", it: "it-IT" };
+const LANG_LOCALE: Record<string, string> = {
+  en: "en-US",
+  es: "es-ES",
+  pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
+  tr: "tr-TR",
+};
 
 export function getLocale(lang?: string): string {
   if (!lang) return "en-US";
