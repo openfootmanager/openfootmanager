@@ -737,9 +737,35 @@
     "matches": "Matches",
     "goals": "Goals",
     "overview": "Overview",
+    "awards": "Awards",
     "leagueTable": "League Table",
     "topScorers": "Top Scorers",
-    "noGoals": "No goals scored yet."
+    "noGoals": "No goals scored yet.",
+    "loadingAwards": "Loading awards...",
+    "noData": "No data yet",
+    "awardTitles": {
+      "goldenBoot": "Golden Boot",
+      "assistKing": "Assist King",
+      "playerOfYear": "Player of the Year",
+      "goldenGlove": "Golden Glove",
+      "everPresent": "Ever Present",
+      "youngPlayerOfYear": "Young Player of the Year"
+    },
+    "awardSubtitles": {
+      "topScorers": "Top Scorers",
+      "mostAssists": "Most Assists",
+      "bestAvgRatingMin5": "Best Avg Rating (min 5 apps)",
+      "mostCleanSheetsGk": "Most Clean Sheets (GKs)",
+      "mostAppearances": "Most Appearances",
+      "bestU21AvgRatingMin3": "Best U21 Avg Rating (min 3 apps)"
+    },
+    "units": {
+      "goals": "goals",
+      "assists": "assists",
+      "rating": "rating",
+      "cleanSheets": "clean sheets",
+      "apps": "apps"
+    }
   },
   "news": {
     "noNews": "No news articles yet.",
@@ -875,6 +901,7 @@
     "freeSlots": "Scouts w/ Free Slots",
     "activeScoutingAssignments": "Active Scouting Assignments",
     "yourScouts": "Your Scouts",
+    "slotUsage": "{{count}}/{{max}} slots",
     "slots": "slots",
     "judgingAbility": "Judging Ability",
     "judgingPotential": "Judging Potential",
@@ -1010,6 +1037,50 @@
     "submitting": "Submitting...",
     "leaveConference": "Leave Conference",
     "nextQuestion": "Next Question",
+    "phases": {
+      "preKickOff": "Pre-Match",
+      "firstHalf": "1st Half",
+      "halfTime": "Half Time",
+      "secondHalf": "2nd Half",
+      "fullTime": "Full Time",
+      "extraTimeFirstHalf": "ET 1st Half",
+      "extraTimeHalfTime": "ET Half Time",
+      "extraTimeSecondHalf": "ET 2nd Half",
+      "extraTimeEnd": "ET End",
+      "penaltyShootout": "Penalties",
+      "finished": "Final"
+    },
+    "eventTypes": {
+      "KickOff": "Kick Off",
+      "HalfTime": "Half Time",
+      "SecondHalfStart": "Second Half Start",
+      "FullTime": "Full Time",
+      "PassCompleted": "Pass Completed",
+      "PassIntercepted": "Pass Intercepted",
+      "Dribble": "Dribble",
+      "DribbleTackled": "Dribble Tackled",
+      "Cross": "Cross",
+      "ShotOnTarget": "Shot On Target",
+      "ShotOffTarget": "Shot Off Target",
+      "ShotBlocked": "Shot Blocked",
+      "ShotSaved": "Shot Saved",
+      "Goal": "Goal",
+      "PenaltyAwarded": "Penalty Awarded",
+      "PenaltyGoal": "Penalty Goal",
+      "PenaltyMiss": "Penalty Miss",
+      "Tackle": "Tackle",
+      "Interception": "Interception",
+      "Clearance": "Clearance",
+      "Foul": "Foul",
+      "YellowCard": "Yellow Card",
+      "RedCard": "Red Card",
+      "SecondYellow": "Second Yellow",
+      "Corner": "Corner",
+      "FreeKick": "Free Kick",
+      "Injury": "Injury",
+      "GoalKick": "Goal Kick",
+      "Substitution": "Substitution"
+    },
     "press": {
       "result": {
         "questions": {

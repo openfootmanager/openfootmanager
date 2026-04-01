@@ -207,7 +207,7 @@ export default function MatchLive({
               <span className="text-4xl font-heading font-bold text-white tabular-nums">{snapshot.home_score}</span>
               <div className="flex flex-col items-center">
                 <span className="text-xs font-heading uppercase tracking-widest text-accent-400">
-                  {phaseLabel(snapshot.phase)}
+                  {phaseLabel(t, snapshot.phase)}
                 </span>
                 <span className="text-2xl font-heading font-bold text-gray-500">{snapshot.current_minute}'</span>
               </div>
@@ -401,4 +401,3 @@ export default function MatchLive({
     </div>
   );
 }
-

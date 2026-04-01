@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
-import { getEventDisplay, getPlayerName } from "./helpers";
+import { getEventDisplay, getEventLabel, getPlayerName } from "./helpers";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../SquadTab.helpers";
 
@@ -43,7 +43,7 @@ export function EventFeed({
                     {isHome ? snapshot.home_team.name : snapshot.away_team.name}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {evt.event_type.replace(/([A-Z])/g, " $1").trim()}
+                    {getEventLabel(t, evt.event_type)}
                   </span>
                 </div>
                 {evt.player_id && (

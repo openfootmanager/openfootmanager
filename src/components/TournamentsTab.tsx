@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { GameStateData, FixtureData } from "../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "./ui";
 import { Trophy, Calendar, TableProperties, Award, Star, Shield, Users, Zap } from "lucide-react";
-import { getTeamName, formatMatchDate } from "../lib/helpers";
+import { formatMatchDate } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 
 interface AwardEntry {
@@ -22,13 +22,18 @@ interface SeasonAwards {
   young_player: AwardEntry[];
 }
 
+interface TopScorerEntry {
+  player: GameStateData["players"][number];
+  goals: number;
+}
+
 interface TournamentsTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
 }
 
 export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsTabProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
   const [view, setView] = useState<"overview" | "fixtures" | "standings" | "awards">("overview");
@@ -49,39 +54,66 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
     );
   }
 
-  const standings = [...league.standings].sort((a, b) =>
-    b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against) || b.goals_for - a.goals_for
+  const teamNameById = useMemo(
+    () => new Map(gameState.teams.map(team => [team.id, team.name])),
+    [gameState.teams]
+  );
+  const playerById = useMemo(
+    () => new Map(gameState.players.map(player => [player.id, player])),
+    [gameState.players]
   );
 
-  const matchdays = new Map<number, FixtureData[]>();
-  league.fixtures.forEach(f => {
-    const list = matchdays.get(f.matchday) || [];
-    list.push(f);
-    matchdays.set(f.matchday, list);
-  });
-  const sortedMatchdays = Array.from(matchdays.entries()).sort((a, b) => a[0] - b[0]);
+  const standings = useMemo(() => (
+    [...league.standings].sort((a, b) =>
+      b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against) || b.goals_for - a.goals_for
+    )
+  ), [league.standings]);
 
-  const completedMatchdays = sortedMatchdays.filter(([, fixtures]) => fixtures.every(f => f.status === "Completed")).length;
-  const totalMatchdays = sortedMatchdays.length;
-  const totalGoals = league.fixtures
-    .filter(f => f.result)
-    .reduce((s, f) => s + (f.result!.home_goals + f.result!.away_goals), 0);
-  const completedMatches = league.fixtures.filter(f => f.status === "Completed").length;
-
-  const topScorers = (() => {
-    const goals: Record<string, number> = {};
-    league.fixtures.forEach(f => {
-      if (f.result) {
-        f.result.home_scorers.forEach(s => { goals[s.player_id] = (goals[s.player_id] || 0) + 1; });
-        f.result.away_scorers.forEach(s => { goals[s.player_id] = (goals[s.player_id] || 0) + 1; });
+  const sortedMatchdays = useMemo(() => {
+    const matchdays = new Map<number, FixtureData[]>();
+    league.fixtures.forEach(fixture => {
+      const list = matchdays.get(fixture.matchday);
+      if (list) {
+        list.push(fixture);
+      } else {
+        matchdays.set(fixture.matchday, [fixture]);
       }
     });
-    return Object.entries(goals)
-      .map(([pid, g]) => ({ player: gameState.players.find(p => p.id === pid), goals: g }))
-      .filter(e => e.player)
+    return Array.from(matchdays.entries()).sort((a, b) => a[0] - b[0]);
+  }, [league.fixtures]);
+
+  const completedMatchdays = useMemo(
+    () => sortedMatchdays.filter(([, fixtures]) => fixtures.every(fixture => fixture.status === "Completed")).length,
+    [sortedMatchdays]
+  );
+  const totalGoals = useMemo(
+    () => league.fixtures.reduce((sum, fixture) => sum + (fixture.result ? fixture.result.home_goals + fixture.result.away_goals : 0), 0),
+    [league.fixtures]
+  );
+  const completedMatches = useMemo(
+    () => league.fixtures.filter(fixture => fixture.status === "Completed").length,
+    [league.fixtures]
+  );
+
+  const topScorers = useMemo(() => {
+    const goals = new Map<string, number>();
+    league.fixtures.forEach(fixture => {
+      if (!fixture.result) return;
+      fixture.result.home_scorers.forEach(scorer => {
+        goals.set(scorer.player_id, (goals.get(scorer.player_id) || 0) + 1);
+      });
+      fixture.result.away_scorers.forEach(scorer => {
+        goals.set(scorer.player_id, (goals.get(scorer.player_id) || 0) + 1);
+      });
+    });
+    return Array.from(goals.entries())
+      .map(([playerId, goals]) => ({ player: playerById.get(playerId), goals }))
+      .filter((entry): entry is TopScorerEntry => entry.player != null)
       .sort((a, b) => b.goals - a.goals)
       .slice(0, 10);
-  })();
+  }, [league.fixtures, playerById]);
+
+  const totalMatchdays = sortedMatchdays.length;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -128,7 +160,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
           >
             {v === "overview" ? <><Trophy className="w-4 h-4 inline mr-1.5 -mt-0.5" />{t('tournaments.overview')}</> :
              v === "standings" ? <><TableProperties className="w-4 h-4 inline mr-1.5 -mt-0.5" />{t('schedule.standings')}</> :
-             v === "awards" ? <><Award className="w-4 h-4 inline mr-1.5 -mt-0.5" />Awards</> :
+             v === "awards" ? <><Award className="w-4 h-4 inline mr-1.5 -mt-0.5" />{t('tournaments.awards')}</> :
              <><Calendar className="w-4 h-4 inline mr-1.5 -mt-0.5" />{t('schedule.fixtures')}</>}
           </button>
         ))}
@@ -161,7 +193,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
                     return (
                       <tr key={entry.team_id} onClick={() => onSelectTeam(entry.team_id)} className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}>
                         <td className="py-2 px-3 font-heading font-bold text-sm text-gray-400">{idx + 1}</td>
-                        <td className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>{getTeamName(gameState.teams, entry.team_id)}</td>
+                        <td className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>{teamNameById.get(entry.team_id) || entry.team_id}</td>
                         <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.played}</td>
                         <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.won}</td>
                         <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.drawn}</td>
@@ -185,11 +217,11 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-navy-600">
                   {topScorers.map((entry, i) => (
-                    <div key={entry.player!.id} className="flex items-center px-4 py-2.5 gap-3">
+                    <div key={entry.player.id} className="flex items-center px-4 py-2.5 gap-3">
                       <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500 w-5 text-center">{i + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{entry.player!.full_name}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">{getTeamName(gameState.teams, entry.player!.team_id ?? "")}</p>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{entry.player.full_name}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">{teamNameById.get(entry.player.team_id ?? "") || ""}</p>
                       </div>
                       <span className="font-heading font-bold text-lg text-accent-500 tabular-nums">{entry.goals}</span>
                     </div>
@@ -233,7 +265,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
                   return (
                     <tr key={entry.team_id} onClick={() => onSelectTeam(entry.team_id)} className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}>
                       <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400">{idx + 1}</td>
-                      <td className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>{getTeamName(gameState.teams, entry.team_id)}</td>
+                      <td className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>{teamNameById.get(entry.team_id) || entry.team_id}</td>
                       <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.played}</td>
                       <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.won}</td>
                       <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.drawn}</td>
@@ -258,7 +290,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
             <Card key={md}>
               <div className="px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
                 <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                  {t('schedule.matchday', { number: md })} — {formatMatchDate(fixtures[0].date)}
+                  {t('schedule.matchday', { number: md })} — {formatMatchDate(fixtures[0].date, i18n.language)}
                 </h4>
               </div>
               <CardBody className="p-0">
@@ -269,7 +301,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
                     return (
                       <div key={f.id} className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}>
                         <span onClick={() => onSelectTeam(f.home_team_id)} className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>
-                          {getTeamName(gameState.teams, f.home_team_id)}
+                          {teamNameById.get(f.home_team_id) || f.home_team_id}
                         </span>
                         <div className="w-24 text-center mx-3">
                           {completed && f.result ? (
@@ -281,7 +313,7 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
                           )}
                         </div>
                         <span onClick={() => onSelectTeam(f.away_team_id)} className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}>
-                          {getTeamName(gameState.teams, f.away_team_id)}
+                          {teamNameById.get(f.away_team_id) || f.away_team_id}
                         </span>
                       </div>
                     );
@@ -297,17 +329,17 @@ export default function TournamentsTab({ gameState, onSelectTeam }: TournamentsT
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {awards ? (
             <>
-              <AwardCard icon={<Zap className="w-5 h-5 text-accent-500" />} title="Golden Boot" subtitle="Top Scorers" entries={awards.golden_boot} unit="goals" />
-              <AwardCard icon={<Star className="w-5 h-5 text-purple-500" />} title="Assist King" subtitle="Most Assists" entries={awards.assist_king} unit="assists" />
-              <AwardCard icon={<Trophy className="w-5 h-5 text-primary-500" />} title="Player of the Year" subtitle="Best Avg Rating (min 5 apps)" entries={awards.player_of_year} unit="rating" decimal />
-              <AwardCard icon={<Shield className="w-5 h-5 text-blue-500" />} title="Golden Glove" subtitle="Most Clean Sheets (GKs)" entries={awards.clean_sheet_king} unit="clean sheets" />
-              <AwardCard icon={<Users className="w-5 h-5 text-green-500" />} title="Ever Present" subtitle="Most Appearances" entries={awards.most_appearances} unit="apps" />
-              <AwardCard icon={<Star className="w-5 h-5 text-amber-500" />} title="Young Player of the Year" subtitle="Best U21 Avg Rating (min 3 apps)" entries={awards.young_player} unit="rating" decimal />
+              <AwardCard icon={<Zap className="w-5 h-5 text-accent-500" />} title={t('tournaments.awardTitles.goldenBoot')} subtitle={t('tournaments.awardSubtitles.topScorers')} entries={awards.golden_boot} unit={t('tournaments.units.goals')} />
+              <AwardCard icon={<Star className="w-5 h-5 text-purple-500" />} title={t('tournaments.awardTitles.assistKing')} subtitle={t('tournaments.awardSubtitles.mostAssists')} entries={awards.assist_king} unit={t('tournaments.units.assists')} />
+              <AwardCard icon={<Trophy className="w-5 h-5 text-primary-500" />} title={t('tournaments.awardTitles.playerOfYear')} subtitle={t('tournaments.awardSubtitles.bestAvgRatingMin5')} entries={awards.player_of_year} unit={t('tournaments.units.rating')} decimal />
+              <AwardCard icon={<Shield className="w-5 h-5 text-blue-500" />} title={t('tournaments.awardTitles.goldenGlove')} subtitle={t('tournaments.awardSubtitles.mostCleanSheetsGk')} entries={awards.clean_sheet_king} unit={t('tournaments.units.cleanSheets')} />
+              <AwardCard icon={<Users className="w-5 h-5 text-green-500" />} title={t('tournaments.awardTitles.everPresent')} subtitle={t('tournaments.awardSubtitles.mostAppearances')} entries={awards.most_appearances} unit={t('tournaments.units.apps')} />
+              <AwardCard icon={<Star className="w-5 h-5 text-amber-500" />} title={t('tournaments.awardTitles.youngPlayerOfYear')} subtitle={t('tournaments.awardSubtitles.bestU21AvgRatingMin3')} entries={awards.young_player} unit={t('tournaments.units.rating')} decimal />
             </>
           ) : (
             <div className="col-span-full text-center py-12">
               <Award className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-              <p className="text-sm text-gray-400 dark:text-gray-500">Loading awards...</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">{t('tournaments.loadingAwards')}</p>
             </div>
           )}
         </div>
@@ -337,7 +369,7 @@ function AwardCard({ icon, title, subtitle, entries, unit, decimal }: {
       </CardHeader>
       <CardBody className="p-0">
         {entries.length === 0 ? (
-          <p className="p-4 text-sm text-gray-400 dark:text-gray-500 text-center">No data yet</p>
+          <p className="p-4 text-sm text-gray-400 dark:text-gray-500 text-center">{t('tournaments.noData')}</p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {entries.map((entry, i) => (

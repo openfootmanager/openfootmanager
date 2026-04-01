@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, CountryFlag } from "./ui";
 import { Eye, ScanSearch, Clock, User, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { calcOvr, calcAge, formatVal, getTeamName } from "../lib/helpers";
+import { calcOvr, calcAge, formatVal } from "../lib/helpers";
 import { countryName } from "../lib/countries";
 
 interface ScoutingTabProps {
@@ -23,32 +23,73 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
   const [page, setPage] = useState(0);
 
   const myTeamId = gameState.manager.team_id;
-  const scouts = gameState.staff.filter(s => s.role === "Scout" && s.team_id === myTeamId);
+  const scouts = useMemo(
+    () => gameState.staff.filter(s => s.role === "Scout" && s.team_id === myTeamId),
+    [gameState.staff, myTeamId]
+  );
   const assignments = gameState.scouting_assignments || [];
+  const playersById = useMemo(
+    () => new Map(gameState.players.map(player => [player.id, player])),
+    [gameState.players]
+  );
+  const scoutsById = useMemo(
+    () => new Map(gameState.staff.map(staff => [staff.id, staff])),
+    [gameState.staff]
+  );
+  const teamNameById = useMemo(
+    () => new Map(gameState.teams.map(team => [team.id, team.name])),
+    [gameState.teams]
+  );
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   // Determine scout capacity: judging_ability >= 80 → 5 slots, >= 60 → 4, >= 40 → 3, >= 20 → 2, else 1
   const scoutMaxSlots = (ability: number) => ability >= 80 ? 5 : ability >= 60 ? 4 : ability >= 40 ? 3 : ability >= 20 ? 2 : 1;
-  const scoutAssignmentCount = (scoutId: string) => assignments.filter(a => a.scout_id === scoutId).length;
-  const availableScouts = scouts.filter(s => scoutAssignmentCount(s.id) < scoutMaxSlots(s.attributes.judging_ability));
+  const assignmentCountByScout = useMemo(() => {
+    const counts = new Map<string, number>();
+    assignments.forEach(assignment => {
+      counts.set(assignment.scout_id, (counts.get(assignment.scout_id) || 0) + 1);
+    });
+    return counts;
+  }, [assignments]);
+  const assignmentsByScout = useMemo(() => {
+    const grouped = new Map<string, typeof assignments>();
+    assignments.forEach(assignment => {
+      const current = grouped.get(assignment.scout_id);
+      if (current) {
+        current.push(assignment);
+      } else {
+        grouped.set(assignment.scout_id, [assignment]);
+      }
+    });
+    return grouped;
+  }, [assignments]);
+  const availableScouts = useMemo(
+    () => scouts.filter(scout => (assignmentCountByScout.get(scout.id) || 0) < scoutMaxSlots(scout.attributes.judging_ability)),
+    [assignmentCountByScout, scouts]
+  );
+
+  const alreadyScoutingIds = useMemo(
+    () => new Set(assignments.map(assignment => assignment.player_id)),
+    [assignments]
+  );
 
   // Players from other teams that can be scouted
-  const allScoutable = gameState.players
-    .filter(p => p.team_id !== myTeamId)
-    .filter(p => posFilter === "All" || p.position === posFilter)
-    .filter(p => {
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
-      return p.full_name.toLowerCase().includes(q) ||
-        p.nationality.toLowerCase().includes(q) ||
-        (p.team_id && getTeamName(gameState.teams, p.team_id).toLowerCase().includes(q));
-    })
-    .sort((a, b) => calcOvr(b) - calcOvr(a));
+  const allScoutable = useMemo(() => (
+    gameState.players
+      .filter(player => player.team_id !== myTeamId)
+      .filter(player => posFilter === "All" || player.position === posFilter)
+      .filter(player => {
+        if (!normalizedSearchQuery) return true;
+        return player.full_name.toLowerCase().includes(normalizedSearchQuery) ||
+          player.nationality.toLowerCase().includes(normalizedSearchQuery) ||
+          ((player.team_id && teamNameById.get(player.team_id)) || "").toLowerCase().includes(normalizedSearchQuery);
+      })
+      .sort((a, b) => calcOvr(b) - calcOvr(a))
+  ), [gameState.players, myTeamId, normalizedSearchQuery, posFilter, teamNameById]);
 
   const totalPages = Math.max(1, Math.ceil(allScoutable.length / SCOUTING_PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const scoutablePlayers = allScoutable.slice(safePage * SCOUTING_PAGE_SIZE, (safePage + 1) * SCOUTING_PAGE_SIZE);
-
-  const alreadyScoutingIds = new Set(assignments.map(a => a.player_id));
 
   const handleSendScout = async (playerId: string) => {
     if (availableScouts.length === 0) return;
@@ -95,7 +136,7 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
               </div>
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider">{t('scouting.activeAssignments')}</p>
-                <p className="text-xl font-heading font-bold text-gray-800 dark:text-gray-100">{assignments.length} / {scouts.reduce((sum, s) => sum + scoutMaxSlots(s.attributes.judging_ability), 0)}</p>
+                <p className="text-xl font-heading font-bold text-gray-800 dark:text-gray-100">{assignments.length} / {scouts.reduce((sum, scout) => sum + scoutMaxSlots(scout.attributes.judging_ability), 0)}</p>
               </div>
             </div>
           </CardBody>
@@ -122,10 +163,10 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
           <CardBody>
             <div className="flex flex-col gap-2">
               {assignments.map(a => {
-                const scout = gameState.staff.find(s => s.id === a.scout_id);
-                const player = gameState.players.find(p => p.id === a.player_id);
+                const scout = scoutsById.get(a.scout_id);
+                const player = playersById.get(a.player_id);
                 if (!scout || !player) return null;
-                const team = player.team_id ? getTeamName(gameState.teams, player.team_id) : t('common.freeAgent');
+                const team = player.team_id ? (teamNameById.get(player.team_id) || t('common.freeAgent')) : t('common.freeAgent');
                 return (
                   <div key={a.id} className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-navy-700/50">
                     <div className="flex-1 min-w-0">
@@ -156,10 +197,10 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
           <CardBody>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {scouts.map(s => {
-                const count = scoutAssignmentCount(s.id);
+                const count = assignmentCountByScout.get(s.id) || 0;
                 const maxSlots = scoutMaxSlots(s.attributes.judging_ability);
                 const isFull = count >= maxSlots;
-                const scoutAssigns = assignments.filter(a => a.scout_id === s.id);
+                const scoutAssigns = assignmentsByScout.get(s.id) || [];
                 return (
                   <div key={s.id} className="p-3 rounded-lg border border-gray-200 dark:border-navy-600">
                     <div className="flex items-center gap-3">
@@ -174,7 +215,7 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
                         </div>
                       </div>
                       <Badge variant={isFull ? "accent" : "success"} size="sm">
-                        {count}/{maxSlots} {t('scouting.slots')}
+                        {t('scouting.slotUsage', { count, max: maxSlots })}
                       </Badge>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
@@ -190,7 +231,7 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
                     {scoutAssigns.length > 0 && (
                       <div className="mt-2 flex flex-col gap-1">
                         {scoutAssigns.map(a => {
-                          const tp = gameState.players.find(p => p.id === a.player_id);
+                          const tp = playersById.get(a.player_id);
                           return tp ? (
                             <p key={a.id} className="text-xs text-gray-500 dark:text-gray-400">
                               {t('scouting.scoutLabel', { name: '' })}<span className="font-heading font-bold text-gray-700 dark:text-gray-300">{tp.full_name}</span> — {a.days_remaining}d
@@ -271,7 +312,7 @@ export default function ScoutingTab({ gameState, onGameUpdate, onSelectPlayer }:
                 <tbody>
                   {scoutablePlayers.map(p => {
                     const isScouting = alreadyScoutingIds.has(p.id);
-                    const team = p.team_id ? getTeamName(gameState.teams, p.team_id) : t('common.freeAgent');
+                    const team = p.team_id ? (teamNameById.get(p.team_id) || t('common.freeAgent')) : t('common.freeAgent');
                     return (
                       <tr key={p.id} className="border-b border-gray-50 dark:border-navy-700/50 hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors">
                         <td className="py-2 px-2">

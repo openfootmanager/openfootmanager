@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPlayerName, phaseLabel, calcOvr, getEventDisplay } from "./helpers";
+import { getPlayerName, phaseLabel, calcOvr, getEventDisplay, getEventLabel } from "./helpers";
 import i18n from "../../i18n";
 import { getTeamTalkOptions } from "./types";
 import type { MatchSnapshot, EnginePlayerData, EngineTeamData } from "./types";
@@ -95,22 +95,33 @@ describe("getPlayerName", () => {
 // ---------------------------------------------------------------------------
 
 describe("phaseLabel", () => {
-  it("maps all known phases", () => {
-    expect(phaseLabel("PreKickOff")).toBe("Pre-Match");
-    expect(phaseLabel("FirstHalf")).toBe("1st Half");
-    expect(phaseLabel("HalfTime")).toBe("Half Time");
-    expect(phaseLabel("SecondHalf")).toBe("2nd Half");
-    expect(phaseLabel("FullTime")).toBe("Full Time");
-    expect(phaseLabel("ExtraTimeFirstHalf")).toBe("ET 1st Half");
-    expect(phaseLabel("ExtraTimeHalfTime")).toBe("ET Half Time");
-    expect(phaseLabel("ExtraTimeSecondHalf")).toBe("ET 2nd Half");
-    expect(phaseLabel("ExtraTimeEnd")).toBe("ET End");
-    expect(phaseLabel("PenaltyShootout")).toBe("Penalties");
-    expect(phaseLabel("Finished")).toBe("Final");
+  it("maps all known phases", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(phaseLabel(i18n.t.bind(i18n), "PreKickOff")).toBe("Pre-Match");
+    expect(phaseLabel(i18n.t.bind(i18n), "FirstHalf")).toBe("1st Half");
+    expect(phaseLabel(i18n.t.bind(i18n), "HalfTime")).toBe("Half Time");
+    expect(phaseLabel(i18n.t.bind(i18n), "SecondHalf")).toBe("2nd Half");
+    expect(phaseLabel(i18n.t.bind(i18n), "FullTime")).toBe("Full Time");
+    expect(phaseLabel(i18n.t.bind(i18n), "ExtraTimeFirstHalf")).toBe("ET 1st Half");
+    expect(phaseLabel(i18n.t.bind(i18n), "ExtraTimeHalfTime")).toBe("ET Half Time");
+    expect(phaseLabel(i18n.t.bind(i18n), "ExtraTimeSecondHalf")).toBe("ET 2nd Half");
+    expect(phaseLabel(i18n.t.bind(i18n), "ExtraTimeEnd")).toBe("ET End");
+    expect(phaseLabel(i18n.t.bind(i18n), "PenaltyShootout")).toBe("Penalties");
+    expect(phaseLabel(i18n.t.bind(i18n), "Finished")).toBe("Final");
   });
 
-  it("returns the input for unknown phases", () => {
-    expect(phaseLabel("SomeOtherPhase")).toBe("SomeOtherPhase");
+  it("returns the input for unknown phases", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(phaseLabel(i18n.t.bind(i18n), "SomeOtherPhase")).toBe("SomeOtherPhase");
+  });
+
+  it("returns translated phase labels for turkish", async () => {
+    await i18n.changeLanguage("tr");
+
+    expect(phaseLabel(i18n.t.bind(i18n), "FirstHalf")).toBe("1. Devre");
+    expect(phaseLabel(i18n.t.bind(i18n), "Finished")).toBe("Final");
   });
 });
 
@@ -159,6 +170,21 @@ describe("getEventDisplay", () => {
     const display = getEventDisplay({ minute: 1, event_type: "UnknownEvent", side: "Home", zone: "Midfield", player_id: null, secondary_player_id: null });
     expect(display.color).toBe("text-gray-400");
     expect(display.important).toBe(false);
+  });
+});
+
+describe("getEventLabel", () => {
+  it("returns translated event labels for turkish", async () => {
+    await i18n.changeLanguage("tr");
+
+    expect(getEventLabel(i18n.t.bind(i18n), "KickOff")).toBe("Başlama Vuruşu");
+    expect(getEventLabel(i18n.t.bind(i18n), "YellowCard")).toBe("Sarı Kart");
+  });
+
+  it("falls back to humanized text for unknown events", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(getEventLabel(i18n.t.bind(i18n), "SomeCustomEvent")).toBe("Some Custom Event");
   });
 });
 

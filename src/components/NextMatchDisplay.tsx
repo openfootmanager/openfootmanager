@@ -4,7 +4,7 @@ import { Badge } from "./ui";
 import { getTeamName, getTeamShort, findNextFixture, formatMatchDate } from "../lib/helpers";
 
 export default function NextMatchDisplay({ gameState }: { gameState: GameStateData }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const userTeamId = gameState.manager.team_id;
   const league = gameState.league;
 
@@ -33,7 +33,7 @@ export default function NextMatchDisplay({ gameState }: { gameState: GameStateDa
 
       <div className="text-center px-4 flex flex-col items-center gap-1.5">
         <span className="font-heading font-bold text-2xl text-gray-300 dark:text-navy-600">VS</span>
-        <Badge variant="neutral">{formatMatchDate(nextFixture.date)}</Badge>
+        <Badge variant="neutral">{formatMatchDate(nextFixture.date, i18n.language)}</Badge>
         <span className="text-xs text-gray-400 dark:text-gray-500">{t('home.matchdayN', { n: nextFixture.matchday })}</span>
         <Badge variant={isHome ? "success" : "accent"} size="sm">{isHome ? t('home.home') : t('home.away')}</Badge>
       </div>

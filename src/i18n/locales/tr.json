@@ -258,19 +258,19 @@
     "nationality": "Uyruk",
     "contract": "Sözleşme",
     "status": "Durum",
-    "average": "Average",
+    "average": "Ortalama",
     "goalsFor": "GF",
     "goalsAgainst": "GA",
     "goalDifference": "GD",
-    "nPlayersFound": "{{count}} player(s) found",
-    "nResults": "{{count}} result(s)",
-    "showingFirst": "Showing first {{shown}} of {{total}} players. Refine your search to see more.",
-    "noPlayersMatch": "No players match your filters.",
+    "nPlayersFound": "{{count}} oyuncu bulundu",
+    "nResults": "{{count}} sonuç",
+    "showingFirst": "{{total}} oyuncunun ilk {{shown}} tanesi gösteriliyor. Daha fazlasını görmek için aramanızı daraltın.",
+    "noPlayersMatch": "Filtrelerinize uyan oyuncu yok.",
     "positions": {
-      "Goalkeeper": "Goalkeeper",
-      "Defender": "Defender",
-      "Midfielder": "Midfielder",
-      "Forward": "Forward"
+      "Goalkeeper": "Kaleci",
+      "Defender": "Defans",
+      "Midfielder": "Orta Saha",
+      "Forward": "Forvet"
     },
     "posAbbr": {
       "Goalkeeper": "GK",
@@ -279,9 +279,9 @@
       "Forward": "FWD"
     },
     "playStyles": {
-      "Balanced": "Balanced",
-      "Attacking": "Attacking",
-      "Defensive": "Defensive",
+      "Balanced": "Dengeli",
+      "Attacking": "Hücum",
+      "Defensive": "Savunma",
       "Possession": "Possession",
       "Counter": "Counter",
       "HighPress": "High Press"
@@ -292,40 +292,40 @@
       "Light": "Light"
     },
     "trainingFocuses": {
-      "Physical": "Physical",
-      "Technical": "Technical",
-      "Tactical": "Tactical",
-      "Defending": "Defending",
-      "Attacking": "Attacking",
-      "Recovery": "Recovery",
-      "General": "General"
+      "Physical": "Fiziksel",
+      "Technical": "Teknik",
+      "Tactical": "Taktiksel",
+      "Defending": "Savunma",
+      "Attacking": "Hücum",
+      "Recovery": "Toparlanma",
+      "General": "Genel"
     },
     "attributes": {
-      "pace": "Pace",
-      "stamina": "Stamina",
-      "strength": "Strength",
-      "agility": "Agility",
-      "passing": "Passing",
-      "shooting": "Shooting",
-      "tackling": "Tackling",
-      "dribbling": "Dribbling",
-      "defending": "Defending",
-      "positioning": "Positioning",
-      "vision": "Vision",
-      "decisions": "Decisions",
-      "composure": "Composure",
-      "aggression": "Aggression",
-      "teamwork": "Teamwork",
-      "leadership": "Leadership",
-      "handling": "Handling",
-      "reflexes": "Reflexes",
-      "aerial": "Aerial"
+      "pace": "Hız",
+      "stamina": "Dayanıklılık",
+      "strength": "Güç",
+      "agility": "Çeviklik",
+      "passing": "Pas",
+      "shooting": "Şut",
+      "tackling": "Müdahale",
+      "dribbling": "Dripling",
+      "defending": "Savunma",
+      "positioning": "Pozisyon Alma",
+      "vision": "Vizyon",
+      "decisions": "Karar Verme",
+      "composure": "Soğukkanlılık",
+      "aggression": "Agresiflik",
+      "teamwork": "Takım Oyunu",
+      "leadership": "Liderlik",
+      "handling": "Top Tutma",
+      "reflexes": "Refleks",
+      "aerial": "Hava Hakimiyeti"
     },
     "moods": {
-      "excellent": "Excellent",
-      "good": "Good",
-      "mixed": "Mixed",
-      "poor": "Poor"
+      "excellent": "Mükemmel",
+      "good": "İyi",
+      "mixed": "Karışık",
+      "poor": "Kötü"
     },
     "injuries": {
       "minorMuscleStrain": "Minor muscle strain",
@@ -335,11 +335,11 @@
       "calfStrain": "Calf strain"
     },
     "scoutRatings": {
-      "excellent": "Excellent",
-      "veryGood": "Very Good",
-      "good": "Good",
-      "average": "Average",
-      "belowAverage": "Below Average"
+      "excellent": "Mükemmel",
+      "veryGood": "Çok İyi",
+      "good": "İyi",
+      "average": "Ortalama",
+      "belowAverage": "Ortalama Altı"
     },
     "scoutPotential": {
       "worldClass": "World class potential",
@@ -348,9 +348,9 @@
       "unclear": "Potential unclear — further scouting recommended"
     },
     "scoutConfidence": {
-      "high": "High",
-      "moderate": "Moderate",
-      "low": "Low"
+      "high": "Yüksek",
+      "moderate": "Orta",
+      "low": "Düşük"
     },
     "attrGroups": {
       "physical": "Physical",
@@ -567,7 +567,7 @@
     },
     "specializations": {
       "Fitness": "Kondisyon",
-      "Technique": "Technique",
+      "Technique": "Teknik",
       "Tactics": "Taktik",
       "Defending": "Savunma",
       "Attacking": "Hücum",
@@ -635,7 +635,7 @@
       "Training": "Antrenman",
       "Finance": "Finans",
       "Contract": "Sözleşme",
-      "ScoutReport": "Scout",
+      "ScoutReport": "Scout Raporu",
       "Media": "Medya",
       "System": "Sistem"
     }
@@ -737,9 +737,35 @@
     "matches": "Maçlar",
     "goals": "Goller",
     "overview": "Genel Bakış",
+    "awards": "Ödüller",
     "leagueTable": "Lig Tablosu",
     "topScorers": "Gol Krallığı",
-    "noGoals": "Henüz gol atılmadı."
+    "noGoals": "Henüz gol atılmadı.",
+    "loadingAwards": "Ödüller yükleniyor...",
+    "noData": "Henüz veri yok",
+    "awardTitles": {
+      "goldenBoot": "Gol Krallığı",
+      "assistKing": "Asist Kralı",
+      "playerOfYear": "Yılın Oyuncusu",
+      "goldenGlove": "Altın Eldiven",
+      "everPresent": "Demirbaş",
+      "youngPlayerOfYear": "Yılın Genç Oyuncusu"
+    },
+    "awardSubtitles": {
+      "topScorers": "En Golcü Oyuncular",
+      "mostAssists": "En Fazla Asist",
+      "bestAvgRatingMin5": "En İyi Ortalama Puan (min 5 maç)",
+      "mostCleanSheetsGk": "En Fazla Gol Yememe (Kaleciler)",
+      "mostAppearances": "En Fazla Maç",
+      "bestU21AvgRatingMin3": "En İyi U21 Ortalama Puan (min 3 maç)"
+    },
+    "units": {
+      "goals": "gol",
+      "assists": "asist",
+      "rating": "puan",
+      "cleanSheets": "gol yememe",
+      "apps": "maç"
+    }
   },
   "news": {
     "noNews": "Henüz haber yok.",
@@ -875,6 +901,7 @@
     "freeSlots": "Boş Slotlu Scoutlar",
     "activeScoutingAssignments": "Aktif Scout Görevleri",
     "yourScouts": "Scoutların",
+    "slotUsage": "{{count}}/{{max}} kontenjan",
     "slots": "slot",
     "judgingAbility": "Yetenek Değerlendirme",
     "judgingPotential": "Potansiyel Değerlendirme",
@@ -893,7 +920,7 @@
     "action": "Aksiyon",
     "scoutingInProgress": "Scout ediliyor...",
     "noScoutsFree": "Boşta scout yok",
-    "scoutBtn": "Scout",
+    "scoutBtn": "İzle",
     "noPlayersFound": "Aramanıza uyan oyuncu bulunamadı.",
     "showingRange": "{{total}} içinden {{from}}–{{to}} gösteriliyor",
     "viewPlayer": "Görüntüle",
@@ -999,17 +1026,61 @@
     "matchOver": "Maç Bitti",
     "ratings": "{{team}} Puanları",
     "motm": "Maçın Oyuncusu",
-    "scorers": "Scorers",
+    "scorers": "Gol Atanlar",
     "noGoals": "Gol atılmadı.",
     "matchComplete": "Maç tamamlandı.",
     "addressPress": "Basına konuşun ya da geri dönün.",
-    "skip": "Skip",
+    "skip": "Geç",
     "pressConference": "Basın Toplantısı",
     "pressSubtitle": "Maç sonu basın toplantısı — {{team}}",
     "skipConference": "Toplantıyı Geç →",
     "submitting": "Gönderiliyor...",
     "leaveConference": "Toplantıdan Ayrıl",
     "nextQuestion": "Sonraki Soru",
+    "phases": {
+      "preKickOff": "Maç Öncesi",
+      "firstHalf": "1. Devre",
+      "halfTime": "Devre Arası",
+      "secondHalf": "2. Devre",
+      "fullTime": "Maç Sonu",
+      "extraTimeFirstHalf": "UZ 1. Devre",
+      "extraTimeHalfTime": "UZ Devre Arası",
+      "extraTimeSecondHalf": "UZ 2. Devre",
+      "extraTimeEnd": "UZ Sonu",
+      "penaltyShootout": "Penaltılar",
+      "finished": "Final"
+    },
+    "eventTypes": {
+      "KickOff": "Başlama Vuruşu",
+      "HalfTime": "Devre Arası",
+      "SecondHalfStart": "İkinci Yarı Başladı",
+      "FullTime": "Maç Sonu",
+      "PassCompleted": "İsabetli Pas",
+      "PassIntercepted": "Pas Kesildi",
+      "Dribble": "Dripling",
+      "DribbleTackled": "Dripling Durduruldu",
+      "Cross": "Orta",
+      "ShotOnTarget": "Kaleyi Bulan Şut",
+      "ShotOffTarget": "Dışarı Giden Şut",
+      "ShotBlocked": "Engellenen Şut",
+      "ShotSaved": "Kurtarış",
+      "Goal": "Gol",
+      "PenaltyAwarded": "Penaltı Kazanıldı",
+      "PenaltyGoal": "Penaltı Golü",
+      "PenaltyMiss": "Penaltı Kaçtı",
+      "Tackle": "Müdahale",
+      "Interception": "Araya Girme",
+      "Clearance": "Uzaklaştırma",
+      "Foul": "Faul",
+      "YellowCard": "Sarı Kart",
+      "RedCard": "Kırmızı Kart",
+      "SecondYellow": "İkinci Sarı",
+      "Corner": "Korner",
+      "FreeKick": "Serbest Vuruş",
+      "Injury": "Sakatlık",
+      "GoalKick": "Aut Atışı",
+      "Substitution": "Oyuncu Değişikliği"
+    },
     "press": {
       "result": {
         "questions": {

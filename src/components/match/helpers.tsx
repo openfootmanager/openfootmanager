@@ -1,4 +1,5 @@
 import React from "react";
+import type { TFunction } from "i18next";
 import { MatchEvent, MatchSnapshot } from "./types";
 import {
   Circle, CircleOff, Square, ArrowLeftRight,
@@ -34,6 +35,15 @@ export function getEventDisplay(evt: MatchEvent) {
   return EVENT_ICONS[evt.event_type] || DEFAULT_DISPLAY;
 }
 
+export function getEventLabel(t: TFunction, eventType: string): string {
+  const key = `match.eventTypes.${eventType}`;
+  const translated = t(key);
+  if (translated !== key) {
+    return translated;
+  }
+  return eventType.replace(/([A-Z])/g, " $1").trim();
+}
+
 export function getPlayerName(snapshot: MatchSnapshot, playerId: string | null): string {
   if (!playerId) return "";
   for (const p of snapshot.home_team.players) {
@@ -56,19 +66,19 @@ export function getPlayerName(snapshot: MatchSnapshot, playerId: string | null):
   return playerId;
 }
 
-export function phaseLabel(phase: string): string {
+export function phaseLabel(t: TFunction, phase: string): string {
   switch (phase) {
-    case "PreKickOff": return "Pre-Match";
-    case "FirstHalf": return "1st Half";
-    case "HalfTime": return "Half Time";
-    case "SecondHalf": return "2nd Half";
-    case "FullTime": return "Full Time";
-    case "ExtraTimeFirstHalf": return "ET 1st Half";
-    case "ExtraTimeHalfTime": return "ET Half Time";
-    case "ExtraTimeSecondHalf": return "ET 2nd Half";
-    case "ExtraTimeEnd": return "ET End";
-    case "PenaltyShootout": return "Penalties";
-    case "Finished": return "Final";
+    case "PreKickOff": return t("match.phases.preKickOff");
+    case "FirstHalf": return t("match.phases.firstHalf");
+    case "HalfTime": return t("match.phases.halfTime");
+    case "SecondHalf": return t("match.phases.secondHalf");
+    case "FullTime": return t("match.phases.fullTime");
+    case "ExtraTimeFirstHalf": return t("match.phases.extraTimeFirstHalf");
+    case "ExtraTimeHalfTime": return t("match.phases.extraTimeHalfTime");
+    case "ExtraTimeSecondHalf": return t("match.phases.extraTimeSecondHalf");
+    case "ExtraTimeEnd": return t("match.phases.extraTimeEnd");
+    case "PenaltyShootout": return t("match.phases.penaltyShootout");
+    case "Finished": return t("match.phases.finished");
     default: return phase;
   }
 }
