@@ -10,10 +10,11 @@ import {
   swapPreMatchPlayers,
 } from "../../services/liveMatchService";
 import { MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
-import PreMatchLineup, {
+import PreMatchLineup from "./PreMatchLineup";
+import {
   parseFormationNeeds,
   getPositionOvr,
-} from "./PreMatchLineup";
+} from "./matchLineupUtils";
 import MatchScreenLayout from "./MatchScreenLayout";
 import SetPieceSelector from "./SetPieceSelector";
 import {
@@ -338,8 +339,8 @@ export default function PreMatchSetup({
           <button
             onClick={() => setActiveTab("lineup")}
             className={`px-4 py-2 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "lineup"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-navy-600 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              ? "bg-white text-gray-900 shadow-sm dark:bg-navy-600 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               }`}
           >
             {t("match.startingLineup")}
@@ -347,8 +348,8 @@ export default function PreMatchSetup({
           <button
             onClick={() => setActiveTab("setpieces")}
             className={`px-4 py-2 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "setpieces"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-navy-600 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              ? "bg-white text-gray-900 shadow-sm dark:bg-navy-600 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               }`}
           >
             {t("match.setPiecesCaptain")}

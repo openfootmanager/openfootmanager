@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { getPositionOvr } from "./PreMatchLineup";
+import { getPositionOvr } from "./matchLineupUtils";
 import { SubPanel } from "./SubPanel";
 import type { EnginePlayerData, EngineTeamData, MatchSnapshot } from "./types";
 

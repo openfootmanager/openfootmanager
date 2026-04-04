@@ -1,100 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
-import { roundPositionScore } from "../../lib/playerRatingScore";
 import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
+import {
+  conditionTextColor,
+  getPositionOvr,
+  getStatVal,
+  POSITION_KEY_STATS,
+  statColor,
+} from "./matchLineupUtils";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-
-export const POSITION_KEY_STATS: Record<
-  string,
-  { label: string; key: string }[]
-> = {
-  Goalkeeper: [
-    { label: "HAN", key: "handling" },
-    { label: "REF", key: "reflexes" },
-    { label: "AER", key: "aerial" },
-  ],
-  Defender: [
-    { label: "DEF", key: "defending" },
-    { label: "TAC", key: "tackling" },
-    { label: "STR", key: "strength" },
-  ],
-  Midfielder: [
-    { label: "PAS", key: "passing" },
-    { label: "VIS", key: "vision" },
-    { label: "STA", key: "stamina" },
-  ],
-  Forward: [
-    { label: "SHO", key: "shooting" },
-    { label: "PAC", key: "pace" },
-    { label: "DRI", key: "dribbling" },
-  ],
-};
-
-export function getPositionOvr(player: EnginePlayerData): number {
-  return roundPositionScore(
-    {
-      pace: player.pace,
-      stamina: player.stamina,
-      strength: player.strength,
-      agility: player.agility,
-      passing: player.passing,
-      shooting: player.shooting,
-      tackling: player.tackling,
-      dribbling: player.dribbling,
-      defending: player.defending,
-      positioning: player.positioning,
-      vision: player.vision,
-      decisions: player.decisions,
-      composure: player.composure,
-      aggression: player.aggression,
-      teamwork: player.teamwork,
-      leadership: player.leadership,
-      handling: player.handling,
-      reflexes: player.reflexes,
-      aerial: player.aerial,
-    },
-    player.position,
-  );
-}
-
-export function condColor(c: number): string {
-  if (c >= 75) return "text-primary-400";
-  if (c >= 50) return "text-amber-400";
-  return "text-red-400";
-}
-
-export function statColor(v: number): string {
-  if (v >= 75) return "text-primary-400 font-bold";
-  if (v >= 60) return "text-gray-200";
-  return "text-gray-500";
-}
-
-export function getStatVal(p: EnginePlayerData, key: string): number {
-  return (p as unknown as Record<string, number>)[key] ?? 0;
-}
-
-export function parseFormationNeeds(formation: string): Record<string, number> {
-  const parts = formation
-    .split("-")
-    .map(Number)
-    .filter((n) => !isNaN(n));
-  if (parts.length === 3)
-    return {
-      Goalkeeper: 1,
-      Defender: parts[0],
-      Midfielder: parts[1],
-      Forward: parts[2],
-    };
-  if (parts.length === 4)
-    return {
-      Goalkeeper: 1,
-      Defender: parts[0],
-      Midfielder: parts[1] + parts[2],
-      Forward: parts[3],
-    };
-  return { Goalkeeper: 1, Defender: 4, Midfielder: 4, Forward: 2 };
-}
 
 interface PreMatchLineupProps {
   userTeam: MatchSnapshot["home_team"];
@@ -165,8 +80,8 @@ export default function PreMatchLineup({
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
-              ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
-              : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
+            ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
+            : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
             }`}
         >
           <Wand2 className="w-3.5 h-3.5" />
@@ -283,7 +198,7 @@ export default function PreMatchLineup({
                         ))}
                       </div>
                       <span
-                        className={`text-xs tabular-nums w-8 text-right ${condColor(p.condition)}`}
+                        className={`text-xs tabular-nums w-8 text-right ${conditionTextColor(p.condition)}`}
                       >
                         {Math.round(p.condition)}%
                       </span>
@@ -357,7 +272,7 @@ export default function PreMatchLineup({
                       ))}
                     </div>
                     <span
-                      className={`text-xs tabular-nums w-8 text-right ${condColor(bp.condition)}`}
+                      className={`text-xs tabular-nums w-8 text-right ${conditionTextColor(bp.condition)}`}
                     >
                       {Math.round(bp.condition)}%
                     </span>

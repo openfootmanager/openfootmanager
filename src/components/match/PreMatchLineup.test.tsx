@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { getPositionOvr, parseFormationNeeds, condColor, statColor, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import {
+  conditionTextColor,
+  getPositionOvr,
+  getStatVal,
+  parseFormationNeeds,
+  POSITION_KEY_STATS,
+  statColor,
+} from "./matchLineupUtils";
 import PreMatchLineup from "./PreMatchLineup";
 import type { EnginePlayerData, EngineTeamData } from "./types";
 
@@ -94,20 +101,20 @@ describe("parseFormationNeeds", () => {
 // condColor
 // ---------------------------------------------------------------------------
 
-describe("condColor", () => {
+describe("conditionTextColor", () => {
   it("returns primary for high condition (>= 75)", () => {
-    expect(condColor(75)).toBe("text-primary-400");
-    expect(condColor(100)).toBe("text-primary-400");
+    expect(conditionTextColor(75)).toBe("text-primary-400");
+    expect(conditionTextColor(100)).toBe("text-primary-400");
   });
 
   it("returns amber for medium condition (50-74)", () => {
-    expect(condColor(50)).toBe("text-amber-400");
-    expect(condColor(74)).toBe("text-amber-400");
+    expect(conditionTextColor(50)).toBe("text-amber-400");
+    expect(conditionTextColor(74)).toBe("text-amber-400");
   });
 
   it("returns red for low condition (< 50)", () => {
-    expect(condColor(49)).toBe("text-red-400");
-    expect(condColor(0)).toBe("text-red-400");
+    expect(conditionTextColor(49)).toBe("text-red-400");
+    expect(conditionTextColor(0)).toBe("text-red-400");
   });
 });
 
