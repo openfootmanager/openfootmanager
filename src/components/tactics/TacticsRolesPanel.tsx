@@ -16,7 +16,10 @@ import type {
 } from "../../store/types";
 import SetPieceSelector from "../match/SetPieceSelector";
 import { Card, CardBody, CardHeader } from "../ui";
-import { setTeamMatchRoles } from "../../services/tacticsService";
+import {
+  applyTacticsRoleSelection,
+  autoSelectTacticsAssignments,
+} from "./TacticsRolesPanel.controller";
 import {
   buildUpdatedMatchRoles,
   getEffectiveMatchRoles,
@@ -47,28 +50,21 @@ export default function TacticsRolesPanel({
     return getEffectiveMatchRoles(startingPlayers, matchRoles);
   }, [matchRoles, startingPlayers]);
 
-  async function persistMatchRoles(
-    nextRoles: TeamMatchRolesData,
-  ): Promise<void> {
-    try {
-      const updated = await setTeamMatchRoles(nextRoles);
-      onGameUpdate(updated);
-    } catch (error) {
-      console.error("Failed to set team match roles:", error);
-    }
-  }
-
   async function handleRoleChange(
     role: keyof TeamMatchRolesData,
     playerId: string,
   ): Promise<void> {
-    await persistMatchRoles(
-      buildUpdatedMatchRoles(startingPlayers, effectiveRoles, role, playerId),
+    await applyTacticsRoleSelection(
+      startingPlayers,
+      effectiveRoles,
+      role,
+      playerId,
+      onGameUpdate,
     );
   }
 
   async function handleAutoSelectAssignments(): Promise<void> {
-    await persistMatchRoles(effectiveRoles);
+    await autoSelectTacticsAssignments(effectiveRoles, onGameUpdate);
   }
 
   if (startingPlayers.length === 0) {

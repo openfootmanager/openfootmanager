@@ -1,8 +1,11 @@
 import { calcAge, calcOvr } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import {
+  applyLineupDrop,
+  applyLineupSwap,
   buildPitchRows,
   buildStartingXIIds,
+  type DragState,
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
@@ -67,6 +70,26 @@ interface ResolveStartingXiIdsOptions {
   pendingStartingXiIds: string[] | null;
   playersById: Map<string, PlayerData>;
   savedStartingXiIds: string[];
+}
+
+export interface TacticsLineupSelectionState {
+  comparePlayerId: string | null;
+  comparePlayerSection: SquadSection | null;
+  selectedPlayerId: string | null;
+  selectedPlayerSection: SquadSection | null;
+}
+
+interface DroppedLineupXiIdsOptions {
+  currentXiIds: string[];
+  draggedPlayerId: string;
+  dragState: DragState | null;
+  slotIndex: number;
+  xiIds: Set<string>;
+}
+
+interface ConfirmedSwapXiIdsOptions {
+  currentXiIds: string[];
+  selectionState: TacticsLineupSelectionState;
 }
 
 export function buildTacticsRoster(
@@ -258,6 +281,129 @@ export function getSelectedAndComparePlayers(
     comparePlayer,
     selectedPlayer,
   };
+}
+
+export function getEmptyTacticsLineupSelection(): TacticsLineupSelectionState {
+  return {
+    comparePlayerId: null,
+    comparePlayerSection: null,
+    selectedPlayerId: null,
+    selectedPlayerSection: null,
+  };
+}
+
+export function getNextTacticsLineupSelection(
+  currentState: TacticsLineupSelectionState,
+  playerId: string,
+  section: SquadSection,
+): TacticsLineupSelectionState {
+  if (!currentState.selectedPlayerId || !currentState.selectedPlayerSection) {
+    return {
+      selectedPlayerId: playerId,
+      selectedPlayerSection: section,
+      comparePlayerId: null,
+      comparePlayerSection: null,
+    };
+  }
+
+  if (
+    currentState.selectedPlayerId === playerId &&
+    currentState.selectedPlayerSection === section
+  ) {
+    if (currentState.comparePlayerId && currentState.comparePlayerSection) {
+      return {
+        selectedPlayerId: currentState.comparePlayerId,
+        selectedPlayerSection: currentState.comparePlayerSection,
+        comparePlayerId: null,
+        comparePlayerSection: null,
+      };
+    }
+
+    return getEmptyTacticsLineupSelection();
+  }
+
+  if (
+    currentState.comparePlayerId === playerId &&
+    currentState.comparePlayerSection === section
+  ) {
+    return {
+      ...currentState,
+      comparePlayerId: null,
+      comparePlayerSection: null,
+    };
+  }
+
+  return {
+    ...currentState,
+    comparePlayerId: playerId,
+    comparePlayerSection: section,
+  };
+}
+
+export function getDroppedLineupXiIds({
+  currentXiIds,
+  draggedPlayerId,
+  dragState,
+  slotIndex,
+  xiIds,
+}: DroppedLineupXiIdsOptions): string[] | null {
+  const resolvedDragState =
+    dragState ??
+    (draggedPlayerId
+      ? {
+        playerId: draggedPlayerId,
+        from: xiIds.has(draggedPlayerId) ? "xi" : "bench",
+        slotIndex: xiIds.has(draggedPlayerId)
+          ? currentXiIds.indexOf(draggedPlayerId)
+          : null,
+      }
+      : null);
+
+  if (!resolvedDragState) {
+    return null;
+  }
+
+  const nextXiIds = applyLineupDrop(currentXiIds, resolvedDragState, slotIndex);
+
+  if (nextXiIds.join(",") === currentXiIds.join(",")) {
+    return null;
+  }
+
+  return nextXiIds;
+}
+
+export function getConfirmedSwapXiIds({
+  currentXiIds,
+  selectionState,
+}: ConfirmedSwapXiIdsOptions): string[] | null {
+  const {
+    comparePlayerId,
+    comparePlayerSection,
+    selectedPlayerId,
+    selectedPlayerSection,
+  } = selectionState;
+
+  if (
+    !selectedPlayerId ||
+    !selectedPlayerSection ||
+    !comparePlayerId ||
+    !comparePlayerSection
+  ) {
+    return null;
+  }
+
+  const nextXiIds = applyLineupSwap(
+    currentXiIds,
+    { id: selectedPlayerId, from: selectedPlayerSection },
+    comparePlayerId,
+    comparePlayerSection,
+  );
+
+  if (!nextXiIds || nextXiIds.join(",") === currentXiIds.join(",")) {
+    return null;
+  }
+
+  return nextXiIds;
 }
 
 export function getOverallRatingClassName(overallRating: number): string {
