@@ -6,7 +6,15 @@ import type { EnginePlayerData, EngineTeamData } from "./types";
 
 // Mock react-i18next
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string, opts?: Record<string, unknown>) => opts?.count !== undefined ? `${key}:${opts.count}` : key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown> | string) => {
+      if (typeof opts === "string") {
+        return opts;
+      }
+
+      return opts?.count !== undefined ? `${key}:${opts.count}` : key;
+    },
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -32,30 +40,29 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
 // ---------------------------------------------------------------------------
 
 describe("getPositionOvr", () => {
-  it("calculates Goalkeeper OVR from handling, reflexes, aerial, positioning, composure", () => {
+  it("calculates Goalkeeper OVR from the canonical goalkeeper weighting", () => {
     const gk = makePlayer({ position: "Goalkeeper", handling: 80, reflexes: 80, aerial: 60, positioning: 70, composure: 60 });
-    // (80*2 + 80*2 + 60 + 70 + 60) / 7 = 510/7 ≈ 73
-    expect(getPositionOvr(gk)).toBe(Math.round((80*2 + 80*2 + 60 + 70 + 60) / 7));
+    expect(getPositionOvr(gk)).toBe(74);
   });
 
-  it("calculates Defender OVR from defending, tackling, strength, positioning, aerial", () => {
+  it("calculates Defender OVR from the canonical center-back weighting", () => {
     const def = makePlayer({ position: "Defender", defending: 80, tackling: 75, strength: 70, positioning: 65, aerial: 60 });
-    expect(getPositionOvr(def)).toBe(Math.round((80*2 + 75*2 + 70 + 65 + 60) / 7));
+    expect(getPositionOvr(def)).toBe(71);
   });
 
-  it("calculates Midfielder OVR from passing, vision, decisions, stamina, dribbling, teamwork", () => {
+  it("calculates Midfielder OVR from the canonical central-midfielder weighting", () => {
     const mid = makePlayer({ position: "Midfielder", passing: 80, vision: 75, decisions: 70, stamina: 65, dribbling: 60, teamwork: 55 });
-    expect(getPositionOvr(mid)).toBe(Math.round((80*2 + 75 + 70 + 65 + 60 + 55) / 7));
+    expect(getPositionOvr(mid)).toBe(70);
   });
 
-  it("calculates Forward OVR from shooting, pace, dribbling, composure, strength, positioning", () => {
+  it("calculates Forward OVR from the canonical striker weighting", () => {
     const fwd = makePlayer({ position: "Forward", shooting: 85, pace: 80, dribbling: 75, composure: 70, strength: 65, positioning: 60 });
-    expect(getPositionOvr(fwd)).toBe(Math.round((85*2 + 80 + 75 + 70 + 65 + 60) / 7));
+    expect(getPositionOvr(fwd)).toBe(73);
   });
 
-  it("returns 50 for unknown positions", () => {
+  it("falls back to the default shared weighting for unknown positions", () => {
     const unknown = makePlayer({ position: "Sweeper" });
-    expect(getPositionOvr(unknown)).toBe(50);
+    expect(getPositionOvr(unknown)).toBe(70);
   });
 });
 

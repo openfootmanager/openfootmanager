@@ -16,8 +16,23 @@ function weightedAverage(
     ) / 100;
 }
 
-export function weightedPositionScore(player: PlayerData, position: string): number {
+export function scorePositionAttributes(
+    attributes: PlayerData["attributes"],
+    position: string,
+): number {
     const weights =
         POSITION_ATTRIBUTE_WEIGHTS[exactPosition(position)] || DEFAULT_ATTRIBUTE_WEIGHTS;
-    return weightedAverage(player.attributes, weights);
+
+    return weightedAverage(attributes, weights);
+}
+
+export function roundPositionScore(
+    attributes: PlayerData["attributes"],
+    position: string,
+): number {
+    return Math.round(Math.max(1, Math.min(99, scorePositionAttributes(attributes, position))));
+}
+
+export function weightedPositionScore(player: PlayerData, position: string): number {
+    return scorePositionAttributes(player.attributes, position);
 }

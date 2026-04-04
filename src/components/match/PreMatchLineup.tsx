@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
+import { roundPositionScore } from "../../lib/playerRatingScore";
 import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -30,49 +31,31 @@ export const POSITION_KEY_STATS: Record<
   ],
 };
 
-export function getPositionOvr(p: EnginePlayerData): number {
-  switch (p.position) {
-    case "Goalkeeper":
-      return Math.round(
-        (p.handling * 2 +
-          p.reflexes * 2 +
-          p.aerial +
-          p.positioning +
-          p.composure) /
-        7,
-      );
-    case "Defender":
-      return Math.round(
-        (p.defending * 2 +
-          p.tackling * 2 +
-          p.strength +
-          p.positioning +
-          p.aerial) /
-        7,
-      );
-    case "Midfielder":
-      return Math.round(
-        (p.passing * 2 +
-          p.vision +
-          p.decisions +
-          p.stamina +
-          p.dribbling +
-          p.teamwork) /
-        7,
-      );
-    case "Forward":
-      return Math.round(
-        (p.shooting * 2 +
-          p.pace +
-          p.dribbling +
-          p.composure +
-          p.strength +
-          p.positioning) /
-        7,
-      );
-    default:
-      return 50;
-  }
+export function getPositionOvr(player: EnginePlayerData): number {
+  return roundPositionScore(
+    {
+      pace: player.pace,
+      stamina: player.stamina,
+      strength: player.strength,
+      agility: player.agility,
+      passing: player.passing,
+      shooting: player.shooting,
+      tackling: player.tackling,
+      dribbling: player.dribbling,
+      defending: player.defending,
+      positioning: player.positioning,
+      vision: player.vision,
+      decisions: player.decisions,
+      composure: player.composure,
+      aggression: player.aggression,
+      teamwork: player.teamwork,
+      leadership: player.leadership,
+      handling: player.handling,
+      reflexes: player.reflexes,
+      aerial: player.aerial,
+    },
+    player.position,
+  );
 }
 
 export function condColor(c: number): string {
@@ -164,7 +147,7 @@ export default function PreMatchLineup({
               const ok = actual === needed;
               return (
                 <div key={pos} className="flex items-center gap-1">
-                    <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                  <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
                     {translatePositionAbbreviation(t, pos)}
                   </span>
                   <span
@@ -181,11 +164,10 @@ export default function PreMatchLineup({
         <button
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            isAutoSelecting
-                ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
+              ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
               : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
-           }`}
+            }`}
         >
           <Wand2 className="w-3.5 h-3.5" />
           {isAutoSelecting ? t("match.selecting") : t("match.autoSelectXI")}
@@ -203,7 +185,7 @@ export default function PreMatchLineup({
               {selectedStarterId && (
                 <button
                   onClick={() => onSelectStarter(null)}
-                    className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
+                  className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
                 >
                   {t("match.cancel")}
                 </button>
@@ -242,7 +224,7 @@ export default function PreMatchLineup({
                   </div>
                   {/* Stat column headers */}
                   <div className="flex items-center gap-0">
-                      <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-7 text-center">
+                    <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-7 text-center">
                       OVR
                     </span>
                     {keyStats.map((s) => (
@@ -266,9 +248,9 @@ export default function PreMatchLineup({
                       key={p.id}
                       onClick={() => onSelectStarter(isSelected ? null : p.id)}
                       className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${isSelected
-                          ? "bg-primary-500/20 ring-1 ring-primary-500/50"
-                            : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                      }`}
+                        ? "bg-primary-500/20 ring-1 ring-primary-500/50"
+                        : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                        }`}
                     >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-heading font-bold flex-shrink-0"
@@ -333,7 +315,7 @@ export default function PreMatchLineup({
               <div className="flex items-center gap-2 px-2 pb-1">
                 <span className="w-7" />
                 <span className="flex-1" />
-                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
+                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
                   POS
                 </span>
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center">
@@ -351,9 +333,9 @@ export default function PreMatchLineup({
                     key={bp.id}
                     onClick={() => (selectedStarterId ? onSwap(bp.id) : null)}
                     className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${selectedStarterId
-                        ? "hover:bg-primary-500/20 hover:ring-1 hover:ring-primary-500/50 cursor-pointer"
-                     : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                    }`}
+                      ? "hover:bg-primary-500/20 hover:ring-1 hover:ring-primary-500/50 cursor-pointer"
+                      : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                      }`}
                   >
                     <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-navy-600 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-400 flex-shrink-0 transition-colors duration-300">
                       {posOvr}
