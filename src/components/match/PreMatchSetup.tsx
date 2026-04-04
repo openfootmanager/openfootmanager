@@ -3,24 +3,14 @@ import { useTranslation } from "react-i18next";
 import { FixtureData, GameStateData } from "../../store/gameStore";
 import { getFixtureDisplayLabel } from "../../lib/helpers";
 import {
-  autoSelectSetPieces,
-  changeMatchFormation,
-  changeMatchPlayStyle,
   type SetPieceRole,
-  setMatchSetPieceTaker,
-  swapPreMatchPlayers,
 } from "../../services/liveMatchService";
 import { MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
 import PreMatchLineup from "./PreMatchLineup";
 import {
   parseFormationNeeds,
 } from "./matchLineupUtils";
-import {
-  applyPlannedPreMatchSwaps,
-  applySetPieceAssignments,
-  getAutoSelectedSetPieceAssignments,
-  planAutoSelectSwaps,
-} from "./preMatchSetupUtils";
+import { autoSelectPreMatchLineup, autoAssignPreMatchSetPieces, applyPreMatchFormationChange, applyPreMatchPlayStyleChange, applyPreMatchSetPieceTaker, applyPreMatchSwap } from "./preMatchSetupController";
 import MatchScreenLayout from "./MatchScreenLayout";
 import SetPieceSelector from "./SetPieceSelector";
 import {
@@ -96,67 +86,39 @@ export default function PreMatchSetup({
   const userBench =
     userSide === "Home" ? snapshot.home_bench || [] : snapshot.away_bench || [];
 
-  const applySnapshotUpdate = async (
-    action: () => Promise<MatchSnapshot>,
-    errorMessage: string,
-  ): Promise<MatchSnapshot | null> => {
-    try {
-      const nextSnapshot = await action();
-      onUpdateSnapshot(nextSnapshot);
-      return nextSnapshot;
-    } catch (err) {
-      console.error(errorMessage, err);
-      return null;
-    }
-  };
-
   const handleFormationChange = async (formation: string) => {
-    await applySnapshotUpdate(
-      () => changeMatchFormation(userSide, formation),
-      "Formation change failed:",
-    );
+    await applyPreMatchFormationChange(userSide, formation, onUpdateSnapshot);
   };
 
   const handlePlayStyleChange = async (playStyle: string) => {
-    await applySnapshotUpdate(
-      () => changeMatchPlayStyle(userSide, playStyle),
-      "Play style change failed:",
-    );
+    await applyPreMatchPlayStyleChange(userSide, playStyle, onUpdateSnapshot);
   };
 
   const handleSwap = async (benchPlayerId: string) => {
-    if (!selectedStarterId) return;
-    await applySnapshotUpdate(
-      () =>
-        swapPreMatchPlayers(
-          userSide,
-          selectedStarterId,
-          benchPlayerId,
-        ),
-      "Pre-match swap failed:",
+    await applyPreMatchSwap(
+      userSide,
+      selectedStarterId,
+      benchPlayerId,
+      onUpdateSnapshot,
     );
     setSelectedStarterId(null);
   };
 
   const handleSetPieceTaker = async (role: SetPieceRole, playerId: string) => {
-    await applySnapshotUpdate(
-      () => setMatchSetPieceTaker(userSide, role, playerId),
-      "Set piece taker change failed:",
+    await applyPreMatchSetPieceTaker(
+      userSide,
+      role,
+      playerId,
+      onUpdateSnapshot,
     );
   };
 
   const handleAutoSelectSetPieces = async () => {
-    try {
-      const result = await autoSelectSetPieces(userTeam.players.map((player) => player.id));
-      await applySetPieceAssignments(
-        getAutoSelectedSetPieceAssignments(result),
-        (assignment) =>
-          setMatchSetPieceTaker(userSide, assignment.role, assignment.playerId),
-        onUpdateSnapshot,
-      );
-    } catch (err) {
-      console.error("Auto-select set pieces failed:", err);
-    }
+    await autoAssignPreMatchSetPieces(
+      userSide,
+      userTeam.players.map((player) => player.id),
+      onUpdateSnapshot,
+    );
   };
 
   const formationNeeds = parseFormationNeeds(userTeam.formation);
@@ -164,18 +126,13 @@ export default function PreMatchSetup({
   const handleAutoSelect = async () => {
     setIsAutoSelecting(true);
     try {
-      const swaps = planAutoSelectSwaps(
+      await autoSelectPreMatchLineup(
+        userSide,
         userTeam.players,
         userBench,
         formationNeeds,
-      );
-      await applyPlannedPreMatchSwaps(
-        swaps,
-        (swap) => swapPreMatchPlayers(userSide, swap.playerOffId, swap.playerOnId),
         onUpdateSnapshot,
       );
-    } catch (err) {
-      console.error("Auto-select failed:", err);
     } finally {
       setIsAutoSelecting(false);
       setSelectedStarterId(null);
