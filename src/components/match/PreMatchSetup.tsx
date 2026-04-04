@@ -13,8 +13,8 @@ import { MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
 import PreMatchLineup from "./PreMatchLineup";
 import {
   parseFormationNeeds,
-  getPositionOvr,
 } from "./matchLineupUtils";
+import { planAutoSelectSwaps } from "./preMatchSetupUtils";
 import MatchScreenLayout from "./MatchScreenLayout";
 import SetPieceSelector from "./SetPieceSelector";
 import {
@@ -164,46 +164,21 @@ export default function PreMatchSetup({
   const handleAutoSelect = async () => {
     setIsAutoSelecting(true);
     try {
-      const pool = [...userTeam.players, ...userBench];
-      const idealIds = new Set<string>();
-
-      for (const pos of ["Goalkeeper", "Defender", "Midfielder", "Forward"]) {
-        const candidates = pool
-          .filter((p) => p.position === pos)
-          .sort(
-            (a, b) =>
-              getPositionOvr(b) * (b.condition / 100) -
-              getPositionOvr(a) * (a.condition / 100),
-          );
-        const needed = formationNeeds[pos] || 0;
-        for (let i = 0; i < Math.min(needed, candidates.length); i++) {
-          idealIds.add(candidates[i].id);
-        }
-      }
-
-      // Fill remaining slots if fewer than 11 (e.g. not enough of a position)
-      if (idealIds.size < 11) {
-        const rest = pool
-          .filter((p) => !idealIds.has(p.id))
-          .sort(
-            (a, b) =>
-              getPositionOvr(b) * (b.condition / 100) -
-              getPositionOvr(a) * (a.condition / 100),
-          );
-        for (const p of rest) {
-          if (idealIds.size >= 11) break;
-          idealIds.add(p.id);
-        }
-      }
-
-      const currentIds = new Set(userTeam.players.map((p) => p.id));
-      const toAdd = [...idealIds].filter((id) => !currentIds.has(id));
-      const toRemove = [...currentIds].filter((id) => !idealIds.has(id));
-
       let snap: MatchSnapshot | null = null;
-      for (let i = 0; i < Math.min(toAdd.length, toRemove.length); i++) {
-        snap = await swapPreMatchPlayers(userSide, toRemove[i], toAdd[i]);
+      const swaps = planAutoSelectSwaps(
+        userTeam.players,
+        userBench,
+        formationNeeds,
+      );
+
+      for (const swap of swaps) {
+        snap = await swapPreMatchPlayers(
+          userSide,
+          swap.playerOffId,
+          swap.playerOnId,
+        );
       }
+
       if (snap) onUpdateSnapshot(snap);
     } catch (err) {
       console.error("Auto-select failed:", err);
