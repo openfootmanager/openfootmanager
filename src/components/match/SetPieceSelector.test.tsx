@@ -162,7 +162,7 @@ describe("SetPieceSelector component", () => {
         currentId={null}
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
     expect(screen.getByText("Penalty Taker")).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("SetPieceSelector component", () => {
         currentId="p1"
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
     expect(screen.getByText("John Smith")).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe("SetPieceSelector component", () => {
           { id: "cb", name: "Center Back Player", position: "Center Back" },
         ]}
         allSquad={[makePlayer({ id: "cb", position: "Center Back" })]}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
 
@@ -214,7 +214,7 @@ describe("SetPieceSelector component", () => {
         currentId={null}
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
     // Click to expand
@@ -235,7 +235,7 @@ describe("SetPieceSelector component", () => {
         currentId="p1"
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
 
@@ -278,7 +278,7 @@ describe("SetPieceSelector component", () => {
         currentId="p1"
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
     fireEvent.click(screen.getByText("Penalty Taker"));
@@ -299,7 +299,7 @@ describe("SetPieceSelector component", () => {
         currentId={null}
         players={players}
         allSquad={allSquad}
-        onSelect={() => {}}
+        onSelect={() => { }}
       />,
     );
 
