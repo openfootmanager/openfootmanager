@@ -4,10 +4,7 @@ import { MatchSnapshot } from "./types";
 import { getPlayerName } from "./helpers";
 import { Badge } from "../ui";
 import { RefreshCw, AlertTriangle, UserMinus, UserPlus } from "lucide-react";
-import {
-  getPositionOvr,
-  parseFormationNeeds,
-} from "./PreMatchLineup";
+import { getPositionOvr } from "./PreMatchLineup";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 export function SubPanel({
@@ -47,7 +44,6 @@ export function SubPanel({
     : null;
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-  const expectedCounts = parseFormationNeeds(team.formation);
 
   const condColor = (c: number) =>
     c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
@@ -205,10 +201,10 @@ export function SubPanel({
                           >
                             <div
                               className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-heading font-bold border-2 transition-all ${isSelected
-                                  ? "bg-red-500/80 border-red-300 text-white ring-2 ring-red-500/50"
-                                  : p.condition < 50
-                                    ? "bg-yellow-600/70 border-yellow-400 text-white"
-                                    : "bg-primary-500/60 border-primary-300/50 text-white"
+                                ? "bg-red-500/80 border-red-300 text-white ring-2 ring-red-500/50"
+                                : p.condition < 50
+                                  ? "bg-yellow-600/70 border-yellow-400 text-white"
+                                  : "bg-primary-500/60 border-primary-300/50 text-white"
                                 }`}
                             >
                               {Math.round(p.condition)}
@@ -266,8 +262,8 @@ export function SubPanel({
                               handleSelectOffPlayer(p.id);
                             }}
                             className={`cursor-pointer transition-colors text-sm ${isSelected
-                                ? "bg-red-500/10"
-                                : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                              ? "bg-red-500/10"
+                              : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
                               }`}
                           >
                             <td className="py-2 pr-2">
@@ -433,7 +429,7 @@ export function SubPanel({
                     </thead>
                     <tbody>
                       {availableBench.map((p) => {
-                        const ovr = getOvr(p);
+                        const ovr = getPositionOvr(p);
                         // Off-position indicator: compare with selected player's position
                         const posMatch = selectedPlayer
                           ? p.position === selectedPlayer.position
@@ -445,10 +441,10 @@ export function SubPanel({
                               handleSelectBenchPlayer(p.id);
                             }}
                             className={`transition-colors text-sm ${selectedOff
-                                ? selectedBench === p.id
-                                  ? "cursor-pointer bg-green-500/15 ring-1 ring-green-500/30"
-                                  : "cursor-pointer hover:bg-green-500/10"
-                                : "opacity-60"
+                              ? selectedBench === p.id
+                                ? "cursor-pointer bg-green-500/15 ring-1 ring-green-500/30"
+                                : "cursor-pointer hover:bg-green-500/10"
+                              : "opacity-60"
                               }`}
                           >
                             <td className="py-2 pr-2">

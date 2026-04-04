@@ -185,12 +185,6 @@ export function phaseLabel(phase: string): string {
   }
 }
 
-export function calcOvr(attrs: Record<string, number>): number {
-  const vals = Object.values(attrs);
-  if (vals.length === 0) return 0;
-  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-}
-
 export function resolveMatchFixture(
   gameState: GameStateData | null,
   snapshot: MatchSnapshot | null,
