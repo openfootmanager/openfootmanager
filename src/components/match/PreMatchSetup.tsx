@@ -16,6 +16,8 @@ import {
   parseFormationNeeds,
 } from "./matchLineupUtils";
 import {
+  applyPlannedPreMatchSwaps,
+  applySetPieceAssignments,
   getAutoSelectedSetPieceAssignments,
   planAutoSelectSwaps,
 } from "./preMatchSetupUtils";
@@ -146,10 +148,12 @@ export default function PreMatchSetup({
   const handleAutoSelectSetPieces = async () => {
     try {
       const result = await autoSelectSetPieces(userTeam.players.map((player) => player.id));
-
-      for (const assignment of getAutoSelectedSetPieceAssignments(result)) {
-        await handleSetPieceTaker(assignment.role, assignment.playerId);
-      }
+      await applySetPieceAssignments(
+        getAutoSelectedSetPieceAssignments(result),
+        (assignment) =>
+          setMatchSetPieceTaker(userSide, assignment.role, assignment.playerId),
+        onUpdateSnapshot,
+      );
     } catch (err) {
       console.error("Auto-select set pieces failed:", err);
     }
@@ -160,22 +164,16 @@ export default function PreMatchSetup({
   const handleAutoSelect = async () => {
     setIsAutoSelecting(true);
     try {
-      let snap: MatchSnapshot | null = null;
       const swaps = planAutoSelectSwaps(
         userTeam.players,
         userBench,
         formationNeeds,
       );
-
-      for (const swap of swaps) {
-        snap = await swapPreMatchPlayers(
-          userSide,
-          swap.playerOffId,
-          swap.playerOnId,
-        );
-      }
-
-      if (snap) onUpdateSnapshot(snap);
+      await applyPlannedPreMatchSwaps(
+        swaps,
+        (swap) => swapPreMatchPlayers(userSide, swap.playerOffId, swap.playerOnId),
+        onUpdateSnapshot,
+      );
     } catch (err) {
       console.error("Auto-select failed:", err);
     } finally {

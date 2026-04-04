@@ -2,7 +2,7 @@ import type {
     AutoSelectedSetPieces,
     SetPieceRole,
 } from "../../services/liveMatchService";
-import type { EnginePlayerData } from "./types";
+import type { EnginePlayerData, MatchSnapshot } from "./types";
 import { getPositionOvr } from "./matchLineupUtils";
 
 export interface PlannedPreMatchSwap {
@@ -14,6 +14,8 @@ export interface PlannedSetPieceAssignment {
     playerId: string;
     role: SetPieceRole;
 }
+
+type SnapshotCallback = (snapshot: MatchSnapshot) => void;
 
 const AUTO_SELECTED_SET_PIECE_ORDER: ReadonlyArray<{
     key: keyof AutoSelectedSetPieces;
@@ -100,4 +102,36 @@ export function getAutoSelectedSetPieceAssignments(
         const playerId = selection[key];
         return playerId ? [{ playerId, role }] : [];
     });
+}
+
+export async function applyPlannedPreMatchSwaps(
+    swaps: PlannedPreMatchSwap[],
+    applySwap: (swap: PlannedPreMatchSwap) => Promise<MatchSnapshot>,
+    onSnapshot?: SnapshotCallback,
+): Promise<MatchSnapshot | null> {
+    let latestSnapshot: MatchSnapshot | null = null;
+
+    for (const swap of swaps) {
+        latestSnapshot = await applySwap(swap);
+        onSnapshot?.(latestSnapshot);
+    }
+
+    return latestSnapshot;
+}
+
+export async function applySetPieceAssignments(
+    assignments: PlannedSetPieceAssignment[],
+    applyAssignment: (
+        assignment: PlannedSetPieceAssignment,
+    ) => Promise<MatchSnapshot>,
+    onSnapshot?: SnapshotCallback,
+): Promise<MatchSnapshot | null> {
+    let latestSnapshot: MatchSnapshot | null = null;
+
+    for (const assignment of assignments) {
+        latestSnapshot = await applyAssignment(assignment);
+        onSnapshot?.(latestSnapshot);
+    }
+
+    return latestSnapshot;
 }

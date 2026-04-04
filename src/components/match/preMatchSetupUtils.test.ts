@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+    applyPlannedPreMatchSwaps,
+    applySetPieceAssignments,
     getAutoSelectedSetPieceAssignments,
     planAutoSelectSwaps,
 } from "./preMatchSetupUtils";
-import type { EnginePlayerData } from "./types";
+import type { EnginePlayerData, MatchSnapshot } from "./types";
 
 const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => ({
     id: "p1",
@@ -30,6 +32,55 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
     reflexes: 30,
     aerial: 50,
     traits: [],
+    ...overrides,
+});
+
+const makeSnapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => ({
+    phase: "PreKickOff",
+    current_minute: 0,
+    home_score: 0,
+    away_score: 0,
+    possession: "Home",
+    ball_zone: "Midfield",
+    home_team: {
+        id: "home-1",
+        name: "Home FC",
+        formation: "4-4-2",
+        play_style: "Balanced",
+        players: [],
+    },
+    away_team: {
+        id: "away-1",
+        name: "Away FC",
+        formation: "4-4-2",
+        play_style: "Balanced",
+        players: [],
+    },
+    home_bench: [],
+    away_bench: [],
+    home_possession_pct: 50,
+    away_possession_pct: 50,
+    events: [],
+    home_subs_made: 0,
+    away_subs_made: 0,
+    max_subs: 5,
+    home_set_pieces: {
+        captain: null,
+        penalty_taker: null,
+        free_kick_taker: null,
+        corner_taker: null,
+    },
+    away_set_pieces: {
+        captain: null,
+        penalty_taker: null,
+        free_kick_taker: null,
+        corner_taker: null,
+    },
+    substitutions: [],
+    allows_extra_time: false,
+    home_yellows: {},
+    away_yellows: {},
+    sent_off: [],
     ...overrides,
 });
 
@@ -101,5 +152,77 @@ describe("getAutoSelectedSetPieceAssignments", () => {
             { role: "penalty", playerId: "penalty-1" },
             { role: "corner", playerId: "corner-1" },
         ]);
+    });
+});
+
+describe("applyPlannedPreMatchSwaps", () => {
+    it("applies swaps in order and returns the last snapshot", async () => {
+        const firstSnapshot = makeSnapshot({ current_minute: 1 });
+        const finalSnapshot = makeSnapshot({ current_minute: 2 });
+        const onSnapshot = vi.fn();
+        const applySwap = vi
+            .fn()
+            .mockResolvedValueOnce(firstSnapshot)
+            .mockResolvedValueOnce(finalSnapshot);
+
+        const result = await applyPlannedPreMatchSwaps(
+            [
+                { playerOffId: "a", playerOnId: "b" },
+                { playerOffId: "c", playerOnId: "d" },
+            ],
+            applySwap,
+            onSnapshot,
+        );
+
+        expect(applySwap.mock.calls).toEqual([
+            [{ playerOffId: "a", playerOnId: "b" }],
+            [{ playerOffId: "c", playerOnId: "d" }],
+        ]);
+        expect(onSnapshot).toHaveBeenNthCalledWith(1, firstSnapshot);
+        expect(onSnapshot).toHaveBeenNthCalledWith(2, finalSnapshot);
+        expect(result).toBe(finalSnapshot);
+    });
+});
+
+describe("applySetPieceAssignments", () => {
+    it("applies assignments in order and reports each snapshot", async () => {
+        const captainSnapshot = makeSnapshot({
+            home_set_pieces: {
+                captain: "captain-1",
+                penalty_taker: null,
+                free_kick_taker: null,
+                corner_taker: null,
+            },
+        });
+        const cornerSnapshot = makeSnapshot({
+            home_set_pieces: {
+                captain: "captain-1",
+                penalty_taker: null,
+                free_kick_taker: null,
+                corner_taker: "corner-1",
+            },
+        });
+        const onSnapshot = vi.fn();
+        const applyAssignment = vi
+            .fn()
+            .mockResolvedValueOnce(captainSnapshot)
+            .mockResolvedValueOnce(cornerSnapshot);
+
+        const result = await applySetPieceAssignments(
+            [
+                { role: "captain", playerId: "captain-1" },
+                { role: "corner", playerId: "corner-1" },
+            ],
+            applyAssignment,
+            onSnapshot,
+        );
+
+        expect(applyAssignment.mock.calls).toEqual([
+            [{ role: "captain", playerId: "captain-1" }],
+            [{ role: "corner", playerId: "corner-1" }],
+        ]);
+        expect(onSnapshot).toHaveBeenNthCalledWith(1, captainSnapshot);
+        expect(onSnapshot).toHaveBeenNthCalledWith(2, cornerSnapshot);
+        expect(result).toBe(cornerSnapshot);
     });
 });
