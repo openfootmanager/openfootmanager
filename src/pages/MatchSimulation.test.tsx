@@ -33,27 +33,52 @@ vi.mock("../store/gameStore", () => ({
 }));
 
 vi.mock("../components/match/PreMatchSetup", () => ({
-  default: ({ snapshot }: { snapshot: { home_team: { name: string } } }) => (
-    <div data-testid="prematch">{snapshot.home_team.name}</div>
+  default: ({
+    snapshot,
+    onStart,
+  }: {
+    snapshot: { home_team: { name: string } };
+    onStart?: () => void;
+  }) => (
+    <div>
+      <div data-testid="prematch">{snapshot.home_team.name}</div>
+      <button data-testid="prematch-start" onClick={onStart}>
+        Start Match
+      </button>
+    </div>
   ),
 }));
 
 vi.mock("../components/match/MatchLive", () => ({
   default: ({
     snapshot,
+    onHalfTime,
     onFullTime,
   }: {
     snapshot: { home_team: { name: string } };
+    onHalfTime?: () => void;
     onFullTime?: () => void;
   }) => (
-    <button data-testid="match-live" onClick={onFullTime}>
-      {snapshot.home_team.name}
-    </button>
+    <div>
+      <button data-testid="match-live" onClick={onFullTime}>
+        {snapshot.home_team.name}
+      </button>
+      <button data-testid="match-live-halftime" onClick={onHalfTime}>
+        Half Time
+      </button>
+    </div>
   ),
 }));
 
 vi.mock("../components/match/HalfTimeBreak", () => ({
-  default: () => <div data-testid="halftime" />,
+  default: ({ onResume }: { onResume?: () => void }) => (
+    <div>
+      <div data-testid="halftime" />
+      <button data-testid="halftime-resume" onClick={onResume}>
+        Resume Match
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
@@ -339,6 +364,37 @@ describe("MatchSimulation", function (): void {
 
     await waitFor(function (): void {
       expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+    });
+  });
+
+  it("transitions from prematch through halftime and back into live play", async function (): Promise<void> {
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch")).toHaveTextContent("Home FC");
+    });
+
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.queryByTestId("prematch")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("match-live-halftime"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("halftime")).toBeInTheDocument();
+      expect(screen.queryByTestId("match-live")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("halftime-resume"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.queryByTestId("halftime")).not.toBeInTheDocument();
     });
   });
 
