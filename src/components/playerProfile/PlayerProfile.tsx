@@ -24,7 +24,6 @@ import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import {
   type DelegatedRenewalCaseData,
-  type DelegatedRenewalResponseData,
   type NegotiationFeedbackData,
   getRenewalStatusClassName,
   getRenewalStatusMessage,
@@ -43,6 +42,7 @@ import {
 } from "../../services/playerProfileService";
 import {
   delegateRenewals,
+  type NegotiationFeedbackData as RenewalServiceFeedbackData,
   previewRenewalFinancialImpact,
   proposeRenewal,
 } from "../../services/renewalService";
@@ -63,6 +63,33 @@ function areAdvancedStatsEqual(
   right: PlayerAdvancedStatsSummary,
 ): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function normaliseRenewalFeedback(
+  feedback: RenewalServiceFeedbackData | null | undefined,
+): NegotiationFeedbackData | null {
+  if (!feedback) {
+    return null;
+  }
+
+  const mood =
+    feedback.mood === "calm" ||
+      feedback.mood === "firm" ||
+      feedback.mood === "tense" ||
+      feedback.mood === "positive" ||
+      feedback.mood === "guarded"
+      ? feedback.mood
+      : "guarded";
+
+  return {
+    detail_key: feedback.detail_key ?? null,
+    headline_key: feedback.headline_key ?? "common.unknown",
+    mood,
+    params: feedback.params,
+    patience: feedback.patience,
+    round: feedback.round,
+    tension: feedback.tension,
+  };
 }
 
 export default function PlayerProfile({
@@ -119,7 +146,7 @@ export default function PlayerProfile({
   const [hasConsumedInitialRenewalIntent, setHasConsumedInitialRenewalIntent] =
     useState(false);
   const ovr = calcOvr(player, primaryPosition);
-  const age = getPlayerAge(player.date_of_birth);
+  const age = getPlayerAge(player.date_of_birth, gameState.clock.current_date);
   const teamName = getPlayerTeamName(
     gameState.teams,
     player.team_id,
@@ -358,7 +385,7 @@ export default function PlayerProfile({
       setRenewalSessionStatus(result.session_status);
       setRenewalIsTerminal(result.is_terminal);
       setRenewalCooledOff(result.cooled_off ?? false);
-      setRenewalFeedback(result.feedback ?? null);
+      setRenewalFeedback(normaliseRenewalFeedback(result.feedback));
 
       if (result.session_status === "blocked") {
         setRenewalStatus("blocked");

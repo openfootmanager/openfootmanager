@@ -134,6 +134,7 @@ export default function ScoutingTab({
 
       {scouts.length > 0 && (
         <ScoutingPlayerSearchCard
+          currentDate={gameState.clock.current_date}
           players={scoutablePlayers}
           teams={gameState.teams}
           posFilter={posFilter}

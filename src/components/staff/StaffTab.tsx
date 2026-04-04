@@ -56,12 +56,13 @@ function ovrRating(s: StaffData): number {
       s.attributes.judging_ability +
       s.attributes.judging_potential +
       s.attributes.physiotherapy) /
-      4,
+    4,
   );
 }
 
 export default function StaffTab({ gameState, onGameUpdate }: StaffTabProps) {
   const { t, i18n } = useTranslation();
+  const currentDate = gameState.clock.current_date;
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const userTeamId = gameState.manager.team_id;
   const [view, setView] = useState<"mystaff" | "available">("mystaff");
@@ -117,22 +118,20 @@ export default function StaffTab({ gameState, onGameUpdate }: StaffTabProps) {
         <div className="flex gap-2">
           <button
             onClick={() => setView("mystaff")}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              view === "mystaff"
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === "mystaff"
                 ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             <UserCog className="w-4 h-4" />{" "}
             {t("staff.myStaff", { count: myStaff.length })}
           </button>
           <button
             onClick={() => setView("available")}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              view === "available"
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === "available"
                 ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             <UserPlus className="w-4 h-4" />{" "}
             {t("staff.available", { count: availableStaff.length })}
@@ -153,11 +152,10 @@ export default function StaffTab({ gameState, onGameUpdate }: StaffTabProps) {
         <div className="flex gap-1.5">
           <button
             onClick={() => setRoleFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-              !roleFilter
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!roleFilter
                 ? "bg-primary-500 text-white shadow-sm"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             {t("common.all")}
           </button>
@@ -165,11 +163,10 @@ export default function StaffTab({ gameState, onGameUpdate }: StaffTabProps) {
             <button
               key={r}
               onClick={() => setRoleFilter(roleFilter === r ? null : r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
-                roleFilter === r
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${roleFilter === r
                   ? "bg-primary-500 text-white shadow-sm"
                   : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+                }`}
             >
               {ROLE_ICONS[r]} {t(`staff.roles.${r}`)}
             </button>
@@ -192,7 +189,7 @@ export default function StaffTab({ gameState, onGameUpdate }: StaffTabProps) {
           {filtered.map((staff) => {
             const roleIcon = ROLE_ICONS[staff.role] || ROLE_ICONS.Coach;
             const roleColor = ROLE_COLORS[staff.role] || ROLE_COLORS.Coach;
-            const age = calcAge(staff.date_of_birth);
+            const age = calcAge(staff.date_of_birth, currentDate);
             const ovr = ovrRating(staff);
             const best = bestAttr(staff);
 

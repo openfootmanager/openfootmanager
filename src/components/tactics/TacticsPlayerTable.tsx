@@ -16,6 +16,7 @@ import {
 } from "../squad/SquadTab.helpers";
 
 interface TacticsPlayerTableProps {
+  currentDate: string;
   emptyMessage: string;
   highlightedPlayerId: string | null;
   onSelectPlayer: (playerId: string) => void;
@@ -67,11 +68,10 @@ function SortHeader({
 
   return (
     <th
-      className={`cursor-pointer select-none px-4 py-2.5 font-heading font-bold uppercase tracking-wider transition-colors hover:text-primary-400 ${
-        isActive
+      className={`cursor-pointer select-none px-4 py-2.5 font-heading font-bold uppercase tracking-wider transition-colors hover:text-primary-400 ${isActive
           ? "text-primary-500 dark:text-primary-400"
           : "text-gray-500 dark:text-gray-400"
-      }`}
+        }`}
       onClick={() => toggleSort(column)}
     >
       <div className="flex items-center gap-1">
@@ -89,6 +89,7 @@ function SortHeader({
 }
 
 function renderTableRow(props: {
+  currentDate: string;
   highlightedPlayerId: string | null;
   onSelectPlayer: (playerId: string) => void;
   player: PlayerData;
@@ -96,6 +97,7 @@ function renderTableRow(props: {
   xiActivePosition: Map<string, string>;
 }): JSX.Element {
   const {
+    currentDate,
     highlightedPlayerId,
     onSelectPlayer,
     player,
@@ -118,11 +120,10 @@ function renderTableRow(props: {
       key={player.id}
       data-testid={`${section}-player-${player.id}`}
       onClick={() => onSelectPlayer(player.id)}
-      className={`group cursor-pointer transition-colors ${
-        isHighlighted
+      className={`group cursor-pointer transition-colors ${isHighlighted
           ? "bg-primary-500/10 dark:bg-primary-500/10"
           : "hover:bg-gray-50 dark:hover:bg-navy-700/50"
-      }`}
+        }`}
     >
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1.5">
@@ -152,7 +153,7 @@ function renderTableRow(props: {
         {renderPreferredPositionMeta(player, t)}
       </td>
       <td className="px-4 py-2.5 text-sm tabular-nums text-gray-600 dark:text-gray-400">
-        {calcAge(player.date_of_birth)}
+        {calcAge(player.date_of_birth, currentDate)}
       </td>
       <td className="w-28 px-4 py-2.5">
         <ProgressBar
@@ -197,6 +198,7 @@ function renderTableRow(props: {
 }
 
 export default function TacticsPlayerTable({
+  currentDate,
   emptyMessage,
   highlightedPlayerId,
   onSelectPlayer,
@@ -293,6 +295,7 @@ export default function TacticsPlayerTable({
           <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
             {players.map((player) =>
               renderTableRow({
+                currentDate,
                 highlightedPlayerId,
                 onSelectPlayer,
                 player,

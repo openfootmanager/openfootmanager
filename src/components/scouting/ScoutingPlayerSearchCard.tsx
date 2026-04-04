@@ -16,6 +16,7 @@ const POSITION_FILTERS = [
 ];
 
 interface ScoutingPlayerSearchCardProps {
+  currentDate: string;
   players: PlayerData[];
   teams: TeamData[];
   posFilter: string;
@@ -36,6 +37,7 @@ interface ScoutingPlayerSearchCardProps {
 }
 
 export default function ScoutingPlayerSearchCard({
+  currentDate,
   players,
   teams,
   posFilter,
@@ -67,8 +69,8 @@ export default function ScoutingPlayerSearchCard({
                 key={position}
                 onClick={() => onPositionFilterChange(position)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors ${posFilter === position
-                    ? "bg-primary-500 text-white"
-                    : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+                  ? "bg-primary-500 text-white"
+                  : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
                   }`}
               >
                 {position === "All"
@@ -148,7 +150,7 @@ export default function ScoutingPlayerSearchCard({
                       </Badge>
                     </td>
                     <td className="text-center py-2 px-1 text-gray-600 dark:text-gray-400">
-                      {calcAge(player.date_of_birth)}
+                      {calcAge(player.date_of_birth, currentDate)}
                     </td>
                     <td className="py-2 px-1 text-gray-600 dark:text-gray-400 text-xs truncate max-w-[120px]">
                       {team}

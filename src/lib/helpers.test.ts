@@ -313,9 +313,9 @@ describe("calcOvr", () => {
 });
 
 describe("calcAge", () => {
-  it("calculates age relative to 2026", () => {
-    expect(calcAge("1996-01-15")).toBe(30);
-    expect(calcAge("2000-06-01")).toBe(26);
+  it("calculates age relative to an explicit in-game date", () => {
+    expect(calcAge("1996-01-15", "2026-07-01")).toBe(30);
+    expect(calcAge("2000-06-01", "2026-07-01")).toBe(26);
   });
 });
 

@@ -11,6 +11,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
 
 interface TeamProfileRosterCardProps {
+  currentDate: string;
   roster: PlayerData[];
   isOwnTeam: boolean;
   locale: string;
@@ -19,6 +20,7 @@ interface TeamProfileRosterCardProps {
 }
 
 export default function TeamProfileRosterCard({
+  currentDate,
   roster,
   isOwnTeam,
   locale,
@@ -66,7 +68,7 @@ export default function TeamProfileRosterCard({
                   player,
                   player.natural_position || player.position,
                 );
-                const age = calcAge(player.date_of_birth);
+                const age = calcAge(player.date_of_birth, currentDate);
 
                 return (
                   <tr
@@ -120,15 +122,14 @@ export default function TeamProfileRosterCard({
                     )}
                     <td className="py-3 px-5">
                       <span
-                        className={`font-heading font-bold text-lg tabular-nums ${
-                          isOwnTeam
+                        className={`font-heading font-bold text-lg tabular-nums ${isOwnTeam
                             ? ovr >= 75
                               ? "text-primary-500"
                               : ovr >= 55
                                 ? "text-accent-500"
                                 : "text-gray-400"
                             : "text-gray-400"
-                        }`}
+                          }`}
                       >
                         {isOwnTeam ? ovr : "??"}
                       </span>

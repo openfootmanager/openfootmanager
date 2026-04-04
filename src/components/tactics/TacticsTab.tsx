@@ -48,6 +48,7 @@ export default function TacticsTab({
   onGameUpdate,
 }: TacticsTabProps): JSX.Element {
   const { t } = useTranslation();
+  const currentDate = gameState.clock.current_date;
   const myTeam = gameState.teams.find(
     (team) => team.id === gameState.manager.team_id,
   );
@@ -187,6 +188,7 @@ export default function TacticsTab({
           xiActivePosition,
         },
         {
+          currentDate,
           section: "xi",
           sortDir,
           sortKey,
@@ -213,6 +215,7 @@ export default function TacticsTab({
           xiActivePosition,
         },
         {
+          currentDate,
           section: "bench",
           sortDir,
           sortKey,
@@ -432,8 +435,8 @@ export default function TacticsTab({
           type="button"
           onClick={() => setActiveTab("lineup")}
           className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "lineup"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
+            : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             }`}
         >
           {t("tactics.lineupTab", "Lineup")}
@@ -442,8 +445,8 @@ export default function TacticsTab({
           type="button"
           onClick={() => setActiveTab("roles")}
           className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "roles"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
+            : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             }`}
         >
           {t("tactics.rolesTab", "Set pieces & roles")}
@@ -479,6 +482,7 @@ export default function TacticsTab({
             <div className="flex flex-col gap-4">
               <TacticsPlayerFocusPanel
                 canConfirmSwap={canConfirmSwap}
+                currentDate={currentDate}
                 onConfirmSwap={() => {
                   void handleConfirmSwap();
                 }}
@@ -507,6 +511,7 @@ export default function TacticsTab({
           />
 
           <TacticsPlayerTable
+            currentDate={currentDate}
             emptyMessage={t(
               "squad.noLineupMatches",
               "No starters match the current filters.",
@@ -524,6 +529,7 @@ export default function TacticsTab({
           />
 
           <TacticsPlayerTable
+            currentDate={currentDate}
             emptyMessage={t(
               "squad.noBenchMatches",
               "No bench players match the current filters.",

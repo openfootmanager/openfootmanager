@@ -543,7 +543,10 @@ export default function TransfersTab({
                       player,
                       player.natural_position || player.position,
                     );
-                    const age = calcAge(player.date_of_birth);
+                    const age = calcAge(
+                      player.date_of_birth,
+                      gameState.clock.current_date,
+                    );
                     const offersForThisPlayer = player.transfer_offers;
                     return (
                       <tr

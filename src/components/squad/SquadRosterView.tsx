@@ -60,6 +60,7 @@ export default function SquadRosterView({
   onSelectPlayer,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
+  const currentDate = gameState.clock.current_date;
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
   const [playerSearch, setPlayerSearch] = useState("");
@@ -201,7 +202,10 @@ export default function SquadRosterView({
         case "name":
           return a.full_name.localeCompare(b.full_name);
         case "age":
-          return calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
+          return (
+            calcAge(a.date_of_birth, currentDate) -
+            calcAge(b.date_of_birth, currentDate)
+          );
         case "condition":
           return a.condition - b.condition;
         case "morale":
@@ -337,8 +341,8 @@ export default function SquadRosterView({
             }}
             disabled={!hasActiveFilters}
             className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${hasActiveFilters
-                ? "bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600"
-                : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600"
+              : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
               }`}
           >
             {t("common.clear", "Clear")}
@@ -408,7 +412,7 @@ export default function SquadRosterView({
                   ? xiActivePosition.get(player.id) || player.position
                   : player.natural_position || player.position;
                 const ovr = calcOvr(player, currentPos);
-                const age = calcAge(player.date_of_birth);
+                const age = calcAge(player.date_of_birth, currentDate);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const contractRiskLevel = getContractRiskLevel(
                   player.contract_end,
@@ -586,10 +590,10 @@ export default function SquadRosterView({
                       <td className="py-2.5 px-4 text-right">
                         <span
                           className={`font-heading font-bold text-sm ${ovr >= 80
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-600 dark:text-accent-400"
-                                : "text-gray-500 dark:text-gray-400"
+                            ? "text-primary-500"
+                            : ovr >= 55
+                              ? "text-accent-600 dark:text-accent-400"
+                              : "text-gray-500 dark:text-gray-400"
                             }`}
                         >
                           {ovr}

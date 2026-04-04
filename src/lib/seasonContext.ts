@@ -5,9 +5,14 @@ import type {
   TransferWindowContextData,
   TransferWindowStatus,
 } from "../store/gameStore";
+import {
+  addGameDays,
+  diffGameDays,
+  formatGameDate,
+  parseGameDate,
+  positiveGameDayDiff,
+} from "./gameDate";
 import { TRANSFER_WINDOW_DAYS } from "./domainConstants";
-
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_TRANSFER_WINDOW: TransferWindowContextData = {
   status: "Closed",
@@ -64,14 +69,14 @@ function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
   );
 
   const fixtureDates = competitiveFixtures
-    .map((fixture) => parseUtcDate(fixture.date))
+    .map((fixture) => parseGameDate(fixture.date))
     .filter((date): date is Date => date != null)
     .sort((leftDate, rightDate) => leftDate.getTime() - rightDate.getTime());
 
   const seasonStart = fixtureDates[0] ?? null;
   const seasonEnd =
     fixtureDates.length > 0 ? fixtureDates[fixtureDates.length - 1] : null;
-  const currentDate = parseUtcDate(gameState.clock.current_date);
+  const currentDate = parseGameDate(gameState.clock.current_date);
   const hasStarted =
     league.standings.some((entry) => entry.played > 0) ||
     competitiveFixtures.some((fixture) => fixture.status === "Completed");
@@ -88,11 +93,11 @@ function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
 
   return {
     phase,
-    season_start: formatUtcDate(seasonStart),
-    season_end: formatUtcDate(seasonEnd),
+    season_start: formatGameDate(seasonStart),
+    season_end: formatGameDate(seasonEnd),
     days_until_season_start:
       currentDate && seasonStart
-        ? positiveDayDiff(currentDate, seasonStart)
+        ? positiveGameDayDiff(currentDate, seasonStart)
         : null,
     transfer_window: deriveTransferWindowContext(currentDate, seasonStart),
   };
@@ -106,66 +111,31 @@ function deriveTransferWindowContext(
     return DEFAULT_TRANSFER_WINDOW;
   }
 
-  const opensOn = addDays(seasonStart, -TRANSFER_WINDOW_DAYS.preseasonOpenLead);
-  const closesOn = addDays(seasonStart, TRANSFER_WINDOW_DAYS.postSeasonStartClose);
+  const opensOn = addGameDays(
+    seasonStart,
+    -TRANSFER_WINDOW_DAYS.preseasonOpenLead,
+  );
+  const closesOn = addGameDays(
+    seasonStart,
+    TRANSFER_WINDOW_DAYS.postSeasonStartClose,
+  );
 
   let status: TransferWindowStatus = "Closed";
   let daysUntilOpens: number | null = null;
   let daysRemaining: number | null = null;
 
   if (currentDate < opensOn) {
-    daysUntilOpens = dayDiff(currentDate, opensOn);
+    daysUntilOpens = diffGameDays(currentDate, opensOn);
   } else if (currentDate <= closesOn) {
-    daysRemaining = dayDiff(currentDate, closesOn);
+    daysRemaining = diffGameDays(currentDate, closesOn);
     status = daysRemaining === 0 ? "DeadlineDay" : "Open";
   }
 
   return {
     status,
-    opens_on: formatUtcDate(opensOn),
-    closes_on: formatUtcDate(closesOn),
+    opens_on: formatGameDate(opensOn),
+    closes_on: formatGameDate(closesOn),
     days_until_opens: daysUntilOpens,
     days_remaining: daysRemaining,
   };
-}
-
-function parseUtcDate(input: string | null | undefined): Date | null {
-  if (!input) {
-    return null;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    const parsed = new Date(`${input}T00:00:00Z`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  const parsed = new Date(input);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return new Date(
-    Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()),
-  );
-}
-
-function formatUtcDate(date: Date | null): string | null {
-  if (!date) {
-    return null;
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * DAY_IN_MS);
-}
-
-function dayDiff(startDate: Date, endDate: Date): number {
-  return Math.round((endDate.getTime() - startDate.getTime()) / DAY_IN_MS);
-}
-
-function positiveDayDiff(startDate: Date, endDate: Date): number | null {
-  const difference = dayDiff(startDate, endDate);
-  return difference >= 0 ? difference : null;
 }

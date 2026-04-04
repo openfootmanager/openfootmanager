@@ -20,9 +20,9 @@ interface YouthAcademyTabProps {
 }
 
 // Estimate potential: younger players with good attributes have higher ceiling
-function estimatePotential(player: PlayerData): number {
+function estimatePotential(player: PlayerData, currentDate: string): number {
   const ovr = calcOvr(player, player.natural_position || player.position);
-  const age = calcAge(player.date_of_birth);
+  const age = calcAge(player.date_of_birth, currentDate);
   // Young players get a bonus: the younger they are with decent OVR, the higher the ceiling
   const ageFactor = Math.max(0, (23 - age) * 2.5); // +2.5 per year under 23
   const potential = Math.min(99, Math.round(ovr + ageFactor));
@@ -49,6 +49,7 @@ export default function YouthAcademyTab({
   onSelectPlayer,
 }: YouthAcademyTabProps) {
   const { t, i18n } = useTranslation();
+  const currentDate = gameState.clock.current_date;
   const myTeam = gameState.teams.find(
     (tm) => tm.id === gameState.manager.team_id,
   );
@@ -59,9 +60,9 @@ export default function YouthAcademyTab({
   const youthPlayers = roster
     .map((p) => ({
       ...p,
-      age: calcAge(p.date_of_birth),
+      age: calcAge(p.date_of_birth, currentDate),
       ovr: calcOvr(p, p.natural_position || p.position),
-      potential: estimatePotential(p),
+      potential: estimatePotential(p, currentDate),
     }))
     .filter((p) => p.age <= 21)
     .sort((a, b) => b.potential - a.potential);
@@ -69,15 +70,15 @@ export default function YouthAcademyTab({
   const avgOvr =
     youthPlayers.length > 0
       ? Math.round(
-          youthPlayers.reduce((s, p) => s + p.ovr, 0) / youthPlayers.length,
-        )
+        youthPlayers.reduce((s, p) => s + p.ovr, 0) / youthPlayers.length,
+      )
       : 0;
   const avgPotential =
     youthPlayers.length > 0
       ? Math.round(
-          youthPlayers.reduce((s, p) => s + p.potential, 0) /
-            youthPlayers.length,
-        )
+        youthPlayers.reduce((s, p) => s + p.potential, 0) /
+        youthPlayers.length,
+      )
       : 0;
   const highPotential = youthPlayers.filter((p) => p.potential >= 75).length;
 
@@ -303,13 +304,12 @@ export default function YouthAcademyTab({
                       </td>
                       <td className="py-2.5 px-4 text-center">
                         <span
-                          className={`text-xs font-heading font-bold tabular-nums ${
-                            player.condition >= 70
+                          className={`text-xs font-heading font-bold tabular-nums ${player.condition >= 70
                               ? "text-green-500"
                               : player.condition >= 40
                                 ? "text-yellow-500"
                                 : "text-red-500"
-                          }`}
+                            }`}
                         >
                           {player.condition}%
                         </span>

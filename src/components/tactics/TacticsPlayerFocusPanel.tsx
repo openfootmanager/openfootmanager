@@ -9,35 +9,36 @@ const ATTRIBUTE_GROUPS: {
   labelKey: string;
   attrs: Array<keyof PlayerData["attributes"]>;
 }[] = [
-  {
-    labelKey: "common.attrGroups.physical",
-    attrs: ["pace", "stamina", "strength", "agility"],
-  },
-  {
-    labelKey: "common.attrGroups.technical",
-    attrs: ["passing", "shooting", "tackling", "dribbling", "defending"],
-  },
-  {
-    labelKey: "common.attrGroups.mental",
-    attrs: [
-      "positioning",
-      "vision",
-      "decisions",
-      "composure",
-      "aggression",
-      "teamwork",
-      "leadership",
-    ],
-  },
-  {
-    labelKey: "common.attrGroups.goalkeeper",
-    attrs: ["handling", "reflexes", "aerial"],
-  },
-];
+    {
+      labelKey: "common.attrGroups.physical",
+      attrs: ["pace", "stamina", "strength", "agility"],
+    },
+    {
+      labelKey: "common.attrGroups.technical",
+      attrs: ["passing", "shooting", "tackling", "dribbling", "defending"],
+    },
+    {
+      labelKey: "common.attrGroups.mental",
+      attrs: [
+        "positioning",
+        "vision",
+        "decisions",
+        "composure",
+        "aggression",
+        "teamwork",
+        "leadership",
+      ],
+    },
+    {
+      labelKey: "common.attrGroups.goalkeeper",
+      attrs: ["handling", "reflexes", "aerial"],
+    },
+  ];
 
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
   comparePlayer: PlayerData | null;
+  currentDate: string;
   onConfirmSwap: () => void;
   selectedPlayer: PlayerData | null;
 }
@@ -61,9 +62,11 @@ function getNormalizedPlayerPosition(player: PlayerData): string {
 }
 
 function PlayerSummary({
+  currentDate,
   label,
   player,
 }: {
+  currentDate: string;
   label: string;
   player: PlayerData;
 }) {
@@ -91,7 +94,7 @@ function PlayerSummary({
                 code={player.nationality}
                 className="text-xs leading-none mr-1"
               />
-              {t("common.age", "Age")} {calcAge(player.date_of_birth)}
+              {t("common.age", "Age")} {calcAge(player.date_of_birth, currentDate)}
             </span>
           </div>
         </div>
@@ -159,11 +162,13 @@ function SinglePlayerAttributes({ player }: { player: PlayerData }) {
 function CompareAttributes({
   canConfirmSwap,
   comparePlayer,
+  currentDate,
   onConfirmSwap,
   selectedPlayer,
 }: {
   canConfirmSwap: boolean;
   comparePlayer: PlayerData;
+  currentDate: string;
   onConfirmSwap: () => void;
   selectedPlayer: PlayerData;
 }) {
@@ -176,10 +181,12 @@ function CompareAttributes({
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <PlayerSummary
+          currentDate={currentDate}
           label={t("tactics.selectedPlayer", "Selected player")}
           player={selectedPlayer}
         />
         <PlayerSummary
+          currentDate={currentDate}
           label={t("tactics.comparePlayer", "Comparison player")}
           player={comparePlayer}
         />
@@ -270,6 +277,7 @@ function CompareAttributes({
 export default function TacticsPlayerFocusPanel({
   canConfirmSwap,
   comparePlayer,
+  currentDate,
   onConfirmSwap,
   selectedPlayer,
 }: TacticsPlayerFocusPanelProps) {
@@ -289,12 +297,14 @@ export default function TacticsPlayerFocusPanel({
             <CompareAttributes
               canConfirmSwap={canConfirmSwap}
               comparePlayer={comparePlayer}
+              currentDate={currentDate}
               onConfirmSwap={onConfirmSwap}
               selectedPlayer={selectedPlayer}
             />
           ) : (
             <div className="space-y-4">
               <PlayerSummary
+                currentDate={currentDate}
                 label={t("tactics.selectedPlayer", "Selected player")}
                 player={selectedPlayer}
               />

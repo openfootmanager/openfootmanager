@@ -1,13 +1,17 @@
+import { diffGameDays, parseGameDate } from "./gameDate";
 import { CONTRACT_RISK_DAYS } from "./domainConstants";
 
 export type ContractRiskLevel = "critical" | "warning" | "stable";
 
 export function getDaysUntil(targetDate: string, currentDate: string): number {
-    const millisecondsPerDay = 1000 * 60 * 60 * 24;
-    return Math.ceil(
-        (new Date(targetDate).getTime() - new Date(currentDate).getTime()) /
-        millisecondsPerDay,
-    );
+    const parsedTargetDate = parseGameDate(targetDate);
+    const parsedCurrentDate = parseGameDate(currentDate);
+
+    if (!parsedTargetDate || !parsedCurrentDate) {
+        return 0;
+    }
+
+    return diffGameDays(parsedCurrentDate, parsedTargetDate);
 }
 
 export function getContractRiskLevel(

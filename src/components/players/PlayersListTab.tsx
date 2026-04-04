@@ -37,6 +37,7 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
+  const currentDate = gameState.clock.current_date;
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState<string | null>(null);
@@ -101,7 +102,9 @@ export default function PlayersListTab({
           (posOrder[normalisePosition(b.natural_position || b.position)] || 99);
         break;
       case "age":
-        cmp = calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
+        cmp =
+          calcAge(a.date_of_birth, currentDate) -
+          calcAge(b.date_of_birth, currentDate);
         break;
       case "ovr":
         cmp =
@@ -140,11 +143,10 @@ export default function PlayersListTab({
         <div className="flex gap-1.5">
           <button
             onClick={() => setPosFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-              !posFilter
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter
                 ? "bg-primary-500 text-white shadow-sm"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             {t("players.allPos")}
           </button>
@@ -152,11 +154,10 @@ export default function PlayersListTab({
             <button
               key={pos}
               onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-                posFilter === pos
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos
                   ? "bg-primary-500 text-white shadow-sm"
                   : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+                }`}
             >
               {t(`common.posAbbr.${pos}`)}
             </button>
@@ -269,7 +270,7 @@ export default function PlayersListTab({
                       player,
                       player.natural_position || player.position,
                     );
-                    const age = calcAge(player.date_of_birth);
+                    const age = calcAge(player.date_of_birth, currentDate);
                     return (
                       <tr
                         key={player.id}
@@ -322,13 +323,12 @@ export default function PlayersListTab({
                         </td>
                         <td className="py-2.5 px-4">
                           <span
-                            className={`font-heading font-bold text-base tabular-nums ${
-                              ovr >= 75
+                            className={`font-heading font-bold text-base tabular-nums ${ovr >= 75
                                 ? "text-primary-500"
                                 : ovr >= 55
                                   ? "text-accent-500"
                                   : "text-gray-400"
-                            }`}
+                              }`}
                           >
                             {ovr}
                           </span>

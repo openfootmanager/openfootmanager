@@ -131,6 +131,7 @@ describe("ScoutingPlayerSearchCard", () => {
 
     render(
       <ScoutingPlayerSearchCard
+        currentDate="2026-08-01T00:00:00Z"
         players={[createPlayer()]}
         teams={[
           createTeam(),

@@ -1,5 +1,7 @@
-export function calcAge(dob: string): number {
-    return 2026 - new Date(dob).getFullYear();
+import { getAgeOnDate } from "./gameDate";
+
+export function calcAge(dob: string, asOfDate?: string): number {
+    return getAgeOnDate(dob, asOfDate ?? new Date().toISOString());
 }
 
 export function formatVal(value: number): string {
