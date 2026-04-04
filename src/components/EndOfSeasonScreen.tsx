@@ -1,28 +1,12 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../store/gameStore";
 import { Card, CardBody } from "./ui";
 import { Trophy, Award, Star, ArrowRight, Crown } from "lucide-react";
-
-interface EndOfSeasonSummary {
-  season: number;
-  league_name: string;
-  champion_id: string;
-  champion_name: string;
-  user_position: number;
-  user_points: number;
-  user_won: number;
-  user_drawn: number;
-  user_lost: number;
-  user_goals_for: number;
-  user_goals_against: number;
-  golden_boot_player: string;
-  golden_boot_goals: number;
-  poty_player: string;
-  poty_rating: number;
-  total_teams: number;
-}
+import {
+  advanceToNextSeason,
+  type EndOfSeasonSummary,
+} from "../services/seasonTransitionService";
 
 interface EndOfSeasonScreenProps {
   gameState: GameStateData;
@@ -57,7 +41,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
     if (loading) return;
     setLoading(true);
     try {
-      const result = await invoke<{ game: GameStateData; summary: EndOfSeasonSummary }>("advance_to_next_season");
+      const result = await advanceToNextSeason();
       setSummary(result.summary);
       onGameUpdate(result.game);
       setStep("done");
@@ -82,8 +66,8 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           {/* Hero */}
           <div className="text-center mb-8">
             <div className={`w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 ${isChampion
-                ? "bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
-                : "bg-gradient-to-br from-navy-700 to-navy-800"
+              ? "bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
+              : "bg-gradient-to-br from-navy-700 to-navy-800"
               }`}>
               {isChampion ? <Crown className="w-10 h-10 text-white" /> : <Trophy className="w-10 h-10 text-gray-300" />}
             </div>

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import {
+  clearAllSaves,
+  exportWorldDatabase,
+} from "../services/settingsService";
 import {
   ArrowLeft,
   Monitor,
@@ -95,7 +98,7 @@ export default function Settings() {
 
   const handleClearSaves = async () => {
     try {
-      await invoke("clear_all_saves");
+      await clearAllSaves();
       setClearSuccess(true);
       setConfirmClear(false);
       setTimeout(() => setClearSuccess(false), 3000);
@@ -107,9 +110,7 @@ export default function Settings() {
   const handleExportWorld = async () => {
     try {
       // Simple export to app data dir
-      const path = await invoke<string>("export_world_database", {
-        exportPath: "exported_world.json",
-      });
+      const path = await exportWorldDatabase("exported_world.json");
       setExportPath(path);
       setTimeout(() => setExportPath(null), 5000);
     } catch (err) {
@@ -486,14 +487,12 @@ function Toggle({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-        checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
-      }`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
+        }`}
     >
       <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-[22px]" : "translate-x-0.5"
-        }`}
+        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? "translate-x-[22px]" : "translate-x-0.5"
+          }`}
       />
     </button>
   );
@@ -514,11 +513,10 @@ function SegmentedControl({
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            value === opt.value
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${value === opt.value
               ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
+            }`}
         >
           {opt.icon}
           {opt.label || opt.value}

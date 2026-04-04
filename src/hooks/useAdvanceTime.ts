@@ -66,7 +66,7 @@ export function useAdvanceTime(
           },
         });
       } else if (result.action === "advanced" && result.game) {
-        setGameState(result.game as GameStateData);
+        setGameState(result.game);
       }
     } catch (err) {
       console.error("Failed to advance time:", err);
@@ -131,7 +131,7 @@ export function useAdvanceTime(
         blockerCount: result.blockers?.length ?? 0,
         hasGame: !!result.game,
       });
-      if (result.game) setGameState(result.game as GameStateData);
+      if (result.game) setGameState(result.game);
       if (result.action === "blocked" && result.blockers && result.blockers.length > 0) {
         setBlockerModal({ blockers: result.blockers });
       }

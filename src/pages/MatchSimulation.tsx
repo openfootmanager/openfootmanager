@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
 import {
@@ -15,6 +14,11 @@ import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
 import PostMatchScreen from "../components/match/PostMatchScreen";
 import PressConference from "../components/match/PressConference";
+import {
+  finishLiveMatch,
+  getMatchSnapshot,
+  startLiveMatchSession,
+} from "../services/liveMatchService";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -24,11 +28,6 @@ interface MatchRouteState {
   fixtureIndex?: number;
   mode?: string;
   snapshot?: MatchSnapshot;
-}
-
-interface FinishLiveMatchResponse {
-  game: GameStateData;
-  round_summary?: RoundSummary | null;
 }
 
 export default function MatchSimulation() {
@@ -106,7 +105,7 @@ export default function MatchSimulation() {
         matchMode,
       });
       try {
-        const snap = await invoke<MatchSnapshot>("get_match_snapshot");
+        const snap = await getMatchSnapshot();
         console.info("[MatchSimulation] fetchSnapshot:success", {
           awayPlayers: snap.away_team.players.length,
           awayTeam: snap.away_team.name,
@@ -131,14 +130,11 @@ export default function MatchSimulation() {
             fixtureIndex: routeState.fixtureIndex,
             matchMode,
           });
-          const restoredSnapshot = await invoke<MatchSnapshot>(
-            "start_live_match",
-            {
-              allowsExtraTime: false,
-              fixtureIndex: routeState.fixtureIndex,
-              mode: matchMode,
-            },
-          );
+          const restoredSnapshot = await startLiveMatchSession({
+            allowsExtraTime: false,
+            fixtureIndex: routeState.fixtureIndex,
+            mode: matchMode,
+          });
 
           console.info("[MatchSimulation] restoreLiveMatch:success", {
             awayPlayers: restoredSnapshot.away_team.players.length,
@@ -195,8 +191,7 @@ export default function MatchSimulation() {
 
     try {
       console.info("[MatchSimulation] finalizeMatch:start");
-      const response =
-        await invoke<FinishLiveMatchResponse>("finish_live_match");
+      const response = await finishLiveMatch();
       console.info("[MatchSimulation] finalizeMatch:success", {
         hasRoundSummary: !!response.round_summary,
         hasUpdatedGame: !!response.game,

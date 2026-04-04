@@ -1,6 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-
 import type { GameStateData } from "../store/gameStore";
+import { invokeCommand } from "./tauriClient";
 
 export interface ResolveMessageActionResult {
   game: GameStateData;
@@ -12,7 +11,7 @@ export interface ResolveMessageActionResult {
 export async function markMessageRead(
   messageId: string,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("mark_message_read", {
+  return invokeCommand<GameStateData>("mark_message_read", {
     messageId,
   });
 }
@@ -22,7 +21,7 @@ export async function resolveMessageAction(
   actionId: string,
   optionId?: string | null,
 ): Promise<ResolveMessageActionResult> {
-  return invoke<ResolveMessageActionResult>("resolve_message_action", {
+  return invokeCommand<ResolveMessageActionResult>("resolve_message_action", {
     messageId,
     actionId,
     optionId: optionId ?? null,
@@ -30,17 +29,17 @@ export async function resolveMessageAction(
 }
 
 export async function markAllMessagesRead(): Promise<GameStateData> {
-  return invoke<GameStateData>("mark_all_messages_read");
+  return invokeCommand<GameStateData>("mark_all_messages_read");
 }
 
 export async function clearOldMessages(): Promise<GameStateData> {
-  return invoke<GameStateData>("clear_old_messages");
+  return invokeCommand<GameStateData>("clear_old_messages");
 }
 
 export async function deleteMessage(
   messageId: string,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("delete_message", {
+  return invokeCommand<GameStateData>("delete_message", {
     messageId,
   });
 }
@@ -48,7 +47,7 @@ export async function deleteMessage(
 export async function deleteMessages(
   messageIds: string[],
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("delete_messages", {
+  return invokeCommand<GameStateData>("delete_messages", {
     messageIds,
   });
 }

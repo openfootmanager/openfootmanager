@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
 import type { ComponentPropsWithoutRef } from "react";
 
 import { countryName } from "../lib/countries";
@@ -14,8 +13,20 @@ const translationState = {
   language: "en",
 };
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+const listWorldDatabasesMock = vi.fn();
+const startNewGameMock = vi.fn();
+const getSavesMock = vi.fn();
+const loadGameMock = vi.fn();
+const deleteSaveMock = vi.fn();
+const writeTempDatabaseMock = vi.fn();
+
+vi.mock("../services/menuService", () => ({
+  deleteSave: (...args: unknown[]) => deleteSaveMock(...args),
+  getSaves: (...args: unknown[]) => getSavesMock(...args),
+  listWorldDatabases: (...args: unknown[]) => listWorldDatabasesMock(...args),
+  loadGame: (...args: unknown[]) => loadGameMock(...args),
+  startNewGame: (...args: unknown[]) => startNewGameMock(...args),
+  writeTempDatabase: (...args: unknown[]) => writeTempDatabaseMock(...args),
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -91,8 +102,6 @@ vi.mock("../components/menu/WorldSelect", () => ({
   ),
 }));
 
-const mockedInvoke = vi.mocked(invoke);
-
 function openCreateManagerForm(): void {
   fireEvent.click(screen.getByText("menu.newGame"));
 }
@@ -158,18 +167,18 @@ describe("MainMenu", () => {
     setGameStateMock.mockReset();
     latestDatePickerOnChange = null;
     translationState.language = "en";
-    mockedInvoke.mockReset();
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "list_world_databases") {
-        return [];
-      }
-
-      if (command === "start_new_game") {
-        return { id: "game-1" };
-      }
-
-      return null;
-    });
+    listWorldDatabasesMock.mockReset();
+    startNewGameMock.mockReset();
+    getSavesMock.mockReset();
+    loadGameMock.mockReset();
+    deleteSaveMock.mockReset();
+    writeTempDatabaseMock.mockReset();
+    listWorldDatabasesMock.mockResolvedValue([]);
+    startNewGameMock.mockResolvedValue({ id: "game-1" });
+    getSavesMock.mockResolvedValue([]);
+    loadGameMock.mockResolvedValue("Ada Lovelace");
+    deleteSaveMock.mockResolvedValue(true);
+    writeTempDatabaseMock.mockResolvedValue("temp-world.json");
   });
 
   it.each(["es", "de", "fr", "it", "pt", "pt-BR"])(
@@ -193,15 +202,14 @@ describe("MainMenu", () => {
       fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
       await waitFor(() => {
-        expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
+        expect(listWorldDatabasesMock).toHaveBeenCalled();
       });
       expect(screen.getByTestId("world-select")).toBeInTheDocument();
 
       fireEvent.click(screen.getByText("start-world"));
 
       await waitFor(() => {
-        expect(mockedInvoke).toHaveBeenCalledWith(
-          "start_new_game",
+        expect(startNewGameMock).toHaveBeenCalledWith(
           expect.objectContaining({
             firstName: "Ada",
             lastName: "Lovelace",
@@ -296,14 +304,13 @@ describe("MainMenu", () => {
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
+      expect(listWorldDatabasesMock).toHaveBeenCalled();
     });
 
     fireEvent.click(screen.getByText("start-world"));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith(
-        "start_new_game",
+      expect(startNewGameMock).toHaveBeenCalledWith(
         expect.objectContaining({
           nationality: "AT",
         }),

@@ -2,16 +2,7 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
 import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2 } from "lucide-react";
-
-export interface WorldDatabaseInfo {
-  id: string;
-  name: string;
-  description: string;
-  team_count: number;
-  player_count: number;
-  source: string;
-  path: string;
-}
+import type { WorldDatabaseInfo } from "../../services/menuTypes";
 
 interface WorldSelectProps {
   worldDatabases: WorldDatabaseInfo[];
@@ -72,15 +63,15 @@ export default function WorldSelect({
               key={db.id}
               onClick={() => onSelectWorld(db.id)}
               className={`flex items-start gap-3 w-full p-3.5 rounded-xl border transition-all duration-200 text-left ${selectedWorldId === db.id
-                  ? "bg-primary-50 dark:bg-primary-500/10 border-primary-400 dark:border-primary-500 ring-1 ring-primary-400/30"
-                  : "bg-white dark:bg-navy-700 border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                ? "bg-primary-50 dark:bg-primary-500/10 border-primary-400 dark:border-primary-500 ring-1 ring-primary-400/30"
+                : "bg-white dark:bg-navy-700 border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${db.id === "random"
-                  ? "bg-accent-500/10 text-accent-500"
-                  : db.source === "imported"
-                    ? "bg-purple-500/10 text-purple-500"
-                    : "bg-primary-500/10 text-primary-500"
+                ? "bg-accent-500/10 text-accent-500"
+                : db.source === "imported"
+                  ? "bg-purple-500/10 text-purple-500"
+                  : "bg-primary-500/10 text-primary-500"
                 }`}>
                 {db.id === "random" ? <Shuffle className="w-5 h-5" /> :
                   db.source === "imported" ? <Upload className="w-5 h-5" /> :

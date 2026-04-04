@@ -1,6 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-
 import type { GameStateData } from "../store/gameStore";
+import { invokeCommand } from "./tauriClient";
 
 export interface BlockerData {
   id: string;
@@ -28,7 +27,7 @@ export interface SkipToMatchDayResponse {
 export async function advanceTimeWithMode(
   mode: string,
 ): Promise<AdvanceTimeWithModeResponse> {
-  return invoke<AdvanceTimeWithModeResponse>("advance_time_with_mode", {
+  return invokeCommand<AdvanceTimeWithModeResponse>("advance_time_with_mode", {
     mode,
   });
 }
@@ -37,7 +36,7 @@ export async function checkBlockingActions(
   logContext: string,
 ): Promise<BlockerData[]> {
   try {
-    const blockers = await invoke<BlockerData[]>("check_blocking_actions");
+    const blockers = await invokeCommand<BlockerData[]>("check_blocking_actions");
     console.info(`[useAdvanceTime] ${logContext}:blockers`, {
       count: blockers.length,
       blockers,
@@ -50,5 +49,5 @@ export async function checkBlockingActions(
 }
 
 export async function skipToMatchDay(): Promise<SkipToMatchDayResponse> {
-  return invoke<SkipToMatchDayResponse>("skip_to_match_day");
+  return invokeCommand<SkipToMatchDayResponse>("skip_to_match_day");
 }

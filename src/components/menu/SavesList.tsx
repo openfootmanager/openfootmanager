@@ -1,16 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { formatDate } from "../../lib/helpers";
 import { Play, Clock, Trash2, X, Loader2 } from "lucide-react";
-
-interface SaveEntry {
-  id: string;
-  name: string;
-  manager_name: string;
-  db_filename: string;
-  checksum: string;
-  created_at: string;
-  last_played_at: string;
-}
+import type { SaveEntry } from "../../services/menuTypes";
 
 interface SavesListProps {
   saves: SaveEntry[];
@@ -32,15 +23,15 @@ export default function SavesList({ saves, isLoading, loadingSaveId, confirmDele
         <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white transition-colors">
           {t('menu.loadGame')}
         </h2>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={onClose}
           className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
-      
+
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
         {isLoading ? (
           <div className="flex flex-col items-center gap-3 py-8 text-gray-500 dark:text-gray-400"><Loader2 className="w-8 h-8 animate-spin text-primary-500" /><span className="text-sm font-heading uppercase tracking-wider">{t('menu.loadingSaves')}</span></div>

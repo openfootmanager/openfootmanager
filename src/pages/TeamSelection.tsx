@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData, PlayerData } from "../store/gameStore";
 import { Card, CardBody, Badge, TeamLocation, ThemeToggle } from "../components/ui";
 import { ArrowLeft, Users, Trophy, Landmark, ChevronRight, Star, Loader2 } from "lucide-react";
+import { selectTeam } from "../services/gameService";
 
 export default function TeamSelection() {
   const { t, i18n } = useTranslation();
@@ -54,7 +54,7 @@ export default function TeamSelection() {
     if (!selectedTeamId || isConfirming) return;
     setIsConfirming(true);
     try {
-      const updatedGame = await invoke<GameStateData>("select_team", { teamId: selectedTeamId });
+      const updatedGame = await selectTeam(selectedTeamId);
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
       setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);
@@ -116,29 +116,26 @@ export default function TeamSelection() {
               <button
                 key={team.id}
                 onClick={() => setSelectedTeamId(team.id)}
-                className={`text-left transition-all duration-200 rounded-xl ${
-                  isSelected
+                className={`text-left transition-all duration-200 rounded-xl ${isSelected
                     ? "ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-navy-900 scale-[1.02]"
                     : "hover:scale-[1.01]"
-                }`}
+                  }`}
               >
                 <Card
                   accent={isSelected ? "primary" : "none"}
                   className="h-full"
                 >
                   {/* Team header with gradient */}
-                  <div className={`p-4 rounded-t-xl ${
-                    isSelected
+                  <div className={`p-4 rounded-t-xl ${isSelected
                       ? "bg-gradient-to-r from-primary-600 to-primary-700"
                       : "bg-gradient-to-r from-navy-700 to-navy-800"
-                  }`}>
+                    }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-heading font-bold text-lg ${
-                          isSelected
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-heading font-bold text-lg ${isSelected
                             ? "bg-white/20 text-white"
                             : "bg-white/10 text-gray-300"
-                        }`}>
+                          }`}>
                           {team.short_name}
                         </div>
                         <div>
@@ -182,11 +179,10 @@ export default function TeamSelection() {
                         icon={<Star className="w-3.5 h-3.5" />}
                         label={t('teamSelect.avgOvr')}
                         value={
-                          <span className={`font-heading font-bold text-lg ${
-                            avgOvr >= 70 ? "text-primary-500" :
-                            avgOvr >= 55 ? "text-accent-600 dark:text-accent-400" :
-                            "text-gray-500"
-                          }`}>{avgOvr}</span>
+                          <span className={`font-heading font-bold text-lg ${avgOvr >= 70 ? "text-primary-500" :
+                              avgOvr >= 55 ? "text-accent-600 dark:text-accent-400" :
+                                "text-gray-500"
+                            }`}>{avgOvr}</span>
                         }
                       />
                     </div>

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { MatchModeType } from "../hooks/useAdvanceTime";
 import { useGameStore } from "../store/gameStore";
-import type { GameStateData, PlayerSelectionOptions } from "../store/gameStore";
+import type { PlayerSelectionOptions } from "../store/gameStore";
 import DashboardHeader, {
   type DashboardMatchModeMeta,
 } from "../components/dashboard/DashboardHeader";
@@ -44,6 +43,7 @@ import {
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../store/settingsStore";
+import { exitToMenu, getActiveGame, saveGame } from "../services/gameService";
 
 const TAB_TRANSLATION_KEYS: Record<string, string> = {
   Home: "dashboard.home",
@@ -105,7 +105,7 @@ export default function Dashboard(): JSX.Element {
 
     const fetchState = async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
+        const state = await getActiveGame();
         setGameState(state);
       } catch (err) {
         console.error("Failed to fetch game state:", err);
@@ -195,7 +195,7 @@ export default function Dashboard(): JSX.Element {
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      await invoke("save_game");
+      await saveGame();
       markClean();
       setSaveFlash(true);
       setTimeout(() => setSaveFlash(false), 2000);
@@ -228,7 +228,7 @@ export default function Dashboard(): JSX.Element {
     setShowCloseConfirm(false);
     if (save) {
       try {
-        await invoke("save_game");
+        await saveGame();
         markClean();
       } catch (err) {
         console.error("Auto-save on close failed:", err);
@@ -288,7 +288,7 @@ export default function Dashboard(): JSX.Element {
 
     setIsExitingToMenu(true);
     try {
-      await invoke("exit_to_menu");
+      await exitToMenu();
       clearGame();
       navigate("/");
     } catch (err) {

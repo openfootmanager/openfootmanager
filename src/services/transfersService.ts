@@ -1,6 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-
 import type { GameStateData } from "../store/gameStore";
+import { invokeCommand } from "./tauriClient";
 
 export interface TransferNegotiationFeedbackData {
   mood: "calm" | "firm" | "tense" | "positive" | "guarded";
@@ -39,7 +38,7 @@ export async function makeTransferBid(
   playerId: string,
   fee: number,
 ): Promise<TransferNegotiationResponseData> {
-  return invoke<TransferNegotiationResponseData>("make_transfer_bid", {
+  return invokeCommand<TransferNegotiationResponseData>("make_transfer_bid", {
     playerId,
     fee,
   });
@@ -50,7 +49,7 @@ export async function respondToOffer(
   offerId: string,
   accept: boolean,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("respond_to_offer", {
+  return invokeCommand<GameStateData>("respond_to_offer", {
     playerId,
     offerId,
     accept,
@@ -62,7 +61,7 @@ export async function counterOffer(
   offerId: string,
   requestedFee: number,
 ): Promise<TransferNegotiationResponseData> {
-  return invoke<TransferNegotiationResponseData>("counter_offer", {
+  return invokeCommand<TransferNegotiationResponseData>("counter_offer", {
     playerId,
     offerId,
     requestedFee,
@@ -73,7 +72,7 @@ export async function previewTransferBidFinancialImpact(
   playerId: string,
   fee: number,
 ): Promise<TransferBidProjectionData> {
-  return invoke<TransferBidProjectionData>(
+  return invokeCommand<TransferBidProjectionData>(
     "preview_transfer_bid_financial_impact",
     {
       playerId,

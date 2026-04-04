@@ -1,18 +1,8 @@
 import { create } from "zustand";
-import { invoke } from "@tauri-apps/api/core";
+import type { AppSettings } from "./settingsTypes";
+import { getSettings, saveSettings } from "../services/settingsService";
 
-export interface AppSettings {
-  theme: "dark" | "light" | "system";
-  language: string;
-  currency: "EUR" | "GBP" | "USD";
-  default_match_mode: "live" | "spectator" | "delegate";
-  auto_save: boolean;
-  match_speed: "slow" | "normal" | "fast";
-  show_match_commentary: boolean;
-  confirm_advance: boolean;
-  ui_scale: "small" | "normal" | "large" | "xlarge";
-  high_contrast: boolean;
-}
+export type { AppSettings } from "./settingsTypes";
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -32,7 +22,7 @@ function mergeWithDefaultSettings(settings: Partial<AppSettings> = {}): AppSetti
 }
 
 async function persistSettings(settings: AppSettings) {
-  await invoke("save_settings", { settings });
+  await saveSettings(settings);
 }
 
 interface SettingsStore {
@@ -48,7 +38,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const s = await invoke<Partial<AppSettings>>("get_settings");
+      const s = await getSettings();
       set({ settings: mergeWithDefaultSettings(s), loaded: true });
     } catch {
       set({ settings: mergeWithDefaultSettings(), loaded: true });

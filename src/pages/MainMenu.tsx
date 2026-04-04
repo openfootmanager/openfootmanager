@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useGameStore, GameStateData } from "../store/gameStore";
+import { useGameStore } from "../store/gameStore";
 import { Button, ThemeToggle, DatePicker, CountryFlag } from "../components/ui";
 import SavesList from "../components/menu/SavesList";
-import WorldSelect, { WorldDatabaseInfo } from "../components/menu/WorldSelect";
+import WorldSelect from "../components/menu/WorldSelect";
 import {
   FolderOpen,
   Settings,
@@ -19,16 +18,15 @@ import {
   Power,
 } from "lucide-react";
 import { countryName, allNationalities } from "../lib/countries";
-
-interface SaveEntry {
-  id: string;
-  name: string;
-  manager_name: string;
-  db_filename: string;
-  checksum: string;
-  created_at: string;
-  last_played_at: string;
-}
+import {
+  deleteSave,
+  getSaves,
+  listWorldDatabases,
+  loadGame,
+  startNewGame,
+  writeTempDatabase,
+} from "../services/menuService";
+import type { SaveEntry, WorldDatabaseInfo } from "../services/menuTypes";
 
 function normaliseSearchText(value: string): string {
   return value
@@ -190,7 +188,7 @@ export default function MainMenu() {
   const loadWorldDatabases = async () => {
     setIsLoadingWorlds(true);
     try {
-      const dbs = await invoke<WorldDatabaseInfo[]>("list_world_databases");
+      const dbs = await listWorldDatabases();
       setWorldDatabases(dbs);
     } catch (error) {
       console.error("Failed to load world databases:", error);
@@ -259,9 +257,7 @@ export default function MainMenu() {
         const json = sessionStorage.getItem("imported_world_json")!;
         // Write it via a temp file approach — just pass "random" and override
         // Actually, better to write the file to user databases dir first
-        const path = await invoke<string>("write_temp_database", {
-          json,
-        }).catch(() => null);
+        const path = await writeTempDatabase(json).catch(() => null);
         if (path) {
           worldSource = `file:${path}`;
         } else {
@@ -274,7 +270,7 @@ export default function MainMenu() {
         }
       }
 
-      const game = await invoke<GameStateData>("start_new_game", {
+      const game = await startNewGame({
         firstName: formData.firstName,
         lastName: formData.lastName,
         dob: formData.dob,
@@ -296,7 +292,7 @@ export default function MainMenu() {
     setMenuState("load");
     setIsLoadingSaves(true);
     try {
-      const dbSaves = await invoke<SaveEntry[]>("get_saves");
+      const dbSaves = await getSaves();
       setSaves(dbSaves);
     } catch (error) {
       console.error("Failed to load saves:", error);
@@ -308,7 +304,7 @@ export default function MainMenu() {
   const handleLoadGame = async (saveId: string) => {
     setLoadingSaveId(saveId);
     try {
-      const managerName = await invoke<string>("load_game", { saveId });
+      const managerName = await loadGame(saveId);
       setGameActive(true, managerName);
       navigate("/dashboard");
     } catch (error) {
@@ -319,7 +315,7 @@ export default function MainMenu() {
 
   const handleDeleteSave = async (saveId: string) => {
     try {
-      await invoke<boolean>("delete_save", { saveId });
+      await deleteSave(saveId);
       setSaves((prev) => prev.filter((s) => s.id !== saveId));
       setConfirmDeleteId(null);
     } catch (error) {
@@ -464,8 +460,8 @@ export default function MainMenu() {
                   <input
                     maxLength={30}
                     className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 ${formErrors.firstName
-                        ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
+                      ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
                       }`}
                     placeholder={t("createManager.placeholderFirst")}
                     value={formData.firstName}
@@ -491,8 +487,8 @@ export default function MainMenu() {
                   <input
                     maxLength={30}
                     className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 ${formErrors.lastName
-                        ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
+                      ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
                       }`}
                     placeholder={t("createManager.placeholderLast")}
                     value={formData.lastName}
@@ -563,10 +559,10 @@ export default function MainMenu() {
                       }
                     }}
                     className={`w-full flex items-center justify-between bg-gray-50 dark:bg-navy-900 border text-left rounded-lg p-3 outline-none transition-all ${formErrors.nationality
-                        ? "border-red-400 dark:border-red-500"
-                        : nationalityOpen
-                          ? "border-primary-500 ring-2 ring-primary-500/20"
-                          : "border-gray-300 dark:border-navy-600"
+                      ? "border-red-400 dark:border-red-500"
+                      : nationalityOpen
+                        ? "border-primary-500 ring-2 ring-primary-500/20"
+                        : "border-gray-300 dark:border-navy-600"
                       }`}
                   >
                     <span
@@ -647,8 +643,8 @@ export default function MainMenu() {
                                 }));
                               }}
                               className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${formData.nationality === nat.code
-                                  ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"
+                                ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
+                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"
                                 }`}
                             >
                               <div className="flex items-center gap-2">

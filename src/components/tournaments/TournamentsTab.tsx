@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { GameStateData, FixtureData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import {
@@ -19,22 +18,7 @@ import {
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { useTranslation } from "react-i18next";
-
-interface AwardEntry {
-  player_id: string;
-  player_name: string;
-  team_id: string;
-  team_name: string;
-  value: number;
-}
-interface SeasonAwards {
-  golden_boot: AwardEntry[];
-  assist_king: AwardEntry[];
-  player_of_year: AwardEntry[];
-  clean_sheet_king: AwardEntry[];
-  most_appearances: AwardEntry[];
-  young_player: AwardEntry[];
-}
+import { getSeasonAwards, type SeasonAwards } from "../../services/tournamentService";
 
 interface TournamentsTabProps {
   gameState: GameStateData;
@@ -57,9 +41,9 @@ export default function TournamentsTab({
 
   useEffect(() => {
     if (view === "awards" && !awards) {
-      invoke<SeasonAwards>("get_season_awards")
+      getSeasonAwards()
         .then(setAwards)
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [view, awards]);
 
@@ -139,8 +123,8 @@ export default function TournamentsTab({
                 <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
                   {seasonContext.season_start
                     ? t("season.startsOn", {
-                        date: formatMatchDate(seasonContext.season_start),
-                      })
+                      date: formatMatchDate(seasonContext.season_start),
+                    })
                     : t("season.noOpener")}
                 </span>
               </div>
@@ -204,11 +188,10 @@ export default function TournamentsTab({
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${
-              view === v
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${view === v
                 ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             {v === "overview" ? (
               <>
@@ -644,21 +627,19 @@ function AwardCard({
                 className="flex items-center px-4 py-2.5 gap-3"
               >
                 <span
-                  className={`font-heading font-bold text-sm w-5 text-center ${
-                    i === 0
+                  className={`font-heading font-bold text-sm w-5 text-center ${i === 0
                       ? "text-accent-500"
                       : "text-gray-400 dark:text-gray-500"
-                  }`}
+                    }`}
                 >
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-sm font-semibold truncate ${
-                      i === 0
+                    className={`text-sm font-semibold truncate ${i === 0
                         ? "text-gray-900 dark:text-gray-100"
                         : "text-gray-700 dark:text-gray-300"
-                    }`}
+                      }`}
                   >
                     {entry.player_name}
                   </p>
@@ -667,11 +648,10 @@ function AwardCard({
                   </p>
                 </div>
                 <span
-                  className={`font-heading font-bold tabular-nums ${
-                    i === 0
+                  className={`font-heading font-bold tabular-nums ${i === 0
                       ? "text-lg text-accent-500"
                       : "text-sm text-gray-600 dark:text-gray-400"
-                  }`}
+                    }`}
                 >
                   {decimal ? entry.value.toFixed(2) : entry.value}
                 </span>
