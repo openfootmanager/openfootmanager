@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import type {
   GameStateData,
   PlayerData,
   PlayerSelectionOptions,
 } from "../../store/gameStore";
+import {
+  toggleLoanList,
+  toggleTransferList,
+} from "../../services/squadService";
 import { Badge, Button, Card, ProgressBar, Select, CountryFlag } from "../ui";
 import {
   AlertTriangle,
@@ -85,9 +88,9 @@ export default function SquadRosterView({
     .sort(
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
-          (posOrder[normalisePosition(b.position)] || 99) ||
+        (posOrder[normalisePosition(b.position)] || 99) ||
         calcOvr(b, b.natural_position || b.position) -
-          calcOvr(a, a.natural_position || a.position),
+        calcOvr(a, a.natural_position || a.position),
     );
 
   const playersById = useMemo(
@@ -333,11 +336,10 @@ export default function SquadRosterView({
               setStatusFilter("all");
             }}
             disabled={!hasActiveFilters}
-            className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-              hasActiveFilters
+            className={`px-3 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${hasActiveFilters
                 ? "bg-gray-100 dark:bg-navy-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-navy-600"
                 : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
-            }`}
+              }`}
           >
             {t("common.clear", "Clear")}
           </button>
@@ -428,23 +430,20 @@ export default function SquadRosterView({
                   {
                     label: "",
                     icon: undefined,
-                    onClick: () => {},
+                    onClick: () => { },
                     divider: true,
                   },
                   {
                     label: player.transfer_listed
                       ? t(
-                          "squad.removeFromTransferList",
-                          "Remove from transfer list",
-                        )
+                        "squad.removeFromTransferList",
+                        "Remove from transfer list",
+                      )
                       : t("squad.addToTransferList", "Add to transfer list"),
                     icon: <ShoppingCart className="w-4 h-4" />,
                     onClick: async () => {
                       try {
-                        const updated = await invoke<GameStateData>(
-                          "toggle_transfer_list",
-                          { playerId: player.id },
-                        );
+                        const updated = await toggleTransferList(player.id);
                         onGameUpdate?.(updated);
                       } catch {
                         return;
@@ -458,12 +457,7 @@ export default function SquadRosterView({
                     icon: <Repeat className="w-4 h-4" />,
                     onClick: async () => {
                       try {
-                        const updated = await invoke<GameStateData>(
-                          "toggle_loan_list",
-                          {
-                            playerId: player.id,
-                          },
-                        );
+                        const updated = await toggleLoanList(player.id);
                         onGameUpdate?.(updated);
                       } catch {
                         return;
@@ -552,8 +546,8 @@ export default function SquadRosterView({
                           <div>
                             {player.contract_end
                               ? t("finances.contractExpiresOn", {
-                                  date: player.contract_end,
-                                })
+                                date: player.contract_end,
+                              })
                               : "—"}
                           </div>
                         </div>
@@ -570,7 +564,7 @@ export default function SquadRosterView({
                       </td>
                       <td className="py-2.5 px-4">
                         {player.contract_end &&
-                        contractRiskLevel !== "stable" ? (
+                          contractRiskLevel !== "stable" ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -591,13 +585,12 @@ export default function SquadRosterView({
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         <span
-                          className={`font-heading font-bold text-sm ${
-                            ovr >= 80
+                          className={`font-heading font-bold text-sm ${ovr >= 80
                               ? "text-primary-500"
                               : ovr >= 55
                                 ? "text-accent-600 dark:text-accent-400"
                                 : "text-gray-500 dark:text-gray-400"
-                          }`}
+                            }`}
                         >
                           {ovr}
                         </span>

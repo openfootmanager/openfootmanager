@@ -2,11 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PostMatchScreen from "./PostMatchScreen";
+import { ThemeProvider } from "../../context/ThemeContext";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
-
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -442,6 +439,24 @@ function makeReportedFixture(id: string) {
   } as FixtureData;
 }
 
+function renderWithTheme(element: React.ReactElement) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+
+  return render(<ThemeProvider>{element}</ThemeProvider>);
+}
+
 describe("PostMatchScreen", function (): void {
   it("renders the round summary mini table and scorer list when summary data exists", function (): void {
     const gameState = makeGameState();
@@ -453,7 +468,7 @@ describe("PostMatchScreen", function (): void {
       standings: [],
     };
 
-    render(
+    renderWithTheme(
       <PostMatchScreen
         snapshot={makeSnapshot()}
         gameState={gameState}
@@ -516,8 +531,8 @@ describe("PostMatchScreen", function (): void {
             },
           ],
         }}
-        onPressConference={() => {}}
-        onFinish={() => {}}
+        onPressConference={() => { }}
+        onFinish={() => { }}
       />,
     );
 
@@ -539,7 +554,7 @@ describe("PostMatchScreen", function (): void {
       standings: [],
     };
 
-    render(
+    renderWithTheme(
       <PostMatchScreen
         snapshot={makeSnapshot()}
         gameState={gameState}
@@ -575,8 +590,8 @@ describe("PostMatchScreen", function (): void {
           notable_upset: null,
           top_scorer_delta: [],
         }}
-        onPressConference={() => {}}
-        onFinish={() => {}}
+        onPressConference={() => { }}
+        onFinish={() => { }}
       />,
     );
 
@@ -592,7 +607,7 @@ describe("PostMatchScreen", function (): void {
   });
 
   it("renders a friendly empty state when the round summary is null", function (): void {
-    render(
+    renderWithTheme(
       <PostMatchScreen
         snapshot={makeSnapshot()}
         gameState={makeGameState()}
@@ -610,8 +625,8 @@ describe("PostMatchScreen", function (): void {
         isSpectator={false}
         importantEvents={[]}
         roundSummary={null}
-        onPressConference={() => {}}
-        onFinish={() => {}}
+        onPressConference={() => { }}
+        onFinish={() => { }}
       />,
     );
 

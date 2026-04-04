@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { GameStateData } from "../../store/gameStore";
+import {
+  submitPressConference,
+  type PressConferenceAnswerPayload,
+} from "../../services/liveMatchService";
 import { MatchSnapshot } from "./types";
 import { Badge, ThemeToggle } from "../ui";
 import { ChevronRight, Mic, MessageSquare } from "lucide-react";
@@ -27,15 +30,6 @@ interface PressResponse {
   id: string;
   tone: string;
   text: string;
-}
-
-interface AnswerPayload {
-  question_id: string;
-  response_id: string;
-  response_tone: string;
-  response_text: string;
-  question_text: string;
-  player_id?: string;
 }
 
 interface PlayerFocusQuestion extends PressQuestion {
@@ -83,44 +77,44 @@ function generateQuestions(
       ? t("match.press.result.questions.win", { userScore, oppScore, oppName })
       : isLoss
         ? t("match.press.result.questions.loss", {
-            userScore,
-            oppScore,
-            oppName,
-          })
+          userScore,
+          oppScore,
+          oppName,
+        })
         : t("match.press.result.questions.draw", {
-            userScore,
-            oppScore,
-            oppName,
-          }),
+          userScore,
+          oppScore,
+          oppName,
+        }),
     responses: isWin
       ? [
-          response(t, "humble", "match.press.result.responses.win.humble"),
-          response(
-            t,
-            "confident",
-            "match.press.result.responses.win.confident",
-          ),
-          response(t, "deflect", "match.press.result.responses.win.deflect"),
-        ]
+        response(t, "humble", "match.press.result.responses.win.humble"),
+        response(
+          t,
+          "confident",
+          "match.press.result.responses.win.confident",
+        ),
+        response(t, "deflect", "match.press.result.responses.win.deflect"),
+      ]
       : isLoss
         ? [
-            response(t, "accept", "match.press.result.responses.loss.accept"),
-            response(t, "defiant", "match.press.result.responses.loss.defiant"),
-            response(t, "deflect", "match.press.result.responses.loss.deflect"),
-          ]
+          response(t, "accept", "match.press.result.responses.loss.accept"),
+          response(t, "defiant", "match.press.result.responses.loss.defiant"),
+          response(t, "deflect", "match.press.result.responses.loss.deflect"),
+        ]
         : [
-            response(t, "fair", "match.press.result.responses.draw.fair"),
-            response(
-              t,
-              "frustrated",
-              "match.press.result.responses.draw.frustrated",
-            ),
-            response(
-              t,
-              "positive",
-              "match.press.result.responses.draw.positive",
-            ),
-          ],
+          response(t, "fair", "match.press.result.responses.draw.fair"),
+          response(
+            t,
+            "frustrated",
+            "match.press.result.responses.draw.frustrated",
+          ),
+          response(
+            t,
+            "positive",
+            "match.press.result.responses.draw.positive",
+          ),
+        ],
   });
 
   // 2. Player-focused question — pick a notable player
@@ -134,8 +128,8 @@ function generateQuestions(
     goalEvents.length > 0
       ? userTeam.players.find((p) => p.id === goalEvents[0].player_id)
       : userTeam.players[
-          Math.floor(Math.random() * Math.min(userTeam.players.length, 5))
-        ];
+      Math.floor(Math.random() * Math.min(userTeam.players.length, 5))
+      ];
   if (focusPlayer) {
     const scored = goalEvents.some((e) => e.player_id === focusPlayer!.id);
     const playerName = focusPlayer.name;
@@ -190,37 +184,37 @@ function generateQuestions(
           : t("match.press.fans.questions.draw"),
       responses: isWin
         ? [
-            response(t, "grateful", "match.press.fans.responses.win.grateful"),
-            response(t, "shared", "match.press.fans.responses.win.shared"),
-            response(t, "deflect", "match.press.fans.responses.win.deflect"),
-          ]
+          response(t, "grateful", "match.press.fans.responses.win.grateful"),
+          response(t, "shared", "match.press.fans.responses.win.shared"),
+          response(t, "deflect", "match.press.fans.responses.win.deflect"),
+        ]
         : isLoss
           ? [
-              response(
-                t,
-                "apologize",
-                "match.press.fans.responses.loss.apologize",
-              ),
-              response(
-                t,
-                "patience",
-                "match.press.fans.responses.loss.patience",
-              ),
-              response(t, "curt", "match.press.fans.responses.loss.curt"),
-            ]
+            response(
+              t,
+              "apologize",
+              "match.press.fans.responses.loss.apologize",
+            ),
+            response(
+              t,
+              "patience",
+              "match.press.fans.responses.loss.patience",
+            ),
+            response(t, "curt", "match.press.fans.responses.loss.curt"),
+          ]
           : [
-              response(
-                t,
-                "appreciate",
-                "match.press.fans.responses.draw.appreciate",
-              ),
-              response(
-                t,
-                "understand",
-                "match.press.fans.responses.draw.understand",
-              ),
-              response(t, "curt", "match.press.fans.responses.draw.curt"),
-            ],
+            response(
+              t,
+              "appreciate",
+              "match.press.fans.responses.draw.appreciate",
+            ),
+            response(
+              t,
+              "understand",
+              "match.press.fans.responses.draw.understand",
+            ),
+            response(t, "curt", "match.press.fans.responses.draw.curt"),
+          ],
     },
   ];
   questions.push(fanQuestions[0]);
@@ -268,7 +262,7 @@ export default function PressConference({
   const submitToBackend = async () => {
     setSubmitting(true);
     try {
-      const payloads: AnswerPayload[] = questions
+      const payloads: PressConferenceAnswerPayload[] = questions
         .map((q) => {
           const rid = answers[q.id];
           const resp = q.responses.find((r) => r.id === rid);
@@ -318,10 +312,7 @@ export default function PressConference({
         prerenderedBody = t("match.pressReport.bodyNone", { team: userTeamName, result: resultStr });
       }
 
-      const result = await invoke<{
-        game: GameStateData;
-        morale_delta: number;
-      }>("submit_press_conference", {
+      const result = await submitPressConference({
         answers: payloads,
         homeTeam: snapshot.home_team.name,
         awayTeam: snapshot.away_team.name,
@@ -373,13 +364,12 @@ export default function PressConference({
             {questions.map((_, i) => (
               <div
                 key={i}
-                className={`w-8 h-1 rounded-full transition-colors ${
-                  i < currentIdx
+                className={`w-8 h-1 rounded-full transition-colors ${i < currentIdx
                     ? "bg-primary-500"
                     : i === currentIdx
                       ? "bg-primary-400"
                       : "bg-gray-300 dark:bg-navy-700"
-                }`}
+                  }`}
               />
             ))}
           </div>
@@ -392,21 +382,21 @@ export default function PressConference({
           <div className="max-w-2xl w-full">
             {/* Journalist */}
             <div className="flex items-start gap-4 mb-8">
-               <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-navy-700 flex items-center justify-center flex-shrink-0 transition-colors duration-300">
-                 <MessageSquare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-               </div>
-               <div>
-                 <div className="flex items-center gap-2 mb-1">
-                   <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
-                     {currentQ.journalist}
-                   </span>
+              <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-navy-700 flex items-center justify-center flex-shrink-0 transition-colors duration-300">
+                <MessageSquare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
+                    {currentQ.journalist}
+                  </span>
                   <Badge variant="neutral" size="sm">
                     {currentQ.outlet}
                   </Badge>
                 </div>
-                 <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                   "{currentQ.question}"
-                 </p>
+                <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed italic">
+                  "{currentQ.question}"
+                </p>
               </div>
             </div>
 
@@ -419,14 +409,13 @@ export default function PressConference({
                     key={r.id}
                     onClick={() => handleAnswer(r.id)}
                     disabled={hasAnswered}
-                     className={`p-4 rounded-xl text-left transition-all ${
-                       isSelected
-                         ? "bg-primary-500/20 ring-2 ring-primary-500/50"
-                       : hasAnswered
+                    className={`p-4 rounded-xl text-left transition-all ${isSelected
+                        ? "bg-primary-500/20 ring-2 ring-primary-500/50"
+                        : hasAnswered
                           ? "bg-gray-200/70 dark:bg-navy-800/50 opacity-40"
                           : "bg-white hover:bg-gray-100 border border-gray-200 dark:bg-navy-800 dark:hover:bg-navy-700 dark:border-navy-700"
-                     }`}
-                   >
+                      }`}
+                  >
                     <div className="flex items-center gap-2 mb-1">
                       <Badge
                         variant={isSelected ? "primary" : "neutral"}
@@ -435,10 +424,10 @@ export default function PressConference({
                         {r.tone}
                       </Badge>
                     </div>
-                     <p
-                       className={`text-sm ${isSelected ? "text-gray-800 dark:text-gray-200" : "text-gray-500 dark:text-gray-400"}`}
-                     >
-                       "{r.text}"
+                    <p
+                      className={`text-sm ${isSelected ? "text-gray-800 dark:text-gray-200" : "text-gray-500 dark:text-gray-400"}`}
+                    >
+                      "{r.text}"
                     </p>
                   </button>
                 );

@@ -1,7 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
+import {
+  changeMatchFormation,
+  changeMatchPlayStyle,
+  getMatchSnapshot,
+  stepLiveMatch,
+  substitutePlayer,
+} from "../../services/liveMatchService";
 import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
 import { getEventDisplay, getPlayerName, phaseLabel } from "./helpers";
 import { Badge } from "../ui";
@@ -55,7 +61,7 @@ export default function MatchLive({
   // Step the match forward one minute
   const stepMatch = useCallback(async () => {
     try {
-      const results = await invoke<MinuteResult[]>("step_live_match", { minutes: 1 });
+      const results = await stepLiveMatch(1);
       if (results.length > 0) {
         const lastResult = results[results.length - 1];
 
@@ -70,7 +76,7 @@ export default function MatchLive({
         }
 
         // Fetch full snapshot
-        const snap = await invoke<MatchSnapshot>("get_match_snapshot");
+        const snap = await getMatchSnapshot();
         onSnapshotUpdate(snap);
 
         // Check for phase transitions that should pause
@@ -135,9 +141,7 @@ export default function MatchLive({
   const handleSubstitution = async (playerOffId: string, playerOnId: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { Substitute: { side: userSide, player_off_id: playerOffId, player_on_id: playerOnId } }
-      });
+      const snap = await substitutePlayer(userSide, playerOffId, playerOnId);
       onSnapshotUpdate(snap);
       setShowSubPanel(false);
     } catch (err) {
@@ -148,9 +152,7 @@ export default function MatchLive({
   const handleFormationChange = async (formation: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangeFormation: { side: userSide, formation } }
-      });
+      const snap = await changeMatchFormation(userSide, formation);
       onSnapshotUpdate(snap);
     } catch (err) {
       console.error("Formation change failed:", err);
@@ -160,9 +162,7 @@ export default function MatchLive({
   const handlePlayStyleChange = async (playStyle: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangePlayStyle: { side: userSide, play_style: playStyle } }
-      });
+      const snap = await changeMatchPlayStyle(userSide, playStyle);
       onSnapshotUpdate(snap);
     } catch (err) {
       console.error("Play style change failed:", err);
@@ -176,85 +176,85 @@ export default function MatchLive({
       contentClassName="overflow-hidden"
       header={
         <>
-        <div className="flex items-center justify-between gap-4">
-          {/* Live indicator */}
-          <div className="flex items-center gap-2">
-            {isRunning && (
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-              </span>
-            )}
-            <span className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
-              {isRunning ? t('match.live') : t('match.paused')}
-            </span>
-          </div>
-
-          {/* Scoreboard */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="font-heading font-bold text-sm uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                  {snapshot.home_team.name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{snapshot.home_team.formation}</p>
-              </div>
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
-                style={{ backgroundColor: homeTeamColor + "30", borderColor: homeTeamColor, borderWidth: 2 }}
-              >
-                {snapshot.home_team.name.substring(0, 3).toUpperCase()}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-4xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">{snapshot.home_score}</span>
-              <div className="flex flex-col items-center">
-                <span className="text-xs font-heading uppercase tracking-widest text-accent-700 dark:text-accent-400">
-                  {phaseLabel(snapshot.phase)}
+          <div className="flex items-center justify-between gap-4">
+            {/* Live indicator */}
+            <div className="flex items-center gap-2">
+              {isRunning && (
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                 </span>
-                <span className="text-2xl font-heading font-bold text-gray-500 dark:text-gray-400">{snapshot.current_minute}'</span>
-              </div>
-              <span className="text-4xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">{snapshot.away_score}</span>
+              )}
+              <span className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                {isRunning ? t('match.live') : t('match.paused')}
+              </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
-                style={{ backgroundColor: awayTeamColor + "30", borderColor: awayTeamColor, borderWidth: 2 }}
-              >
-                {snapshot.away_team.name.substring(0, 3).toUpperCase()}
+            {/* Scoreboard */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="font-heading font-bold text-sm uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                    {snapshot.home_team.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{snapshot.home_team.formation}</p>
+                </div>
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
+                  style={{ backgroundColor: homeTeamColor + "30", borderColor: homeTeamColor, borderWidth: 2 }}
+                >
+                  {snapshot.home_team.name.substring(0, 3).toUpperCase()}
+                </div>
               </div>
-              <div className="text-left">
-                <p className="font-heading font-bold text-sm uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                  {snapshot.away_team.name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{snapshot.away_team.formation}</p>
+
+              <div className="flex items-center gap-3">
+                <span className="text-4xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">{snapshot.home_score}</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-xs font-heading uppercase tracking-widest text-accent-700 dark:text-accent-400">
+                    {phaseLabel(snapshot.phase)}
+                  </span>
+                  <span className="text-2xl font-heading font-bold text-gray-500 dark:text-gray-400">{snapshot.current_minute}'</span>
+                </div>
+                <span className="text-4xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">{snapshot.away_score}</span>
               </div>
+
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
+                  style={{ backgroundColor: awayTeamColor + "30", borderColor: awayTeamColor, borderWidth: 2 }}
+                >
+                  {snapshot.away_team.name.substring(0, 3).toUpperCase()}
+                </div>
+                <div className="text-left">
+                  <p className="font-heading font-bold text-sm uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                    {snapshot.away_team.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{snapshot.away_team.formation}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-heading text-gray-500 dark:text-gray-400 tabular-nums w-8">{snapshot.current_minute}'</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-heading text-gray-500 dark:text-gray-400 tabular-nums w-8">{snapshot.current_minute}'</span>
-          </div>
-        </div>
-
-        {/* Possession bar */}
-        <div className="mt-2">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-heading font-bold text-primary-400 w-12 text-right">
-              {snapshot.home_possession_pct.toFixed(0)}%
-            </span>
-            <div className="flex-1 h-1.5 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden flex transition-colors duration-300">
-              <div className="h-full bg-primary-500 transition-all duration-500" style={{ width: `${snapshot.home_possession_pct}%` }} />
-              <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${snapshot.away_possession_pct}%` }} />
+          {/* Possession bar */}
+          <div className="mt-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-heading font-bold text-primary-400 w-12 text-right">
+                {snapshot.home_possession_pct.toFixed(0)}%
+              </span>
+              <div className="flex-1 h-1.5 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden flex transition-colors duration-300">
+                <div className="h-full bg-primary-500 transition-all duration-500" style={{ width: `${snapshot.home_possession_pct}%` }} />
+                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${snapshot.away_possession_pct}%` }} />
+              </div>
+              <span className="font-heading font-bold text-indigo-400 w-12">
+                {snapshot.away_possession_pct.toFixed(0)}%
+              </span>
             </div>
-            <span className="font-heading font-bold text-indigo-400 w-12">
-              {snapshot.away_possession_pct.toFixed(0)}%
-            </span>
           </div>
-        </div>
         </>
       }
     >
@@ -272,11 +272,10 @@ export default function MatchLive({
               <button
                 key={tab.id}
                 onClick={() => setActivePanel(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3 font-heading font-bold text-xs uppercase tracking-wider transition-colors border-b-2 ${
-                  activePanel === tab.id
+                className={`flex items-center gap-2 px-5 py-3 font-heading font-bold text-xs uppercase tracking-wider transition-colors border-b-2 ${activePanel === tab.id
                     ? "text-primary-500 dark:text-primary-400 border-primary-500 bg-primary-50 dark:bg-navy-700/50"
                     : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
+                  }`}
               >
                 {tab.icon}
                 {tab.label}
@@ -307,9 +306,8 @@ export default function MatchLive({
                 <button
                   key={s.id}
                   onClick={() => { setSpeed(s.id); setIsRunning(s.id !== "paused"); }}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${
-                    speed === s.id ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
-                  }`}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${speed === s.id ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
+                    }`}
                 >
                   {s.icon}
                   <span className="text-[10px]">{s.label}</span>

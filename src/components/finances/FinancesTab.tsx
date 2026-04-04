@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import {
   GameStateData,
   MessageAction,
@@ -24,8 +23,9 @@ import { useTranslation } from "react-i18next";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { resolveMessage } from "../../utils/backendI18n";
-
-type FacilityId = "Training" | "Medical" | "Scouting";
+import { upgradeFacility, type FacilityId } from "../../services/facilityService";
+import { resolveMessageAction } from "../../services/inboxService";
+import { delegateRenewals } from "../../services/renewalService";
 
 interface FacilityDefinition {
   effectKey: string;
@@ -68,22 +68,6 @@ function getFacilityUpgradeCost(level: number): number {
 function formatSignedAmount(value: number): string {
   const formatted = formatVal(Math.abs(value));
   return value < 0 ? `-${formatted}` : formatted;
-}
-
-interface ResolveMessageActionResult {
-  game: GameStateData;
-  effect: string | null;
-  effect_i18n_key?: string | null;
-  effect_i18n_params?: Record<string, string> | null;
-}
-
-interface DelegatedRenewalResponseData {
-  game: GameStateData;
-  report: {
-    success_count: number;
-    failure_count: number;
-    stalled_count: number;
-  };
 }
 
 function isChooseOptionAction(
@@ -218,9 +202,7 @@ export default function FinancesTab({
   async function handleUpgradeFacility(facility: FacilityId): Promise<void> {
     setActionLoading(facility);
     try {
-      const updated = await invoke<GameStateData>("upgrade_facility", {
-        facility,
-      });
+      const updated = await upgradeFacility(facility);
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to upgrade facility:", error);
@@ -239,14 +221,11 @@ export default function FinancesTab({
     setDelegatedRenewalsSummary(null);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>(
-        "delegate_renewals",
-        {
-          playerIds: selectedRiskPlayers.map(({ player }) => player.id),
-          maxWageIncreasePct: 35,
-          maxContractYears: 3,
-        },
-      );
+      const result = await delegateRenewals({
+        playerIds: selectedRiskPlayers.map(({ player }) => player.id),
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
       onGameUpdate?.(result.game);
       setDelegatedRenewalsSummary(
         t("finances.delegatedRenewalsSummary", {
@@ -270,14 +249,7 @@ export default function FinancesTab({
     const loadingKey = `sponsor:${messageId}:${optionId}`;
     setActionLoading(loadingKey);
     try {
-      const result = await invoke<ResolveMessageActionResult>(
-        "resolve_message_action",
-        {
-          messageId,
-          actionId,
-          optionId,
-        },
-      );
+      const result = await resolveMessageAction(messageId, actionId, optionId);
       onGameUpdate?.(result.game);
     } catch (error) {
       console.error("Failed to resolve sponsor offer:", error);
@@ -768,12 +740,12 @@ export default function FinancesTab({
                   .map((p) => {
                     const contextItems = onSelectPlayer
                       ? [
-                          {
-                            label: t("squad.viewProfile", "View profile"),
-                            icon: <User className="w-4 h-4" />,
-                            onClick: () => onSelectPlayer(p.id),
-                          },
-                        ]
+                        {
+                          label: t("squad.viewProfile", "View profile"),
+                          icon: <User className="w-4 h-4" />,
+                          onClick: () => onSelectPlayer(p.id),
+                        },
+                      ]
                       : [];
 
                     const row = (
@@ -801,8 +773,8 @@ export default function FinancesTab({
                         <td className="py-3 px-5 text-sm text-gray-500 dark:text-gray-400">
                           {p.contract_end
                             ? t("finances.until", {
-                                year: p.contract_end.substring(0, 4),
-                              })
+                              year: p.contract_end.substring(0, 4),
+                            })
                             : "—"}
                         </td>
                       </tr>

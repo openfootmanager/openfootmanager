@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import {
   Award,
   CircleDot,
@@ -17,6 +16,7 @@ import type {
 } from "../../store/types";
 import SetPieceSelector, { getSetPieceStats } from "../match/SetPieceSelector";
 import { Card, CardBody, CardHeader } from "../ui";
+import { setTeamMatchRoles } from "../../services/tacticsService";
 
 interface TacticsRolesPanelProps {
   allSquad: PlayerData[];
@@ -58,7 +58,7 @@ function pickBestCandidate(
     .sort((leftPlayer, rightPlayer) => {
       return (
         getSetPieceStats(role, rightPlayer).score -
-          getSetPieceStats(role, leftPlayer).score ||
+        getSetPieceStats(role, leftPlayer).score ||
         leftPlayer.full_name.localeCompare(rightPlayer.full_name)
       );
     });
@@ -139,9 +139,7 @@ export default function TacticsRolesPanel({
     nextRoles: TeamMatchRolesData,
   ): Promise<void> {
     try {
-      const updated = await invoke<GameStateData>("set_team_match_roles", {
-        matchRoles: nextRoles,
-      });
+      const updated = await setTeamMatchRoles(nextRoles);
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);

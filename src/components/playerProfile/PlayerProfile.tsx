@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { calcOvr, getContractRiskLevel } from "../../lib/helpers";
 import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
@@ -38,6 +37,16 @@ import {
   getScoutAvailability,
   type PlayerProfileScoutStatus,
 } from "./PlayerProfile.scouting";
+import {
+  getPlayerMatchHistory,
+  getPlayerStatsOverview,
+} from "../../services/playerProfileService";
+import {
+  delegateRenewals,
+  previewRenewalFinancialImpact,
+  proposeRenewal,
+} from "../../services/renewalService";
+import { sendScout } from "../../services/scoutingService";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -225,12 +234,9 @@ export default function PlayerProfile({
 
     const loadProjection = async (): Promise<void> => {
       try {
-        const result = await invoke<RenewalProjectionData>(
-          "preview_renewal_financial_impact",
-          {
-            playerId: player.id,
-            weeklyWage: renewalOfferedWage,
-          },
+        const result = await previewRenewalFinancialImpact(
+          player.id,
+          renewalOfferedWage,
         );
 
         if (!cancelled) {
@@ -257,12 +263,7 @@ export default function PlayerProfile({
 
     const loadAdvancedStats = async (): Promise<void> => {
       try {
-        const result = await invoke<PlayerAdvancedStatsSummary>(
-          "get_player_stats_overview",
-          {
-            playerId: player.id,
-          },
-        );
+        const result = await getPlayerStatsOverview(player.id);
 
         if (!cancelled && !areAdvancedStatsEqual(result, fallbackAdvancedStats)) {
           setAdvancedStatsOverride(result);
@@ -301,13 +302,7 @@ export default function PlayerProfile({
 
     const loadRecentMatches = async (): Promise<void> => {
       try {
-        const result = await invoke<PlayerRecentMatchEntry[]>(
-          "get_player_match_history",
-          {
-            playerId: player.id,
-            limit: 5,
-          },
-        );
+        const result = await getPlayerMatchHistory(player.id, 5);
 
         if (!cancelled) {
           setRecentMatches((current) => {
@@ -350,11 +345,11 @@ export default function PlayerProfile({
     setRenewalCooledOff(false);
 
     try {
-      const result = await invoke<RenewalResponseData>("propose_renewal", {
-        playerId: player.id,
-        weeklyWage: renewalOfferedWage,
-        contractYears: renewalOfferedYears,
-      });
+      const result = await proposeRenewal(
+        player.id,
+        renewalOfferedWage,
+        renewalOfferedYears,
+      );
 
       onGameUpdate?.(result.game);
       setRenewalStatus(result.outcome);
@@ -397,14 +392,11 @@ export default function PlayerProfile({
     setRenewalCooledOff(false);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>(
-        "delegate_renewals",
-        {
-          playerIds: [player.id],
-          maxWageIncreasePct: 35,
-          maxContractYears: 3,
-        },
-      );
+      const result = await delegateRenewals({
+        playerIds: [player.id],
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
 
       onGameUpdate?.(result.game);
       const delegatedCase: DelegatedRenewalCaseData | undefined =
@@ -503,10 +495,7 @@ export default function PlayerProfile({
             setScoutError(null);
 
             try {
-              const updated = await invoke<GameStateData>("send_scout", {
-                scoutId: availableScout.id,
-                playerId: player.id,
-              });
+              const updated = await sendScout(availableScout.id, player.id);
               onGameUpdate(updated);
               setScoutStatus("sent");
             } catch (err) {

@@ -1,6 +1,5 @@
 import type { DragEvent, JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import type {
   GameStateData,
   PlayerData,
@@ -31,6 +30,11 @@ import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import TacticsPlayerTable from "./TacticsPlayerTable";
 import TacticsRolesPanel from "./TacticsRolesPanel";
 import TacticsSetupPanel from "./TacticsSetupPanel";
+import {
+  setFormation,
+  setPlayStyle,
+  setStartingXI,
+} from "../../services/tacticsService";
 
 interface TacticsTabProps {
   gameState: GameStateData;
@@ -226,9 +230,7 @@ export default function TacticsTab({
   async function persistStartingXI(playerIds: string[]): Promise<void> {
     setPendingStartingXiIds(playerIds);
     try {
-      const updated = await invoke<GameStateData>("set_starting_xi", {
-        playerIds,
-      });
+      const updated = await setStartingXI(playerIds);
       onGameUpdate(updated);
     } catch (error) {
       setPendingStartingXiIds(null);
@@ -238,9 +240,7 @@ export default function TacticsTab({
 
   async function handleFormationChange(nextFormation: string): Promise<void> {
     try {
-      const updated = await invoke<GameStateData>("set_formation", {
-        formation: nextFormation,
-      });
+      const updated = await setFormation(nextFormation);
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set formation:", error);
@@ -249,9 +249,7 @@ export default function TacticsTab({
 
   async function handlePlayStyleChange(playStyle: string): Promise<void> {
     try {
-      const updated = await invoke<GameStateData>("set_play_style", {
-        playStyle,
-      });
+      const updated = await setPlayStyle(playStyle);
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set play style:", error);
@@ -334,12 +332,12 @@ export default function TacticsTab({
       currentDragState ??
       (draggedPlayerId
         ? {
-            playerId: draggedPlayerId,
-            from: xiIds.has(draggedPlayerId) ? "xi" : "bench",
-            slotIndex: xiIds.has(draggedPlayerId)
-              ? startingXiIds.indexOf(draggedPlayerId)
-              : null,
-          }
+          playerId: draggedPlayerId,
+          from: xiIds.has(draggedPlayerId) ? "xi" : "bench",
+          slotIndex: xiIds.has(draggedPlayerId)
+            ? startingXiIds.indexOf(draggedPlayerId)
+            : null,
+        }
         : null);
 
     if (!resolvedDragState) return;
@@ -433,22 +431,20 @@ export default function TacticsTab({
         <button
           type="button"
           onClick={() => setActiveTab("lineup")}
-          className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-            activeTab === "lineup"
+          className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "lineup"
               ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
+            }`}
         >
           {t("tactics.lineupTab", "Lineup")}
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("roles")}
-          className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-            activeTab === "roles"
+          className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${activeTab === "roles"
               ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
+            }`}
         >
           {t("tactics.rolesTab", "Set pieces & roles")}
         </button>
