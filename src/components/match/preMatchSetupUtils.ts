@@ -1,3 +1,7 @@
+import type {
+    AutoSelectedSetPieces,
+    SetPieceRole,
+} from "../../services/liveMatchService";
 import type { EnginePlayerData } from "./types";
 import { getPositionOvr } from "./matchLineupUtils";
 
@@ -5,6 +9,21 @@ export interface PlannedPreMatchSwap {
     playerOffId: string;
     playerOnId: string;
 }
+
+export interface PlannedSetPieceAssignment {
+    playerId: string;
+    role: SetPieceRole;
+}
+
+const AUTO_SELECTED_SET_PIECE_ORDER: ReadonlyArray<{
+    key: keyof AutoSelectedSetPieces;
+    role: SetPieceRole;
+}> = [
+        { key: "captain", role: "captain" },
+        { key: "penalty_taker", role: "penalty" },
+        { key: "free_kick_taker", role: "freekick" },
+        { key: "corner_taker", role: "corner" },
+    ];
 
 function getConditionWeightedOvr(player: EnginePlayerData): number {
     return getPositionOvr(player) * (player.condition / 100);
@@ -72,4 +91,13 @@ export function planAutoSelectSwaps(
         playerOffId: toRemove[index],
         playerOnId,
     }));
+}
+
+export function getAutoSelectedSetPieceAssignments(
+    selection: AutoSelectedSetPieces,
+): PlannedSetPieceAssignment[] {
+    return AUTO_SELECTED_SET_PIECE_ORDER.flatMap(({ key, role }) => {
+        const playerId = selection[key];
+        return playerId ? [{ playerId, role }] : [];
+    });
 }

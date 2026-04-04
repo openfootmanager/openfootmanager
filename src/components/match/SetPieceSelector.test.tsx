@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { getSetPieceStats } from "./SetPieceSelector";
+import { getSetPieceStats } from "./setPieceUtils";
 import SetPieceSelector from "./SetPieceSelector";
 import type { PlayerData } from "../../store/gameStore";
 
@@ -185,7 +185,7 @@ describe("SetPieceSelector component", () => {
     expect(screen.getByText("John Smith")).toBeInTheDocument();
   });
 
-  it("normalizes detailed positions to translated core abbreviations", () => {
+  it("uses shared translated position abbreviations", () => {
     render(
       <SetPieceSelector
         label="Penalty Taker"
@@ -202,7 +202,7 @@ describe("SetPieceSelector component", () => {
 
     fireEvent.click(screen.getByText("Penalty Taker"));
 
-    expect(screen.getByText("common.posAbbr.Defender")).toBeInTheDocument();
+    expect(screen.getByText("common.posAbbr.CenterBack")).toBeInTheDocument();
   });
 
   it("expands dropdown on click and shows non-GK players sorted by score", () => {

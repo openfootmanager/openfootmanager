@@ -230,4 +230,91 @@ describe("PreMatchSetup", () => {
         });
         expect(onUpdateSnapshot).toHaveBeenCalledWith(updatedSnapshot);
     });
+
+    it("applies auto-selected set piece takers in the planned order", async () => {
+        const starterGoalkeeper = makePlayer({ id: "gk-1", name: "Keeper", position: "Goalkeeper" });
+        const starterDefender = makePlayer({ id: "d-1", name: "Defender", position: "Defender" });
+        const starterMidfielder = makePlayer({ id: "m-1", name: "Midfielder", position: "Midfielder" });
+        const starterForward = makePlayer({ id: "f-1", name: "Forward", position: "Forward" });
+
+        const initialSnapshot = makeSnapshot({
+            home_team: makeTeam({
+                id: "home-1",
+                name: "Home FC",
+                players: [starterGoalkeeper, starterDefender, starterMidfielder, starterForward],
+            }),
+        });
+        const captainSnapshot = makeSnapshot({
+            home_set_pieces: {
+                captain: "gk-1",
+                penalty_taker: null,
+                free_kick_taker: null,
+                corner_taker: null,
+            },
+        });
+        const penaltySnapshot = makeSnapshot({
+            home_set_pieces: {
+                captain: "gk-1",
+                penalty_taker: "f-1",
+                free_kick_taker: null,
+                corner_taker: null,
+            },
+        });
+        const cornerSnapshot = makeSnapshot({
+            home_set_pieces: {
+                captain: "gk-1",
+                penalty_taker: "f-1",
+                free_kick_taker: null,
+                corner_taker: "m-1",
+            },
+        });
+
+        autoSelectSetPiecesMock.mockResolvedValue({
+            captain: "gk-1",
+            penalty_taker: "f-1",
+            free_kick_taker: null,
+            corner_taker: "m-1",
+        });
+        setMatchSetPieceTakerMock
+            .mockResolvedValueOnce(captainSnapshot)
+            .mockResolvedValueOnce(penaltySnapshot)
+            .mockResolvedValueOnce(cornerSnapshot);
+        const onUpdateSnapshot = vi.fn();
+
+        render(
+            <PreMatchSetup
+                snapshot={initialSnapshot}
+                gameState={makeGameState([
+                    starterGoalkeeper,
+                    starterDefender,
+                    starterMidfielder,
+                    starterForward,
+                ])}
+                userSide="Home"
+                onStart={vi.fn()}
+                onUpdateSnapshot={onUpdateSnapshot}
+            />,
+        );
+
+        fireEvent.click(screen.getByText("match.setPiecesCaptain"));
+        fireEvent.click(screen.getByText("match.autoSelectTakers"));
+
+        await waitFor(() => {
+            expect(autoSelectSetPiecesMock).toHaveBeenCalledWith([
+                "gk-1",
+                "d-1",
+                "m-1",
+                "f-1",
+            ]);
+        });
+
+        expect(setMatchSetPieceTakerMock.mock.calls).toEqual([
+            ["Home", "captain", "gk-1"],
+            ["Home", "penalty", "f-1"],
+            ["Home", "corner", "m-1"],
+        ]);
+        expect(onUpdateSnapshot).toHaveBeenNthCalledWith(1, captainSnapshot);
+        expect(onUpdateSnapshot).toHaveBeenNthCalledWith(2, penaltySnapshot);
+        expect(onUpdateSnapshot).toHaveBeenNthCalledWith(3, cornerSnapshot);
+    });
 });

@@ -6,6 +6,7 @@ import {
   autoSelectSetPieces,
   changeMatchFormation,
   changeMatchPlayStyle,
+  type SetPieceRole,
   setMatchSetPieceTaker,
   swapPreMatchPlayers,
 } from "../../services/liveMatchService";
@@ -14,7 +15,10 @@ import PreMatchLineup from "./PreMatchLineup";
 import {
   parseFormationNeeds,
 } from "./matchLineupUtils";
-import { planAutoSelectSwaps } from "./preMatchSetupUtils";
+import {
+  getAutoSelectedSetPieceAssignments,
+  planAutoSelectSwaps,
+} from "./preMatchSetupUtils";
 import MatchScreenLayout from "./MatchScreenLayout";
 import SetPieceSelector from "./SetPieceSelector";
 import {
@@ -90,72 +94,64 @@ export default function PreMatchSetup({
   const userBench =
     userSide === "Home" ? snapshot.home_bench || [] : snapshot.away_bench || [];
 
-  console.info("[PreMatchSetup] render", {
-    activeTab,
-    allSquadCount: allSquadPlayers.length,
-    awayTeam: snapshot.away_team.name,
-    benchCount: userBench.length,
-    homeTeam: snapshot.home_team.name,
-    phase: snapshot.phase,
-    playStyle: userTeam.play_style,
-    selectedStarterId,
-    setPieces: userSetPieces,
-    startingPlayerCount: userTeam.players.length,
-    userSide,
-    userTeam: userTeam.name,
-  });
-
-  const handleFormationChange = async (formation: string) => {
+  const applySnapshotUpdate = async (
+    action: () => Promise<MatchSnapshot>,
+    errorMessage: string,
+  ): Promise<MatchSnapshot | null> => {
     try {
-      const snap = await changeMatchFormation(userSide, formation);
-      onUpdateSnapshot(snap);
+      const nextSnapshot = await action();
+      onUpdateSnapshot(nextSnapshot);
+      return nextSnapshot;
     } catch (err) {
-      console.error("Formation change failed:", err);
+      console.error(errorMessage, err);
+      return null;
     }
   };
 
+  const handleFormationChange = async (formation: string) => {
+    await applySnapshotUpdate(
+      () => changeMatchFormation(userSide, formation),
+      "Formation change failed:",
+    );
+  };
+
   const handlePlayStyleChange = async (playStyle: string) => {
-    try {
-      const snap = await changeMatchPlayStyle(userSide, playStyle);
-      onUpdateSnapshot(snap);
-    } catch (err) {
-      console.error("Play style change failed:", err);
-    }
+    await applySnapshotUpdate(
+      () => changeMatchPlayStyle(userSide, playStyle),
+      "Play style change failed:",
+    );
   };
 
   const handleSwap = async (benchPlayerId: string) => {
     if (!selectedStarterId) return;
-    try {
-      const snap = await swapPreMatchPlayers(
-        userSide,
-        selectedStarterId,
-        benchPlayerId,
-      );
-      onUpdateSnapshot(snap);
-    } catch (err) {
-      console.error("Pre-match swap failed:", err);
-    }
+    await applySnapshotUpdate(
+      () =>
+        swapPreMatchPlayers(
+          userSide,
+          selectedStarterId,
+          benchPlayerId,
+        ),
+      "Pre-match swap failed:",
+    );
     setSelectedStarterId(null);
   };
 
-  const handleSetPieceTaker = async (role: string, playerId: string) => {
-    const commandMap: Record<string, string> = {
-      penalty: "SetPenaltyTaker",
-      freekick: "SetFreeKickTaker",
-      corner: "SetCornerTaker",
-      captain: "SetCaptain",
-    };
-    const cmdKey = commandMap[role];
-    if (!cmdKey) return;
+  const handleSetPieceTaker = async (role: SetPieceRole, playerId: string) => {
+    await applySnapshotUpdate(
+      () => setMatchSetPieceTaker(userSide, role, playerId),
+      "Set piece taker change failed:",
+    );
+  };
+
+  const handleAutoSelectSetPieces = async () => {
     try {
-      const snap = await setMatchSetPieceTaker(
-        userSide,
-        role as "captain" | "corner" | "freekick" | "penalty",
-        playerId,
-      );
-      onUpdateSnapshot(snap);
+      const result = await autoSelectSetPieces(userTeam.players.map((player) => player.id));
+
+      for (const assignment of getAutoSelectedSetPieceAssignments(result)) {
+        await handleSetPieceTaker(assignment.role, assignment.playerId);
+      }
     } catch (err) {
-      console.error("Set piece taker change failed:", err);
+      console.error("Auto-select set pieces failed:", err);
     }
   };
 
@@ -354,28 +350,7 @@ export default function PreMatchSetup({
         {activeTab === "setpieces" && (
           <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
             <button
-              onClick={async () => {
-                try {
-                  const ids = userTeam.players.map((p) => p.id);
-                  const result = await autoSelectSetPieces(ids);
-                  if (result.captain)
-                    await handleSetPieceTaker("captain", result.captain);
-                  if (result.penalty_taker)
-                    await handleSetPieceTaker(
-                      "penalty",
-                      result.penalty_taker,
-                    );
-                  if (result.free_kick_taker)
-                    await handleSetPieceTaker(
-                      "freekick",
-                      result.free_kick_taker,
-                    );
-                  if (result.corner_taker)
-                    await handleSetPieceTaker("corner", result.corner_taker);
-                } catch (err) {
-                  console.error("Auto-select set pieces failed:", err);
-                }
-              }}
+              onClick={handleAutoSelectSetPieces}
               className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-50 hover:bg-accent-100 text-accent-700 dark:bg-accent-500/10 dark:hover:bg-accent-500/20 dark:text-accent-400 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-colors border border-accent-200 dark:border-accent-500/20"
             >
               <Wand2 className="w-3.5 h-3.5" />

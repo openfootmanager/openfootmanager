@@ -9,7 +9,7 @@ import { invokeCommand } from "./tauriClient";
 
 type MatchSide = "Home" | "Away";
 type TeamTalkContext = "winning" | "losing" | "drawing";
-type SetPieceRole = "captain" | "penalty" | "freekick" | "corner";
+export type SetPieceRole = "captain" | "penalty" | "freekick" | "corner";
 
 const SET_PIECE_COMMANDS: Record<SetPieceRole, string> = {
     captain: "SetCaptain",

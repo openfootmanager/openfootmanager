@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planAutoSelectSwaps } from "./preMatchSetupUtils";
+import {
+    getAutoSelectedSetPieceAssignments,
+    planAutoSelectSwaps,
+} from "./preMatchSetupUtils";
 import type { EnginePlayerData } from "./types";
 
 const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => ({
@@ -81,5 +84,22 @@ describe("planAutoSelectSwaps", () => {
         });
 
         expect(swaps).toEqual([]);
+    });
+});
+
+describe("getAutoSelectedSetPieceAssignments", () => {
+    it("returns non-null assignments in the expected application order", () => {
+        expect(
+            getAutoSelectedSetPieceAssignments({
+                captain: "captain-1",
+                penalty_taker: "penalty-1",
+                free_kick_taker: null,
+                corner_taker: "corner-1",
+            }),
+        ).toEqual([
+            { role: "captain", playerId: "captain-1" },
+            { role: "penalty", playerId: "penalty-1" },
+            { role: "corner", playerId: "corner-1" },
+        ]);
     });
 });

@@ -14,7 +14,11 @@ import type {
   PlayerData,
   TeamMatchRolesData,
 } from "../../store/types";
-import SetPieceSelector, { getSetPieceStats } from "../match/SetPieceSelector";
+import SetPieceSelector from "../match/SetPieceSelector";
+import {
+  getSetPieceStats,
+  roleAllowsGoalkeeper,
+} from "../match/setPieceUtils";
 import { Card, CardBody, CardHeader } from "../ui";
 import { setTeamMatchRoles } from "../../services/tacticsService";
 
@@ -32,10 +36,6 @@ const EMPTY_MATCH_ROLES: TeamMatchRolesData = {
   free_kick_taker: null,
   corner_taker: null,
 };
-
-function roleAllowsGoalkeeper(role: string): boolean {
-  return role === "captain" || role === "vicecaptain";
-}
 
 function pickBestCandidate(
   players: PlayerData[],

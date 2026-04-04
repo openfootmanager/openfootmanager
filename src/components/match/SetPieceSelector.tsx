@@ -1,89 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PlayerData } from "../../store/gameStore";
-import { normalisePosition } from "../squad/SquadTab.helpers";
+import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { Badge } from "../ui";
 import { ArrowUpDown, Check } from "lucide-react";
-
-function getStatAttributeKey(label: string): string | null {
-  switch (label) {
-    case "SHO":
-      return "shooting";
-    case "COM":
-      return "composure";
-    case "PAS":
-      return "passing";
-    case "VIS":
-      return "vision";
-    case "LDR":
-      return "leadership";
-    case "TMW":
-      return "teamwork";
-    default:
-      return null;
-  }
-}
-
-function getStatColorClassName(value: number): string {
-  if (value >= 70) {
-    return "text-primary-300";
-  }
-
-  if (value >= 50) {
-    return "text-gray-100";
-  }
-
-  return "text-gray-400";
-}
-
-export function getSetPieceStats(
-  role: string,
-  p: PlayerData,
-): { score: number; stats: { label: string; value: number }[] } {
-  const a = p.attributes;
-  switch (role) {
-    case "penalty":
-      return {
-        score: Math.round((a.shooting + a.composure) / 2),
-        stats: [
-          { label: "SHO", value: a.shooting },
-          { label: "COM", value: a.composure },
-        ],
-      };
-    case "freekick":
-      return {
-        score: Math.round((a.passing + a.vision + a.shooting / 2) / 2.5),
-        stats: [
-          { label: "PAS", value: a.passing },
-          { label: "VIS", value: a.vision },
-          { label: "SHO", value: a.shooting },
-        ],
-      };
-    case "corner":
-      return {
-        score: Math.round((a.passing + a.vision) / 2),
-        stats: [
-          { label: "PAS", value: a.passing },
-          { label: "VIS", value: a.vision },
-        ],
-      };
-    case "captain":
-    case "vicecaptain":
-      return {
-        score: Math.round((a.leadership + a.teamwork) / 2),
-        stats: [
-          { label: "LDR", value: a.leadership },
-          { label: "TMW", value: a.teamwork },
-        ],
-      };
-    default:
-      return { score: 0, stats: [] };
-  }
-}
-
-function roleAllowsGoalkeeper(role: string): boolean {
-  return role === "captain" || role === "vicecaptain";
-}
+import {
+  getSetPieceStatAttributeKey,
+  getSetPieceStatColorClassName,
+  getSetPieceStats,
+  roleAllowsGoalkeeper,
+} from "./setPieceUtils";
 
 export default function SetPieceSelector({
   label,
@@ -125,21 +51,13 @@ export default function SetPieceSelector({
     );
 
   function getTranslatedStatLabel(label: string): string {
-    const attributeKey = getStatAttributeKey(label);
+    const attributeKey = getSetPieceStatAttributeKey(label);
 
     if (!attributeKey) {
       return label;
     }
 
     return t(`common.attributes.${attributeKey}`, { defaultValue: label });
-  }
-
-  function getTranslatedPositionAbbreviation(position: string): string {
-    const normalizedPosition = normalisePosition(position);
-
-    return t(`common.posAbbr.${normalizedPosition}`, {
-      defaultValue: normalizedPosition.substring(0, 3).toUpperCase(),
-    });
   }
 
   return (
@@ -168,7 +86,7 @@ export default function SetPieceSelector({
                  <span className="text-gray-600 dark:text-gray-300">
                   {getTranslatedStatLabel(s.label)}
                 </span>
-                <span className={getStatColorClassName(s.value)}>
+                <span className={getSetPieceStatColorClassName(s.value)}>
                   {s.value}
                 </span>
               </span>
@@ -200,7 +118,7 @@ export default function SetPieceSelector({
                   {p.name}
                 </span>
                 <Badge variant="neutral" size="sm">
-                  {getTranslatedPositionAbbreviation(p.position)}
+                  {translatePositionAbbreviation(t, p.position)}
                 </Badge>
                 {p.spStats.stats.map((s) => (
                   <span
@@ -208,7 +126,7 @@ export default function SetPieceSelector({
                     title={getTranslatedStatLabel(s.label)}
                      className="w-10 rounded-md bg-gray-100 dark:bg-navy-800/80 px-1.5 py-1 text-center text-xs font-heading font-bold transition-colors duration-300"
                   >
-                    <span className={getStatColorClassName(s.value)}>
+                    <span className={getSetPieceStatColorClassName(s.value)}>
                       {s.value}
                     </span>
                   </span>
