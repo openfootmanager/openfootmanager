@@ -1,6 +1,6 @@
 import type { GameStateData } from "../../store/gameStore";
-import { Card, CardHeader, CardBody, Badge, ProgressBar } from "../ui";
-import { getTeamName, formatDateShort } from "../../lib/helpers";
+import { Card, CardHeader, CardBody, Badge } from "../ui";
+import { formatDateShort } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
 import {
@@ -15,7 +15,6 @@ import {
   getOnboardingCompletionState,
   getRecentResultsForTeam,
 } from "./HomeTab.helpers";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import HomeLeagueDigestCard from "./HomeLeagueDigestCard";
 import HomeLeaguePositionCard from "./HomeLeaguePositionCard";
 import HomeLatestNewsCard from "./HomeLatestNewsCard";
@@ -27,11 +26,8 @@ import HomeSquadOverviewCard from "./HomeSquadOverviewCard";
 import HomeSeasonStatusCard from "./HomeSeasonStatusCard";
 import HomeUnavailablePlayersCard from "./HomeUnavailablePlayersCard";
 import {
-  Trophy,
   Dumbbell,
   Mail,
-  Newspaper,
-  AlertTriangle,
   Flame,
   Scale,
   Feather,
@@ -40,9 +36,6 @@ import {
   Users,
   Crosshair,
   UserCog,
-  TrendingUp,
-  TrendingDown,
-  CalendarClock,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import HomeOnboardingChecklistCard from "./HomeOnboardingChecklistCard";
@@ -54,17 +47,17 @@ interface HomeTabProps {
 }
 
 const SCHEDULE_ICONS: Record<string, { icon: React.ReactNode; color: string }> =
-  {
-    Intense: { icon: <Flame className="w-3.5 h-3.5" />, color: "text-red-500" },
-    Balanced: {
-      icon: <Scale className="w-3.5 h-3.5" />,
-      color: "text-primary-500",
-    },
-    Light: {
-      icon: <Feather className="w-3.5 h-3.5" />,
-      color: "text-blue-500",
-    },
-  };
+{
+  Intense: { icon: <Flame className="w-3.5 h-3.5" />, color: "text-red-500" },
+  Balanced: {
+    icon: <Scale className="w-3.5 h-3.5" />,
+    color: "text-primary-500",
+  },
+  Light: {
+    icon: <Feather className="w-3.5 h-3.5" />,
+    color: "text-blue-500",
+  },
+};
 
 export default function HomeTab({
   gameState,
@@ -113,27 +106,27 @@ export default function HomeTab({
     transferWindow.status === "DeadlineDay"
       ? t("season.windowClosesToday")
       : transferWindow.status === "Open" &&
-          transferWindow.days_remaining !== null
+        transferWindow.days_remaining !== null
         ? t("season.windowClosesInDays", {
-            count: transferWindow.days_remaining,
-          })
+          count: transferWindow.days_remaining,
+        })
         : transferWindow.status === "Closed" &&
-            transferWindow.days_until_opens !== null
+          transferWindow.days_until_opens !== null
           ? t("season.windowOpensInDays", {
-              count: transferWindow.days_until_opens,
-            })
+            count: transferWindow.days_until_opens,
+          })
           : t("season.windowClosed");
 
   // League position
   const myStanding =
     !isPreseason && league && myTeam
       ? league.standings
-          .sort(
-            (a, b) =>
-              b.points - a.points ||
-              b.goals_for - b.goals_against - (a.goals_for - a.goals_against),
-          )
-          .findIndex((s) => s.team_id === myTeam.id) + 1
+        .sort(
+          (a, b) =>
+            b.points - a.points ||
+            b.goals_for - b.goals_against - (a.goals_for - a.goals_against),
+        )
+        .findIndex((s) => s.team_id === myTeam.id) + 1
       : null;
   const myStandingData =
     !isPreseason && league && myTeam
@@ -252,7 +245,7 @@ export default function HomeTab({
           phase={seasonContext.phase}
           seasonStartLabel={seasonStartLabel}
           myStanding={myStanding}
-          myStandingData={myStandingData}
+          myStandingData={myStandingData ?? null}
           teamForm={myTeam?.form ?? []}
           onNavigate={onNavigate}
         />

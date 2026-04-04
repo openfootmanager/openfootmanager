@@ -54,7 +54,6 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     injury: {
       name: "Hamstring",
       days_remaining: 6,
-      severity: "Moderate",
     },
     team_id: "team-1",
     contract_end: null,

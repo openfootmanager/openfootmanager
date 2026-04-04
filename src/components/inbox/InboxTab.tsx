@@ -10,7 +10,6 @@ import {
   markAllMessagesRead,
   markMessageRead,
   resolveMessageAction,
-  type ResolveMessageActionResult,
 } from "../../services/inboxService";
 import { resolveBackendText, resolveMessage } from "../../utils/backendI18n";
 import InboxDeleteConfirmModal from "./InboxDeleteConfirmModal";
@@ -25,6 +24,18 @@ import {
   type MessageSortOrder,
   sortInboxMessages,
 } from "./inboxHelpers";
+
+function stringifyBackendParams(
+  params?: Record<string, string | number>,
+): Record<string, string> | undefined {
+  if (!params) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, String(value)]),
+  );
+}
 
 interface InboxTabProps {
   gameState: GameStateData;
@@ -114,7 +125,7 @@ export default function InboxTab({
       try {
         const updatedGameState = await markMessageRead(messageId);
         onGameUpdate(updatedGameState);
-      } catch {}
+      } catch { }
     }
   }
 
@@ -150,19 +161,19 @@ export default function InboxTab({
         const resolvedEffect = resolveBackendText(
           result.effect_i18n_key ?? undefined,
           result.effect,
-          result.effect_i18n_params ?? undefined,
+          stringifyBackendParams(result.effect_i18n_params ?? undefined),
         );
         setEffectFeedback(resolvedEffect);
         setTimeout(() => setEffectFeedback(null), 4000);
       }
-    } catch {}
+    } catch { }
   }
 
   async function handleMarkAllRead(): Promise<void> {
     try {
       const updatedGameState = await markAllMessagesRead();
       onGameUpdate(updatedGameState);
-    } catch {}
+    } catch { }
   }
 
   async function handleClearOld(): Promise<void> {
@@ -170,7 +181,7 @@ export default function InboxTab({
       const updatedGameState = await clearOldMessages();
       onGameUpdate(updatedGameState);
       setSelectedMessageId(null);
-    } catch {}
+    } catch { }
   }
 
   async function handleConfirmDelete(): Promise<void> {

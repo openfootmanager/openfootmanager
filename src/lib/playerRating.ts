@@ -6,7 +6,7 @@ import {
     primaryPosition,
 } from "./playerRatingPenalties";
 import { weightedPositionScore } from "./playerRatingScore";
-import { canonicalPosition, exactPosition } from "./playerPositions";
+import { exactPosition } from "./playerPositions";
 
 export { canonicalPosition } from "./playerPositions";
 

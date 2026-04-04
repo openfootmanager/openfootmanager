@@ -17,7 +17,7 @@ export type NegotiationFeedbackData = NegotiationFeedbackPanelData;
 
 export interface RenewalResponseData {
   outcome: "accepted" | "rejected" | "counter_offer";
-  game: import("../store/gameStore").GameStateData;
+  game: import("../../store/gameStore").GameStateData;
   suggested_wage: number | null;
   suggested_years: number | null;
   session_status: "idle" | "open" | "agreed" | "blocked" | "stalled";
@@ -39,7 +39,7 @@ export interface DelegatedRenewalCaseData {
 }
 
 export interface DelegatedRenewalResponseData {
-  game: import("../store/gameStore").GameStateData;
+  game: import("../../store/gameStore").GameStateData;
   report: {
     success_count: number;
     failure_count: number;

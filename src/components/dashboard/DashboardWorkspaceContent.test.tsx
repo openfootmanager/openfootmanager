@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GameStateData } from "../../store/gameStore";
 import {
@@ -186,7 +186,7 @@ function createGameState(): GameStateData {
 }
 
 describe("DashboardWorkspaceContent", () => {
-  it("renders alerts and tab content when no profile is selected", () => {
+  it("renders alerts and tab content when no profile is selected", async () => {
     const gameState = createGameState();
     const onNavigate = vi.fn();
 
@@ -219,13 +219,13 @@ describe("DashboardWorkspaceContent", () => {
     );
 
     expect(screen.getByText("alerts-mock")).toBeInTheDocument();
-    expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    expect(await screen.findByText("Tab Content Home")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("alerts-mock"));
     expect(onNavigate).toHaveBeenCalledWith("Inbox");
   });
 
-  it("renders the player profile branch with renewal intent", () => {
+  it("renders the player profile branch with renewal intent", async () => {
     const gameState = createGameState();
     const profileNavigation = selectDashboardPlayer(
       createDashboardProfileNavigationState("Squad"),
@@ -259,12 +259,15 @@ describe("DashboardWorkspaceContent", () => {
       />,
     );
 
-    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
+    expect(await screen.findByText("Player Profile Mock")).toBeInTheDocument();
     expect(screen.getByText("renewal-open")).toBeInTheDocument();
-    expect(screen.queryByText("Tab Content Squad")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText("Tab Content Squad")).not.toBeInTheDocument();
+    });
   });
 
-  it("renders the team profile branch when a team is selected", () => {
+  it("renders the team profile branch when a team is selected", async () => {
     const gameState = createGameState();
     const profileNavigation = selectDashboardTeam(
       createDashboardProfileNavigationState("Teams"),
@@ -297,7 +300,10 @@ describe("DashboardWorkspaceContent", () => {
       />,
     );
 
-    expect(screen.getByText("Team Profile Mock")).toBeInTheDocument();
-    expect(screen.queryByText("Tab Content Teams")).not.toBeInTheDocument();
+    expect(await screen.findByText("Team Profile Mock")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText("Tab Content Teams")).not.toBeInTheDocument();
+    });
   });
 });

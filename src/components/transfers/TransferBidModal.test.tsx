@@ -8,7 +8,6 @@ import type {
 } from "../../store/gameStore";
 import type {
   TransferBidProjectionData,
-  TransferNegotiationResponseData,
 } from "../../services/transfersService";
 import TransferBidModal from "./TransferBidModal";
 

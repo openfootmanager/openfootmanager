@@ -9,6 +9,7 @@ import { formatWeeklyAmount } from "../../lib/helpers";
 
 interface TranslateOptions {
     defaultValue?: string;
+    [key: string]: unknown;
 }
 
 type TranslateFn = (key: string, options?: TranslateOptions) => string;

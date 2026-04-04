@@ -5,7 +5,7 @@ import {
   getEventDisplay,
   resolveMatchFixture,
 } from "./helpers";
-import i18n from "../../i18n";
+import i18n, { changeAppLanguage, i18nReady } from "../../i18n";
 import { getTeamTalkOptions } from "./types";
 import type { MatchSnapshot, EnginePlayerData, EngineTeamData } from "./types";
 import type { GameStateData } from "../../store/gameStore";
@@ -187,7 +187,8 @@ describe("getEventDisplay", () => {
 
 describe("getTeamTalkOptions", () => {
   it("returns the expected english team talk labels and descriptions", async () => {
-    await i18n.changeLanguage("en");
+    await i18nReady;
+    await changeAppLanguage("en");
 
     const options = getTeamTalkOptions(i18n.t.bind(i18n));
 
@@ -214,7 +215,8 @@ describe("getTeamTalkOptions", () => {
   });
 
   it("returns translated team talk options for pt-BR", async () => {
-    await i18n.changeLanguage("pt-BR");
+    await i18nReady;
+    await changeAppLanguage("pt-BR");
 
     const options = getTeamTalkOptions(i18n.t.bind(i18n));
 
@@ -233,7 +235,8 @@ describe("getTeamTalkOptions", () => {
   });
 
   it("returns translated team talk options for italian", async () => {
-    await i18n.changeLanguage("it");
+    await i18nReady;
+    await changeAppLanguage("it");
 
     const options = getTeamTalkOptions(i18n.t.bind(i18n));
 

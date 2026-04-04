@@ -147,7 +147,6 @@ function createAssignment(
     scout_id: "staff-1",
     player_id: "player-1",
     days_remaining: 3,
-    created_at: "2026-08-10T00:00:00Z",
     ...overrides,
   };
 }

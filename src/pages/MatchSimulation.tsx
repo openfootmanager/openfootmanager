@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback } from "react";
+import type { JSX } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useGameStore, GameStateData } from "../store/gameStore";
+import { useGameStore } from "../store/gameStore";
 import {
   MatchSnapshot,
   MatchEvent,
@@ -9,16 +10,30 @@ import {
   RoundSummary,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
-import PreMatchSetup from "../components/match/PreMatchSetup";
-import MatchLive from "../components/match/MatchLive";
-import HalfTimeBreak from "../components/match/HalfTimeBreak";
-import PostMatchScreen from "../components/match/PostMatchScreen";
-import PressConference from "../components/match/PressConference";
 import {
   finishLiveMatch,
   getMatchSnapshot,
   startLiveMatchSession,
 } from "../services/liveMatchService";
+
+const PreMatchSetup = lazy(() => import("../components/match/PreMatchSetup"));
+const MatchLive = lazy(() => import("../components/match/MatchLive"));
+const HalfTimeBreak = lazy(() => import("../components/match/HalfTimeBreak"));
+const PostMatchScreen = lazy(() => import("../components/match/PostMatchScreen"));
+const PressConference = lazy(() => import("../components/match/PressConference"));
+
+function MatchStageFallback({ label }: { label: string }): JSX.Element {
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors duration-300">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-sm">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -268,10 +283,11 @@ export default function MatchSimulation() {
     routeState?.fixtureIndex,
   );
 
-  // Render the current stage
+  let stageContent: JSX.Element | null = null;
+
   switch (stage) {
     case "prematch":
-      return (
+      stageContent = (
         <PreMatchSetup
           snapshot={snapshot}
           gameState={gameState}
@@ -281,10 +297,11 @@ export default function MatchSimulation() {
           onUpdateSnapshot={handleSnapshotUpdate}
         />
       );
+      break;
 
     case "first_half":
     case "second_half":
-      return (
+      stageContent = (
         <MatchLive
           key={stage}
           snapshot={snapshot}
@@ -298,9 +315,10 @@ export default function MatchSimulation() {
           onFullTime={handleFullTime}
         />
       );
+      break;
 
     case "halftime":
-      return (
+      stageContent = (
         <HalfTimeBreak
           snapshot={snapshot}
           gameState={gameState}
@@ -311,9 +329,10 @@ export default function MatchSimulation() {
           onUpdateSnapshot={handleSnapshotUpdate}
         />
       );
+      break;
 
     case "postmatch":
-      return (
+      stageContent = (
         <PostMatchScreen
           snapshot={snapshot}
           gameState={gameState}
@@ -326,9 +345,10 @@ export default function MatchSimulation() {
           onFinish={handleFinishMatch}
         />
       );
+      break;
 
     case "press":
-      return (
+      stageContent = (
         <PressConference
           snapshot={snapshot}
           gameState={gameState}
@@ -337,8 +357,20 @@ export default function MatchSimulation() {
           onGameUpdate={setGameState}
         />
       );
+      break;
 
     default:
-      return null;
+      stageContent = null;
+      break;
   }
+
+  if (!stageContent) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={<MatchStageFallback label={t("dashboard.loading")} />}>
+      {stageContent}
+    </Suspense>
+  );
 }

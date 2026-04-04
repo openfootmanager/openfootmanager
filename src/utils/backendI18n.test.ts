@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import i18n from "../i18n";
+import i18n, { changeAppLanguage, i18nReady } from "../i18n";
 import {
   resolveBackendText,
   resolveMessage,
@@ -19,8 +19,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  // Ensure i18n is initialized (it auto-inits on import) then add test keys
-  await i18n.init; // no-op if already initialised
+  await i18nReady;
   i18n.addResourceBundle("en", "translation", {
     "test.subject": "Resolved Subject",
     "test.body": "Hello {{name}}, welcome!",
@@ -279,7 +278,7 @@ describe("resolveMessage", () => {
 
   it("localizes legacy delegated renewal messages without persisted i18n keys", async () => {
     const previousLanguage = i18n.language;
-    await i18n.changeLanguage("pt-BR");
+    await changeAppLanguage("pt-BR");
 
     try {
       const msg = makeMessage({
@@ -311,7 +310,7 @@ describe("resolveMessage", () => {
         "Falhou: Fernandes — Você me disse para ainda não reabrir as conversas contratuais.",
       );
     } finally {
-      await i18n.changeLanguage(previousLanguage);
+      await changeAppLanguage(previousLanguage);
     }
   });
 
@@ -356,7 +355,7 @@ describe("resolveNewsArticle", () => {
 
   it("localizes legacy weekly digest headlines that still carry an English weekLabel param", async () => {
     const previousLanguage = i18n.language;
-    await i18n.changeLanguage("pt-BR");
+    await changeAppLanguage("pt-BR");
 
     try {
       const article = makeNewsArticle({
@@ -369,7 +368,7 @@ describe("resolveNewsArticle", () => {
 
       expect(result.headline).toBe("Resumo Semanal — Semana de 2026-07-27");
     } finally {
-      await i18n.changeLanguage(previousLanguage);
+      await changeAppLanguage(previousLanguage);
     }
   });
 

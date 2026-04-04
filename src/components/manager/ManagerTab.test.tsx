@@ -99,18 +99,18 @@ function createGameState(withHistory: boolean): GameStateData {
       },
       career_history: withHistory
         ? [
-            {
-              team_id: "team-0",
-              team_name: "Old Town FC",
-              start_date: "2021-07-01",
-              end_date: null,
-              matches: 40,
-              wins: 20,
-              draws: 10,
-              losses: 10,
-              trophies: 1,
-            },
-          ]
+          {
+            team_id: "team-0",
+            team_name: "Old Town FC",
+            start_date: "2021-07-01",
+            end_date: null,
+            matches: 40,
+            wins: 20,
+            draws: 10,
+            losses: 10,
+            best_league_position: 3,
+          },
+        ]
         : [],
     },
     teams: [createTeam()],

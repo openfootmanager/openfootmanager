@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useSettingsStore, AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
-import { SUPPORTED_LANGUAGES } from "../i18n";
+import { changeAppLanguage, SUPPORTED_LANGUAGES } from "../i18n";
 import {
   clearAllSaves,
   exportWorldDatabase,
@@ -72,7 +72,7 @@ export default function Settings() {
   // Sync language with i18n when settings are loaded
   useEffect(() => {
     if (loaded && settings.language && settings.language !== i18n.language) {
-      i18n.changeLanguage(settings.language);
+      void changeAppLanguage(settings.language);
     }
   }, [loaded, settings.language, i18n]);
 
@@ -92,7 +92,7 @@ export default function Settings() {
 
     // Sync language with i18n
     if (partial.language) {
-      i18n.changeLanguage(partial.language);
+      void changeAppLanguage(partial.language);
     }
   };
 
@@ -514,8 +514,8 @@ function SegmentedControl({
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${value === opt.value
-              ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
+            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             }`}
         >
           {opt.icon}

@@ -6,31 +6,52 @@ import tailwindcss from "@tailwindcss/vite";
 const host = process.env.TAURI_DEV_HOST;
 
 function manualChunks(id: string): string | undefined {
-  if (id.indexOf("node_modules") === -1) {
+  const normalizedId = id.replace(/\\/g, "/");
+
+  if (normalizedId.indexOf("node_modules") === -1) {
+    if (normalizedId.indexOf("/src/store/") !== -1) {
+      return "state";
+    }
+
+    if (normalizedId.indexOf("/src/components/ui/") !== -1) {
+      return "ui-kit";
+    }
+
+    if (normalizedId.indexOf("/src/lib/") !== -1) {
+      return "domain-lib";
+    }
+
     return undefined;
   }
 
-  if (id.indexOf("react-router-dom") !== -1) {
+  if (
+    normalizedId.indexOf("react-router-dom") !== -1 ||
+    normalizedId.indexOf("react-router") !== -1 ||
+    normalizedId.indexOf("@remix-run/router") !== -1
+  ) {
     return "router";
   }
 
+  if (normalizedId.indexOf("react-dom") !== -1) {
+    return "react-dom-vendor";
+  }
+
   if (
-    id.indexOf("react") !== -1 ||
-    id.indexOf("react-dom") !== -1 ||
-    id.indexOf("scheduler") !== -1
+    normalizedId.indexOf("react") !== -1 ||
+    normalizedId.indexOf("scheduler") !== -1
   ) {
     return "react-vendor";
   }
 
-  if (id.indexOf("@tauri-apps") !== -1) {
+  if (normalizedId.indexOf("@tauri-apps") !== -1) {
     return "tauri";
   }
 
-  if (id.indexOf("i18next") !== -1) {
+  if (normalizedId.indexOf("i18next") !== -1) {
     return "i18n";
   }
 
-  if (id.indexOf("lucide-react") !== -1) {
+  if (normalizedId.indexOf("lucide-react") !== -1) {
     return "icons";
   }
 
@@ -68,10 +89,10 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
+        protocol: "ws",
+        host,
+        port: 1421,
+      }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`

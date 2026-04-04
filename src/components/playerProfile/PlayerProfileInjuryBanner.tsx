@@ -4,7 +4,10 @@ import { Card, CardBody } from "../ui";
 
 type TranslateFn = (
     key: string,
-    options?: Record<string, string | number>,
+    options?: {
+        defaultValue?: string;
+        [key: string]: unknown;
+    },
 ) => string;
 
 interface PlayerProfileInjuryBannerProps {

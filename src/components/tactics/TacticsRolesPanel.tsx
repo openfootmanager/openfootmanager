@@ -21,7 +21,6 @@ import {
   autoSelectTacticsAssignments,
 } from "./TacticsRolesPanel.controller";
 import {
-  buildUpdatedMatchRoles,
   getEffectiveMatchRoles,
   getSelectorRolePlayers,
 } from "./TacticsRolesPanel.helpers";

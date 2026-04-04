@@ -5,7 +5,7 @@ import DashboardBlockerModal from "./DashboardBlockerModal";
 import DashboardCloseConfirmModal from "./DashboardCloseConfirmModal";
 import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
 import DashboardExitSavingModal from "./DashboardExitSavingModal";
-import DashboardHeader, { type DashboardMatchModeMeta } from "./DashboardHeader";
+import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
 
 interface DashboardOverlaysProps {

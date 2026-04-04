@@ -1,5 +1,4 @@
 import {
-  CheckCircle2,
   ClipboardList,
   Crosshair,
   DollarSign,
@@ -7,8 +6,6 @@ import {
   FileText,
   Info,
   Landmark,
-  Mail,
-  MessageCircle,
   Newspaper,
   ScanSearch,
   Smile,
@@ -19,7 +16,7 @@ import {
 } from "lucide-react";
 import type { JSX, ReactNode } from "react";
 
-import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
+import type { MessageAction, MessageData } from "../../store/gameStore";
 
 export interface NavigateActionType {
   NavigateTo: { route: string };

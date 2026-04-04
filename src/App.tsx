@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useSettingsStore } from "./store/settingsStore";
-import i18n from "./i18n";
+import i18n, { changeAppLanguage } from "./i18n";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));
@@ -47,7 +47,7 @@ function App() {
   // Apply saved language from settings once loaded (overrides OS detection)
   useEffect(() => {
     if (loaded && settings.language && settings.language !== i18n.language) {
-      i18n.changeLanguage(settings.language);
+      void changeAppLanguage(settings.language);
     }
   }, [loaded, settings.language]);
 

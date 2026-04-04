@@ -6,14 +6,6 @@ import {
 
 type SelectorRole = "captain" | "vicecaptain" | "penalty" | "freekick" | "corner";
 
-const ROLE_KEY_TO_SELECTOR_ROLE: Record<keyof TeamMatchRolesData, SelectorRole> = {
-    captain: "captain",
-    vice_captain: "vicecaptain",
-    penalty_taker: "penalty",
-    free_kick_taker: "freekick",
-    corner_taker: "corner",
-};
-
 export const EMPTY_MATCH_ROLES: TeamMatchRolesData = {
     captain: null,
     vice_captain: null,

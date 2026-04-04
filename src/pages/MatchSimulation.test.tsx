@@ -277,7 +277,9 @@ describe("MatchSimulation", function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("get_match_snapshot");
     });
 
-    expect(screen.getByTestId("prematch")).toHaveTextContent("Home FC");
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch")).toHaveTextContent("Home FC");
+    });
   });
 
   it("restores the live match session when no snapshot exists but fixture index is provided", async function (): Promise<void> {
@@ -320,7 +322,9 @@ describe("MatchSimulation", function (): void {
       });
     });
 
-    expect(screen.getByTestId("prematch")).toHaveTextContent("Restored FC");
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch")).toHaveTextContent("Restored FC");
+    });
   });
 
   it("moves spectators straight into the live match stage", async function (): Promise<void> {

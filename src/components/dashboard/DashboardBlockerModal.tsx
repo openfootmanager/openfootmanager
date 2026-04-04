@@ -2,7 +2,7 @@ import { AlertCircle } from "lucide-react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { BlockerModal } from "../../hooks/useAdvanceTime";
+import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
 import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardBlockerModalProps {

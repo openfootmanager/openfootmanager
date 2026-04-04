@@ -9,8 +9,6 @@ import {
   Eye,
   ScanSearch,
 } from "lucide-react";
-import { calcOvr } from "../../lib/helpers";
-import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
 import { sendScout } from "../../services/scoutingService";
 import {
   calculateAvailableScouts,
@@ -39,13 +37,13 @@ export default function ScoutingTab({
   onGameUpdate,
   onSelectPlayer,
 }: ScoutingTabProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [posFilter, setPosFilter] = useState<string>("All");
   const [sending, setSending] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  const myTeamId = gameState.manager.team_id;
+  const myTeamId = gameState.manager.team_id ?? "";
   const scouts = gameState.staff.filter(
     (s) => s.role === "Scout" && s.team_id === myTeamId,
   );

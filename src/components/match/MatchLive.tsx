@@ -8,7 +8,7 @@ import {
   stepLiveMatch,
   substitutePlayer,
 } from "../../services/liveMatchService";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
+import { MatchSnapshot, MatchEvent, SimSpeed, SPEED_MS } from "./types";
 import { getEventDisplay, getPlayerName, phaseLabel } from "./helpers";
 import { Badge } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -273,8 +273,8 @@ export default function MatchLive({
                 key={tab.id}
                 onClick={() => setActivePanel(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3 font-heading font-bold text-xs uppercase tracking-wider transition-colors border-b-2 ${activePanel === tab.id
-                    ? "text-primary-500 dark:text-primary-400 border-primary-500 bg-primary-50 dark:bg-navy-700/50"
-                    : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
+                  ? "text-primary-500 dark:text-primary-400 border-primary-500 bg-primary-50 dark:bg-navy-700/50"
+                  : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
                   }`}
               >
                 {tab.icon}
