@@ -1,8 +1,8 @@
 export {
-  canonicalPosition,
   calcOvr,
   positionBadgeVariant,
 } from "./playerRating";
+export { canonicalPosition } from "./playerPositions";
 export {
   getTeamName,
   getTeamShort,
