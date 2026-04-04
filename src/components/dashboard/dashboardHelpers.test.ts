@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
+import { getDashboardAlerts } from "./dashboardAlertState";
+import { getDashboardSearchResults } from "./dashboardSearch";
 import {
-  getDashboardAlerts,
-  getDashboardSearchResults,
   getManagerTeamName,
   getPlayerBadgeVariant,
   getTodayMatchFixture,
   getUnreadMessagesCount,
-} from "./dashboardHelpers";
+} from "./dashboardSelectors";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -174,7 +174,7 @@ function translateDashboardAlert(
   return options ? `${key}:${JSON.stringify(options)}` : key;
 }
 
-describe("dashboardHelpers", function (): void {
+describe("dashboard helpers modules", function (): void {
   it("finds today's scheduled fixture for the manager's team", function (): void {
     const fixture = {
       id: "fixture-1",

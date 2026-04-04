@@ -30,11 +30,13 @@ import {
 } from "../components/home/HomeTab.helpers";
 import {
   getDashboardAlerts,
-  getDashboardSearchResults,
+} from "../components/dashboard/dashboardAlertState";
+import { getDashboardSearchResults } from "../components/dashboard/dashboardSearch";
+import {
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
-} from "../components/dashboard/dashboardHelpers";
+} from "../components/dashboard/dashboardSelectors";
 import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {

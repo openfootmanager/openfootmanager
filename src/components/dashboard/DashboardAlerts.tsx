@@ -1,7 +1,7 @@
 import { AlertCircle, ChevronRight } from "lucide-react";
 import type { JSX } from "react";
 
-import type { DashboardAlert } from "./dashboardHelpers";
+import type { DashboardAlert } from "./dashboardAlertState";
 
 interface DashboardAlertsProps {
   alerts: DashboardAlert[];

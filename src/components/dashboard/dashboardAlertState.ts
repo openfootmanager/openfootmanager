@@ -1,11 +1,6 @@
-import type {
-  FixtureData,
-  GameStateData,
-  PlayerData,
-  TeamData,
-} from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
 import { getTeamFinanceSnapshot } from "../../lib/finance";
+import type { GameStateData } from "../../store/gameStore";
 import { buildStartingXIIds } from "../squad/SquadTab.helpers";
 
 export interface DashboardAlert {
@@ -15,95 +10,10 @@ export interface DashboardAlert {
   severity: "warn" | "info";
 }
 
-export interface DashboardSearchResults {
-  matchedPlayers: PlayerData[];
-  matchedTeams: TeamData[];
-}
-
 type DashboardAlertTranslator = (
   key: string,
   options?: Record<string, unknown>,
 ) => string;
-
-export function getTodayMatchFixture(gameState: GameStateData): FixtureData | null {
-  const fixtures = gameState.league?.fixtures;
-
-  if (!fixtures) {
-    return null;
-  }
-
-  const today = gameState.clock.current_date.split("T")[0];
-
-  return (
-    fixtures.find((fixture) => {
-      return (
-        fixture.date === today &&
-        fixture.status === "Scheduled" &&
-        (fixture.home_team_id === gameState.manager.team_id ||
-          fixture.away_team_id === gameState.manager.team_id)
-      );
-    }) ?? null
-  );
-}
-
-export function getUnreadMessagesCount(gameState: GameStateData): number {
-  return gameState.messages.filter((message) => !message.read).length;
-}
-
-export function getManagerTeamName(gameState: GameStateData): string | null {
-  return (
-    gameState.teams.find((team) => team.id === gameState.manager.team_id)?.name ??
-    null
-  );
-}
-
-export function getPlayerBadgeVariant(
-  position: string,
-): "accent" | "danger" | "primary" | "success" {
-  switch (position) {
-    case "Goalkeeper":
-      return "accent";
-    case "Defender":
-      return "primary";
-    case "Midfielder":
-      return "success";
-    default:
-      return "danger";
-  }
-}
-
-export function getDashboardSearchResults(
-  gameState: GameStateData,
-  query: string,
-): DashboardSearchResults {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (normalizedQuery.length < 2) {
-    return {
-      matchedPlayers: [],
-      matchedTeams: [],
-    };
-  }
-
-  return {
-    matchedPlayers: gameState.players
-      .filter((player) => {
-        return (
-          player.full_name.toLowerCase().includes(normalizedQuery) ||
-          player.match_name.toLowerCase().includes(normalizedQuery)
-        );
-      })
-      .slice(0, 5),
-    matchedTeams: gameState.teams
-      .filter((team) => {
-        return (
-          team.name.toLowerCase().includes(normalizedQuery) ||
-          team.short_name.toLowerCase().includes(normalizedQuery)
-        );
-      })
-      .slice(0, 4),
-  };
-}
 
 export function getDashboardAlerts(
   gameState: GameStateData,

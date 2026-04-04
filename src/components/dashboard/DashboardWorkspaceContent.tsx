@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import DashboardAlerts from "./DashboardAlerts";
-import type { DashboardAlert } from "./dashboardHelpers";
+import type { DashboardAlert } from "./dashboardAlertState";
 import type { DashboardProfileNavigationState } from "./dashboardProfileNavigation";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
 

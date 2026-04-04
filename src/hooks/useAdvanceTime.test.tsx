@@ -22,7 +22,7 @@ function HookHarness(props: {
   defaultMatchMode?: "live" | "spectator" | "delegate";
   hasMatchToday: boolean;
 }): JSX.Element {
-  const [, setGameState] = useState<GameStateData | null>(null);
+  const [gameState, setGameState] = useState<GameStateData | null>(null);
   const {
     blockerModal,
     handleConfirmMatch,
@@ -45,6 +45,9 @@ function HookHarness(props: {
       <div data-testid="show-match-confirm">{String(showMatchConfirm)}</div>
       <div data-testid="blocker-count">
         {blockerModal?.blockers.length ?? 0}
+      </div>
+      <div data-testid="game-state-date">
+        {gameState?.clock.current_date ?? "none"}
       </div>
     </div>
   );
@@ -181,5 +184,33 @@ describe("useAdvanceTime", function (): void {
 
     expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips to match day and stores the returned game state when blockers are clear", async function (): Promise<void> {
+    mockedInvoke.mockResolvedValueOnce([]).mockResolvedValueOnce({
+      action: "advanced",
+      days_skipped: 2,
+      game: {
+        clock: {
+          current_date: "2026-07-03",
+          start_date: "2026-07-01",
+        },
+      },
+    });
+
+    render(<HookHarness hasMatchToday={false} defaultMatchMode="live" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "check_blocking_actions");
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "skip_to_match_day");
+      expect(screen.getByTestId("game-state-date")).toHaveTextContent(
+        "2026-07-03",
+      );
+    });
+
+    expect(screen.getByTestId("blocker-count")).toHaveTextContent("0");
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

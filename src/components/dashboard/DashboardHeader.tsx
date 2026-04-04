@@ -15,7 +15,7 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import { Badge, ThemeToggle } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import { getPlayerBadgeVariant } from "./dashboardHelpers";
+import { getPlayerBadgeVariant } from "./dashboardSelectors";
 
 export interface DashboardMatchModeMeta {
   buttonColorClass: string;
