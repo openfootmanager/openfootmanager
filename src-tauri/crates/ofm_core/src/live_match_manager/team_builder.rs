@@ -9,7 +9,7 @@ use engine::{PlayStyle, PlayerData, Position, TeamData};
 
 pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
-    let (name, formation, play_style) = match team {
+    let (name, formation, play_style, saved_xi_ids) = match team {
         Some(t) => (
             t.name.clone(),
             t.formation.clone(),
@@ -21,8 +21,9 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
                 domain::team::PlayStyle::HighPress => PlayStyle::HighPress,
                 _ => PlayStyle::Balanced,
             },
+            t.starting_xi_ids.clone(),
         ),
-        None => ("Unknown".into(), "4-4-2".into(), PlayStyle::Balanced),
+        None => ("Unknown".into(), "4-4-2".into(), PlayStyle::Balanced, Vec::new()),
     };
 
     // Collect all available (non-injured) players for this team
@@ -31,27 +32,92 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
         .collect();
-    let slots = formation_slots(&formation);
+
+    let by_id: std::collections::HashMap<&str, &domain::player::Player> = available_players
+        .iter()
+        .map(|player| (player.id.as_str(), *player))
+        .collect();
+
     let mut used_ids = std::collections::HashSet::new();
     let mut starting_xi = Vec::with_capacity(11);
+    let slots = formation_slots(&formation);
 
-    for slot in slots.iter().take(11) {
-        let best_player = available_players
+    // Use saved starting XI if available and valid (at least 8 players)
+    let mut valid_saved_ids = Vec::new();
+    for id in saved_xi_ids {
+        if by_id.contains_key(id.as_str()) && used_ids.insert(id.clone()) {
+            valid_saved_ids.push(id.clone());
+        }
+    }
+
+    if valid_saved_ids.len() >= 8 {
+        // Use saved XI as base
+        for id in &valid_saved_ids {
+            if let Some(player) = by_id.get(id.as_str()) {
+                starting_xi.push(to_engine_player(player));
+            }
+        }
+
+        // Fill remaining slots with best available players
+        let mut remaining_players: Vec<&domain::player::Player> = available_players
             .iter()
             .copied()
             .filter(|player| !used_ids.contains(&player.id))
-            .max_by(|left, right| {
-                effective_rating_for_assignment(left, slot)
-                    .partial_cmp(&effective_rating_for_assignment(right, slot))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            .collect();
+        remaining_players.sort_by(|left, right| {
+            natural_ovr(right)
+                .partial_cmp(&natural_ovr(left))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let Some(player) = best_player else {
-            break;
-        };
+        while starting_xi.len() < 11 {
+            let slot = slots.get(starting_xi.len());
+            let best_index = remaining_players
+                .iter()
+                .enumerate()
+                .max_by(|(_, left), (_, right)| {
+                    let left_rating = slot.map_or_else(
+                        || natural_ovr(left),
+                        |slot| effective_rating_for_assignment(left, slot),
+                    );
+                    let right_rating = slot.map_or_else(
+                        || natural_ovr(right),
+                        |slot| effective_rating_for_assignment(right, slot),
+                    );
+                    left_rating
+                        .partial_cmp(&right_rating)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .map(|(index, _)| index);
 
-        used_ids.insert(player.id.clone());
-        starting_xi.push(to_engine_player(player));
+            let Some(best_index) = best_index else {
+                break;
+            };
+
+            let player = remaining_players.remove(best_index);
+            used_ids.insert(player.id.clone());
+            starting_xi.push(to_engine_player(player));
+        }
+    } else {
+        // Auto-select best players by rating (legacy behavior for empty/invalid XI)
+        for slot in slots.iter().take(11) {
+            let best_player = available_players
+                .iter()
+                .copied()
+                .filter(|player| !used_ids.contains(&player.id))
+                .max_by(|left, right| {
+                    effective_rating_for_assignment(left, slot)
+                        .partial_cmp(&effective_rating_for_assignment(right, slot))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+
+            let Some(player) = best_player else {
+                break;
+            };
+
+            used_ids.insert(player.id.clone());
+            starting_xi.push(to_engine_player(player));
+        }
     }
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players

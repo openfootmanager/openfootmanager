@@ -506,3 +506,124 @@ fn extra_time_flag_passed_through() {
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true);
     assert!(session.is_ok());
 }
+
+// ---------------------------------------------------------------------------
+// Starting XI selection respects saved starting_xi_ids
+// ---------------------------------------------------------------------------
+
+#[test]
+fn starting_xi_selection_uses_saved_ids() {
+    let mut game = make_game_with_fixture();
+    // Pick specific 11 players as starting XI for team1
+    let team1_player_ids: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.id.clone())
+        .collect();
+
+    let selected_xi = team1_player_ids[..11].to_vec();
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == "team1") {
+        team.starting_xi_ids = selected_xi.clone();
+    }
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+
+    // Verify that starting XI players match saved IDs
+    let snap_xi_ids: Vec<String> = snap.home_team.players.iter().map(|p| p.id.clone()).collect();
+    assert_eq!(
+        snap_xi_ids, selected_xi,
+        "Starting XI should match saved starting_xi_ids"
+    );
+}
+
+#[test]
+fn starting_xi_selection_with_fewer_than_8_saved_falls_back_to_auto() {
+    let mut game = make_game_with_fixture();
+    // Save only 5 players (less than threshold of 8)
+    let team1_player_ids: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.id.clone())
+        .collect();
+
+    let selected_xi = team1_player_ids[..5].to_vec();
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == "team1") {
+        team.starting_xi_ids = selected_xi.clone();
+    }
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+
+    // Should auto-select best players instead (fallback mode)
+    assert_eq!(
+        snap.home_team.players.len(),
+        11,
+        "Should have full XI even with few saved IDs"
+    );
+    // All 11 are auto-selected, not matching saved order
+    // Just verify no duplicates and all from team1
+    let mut seen = std::collections::HashSet::new();
+    for player in &snap.home_team.players {
+        assert!(
+            seen.insert(player.id.clone()),
+            "No duplicate players in XI"
+        );
+        assert!(
+            team1_player_ids.contains(&player.id),
+            "All players should be from team1"
+        );
+    }
+}
+
+#[test]
+fn starting_xi_selection_with_injured_saved_player_fills_with_auto() {
+    let mut game = make_game_with_fixture();
+    let team1_player_ids: Vec<String> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.id.clone())
+        .collect();
+
+    let selected_xi = team1_player_ids[..11].to_vec();
+    // Injure one of the saved players
+    let injured_id = selected_xi[5].clone();
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == injured_id) {
+        p.injury = Some(domain::player::Injury {
+            name: "Hamstring".to_string(),
+            days_remaining: 10,
+        });
+    }
+
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == "team1") {
+        team.starting_xi_ids = selected_xi.clone();
+    }
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+
+    // Should fill the injured player's slot with another player
+    assert_eq!(
+        snap.home_team.players.len(),
+        11,
+        "Should have full XI even with injured saved player"
+    );
+    // First 5 should still match (before injured player)
+    for i in 0..5 {
+        assert_eq!(
+            snap.home_team.players[i].id, selected_xi[i],
+            "Pre-injury players should match"
+        );
+    }
+    // The 6th player should be different (auto-selected replacement)
+    assert_ne!(
+        snap.home_team.players[5].id, injured_id,
+        "Injured player should be replaced"
+    );
+}
