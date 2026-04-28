@@ -31,4 +31,4 @@ Cargo.lock
 coverage/
 
 # Claude local settings
-.claude/settings.local.json
+.claude/settings.local.jsonAGENTS.md
