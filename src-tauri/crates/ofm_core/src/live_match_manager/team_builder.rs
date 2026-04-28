@@ -1,7 +1,7 @@
 use crate::game::Game;
 use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use domain::player::Position as DomainPosition;
-use engine::{PlayStyle, PlayerData, Position, TeamData};
+use engine::{NaturalPosition, PlayStyle, PlayerData, Position, TeamData};
 
 // ---------------------------------------------------------------------------
 // Domain → Engine conversion with starting XI / bench split
@@ -143,18 +143,36 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
 }
 
 fn to_engine_player(p: &domain::player::Player) -> PlayerData {
-    let pos = match p.position.to_group_position() {
-        DomainPosition::Goalkeeper => Position::Goalkeeper,
-        DomainPosition::Defender => Position::Defender,
-        DomainPosition::Midfielder => Position::Midfielder,
-        DomainPosition::Forward => Position::Forward,
-        _ => Position::Midfielder,
+    // Map granular domain position to engine NaturalPosition
+    let natural_pos = match p.position {
+        DomainPosition::Goalkeeper => NaturalPosition::Goalkeeper,
+        DomainPosition::RightBack => NaturalPosition::RightBack,
+        DomainPosition::CenterBack => NaturalPosition::CenterBack,
+        DomainPosition::LeftBack => NaturalPosition::LeftBack,
+        DomainPosition::RightWingBack => NaturalPosition::RightWingBack,
+        DomainPosition::LeftWingBack => NaturalPosition::LeftWingBack,
+        DomainPosition::DefensiveMidfielder => NaturalPosition::DefensiveMidfielder,
+        DomainPosition::CentralMidfielder => NaturalPosition::CentralMidfielder,
+        DomainPosition::AttackingMidfielder => NaturalPosition::AttackingMidfielder,
+        DomainPosition::RightMidfielder => NaturalPosition::RightMidfielder,
+        DomainPosition::LeftMidfielder => NaturalPosition::LeftMidfielder,
+        DomainPosition::RightWinger => NaturalPosition::RightWinger,
+        DomainPosition::LeftWinger => NaturalPosition::LeftWinger,
+        DomainPosition::Striker => NaturalPosition::Striker,
+        // Legacy bucket positions — fallback to a reasonable default
+        DomainPosition::Defender => NaturalPosition::CenterBack,
+        DomainPosition::Midfielder => NaturalPosition::CentralMidfielder,
+        DomainPosition::Forward => NaturalPosition::Striker,
     };
+
+    // Derive group position from natural position
+    let pos = natural_pos.to_group_position();
 
     PlayerData {
         id: p.id.clone(),
         name: p.match_name.clone(),
         position: pos,
+        natural_position: natural_pos,
         condition: p.condition,
         fitness: p.fitness,
         pace: p.attributes.pace,

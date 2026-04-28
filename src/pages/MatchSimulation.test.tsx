@@ -88,6 +88,7 @@ function makeEnginePlayer(
     id: "p1",
     name: "Player One",
     position: "Goalkeeper",
+    natural_position: "Goalkeeper",
     condition: 100,
     pace: 50,
     stamina: 50,

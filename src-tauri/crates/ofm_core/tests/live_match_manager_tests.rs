@@ -627,3 +627,104 @@ fn starting_xi_selection_with_injured_saved_player_fills_with_auto() {
         "Injured player should be replaced"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Natural position is preserved in engine PlayerData
+// ---------------------------------------------------------------------------
+
+#[test]
+fn natural_position_is_preserved_for_all_players() {
+    let mut game = make_game_with_fixture();
+    // Give specific natural positions to some team1 players
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == "team1_def0") {
+        p.position = domain::player::Position::LeftBack;
+        p.natural_position = domain::player::Position::LeftBack;
+    }
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == "team1_mid0") {
+        p.position = domain::player::Position::AttackingMidfielder;
+        p.natural_position = domain::player::Position::AttackingMidfielder;
+    }
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == "team1_fwd0") {
+        p.position = domain::player::Position::Striker;
+        p.natural_position = domain::player::Position::Striker;
+    }
+
+    // Force these players into starting XI via saved_xi_ids
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == "team1") {
+        team.starting_xi_ids = vec![
+            "team1_gk0".to_string(),
+            "team1_def0".to_string(),
+            "team1_def1".to_string(),
+            "team1_def2".to_string(),
+            "team1_def3".to_string(),
+            "team1_mid0".to_string(),
+            "team1_mid1".to_string(),
+            "team1_mid2".to_string(),
+            "team1_mid3".to_string(),
+            "team1_fwd0".to_string(),
+            "team1_fwd1".to_string(),
+        ];
+    }
+
+    let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+
+    // Verify that natural_position is set correctly in engine PlayerData
+    let def0 = snap.home_team.players.iter().find(|p| p.id == "team1_def0");
+    assert!(def0.is_some(), "def0 should be in starting XI");
+    assert_eq!(
+        def0.unwrap().natural_position,
+        engine::NaturalPosition::LeftBack,
+        "LeftBack natural position should be preserved"
+    );
+
+    let mid0 = snap.home_team.players.iter().find(|p| p.id == "team1_mid0");
+    assert!(mid0.is_some(), "mid0 should be in starting XI");
+    assert_eq!(
+        mid0.unwrap().natural_position,
+        engine::NaturalPosition::AttackingMidfielder,
+        "AttackingMidfielder natural position should be preserved"
+    );
+
+    let fwd0 = snap.home_team.players.iter().find(|p| p.id == "team1_fwd0");
+    assert!(fwd0.is_some(), "fwd0 should be in starting XI");
+    assert_eq!(
+        fwd0.unwrap().natural_position,
+        engine::NaturalPosition::Striker,
+        "Striker natural position should be preserved"
+    );
+}
+
+#[test]
+fn legacy_bucket_positions_map_to_reasonable_defaults() {
+    let mut game = make_game_with_fixture();
+    // Set a player to legacy "Defender" bucket
+    if let Some(p) = game.players.iter_mut().find(|p| p.id == "team1_def0") {
+        p.position = domain::player::Position::Defender;
+        p.natural_position = domain::player::Position::Defender;
+    }
+
+    // Force this player into starting XI
+    if let Some(team) = game.teams.iter_mut().find(|t| t.id == "team1") {
+        let mut xi: Vec<String> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1") && p.id != "team1_def0")
+            .take(10)
+            .map(|p| p.id.clone())
+            .collect();
+        xi.push("team1_def0".to_string());
+        team.starting_xi_ids = xi;
+    }
+
+    let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+
+    let def0 = snap.home_team.players.iter().find(|p| p.id == "team1_def0");
+    assert!(def0.is_some(), "def0 should be in starting XI");
+    assert_eq!(
+        def0.unwrap().natural_position,
+        engine::NaturalPosition::CenterBack,
+        "Legacy Defender should map to CenterBack"
+    );
+}

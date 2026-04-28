@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
-// Position — mirrors domain::player::Position but kept independent
+// Position — grouped positions for engine compatibility
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -10,6 +10,185 @@ pub enum Position {
     Defender,
     Midfielder,
     Forward,
+}
+
+// ---------------------------------------------------------------------------
+// NaturalPosition — granular positions preserved from domain
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NaturalPosition {
+    Goalkeeper,
+    RightBack,
+    CenterBack,
+    LeftBack,
+    RightWingBack,
+    LeftWingBack,
+    DefensiveMidfielder,
+    CentralMidfielder,
+    AttackingMidfielder,
+    RightMidfielder,
+    LeftMidfielder,
+    RightWinger,
+    LeftWinger,
+    Striker,
+}
+
+impl NaturalPosition {
+    pub fn to_group_position(self) -> Position {
+        match self {
+            NaturalPosition::Goalkeeper => Position::Goalkeeper,
+            NaturalPosition::RightBack
+            | NaturalPosition::CenterBack
+            | NaturalPosition::LeftBack
+            | NaturalPosition::RightWingBack
+            | NaturalPosition::LeftWingBack => Position::Defender,
+            NaturalPosition::DefensiveMidfielder
+            | NaturalPosition::CentralMidfielder
+            | NaturalPosition::AttackingMidfielder
+            | NaturalPosition::RightMidfielder
+            | NaturalPosition::LeftMidfielder => Position::Midfielder,
+            NaturalPosition::RightWinger
+            | NaturalPosition::LeftWinger
+            | NaturalPosition::Striker => Position::Forward,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TacticalZone — grid-based pitch zones (3 columns × 3 rows + boxes)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TacticalZone {
+    // Defensive third
+    DefLeft,
+    DefCenter,
+    DefRight,
+    // Midfield
+    MidLeft,
+    MidCenter,
+    MidRight,
+    // Attacking third
+    AttLeft,
+    AttCenter,
+    AttRight,
+    // Penalty areas
+    OwnBox,
+    OpponentBox,
+}
+
+impl TacticalZone {
+    /// The default zone for a given natural position.
+    pub fn for_natural_position(pos: NaturalPosition) -> Self {
+        match pos {
+            NaturalPosition::Goalkeeper => TacticalZone::OwnBox,
+            NaturalPosition::LeftBack | NaturalPosition::LeftWingBack => TacticalZone::DefLeft,
+            NaturalPosition::CenterBack => TacticalZone::DefCenter,
+            NaturalPosition::RightBack | NaturalPosition::RightWingBack => TacticalZone::DefRight,
+            NaturalPosition::LeftMidfielder => TacticalZone::MidLeft,
+            NaturalPosition::DefensiveMidfielder
+            | NaturalPosition::CentralMidfielder
+            | NaturalPosition::AttackingMidfielder => TacticalZone::MidCenter,
+            NaturalPosition::RightMidfielder => TacticalZone::MidRight,
+            NaturalPosition::LeftWinger => TacticalZone::AttLeft,
+            NaturalPosition::Striker => TacticalZone::AttCenter,
+            NaturalPosition::RightWinger => TacticalZone::AttRight,
+        }
+    }
+
+    /// Convert a zone to its corresponding group Position.
+    pub fn to_group_position(self) -> Position {
+        match self {
+            TacticalZone::OwnBox | TacticalZone::OpponentBox => Position::Goalkeeper,
+            TacticalZone::DefLeft | TacticalZone::DefCenter | TacticalZone::DefRight => {
+                Position::Defender
+            }
+            TacticalZone::MidLeft | TacticalZone::MidCenter | TacticalZone::MidRight => {
+                Position::Midfielder
+            }
+            TacticalZone::AttLeft | TacticalZone::AttCenter | TacticalZone::AttRight => {
+                Position::Forward
+            }
+        }
+    }
+
+    /// Get the group Position that would defend this zone.
+    pub fn defending_position(self) -> Position {
+        match self {
+            TacticalZone::OwnBox => Position::Goalkeeper,
+            TacticalZone::DefLeft
+            | TacticalZone::DefCenter
+            | TacticalZone::DefRight
+            | TacticalZone::OpponentBox => Position::Defender,
+            TacticalZone::MidLeft | TacticalZone::MidCenter | TacticalZone::MidRight => {
+                Position::Midfielder
+            }
+            TacticalZone::AttLeft | TacticalZone::AttCenter | TacticalZone::AttRight => {
+                Position::Forward
+            }
+        }
+    }
+
+    /// Horizontal distance between two zones (0 = same column, 1 = adjacent, 2 = far).
+    pub fn horizontal_distance(self, other: TacticalZone) -> u8 {
+        let col = |z: TacticalZone| -> i8 {
+            match z {
+                TacticalZone::DefLeft
+                | TacticalZone::MidLeft
+                | TacticalZone::AttLeft => 0,
+                TacticalZone::DefCenter
+                | TacticalZone::MidCenter
+                | TacticalZone::AttCenter
+                | TacticalZone::OwnBox
+                | TacticalZone::OpponentBox => 1,
+                TacticalZone::DefRight
+                | TacticalZone::MidRight
+                | TacticalZone::AttRight => 2,
+            }
+        };
+        (col(self) - col(other)).abs() as u8
+    }
+
+    /// Vertical distance between two zones (0 = same row, 1 = adjacent, 2 = far).
+    pub fn vertical_distance(self, other: TacticalZone) -> u8 {
+        let row = |z: TacticalZone| -> i8 {
+            match z {
+                TacticalZone::DefLeft
+                | TacticalZone::DefCenter
+                | TacticalZone::DefRight
+                | TacticalZone::OwnBox => 0,
+                TacticalZone::MidLeft
+                | TacticalZone::MidCenter
+                | TacticalZone::MidRight => 1,
+                TacticalZone::AttLeft
+                | TacticalZone::AttCenter
+                | TacticalZone::AttRight
+                | TacticalZone::OpponentBox => 2,
+            }
+        };
+        (row(self) - row(other)).abs() as u8
+    }
+
+    /// Combined distance metric (for zone presence weighting).
+    pub fn distance(self, other: TacticalZone) -> f64 {
+        let h = self.horizontal_distance(other) as f64;
+        let v = self.vertical_distance(other) as f64;
+        (h + v).sqrt() // Euclidean-like on grid
+    }
+
+    /// Get the flank zone on the opposite side (same row).
+    pub fn opposite_flank(self) -> Option<TacticalZone> {
+        match self {
+            TacticalZone::DefLeft => Some(TacticalZone::DefRight),
+            TacticalZone::DefRight => Some(TacticalZone::DefLeft),
+            TacticalZone::MidLeft => Some(TacticalZone::MidRight),
+            TacticalZone::MidRight => Some(TacticalZone::MidLeft),
+            TacticalZone::AttLeft => Some(TacticalZone::AttRight),
+            TacticalZone::AttRight => Some(TacticalZone::AttLeft),
+            _ => None, // Center zones have no opposite flank
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -35,6 +214,8 @@ pub struct PlayerData {
     pub id: String,
     pub name: String,
     pub position: Position,
+    /// Granular natural position (e.g., LeftBack, Striker) for zone-aware selection.
+    pub natural_position: NaturalPosition,
     pub condition: u8, // 0-100
     /// Long-term physical shape (0-100). Multiplies stamina depletion rate in-match.
     #[serde(default = "default_fitness")]

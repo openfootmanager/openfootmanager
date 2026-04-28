@@ -9,6 +9,7 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
+import DebugOverlay from "./DebugOverlay";
 import {
   Play, Pause, FastForward, SkipForward,
   Clock, Users, BarChart3, MessageSquare, RefreshCw,
@@ -404,6 +405,9 @@ export default function MatchLive({
       {showSubPanel && userSide && (
         <SubPanel snapshot={snapshot} side={userSide} onSubstitute={handleSubstitution} onClose={() => setShowSubPanel(false)} />
       )}
+
+      {/* Debug Overlay */}
+      <DebugOverlay snapshot={snapshot} />
     </MatchScreenLayout>
   );
 }

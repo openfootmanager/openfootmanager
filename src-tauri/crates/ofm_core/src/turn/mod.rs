@@ -148,17 +148,31 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id))
         .map(|p| {
-            let pos = match p.position.to_group_position() {
-                DomainPosition::Goalkeeper => engine::Position::Goalkeeper,
-                DomainPosition::Defender => engine::Position::Defender,
-                DomainPosition::Midfielder => engine::Position::Midfielder,
-                DomainPosition::Forward => engine::Position::Forward,
-                _ => engine::Position::Midfielder,
+            let natural_pos = match p.position {
+                DomainPosition::Goalkeeper => engine::NaturalPosition::Goalkeeper,
+                DomainPosition::RightBack => engine::NaturalPosition::RightBack,
+                DomainPosition::CenterBack => engine::NaturalPosition::CenterBack,
+                DomainPosition::LeftBack => engine::NaturalPosition::LeftBack,
+                DomainPosition::RightWingBack => engine::NaturalPosition::RightWingBack,
+                DomainPosition::LeftWingBack => engine::NaturalPosition::LeftWingBack,
+                DomainPosition::DefensiveMidfielder => engine::NaturalPosition::DefensiveMidfielder,
+                DomainPosition::CentralMidfielder => engine::NaturalPosition::CentralMidfielder,
+                DomainPosition::AttackingMidfielder => engine::NaturalPosition::AttackingMidfielder,
+                DomainPosition::RightMidfielder => engine::NaturalPosition::RightMidfielder,
+                DomainPosition::LeftMidfielder => engine::NaturalPosition::LeftMidfielder,
+                DomainPosition::RightWinger => engine::NaturalPosition::RightWinger,
+                DomainPosition::LeftWinger => engine::NaturalPosition::LeftWinger,
+                DomainPosition::Striker => engine::NaturalPosition::Striker,
+                DomainPosition::Defender => engine::NaturalPosition::CenterBack,
+                DomainPosition::Midfielder => engine::NaturalPosition::CentralMidfielder,
+                DomainPosition::Forward => engine::NaturalPosition::Striker,
             };
+            let pos = natural_pos.to_group_position();
             engine::PlayerData {
                 id: p.id.clone(),
                 name: p.match_name.clone(),
                 position: pos,
+                natural_position: natural_pos,
                 condition: p.condition,
                 fitness: p.fitness,
                 pace: p.attributes.pace,

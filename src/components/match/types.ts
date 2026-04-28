@@ -15,6 +15,7 @@ export interface EnginePlayerData {
   id: string;
   name: string;
   position: string;
+  natural_position: string;
   condition: number;
   pace: number;
   stamina: number;

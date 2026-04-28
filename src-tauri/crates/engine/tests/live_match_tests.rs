@@ -11,11 +11,21 @@ fn seeded_rng(seed: u64) -> StdRng {
     StdRng::seed_from_u64(seed)
 }
 
+fn default_natural(pos: Position) -> NaturalPosition {
+    match pos {
+        Position::Goalkeeper => NaturalPosition::Goalkeeper,
+        Position::Defender => NaturalPosition::CenterBack,
+        Position::Midfielder => NaturalPosition::CentralMidfielder,
+        Position::Forward => NaturalPosition::Striker,
+    }
+}
+
 fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
     PlayerData {
         id: id.to_string(),
         name: name.to_string(),
         position: pos,
+        natural_position: default_natural(pos),
         condition: 90,
         fitness: 75,
         pace: skill,
@@ -1213,6 +1223,7 @@ fn make_player_with_traits(
         id: id.to_string(),
         name: name.to_string(),
         position: pos,
+        natural_position: default_natural(pos),
         condition: 90,
         fitness: 75,
         pace: skill,

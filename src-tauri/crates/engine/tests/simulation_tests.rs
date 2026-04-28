@@ -6,11 +6,21 @@ use rand::rngs::StdRng;
 // Test helpers
 // ---------------------------------------------------------------------------
 
+fn default_natural(pos: Position) -> NaturalPosition {
+    match pos {
+        Position::Goalkeeper => NaturalPosition::Goalkeeper,
+        Position::Defender => NaturalPosition::CenterBack,
+        Position::Midfielder => NaturalPosition::CentralMidfielder,
+        Position::Forward => NaturalPosition::Striker,
+    }
+}
+
 fn make_player(id: &str, name: &str, position: Position, skill: u8) -> PlayerData {
     PlayerData {
         id: id.to_string(),
         name: name.to_string(),
         position,
+        natural_position: default_natural(position),
         condition: 90,
         fitness: 75,
         pace: skill,
