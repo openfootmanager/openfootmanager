@@ -142,7 +142,7 @@ describe("PlayerProfile.helpers", function (): void {
     });
 
     it("formats annual wages as weekly display values", function (): void {
-        expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
+        expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1(?:[.,\s\u00A0\u202F])000\/wk$/);
     });
 
     it("maps attribute values to the expected color classes", function (): void {

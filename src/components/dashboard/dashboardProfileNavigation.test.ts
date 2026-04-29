@@ -26,6 +26,8 @@ describe("dashboardProfileNavigation", () => {
       selectedPlayerOptions: null,
       selectedTeamId: null,
       initialMessageId: "message-1",
+      preferredNation: null,
+      preferredCompetitionId: null,
       navHistory: [],
     });
   });

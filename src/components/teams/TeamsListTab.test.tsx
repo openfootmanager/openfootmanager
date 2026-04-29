@@ -201,10 +201,12 @@ describe("TeamsListTab", () => {
   it("orders teams by league position and marks the user team", () => {
     render(<TeamsListTab gameState={createGameState()} onSelectTeam={vi.fn()} />);
 
-    const headings = screen.getAllByRole("heading", { level: 3 });
+    const teamHeadings = screen
+      .getAllByRole("heading", { level: 3 })
+      .filter((heading) => heading.textContent?.includes("FC"));
 
-    expect(headings[0]).toHaveTextContent("Beta FC");
-    expect(headings[1]).toHaveTextContent("Alpha FC");
+    expect(teamHeadings[0]).toHaveTextContent("Beta FC");
+    expect(teamHeadings[1]).toHaveTextContent("Alpha FC");
     expect(screen.getByText("Your Team")).toBeInTheDocument();
   });
 

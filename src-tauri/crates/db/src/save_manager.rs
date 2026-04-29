@@ -1132,7 +1132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_game_cleans_stale_league_rows() {
+    fn test_load_game_keeps_parallel_league_rows_and_primary_league() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
@@ -1174,6 +1174,8 @@ mod tests {
         assert_eq!(loaded_league.season, 2027);
         assert_eq!(loaded_league.fixtures.len(), 1);
         assert_eq!(loaded_league.fixtures[0].id, "fix-current");
+        assert_eq!(loaded.leagues.len(), 2);
+        assert!(loaded.leagues.iter().any(|league| league.id == "league-stale"));
 
         let db = GameDatabase::open(&db_path).unwrap();
         let league_count: i64 = db
@@ -1185,7 +1187,7 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM fixtures", [], |row| row.get(0))
             .unwrap();
 
-        assert_eq!(league_count, 1);
-        assert_eq!(fixture_count, 1);
+        assert_eq!(league_count, 2);
+        assert_eq!(fixture_count, 2);
     }
 }

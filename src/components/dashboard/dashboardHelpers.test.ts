@@ -236,6 +236,8 @@ describe("dashboardHelpers", function (): void {
     expect(getDashboardSearchResults(gameState, "b")).toEqual({
       matchedPlayers: [],
       matchedTeams: [],
+      matchedNations: [],
+      matchedCompetitions: [],
     });
 
     const results = getDashboardSearchResults(gameState, "br");
