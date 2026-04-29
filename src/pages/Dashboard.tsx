@@ -348,6 +348,23 @@ export default function Dashboard(): JSX.Element {
     setSearchQuery("");
   }
 
+  /// new fonction created in order to handle the nation search action. Result is the club list page filtered by selected nation. Later, we shall need a nation detail page.
+  function handleSelectSearchNation(nation: string): void {
+    setProfileNavigation((currentState) =>
+      navigateDashboardProfiles(currentState, "Teams", { nation }),
+    );
+    setSearchQuery("");
+    setSearchOpen(false);
+  }
+
+  function handleSelectSearchCompetition(competitionId: string): void {
+    setProfileNavigation((currentState) =>
+      navigateDashboardProfiles(currentState, "Tournaments", { competitionId }),
+    );
+    setSearchQuery("");
+    setSearchOpen(false);
+  }
+
   function handleToggleContinueMenu(): void {
     setShowContinueMenu((currentValue) => !currentValue);
   }
@@ -392,6 +409,8 @@ export default function Dashboard(): JSX.Element {
     seasonComplete,
     visitedOnboardingTabs,
     initialMessageId: profileNavigation.initialMessageId,
+    preferredNation: profileNavigation.preferredNation,
+    preferredCompetitionId: profileNavigation.preferredCompetitionId,
     handlers: {
       onSelectPlayer: selectPlayer,
       onSelectTeam: selectTeam,
@@ -454,6 +473,8 @@ export default function Dashboard(): JSX.Element {
           matchMode={matchMode}
           matchedPlayers={searchResults.matchedPlayers}
           matchedTeams={searchResults.matchedTeams}
+          matchedNations={searchResults.matchedNations}
+          matchedCompetitions={searchResults.matchedCompetitions}
           modeMeta={MODE_META}
           onBack={handleBack}
           onContinue={handleContinue}
@@ -464,6 +485,8 @@ export default function Dashboard(): JSX.Element {
           onSelectMatchMode={handleSelectMatchMode}
           onSelectSearchPlayer={handleSelectSearchPlayer}
           onSelectSearchTeam={handleSelectSearchTeam}
+          onSelectSearchNation={handleSelectSearchNation}
+          onSelectSearchCompetition={handleSelectSearchCompetition}
           onSkipToMatchDay={handleSkipToMatchDay}
           onToggleContinueMenu={handleToggleContinueMenu}
           saveFlash={saveFlash}

@@ -1,4 +1,53 @@
 use super::definitions::{WorldData, WorldDatabaseInfo};
+use std::collections::{BTreeMap, BTreeSet};
+use uuid::Uuid;
+
+fn default_league_name_for_country(country: &str) -> String {
+    format!("{country} Premier Division")
+}
+
+fn derive_world_structure(
+    teams: &mut [domain::team::Team],
+) -> (Vec<super::definitions::WorldCountry>, Vec<domain::club::Club>) {
+    let mut clubs_by_id: BTreeMap<String, domain::club::Club> = BTreeMap::new();
+    let mut leagues_by_country: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+
+    for team in teams {
+        if team.club_id.trim().is_empty() {
+            team.club_id = Uuid::new_v4().to_string();
+        }
+        let club = clubs_by_id.entry(team.club_id.clone()).or_insert_with(|| domain::club::Club {
+            id: team.club_id.clone(),
+            name: team.name.clone(),
+            country: team.country.clone(),
+            city: team.city.clone(),
+            team_ids: Vec::new(),
+        });
+        if !club.team_ids.iter().any(|team_id| team_id == &team.id) {
+            club.team_ids.push(team.id.clone());
+        }
+        let league_name = if team.domestic_league.trim().is_empty() {
+            default_league_name_for_country(&team.country)
+        } else {
+            team.domestic_league.clone()
+        };
+        leagues_by_country
+            .entry(team.country.clone())
+            .or_default()
+            .insert(league_name);
+    }
+
+    let countries = leagues_by_country
+        .into_iter()
+        .map(|(name, league_names)| super::definitions::WorldCountry {
+            code: domain::identity::normalize_football_nation_code(&name),
+            name,
+            league_names: league_names.into_iter().collect(),
+        })
+        .collect();
+    let clubs = clubs_by_id.into_values().collect();
+    (countries, clubs)
+}
 
 /// Generate a random world and wrap it in a `WorldData`.
 /// If `data_dir` is provided, tries to load definition files from that directory.
@@ -10,12 +59,16 @@ pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
         &mut staff,
     );
 
+    let (countries, clubs) = derive_world_structure(&mut teams);
     WorldData {
         name: "Random World".to_string(),
         description: format!(
-            "Randomly generated league with {} teams across Europe",
+            "Randomly generated world with {} clubs and {} teams",
+            clubs.len(),
             teams.len()
         ),
+        countries,
+        clubs,
         teams,
         players,
         staff,
@@ -31,6 +84,13 @@ pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
         &mut world.players,
         &mut world.staff,
     );
+    let (countries, clubs) = derive_world_structure(&mut world.teams);
+    if world.countries.is_empty() {
+        world.countries = countries;
+    }
+    if world.clubs.is_empty() {
+        world.clubs = clubs;
+    }
     Ok(world)
 }
 
@@ -71,6 +131,8 @@ pub fn scan_world_databases(dir: &std::path::Path) -> Vec<WorldDatabaseInfo> {
                 id: format!("file:{}", path.display()),
                 name: world.name,
                 description: world.description,
+                country_count: world.countries.len(),
+                club_count: world.clubs.len(),
                 team_count: world.teams.len(),
                 player_count: world.players.len(),
                 source: "user".to_string(),

@@ -17,6 +17,8 @@ export interface DashboardTabContentModel {
     seasonComplete: boolean;
     visitedOnboardingTabs: ReadonlySet<string>;
     initialMessageId: string | null;
+    preferredNation?: string | null;
+    preferredCompetitionId?: string | null;
     managerId: string;
     handlers: DashboardTabContentHandlers;
 }
@@ -27,6 +29,8 @@ interface CreateDashboardTabContentModelArgs {
     seasonComplete: boolean;
     visitedOnboardingTabs: ReadonlySet<string>;
     initialMessageId: string | null;
+    preferredNation?: string | null;
+    preferredCompetitionId?: string | null;
     handlers: DashboardTabContentHandlers;
 }
 
@@ -39,6 +43,8 @@ export function createDashboardTabContentModel(
         seasonComplete: args.seasonComplete,
         visitedOnboardingTabs: args.visitedOnboardingTabs,
         initialMessageId: args.initialMessageId,
+        preferredNation: args.preferredNation ?? null,
+        preferredCompetitionId: args.preferredCompetitionId ?? null,
         managerId: args.gameState.manager.id,
         handlers: args.handlers,
     };

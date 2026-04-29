@@ -37,9 +37,12 @@ export interface TeamMatchRolesData {
 
 export interface TeamData {
   id: string;
+  club_id?: string;
   name: string;
   short_name: string;
+  team_type?: "FirstTeam" | "Reserve" | "Youth" | "Women";
   country: string;
+  domestic_league?: string;
   city: string;
   stadium_name: string;
   stadium_capacity: number;
@@ -348,6 +351,20 @@ export interface LeagueData {
   standings: StandingData[];
 }
 
+export interface WorldCountryData {
+  code: string;
+  name: string;
+  league_names: string[];
+}
+
+export interface ClubData {
+  id: string;
+  name: string;
+  country: string;
+  city: string;
+  team_ids: string[];
+}
+
 export type SeasonPhase = "Preseason" | "InSeason" | "PostSeason";
 
 export type TransferWindowStatus = "Closed" | "Open" | "DeadlineDay";
@@ -426,11 +443,14 @@ export interface GameStateData {
     career_history: ManagerCareerEntry[];
   };
   teams: TeamData[];
+  countries?: WorldCountryData[];
+  clubs?: ClubData[];
   players: PlayerData[];
   staff: StaffData[];
   messages: MessageData[];
   news: NewsArticle[];
   league: LeagueData | null;
+  leagues?: LeagueData[];
   scouting_assignments: ScoutingAssignment[];
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;

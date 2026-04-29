@@ -1,3 +1,32 @@
+/// Support for custom nations
+fn code_from_label(value: &str) -> String {
+    let words: Vec<&str> = value
+        .split(|ch: char| !ch.is_ascii_alphabetic())
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    if words.len() > 1 {
+        let initials: String = words
+            .iter()
+            .filter_map(|word| word.chars().next())
+            .map(|ch| ch.to_ascii_uppercase())
+            .take(3)
+            .collect();
+        if !initials.is_empty() {
+            return initials;
+        }
+    }
+
+    let letters: Vec<char> = value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphabetic())
+        .map(|ch| ch.to_ascii_uppercase())
+        .collect();
+    if letters.is_empty() {
+        return String::new();
+    }
+    letters.into_iter().take(3).collect()
+}
+
 pub fn normalize_football_nation_code(value: &str) -> String {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -16,7 +45,7 @@ pub fn normalize_football_nation_code(value: &str) -> String {
             if upper.len() <= 3 {
                 upper
             } else {
-                trimmed.to_string()
+                code_from_label(trimmed)
             }
         }
     }
@@ -53,5 +82,12 @@ mod tests {
             derive_birth_country_code("English"),
             Some("ENG".to_string())
         );
+    }
+
+    #[test]
+    fn derives_codes_from_created_nation_labels() {
+        assert_eq!(normalize_football_nation_code("France"), "FRA");
+        assert_eq!(normalize_football_nation_code("United States"), "US");
+        assert_eq!(normalize_football_nation_code("Atlantis"), "ATL");
     }
 }

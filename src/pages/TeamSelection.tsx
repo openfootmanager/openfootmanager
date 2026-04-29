@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -19,6 +19,53 @@ export default function TeamSelection() {
   }
 
   const teams = gameState.teams;
+  /// Même combat quant au naming des ligues...
+  const nations = useMemo(
+    () => Array.from(new Set(teams.map((team) => team.country))).sort(),
+    [teams],
+  );
+  const [selectedNation, setSelectedNation] = useState<string>(nations[0] ?? "");
+  const leaguesInNation = useMemo(() => {
+    if (!selectedNation) return [];
+    return Array.from(
+      new Set(
+        teams
+          .filter((team) => team.country === selectedNation)
+          .map((team) =>
+            team.domestic_league && team.domestic_league.trim().length > 0
+              ? team.domestic_league
+              : `${team.country} Premier Division`,
+          ),
+      ),
+    ).sort();
+  }, [selectedNation, teams]);
+  const [selectedLeague, setSelectedLeague] = useState<string>("");
+  useEffect(() => {
+    if (!leaguesInNation.includes(selectedLeague)) {
+      setSelectedLeague(leaguesInNation[0] ?? "");
+    }
+  }, [leaguesInNation, selectedLeague]);
+  useEffect(() => {
+    if (!nations.includes(selectedNation)) {
+      setSelectedNation(nations[0] ?? "");
+    }
+  }, [nations, selectedNation]);
+  const filteredTeams = useMemo(
+    () =>
+      teams.filter((team) => {
+        const leagueName =
+          team.domestic_league && team.domestic_league.trim().length > 0
+            ? team.domestic_league
+            : `${team.country} Premier Division`;
+        return team.country === selectedNation && leagueName === selectedLeague;
+      }),
+    [selectedLeague, selectedNation, teams],
+  );
+  useEffect(() => {
+    if (selectedTeamId && !filteredTeams.some((team) => team.id === selectedTeamId)) {
+      setSelectedTeamId(null);
+    }
+  }, [filteredTeams, selectedTeamId]);
 
   const getTeamPlayers = (teamId: string): PlayerData[] =>
     gameState.players.filter((p) => p.team_id === teamId);
@@ -105,8 +152,50 @@ export default function TeamSelection() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6">
+        <div className="mb-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Nation
+            </span>
+            <select
+              value={selectedNation}
+              onChange={(event) => setSelectedNation(event.target.value)}
+              className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm"
+            >
+              {nations.map((nation) => (
+                <option key={nation} value={nation}>
+                  {nation}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              League
+            </span>
+            <select
+              value={selectedLeague}
+              onChange={(event) => setSelectedLeague(event.target.value)}
+              className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm"
+            >
+              {leaguesInNation.map((league) => (
+                <option key={league} value={league}>
+                  {league}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-col gap-1 justify-end">
+            <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Clubs
+            </span>
+            <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm">
+              {filteredTeams.length}
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {teams.map((team) => {
+          {filteredTeams.map((team) => {
             const isSelected = selectedTeamId === team.id;
             const avgOvr = getTeamAvgOvr(team.id);
             const repInfo = getReputationLabel(team.reputation);

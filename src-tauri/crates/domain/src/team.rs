@@ -3,9 +3,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Team {
     pub id: String,
+    #[serde(default)]
+    pub club_id: String,
     pub name: String,
     pub short_name: String,
+    #[serde(default)]
+    pub team_type: TeamType,
     pub country: String,
+    #[serde(default)]
+    pub domestic_league: String,
     #[serde(default)]
     pub football_nation: String,
     pub city: String,
@@ -167,6 +173,17 @@ pub struct TeamSeasonRecord {
     pub goals_against: u32,
 }
 
+/// later, we should maybe make the enum of types dynamically managed by user's database params
+/// It will need to setup "rules"
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub enum TeamType {
+    #[default]
+    FirstTeam,
+    Reserve,
+    Youth,
+    Women,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FinancialTransactionKind {
     PrizeMoney,
@@ -250,9 +267,12 @@ impl Team {
         let football_nation = crate::identity::normalize_football_nation_code(&country);
         Self {
             id,
+            club_id: String::new(),
             name,
             short_name,
+            team_type: TeamType::default(),
             country,
+            domestic_league: String::new(),
             football_nation,
             city,
             stadium_name,

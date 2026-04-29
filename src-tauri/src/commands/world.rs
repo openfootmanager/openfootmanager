@@ -12,12 +12,27 @@ fn export_world_database_internal(
         .get_game(|g| g.clone())
         .ok_or("No active game session".to_string())?;
 
+    let club_count = game
+        .teams
+        .iter()
+        .map(|team| {
+            if team.club_id.trim().is_empty() {
+                team.id.clone()
+            } else {
+                team.club_id.clone()
+            }
+        })
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     let world = ofm_core::generator::WorldData {
         name: "Exported World".to_string(),
         description: format!(
-            "World with {} teams exported from saved game",
+            "World with {} clubs and {} teams exported from saved game",
+            club_count,
             game.teams.len()
         ),
+        countries: vec![],
+        clubs: vec![],
         teams: game.teams.clone(),
         players: game.players.clone(),
         staff: game.staff.clone(),
@@ -56,9 +71,11 @@ pub fn list_world_databases(
     let mut databases = vec![WorldDatabaseInfo {
         id: "random".to_string(),
         name: "Random World".to_string(),
-        description: "Randomly generated league with 16 teams across Europe".to_string(),
-        team_count: 16,
-        player_count: 352,
+        description: "Randomly generated world with countries, clubs, and teams".to_string(),
+        country_count: 4,
+        club_count: 80,
+        team_count: 80,
+        player_count: 1760,
         source: "builtin".to_string(),
         path: String::new(),
     }];

@@ -67,7 +67,8 @@ pub async fn start_new_game(
     // Load world based on source
     let world_source = world_source.unwrap_or_else(|| "random".to_string());
     let (teams, players, staff) = if world_source == "random" {
-        ofm_core::generator::generate_world(None)
+       let world = ofm_core::generator::generate_world_data(None);
+         (world.teams,world.players,  world.staff)
     } else {
         // Try to load from file path (strip "file:" prefix if present)
         let path = world_source.strip_prefix("file:").unwrap_or(&world_source);
@@ -109,6 +110,12 @@ pub async fn select_team(
         .find(|t| t.id == team_id)
         .ok_or("Team not found".to_string())?;
     let team_name = team.name.clone();
+    let team_country = team.country.clone();
+    let team_league_name = if team.domestic_league.trim().is_empty() {
+        format!("{team_country} Premier Division")
+    } else {
+        team.domestic_league.clone()
+    };
 
     // Assign manager to team
     game.manager.hire(team_id.clone());
@@ -116,13 +123,35 @@ pub async fn select_team(
         t.manager_id = Some(game.manager.id.clone());
     }
 
-    // Generate league schedule — season starts 1 month after game start
+    // enerate league schedule from the selected team's country with the season supposed to starts 1 month after game start
+    // i did not review this code after some other changes, so the naming is outdated
     use chrono::Duration;
     let season_start = game.clock.current_date + Duration::days(30);
-    let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
+    let same_league_team_ids: Vec<String> = game
+        .teams
+        .iter()
+        .filter(|candidate| {
+            candidate.country == team_country
+                && {
+                    let league_name = if candidate.domestic_league.trim().is_empty() {
+                        format!("{} Premier Division", candidate.country)
+                    } else {
+                        candidate.domestic_league.clone()
+                    };
+                    league_name == team_league_name
+                }
+        })
+        .map(|candidate| candidate.id.clone())
+        .collect();
+    let league_name = team_league_name.clone();
+    let league_team_ids = if same_league_team_ids.len() >= 4 {
+        same_league_team_ids
+    } else {
+        game.teams.iter().map(|candidate| candidate.id.clone()).collect()
+    };
     let mut league =
-        ofm_core::schedule::generate_league("Premier Division", 2026, &team_ids, season_start);
-    let opponents: Vec<String> = team_ids
+        ofm_core::schedule::generate_league(&league_name, 2026, &league_team_ids, season_start);
+    let opponents: Vec<String> = league_team_ids
         .iter()
         .filter(|candidate_team_id| candidate_team_id.as_str() != team_id)
         .cloned()
@@ -130,7 +159,43 @@ pub async fn select_team(
     let friendlies =
         ofm_core::schedule::generate_preseason_friendlies(&team_id, &opponents, season_start, 3);
     ofm_core::schedule::append_fixtures(&mut league, friendlies);
-    game.league = Some(league);
+    let cup_round_date = season_start + Duration::days(10);
+    let cup_fixtures = ofm_core::schedule::generate_domestic_cup_round(&league_team_ids, cup_round_date, 100);
+    ofm_core::schedule::append_fixtures(&mut league, cup_fixtures);
+    game.league = Some(league.clone());
+    let mut all_leagues = vec![league];
+    use std::collections::BTreeMap;
+    let mut leagues_by_key: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for candidate in &game.teams {
+        let league_label = if candidate.domestic_league.trim().is_empty() {
+            format!("{} Premier Division", candidate.country)
+        } else {
+            candidate.domestic_league.clone()
+        };
+        leagues_by_key
+            .entry((candidate.country.clone(), league_label))
+            .or_default()
+            .push(candidate.id.clone());
+    }
+    for ((country_name, league_label), ids) in leagues_by_key {
+        if country_name == team_country && league_label == team_league_name {
+            continue;
+        }
+        if ids.len() < 2 {
+            continue;
+        }
+        let mut parallel = ofm_core::schedule::generate_league(
+            &league_label,
+            2026,
+            &ids,
+            season_start,
+        );
+        let cup_fixtures =
+            ofm_core::schedule::generate_domestic_cup_round(&ids, season_start + Duration::days(10), 100);
+        ofm_core::schedule::append_fixtures(&mut parallel, cup_fixtures);
+        all_leagues.push(parallel);
+    }
+    game.leagues = all_leagues;
     ofm_core::season_context::refresh_game_context(&mut game);
 
     // Rich templated messages
@@ -139,7 +204,7 @@ pub async fn select_team(
     game.messages.push(welcome_msg);
 
     let season_msg = ofm_core::messages::season_schedule_message(
-        "Premier Division",
+        &league_name,
         &season_start.format("%B %d, %Y").to_string(),
         &date_str,
     );

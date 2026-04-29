@@ -126,6 +126,33 @@ pub fn generate_preseason_friendlies(
         .collect()
 }
 
+pub fn generate_domestic_cup_round(
+    team_ids: &[String],
+    date: DateTime<Utc>,
+    round_name_matchday: u32,
+) -> Vec<Fixture> {
+    let mut fixtures = Vec::new();
+    if team_ids.len() < 2 {
+        return fixtures;
+    }
+    for pair in team_ids.chunks(2) {
+        if pair.len() < 2 {
+            continue;
+        }
+        fixtures.push(Fixture {
+            id: Uuid::new_v4().to_string(),
+            matchday: round_name_matchday,
+            date: date.format("%Y-%m-%d").to_string(),
+            home_team_id: pair[0].clone(),
+            away_team_id: pair[1].clone(),
+            competition: FixtureCompetition::PreseasonTournament,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+    }
+    fixtures
+}
+
 pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture>) {
     league.fixtures.append(&mut additional_fixtures);
     league.fixtures.sort_by(|left, right| {

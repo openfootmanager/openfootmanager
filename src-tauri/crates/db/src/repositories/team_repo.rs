@@ -1,6 +1,6 @@
 use domain::team::{
     Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors, TrainingFocus,
-    TrainingIntensity, TrainingSchedule,
+    TrainingIntensity, TrainingSchedule, TeamType,
 };
 use rusqlite::{Connection, params};
 
@@ -135,9 +135,12 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
 
     Ok(Team {
         id: row.get(0)?,
+        club_id: String::new(),
         name: row.get(1)?,
         short_name: row.get(2)?,
+        team_type: TeamType::default(),
         country: row.get(3)?,
+        domestic_league: String::new(),
         football_nation: row.get(4)?,
         city: row.get(5)?,
         stadium_name: row.get(6)?,

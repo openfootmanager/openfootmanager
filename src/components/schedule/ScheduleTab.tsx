@@ -21,7 +21,16 @@ export default function ScheduleTab({
 }: ScheduleTabProps) {
   const { t } = useTranslation();
   const [view, setView] = useState<"fixtures" | "standings">("fixtures");
-  const league = gameState.league;
+  const competitions = [
+    ...(gameState.league ? [gameState.league] : []),
+    ...((gameState.leagues ?? []).filter((candidate) => candidate.id !== gameState.league?.id)),
+  ];
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(
+    competitions[0]?.id ?? "",
+  );
+  const league =
+    competitions.find((competition) => competition.id === selectedCompetitionId) ??
+    competitions[0];
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
@@ -81,6 +90,26 @@ export default function ScheduleTab({
 
   return (
     <div className="max-w-6xl mx-auto">
+      {competitions.length > 1 && (
+        <Card className="mb-4">
+          <CardBody>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {competitions.map((competition) => (
+                <button
+                  key={competition.id}
+                  onClick={() => setSelectedCompetitionId(competition.id)}
+                  className={`text-left rounded-lg border px-3 py-2 text-sm ${competition.id === league.id ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "border-gray-200 dark:border-navy-600 text-gray-700 dark:text-gray-300"}`}
+                >
+                  <div className="font-semibold">{competition.name}</div>
+                  <div className="text-xs opacity-75">
+                    {t("schedule.season", { number: competition.season })}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>

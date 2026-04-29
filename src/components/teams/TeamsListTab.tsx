@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { GameStateData } from "../../store/gameStore";
 import { Card, CardBody, Badge, TeamLocation } from "../ui";
 import { Users, Trophy } from "lucide-react";
@@ -7,11 +8,22 @@ import { useTranslation } from "react-i18next";
 interface TeamsListTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
+  preferredNation?: string | null;
 }
 
-export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabProps) {
+export default function TeamsListTab({ gameState, onSelectTeam, preferredNation }: TeamsListTabProps) {
   const { t, i18n } = useTranslation();
   const userTeamId = gameState.manager.team_id;
+  const nations = useMemo(
+    () => Array.from(new Set(gameState.teams.map((team) => team.country))).sort(),
+    [gameState.teams],
+  );
+  const [countryFilter, setCountryFilter] = useState<string>("");
+  useEffect(() => {
+    if (preferredNation) {
+      setCountryFilter(preferredNation);
+    }
+  }, [preferredNation]);
 
   const allStandings = gameState.league?.standings
     ? [...gameState.league.standings].sort((a, b) =>
@@ -30,11 +42,43 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
 
     return { team, roster, avgOvr, totalValue, leaguePos, standing };
   }).sort((a, b) => a.leaguePos - b.leaguePos);
+  const visibleTeams = countryFilter
+    ? teamsData.filter(({ team }) => team.country === countryFilter)
+    : teamsData;
+  const groupedByLeague = visibleTeams.reduce<Record<string, typeof visibleTeams>>((acc, row) => {
+    const leagueName =
+      row.team.domestic_league && row.team.domestic_league.length > 0
+        ? row.team.domestic_league
+        : `${row.team.country} Premier Division`;
+    if (!acc[leagueName]) acc[leagueName] = [];
+    acc[leagueName].push(row);
+    return acc;
+  }, {});
 
   return (
     <div className="max-w-6xl mx-auto">
+      <div className="mb-4 flex items-center gap-2">
+        <select
+          value={countryFilter}
+          onChange={(event) => setCountryFilter(event.target.value)}
+          className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm"
+        >
+          <option value="">{t("common.all")} nations</option>
+          {nations.map((nation) => (
+            <option key={nation} value={nation}>
+              {nation}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {teamsData.map(({ team, roster, avgOvr, totalValue, leaguePos, standing }) => {
+        {Object.entries(groupedByLeague).map(([leagueName, rows]) => (
+          <div key={leagueName} className="md:col-span-2">
+            <h3 className="mb-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              {leagueName}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {rows.map(({ team, roster, avgOvr, totalValue, leaguePos, standing }) => {
           const isUser = team.id === userTeamId;
           return (
             <Card
@@ -108,7 +152,10 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
               </div>
             </Card>
           );
-        })}
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

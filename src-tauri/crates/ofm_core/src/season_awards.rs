@@ -55,12 +55,25 @@ fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
     (team_id, team_name)
 }
 
-fn build_player_award_contexts(game: &Game) -> Vec<PlayerAwardContext<'_>> {
+fn build_player_award_contexts<'a>(
+    game: &'a Game,
+    competition_team_ids: Option<&std::collections::HashSet<String>>,
+) -> Vec<PlayerAwardContext<'a>> {
     let today = game.clock.current_date.date_naive();
 
     game.players
         .iter()
         .filter(|player| player.stats.appearances > 0)
+        .filter(|player| {
+            if let Some(team_ids) = competition_team_ids {
+                let Some(team_id) = player.team_id.as_ref() else {
+                    return false;
+                };
+                team_ids.contains(team_id)
+            } else {
+                true
+            }
+        })
         .map(|player| {
             let (team_id, team_name) = resolve_team_info(game, player);
 
@@ -109,7 +122,27 @@ where
 
 /// Compute current season award standings from player stats.
 pub fn compute_season_awards(game: &Game) -> SeasonAwards {
-    let contexts = build_player_award_contexts(game);
+    compute_season_awards_for_competition(game, None)
+}
+
+pub fn compute_season_awards_for_competition(
+    game: &Game,
+    competition_id: Option<&str>,
+) -> SeasonAwards {
+    let competition_team_ids = competition_id.and_then(|id| {
+        let mut leagues = game
+            .leagues
+            .iter()
+            .chain(game.league.iter());
+        leagues.find(|league| league.id == id).map(|league| {
+            league
+                .standings
+                .iter()
+                .map(|entry| entry.team_id.clone())
+                .collect::<std::collections::HashSet<_>>()
+        })
+    });
+    let contexts = build_player_award_contexts(game, competition_team_ids.as_ref());
 
     // Golden Boot — top scorers
     let golden_boot = top_awards(

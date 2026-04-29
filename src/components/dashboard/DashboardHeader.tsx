@@ -11,7 +11,7 @@ import type { JSX, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getTeamName } from "../../lib/helpers";
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { PlayerData, TeamData } from "../../store/types.ts";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import { Badge, ThemeToggle } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -36,6 +36,8 @@ interface DashboardHeaderProps {
   matchMode: MatchModeType;
   matchedPlayers: PlayerData[];
   matchedTeams: TeamData[];
+  matchedNations: string[];
+  matchedCompetitions: Array<{ id: string; name: string; country: string }>;
   modeMeta: Record<MatchModeType, DashboardMatchModeMeta>;
   onBack: () => void;
   onContinue: () => void;
@@ -46,6 +48,8 @@ interface DashboardHeaderProps {
   onSelectMatchMode: (mode: MatchModeType) => void;
   onSelectSearchPlayer: (playerId: string) => void;
   onSelectSearchTeam: (teamId: string) => void;
+  onSelectSearchNation: (nation: string) => void;
+  onSelectSearchCompetition: (competitionId: string) => void;
   onSkipToMatchDay: () => void;
   onToggleContinueMenu: () => void;
   saveFlash: boolean;
@@ -164,21 +168,34 @@ function renderContinueButtonContent(
 function renderSearchResults(props: {
   matchedPlayers: PlayerData[];
   matchedTeams: TeamData[];
+  matchedNations: string[];
+  matchedCompetitions: Array<{ id: string; name: string; country: string }>;
   onSelectSearchPlayer: (playerId: string) => void;
   onSelectSearchTeam: (teamId: string) => void;
+  onSelectSearchNation: (nation: string) => void;
+  onSelectSearchCompetition: (competitionId: string) => void;
   teams: TeamData[];
-  t: (key: string) => string;
+  t: (key: string, options?: { defaultValue?: string }) => string;
 }): JSX.Element {
   const {
     matchedPlayers,
     matchedTeams,
+    matchedNations,
+    matchedCompetitions,
     onSelectSearchPlayer,
     onSelectSearchTeam,
+    onSelectSearchNation,
+    onSelectSearchCompetition,
     t,
     teams,
   } = props;
 
-  if (matchedPlayers.length === 0 && matchedTeams.length === 0) {
+  if (
+    matchedPlayers.length === 0 &&
+    matchedTeams.length === 0 &&
+    matchedNations.length === 0 &&
+    matchedCompetitions.length === 0
+  ) {
     return (
       <p className="p-3 text-xs text-gray-400 dark:text-gray-500">
         {t("dashboard.noResults")}
@@ -188,6 +205,39 @@ function renderSearchResults(props: {
 
   return (
     <>
+      {matchedNations.length > 0 && (
+        <div>
+          <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {t("dashboard.searchNations", { defaultValue: "Nations" })}
+          </p>
+          {matchedNations.map((nation) => (
+            <button
+              key={nation}
+              onMouseDown={() => onSelectSearchNation(nation)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600"
+            >
+              <span className="font-medium">{nation}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {matchedCompetitions.length > 0 && (
+        <div>
+          <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {t("dashboard.searchCompetitions", { defaultValue: "Competitions" })}
+          </p>
+          {matchedCompetitions.map((competition) => (
+            <button
+              key={competition.id}
+              onMouseDown={() => onSelectSearchCompetition(competition.id)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600"
+            >
+              <span className="font-medium">{competition.name}</span>
+              <span className="ml-auto text-xs text-gray-400">{competition.country}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {matchedTeams.length > 0 && (
         <div>
           <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -252,6 +302,8 @@ export default function DashboardHeader({
   matchMode,
   matchedPlayers,
   matchedTeams,
+  matchedNations,
+  matchedCompetitions,
   modeMeta,
   onBack,
   onContinue,
@@ -262,6 +314,8 @@ export default function DashboardHeader({
   onSelectMatchMode,
   onSelectSearchPlayer,
   onSelectSearchTeam,
+  onSelectSearchNation,
+  onSelectSearchCompetition,
   onSkipToMatchDay,
   onToggleContinueMenu,
   saveFlash,
@@ -347,8 +401,12 @@ export default function DashboardHeader({
             {renderSearchResults({
               matchedPlayers,
               matchedTeams,
+              matchedNations,
+              matchedCompetitions,
               onSelectSearchPlayer,
               onSelectSearchTeam,
+              onSelectSearchNation,
+              onSelectSearchCompetition,
               t,
               teams,
             })}

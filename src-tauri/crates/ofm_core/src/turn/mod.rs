@@ -53,6 +53,12 @@ where
             .iter()
             .any(|f| f.date == today && f.status == FixtureStatus::Scheduled)
     });
+    let has_parallel_match_today = game.leagues.iter().any(|league| {
+        league
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
+    });
 
     if has_match_today {
         info!("[turn] process_day {}: matchday", today);
@@ -61,6 +67,9 @@ where
         let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
         training::process_training(game, weekday_num);
         training::check_squad_fitness_warnings(game);
+        if has_parallel_match_today {
+            simulate_parallel_leagues(game, &today);
+        }
     }
 
     crate::contracts::process_contract_expiries(game);
@@ -95,6 +104,7 @@ where
 pub fn finish_live_match_day(game: &mut Game) {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     info!("[turn] finish_live_match_day: {}", today);
+    simulate_parallel_leagues(game, &today);
     generate_matchday_news(game, &today);
 
     crate::contracts::process_contract_expiries(game);
@@ -205,6 +215,7 @@ where
     info!("[turn] simulate_matchday: {}", today);
     simulate_other_matches_with_capture(game, today, None, on_capture);
     generate_matchday_news(game, today);
+    simulate_parallel_leagues(game, today);
 }
 
 /// Simulate all scheduled matches for `today`, optionally skipping one fixture
@@ -241,6 +252,75 @@ pub fn simulate_other_matches_with_capture<F>(
 
     for idx in fixture_indices {
         simulate_single_match_with_capture(game, idx, on_capture);
+    }
+}
+
+fn simulate_parallel_leagues(game: &mut Game, today: &str) {
+    for league_index in 0..game.leagues.len() {
+        let fixture_indices: Vec<usize> = game.leagues[league_index]
+            .fixtures
+            .iter()
+            .enumerate()
+            .filter(|(_, fixture)| {
+                fixture.date == today && fixture.status == FixtureStatus::Scheduled
+            })
+            .map(|(index, _)| index)
+            .collect();
+
+        for fixture_index in fixture_indices {
+            let (home_team_id, away_team_id) = {
+                let fixture = &game.leagues[league_index].fixtures[fixture_index];
+                (fixture.home_team_id.clone(), fixture.away_team_id.clone())
+            };
+            let home_data = build_engine_team(game, &home_team_id);
+            let away_data = build_engine_team(game, &away_team_id);
+            let report = engine::simulate(&home_data, &away_data, &engine::MatchConfig::default());
+
+            let league = &mut game.leagues[league_index];
+            let fixture = &mut league.fixtures[fixture_index];
+            fixture.status = FixtureStatus::Completed;
+            if fixture.counts_for_league_standings() {
+                if let Some(entry) = league
+                    .standings
+                    .iter_mut()
+                    .find(|entry| entry.team_id == home_team_id)
+                {
+                    entry.record_result(report.home_goals, report.away_goals);
+                }
+                if let Some(entry) = league
+                    .standings
+                    .iter_mut()
+                    .find(|entry| entry.team_id == away_team_id)
+                {
+                    entry.record_result(report.away_goals, report.home_goals);
+                }
+            }
+            let home_scorers = report
+                .goals
+                .iter()
+                .filter(|goal| goal.side == engine::Side::Home)
+                .map(|goal| domain::league::GoalEvent {
+                    player_id: goal.scorer_id.clone(),
+                    minute: goal.minute,
+                })
+                .collect();
+            let away_scorers = report
+                .goals
+                .iter()
+                .filter(|goal| goal.side == engine::Side::Away)
+                .map(|goal| domain::league::GoalEvent {
+                    player_id: goal.scorer_id.clone(),
+                    minute: goal.minute,
+                })
+                .collect();
+            fixture.result = Some(domain::league::MatchResult {
+                home_goals: report.home_goals,
+                away_goals: report.away_goals,
+                home_scorers,
+                away_scorers,
+                report: None,
+            });
+        }
     }
 }
 

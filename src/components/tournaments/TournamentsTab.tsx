@@ -39,14 +39,57 @@ interface SeasonAwards {
 interface TournamentsTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
+  preferredCompetitionId?: string | null;
+  preferredNation?: string | null;
 }
 
 export default function TournamentsTab({
   gameState,
   onSelectTeam,
+  preferredCompetitionId,
+  preferredNation,
 }: TournamentsTabProps) {
   const { t } = useTranslation();
-  const league = gameState.league;
+  const competitions = [
+    ...(gameState.league ? [gameState.league] : []),
+    ...((gameState.leagues ?? []).filter((candidate) => candidate.id !== gameState.league?.id)),
+  ];
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(
+    competitions[0]?.id ?? "",
+  );
+  const competitionCountryMap = new Map(
+    competitions.map((competition) => {
+      const teamIds = new Set(competition.standings.map((entry) => entry.team_id));
+      const sampleTeam = gameState.teams.find((team) => teamIds.has(team.id));
+      return [competition.id, sampleTeam?.country ?? "International"] as const;
+    }),
+  );
+  const groupedCompetitions = competitions.reduce<Record<string, typeof competitions>>(
+    (acc, competition) => {
+      const country = competitionCountryMap.get(competition.id) ?? "International";
+      if (!acc[country]) acc[country] = [];
+      acc[country].push(competition);
+      return acc;
+    },
+    {},
+  );
+  useEffect(() => {
+    if (preferredCompetitionId && competitions.some((competition) => competition.id === preferredCompetitionId)) {
+      setSelectedCompetitionId(preferredCompetitionId);
+    }
+  }, [competitions, preferredCompetitionId]);
+  useEffect(() => {
+    if (!preferredNation) return;
+    const firstInNation = competitions.find(
+      (competition) => (competitionCountryMap.get(competition.id) ?? "") === preferredNation,
+    );
+    if (firstInNation) {
+      setSelectedCompetitionId(firstInNation.id);
+    }
+  }, [competitionCountryMap, competitions, preferredNation]);
+  const league =
+    competitions.find((competition) => competition.id === selectedCompetitionId) ??
+    competitions[0];
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
@@ -57,11 +100,16 @@ export default function TournamentsTab({
 
   useEffect(() => {
     if (view === "awards" && !awards) {
-      invoke<SeasonAwards>("get_season_awards")
+      invoke<SeasonAwards>("get_season_awards", {
+        competitionId: selectedCompetitionId || null,
+      })
         .then(setAwards)
         .catch(() => {});
     }
-  }, [view, awards]);
+  }, [view, awards, selectedCompetitionId]);
+  useEffect(() => {
+    setAwards(null);
+  }, [selectedCompetitionId]);
 
   if (!league) {
     return (
@@ -128,6 +176,35 @@ export default function TournamentsTab({
 
   return (
     <div className="max-w-6xl mx-auto">
+      {competitions.length > 1 && (
+        <Card className="mb-4">
+          <CardBody>
+            <div className="space-y-3">
+              {Object.entries(groupedCompetitions).map(([country, countryCompetitions]) => (
+                <div key={country}>
+                  <div className="mb-1 text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {country}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {countryCompetitions.map((competition) => (
+                      <button
+                        key={competition.id}
+                        onClick={() => setSelectedCompetitionId(competition.id)}
+                        className={`text-left rounded-lg border px-3 py-2 text-sm ${competition.id === league.id ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "border-gray-200 dark:border-navy-600 text-gray-700 dark:text-gray-300"}`}
+                      >
+                        <div className="font-semibold">{competition.name}</div>
+                        <div className="text-xs opacity-75">
+                          {t("schedule.season", { number: competition.season })}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>

@@ -46,6 +46,8 @@ pub struct Game {
     pub news: Vec<NewsArticle>,
     pub league: Option<League>,
     #[serde(default)]
+    pub leagues: Vec<League>,
+    #[serde(default)]
     pub scouting_assignments: Vec<ScoutingAssignment>,
     #[serde(default)]
     pub board_objectives: Vec<BoardObjective>,
@@ -73,6 +75,7 @@ impl Game {
             messages,
             news: vec![],
             league: None,
+            leagues: vec![],
             scouting_assignments: vec![],
             board_objectives: vec![],
             season_context: SeasonContext::default(),

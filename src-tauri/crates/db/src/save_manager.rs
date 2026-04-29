@@ -192,10 +192,13 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        if league_repo::needs_cleanup(
-            db.conn(),
-            game.league.as_ref().map(|league| league.id.as_str()),
-        )? {
+        let mut active_league_ids: Vec<String> = game.leagues.iter().map(|l| l.id.clone()).collect();
+        if let Some(primary) = &game.league
+            && !active_league_ids.iter().any(|id| id == &primary.id)
+        {
+            active_league_ids.push(primary.id.clone());
+        }
+        if league_repo::needs_cleanup(db.conn(), &active_league_ids)? {
             info!(
                 "[save_manager] cleaning stale league rows for save {}",
                 save_id
@@ -487,9 +490,11 @@ mod tests {
             messages: vec![],
             news: vec![],
             league: None,
+            leagues: vec![],
             scouting_assignments: vec![],
             board_objectives: vec![],
             season_context: domain::season::SeasonContext::default(),
+            days_since_last_job_offer: None,
         }
     }
 

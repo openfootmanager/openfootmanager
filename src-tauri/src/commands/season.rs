@@ -47,10 +47,14 @@ pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_js
 #[tauri::command]
 pub fn get_season_awards(
     state: State<'_, StateManager>,
+    competition_id: Option<String>,
 ) -> Result<ofm_core::season_awards::SeasonAwards, String> {
     log::debug!("[cmd] get_season_awards");
     let game = state
         .get_game(|g| g.clone())
         .ok_or("No active game session".to_string())?;
-    Ok(ofm_core::season_awards::compute_season_awards(&game))
+    Ok(ofm_core::season_awards::compute_season_awards_for_competition(
+        &game,
+        competition_id.as_deref(),
+    ))
 }

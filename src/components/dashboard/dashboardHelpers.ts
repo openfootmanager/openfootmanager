@@ -18,6 +18,8 @@ export interface DashboardAlert {
 export interface DashboardSearchResults {
   matchedPlayers: PlayerData[];
   matchedTeams: TeamData[];
+  matchedNations: string[];
+  matchedCompetitions: Array<{ id: string; name: string; country: string }>;
 }
 
 type DashboardAlertTranslator = (
@@ -82,8 +84,32 @@ export function getDashboardSearchResults(
     return {
       matchedPlayers: [],
       matchedTeams: [],
+      matchedNations: [],
+      matchedCompetitions: [],
     };
   }
+
+  const leagues = [
+    ...(gameState.league ? [gameState.league] : []),
+    ...((gameState.leagues ?? []).filter((candidate) => candidate.id !== gameState.league?.id)),
+  ];
+  const nations = Array.from(
+    new Set(gameState.teams.map((team) => team.country).filter(Boolean)),
+  );
+  const competitionEntries = leagues.flatMap((league) => {
+    const teamIds = new Set(league.standings.map((entry) => entry.team_id));
+    const sampleTeam = gameState.teams.find((team) => teamIds.has(team.id));
+    const country = sampleTeam?.country ?? "International";
+    const entries = [{ id: league.id, name: league.name, country }];
+    if (
+      league.fixtures.some(
+        (fixture) => fixture.competition === "PreseasonTournament",
+      )
+    ) {
+      entries.push({ id: `${league.id}::cup`, name: `${league.name} Cup`, country });
+    }
+    return entries;
+  });
 
   return {
     matchedPlayers: gameState.players
@@ -102,6 +128,12 @@ export function getDashboardSearchResults(
         );
       })
       .slice(0, 4),
+    matchedNations: nations
+      .filter((nation) => nation.toLowerCase().includes(normalizedQuery))
+      .slice(0, 5),
+    matchedCompetitions: competitionEntries
+      .filter((entry) => entry.name.toLowerCase().includes(normalizedQuery))
+      .slice(0, 6),
   };
 }
 

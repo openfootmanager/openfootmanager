@@ -1,326 +1,41 @@
 {
-  "version": 1,
-  "description": "Default team templates for world generation",
-  "teams": [
-    {
-      "name": "London FC",
-      "short_name": "LFC",
-      "city": "London",
-      "country": "ENG",
-      "colors": {
-        "primary": "#dc2626",
-        "secondary": "#ffffff"
+  "version": 2,
+  "description": "4 nations, 2 leagues each, 10 clubs per league. These clubs are generated",
+  "structure": {
+    "nations": [
+      {
+        "name": "England",
+        "code": "ENG",
+        "leagues": [
+          { "name": "Premier Division", "club_count": 10 },
+          { "name": "Championship", "club_count": 10 }
+        ]
       },
-      "play_style": "Possession",
-      "stadium_name": "London Arena",
-      "reputation_range": [
-        600,
-        900
-      ],
-      "finance_range": [
-        3000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Manchester City",
-      "short_name": "MCI",
-      "city": "Manchester",
-      "country": "ENG",
-      "colors": {
-        "primary": "#60a5fa",
-        "secondary": "#1e3a5f"
+      {
+        "name": "Spain",
+        "code": "ESP",
+        "leagues": [
+          { "name": "Primera Division", "club_count": 10 },
+          { "name": "Segunda Division", "club_count": 10 }
+        ]
       },
-      "play_style": "Attacking",
-      "stadium_name": "Manchester Arena",
-      "reputation_range": [
-        600,
-        900
-      ],
-      "finance_range": [
-        3000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Liverpool Athletic",
-      "short_name": "LIV",
-      "city": "Liverpool",
-      "country": "ENG",
-      "colors": {
-        "primary": "#b91c1c",
-        "secondary": "#fbbf24"
+      {
+        "name": "Germany",
+        "code": "GER",
+        "leagues": [
+          { "name": "Bundesliga", "club_count": 10 },
+          { "name": "2. Bundesliga", "club_count": 10 }
+        ]
       },
-      "play_style": "HighPress",
-      "stadium_name": "Liverpool Arena",
-      "reputation_range": [
-        500,
-        850
-      ],
-      "finance_range": [
-        2000000,
-        8000000
-      ]
-    },
-    {
-      "name": "Newcastle Town",
-      "short_name": "NEW",
-      "city": "Newcastle",
-      "country": "ENG",
-      "colors": {
-        "primary": "#000000",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Counter",
-      "stadium_name": "Newcastle Arena",
-      "reputation_range": [
-        400,
-        750
-      ],
-      "finance_range": [
-        1000000,
-        6000000
-      ]
-    },
-    {
-      "name": "Madrid Real",
-      "short_name": "MAD",
-      "city": "Madrid",
-      "country": "ES",
-      "colors": {
-        "primary": "#ffffff",
-        "secondary": "#d4af37"
-      },
-      "play_style": "Possession",
-      "stadium_name": "Madrid Arena",
-      "reputation_range": [
-        700,
-        900
-      ],
-      "finance_range": [
-        5000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Barcelona FC",
-      "short_name": "BAR",
-      "city": "Barcelona",
-      "country": "ES",
-      "colors": {
-        "primary": "#9f1239",
-        "secondary": "#1d4ed8"
-      },
-      "play_style": "Attacking",
-      "stadium_name": "Barcelona Arena",
-      "reputation_range": [
-        700,
-        900
-      ],
-      "finance_range": [
-        5000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Munich Bayern",
-      "short_name": "MUN",
-      "city": "Munich",
-      "country": "DE",
-      "colors": {
-        "primary": "#dc2626",
-        "secondary": "#1e3a5f"
-      },
-      "play_style": "HighPress",
-      "stadium_name": "Munich Arena",
-      "reputation_range": [
-        700,
-        900
-      ],
-      "finance_range": [
-        5000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Dortmund BV",
-      "short_name": "DOR",
-      "city": "Dortmund",
-      "country": "DE",
-      "colors": {
-        "primary": "#eab308",
-        "secondary": "#000000"
-      },
-      "play_style": "Counter",
-      "stadium_name": "Dortmund Arena",
-      "reputation_range": [
-        500,
-        800
-      ],
-      "finance_range": [
-        2000000,
-        7000000
-      ]
-    },
-    {
-      "name": "Paris Étoile",
-      "short_name": "PAR",
-      "city": "Paris",
-      "country": "FR",
-      "colors": {
-        "primary": "#1e3a5f",
-        "secondary": "#dc2626"
-      },
-      "play_style": "Attacking",
-      "stadium_name": "Paris Arena",
-      "reputation_range": [
-        700,
-        900
-      ],
-      "finance_range": [
-        5000000,
-        10000000
-      ]
-    },
-    {
-      "name": "Lyon Olympique",
-      "short_name": "LYO",
-      "city": "Lyon",
-      "country": "FR",
-      "colors": {
-        "primary": "#1d4ed8",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Balanced",
-      "stadium_name": "Lyon Arena",
-      "reputation_range": [
-        400,
-        700
-      ],
-      "finance_range": [
-        1000000,
-        5000000
-      ]
-    },
-    {
-      "name": "Milan Rossoneri",
-      "short_name": "MIL",
-      "city": "Milan",
-      "country": "IT",
-      "colors": {
-        "primary": "#dc2626",
-        "secondary": "#000000"
-      },
-      "play_style": "Defensive",
-      "stadium_name": "Milan Arena",
-      "reputation_range": [
-        600,
-        850
-      ],
-      "finance_range": [
-        3000000,
-        8000000
-      ]
-    },
-    {
-      "name": "Rome Gladiators",
-      "short_name": "ROM",
-      "city": "Rome",
-      "country": "IT",
-      "colors": {
-        "primary": "#eab308",
-        "secondary": "#7c2d12"
-      },
-      "play_style": "Counter",
-      "stadium_name": "Rome Arena",
-      "reputation_range": [
-        400,
-        700
-      ],
-      "finance_range": [
-        1500000,
-        6000000
-      ]
-    },
-    {
-      "name": "Amsterdam United",
-      "short_name": "AMS",
-      "city": "Amsterdam",
-      "country": "NL",
-      "colors": {
-        "primary": "#dc2626",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Attacking",
-      "stadium_name": "Amsterdam Arena",
-      "reputation_range": [
-        500,
-        800
-      ],
-      "finance_range": [
-        2000000,
-        7000000
-      ]
-    },
-    {
-      "name": "Lisbon Sporting",
-      "short_name": "LIS",
-      "city": "Lisbon",
-      "country": "PT",
-      "colors": {
-        "primary": "#16a34a",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Possession",
-      "stadium_name": "Lisbon Arena",
-      "reputation_range": [
-        500,
-        800
-      ],
-      "finance_range": [
-        2000000,
-        7000000
-      ]
-    },
-    {
-      "name": "Porto Dragões",
-      "short_name": "POR",
-      "city": "Porto",
-      "country": "PT",
-      "colors": {
-        "primary": "#1d4ed8",
-        "secondary": "#ffffff"
-      },
-      "play_style": "Defensive",
-      "stadium_name": "Porto Arena",
-      "reputation_range": [
-        500,
-        800
-      ],
-      "finance_range": [
-        2000000,
-        7000000
-      ]
-    },
-    {
-      "name": "Brussels Royal",
-      "short_name": "BRU",
-      "city": "Brussels",
-      "country": "BE",
-      "colors": {
-        "primary": "#7c3aed",
-        "secondary": "#fbbf24"
-      },
-      "play_style": "Balanced",
-      "stadium_name": "Brussels Arena",
-      "reputation_range": [
-        400,
-        700
-      ],
-      "finance_range": [
-        1000000,
-        5000000
-      ]
-    }
-  ]
+      {
+        "name": "France",
+        "code": "FRA",
+        "leagues": [
+          { "name": "Ligue 1", "club_count": 10 },
+          { "name": "Ligue 2", "club_count": 10 }
+        ]
+      }
+    ]
+  },
+  "teams": []
 }

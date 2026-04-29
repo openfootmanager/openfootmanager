@@ -42,8 +42,14 @@ impl GamePersistenceWriter {
         message_repo::upsert_messages(conn, &game.messages)?;
         news_repo::upsert_news_list(conn, &game.news)?;
 
-        if let Some(ref league) = game.league {
-            league_repo::upsert_league(conn, league)?;
+        let mut leagues_to_persist = game.leagues.clone();
+        if let Some(ref league) = game.league
+            && !leagues_to_persist.iter().any(|candidate| candidate.id == league.id)
+        {
+            leagues_to_persist.push(league.clone());
+        }
+        if !leagues_to_persist.is_empty() {
+            league_repo::upsert_leagues(conn, &leagues_to_persist)?;
         }
 
         let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
@@ -107,7 +113,13 @@ impl GamePersistenceReader {
         let staff = staff_repo::load_all_staff(conn)?;
         let messages = message_repo::load_all_messages(conn)?;
         let news = news_repo::load_all_news(conn)?;
-        let league = league_repo::load_league(conn)?;
+        let leagues = league_repo::load_leagues(conn)?;
+        let league = manager.team_id.as_ref().and_then(|team_id| {
+            leagues
+                .iter()
+                .find(|league| league.standings.iter().any(|entry| &entry.team_id == team_id))
+                .cloned()
+        }).or_else(|| leagues.first().cloned());
 
         let objective_rows = objective_repo::load_all_objectives(conn)?;
         let board_objectives: Vec<BoardObjective> = objective_rows
@@ -141,6 +153,7 @@ impl GamePersistenceReader {
             messages,
             news,
             league,
+            leagues,
             scouting_assignments,
             board_objectives,
             season_context: domain::season::SeasonContext::default(),

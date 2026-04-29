@@ -2,6 +2,8 @@ import type { PlayerSelectionOptions } from "../../store/gameStore";
 
 export interface DashboardNavigateContext {
   messageId?: string;
+  nation?: string;
+  competitionId?: string;
 }
 
 export interface DashboardProfileHistoryEntry {
@@ -16,6 +18,8 @@ export interface DashboardProfileNavigationState {
   selectedPlayerOptions: PlayerSelectionOptions | null;
   selectedTeamId: string | null;
   initialMessageId: string | null;
+  preferredNation: string | null;
+  preferredCompetitionId: string | null;
   navHistory: DashboardProfileHistoryEntry[];
 }
 
@@ -28,6 +32,8 @@ export function createDashboardProfileNavigationState(
     selectedPlayerOptions: null,
     selectedTeamId: null,
     initialMessageId: null,
+    preferredNation: null,
+    preferredCompetitionId: null,
     navHistory: [],
   };
 }
@@ -52,6 +58,8 @@ export function resetDashboardToTab(
     ...clearDashboardProfileSelection(state),
     activeTab: tab,
     initialMessageId: messageId ?? null,
+    preferredNation: null,
+    preferredCompetitionId: null,
     navHistory: [],
   };
 }
@@ -95,7 +103,14 @@ export function navigateDashboardProfiles(
     };
   }
 
-  return resetDashboardToTab(state, tab, context?.messageId);
+  let next = resetDashboardToTab(state, tab, context?.messageId);
+  if (context?.nation) {
+    next = { ...next, preferredNation: context.nation };
+  }
+  if (context?.competitionId) {
+    next = { ...next, preferredCompetitionId: context.competitionId };
+  }
+  return next;
 }
 
 export function goBackDashboardProfile(

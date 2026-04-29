@@ -51,9 +51,13 @@ Controls the first and last names used when generating players and staff.
 
 ---
 
-### `default_teams.json` — Team Templates
+### `default_teams.json` — Team Templates or blueprint
 
 Controls the teams created during world generation.
+the two following modes are supported:
+- an explicit `teams` list,
+- or a structural blueprint via `structure.nations[].leagues[]`.
+These two modes are supposed to be combined together.
 
 ```json
 {
@@ -82,7 +86,8 @@ Controls the teams created during world generation.
 |-------|------|----------|---------|-------------|
 | `version` | `number` | No | `0` | Schema version |
 | `description` | `string` | No | `""` | Human-readable description |
-| `teams` | `TeamDef[]` | **Yes** | — | Array of team definitions |
+| `teams` | `TeamDef[]` | Yes | `[]` | Array of explicit team definitions |
+| `structure` | `object` | No | `null` | Blueprint used when `teams` is empty |
 
 #### TeamDef
 
@@ -92,6 +97,7 @@ Controls the teams created during world generation.
 | `short_name` | `string` | No | Auto-generated from initials | 2-3 letter abbreviation |
 | `city` | `string` | **Yes** | — | City name |
 | `country` | `string` | **Yes** | — | Team location / football identity code |
+| `league` | `string` | No | `"<country> Premier Division"` | Domestic league label |
 | `colors.primary` | `string` | **Yes** | — | Primary color (hex, e.g. `"#dc2626"`) |
 | `colors.secondary` | `string` | **Yes** | — | Secondary color (hex) |
 | `play_style` | `string` | No | `"Balanced"` | One of: `Attacking`, `Defensive`, `Possession`, `Counter`, `HighPress`, `Balanced` |
@@ -104,6 +110,33 @@ Controls the teams created during world generation.
 - Each team gets 22 players (2 GK, 7 DEF, 7 MID, 6 FWD) and 4 staff (AssistantManager, Coach, Scout, Physio).
 - Player nationalities are weighted 60% toward the team's country, 40% random from available pools.
 - 12 free-agent staff are also generated regardless of team count.
+
+#### Structural blueprint mode
+
+```json
+{
+  "version": 2,
+  "description": "4 nations, 2 leagues each, 10 clubs per league",
+  "structure": {
+    "nations": [
+      {
+        "name": "England",
+        "code": "ENG",
+        "leagues": [
+          { "name": "Premier Division", "club_count": 10 },
+          { "name": "Championship", "club_count": 10 }
+        ]
+      }
+    ]
+  },
+  "teams": []
+}
+```
+
+Expansion behavior:
+- `teams` non-empty: explicit teams are used.
+- `teams` empty + `structure` present: teams are generated from the structure.
+- generated teams inherit `country` from `nation.name` and `league` into `domestic_league`.
 
 ---
 
@@ -148,12 +181,35 @@ World database format matches the internal `WorldData` structure:
 ```json
 {
   "name": "My Custom World",
-  "description": "A hand-crafted league with 20 teams",
+  "description": "A hand-crafted world with multiple countries",
+  "countries": [
+    {
+      "code": "ENG",
+      "name": "England",
+      "league_names": ["England Premier Division"]
+    },
+    {
+      "code": "ESP",
+      "name": "Spain",
+      "league_names": ["Spain Premier Division"]
+    }
+  ],
+  "clubs": [
+    {
+      "id": "club_arsenal",
+      "name": "Arsenal FC",
+      "country": "England",
+      "city": "London",
+      "team_ids": ["team_arsenal_first", "team_arsenal_u21"]
+    }
+  ],
   "teams": [ /* full Team objects */ ],
   "players": [ /* full Player objects */ ],
   "staff": [ /* full Staff objects */ ]
 }
 ```
+
+`countries` and `clubs` are optional for backward compatibility and usage simplicity. If they are missing, they will be derived from `teams` on load.
 
 These files are placed in:
 - `<app-resources>/databases/` for bundled worlds

@@ -3,6 +3,11 @@ use rusqlite::{Connection, params};
 
 /// Insert or replace the league row and its fixtures + standings.
 pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
+    upsert_leagues(conn, std::slice::from_ref(league))
+}
+
+/// replace all persisted competitions with the provided leagues
+pub fn upsert_leagues(conn: &Connection, leagues: &[League]) -> Result<(), String> {
     conn.execute("DELETE FROM fixtures", [])
         .map_err(|e| format!("Failed to clear fixtures: {}", e))?;
     conn.execute("DELETE FROM standings", [])
@@ -10,54 +15,56 @@ pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
     conn.execute("DELETE FROM league", [])
         .map_err(|e| format!("Failed to clear league rows: {}", e))?;
 
-    conn.execute(
-        "INSERT OR REPLACE INTO league (id, name, season) VALUES (?1, ?2, ?3)",
-        params![league.id, league.name, league.season],
-    )
-    .map_err(|e| format!("Failed to upsert league: {}", e))?;
-
-    for f in &league.fixtures {
-        let competition_str = format!("{:?}", f.competition);
-        let status_str = format!("{:?}", f.status);
-        let result_json = f
-            .result
-            .as_ref()
-            .map(|r| serde_json::to_string(r).unwrap_or_default());
+    for league in leagues {
         conn.execute(
-            "INSERT INTO fixtures (id, league_id, matchday, date, home_team_id, away_team_id, competition, status, result)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                f.id,
-                league.id,
-                f.matchday,
-                f.date,
-                f.home_team_id,
-                f.away_team_id,
-                competition_str,
-                status_str,
-                result_json,
-            ],
+            "INSERT OR REPLACE INTO league (id, name, season) VALUES (?1, ?2, ?3)",
+            params![league.id, league.name, league.season],
         )
-        .map_err(|e| format!("Failed to insert fixture: {}", e))?;
-    }
+        .map_err(|e| format!("Failed to upsert league: {}", e))?;
 
-    for s in &league.standings {
-        conn.execute(
-            "INSERT INTO standings (league_id, team_id, played, won, drawn, lost, goals_for, goals_against, points)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                league.id,
-                s.team_id,
-                s.played,
-                s.won,
-                s.drawn,
-                s.lost,
-                s.goals_for,
-                s.goals_against,
-                s.points,
-            ],
-        )
-        .map_err(|e| format!("Failed to insert standing: {}", e))?;
+        for f in &league.fixtures {
+            let competition_str = format!("{:?}", f.competition);
+            let status_str = format!("{:?}", f.status);
+            let result_json = f
+                .result
+                .as_ref()
+                .map(|r| serde_json::to_string(r).unwrap_or_default());
+            conn.execute(
+                "INSERT INTO fixtures (id, league_id, matchday, date, home_team_id, away_team_id, competition, status, result)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    f.id,
+                    league.id,
+                    f.matchday,
+                    f.date,
+                    f.home_team_id,
+                    f.away_team_id,
+                    competition_str,
+                    status_str,
+                    result_json,
+                ],
+            )
+            .map_err(|e| format!("Failed to insert fixture: {}", e))?;
+        }
+
+        for s in &league.standings {
+            conn.execute(
+                "INSERT INTO standings (league_id, team_id, played, won, drawn, lost, goals_for, goals_against, points)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    league.id,
+                    s.team_id,
+                    s.played,
+                    s.won,
+                    s.drawn,
+                    s.lost,
+                    s.goals_for,
+                    s.goals_against,
+                    s.points,
+                ],
+            )
+            .map_err(|e| format!("Failed to insert standing: {}", e))?;
+        }
     }
 
     Ok(())
@@ -81,11 +88,16 @@ fn parse_fixture_competition(s: &str) -> FixtureCompetition {
 
 /// Load the league (if any). Returns None if the league table is empty.
 pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
+    let mut leagues = load_leagues(conn)?;
+    Ok(leagues.drain(..).next())
+}
+
+pub fn load_leagues(conn: &Connection) -> Result<Vec<League>, String> {
     let mut stmt = conn
-        .prepare("SELECT id, name, season FROM league ORDER BY season DESC, rowid DESC LIMIT 1")
+        .prepare("SELECT id, name, season FROM league ORDER BY season DESC, rowid DESC")
         .map_err(|e| format!("Failed to prepare league query: {}", e))?;
 
-    let mut rows = stmt
+    let rows = stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -95,113 +107,105 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
         })
         .map_err(|e| format!("Failed to query league: {}", e))?;
 
-    let (league_id, name, season) = match rows.next() {
-        Some(Ok(tuple)) => tuple,
-        Some(Err(e)) => return Err(format!("Failed to read league row: {}", e)),
-        None => return Ok(None),
-    };
+    let mut leagues = Vec::new();
+    for row in rows {
+        let (league_id, name, season) =
+            row.map_err(|e| format!("Failed to read league row: {}", e))?;
+        // Load fixtures
+        let mut fix_stmt = conn
+            .prepare(
+                "SELECT id, matchday, date, home_team_id, away_team_id, competition, status, result
+                 FROM fixtures WHERE league_id = ?1 ORDER BY matchday, id",
+            )
+            .map_err(|e| format!("Failed to prepare fixtures query: {}", e))?;
 
-    // Load fixtures
-    let mut fix_stmt = conn
-        .prepare(
-            "SELECT id, matchday, date, home_team_id, away_team_id, competition, status, result
-             FROM fixtures WHERE league_id = ?1 ORDER BY matchday, id",
-        )
-        .map_err(|e| format!("Failed to prepare fixtures query: {}", e))?;
-
-    let fixture_rows = fix_stmt
-        .query_map(params![league_id], |row| {
-            let competition_str: String = row.get(5)?;
-            let status_str: String = row.get(6)?;
-            let result_json: Option<String> = row.get(7)?;
-            Ok(Fixture {
-                id: row.get(0)?,
-                matchday: row.get(1)?,
-                date: row.get(2)?,
-                home_team_id: row.get(3)?,
-                away_team_id: row.get(4)?,
-                competition: parse_fixture_competition(&competition_str),
-                status: parse_fixture_status(&status_str),
-                result: result_json.and_then(|j| serde_json::from_str(&j).ok()),
+        let fixture_rows = fix_stmt
+            .query_map(params![league_id.clone()], |row| {
+                let competition_str: String = row.get(5)?;
+                let status_str: String = row.get(6)?;
+                let result_json: Option<String> = row.get(7)?;
+                Ok(Fixture {
+                    id: row.get(0)?,
+                    matchday: row.get(1)?,
+                    date: row.get(2)?,
+                    home_team_id: row.get(3)?,
+                    away_team_id: row.get(4)?,
+                    competition: parse_fixture_competition(&competition_str),
+                    status: parse_fixture_status(&status_str),
+                    result: result_json.and_then(|j| serde_json::from_str(&j).ok()),
+                })
             })
-        })
-        .map_err(|e| format!("Failed to query fixtures: {}", e))?;
+            .map_err(|e| format!("Failed to query fixtures: {}", e))?;
 
-    let mut fixtures = Vec::new();
-    for row in fixture_rows {
-        fixtures.push(row.map_err(|e| format!("Failed to read fixture: {}", e))?);
-    }
+        let mut fixtures = Vec::new();
+        for row in fixture_rows {
+            fixtures.push(row.map_err(|e| format!("Failed to read fixture: {}", e))?);
+        }
 
-    // Load standings
-    let mut stand_stmt = conn
-        .prepare(
-            "SELECT team_id, played, won, drawn, lost, goals_for, goals_against, points
-             FROM standings WHERE league_id = ?1",
-        )
-        .map_err(|e| format!("Failed to prepare standings query: {}", e))?;
+        // load standings
+        let mut stand_stmt = conn
+            .prepare(
+                "SELECT team_id, played, won, drawn, lost, goals_for, goals_against, points
+                 FROM standings WHERE league_id = ?1",
+            )
+            .map_err(|e| format!("Failed to prepare standings query: {}", e))?;
 
-    let standing_rows = stand_stmt
-        .query_map(params![league_id], |row| {
-            Ok(StandingEntry {
-                team_id: row.get(0)?,
-                played: row.get(1)?,
-                won: row.get(2)?,
-                drawn: row.get(3)?,
-                lost: row.get(4)?,
-                goals_for: row.get(5)?,
-                goals_against: row.get(6)?,
-                points: row.get(7)?,
+        let standing_rows = stand_stmt
+            .query_map(params![league_id.clone()], |row| {
+                Ok(StandingEntry {
+                    team_id: row.get(0)?,
+                    played: row.get(1)?,
+                    won: row.get(2)?,
+                    drawn: row.get(3)?,
+                    lost: row.get(4)?,
+                    goals_for: row.get(5)?,
+                    goals_against: row.get(6)?,
+                    points: row.get(7)?,
+                })
             })
-        })
-        .map_err(|e| format!("Failed to query standings: {}", e))?;
+            .map_err(|e| format!("Failed to query standings: {}", e))?;
 
-    let mut standings = Vec::new();
-    for row in standing_rows {
-        standings.push(row.map_err(|e| format!("Failed to read standing: {}", e))?);
+        let mut standings = Vec::new();
+        for row in standing_rows {
+            standings.push(row.map_err(|e| format!("Failed to read standing: {}", e))?);
+        }
+
+        leagues.push(League {
+            id: league_id,
+            name,
+            season,
+            fixtures,
+            standings,
+        });
     }
-
-    Ok(Some(League {
-        id: league_id,
-        name,
-        season,
-        fixtures,
-        standings,
-    }))
+    Ok(leagues)
 }
 
-pub fn needs_cleanup(conn: &Connection, active_league_id: Option<&str>) -> Result<bool, String> {
+pub fn needs_cleanup(conn: &Connection, active_league_ids: &[String]) -> Result<bool, String> {
     let league_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM league", [], |row| row.get(0))
         .map_err(|e| format!("Failed to count league rows: {}", e))?;
 
-    let Some(active_league_id) = active_league_id else {
+    if active_league_ids.is_empty() {
         return Ok(league_count > 0);
-    };
-
-    if league_count != 1 {
+    }
+    if league_count as usize != active_league_ids.len() {
         return Ok(true);
     }
-
-    let stale_fixture_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM fixtures WHERE league_id != ?1",
-            params![active_league_id],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to count stale fixtures: {}", e))?;
-    if stale_fixture_count > 0 {
-        return Ok(true);
+    let mut unknown_count = 0_i64;
+    for id in active_league_ids {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM league WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Failed to count league id {id}: {}", e))?;
+        if exists == 0 {
+            unknown_count += 1;
+        }
     }
-
-    let stale_standings_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM standings WHERE league_id != ?1",
-            params![active_league_id],
-            |row| row.get(0),
-        )
-        .map_err(|e| format!("Failed to count stale standings: {}", e))?;
-
-    Ok(stale_standings_count > 0)
+    Ok(unknown_count > 0)
 }
 
 #[cfg(test)]
@@ -449,6 +453,6 @@ mod tests {
             )
             .unwrap();
 
-        assert!(needs_cleanup(db.conn(), Some("league-new")).unwrap());
+        assert!(needs_cleanup(db.conn(), &[String::from("league-new")]).unwrap());
     }
 }

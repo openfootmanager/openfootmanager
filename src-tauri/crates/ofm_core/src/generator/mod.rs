@@ -15,6 +15,38 @@ use uuid::Uuid;
 
 use generation::*;
 
+fn expand_structure_teams(teams_def: &mut TeamsDefinition) {
+    if !teams_def.teams.is_empty() {
+        return;
+    }
+    let Some(structure) = teams_def.structure.clone() else {
+        return;
+    };
+    for nation in structure.nations {
+        for league in nation.leagues {
+            for index in 1..=league.club_count {
+                let name = format!("{} {} Club {:02}", nation.code, league.name, index);
+                let city = format!("{} City {:02}", nation.code, index);
+                teams_def.teams.push(TeamDef {
+                    name: name.clone(),
+                    short_name: format!("{}{:02}", nation.code, index),
+                    city: city.clone(),
+                    country: nation.name.clone(),
+                    league: league.name.clone(),
+                    colors: TeamColorsDef {
+                        primary: "#1d4ed8".to_string(),
+                        secondary: "#ffffff".to_string(),
+                    },
+                    play_style: "Balanced".to_string(),
+                    stadium_name: format!("{city} Arena"),
+                    reputation_range: Some([300, 900]),
+                    finance_range: Some([500_000, 10_000_000]),
+                });
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // World generation
 // ---------------------------------------------------------------------------
@@ -43,7 +75,7 @@ pub fn generate_world(
             result
         })
         .unwrap_or_else(default_names_definition);
-    let teams_def = data_dir
+    let mut teams_def = data_dir
         .and_then(|dir| {
             let path = dir.join("default_teams.json");
             let result = load_teams_definition(&path);
@@ -55,6 +87,7 @@ pub fn generate_world(
             result
         })
         .unwrap_or_else(default_teams_definition);
+    expand_structure_teams(&mut teams_def);
 
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
@@ -100,6 +133,7 @@ pub fn generate_world(
             secondary: tdef.colors.secondary.clone(),
         };
         team.play_style = play_style_from_str(&tdef.play_style);
+        team.domestic_league = tdef.league.clone();
         teams_out.push(team);
 
         // Generate 22 players
@@ -167,16 +201,16 @@ pub fn generate_world(
 
 #[cfg(test)]
 mod tests {
-    use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
+    use super::data::NATIONALITY_POOLS;
     use super::*;
     use domain::player::Position;
 
     #[test]
     fn test_generate_world_team_count() {
         let (teams, players, staff) = generate_world(None);
-        assert_eq!(teams.len(), 16);
-        assert_eq!(players.len(), 16 * 22);
-        assert_eq!(staff.len(), 16 * 4 + 12);
+        assert_eq!(teams.len(), 80);
+        assert_eq!(players.len(), 80 * 22);
+        assert_eq!(staff.len(), 80 * 4 + 12);
     }
 
     #[test]
@@ -279,7 +313,8 @@ mod tests {
 
     #[test]
     fn test_team_templates_have_unique_names() {
-        let names: Vec<&str> = TEAM_TEMPLATES.iter().map(|t| t.name).collect();
+        let teams_def = default_teams_definition();
+        let names: Vec<&str> = teams_def.teams.iter().map(|t| t.name.as_str()).collect();
         let unique: std::collections::HashSet<&str> = names.iter().cloned().collect();
         assert_eq!(names.len(), unique.len(), "Duplicate team names found");
     }
@@ -287,7 +322,7 @@ mod tests {
     #[test]
     fn test_world_data_wrapper() {
         let world = generate_world_data(None);
-        assert_eq!(world.teams.len(), 16);
+        assert_eq!(world.teams.len(), 80);
         assert!(!world.name.is_empty());
         assert!(!world.description.is_empty());
     }

@@ -1,3 +1,4 @@
+pub mod club;
 pub mod identity;
 pub mod league;
 pub mod manager;

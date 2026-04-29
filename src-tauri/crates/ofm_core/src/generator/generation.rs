@@ -52,12 +52,18 @@ pub(super) fn pick_nationality_from_def(
     available_codes: &[String],
     rng: &mut impl Rng,
 ) -> String {
-    // Map team country name → ISO code for the 60% local weight
+    // derive local nation code from world country label/code
     let local_code = country_to_iso(team_country);
     if rng.random_range(0..100) < 60 {
-        local_code.to_string()
+        if available_codes.iter().any(|code| code == &local_code) {
+            local_code
+        } else if available_codes.is_empty() {
+            local_code
+        } else {
+            available_codes[rng.random_range(0..available_codes.len())].clone()
+        }
     } else if available_codes.is_empty() {
-        local_code.to_string()
+        local_code
     } else {
         available_codes[rng.random_range(0..available_codes.len())].clone()
     }
@@ -96,33 +102,12 @@ pub(super) fn pick_name_from_def(
     ("Player".to_string(), "Unknown".to_string())
 }
 
-pub(super) fn country_to_iso(country: &str) -> &str {
-    match country {
-        "England" | "ENG" => "ENG",
-        "Scotland" | "SCO" => "SCO",
-        "Wales" | "WAL" => "WAL",
-        "Northern Ireland" | "NIR" => "NIR",
-        "Ireland" | "Republic of Ireland" | "IE" => "IE",
-        "GB" => "GB",
-        "Spain" | "ES" => "ES",
-        "Germany" | "DE" => "DE",
-        "France" | "FR" => "FR",
-        "Italy" | "IT" => "IT",
-        "Netherlands" | "NL" => "NL",
-        "Portugal" | "PT" => "PT",
-        "Brazil" | "BR" => "BR",
-        "Argentina" | "AR" => "AR",
-        "Belgium" | "BE" => "BE",
-        "Croatia" | "HR" => "HR",
-        "Sweden" | "SE" => "SE",
-        other => {
-            // If already a short code, return as-is.
-            if other.len() == 2 || other.len() == 3 {
-                other
-            } else {
-                "ENG"
-            }
-        }
+pub(super) fn country_to_iso(country: &str) -> String {
+    let normalized = domain::identity::normalize_football_nation_code(country);
+    if normalized.is_empty() {
+        "ENG".to_string()
+    } else {
+        normalized
     }
 }
 

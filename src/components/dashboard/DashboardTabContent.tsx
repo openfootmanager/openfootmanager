@@ -28,6 +28,8 @@ export default function DashboardTabContent({
     activeTab,
     gameState,
     initialMessageId,
+    preferredNation,
+    preferredCompetitionId,
     managerId,
     seasonComplete,
     visitedOnboardingTabs,
@@ -106,11 +108,20 @@ export default function DashboardTabContent({
       )}
 
       {activeTab === "Teams" && (
-        <TeamsListTab gameState={gameState} onSelectTeam={onSelectTeam} />
+        <TeamsListTab
+          gameState={gameState}
+          onSelectTeam={onSelectTeam}
+          preferredNation={preferredNation}
+        />
       )}
 
       {activeTab === "Tournaments" && (
-        <TournamentsTab gameState={gameState} onSelectTeam={onSelectTeam} />
+        <TournamentsTab
+          gameState={gameState}
+          onSelectTeam={onSelectTeam}
+          preferredCompetitionId={preferredCompetitionId}
+          preferredNation={preferredNation}
+        />
       )}
 
       {activeTab === "Staff" && (
