@@ -1,5 +1,7 @@
 use crate::game::Game;
-use crate::schedule::{append_fixtures, generate_league, generate_preseason_friendlies};
+use crate::schedule::{
+    append_fixtures, generate_domestic_cup_round, generate_league, generate_preseason_friendlies,
+};
 use crate::season_awards::compute_season_awards;
 use chrono::Duration;
 use domain::league::{FixtureStatus, League};
@@ -290,22 +292,76 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 6c. Clear old news articles from the previous season
     game.news.clear();
 
-    // 7. Generate next season schedule
+    // 7. Generate next season schedule for all domestic leagues
     let next_season = season + 1;
-    let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    // Start date: roughly a year after current start, or a few weeks from now
-    let next_start = game.clock.current_date + Duration::days(28); // 4 weeks break
-    let mut new_league = generate_league(&league_name, next_season, &team_ids, next_start);
-    if !user_team_id.is_empty() {
-        let opponents: Vec<String> = team_ids
-            .iter()
-            .filter(|team_id| team_id.as_str() != user_team_id)
-            .cloned()
-            .collect();
-        let friendlies = generate_preseason_friendlies(&user_team_id, &opponents, next_start, 3);
-        append_fixtures(&mut new_league, friendlies);
+    let manager_team = game
+        .manager
+        .team_id
+        .as_ref()
+        .and_then(|team_id| game.teams.iter().find(|team| &team.id == team_id));
+    let manager_country = manager_team.map(|team| team.country.clone()).unwrap_or_default();
+    let manager_league_name = manager_team
+        .map(|team| {
+            if team.domestic_league.trim().is_empty() {
+                format!("{} Premier Division", team.country)
+            } else {
+                team.domestic_league.clone()
+            }
+        })
+        .unwrap_or_else(|| league_name.clone());
+
+    use std::collections::BTreeMap;
+    let mut leagues_by_key: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for team in &game.teams {
+        let league_label = if team.domestic_league.trim().is_empty() {
+            format!("{} Premier Division", team.country)
+        } else {
+            team.domestic_league.clone()
+        };
+        leagues_by_key
+            .entry((team.country.clone(), league_label))
+            .or_default()
+            .push(team.id.clone());
     }
-    game.league = Some(new_league);
+
+    let next_start = game.clock.current_date + Duration::days(28); // 4 weeks break
+    let mut all_leagues = Vec::new();
+    for ((country_name, competition_name), team_ids) in leagues_by_key {
+        if team_ids.len() < 2 {
+            continue;
+        }
+        let mut competition = generate_league(&competition_name, next_season, &team_ids, next_start);
+        let cup_fixtures =
+            generate_domestic_cup_round(&team_ids, next_start + Duration::days(10), 100);
+        append_fixtures(&mut competition, cup_fixtures);
+        if !user_team_id.is_empty()
+            && country_name == manager_country
+            && competition_name == manager_league_name
+        {
+            let opponents: Vec<String> = team_ids
+                .iter()
+                .filter(|team_id| team_id.as_str() != user_team_id)
+                .cloned()
+                .collect();
+            let friendlies =
+                generate_preseason_friendlies(&user_team_id, &opponents, next_start, 3);
+            append_fixtures(&mut competition, friendlies);
+        }
+        all_leagues.push(competition);
+    }
+
+    if let Some(primary_index) = all_leagues.iter().position(|competition| {
+        competition.name == manager_league_name
+            && competition
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == user_team_id)
+    }) {
+        game.league = Some(all_leagues[primary_index].clone());
+    } else {
+        game.league = all_leagues.first().cloned();
+    }
+    game.leagues = all_leagues;
 
     let preview_date = game.clock.current_date.to_rfc3339();
     let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();

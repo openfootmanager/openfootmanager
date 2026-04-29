@@ -287,6 +287,7 @@ impl SaveManager {
 
         // Clear league (will be regenerated)
         game.league = None;
+        game.leagues.clear();
 
         info!(
             "[save_manager] created new game template from save {}",
@@ -1102,6 +1103,7 @@ mod tests {
         assert!(new_game.scouting_assignments.is_empty());
         assert!(new_game.board_objectives.is_empty());
         assert!(new_game.league.is_none());
+        assert!(new_game.leagues.is_empty());
 
         // Clock should be reset
         assert_eq!(new_game.clock.current_date, new_game.clock.start_date);

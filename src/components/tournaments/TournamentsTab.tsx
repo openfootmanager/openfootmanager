@@ -90,6 +90,12 @@ export default function TournamentsTab({
   const league =
     competitions.find((competition) => competition.id === selectedCompetitionId) ??
     competitions[0];
+  const [selectedSeason, setSelectedSeason] = useState<number>(league?.season ?? 0);
+  useEffect(() => {
+    if (league) {
+      setSelectedSeason(league.season);
+    }
+  }, [league?.id, league?.season]);
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
@@ -122,7 +128,38 @@ export default function TournamentsTab({
     );
   }
 
-  const standings = [...league.standings].sort(
+  const competitionTeamIds = new Set(league.standings.map((entry) => entry.team_id));
+  const competitionTeams = gameState.teams.filter((team) => competitionTeamIds.has(team.id));
+  const historicalSeasonSet = new Set<number>([league.season]);
+  for (const team of competitionTeams) {
+    for (const record of team.history ?? []) {
+      historicalSeasonSet.add(record.season);
+    }
+  }
+  const availableSeasons = Array.from(historicalSeasonSet).sort((a, b) => b - a);
+  const isHistoricalSeason = selectedSeason !== league.season;
+
+  const historicalStandings = competitionTeams
+    .map((team) => {
+      const record = (team.history ?? []).find((entry) => entry.season === selectedSeason);
+      if (!record) return null;
+      return {
+        team_id: team.id,
+        played: record.played,
+        won: record.won,
+        drawn: record.drawn,
+        lost: record.lost,
+        goals_for: record.goals_for,
+        goals_against: record.goals_against,
+        points: record.won * 3 + record.drawn,
+        _position: record.league_position,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((a, b) => a._position - b._position)
+    .map(({ _position, ...entry }) => entry);
+
+  const standings = (isHistoricalSeason ? historicalStandings : [...league.standings]).sort(
     (a, b) =>
       b.points - a.points ||
       b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
@@ -241,9 +278,22 @@ export default function TournamentsTab({
                 {league.name}
               </h2>
               <p className="text-gray-400 text-sm mt-0.5">
-                {t("schedule.season", { number: league.season })} —{" "}
+                {t("schedule.season", { number: selectedSeason })} —{" "}
                 {t("tournaments.nTeams", { count: league.standings.length })}
               </p>
+            </div>
+            <div className="w-44">
+              <select
+                value={selectedSeason}
+                onChange={(event) => setSelectedSeason(Number(event.target.value))}
+                className="w-full rounded-lg border border-navy-500 bg-navy-900/60 px-3 py-2 text-sm text-gray-100"
+              >
+                {availableSeasons.map((season) => (
+                  <option key={season} value={season}>
+                    {t("schedule.season", { number: season })}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="hidden md:flex gap-4">
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
@@ -311,6 +361,16 @@ export default function TournamentsTab({
           </button>
         ))}
       </div>
+
+      {isHistoricalSeason && (
+        <Card className="mb-4">
+          <CardBody>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Historical mode: standings are loaded from team season records. Fixtures and awards remain available for the active season only.
+            </p>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Overview */}
       {view === "overview" && (
@@ -562,7 +622,7 @@ export default function TournamentsTab({
         ))}
 
       {/* Fixtures */}
-      {view === "fixtures" && (
+      {view === "fixtures" && !isHistoricalSeason && (
         <div className="flex flex-col gap-4">
           {sortedMatchdays.map(([md, fixtures]) => (
             <Card key={md}>
@@ -616,8 +676,17 @@ export default function TournamentsTab({
           ))}
         </div>
       )}
+      {view === "fixtures" && isHistoricalSeason && (
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              Fixtures are available for the current season only.
+            </p>
+          </CardBody>
+        </Card>
+      )}
       {/* Awards */}
-      {view === "awards" && (
+      {view === "awards" && !isHistoricalSeason && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {awards ? (
             <>
@@ -675,6 +744,15 @@ export default function TournamentsTab({
             </div>
           )}
         </div>
+      )}
+      {view === "awards" && isHistoricalSeason && (
+        <Card>
+          <CardBody>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              Awards are available for the current season only.
+            </p>
+          </CardBody>
+        </Card>
       )}
     </div>
   );

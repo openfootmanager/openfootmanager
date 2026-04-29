@@ -48,9 +48,9 @@ impl GamePersistenceWriter {
         {
             leagues_to_persist.push(league.clone());
         }
-        if !leagues_to_persist.is_empty() {
-            league_repo::upsert_leagues(conn, &leagues_to_persist)?;
-        }
+        // Always sync league tables, including the empty state.
+        // This prevents stale rows from older saves/seasons lingering in DB.
+        league_repo::upsert_leagues(conn, &leagues_to_persist)?;
 
         let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
             .board_objectives
@@ -113,13 +113,23 @@ impl GamePersistenceReader {
         let staff = staff_repo::load_all_staff(conn)?;
         let messages = message_repo::load_all_messages(conn)?;
         let news = news_repo::load_all_news(conn)?;
-        let leagues = league_repo::load_leagues(conn)?;
-        let league = manager.team_id.as_ref().and_then(|team_id| {
-            leagues
-                .iter()
-                .find(|league| league.standings.iter().any(|entry| &entry.team_id == team_id))
-                .cloned()
-        }).or_else(|| leagues.first().cloned());
+        let mut leagues = league_repo::load_leagues(conn)?;
+        if let Some(primary) = &manager.team_id {
+            leagues.sort_by_key(|league| {
+                let has_team = league.standings.iter().any(|entry| &entry.team_id == primary);
+                if has_team { 0 } else { 1 }
+            });
+        }
+        let league = manager
+            .team_id
+            .as_ref()
+            .and_then(|team_id| {
+                leagues
+                    .iter()
+                    .find(|league| league.standings.iter().any(|entry| &entry.team_id == team_id))
+                    .cloned()
+            })
+            .or_else(|| leagues.first().cloned());
 
         let objective_rows = objective_repo::load_all_objectives(conn)?;
         let board_objectives: Vec<BoardObjective> = objective_rows

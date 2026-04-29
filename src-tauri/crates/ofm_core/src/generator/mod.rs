@@ -199,6 +199,108 @@ pub fn generate_world(
     (teams_out, players, staff)
 }
 
+/// Fill missing team rosters/staff in imported worlds.
+/// Keeps existing entities, only adds what is missing.
+pub fn ensure_minimum_world_rosters(world: &mut WorldData, data_dir: Option<&std::path::Path>) {
+    let mut rng = rand::rng();
+    let names_def = data_dir
+        .and_then(|dir| load_names_definition(&dir.join("default_names.json")))
+        .unwrap_or_else(default_names_definition);
+    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+
+    for team in &world.teams {
+        let existing_players = world
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some(team.id.as_str()))
+            .count();
+        if existing_players < 22 {
+            for index in existing_players..22 {
+                let nationality = pick_nationality_from_def(&team.country, &country_codes, &mut rng);
+                let mut player = generate_random_player_from_def(
+                    &team.id,
+                    index,
+                    &nationality,
+                    &names_def,
+                    &mut rng,
+                );
+                if rng.random_range(0..100) < 12 {
+                    player.transfer_listed = true;
+                } else if rng.random_range(0..100) < 8 {
+                    player.loan_listed = true;
+                }
+                world.players.push(player);
+            }
+        }
+
+        let has_assistant = world.staff.iter().any(|s| {
+            s.team_id.as_deref() == Some(team.id.as_str()) && s.role == StaffRole::AssistantManager
+        });
+        let has_coach = world
+            .staff
+            .iter()
+            .any(|s| s.team_id.as_deref() == Some(team.id.as_str()) && s.role == StaffRole::Coach);
+        let has_scout = world
+            .staff
+            .iter()
+            .any(|s| s.team_id.as_deref() == Some(team.id.as_str()) && s.role == StaffRole::Scout);
+        let has_physio = world
+            .staff
+            .iter()
+            .any(|s| s.team_id.as_deref() == Some(team.id.as_str()) && s.role == StaffRole::Physio);
+
+        let mut add_role = |role: StaffRole| {
+            let nationality = pick_nationality_from_def(&team.country, &country_codes, &mut rng);
+            let staff =
+                generate_random_staff_from_def(&team.id, role, &nationality, &names_def, &mut rng);
+            world.staff.push(staff);
+        };
+
+        if !has_assistant {
+            add_role(StaffRole::AssistantManager);
+        }
+        if !has_coach {
+            add_role(StaffRole::Coach);
+        }
+        if !has_scout {
+            add_role(StaffRole::Scout);
+        }
+        if !has_physio {
+            add_role(StaffRole::Physio);
+        }
+    }
+
+    let unattached_staff = world.staff.iter().filter(|s| s.team_id.is_none()).count();
+    if unattached_staff < 12 {
+        let roles = [
+            StaffRole::Coach,
+            StaffRole::Scout,
+            StaffRole::Physio,
+            StaffRole::Coach,
+            StaffRole::AssistantManager,
+            StaffRole::Scout,
+            StaffRole::Physio,
+            StaffRole::Coach,
+            StaffRole::Coach,
+            StaffRole::Physio,
+            StaffRole::Scout,
+            StaffRole::AssistantManager,
+        ];
+        for role in roles.iter().skip(unattached_staff) {
+            if country_codes.is_empty() {
+                break;
+            }
+            let nat = &country_codes[rng.random_range(0..country_codes.len())];
+            world.staff.push(generate_random_staff_unattached_from_def(
+                role.clone(),
+                nat,
+                &names_def,
+                &mut rng,
+            ));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::data::NATIONALITY_POOLS;

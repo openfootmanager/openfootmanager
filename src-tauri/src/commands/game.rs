@@ -67,14 +67,15 @@ pub async fn start_new_game(
     // Load world based on source
     let world_source = world_source.unwrap_or_else(|| "random".to_string());
     let (teams, players, staff) = if world_source == "random" {
-       let world = ofm_core::generator::generate_world_data(None);
-         (world.teams,world.players,  world.staff)
+        let world = ofm_core::generator::generate_world_data(None);
+        (world.teams, world.players, world.staff)
     } else {
         // Try to load from file path (strip "file:" prefix if present)
         let path = world_source.strip_prefix("file:").unwrap_or(&world_source);
         let json = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read world database: {}", e))?;
-        let world = ofm_core::generator::load_world_from_json(&json)?;
+        let mut world = ofm_core::generator::load_world_from_json(&json)?;
+        ofm_core::generator::ensure_minimum_world_rosters(&mut world, None);
         (world.teams, world.players, world.staff)
     };
 
@@ -144,11 +145,9 @@ pub async fn select_team(
         .map(|candidate| candidate.id.clone())
         .collect();
     let league_name = team_league_name.clone();
-    let league_team_ids = if same_league_team_ids.len() >= 4 {
-        same_league_team_ids
-    } else {
-        game.teams.iter().map(|candidate| candidate.id.clone()).collect()
-    };
+    // Keep competitions strictly separated by domestic league.
+    // Never fallback to "all teams", otherwise leagues get mixed.
+    let league_team_ids = same_league_team_ids;
     let mut league =
         ofm_core::schedule::generate_league(&league_name, 2026, &league_team_ids, season_start);
     let opponents: Vec<String> = league_team_ids
