@@ -23,6 +23,8 @@ vi.mock("react-i18next", () => ({
       if (key === "jobs.noJobs") return "No positions currently available.";
       if (key === "jobs.refresh") return "Check for new positions";
       if (key === "jobs.sameTeam") return "You are already managing that club.";
+      if (key === "jobs.notBetterClub")
+        return "You can only apply for clubs that are a step up from your current one.";
       if (key === "jobs.leaguePosition")
         return `Last Season: ${params?.position}`;
       if (key === "jobs.switchConfirmTitle") return "Leave your current club?";
@@ -315,6 +317,40 @@ describe("JobOpportunitiesCard", () => {
       await screen.findByText("You have been appointed manager!"),
     ).toBeInTheDocument();
     expect(onGameUpdate).toHaveBeenCalledWith(hiredGame);
+  });
+
+  it("shows a not-better-club error when the backend reports not_better_club", async () => {
+    getAvailableJobsMock.mockResolvedValue([
+      {
+        team_id: "team2",
+        team_name: "Lower Div FC",
+        city: "Smalltown",
+        reputation: 300,
+        last_league_position: null,
+      },
+    ]);
+    applyForJobMock.mockResolvedValue({
+      result: "not_better_club",
+      game: createEmployedGameState(),
+    });
+
+    render(
+      <JobOpportunitiesCard
+        gameState={createEmployedGameState()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept new role" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "You can only apply for clubs that are a step up from your current one.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows a same-team error when the backend reports same_team", async () => {

@@ -579,6 +579,225 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
+  function jobOfferAcceptDeclineAction(targetTeamId: string): MessageAction {
+    return {
+      id: `respond_${targetTeamId}`,
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            {
+              id: "accept",
+              label: "Accept the position",
+              description: "Take the job",
+            },
+            {
+              id: "decline",
+              label: "Decline the offer",
+              description: "Stay where you are",
+            },
+          ],
+        },
+      },
+      resolved: false,
+    };
+  }
+
+  function gameStateWithCurrentClub(
+    messages: MessageData[],
+    teamId: string | null,
+    teamName = "Old FC",
+  ): GameStateData {
+    const state = createGameState(messages);
+    state.manager.team_id = teamId;
+    if (teamId) {
+      (state.teams as unknown as Array<{ id: string; name: string }>).push({
+        id: teamId,
+        name: teamName,
+      });
+    }
+    return state;
+  }
+
+  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", function (): void {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1", "Old FC"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+
+    expect(screen.getByTestId("switch-club-confirm-modal")).toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "resolve_message_action",
+      expect.anything(),
+    );
+  });
+
+  it("does not invoke the action when the switch-club dialog is cancelled", function (): void {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "resolve_message_action",
+      expect.anything(),
+    );
+  });
+
+  it("invokes the action with optionId=accept when the switch-club dialog is confirmed", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "team2", "New FC"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+    fireEvent.click(screen.getByTestId("switch-club-confirm"));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "accept",
+      });
+    });
+  });
+
+  it("does not show the switch-club dialog when an employed manager declines a job offer", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "t1"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Decline the offer"));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "decline",
+      });
+    });
+  });
+
+  it("does not show the switch-club dialog when an unemployed manager accepts a job offer", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "team2", "New FC"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], null),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "accept",
+      });
+    });
+  });
+
   it("tells the user that player-event response outcomes vary", function (): void {
     const action: MessageAction = {
       id: "respond",
