@@ -1002,4 +1002,104 @@ mod tests {
         let result = switch_manager_team(&mut game, "team1", "2026-11-01");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn check_job_offers_when_employed_generates_offer_from_better_club() {
+        // make_game(_, true): manager rep 500, employed at team1 (rep 500),
+        // team2 (rep 450, worse), team3 (rep 800, better).
+        // Set days past the upper threshold to bypass the "not yet" branch.
+        let mut game = make_game(50, true);
+        game.days_since_last_job_offer = Some(20);
+
+        check_job_offers(&mut game);
+
+        let offers: Vec<_> = game
+            .messages
+            .iter()
+            .filter(|m| m.id.starts_with("job_offer_"))
+            .collect();
+        assert_eq!(offers.len(), 1);
+        // Only "better" club is team3 — never team1 (current) or team2 (worse).
+        assert_eq!(offers[0].context.team_id.as_deref(), Some("team3"));
+        // Timer reset after sending an offer.
+        assert_eq!(game.days_since_last_job_offer, Some(0));
+    }
+
+    #[test]
+    fn check_job_offers_when_employed_no_better_clubs_does_not_offer() {
+        // Make every club worse than the current one.
+        let mut game = make_game(50, true);
+        game.days_since_last_job_offer = Some(20);
+        for team in &mut game.teams {
+            if team.id != "team1" {
+                team.reputation = 100;
+            }
+        }
+
+        check_job_offers(&mut game);
+
+        let offers: Vec<_> = game
+            .messages
+            .iter()
+            .filter(|m| m.id.starts_with("job_offer_"))
+            .collect();
+        assert!(offers.is_empty());
+    }
+
+    #[test]
+    fn appoint_manager_dispatches_to_hire_when_unemployed() {
+        let mut game = make_game(10, false);
+        appoint_manager(&mut game, "team2", "2026-11-01").unwrap();
+        assert_eq!(game.manager.team_id, Some("team2".to_string()));
+        assert_eq!(game.manager.career_history.len(), 1);
+        assert!(game.manager.career_history[0].end_date.is_none());
+    }
+
+    #[test]
+    fn appoint_manager_dispatches_to_switch_when_employed() {
+        let mut game = make_game(50, true);
+        game.manager.career_history.push(ManagerCareerEntry {
+            team_id: "team1".to_string(),
+            team_name: "Old FC".to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: None,
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            best_league_position: None,
+        });
+
+        appoint_manager(&mut game, "team3", "2026-11-01").unwrap();
+
+        assert_eq!(game.manager.team_id, Some("team3".to_string()));
+        // Old entry closed AND new entry opened — proof the switch path ran.
+        assert_eq!(game.manager.career_history.len(), 2);
+        assert_eq!(
+            game.manager.career_history[0].end_date.as_deref(),
+            Some("2026-11-01")
+        );
+        assert!(game.manager.career_history[1].end_date.is_none());
+    }
+
+    #[test]
+    fn job_application_result_serializes_to_snake_case() {
+        // Locks in the serde rename so the frontend wire format stays stable.
+        assert_eq!(
+            serde_json::to_string(&JobApplicationResult::Hired).unwrap(),
+            "\"hired\""
+        );
+        assert_eq!(
+            serde_json::to_string(&JobApplicationResult::SameTeam).unwrap(),
+            "\"same_team\""
+        );
+        assert_eq!(
+            serde_json::to_string(&JobApplicationResult::NotBetterClub).unwrap(),
+            "\"not_better_club\""
+        );
+        assert_eq!(
+            serde_json::to_string(&JobApplicationResult::AlreadyEmployed).unwrap(),
+            "\"already_employed\""
+        );
+    }
 }
