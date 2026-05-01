@@ -2063,6 +2063,10 @@
     "rejected": "Sua candidatura não foi bem-sucedida.",
     "noJobs": "Nenhuma posição disponível no momento.",
     "leaguePosition": "Última temporada: {{position}}",
-    "refresh": "Verificar novas vagas"
+    "refresh": "Verificar novas vagas",
+    "sameTeam": "Já és o treinador desse clube.",
+    "switchConfirmTitle": "Deixar o seu clube atual?",
+    "switchConfirmBody": "Aceitar esta oportunidade encerrará a sua passagem pelo {{currentClub}} e levá-lo-á ao {{newClub}}.",
+    "switchConfirmAccept": "Aceitar novo cargo"
   }
 }

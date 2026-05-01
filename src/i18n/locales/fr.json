@@ -2063,6 +2063,10 @@
     "rejected": "Votre candidature n'a pas été retenue.",
     "noJobs": "Aucun poste disponible actuellement.",
     "leaguePosition": "Dernière saison : {{position}}",
-    "refresh": "Vérifier les nouvelles offres"
+    "refresh": "Vérifier les nouvelles offres",
+    "sameTeam": "Vous êtes déjà l'entraîneur de ce club.",
+    "switchConfirmTitle": "Quitter votre club actuel ?",
+    "switchConfirmBody": "Accepter cette opportunité mettra fin à votre mandat à {{currentClub}} et vous fera rejoindre {{newClub}}.",
+    "switchConfirmAccept": "Accepter le nouveau poste"
   }
 }

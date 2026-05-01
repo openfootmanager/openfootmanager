@@ -1,10 +1,12 @@
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { JSX } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDateFull, getTeamName } from "../../lib/helpers";
 import type { GameStateData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
+import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 import { Badge, Button } from "../ui";
 import InboxDelegatedRenewalReport from "./InboxDelegatedRenewalReport";
 import {
@@ -15,6 +17,13 @@ import {
   isPlayerEventMessage,
   renderMessageBodyLine,
 } from "./inboxHelpers";
+
+interface PendingSwitch {
+  messageId: string;
+  actionId: string;
+  optionId: string;
+  newClubName: string;
+}
 
 interface InboxMessageDetailPaneProps {
   effectFeedback: string | null;
@@ -38,6 +47,35 @@ export default function InboxMessageDetailPane({
   onScoutPlayerClick,
 }: InboxMessageDetailPaneProps): JSX.Element {
   const { t } = useTranslation();
+  const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(
+    null,
+  );
+
+  const currentClubName = getTeamName(
+    gameState.teams,
+    gameState.manager?.team_id ?? null,
+  );
+
+  const handleOptionClick = (
+    messageId: string,
+    actionId: string,
+    optionId: string,
+  ) => {
+    const isSwitch =
+      messageId.startsWith("job_offer_") &&
+      optionId === "accept" &&
+      !!gameState.manager?.team_id &&
+      !!selectedMessage;
+    if (!isSwitch) {
+      onAction(messageId, actionId, optionId);
+      return;
+    }
+    const newClubName = getTeamName(
+      gameState.teams,
+      selectedMessage.context?.team_id ?? null,
+    );
+    setPendingSwitch({ messageId, actionId, optionId, newClubName });
+  };
 
   if (!selectedMessage) {
     return (
@@ -196,7 +234,11 @@ export default function InboxMessageDetailPane({
                         <button
                           key={option.id}
                           onClick={() =>
-                            onAction(selectedMessage.id, action.id, option.id)
+                            handleOptionClick(
+                              selectedMessage.id,
+                              action.id,
+                              option.id,
+                            )
                           }
                           className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-500/5 transition-all group"
                         >
@@ -227,6 +269,18 @@ export default function InboxMessageDetailPane({
           ) : null}
         </div>
       </div>
+      <SwitchClubConfirmModal
+        open={pendingSwitch !== null}
+        currentClubName={currentClubName}
+        newClubName={pendingSwitch?.newClubName ?? ""}
+        onCancel={() => setPendingSwitch(null)}
+        onConfirm={() => {
+          if (!pendingSwitch) return;
+          const { messageId, actionId, optionId } = pendingSwitch;
+          setPendingSwitch(null);
+          onAction(messageId, actionId, optionId);
+        }}
+      />
     </>
   );
 }

@@ -10,7 +10,13 @@ export interface JobOpportunity {
 }
 
 export interface JobApplicationResponse {
-  result: "hired" | "rejected" | "invalid_team" | "already_employed";
+  result:
+    | "hired"
+    | "rejected"
+    | "invalid_team"
+    | "already_employed"
+    | "same_team"
+    | "not_better_club";
   game: GameStateData;
 }
 

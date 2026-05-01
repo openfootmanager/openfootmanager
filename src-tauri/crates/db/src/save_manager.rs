@@ -490,6 +490,7 @@ mod tests {
             scouting_assignments: vec![],
             board_objectives: vec![],
             season_context: domain::season::SeasonContext::default(),
+            days_since_last_job_offer: None,
         }
     }
 

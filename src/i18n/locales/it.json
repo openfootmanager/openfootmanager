@@ -1999,6 +1999,10 @@
     "rejected": "La tua candidatura non è andata a buon fine.",
     "noJobs": "Nessuna posizione disponibile al momento.",
     "leaguePosition": "Ultima stagione: {{position}}",
-    "refresh": "Cerca nuove posizioni"
+    "refresh": "Cerca nuove posizioni",
+    "sameTeam": "Sei già l'allenatore di quel club.",
+    "switchConfirmTitle": "Lasciare il tuo club attuale?",
+    "switchConfirmBody": "Accettare questa opportunità terminerà il tuo incarico al {{currentClub}} e ti porterà al {{newClub}}.",
+    "switchConfirmAccept": "Accetta il nuovo ruolo"
   }
 }

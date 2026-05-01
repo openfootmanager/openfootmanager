@@ -16,11 +16,31 @@ pub struct JobOpportunity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum JobApplicationResult {
     Hired,
     Rejected,
     InvalidTeam,
     AlreadyEmployed,
+    SameTeam,
+    NotBetterClub,
+}
+
+/// Predicate used while the manager is already employed: defines when a target
+/// club counts as a "better" job worth surfacing as an offer or application.
+/// Strict improvement is the default — any tuning lives here.
+fn is_better_club(current_team_reputation: u32, target_team_reputation: u32) -> bool {
+    target_team_reputation > current_team_reputation
+}
+
+fn opportunity_from(team: &domain::team::Team) -> JobOpportunity {
+    JobOpportunity {
+        team_id: team.id.clone(),
+        team_name: team.name.clone(),
+        city: team.city.clone(),
+        reputation: team.reputation,
+        last_league_position: team.history.last().map(|h| h.league_position),
+    }
 }
 
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
@@ -98,12 +118,64 @@ pub fn hire_manager(game: &mut Game, team_id: &str, date: &str) -> Result<String
     Ok(team_name)
 }
 
-/// Called daily. Generates passive job offers for unemployed managers.
-pub fn check_job_offers(game: &mut Game) {
-    if game.manager.team_id.is_some() {
-        return;
+/// Switches an employed manager from their current club to `new_team_id`.
+/// Closes the open career entry, clears the previous team's `manager_id`, then
+/// delegates to `hire_manager` for the new appointment. Safe to call when the
+/// manager is already employed; reuses `Manager::fire` to keep the
+/// "all departures go through the same path" invariant.
+pub fn switch_manager_team(
+    game: &mut Game,
+    new_team_id: &str,
+    date: &str,
+) -> Result<String, String> {
+    let previous_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or_else(|| "Manager has no current team to switch from".to_string())?;
+
+    if previous_team_id == new_team_id {
+        return Err(format!(
+            "Manager is already employed at {}",
+            previous_team_id
+        ));
     }
 
+    let previous_team_name = game
+        .teams
+        .iter_mut()
+        .find(|t| t.id == previous_team_id)
+        .map(|t| {
+            t.manager_id = None;
+            t.name.clone()
+        })
+        .unwrap_or_default();
+    game.manager.fire(date);
+
+    info!(
+        "[job_offers] Manager {} resigning from {} to take new role",
+        game.manager.full_name(),
+        previous_team_name
+    );
+
+    hire_manager(game, new_team_id, date)
+}
+
+/// Single entry point for moving the manager into `new_team_id`, used by both
+/// the inbox-accept and active-application paths. Dispatches to
+/// `switch_manager_team` when employed and `hire_manager` when not.
+fn appoint_manager(game: &mut Game, new_team_id: &str, date: &str) -> Result<String, String> {
+    if game.manager.team_id.is_some() {
+        switch_manager_team(game, new_team_id, date)
+    } else {
+        hire_manager(game, new_team_id, date)
+    }
+}
+
+/// Called daily. Generates passive job offers for the manager — to unemployed
+/// managers from any club within the reputation gap, and to employed managers
+/// only from clubs that are a step up (per `is_better_club`).
+pub fn check_job_offers(game: &mut Game) {
     let mut rng = rand::rng();
     let days = game.days_since_last_job_offer.unwrap_or(0);
 
@@ -129,42 +201,50 @@ pub fn check_job_offers(game: &mut Game) {
     game.days_since_last_job_offer = Some(0);
 }
 
-fn get_offer_candidates(game: &Game, rng: &mut impl rand::Rng) -> Vec<JobOpportunity> {
+/// Returns clubs the manager could plausibly take on, applying:
+///   - reputation-gap filter (200, widening to 400 if fewer than 2 candidates)
+///   - employed-manager filter: must be a "better club" and not the current one
+fn find_eligible_clubs(game: &Game) -> Vec<JobOpportunity> {
     let mgr_rep = game.manager.reputation;
-    let mut candidates: Vec<JobOpportunity> = game
+    let current = game.manager.team_id.as_ref().and_then(|id| {
+        game.teams
+            .iter()
+            .find(|t| &t.id == id)
+            .map(|t| (t.id.clone(), t.reputation))
+    });
+
+    let eligible = |t: &domain::team::Team, gap: u32| -> bool {
+        let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
+        if diff > gap {
+            return false;
+        }
+        match &current {
+            Some((cur_id, cur_rep)) => &t.id != cur_id && is_better_club(*cur_rep, t.reputation),
+            None => true,
+        }
+    };
+
+    let mut clubs: Vec<JobOpportunity> = game
         .teams
         .iter()
-        .filter(|t| {
-            let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
-            diff <= 200
-        })
-        .map(|t| JobOpportunity {
-            team_id: t.id.clone(),
-            team_name: t.name.clone(),
-            city: t.city.clone(),
-            reputation: t.reputation,
-            last_league_position: t.history.last().map(|h| h.league_position),
-        })
+        .filter(|t| eligible(t, 200))
+        .map(opportunity_from)
         .collect();
 
-    if candidates.len() < 2 {
-        candidates = game
+    if clubs.len() < 2 {
+        clubs = game
             .teams
             .iter()
-            .filter(|t| {
-                let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
-                diff <= 400
-            })
-            .map(|t| JobOpportunity {
-                team_id: t.id.clone(),
-                team_name: t.name.clone(),
-                city: t.city.clone(),
-                reputation: t.reputation,
-                last_league_position: t.history.last().map(|h| h.league_position),
-            })
+            .filter(|t| eligible(t, 400))
+            .map(opportunity_from)
             .collect();
     }
 
+    clubs
+}
+
+fn get_offer_candidates(game: &Game, rng: &mut impl rand::Rng) -> Vec<JobOpportunity> {
+    let mut candidates = find_eligible_clubs(game);
     let len = candidates.len();
     if len > 1 {
         for i in (1..len).rev() {
@@ -258,58 +338,22 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
     game.messages.push(msg);
 }
 
-/// Returns up to 4 job opportunities suitable for the unemployed manager.
+/// Returns up to 4 job opportunities suitable for the manager. For an
+/// unemployed manager, every club within the reputation gap is listed. For an
+/// employed manager, only clubs that count as a step up (per `is_better_club`)
+/// and that are not the current club are listed.
 pub fn get_available_jobs(game: &Game) -> Vec<JobOpportunity> {
-    if game.manager.team_id.is_some() {
-        return vec![];
-    }
-
-    let mgr_rep = game.manager.reputation;
-    let mut jobs: Vec<JobOpportunity> = game
-        .teams
-        .iter()
-        .filter(|t| {
-            let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
-            diff <= 200
-        })
-        .map(|t| JobOpportunity {
-            team_id: t.id.clone(),
-            team_name: t.name.clone(),
-            city: t.city.clone(),
-            reputation: t.reputation,
-            last_league_position: t.history.last().map(|h| h.league_position),
-        })
-        .collect();
-
-    if jobs.len() < 2 {
-        jobs = game
-            .teams
-            .iter()
-            .filter(|t| {
-                let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
-                diff <= 400
-            })
-            .map(|t| JobOpportunity {
-                team_id: t.id.clone(),
-                team_name: t.name.clone(),
-                city: t.city.clone(),
-                reputation: t.reputation,
-                last_league_position: t.history.last().map(|h| h.league_position),
-            })
-            .collect();
-    }
-
+    let mut jobs = find_eligible_clubs(game);
     jobs.sort_by(|a, b| b.reputation.cmp(&a.reputation));
     jobs.truncate(4);
     jobs
 }
 
-/// Active application by the manager for a specific team's job.
+/// Active application by the manager for a specific team's job. Works for both
+/// unemployed managers (any team within the rep gap) and employed managers
+/// (only "better" clubs per `is_better_club`, hire path goes through
+/// `switch_manager_team`).
 pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
-    if game.manager.team_id.is_some() {
-        return JobApplicationResult::AlreadyEmployed;
-    }
-
     let team = match game.teams.iter().find(|t| t.id == team_id) {
         Some(t) => t,
         None => return JobApplicationResult::InvalidTeam,
@@ -317,6 +361,24 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
 
     let team_rep = team.reputation;
     let mgr_rep = game.manager.reputation;
+    let team_name = team.name.clone();
+
+    let current_team = game.manager.team_id.as_ref().and_then(|id| {
+        game.teams
+            .iter()
+            .find(|t| &t.id == id)
+            .map(|t| (t.id.clone(), t.reputation))
+    });
+
+    if let Some((cur_id, cur_rep)) = &current_team {
+        if cur_id == team_id {
+            return JobApplicationResult::SameTeam;
+        }
+        if !is_better_club(*cur_rep, team_rep) {
+            return JobApplicationResult::NotBetterClub;
+        }
+    }
+
     let gap = team_rep.saturating_sub(mgr_rep);
 
     let success_pct = if gap == 0 {
@@ -337,8 +399,7 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     if roll <= success_pct {
-        let team_name = team.name.clone();
-        match hire_manager(game, team_id, &today) {
+        match appoint_manager(game, team_id, &today) {
             Ok(_) => {
                 info!(
                     "[job_offers] Application accepted: {} at {} (gap={}, roll={}/{})",
@@ -353,7 +414,6 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
             Err(_) => JobApplicationResult::InvalidTeam,
         }
     } else {
-        let team_name = team.name.clone();
         let msg = InboxMessage::new(
             format!("job_rejection_{}_{}", team_id, today),
             format!("Application Update — {}", team_name),
@@ -422,17 +482,14 @@ pub fn apply_job_offer_response(
 
     match option_id {
         "accept" => {
-            // Guard against accepting an old offer after being (re)hired elsewhere.
-            // Without this, the stale "accept" would leave the previous club's
-            // manager_id set and its career entry open.
-            if game.manager.team_id.is_some() {
-                return Some(format!(
-                    "You are already employed and cannot accept the offer from {}",
-                    team_name
-                ));
+            // Defensive guard: an inbox offer may have been targeted at the
+            // manager's current club (e.g. via stale state). Decline silently
+            // rather than create a no-op career entry.
+            if game.manager.team_id.as_deref() == Some(team_id.as_str()) {
+                return Some(format!("You are already the manager of {}", team_name));
             }
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-            match hire_manager(game, &team_id, &today) {
+            match appoint_manager(game, &team_id, &today) {
                 Ok(name) => Some(format!("You have been appointed manager of {}", name)),
                 Err(e) => Some(format!("Failed to accept position: {}", e)),
             }
@@ -574,11 +631,12 @@ mod tests {
     }
 
     #[test]
-    fn check_job_offers_no_op_when_employed() {
+    fn check_job_offers_when_employed_initializes_timer() {
         let mut game = make_game(50, true);
         check_job_offers(&mut game);
-        assert!(game.days_since_last_job_offer.is_none());
-        assert!(game.messages.is_empty());
+        // Timer is now started for employed managers too — opportunities can
+        // arrive while in post (e.g. headhunting from a bigger club).
+        assert!(game.days_since_last_job_offer.is_some());
     }
 
     #[test]
@@ -590,10 +648,15 @@ mod tests {
     }
 
     #[test]
-    fn get_available_jobs_returns_empty_when_employed() {
+    fn get_available_jobs_when_employed_returns_better_clubs_only() {
+        // make_game(_, true) employs the manager at team1 (rep 500).
+        // team2 has rep 450 (worse) → must not appear.
+        // team3 has rep 800 (better) → must appear (within widened gap).
         let game = make_game(50, true);
         let jobs = get_available_jobs(&game);
-        assert!(jobs.is_empty());
+        assert!(jobs.iter().any(|j| j.team_id == "team3"));
+        assert!(!jobs.iter().any(|j| j.team_id == "team1"));
+        assert!(!jobs.iter().any(|j| j.team_id == "team2"));
     }
 
     #[test]
@@ -626,10 +689,21 @@ mod tests {
     }
 
     #[test]
-    fn apply_for_job_when_employed_returns_already_employed() {
+    fn apply_for_job_when_employed_at_worse_club_returns_not_better() {
+        // team2 (rep 450) is worse than current team1 (rep 500) — can't apply.
         let mut game = make_game(50, true);
         let result = apply_for_job(&mut game, "team2");
-        assert_eq!(result, JobApplicationResult::AlreadyEmployed);
+        assert_eq!(result, JobApplicationResult::NotBetterClub);
+        // Manager still at team1; no career change.
+        assert_eq!(game.manager.team_id, Some("team1".to_string()));
+    }
+
+    #[test]
+    fn apply_for_job_when_employed_at_same_club_returns_same_team() {
+        let mut game = make_game(50, true);
+        let result = apply_for_job(&mut game, "team1");
+        assert_eq!(result, JobApplicationResult::SameTeam);
+        assert_eq!(game.manager.team_id, Some("team1".to_string()));
     }
 
     #[test]
@@ -741,17 +815,32 @@ mod tests {
     }
 
     #[test]
-    fn apply_job_offer_response_accept_rejected_when_already_employed() {
+    fn apply_job_offer_response_accept_when_employed_switches_teams() {
+        // Manager employed at team1; receives offer from team3 (better club).
+        // Inbox accept always succeeds (formal invitation).
         let mut game = make_game(50, true);
+        // Seed an open career entry at the current team so we can verify it closes.
+        game.manager.career_history.push(ManagerCareerEntry {
+            team_id: "team1".to_string(),
+            team_name: "Old FC".to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: None,
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            best_league_position: None,
+        });
+
         let msg = InboxMessage::new(
-            "job_offer_team2_2026-11-01".to_string(),
+            "job_offer_team3_2026-11-01".to_string(),
             "Offer".to_string(),
             "Join us".to_string(),
             "Board".to_string(),
             "2026-11-01".to_string(),
         )
         .with_context(MessageContext {
-            team_id: Some("team2".to_string()),
+            team_id: Some("team3".to_string()),
             player_id: None,
             fixture_id: None,
             match_result: None,
@@ -759,7 +848,7 @@ mod tests {
             delegated_renewal_report: None,
         })
         .with_action(MessageAction {
-            id: "respond_team2".to_string(),
+            id: "respond_team3".to_string(),
             label: "Respond".to_string(),
             action_type: ActionType::ChooseOption { options: vec![] },
             resolved: false,
@@ -769,16 +858,148 @@ mod tests {
 
         let effect = apply_job_offer_response(
             &mut game,
-            "job_offer_team2_2026-11-01",
-            "respond_team2",
+            "job_offer_team3_2026-11-01",
+            "respond_team3",
             "accept",
         );
         assert!(effect.is_some());
-        assert!(effect.unwrap().contains("already employed"));
-        // Previous team assignment must be untouched.
+        assert!(effect.unwrap().contains("Elite FC"));
+        // Manager moved to the new club.
+        assert_eq!(game.manager.team_id, Some("team3".to_string()));
+        // Old team's manager_id cleared.
+        assert!(
+            game.teams
+                .iter()
+                .find(|t| t.id == "team1")
+                .unwrap()
+                .manager_id
+                .is_none()
+        );
+        // New team's manager_id set.
+        assert_eq!(
+            game.teams
+                .iter()
+                .find(|t| t.id == "team3")
+                .unwrap()
+                .manager_id,
+            Some("mgr1".to_string())
+        );
+        // Old career entry closed; new career entry opened and still open.
+        assert_eq!(game.manager.career_history.len(), 2);
+        let old = &game.manager.career_history[0];
+        let new = &game.manager.career_history[1];
+        assert_eq!(old.team_id, "team1");
+        assert_eq!(old.end_date.as_deref(), Some("2026-11-01"));
+        assert_eq!(new.team_id, "team3");
+        assert!(new.end_date.is_none());
+        // Satisfaction reset on rehire.
+        assert_eq!(game.manager.satisfaction, 50);
+    }
+
+    #[test]
+    fn apply_job_offer_response_accept_rejects_offer_for_current_club() {
+        // Defensive: a stale offer pointing at the manager's own club must not
+        // create a no-op career entry.
+        let mut game = make_game(50, true);
+        let msg = InboxMessage::new(
+            "job_offer_team1_2026-11-01".to_string(),
+            "Offer".to_string(),
+            "Stay with us".to_string(),
+            "Board".to_string(),
+            "2026-11-01".to_string(),
+        )
+        .with_context(MessageContext {
+            team_id: Some("team1".to_string()),
+            player_id: None,
+            fixture_id: None,
+            match_result: None,
+            scout_report: None,
+            delegated_renewal_report: None,
+        })
+        .with_action(MessageAction {
+            id: "respond_team1".to_string(),
+            label: "Respond".to_string(),
+            action_type: ActionType::ChooseOption { options: vec![] },
+            resolved: false,
+            label_key: None,
+        });
+        game.messages.push(msg);
+
+        let effect = apply_job_offer_response(
+            &mut game,
+            "job_offer_team1_2026-11-01",
+            "respond_team1",
+            "accept",
+        );
+        assert!(effect.is_some());
+        assert!(effect.unwrap().contains("already the manager"));
+        // No state change.
         assert_eq!(game.manager.team_id, Some("team1".to_string()));
-        assert_eq!(game.teams[0].manager_id, Some("mgr1".to_string()));
-        // No new career entry opened.
         assert_eq!(game.manager.career_history.len(), 0);
+    }
+
+    #[test]
+    fn switch_manager_team_closes_old_career_entry_and_opens_new_one() {
+        let mut game = make_game(50, true);
+        game.manager.career_history.push(ManagerCareerEntry {
+            team_id: "team1".to_string(),
+            team_name: "Old FC".to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: None,
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            best_league_position: None,
+        });
+
+        let result = switch_manager_team(&mut game, "team3", "2026-11-01");
+        assert!(result.is_ok());
+        assert_eq!(game.manager.career_history.len(), 2);
+        assert_eq!(
+            game.manager.career_history[0].end_date.as_deref(),
+            Some("2026-11-01")
+        );
+        assert!(game.manager.career_history[1].end_date.is_none());
+    }
+
+    #[test]
+    fn switch_manager_team_clears_old_team_manager_id() {
+        let mut game = make_game(50, true);
+        switch_manager_team(&mut game, "team3", "2026-11-01").unwrap();
+        let old = game.teams.iter().find(|t| t.id == "team1").unwrap();
+        assert!(old.manager_id.is_none());
+    }
+
+    #[test]
+    fn switch_manager_team_sets_new_team_manager_id_and_team_id() {
+        let mut game = make_game(50, true);
+        switch_manager_team(&mut game, "team3", "2026-11-01").unwrap();
+        assert_eq!(game.manager.team_id, Some("team3".to_string()));
+        let new = game.teams.iter().find(|t| t.id == "team3").unwrap();
+        assert_eq!(new.manager_id, Some("mgr1".to_string()));
+    }
+
+    #[test]
+    fn switch_manager_team_resets_satisfaction_and_warnings() {
+        let mut game = make_game(20, true);
+        game.manager.warning_stage = 2;
+        switch_manager_team(&mut game, "team3", "2026-11-01").unwrap();
+        assert_eq!(game.manager.satisfaction, 50);
+        assert_eq!(game.manager.warning_stage, 0);
+    }
+
+    #[test]
+    fn switch_manager_team_errors_when_unemployed() {
+        let mut game = make_game(10, false);
+        let result = switch_manager_team(&mut game, "team3", "2026-11-01");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn switch_manager_team_errors_for_same_team() {
+        let mut game = make_game(50, true);
+        let result = switch_manager_team(&mut game, "team1", "2026-11-01");
+        assert!(result.is_err());
     }
 }

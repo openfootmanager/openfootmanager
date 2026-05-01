@@ -6,7 +6,15 @@ import JobOpportunitiesCard from "./JobOpportunitiesCard";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) => {
+    t: (
+      key: string,
+      fallbackOrParams?: string | Record<string, string | number>,
+      maybeParams?: Record<string, string | number>,
+    ) => {
+      const params =
+        typeof fallbackOrParams === "object" ? fallbackOrParams : maybeParams;
+      const fallback =
+        typeof fallbackOrParams === "string" ? fallbackOrParams : undefined;
       if (key === "jobs.opportunitiesTitle") return "Job Opportunities";
       if (key === "jobs.applyButton") return "Apply";
       if (key === "jobs.applicationSent") return "Applying...";
@@ -14,9 +22,15 @@ vi.mock("react-i18next", () => ({
       if (key === "jobs.rejected") return "Your application was unsuccessful.";
       if (key === "jobs.noJobs") return "No positions currently available.";
       if (key === "jobs.refresh") return "Check for new positions";
+      if (key === "jobs.sameTeam") return "You are already managing that club.";
       if (key === "jobs.leaguePosition")
         return `Last Season: ${params?.position}`;
-      return key;
+      if (key === "jobs.switchConfirmTitle") return "Leave your current club?";
+      if (key === "jobs.switchConfirmBody")
+        return `Accepting this opportunity will end your tenure at ${params?.currentClub} and move you to ${params?.newClub}.`;
+      if (key === "jobs.switchConfirmAccept") return "Accept new role";
+      if (key === "common.cancel") return "Cancel";
+      return fallback ?? key;
     },
   }),
 }));
@@ -63,6 +77,24 @@ function createGameState(): GameStateData {
     scouting_assignments: [],
     board_objectives: [],
   } as unknown as GameStateData;
+}
+
+function createEmployedGameState(): GameStateData {
+  const state = createGameState();
+  state.manager.team_id = "team1";
+  (state.teams as unknown[]).push({
+    id: "team1",
+    name: "Old FC",
+    short_name: "OLD",
+    country: "England",
+    city: "Oldville",
+    stadium: "Old Ground",
+    capacity: 20000,
+    reputation: 500,
+    manager_id: "mgr1",
+    history: [],
+  } as unknown as never);
+  return state;
 }
 
 describe("JobOpportunitiesCard", () => {
@@ -192,6 +224,129 @@ describe("JobOpportunitiesCard", () => {
     await waitFor(() =>
       expect(getAvailableJobsMock).toHaveBeenCalledTimes(2),
     );
+  });
+
+  it("shows the switch-club confirm dialog when an employed manager applies", async () => {
+    getAvailableJobsMock.mockResolvedValue([
+      {
+        team_id: "team3",
+        team_name: "Elite FC",
+        city: "Elitetown",
+        reputation: 800,
+        last_league_position: 2,
+      },
+    ]);
+
+    render(
+      <JobOpportunitiesCard
+        gameState={createEmployedGameState()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+
+    expect(
+      await screen.findByTestId("switch-club-confirm-modal"),
+    ).toBeInTheDocument();
+    // No application has been sent yet — the modal must gate the call.
+    expect(applyForJobMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/end your tenure at Old FC/i),
+    ).toBeInTheDocument();
+  });
+
+  it("does not apply when the switch-club confirm is cancelled", async () => {
+    getAvailableJobsMock.mockResolvedValue([
+      {
+        team_id: "team3",
+        team_name: "Elite FC",
+        city: "Elitetown",
+        reputation: 800,
+        last_league_position: 2,
+      },
+    ]);
+
+    render(
+      <JobOpportunitiesCard
+        gameState={createEmployedGameState()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    expect(applyForJobMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("applies after the user confirms the switch-club dialog", async () => {
+    const hiredGame = createEmployedGameState();
+    hiredGame.manager.team_id = "team3";
+    getAvailableJobsMock.mockResolvedValue([
+      {
+        team_id: "team3",
+        team_name: "Elite FC",
+        city: "Elitetown",
+        reputation: 800,
+        last_league_position: 2,
+      },
+    ]);
+    applyForJobMock.mockResolvedValue({ result: "hired", game: hiredGame });
+
+    const onGameUpdate = vi.fn();
+    render(
+      <JobOpportunitiesCard
+        gameState={createEmployedGameState()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept new role" }),
+    );
+
+    await waitFor(() => expect(applyForJobMock).toHaveBeenCalledWith("team3"));
+    expect(
+      await screen.findByText("You have been appointed manager!"),
+    ).toBeInTheDocument();
+    expect(onGameUpdate).toHaveBeenCalledWith(hiredGame);
+  });
+
+  it("shows a same-team error when the backend reports same_team", async () => {
+    getAvailableJobsMock.mockResolvedValue([
+      {
+        team_id: "team1",
+        team_name: "Old FC",
+        city: "Oldville",
+        reputation: 500,
+        last_league_position: null,
+      },
+    ]);
+    applyForJobMock.mockResolvedValue({
+      result: "same_team",
+      game: createEmployedGameState(),
+    });
+
+    render(
+      <JobOpportunitiesCard
+        gameState={createEmployedGameState()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Accept new role" }),
+    );
+
+    expect(
+      await screen.findByText("You are already managing that club."),
+    ).toBeInTheDocument();
   });
 
   it("refreshes the list when the refresh button is clicked", async () => {
