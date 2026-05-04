@@ -15,6 +15,7 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.perWeekSuffix") return "/wk";
       if (key === "common.nResults") return `${params?.count} results`;
       if (key === "common.action") return "Action";
+      if (key === "common.viewTeam") return "View team";
       if (key === "transfers.transferMarket") return "Transfer Market";
       if (key === "transfers.offers") return "Offers";
       if (key === "transfers.counterOffer") return "Counter Offer";
@@ -59,6 +60,14 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.counterCountered") return "They pushed back with a lower number.";
       if (key === "transfers.transferFeedbackCounterHeadline") return "They want more before shaking hands.";
       if (key === "transfers.transferFeedbackCounterDetail") return `The bid was close enough to keep talking, but their side are signalling a price nearer ${params?.fee}.`;
+      if (key === "squad.viewProfile") return "View profile";
+      if (key === "squad.addToTransferList") return "Add to transfer list";
+      if (key === "squad.removeFromTransferList") return "Remove from transfer list";
+      if (key === "squad.addToLoanList") return "Add to loan list";
+      if (key === "squad.removeFromLoanList") return "Remove from loan list";
+      if (key === "scouting.scoutBtn") return "Scout";
+      if (key === "scouting.scoutingInProgress") return "Scouting in progress";
+      if (key === "scouting.noScoutsFree") return "No scouts free";
       return key;
     },
     i18n: { language: "en" },
@@ -505,6 +514,39 @@ describe("TransfersTab", function (): void {
         screen.getByText("This bid exceeds your transfer budget"),
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
+    });
+  });
+
+  it("offers transfer-list actions from the my-list context menu", async function (): Promise<void> {
+    const gameState = createGameState([
+      createPlayer({ transfer_listed: true }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce(gameState);
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove from transfer list" }),
+    );
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("toggle_transfer_list", {
+        playerId: "player-1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(gameState);
     });
   });
 });

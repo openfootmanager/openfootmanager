@@ -46,6 +46,28 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.daysLeft") return `${params?.days} days left`;
       if (key === "common.all") return "All";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "common.viewTeam") return "View team";
+      if (key === "squad.viewProfile") return "View profile";
+      if (key === "transfers.makeBid") return "Make Transfer Bid";
+      if (key === "transfers.bidAmount") return "Bid Amount";
+      if (key === "transfers.submitBid") return "Submit Bid";
+      if (key === "transfers.close") return "Close";
+      if (key === "transfers.playerValue") return `Value: ${params?.value}`;
+      if (key === "transfers.bidImpactTitle") return "Projected impact";
+      if (key === "transfers.bidImpactTransferBudget") {
+        return `Transfer budget ${params?.before} -> ${params?.after}`;
+      }
+      if (key === "transfers.bidImpactBalance") {
+        return `Club balance ${params?.before} -> ${params?.after}`;
+      }
+      if (key === "transfers.bidImpactWagePressure") {
+        return `Projected wage budget usage ${params?.percent}%`;
+      }
+      if (key === "transfers.negotiationPulse") return "Negotiation pulse";
+      if (key === "transfers.negotiationRound") return `Round ${params?.count}`;
+      if (key === "transfers.negotiationPatience") return "Patience";
+      if (key === "transfers.negotiationTension") return "Tension";
+      if (key === "transfers.bidCountered") return "Bid countered";
       return key;
     },
     i18n: { language: "en" },
@@ -238,6 +260,86 @@ describe("ScoutingTab", () => {
       expect(invokeMock).toHaveBeenCalledWith("send_scout", {
         scoutId: "staff-1",
         playerId: "player-1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("opens and submits a transfer bid from the scouting search context menu", async () => {
+    const updatedState = createGameState();
+    const onGameUpdate = vi.fn();
+
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        return {
+          projection: {
+            transfer_budget_before: 250000,
+            transfer_budget_after: -100000,
+            finance_before: 500000,
+            finance_after: 150000,
+            annual_wage_bill_before: 1000,
+            annual_wage_bill_after: 2000,
+            annual_wage_budget: 50000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "counter_offer",
+          suggested_fee: 425000,
+          is_terminal: false,
+          feedback: {
+            mood: "firm",
+            headline_key: "headline",
+            detail_key: null,
+            tension: 45,
+            patience: 62,
+            round: 1,
+          },
+          game: updatedState,
+        };
+      }
+
+      return updatedState;
+    });
+
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Make Transfer Bid" }));
+
+    expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "preview_transfer_bid_financial_impact",
+        {
+          playerId: "player-1",
+          fee: 300000,
+        },
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "player-1",
+        fee: 300000,
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });

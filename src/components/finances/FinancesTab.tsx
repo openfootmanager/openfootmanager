@@ -9,6 +9,7 @@ import {
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button } from "../ui";
 import { User } from "lucide-react";
 import {
+  formatExactMoney,
   formatVal,
   formatWeeklyAmount,
   getContractRiskBadgeVariant,
@@ -472,7 +473,9 @@ export default function FinancesTab({
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    {t("finances.atRiskWages", { amount: atRiskWages })}
+                    {t("finances.atRiskWages", {
+                      amount: formatExactMoney(atRiskWages),
+                    })}
                   </p>
                   {contractRiskPlayers.length > 0 ? (
                     <div className="flex items-center gap-2">
@@ -539,7 +542,12 @@ export default function FinancesTab({
                             : t("finances.contractRiskWarning")}
                         </Badge>
                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          €{annualAmountToWeeklyCommitment(player.wage).toLocaleString()}/wk
+                          {formatWeeklyAmount(
+                            formatExactMoney(
+                              annualAmountToWeeklyCommitment(player.wage),
+                            ),
+                            weeklySuffix,
+                          )}
                         </span>
                         {onSelectPlayer ? (
                           <Button
@@ -584,7 +592,7 @@ export default function FinancesTab({
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {t("finances.sponsorWeeklyValue", {
-                      amount: activeSponsorship.base_value,
+                      amount: formatExactMoney(activeSponsorship.base_value),
                     })}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -713,7 +721,7 @@ export default function FinancesTab({
                   <div className="space-y-2 mt-auto">
                     <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       {t("finances.nextUpgradeCost", {
-                        amount: nextUpgradeCost.toLocaleString(),
+                        amount: formatExactMoney(nextUpgradeCost),
                       })}
                     </p>
                     <Button
@@ -768,12 +776,12 @@ export default function FinancesTab({
                   .map((p) => {
                     const contextItems = onSelectPlayer
                       ? [
-                          {
-                            label: t("squad.viewProfile", "View profile"),
-                            icon: <User className="w-4 h-4" />,
-                            onClick: () => onSelectPlayer(p.id),
-                          },
-                        ]
+                        {
+                          label: t("squad.viewProfile", "View profile"),
+                          icon: <User className="w-4 h-4" />,
+                          onClick: () => onSelectPlayer(p.id),
+                        },
+                      ]
                       : [];
 
                     const row = (
@@ -793,7 +801,9 @@ export default function FinancesTab({
                           </Badge>
                         </td>
                         <td className="py-3 px-5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          €{annualAmountToWeeklyCommitment(p.wage).toLocaleString()}
+                          {formatExactMoney(
+                            annualAmountToWeeklyCommitment(p.wage),
+                          )}
                         </td>
                         <td className="py-3 px-5 text-sm text-gray-600 dark:text-gray-400">
                           {formatVal(p.market_value)}
@@ -801,8 +811,8 @@ export default function FinancesTab({
                         <td className="py-3 px-5 text-sm text-gray-500 dark:text-gray-400">
                           {p.contract_end
                             ? t("finances.until", {
-                                year: p.contract_end.substring(0, 4),
-                              })
+                              year: p.contract_end.substring(0, 4),
+                            })
                             : "—"}
                         </td>
                       </tr>

@@ -43,11 +43,52 @@ fn opportunity_from(team: &domain::team::Team) -> JobOpportunity {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct JobOfferResponseEffect {
+    pub message: String,
+    pub i18n_key: String,
+    pub i18n_params: HashMap<String, String>,
+}
+
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
+}
+
+fn response_effect(message: String, i18n_key: &str, team_name: &str) -> JobOfferResponseEffect {
+    JobOfferResponseEffect {
+        message,
+        i18n_key: i18n_key.to_string(),
+        i18n_params: params(&[("team", team_name)]),
+    }
+}
+
+pub(crate) fn expire_outstanding_job_offers_for_team(game: &mut Game, team_id: &str) {
+    let team_name = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .map(|team| team.name.clone())
+        .unwrap_or_else(|| team_id.to_string());
+
+    for message in game.messages.iter_mut().filter(|message| {
+        message.id.starts_with("job_offer_") && message.context.team_id.as_deref() == Some(team_id)
+    }) {
+        message.read = true;
+        message.subject = format!("Position Filled — {}", team_name);
+        message.body = format!(
+            "The vacancy at {} has now been filled, so this offer is no longer available.",
+            team_name
+        );
+        message.subject_key = Some("be.msg.jobOfferExpired.subject".to_string());
+        message.body_key = Some("be.msg.jobOfferExpired.body".to_string());
+        message.i18n_params = params(&[("team", &team_name)]);
+        for action in &mut message.actions {
+            action.resolved = true;
+        }
+    }
 }
 
 /// Shared hiring flow used by both offer-accept and application-accept paths.
@@ -57,30 +98,32 @@ pub fn hire_manager(game: &mut Game, team_id: &str, date: &str) -> Result<String
         .iter()
         .find(|t| t.id == team_id)
         .ok_or_else(|| format!("Team {} not found", team_id))?;
+    if team.manager_id.is_some() {
+        return Err(format!("Team {} is not vacant", team_id));
+    }
     let team_name = team.name.clone();
     let manager_id = game.manager.id.clone();
+    let manager_name = game.manager.full_name();
 
     // Assign manager to team
     game.manager.hire(team_id.to_string());
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.manager_id = Some(manager_id);
+        team.manager_id = Some(manager_id.clone());
     }
 
-    // Create new career history entry
-    game.manager.career_history.push(ManagerCareerEntry {
-        team_id: team_id.to_string(),
-        team_name: team_name.clone(),
-        start_date: date.to_string(),
-        end_date: None,
-        matches: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        best_league_position: None,
-    });
+    game.manager
+        .career_history
+        .push(ManagerCareerEntry::open(
+            team_id.to_string(),
+            team_name.clone(),
+            date.to_string(),
+        ));
 
     // Reset satisfaction to neutral
     game.manager.satisfaction = 50;
+    game.sync_user_manager_record();
+    game.vacant_team_days.remove(team_id);
+    expire_outstanding_job_offers_for_team(game, team_id);
 
     // Clear job offer timer
     game.days_since_last_job_offer = None;
@@ -108,6 +151,13 @@ pub fn hire_manager(game: &mut Game, team_id: &str, date: &str) -> Result<String
     .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
 
     game.messages.push(msg);
+    game.news.push(crate::news::managerial_appointment_article(
+        &manager_id,
+        &manager_name,
+        team_id,
+        &team_name,
+        date,
+    ));
 
     info!(
         "[job_offers] Manager {} hired at {} (satisfaction reset to 50)",
@@ -141,15 +191,46 @@ pub fn switch_manager_team(
         ));
     }
 
+    // Validate the destination *before* mutating any state. Without this,
+    // a failure inside `hire_manager` would leave the manager unemployed and
+    // the previous club's `manager_id` cleared, with no way to recover.
+    let new_team = game
+        .teams
+        .iter()
+        .find(|t| t.id == new_team_id)
+        .ok_or_else(|| format!("Team {} not found", new_team_id))?;
+    if new_team.manager_id.is_some() {
+        return Err(format!("Team {} is not vacant", new_team_id));
+    }
+
     let previous_team_name = game
         .teams
-        .iter_mut()
+        .iter()
         .find(|t| t.id == previous_team_id)
-        .map(|t| {
-            t.manager_id = None;
-            t.name.clone()
-        })
+        .map(|t| t.name.clone())
         .unwrap_or_default();
+
+    // Saves created before career_history was added (e.g. via `select_team`
+    // prior to that fix) may not have an open entry to close. Backfill one
+    // so the previous tenure still appears in history after the switch.
+    let has_open_entry = game
+        .manager
+        .career_history
+        .iter()
+        .any(|e| e.end_date.is_none());
+    if !has_open_entry {
+        game.manager
+            .career_history
+            .push(ManagerCareerEntry::open(
+                previous_team_id.clone(),
+                previous_team_name.clone(),
+                date.to_string(),
+            ));
+    }
+
+    if let Some(t) = game.teams.iter_mut().find(|t| t.id == previous_team_id) {
+        t.manager_id = None;
+    }
     game.manager.fire(date);
 
     info!(
@@ -214,6 +295,9 @@ fn find_eligible_clubs(game: &Game) -> Vec<JobOpportunity> {
     });
 
     let eligible = |t: &domain::team::Team, gap: u32| -> bool {
+        if t.manager_id.is_some() {
+            return false;
+        }
         let diff = (t.reputation as i32 - mgr_rep as i32).unsigned_abs();
         if diff > gap {
             return false;
@@ -344,6 +428,7 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
 /// and that are not the current club are listed.
 pub fn get_available_jobs(game: &Game) -> Vec<JobOpportunity> {
     let mut jobs = find_eligible_clubs(game);
+
     jobs.sort_by(|a, b| b.reputation.cmp(&a.reputation));
     jobs.truncate(4);
     jobs
@@ -354,9 +439,14 @@ pub fn get_available_jobs(game: &Game) -> Vec<JobOpportunity> {
 /// (only "better" clubs per `is_better_club`, hire path goes through
 /// `switch_manager_team`).
 pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
+    if game.manager.team_id.as_deref() == Some(team_id) {
+        return JobApplicationResult::SameTeam;
+    }
+
     let team = match game.teams.iter().find(|t| t.id == team_id) {
-        Some(t) => t,
+        Some(t) if t.manager_id.is_none() => t,
         None => return JobApplicationResult::InvalidTeam,
+        Some(_) => return JobApplicationResult::InvalidTeam,
     };
 
     let team_rep = team.reputation;
@@ -370,10 +460,7 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
             .map(|t| (t.id.clone(), t.reputation))
     });
 
-    if let Some((cur_id, cur_rep)) = &current_team {
-        if cur_id == team_id {
-            return JobApplicationResult::SameTeam;
-        }
+    if let Some((_, cur_rep)) = &current_team {
         if !is_better_club(*cur_rep, team_rep) {
             return JobApplicationResult::NotBetterClub;
         }
@@ -456,7 +543,7 @@ pub fn apply_job_offer_response(
     message_id: &str,
     action_id: &str,
     option_id: &str,
-) -> Option<String> {
+) -> Option<JobOfferResponseEffect> {
     if !message_id.starts_with("job_offer_") {
         return None;
     }
@@ -486,15 +573,39 @@ pub fn apply_job_offer_response(
             // manager's current club (e.g. via stale state). Decline silently
             // rather than create a no-op career entry.
             if game.manager.team_id.as_deref() == Some(team_id.as_str()) {
-                return Some(format!("You are already the manager of {}", team_name));
+                return Some(response_effect(
+                    format!("You are already the manager of {}", team_name),
+                    "be.msg.jobOffer.effects.alreadyEmployed",
+                    &team_name,
+                ));
             }
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
             match appoint_manager(game, &team_id, &today) {
-                Ok(name) => Some(format!("You have been appointed manager of {}", name)),
-                Err(e) => Some(format!("Failed to accept position: {}", e)),
+                Ok(name) => Some(response_effect(
+                    format!("You have been appointed manager of {}", name),
+                    "be.msg.jobOffer.effects.accepted",
+                    &name,
+                )),
+                Err(e) if e.contains("is not vacant") => Some(response_effect(
+                    format!(
+                        "The offer from {} is no longer available because the position has been filled",
+                        team_name
+                    ),
+                    "be.msg.jobOffer.effects.unavailable",
+                    &team_name,
+                )),
+                Err(_) => Some(response_effect(
+                    format!("Could not accept the offer from {}", team_name),
+                    "be.msg.jobOffer.effects.failed",
+                    &team_name,
+                )),
             }
         }
-        "decline" => Some(format!("You declined the offer from {}", team_name)),
+        "decline" => Some(response_effect(
+            format!("You declined the offer from {}", team_name),
+            "be.msg.jobOffer.effects.declined",
+            &team_name,
+        )),
         _ => None,
     }
 }
@@ -585,6 +696,20 @@ mod tests {
     }
 
     #[test]
+    fn hire_manager_syncs_user_manager_record() {
+        let mut game = make_game(10, false);
+
+        hire_manager(&mut game, "team2", "2026-11-01").unwrap();
+
+        let stored_manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.id == "mgr1")
+            .unwrap();
+        assert_eq!(stored_manager.team_id.as_deref(), Some("team2"));
+    }
+
+    #[test]
     fn hire_manager_creates_career_entry() {
         let mut game = make_game(10, false);
         hire_manager(&mut game, "team2", "2026-11-01").unwrap();
@@ -621,6 +746,68 @@ mod tests {
                 .iter()
                 .any(|m| m.id.starts_with("job_welcome_"))
         );
+    }
+
+    #[test]
+    fn hire_manager_creates_managerial_appointment_news_article() {
+        let mut game = make_game(10, false);
+
+        hire_manager(&mut game, "team2", "2026-11-01").unwrap();
+
+        assert!(game.news.iter().any(|article| {
+            article.category == domain::news::NewsCategory::ManagerialChange
+                && article.team_ids.contains(&"team2".to_string())
+                && article.headline_key.as_deref() == Some("be.news.managerialAppointment.headline")
+                && article.body_key.as_deref() == Some("be.news.managerialAppointment.body")
+        }));
+    }
+
+    #[test]
+    fn hire_manager_resolves_outstanding_offer_for_team() {
+        let mut game = make_game(10, false);
+        let msg = InboxMessage::new(
+            "job_offer_team2_2026-11-01".to_string(),
+            "Offer".to_string(),
+            "Join us".to_string(),
+            "Board".to_string(),
+            "2026-11-01".to_string(),
+        )
+        .with_context(MessageContext {
+            team_id: Some("team2".to_string()),
+            player_id: None,
+            fixture_id: None,
+            match_result: None,
+            scout_report: None,
+            delegated_renewal_report: None,
+        })
+        .with_action(MessageAction {
+            id: "respond_team2".to_string(),
+            label: "Respond".to_string(),
+            action_type: ActionType::ChooseOption { options: vec![] },
+            resolved: false,
+            label_key: None,
+        });
+        game.messages.push(msg);
+
+        hire_manager(&mut game, "team2", "2026-11-01").unwrap();
+
+        let offer = game
+            .messages
+            .iter()
+            .find(|message| message.id == "job_offer_team2_2026-11-01")
+            .unwrap();
+        assert!(offer.read);
+        assert!(offer.actions.iter().all(|action| action.resolved));
+        assert_eq!(
+            offer.subject_key.as_deref(),
+            Some("be.msg.jobOfferExpired.subject")
+        );
+        assert_eq!(
+            offer.body_key.as_deref(),
+            Some("be.msg.jobOfferExpired.body")
+        );
+        assert!(offer.subject.contains("Position Filled"));
+        assert!(offer.body.contains("no longer available"));
     }
 
     #[test]
@@ -669,6 +856,21 @@ mod tests {
     }
 
     #[test]
+    fn get_available_jobs_only_returns_vacant_clubs() {
+        let mut game = make_game(10, false);
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap()
+            .manager_id = Some("mgr-ai".to_string());
+
+        let jobs = get_available_jobs(&game);
+
+        assert!(jobs.iter().any(|job| job.team_id == "team1"));
+        assert!(!jobs.iter().any(|job| job.team_id == "team2"));
+    }
+
+    #[test]
     fn get_available_jobs_capped_at_4() {
         let mut game = make_game(10, false);
         for i in 4..=10 {
@@ -711,6 +913,24 @@ mod tests {
         let mut game = make_game(10, false);
         let result = apply_for_job(&mut game, "nonexistent");
         assert_eq!(result, JobApplicationResult::InvalidTeam);
+    }
+
+    #[test]
+    fn apply_for_job_occupied_team_returns_invalid() {
+        let mut game = make_game(10, false);
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap()
+            .manager_id = Some("mgr-ai".to_string());
+
+        let result = apply_for_job(&mut game, "team2");
+
+        assert_eq!(result, JobApplicationResult::InvalidTeam);
+        assert!(
+            game.messages.is_empty(),
+            "occupied clubs should not generate application responses"
+        );
     }
 
     #[test]
@@ -763,8 +983,13 @@ mod tests {
             "respond_team2",
             "accept",
         );
-        assert!(effect.is_some());
-        assert!(effect.unwrap().contains("New FC"));
+        let effect = effect.expect("effect");
+        assert!(effect.message.contains("New FC"));
+        assert_eq!(effect.i18n_key, "be.msg.jobOffer.effects.accepted");
+        assert_eq!(
+            effect.i18n_params.get("team").map(String::as_str),
+            Some("New FC")
+        );
         assert_eq!(game.manager.team_id, Some("team2".to_string()));
         assert_eq!(game.manager.satisfaction, 50);
     }
@@ -802,8 +1027,13 @@ mod tests {
             "respond_team2",
             "decline",
         );
-        assert!(effect.is_some());
-        assert!(effect.unwrap().contains("declined"));
+        let effect = effect.expect("effect");
+        assert!(effect.message.contains("declined"));
+        assert_eq!(effect.i18n_key, "be.msg.jobOffer.effects.declined");
+        assert_eq!(
+            effect.i18n_params.get("team").map(String::as_str),
+            Some("New FC")
+        );
         assert!(game.manager.team_id.is_none());
     }
 
@@ -862,8 +1092,9 @@ mod tests {
             "respond_team3",
             "accept",
         );
-        assert!(effect.is_some());
-        assert!(effect.unwrap().contains("Elite FC"));
+        let effect = effect.expect("effect");
+        assert!(effect.message.contains("Elite FC"));
+        assert_eq!(effect.i18n_key, "be.msg.jobOffer.effects.accepted");
         // Manager moved to the new club.
         assert_eq!(game.manager.team_id, Some("team3".to_string()));
         // Old team's manager_id cleared.
@@ -931,8 +1162,9 @@ mod tests {
             "respond_team1",
             "accept",
         );
-        assert!(effect.is_some());
-        assert!(effect.unwrap().contains("already the manager"));
+        let effect = effect.expect("effect");
+        assert!(effect.message.contains("already the manager"));
+        assert_eq!(effect.i18n_key, "be.msg.jobOffer.effects.alreadyEmployed");
         // No state change.
         assert_eq!(game.manager.team_id, Some("team1".to_string()));
         assert_eq!(game.manager.career_history.len(), 0);
@@ -1001,6 +1233,74 @@ mod tests {
         let mut game = make_game(50, true);
         let result = switch_manager_team(&mut game, "team1", "2026-11-01");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn switch_manager_team_unknown_team_leaves_state_intact() {
+        let mut game = make_game(50, true);
+        let before_team_id = game.manager.team_id.clone();
+        let before_old_team_manager = game
+            .teams
+            .iter()
+            .find(|t| t.id == "team1")
+            .and_then(|t| t.manager_id.clone());
+
+        let result = switch_manager_team(&mut game, "no_such_team", "2026-11-01");
+
+        assert!(result.is_err());
+        // Manager is still at the old club; old club still references them.
+        assert_eq!(game.manager.team_id, before_team_id);
+        assert_eq!(
+            game.teams
+                .iter()
+                .find(|t| t.id == "team1")
+                .and_then(|t| t.manager_id.clone()),
+            before_old_team_manager
+        );
+    }
+
+    #[test]
+    fn switch_manager_team_occupied_target_leaves_state_intact() {
+        let mut game = make_game(50, true);
+        // Park another manager at team3 so it isn't vacant.
+        if let Some(t) = game.teams.iter_mut().find(|t| t.id == "team3") {
+            t.manager_id = Some("mgr-other".to_string());
+        }
+        let before_team_id = game.manager.team_id.clone();
+
+        let result = switch_manager_team(&mut game, "team3", "2026-11-01");
+
+        assert!(result.is_err());
+        assert_eq!(game.manager.team_id, before_team_id);
+        // Old team's manager_id must NOT have been cleared by the failed switch.
+        assert_eq!(
+            game.teams
+                .iter()
+                .find(|t| t.id == "team1")
+                .unwrap()
+                .manager_id,
+            Some("mgr1".to_string())
+        );
+    }
+
+    #[test]
+    fn switch_manager_team_backfills_missing_previous_career_entry() {
+        // Reproduces a legacy save: manager is employed but no career_history
+        // entry was ever pushed for the current tenure. The switch must still
+        // close out the previous tenure rather than dropping it on the floor.
+        let mut game = make_game(50, true);
+        assert!(game.manager.career_history.is_empty());
+
+        switch_manager_team(&mut game, "team3", "2026-11-01").unwrap();
+
+        // Two entries: backfilled (now closed) for team1 + new open one for team3.
+        assert_eq!(game.manager.career_history.len(), 2);
+        let prev = &game.manager.career_history[0];
+        assert_eq!(prev.team_id, "team1");
+        assert_eq!(prev.end_date.as_deref(), Some("2026-11-01"));
+        let next = &game.manager.career_history[1];
+        assert_eq!(next.team_id, "team3");
+        assert!(next.end_date.is_none());
     }
 
     #[test]
@@ -1101,5 +1401,55 @@ mod tests {
             serde_json::to_string(&JobApplicationResult::AlreadyEmployed).unwrap(),
             "\"already_employed\""
         );
+    }
+
+    #[test]
+    fn apply_job_offer_response_accept_returns_unavailable_effect_when_team_filled() {
+        let mut game = make_game(10, false);
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap()
+            .manager_id = Some("mgr-ai".to_string());
+
+        let msg = InboxMessage::new(
+            "job_offer_team2_2026-11-01".to_string(),
+            "Offer".to_string(),
+            "Join us".to_string(),
+            "Board".to_string(),
+            "2026-11-01".to_string(),
+        )
+        .with_context(MessageContext {
+            team_id: Some("team2".to_string()),
+            player_id: None,
+            fixture_id: None,
+            match_result: None,
+            scout_report: None,
+            delegated_renewal_report: None,
+        })
+        .with_action(MessageAction {
+            id: "respond_team2".to_string(),
+            label: "Respond".to_string(),
+            action_type: ActionType::ChooseOption { options: vec![] },
+            resolved: false,
+            label_key: None,
+        });
+        game.messages.push(msg);
+
+        let effect = apply_job_offer_response(
+            &mut game,
+            "job_offer_team2_2026-11-01",
+            "respond_team2",
+            "accept",
+        )
+        .expect("effect");
+
+        assert_eq!(effect.i18n_key, "be.msg.jobOffer.effects.unavailable");
+        assert_eq!(
+            effect.i18n_params.get("team").map(String::as_str),
+            Some("New FC")
+        );
+        assert!(effect.message.contains("no longer available"));
+        assert_eq!(game.manager.team_id, None);
     }
 }

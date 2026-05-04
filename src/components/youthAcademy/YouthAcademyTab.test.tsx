@@ -1,8 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import YouthAcademyTab from "./YouthAcademyTab";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -16,6 +21,8 @@ vi.mock("react-i18next", () => ({
       if (key === "youthAcademy.youthCoach") return "Youth Coach";
       if (key === "youthAcademy.youthProspects") return "Youth Prospects";
       if (key === "youthAcademy.noYouthPlayers") return "No youth players";
+      if (key === "youthAcademy.promoteToSeniorSquad")
+        return "Promote to senior squad";
       if (key === "youthAcademy.player") return "Player";
       if (key === "youthAcademy.pos") return "Pos";
       if (key === "youthAcademy.age") return "Age";
@@ -35,6 +42,8 @@ vi.mock("react-i18next", () => ({
 vi.mock("../TraitBadge", () => ({
   TraitList: () => <span>Traits</span>,
 }));
+
+const mockedInvoke = vi.mocked(invoke);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -166,7 +175,11 @@ describe("YouthAcademyTab", () => {
     render(
       <YouthAcademyTab
         gameState={createGameState([
-          createPlayer({ id: "player-older", full_name: "Senior Pro", date_of_birth: "1998-01-01" }),
+          createPlayer({
+            id: "player-young-senior",
+            full_name: "Senior Prospect",
+            date_of_birth: "2008-01-01",
+          }),
         ])}
         onSelectPlayer={vi.fn()}
       />,
@@ -181,8 +194,17 @@ describe("YouthAcademyTab", () => {
     render(
       <YouthAcademyTab
         gameState={createGameState([
-          createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01" }),
-          createPlayer({ id: "player-older", full_name: "Senior Pro", date_of_birth: "1998-01-01" }),
+          createPlayer({
+            id: "player-young",
+            full_name: "Rising Star",
+            date_of_birth: "2008-01-01",
+            squad_role: "Youth",
+          }),
+          createPlayer({
+            id: "player-older",
+            full_name: "Senior Pro",
+            date_of_birth: "1998-01-01",
+          }),
         ])}
         onSelectPlayer={onSelectPlayer}
       />,
@@ -194,5 +216,49 @@ describe("YouthAcademyTab", () => {
     fireEvent.click(screen.getByText("Rising Star"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-young");
+  });
+
+  it("promotes youth academy players through the context menu", async () => {
+    const gameState = createGameState([
+      createPlayer({
+        id: "player-young",
+        full_name: "Rising Star",
+        date_of_birth: "2008-01-01",
+        squad_role: "Youth",
+      }),
+    ]);
+    const updatedGameState = {
+      ...gameState,
+      players: gameState.players.map((player) =>
+        player.id === "player-young"
+          ? { ...player, squad_role: "Senior" as const }
+          : player,
+      ),
+    };
+    const onGameUpdate = vi.fn();
+    mockedInvoke.mockResolvedValue(updatedGameState);
+
+    render(
+      <YouthAcademyTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+      />,
+    );
+
+    const playerRow = screen.getByText("Rising Star").closest("tr");
+    expect(playerRow).not.toBeNull();
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Promote to senior squad" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        playerId: "player-young",
+        squadRole: "Senior",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    });
   });
 });

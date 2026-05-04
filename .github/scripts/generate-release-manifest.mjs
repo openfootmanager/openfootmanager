@@ -2,8 +2,33 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const INCLUDED_EXTENSIONS = new Set(['.exe', '.msi', '.dmg', '.pkg', '.appimage', '.deb', '.rpm']);
-const EXCLUDED_FILENAMES = new Set(['release-manifest.json', 'checksums.txt']);
+const EXCLUDED_FILENAMES = new Set([
+  'release-manifest.json',
+  'checksums.txt',
+  'nightly-release-manifest.json',
+  'nightly-checksums.txt',
+]);
 const EXCLUDED_SUFFIXES = ['.sig', '.blockmap', '.spdx.json'];
+
+function getOptionalEnv(name, fallback) {
+  return process.env[name] || fallback;
+}
+
+function getExcludedFilenames() {
+  const excluded = new Set(EXCLUDED_FILENAMES);
+  const configuredManifest = process.env.RELEASE_MANIFEST_FILE;
+  const configuredChecksums = process.env.RELEASE_CHECKSUMS_FILE;
+
+  if (configuredManifest) {
+    excluded.add(configuredManifest.toLowerCase());
+  }
+
+  if (configuredChecksums) {
+    excluded.add(configuredChecksums.toLowerCase());
+  }
+
+  return excluded;
+}
 
 function getRequiredEnv(name) {
   const value = process.env[name];
@@ -34,8 +59,9 @@ function getExtension(filename) {
 
 function shouldIncludeAsset(asset) {
   const lowerName = asset.name.toLowerCase();
+  const excludedFilenames = getExcludedFilenames();
 
-  if (EXCLUDED_FILENAMES.has(lowerName)) {
+  if (excludedFilenames.has(lowerName)) {
     return false;
   }
 
@@ -142,6 +168,69 @@ async function githubJsonRequest(url, token) {
   return response.json();
 }
 
+function isFullSha(value) {
+  return /^[0-9a-f]{40}$/i.test(value ?? '');
+}
+
+function parsePositiveInteger(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function listWorkflowRuns(repository, workflowFile, token, branch) {
+  const searchParams = new URLSearchParams({ per_page: '100' });
+
+  if (branch) {
+    searchParams.set('branch', branch);
+  }
+
+  const url = `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?${searchParams.toString()}`;
+  const payload = await githubJsonRequest(url, token);
+  return Array.isArray(payload.workflow_runs) ? payload.workflow_runs : [];
+}
+
+async function waitForWorkflowRunsToComplete(repository, workflowFile, token, branch, headSha) {
+  const pollIntervalMs = parsePositiveInteger(process.env.RELEASE_SOURCE_WORKFLOW_POLL_INTERVAL_MS, 10000);
+  const timeoutMs = parsePositiveInteger(process.env.RELEASE_SOURCE_WORKFLOW_TIMEOUT_MS, 30 * 60 * 1000);
+  const deadline = Date.now() + timeoutMs;
+  const normalizedHeadSha = isFullSha(headSha) ? headSha.toLowerCase() : '';
+
+  while (true) {
+    const workflowRuns = await listWorkflowRuns(repository, workflowFile, token, branch);
+    const activeRuns = workflowRuns.filter((run) => {
+      if (!run.status || run.status === 'completed') {
+        return false;
+      }
+
+      if (normalizedHeadSha) {
+        return (run.head_sha ?? '').toLowerCase() === normalizedHeadSha;
+      }
+
+      return true;
+    });
+
+    if (activeRuns.length === 0) {
+      return;
+    }
+
+    const runSummary = activeRuns
+      .map((run) => `${run.id}:${run.status}:${run.head_branch ?? 'unknown'}`)
+      .join(', ');
+
+    console.log(`Waiting for ${workflowFile} to finish before generating the manifest: ${runSummary}`);
+
+    if (Date.now() >= deadline) {
+      throw new Error(`Timed out waiting for ${workflowFile} to complete.`);
+    }
+
+    await delay(pollIntervalMs);
+  }
+}
+
 async function downloadAsset(url, token) {
   const response = await fetch(url, {
     headers: {
@@ -195,6 +284,17 @@ async function fetchReleaseByTag(repository, tag, token) {
 async function buildManifest() {
   const repository = getRequiredEnv('GITHUB_REPOSITORY');
   const token = getRequiredEnv('GITHUB_TOKEN');
+  const releaseStream = getOptionalEnv('RELEASE_STREAM', 'stable');
+  const manifestFilename = getOptionalEnv('RELEASE_MANIFEST_FILE', 'release-manifest.json');
+  const checksumsFilename = getOptionalEnv('RELEASE_CHECKSUMS_FILE', 'checksums.txt');
+  const sourceWorkflowFile = process.env.RELEASE_SOURCE_WORKFLOW_FILE;
+  const sourceWorkflowBranch = process.env.RELEASE_SOURCE_WORKFLOW_BRANCH;
+  const sourceWorkflowHeadSha = process.env.RELEASE_SOURCE_WORKFLOW_HEAD_SHA;
+
+  if (sourceWorkflowFile) {
+    await waitForWorkflowRunsToComplete(repository, sourceWorkflowFile, token, sourceWorkflowBranch, sourceWorkflowHeadSha);
+  }
+
   const tag = await resolveReleaseTag();
   const release = await fetchReleaseByTag(repository, tag, token);
   const assets = [];
@@ -226,7 +326,7 @@ async function buildManifest() {
 
   const manifest = {
     schemaVersion: 1,
-    product: 'OpenfootManager',
+    product: 'Openfoot Manager',
     repository,
     tag,
     version: tag.startsWith('v') ? tag.slice(1) : tag,
@@ -240,8 +340,8 @@ async function buildManifest() {
 
   const checksumLines = assets.map((asset) => `${asset.sha256}  ${asset.name}`);
 
-  await writeFile('release-manifest.json', `${JSON.stringify(manifest, null, 2)}\n`);
-  await writeFile('checksums.txt', `${checksumLines.join('\n')}\n`);
+  await writeFile(manifestFilename, `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeFile(checksumsFilename, `${checksumLines.join('\n')}\n`);
 }
 
 buildManifest().catch((error) => {

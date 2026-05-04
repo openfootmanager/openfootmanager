@@ -15,6 +15,7 @@ import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 interface JobOpportunitiesCardProps {
   gameState: GameStateData;
   onGameUpdate: (state: GameStateData) => void;
+  hideWhenEmpty?: boolean;
 }
 
 function getReputationStars(reputation: number): number {
@@ -24,7 +25,8 @@ function getReputationStars(reputation: number): number {
 export default function JobOpportunitiesCard({
   gameState,
   onGameUpdate,
-}: JobOpportunitiesCardProps): JSX.Element {
+  hideWhenEmpty = false,
+}: JobOpportunitiesCardProps): JSX.Element | null {
   const { t } = useTranslation();
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +121,10 @@ export default function JobOpportunitiesCard({
       setLoading(false);
     }
   };
+
+  if (hideWhenEmpty && !loading && jobs.length === 0 && !feedback) {
+    return null;
+  }
 
   return (
     <Card>

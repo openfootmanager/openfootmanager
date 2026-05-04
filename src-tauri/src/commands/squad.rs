@@ -1,8 +1,28 @@
+use chrono::Datelike;
 use log::info;
 use tauri::State;
 
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
+
+fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
+    match squad_role {
+        "Senior" => Some(domain::player::SquadRole::Senior),
+        "Youth" => Some(domain::player::SquadRole::Youth),
+        _ => None,
+    }
+}
+
+fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option<i32> {
+    let dob = chrono::NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
+    let mut age = current_date.year() - dob.year();
+
+    if (current_date.month(), current_date.day()) < (dob.month(), dob.day()) {
+        age -= 1;
+    }
+
+    Some(age)
+}
 
 #[tauri::command]
 pub fn set_formation(state: State<'_, StateManager>, formation: String) -> Result<Game, String> {
@@ -291,6 +311,66 @@ pub fn set_player_training_focus(
 }
 
 #[tauri::command]
+pub fn set_player_squad_role(
+    state: State<'_, StateManager>,
+    player_id: String,
+    squad_role: String,
+) -> Result<Game, String> {
+    set_player_squad_role_internal(&state, &player_id, &squad_role)
+}
+
+fn set_player_squad_role_internal(
+    state: &StateManager,
+    player_id: &str,
+    squad_role: &str,
+) -> Result<Game, String> {
+    info!(
+        "[cmd] set_player_squad_role: player={}, squad_role={}",
+        player_id, squad_role
+    );
+    let mut game = state
+        .get_game(|g| g.clone())
+        .ok_or("No active game session".to_string())?;
+
+    let team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("No team assigned".to_string())?;
+    let target_role = parse_squad_role(squad_role).ok_or("Invalid squad role".to_string())?;
+    let current_date = game.clock.current_date.date_naive();
+
+    let player_index = game
+        .players
+        .iter()
+        .position(|player| player.id == player_id)
+        .ok_or("Player not found".to_string())?;
+
+    if game.players[player_index].team_id.as_deref() != Some(team_id.as_str()) {
+        return Err("Player is not in your squad".to_string());
+    }
+
+    if matches!(target_role, domain::player::SquadRole::Youth) {
+        let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+            .ok_or("Invalid player date of birth".to_string())?;
+        if age > 21 {
+            return Err("Only players aged 21 or under can join the youth academy".to_string());
+        }
+    }
+
+    game.players[player_index].squad_role = target_role;
+
+    if matches!(target_role, domain::player::SquadRole::Youth) {
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+            team.starting_xi_ids.retain(|id| id != player_id);
+        }
+    }
+
+    state.set_game(game.clone());
+    Ok(game)
+}
+
+#[tauri::command]
 pub fn auto_select_set_pieces(
     state: State<'_, StateManager>,
     player_ids: Vec<String>,
@@ -309,4 +389,119 @@ pub fn auto_select_set_pieces(
         "free_kick_taker": free_kick,
         "corner_taker": corner,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::set_player_squad_role_internal;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position, SquadRole};
+    use domain::team::Team;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+    use ofm_core::state::StateManager;
+
+    fn default_attrs() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 30,
+            reflexes: 30,
+            aerial: 60,
+        }
+    }
+
+    fn make_user_team() -> Team {
+        let mut team = Team::new(
+            "team-1".to_string(),
+            "User FC".to_string(),
+            "USR".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "User Ground".to_string(),
+            25_000,
+        );
+        team.manager_id = Some("manager-1".to_string());
+        team.starting_xi_ids = vec!["player-1".to_string()];
+        team
+    }
+
+    fn make_player(date_of_birth: &str) -> Player {
+        let mut player = Player::new(
+            "player-1".to_string(),
+            "P. One".to_string(),
+            "Player One".to_string(),
+            date_of_birth.to_string(),
+            "England".to_string(),
+            Position::Forward,
+            default_attrs(),
+        );
+        player.team_id = Some("team-1".to_string());
+        player
+    }
+
+    fn make_game(player: Player) -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "manager-1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team-1".to_string());
+
+        Game::new(
+            clock,
+            manager,
+            vec![make_user_team()],
+            vec![player],
+            vec![],
+            vec![],
+        )
+    }
+
+    #[test]
+    fn set_player_squad_role_internal_updates_state_and_removes_from_xi() {
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("2008-01-01")));
+
+        let response =
+            set_player_squad_role_internal(&state, "player-1", "Youth").expect("response");
+
+        assert_eq!(response.players[0].squad_role, SquadRole::Youth);
+        assert!(response.teams[0].starting_xi_ids.is_empty());
+
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        assert_eq!(stored_game.players[0].squad_role, SquadRole::Youth);
+        assert!(stored_game.teams[0].starting_xi_ids.is_empty());
+    }
+
+    #[test]
+    fn set_player_squad_role_internal_rejects_overage_youth_assignment() {
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("1998-01-01")));
+
+        let error = set_player_squad_role_internal(&state, "player-1", "Youth").expect_err("error");
+
+        assert_eq!(
+            error,
+            "Only players aged 21 or under can join the youth academy"
+        );
+    }
 }

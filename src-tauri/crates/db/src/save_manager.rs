@@ -167,6 +167,28 @@ impl SaveManager {
         let db = GameDatabase::open(&db_path)?;
         let mut game = GamePersistenceReader::read_game(&db)?;
         let mut needs_resave = false;
+        let manager_count_before = game.managers.len();
+        let assigned_manager_count_before = game
+            .teams
+            .iter()
+            .filter(|team| team.manager_id.is_some())
+            .count();
+
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        if game.managers.len() != manager_count_before
+            || game
+                .teams
+                .iter()
+                .filter(|team| team.manager_id.is_some())
+                .count()
+                != assigned_manager_count_before
+        {
+            info!(
+                "[save_manager] backfilled missing world managers for save {}",
+                save_id
+            );
+            needs_resave = true;
+        }
 
         if canonicalize_game_starting_xi_ids(&mut game) {
             info!(
@@ -266,6 +288,7 @@ impl SaveManager {
         game.manager.fan_approval = 50;
         game.manager.career_stats = Default::default();
         game.manager.career_history.clear();
+        game.sync_user_manager_record();
 
         // Reset team season data
         for team in &mut game.teams {
@@ -478,20 +501,14 @@ mod tests {
             },
         );
 
-        Game {
+        Game::new(
             clock,
             manager,
-            teams: vec![team],
-            players: vec![player],
-            staff: vec![staff],
-            messages: vec![],
-            news: vec![],
-            league: None,
-            scouting_assignments: vec![],
-            board_objectives: vec![],
-            season_context: domain::season::SeasonContext::default(),
-            days_since_last_job_offer: None,
-        }
+            vec![team],
+            vec![player],
+            vec![staff],
+            vec![],
+        )
     }
 
     fn sample_game_with_league() -> Game {
@@ -543,6 +560,7 @@ mod tests {
                 StandingEntry::new("team-001".to_string()),
                 StandingEntry::new("team-002".to_string()),
             ],
+            transfer_log: vec![],
         };
 
         let mut game = Game::new(
@@ -799,6 +817,122 @@ mod tests {
         // Reload and verify
         let loaded = sm.load_game(&save_id).unwrap();
         assert_eq!(loaded.manager.reputation, 999);
+    }
+
+    #[test]
+    fn test_save_and_load_roundtrips_all_managers() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+
+        let mut rival_team = Team::new(
+            "team-003".to_string(),
+            "Rivals City".to_string(),
+            "RIV".to_string(),
+            "GB".to_string(),
+            "Manchester".to_string(),
+            "Rivals Park".to_string(),
+            42000,
+        );
+        rival_team.manager_id = Some("mgr-ai".to_string());
+        game.teams.push(rival_team);
+
+        let mut ai_manager = domain::manager::Manager::new(
+            "mgr-ai".to_string(),
+            "Marco".to_string(),
+            "Rossi".to_string(),
+            "1978-03-12".to_string(),
+            "Italy".to_string(),
+        );
+        ai_manager.hire("team-003".to_string());
+        game.managers.push(ai_manager);
+
+        let save_id = sm.create_save(&game, "Manager World").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.managers.len(), 2);
+        assert!(
+            loaded
+                .managers
+                .iter()
+                .any(|manager| manager.id == "mgr-user")
+        );
+        assert!(loaded.managers.iter().any(|manager| {
+            manager.id == "mgr-ai" && manager.team_id.as_deref() == Some("team-003")
+        }));
+    }
+
+    #[test]
+    fn test_load_game_backfills_missing_ai_managers_from_staff() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+
+        let rival_team = Team::new(
+            "team-003".to_string(),
+            "Rivals City".to_string(),
+            "RIV".to_string(),
+            "GB".to_string(),
+            "Manchester".to_string(),
+            "Rivals Park".to_string(),
+            42000,
+        );
+        game.teams.push(rival_team);
+
+        let mut assistant = domain::staff::Staff::new(
+            "staff-ai".to_string(),
+            "Marco".to_string(),
+            "Rossi".to_string(),
+            "1978-03-12".to_string(),
+            StaffRole::AssistantManager,
+            StaffAttributes {
+                coaching: 70,
+                judging_ability: 60,
+                judging_potential: 60,
+                physiotherapy: 30,
+            },
+        );
+        assistant.nationality = "Italy".to_string();
+        assistant.team_id = Some("team-003".to_string());
+        game.staff.push(assistant);
+
+        let save_id = sm.create_save(&game, "Legacy Single Manager").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(loaded.managers.len() >= 2);
+        assert!(loaded.managers.iter().any(|manager| {
+            manager.team_id.as_deref() == Some("team-003") && manager.full_name() == "Marco Rossi"
+        }));
+        assert_eq!(
+            loaded
+                .teams
+                .iter()
+                .find(|team| team.id == "team-003")
+                .and_then(|team| team.manager_id.clone())
+                .is_some(),
+            true
+        );
+    }
+
+    #[test]
+    fn test_save_and_load_roundtrips_vacant_team_days() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        game.vacant_team_days.insert("team-002".to_string(), 4);
+        game.vacant_team_days.insert("team-003".to_string(), 2);
+
+        let save_id = sm.create_save(&game, "Vacancy Tracker").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.vacant_team_days.get("team-002"), Some(&4));
+        assert_eq!(loaded.vacant_team_days.get("team-003"), Some(&2));
     }
 
     #[test]

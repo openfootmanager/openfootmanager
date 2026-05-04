@@ -409,6 +409,7 @@ mod tests {
                 StandingEntry::new("team3".to_string()),
                 StandingEntry::new("team4".to_string()),
             ],
+            transfer_log: vec![],
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

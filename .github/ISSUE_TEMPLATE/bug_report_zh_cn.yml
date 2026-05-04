@@ -1,0 +1,103 @@
+name: "🐛 Bug 报告（简体中文）"
+description: "用简体中文报告 bug 或崩溃问题"
+labels: ["bug", "alpha"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug 报告
+        感谢你提交 bug 报告！
+        请尽量填写更多细节。
+        你可以直接使用简体中文填写此模板。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "发生了什么？"
+      description: "请尽可能清楚地描述这个 bug。"
+      placeholder: "当我尝试……时，游戏崩溃了"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "你原本预期会发生什么？"
+      description: "正常情况下这里应该发生什么？"
+      placeholder: "我原本以为比赛会正常开始……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: "复现步骤"
+      description: "我们可以通过哪些步骤复现这个 bug？"
+      placeholder: |
+        1. 开始新游戏
+        2. 选择一支球队
+        3. 推进到比赛日
+        4. 点击 “Go to the Field”
+        5. 游戏崩溃
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: "这个问题出现得有多频繁？"
+      options:
+        - 每次都会发生
+        - 有时会发生
+        - 只发生过一次
+    validations:
+      required: true
+
+  - type: textarea
+    id: game-context
+    attributes:
+      label: "游戏上下文"
+      description: "当时是第几天 / 第几个比赛日？你当时在做什么？是否刚加载过存档？"
+      placeholder: "当时是第 5 个比赛日，刚踢完一场比赛……"
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: "操作系统"
+      description: "例如: Windows 11、macOS 15、Ubuntu 24.04"
+      placeholder: "Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: resolution
+    attributes:
+      label: "屏幕分辨率"
+      description: "例如: 1920x1080"
+      placeholder: "1920x1080"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: logs
+    attributes:
+      label: "日志文件"
+      description: |
+        请尽量附上日志文件！这会帮助我们更快修复 bug。
+        **Windows:** `C:\Users\<你>\AppData\Roaming\com.sturdyrobot.openfootmanager\logs\`
+        **macOS:** `~/Library/Application Support/com.sturdyrobot.openfootmanager/logs/`
+        **Linux:** `~/.local/share/com.sturdyrobot.openfootmanager/logs/`
+      options:
+        - label: "我已经附上日志文件（请将压缩后的 logs 文件夹拖拽到下方）"
+          required: false
+
+  - type: textarea
+    id: logs-and-screenshots
+    attributes:
+      label: "日志文件和截图"
+      description: "请将压缩后的 logs 文件夹和相关截图拖拽到这里。"
+      placeholder: "把文件拖到这里……"
+    validations:
+      required: false

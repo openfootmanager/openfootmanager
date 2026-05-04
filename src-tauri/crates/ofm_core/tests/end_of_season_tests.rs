@@ -161,6 +161,7 @@ fn make_completed_season_game() -> Game {
         season: 1,
         fixtures,
         standings,
+        transfer_log: vec![],
     };
 
     let mut game = Game::new(
@@ -535,15 +536,79 @@ fn news_cleared() {
     ));
 
     process_end_of_season(&mut game);
-    assert_eq!(
-        game.news.len(),
-        1,
-        "Old news should be replaced by the new season preview"
+    assert!(
+        game.news.iter().all(|article| article.id != "n1"),
+        "Old news from the previous season should be cleared"
     );
-    assert_ne!(game.news[0].id, "n1");
-    assert_eq!(
-        game.news[0].category,
-        domain::news::NewsCategory::SeasonPreview
+    assert!(
+        game.news
+            .iter()
+            .any(|article| article.category == domain::news::NewsCategory::SeasonPreview),
+        "A season preview should be added for the new season"
+    );
+}
+
+#[test]
+fn season_awards_article_added_when_marquee_winners_exist() {
+    // The fixture has a top scorer (Star, 20 goals) and a clear POTY (Star, 7.5 rating).
+    let mut game = make_completed_season_game();
+    process_end_of_season(&mut game);
+
+    let awards_article = game
+        .news
+        .iter()
+        .find(|article| article.id == "season_awards_1");
+    assert!(
+        awards_article.is_some(),
+        "A season awards article should be published when there are marquee winners"
+    );
+}
+
+#[test]
+fn season_awards_article_references_top_scorer_and_their_team() {
+    let mut game = make_completed_season_game();
+    process_end_of_season(&mut game);
+
+    let awards_article = game
+        .news
+        .iter()
+        .find(|article| article.id == "season_awards_1")
+        .expect("awards article should exist");
+
+    assert!(
+        awards_article.body.contains("Star"),
+        "Awards article body should reference the top scorer by name"
+    );
+    assert!(
+        awards_article.body.contains("Test FC"),
+        "Awards article body should reference the top scorer's club"
+    );
+    assert!(
+        awards_article.player_ids.contains(&"p1".to_string()),
+        "Awards article should link the winning player by id"
+    );
+    assert!(
+        awards_article.team_ids.contains(&"team1".to_string()),
+        "Awards article should link the winning club by id"
+    );
+}
+
+#[test]
+fn season_awards_article_not_added_when_no_marquee_winners() {
+    // Strip players' goals and ratings so there's no Golden Boot / POTY winner.
+    let mut game = make_completed_season_game();
+    for player in game.players.iter_mut() {
+        player.stats.goals = 0;
+        player.stats.assists = 0;
+        player.stats.avg_rating = 0.0;
+    }
+    process_end_of_season(&mut game);
+
+    assert!(
+        game.news
+            .iter()
+            .all(|article| article.id != "season_awards_1"),
+        "No awards article should be published when no marquee award has a winner"
     );
 }
 
@@ -834,6 +899,63 @@ fn satisfaction_adjusted_after_season() {
     process_end_of_season(&mut game);
     // With no objectives, evaluate_objectives returns 0, so satisfaction unchanged
     assert_eq!(game.manager.satisfaction, initial_sat);
+}
+
+// ---------------------------------------------------------------------------
+// process_end_of_season — team reputation updates
+// ---------------------------------------------------------------------------
+
+#[test]
+fn low_reputation_champion_gains_reputation() {
+    let mut game = make_completed_season_game();
+    let team1 = game
+        .teams
+        .iter_mut()
+        .find(|team| team.id == "team1")
+        .unwrap();
+    team1.reputation = 320;
+
+    process_end_of_season(&mut game);
+
+    let updated_team1 = game.teams.iter().find(|team| team.id == "team1").unwrap();
+    assert!(
+        updated_team1.reputation > 320,
+        "Winning the league from a low starting reputation should raise the club's reputation"
+    );
+}
+
+#[test]
+fn high_reputation_bottom_side_loses_reputation() {
+    let mut game = make_completed_season_game();
+
+    for i in 3..=10 {
+        let team_id = format!("team{}", i);
+        game.teams
+            .push(make_team(&team_id, &format!("Team{} FC", i)));
+    }
+
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == "team1")
+        .unwrap()
+        .reputation = 860;
+
+    if let Some(league) = &mut game.league {
+        let mut standings = Vec::new();
+        for i in 2..=10 {
+            standings.push(make_standing(&format!("team{}", i), 10, 2, 6, 20, 15));
+        }
+        standings.push(make_standing("team1", 0, 0, 18, 2, 40));
+        league.standings = standings;
+    }
+
+    process_end_of_season(&mut game);
+
+    let updated_team1 = game.teams.iter().find(|team| team.id == "team1").unwrap();
+    assert!(
+        updated_team1.reputation < 860,
+        "A high-reputation club collapsing to the bottom should lose reputation"
+    );
 }
 
 // ---------------------------------------------------------------------------

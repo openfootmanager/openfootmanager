@@ -7,6 +7,7 @@ import fr from "../i18n/locales/fr.json";
 import itLocale from "../i18n/locales/it.json";
 import ptBR from "../i18n/locales/pt-BR.json";
 import pt from "../i18n/locales/pt.json";
+import zhCN from "../i18n/locales/zh-CN.json";
 
 type LocaleTree = Record<string, unknown>;
 
@@ -18,6 +19,7 @@ const LOCALES: Record<string, LocaleTree> = {
   it: itLocale,
   pt,
   "pt-BR": ptBR,
+  "zh-CN": zhCN,
 };
 
 const REQUIRED_KEYS = [
@@ -46,10 +48,27 @@ const REQUIRED_KEYS = [
   "be.msg.jobOffer.body",
   "be.msg.jobOffer.accept",
   "be.msg.jobOffer.decline",
+  "be.msg.jobOffer.effects.accepted",
+  "be.msg.jobOffer.effects.declined",
+  "be.msg.jobOffer.effects.alreadyEmployed",
+  "be.msg.jobOffer.effects.unavailable",
+  "be.msg.jobOffer.effects.failed",
+  "be.msg.jobOfferExpired.subject",
+  "be.msg.jobOfferExpired.body",
   "be.msg.jobHired.subject",
   "be.msg.jobHired.body",
   "be.msg.jobRejection.subject",
   "be.msg.jobRejection.body",
+  "be.news.managerialChange.headline",
+  "be.news.managerialChange.body",
+  "be.news.managerialAppointment.headline",
+  "be.news.managerialAppointment.body",
+  "be.news.seasonAwards.headline",
+  "be.news.seasonAwards.bodyBoth",
+  "be.news.seasonAwards.bodyGoldenBootOnly",
+  "be.news.seasonAwards.bodyPotyOnly",
+  "be.news.majorTransfer.headline",
+  "be.news.majorTransfer.body",
   "boardObjectives.objective.LeaguePosition",
   "boardObjectives.objective.Wins",
   "boardObjectives.objective.GoalsScored",
@@ -65,6 +84,35 @@ function getNestedValue(tree: LocaleTree, keyPath: string): unknown {
 
       return (value as Record<string, unknown>)[segment];
     }, tree);
+}
+
+function collectMissingKeys(
+  reference: LocaleTree,
+  candidate: LocaleTree,
+  path: string[] = [],
+): string[] {
+  return Object.entries(reference).flatMap(([key, value]) => {
+    const nextPath = [...path, key];
+    const candidateValue = candidate[key];
+
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      if (
+        candidateValue === null ||
+        typeof candidateValue !== "object" ||
+        Array.isArray(candidateValue)
+      ) {
+        return [nextPath.join(".")];
+      }
+
+      return collectMissingKeys(
+        value as LocaleTree,
+        candidateValue as LocaleTree,
+        nextPath,
+      );
+    }
+
+    return candidateValue === undefined ? [nextPath.join(".")] : [];
+  });
 }
 
 describe("backend i18n locale coverage", () => {
@@ -84,5 +132,9 @@ describe("backend i18n locale coverage", () => {
     }, {});
 
     expect(missingKeysByLocale).toEqual({});
+  });
+
+  it("keeps zh-CN aligned with the English translation key set", () => {
+    expect(collectMissingKeys(en, zhCN)).toEqual([]);
   });
 });

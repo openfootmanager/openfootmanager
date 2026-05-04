@@ -5,10 +5,11 @@ use tauri::State;
 use domain::negotiation::NegotiationFeedback;
 use domain::player::RenewalSessionStatus;
 use ofm_core::contracts::{
-    DelegatedRenewalOptions, DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection,
-    RenewalOffer,
+    ContractTerminationPreview, ContractTerminationResult, DelegatedRenewalOptions,
+    DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection, RenewalOffer,
 };
 use ofm_core::game::Game;
+use ofm_core::squad_safety::SquadSafetyReport;
 use ofm_core::state::StateManager;
 
 #[derive(Debug, Clone, Serialize)]
@@ -32,6 +33,23 @@ pub struct DelegatedRenewalCommandResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct RenewalFinancialProjectionCommandResponse {
     pub projection: RenewalFinancialProjection,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ContractExitIntentCommandResponse {
+    pub game: Game,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ContractTerminationPreviewCommandResponse {
+    pub preview: ContractTerminationPreview,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ContractTerminationCommandResponse {
+    pub game: Game,
+    pub severance_cost: i64,
+    pub squad_safety: SquadSafetyReport,
 }
 
 #[tauri::command]
@@ -66,6 +84,39 @@ pub async fn preview_renewal_financial_impact(
     weekly_wage: u32,
 ) -> Result<RenewalFinancialProjectionCommandResponse, String> {
     preview_renewal_financial_impact_internal(&state, &player_id, weekly_wage)
+}
+
+#[tauri::command]
+pub async fn set_contract_exit_intent(
+    state: State<'_, StateManager>,
+    player_id: String,
+    reason: Option<String>,
+) -> Result<ContractExitIntentCommandResponse, String> {
+    set_contract_exit_intent_internal(&state, &player_id, reason)
+}
+
+#[tauri::command]
+pub async fn clear_contract_exit_intent(
+    state: State<'_, StateManager>,
+    player_id: String,
+) -> Result<ContractExitIntentCommandResponse, String> {
+    clear_contract_exit_intent_internal(&state, &player_id)
+}
+
+#[tauri::command]
+pub async fn preview_contract_termination(
+    state: State<'_, StateManager>,
+    player_id: String,
+) -> Result<ContractTerminationPreviewCommandResponse, String> {
+    preview_contract_termination_internal(&state, &player_id)
+}
+
+#[tauri::command]
+pub async fn terminate_contract_now(
+    state: State<'_, StateManager>,
+    player_id: String,
+) -> Result<ContractTerminationCommandResponse, String> {
+    terminate_contract_now_internal(&state, &player_id)
 }
 
 fn propose_renewal_internal(
@@ -155,11 +206,87 @@ fn preview_renewal_financial_impact_internal(
     Ok(RenewalFinancialProjectionCommandResponse { projection })
 }
 
+fn set_contract_exit_intent_internal(
+    state: &StateManager,
+    player_id: &str,
+    reason: Option<String>,
+) -> Result<ContractExitIntentCommandResponse, String> {
+    info!("[cmd] set_contract_exit_intent: player_id={}", player_id);
+
+    let mut game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("No active game session".to_string())?;
+
+    ofm_core::contracts::set_contract_exit_intent(&mut game, player_id, reason)?;
+    state.set_game(game.clone());
+
+    Ok(ContractExitIntentCommandResponse { game })
+}
+
+fn clear_contract_exit_intent_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<ContractExitIntentCommandResponse, String> {
+    info!("[cmd] clear_contract_exit_intent: player_id={}", player_id);
+
+    let mut game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("No active game session".to_string())?;
+
+    ofm_core::contracts::clear_contract_exit_intent(&mut game, player_id)?;
+    state.set_game(game.clone());
+
+    Ok(ContractExitIntentCommandResponse { game })
+}
+
+fn preview_contract_termination_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<ContractTerminationPreviewCommandResponse, String> {
+    info!(
+        "[cmd] preview_contract_termination: player_id={}",
+        player_id
+    );
+
+    let game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("No active game session".to_string())?;
+    let preview = ofm_core::contracts::preview_contract_termination(&game, player_id)?;
+
+    Ok(ContractTerminationPreviewCommandResponse { preview })
+}
+
+fn terminate_contract_now_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<ContractTerminationCommandResponse, String> {
+    info!("[cmd] terminate_contract_now: player_id={}", player_id);
+
+    let mut game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("No active game session".to_string())?;
+
+    let ContractTerminationResult {
+        severance_cost,
+        squad_safety,
+    } = ofm_core::contracts::terminate_contract_now(&mut game, player_id)?;
+
+    state.set_game(game.clone());
+
+    Ok(ContractTerminationCommandResponse {
+        game,
+        severance_cost,
+        squad_safety,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        delegate_renewals_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal,
+        clear_contract_exit_intent_internal, delegate_renewals_internal,
+        preview_contract_termination_internal, preview_renewal_financial_impact_internal,
+        propose_renewal_internal, set_contract_exit_intent_internal,
+        terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -243,6 +370,16 @@ mod tests {
         player
     }
 
+    fn make_player_with_position(id: &str, position: Position) -> Player {
+        let mut player = make_player();
+        player.id = id.to_string();
+        player.match_name = id.to_string();
+        player.full_name = format!("Player {}", id);
+        player.position = position.clone();
+        player.natural_position = position;
+        player
+    }
+
     fn make_assistant_manager() -> Staff {
         let mut staff = Staff::new(
             "staff-1".to_string(),
@@ -296,6 +433,25 @@ mod tests {
             vec![make_assistant_manager()],
             vec![],
         )
+    }
+
+    fn make_squad_game() -> Game {
+        let mut game = make_game();
+        game.players = vec![
+            make_player_with_position("gk-1", Position::Goalkeeper),
+            make_player_with_position("player-1", Position::Forward),
+            make_player_with_position("player-2", Position::Forward),
+            make_player_with_position("player-3", Position::Defender),
+            make_player_with_position("player-4", Position::Defender),
+            make_player_with_position("player-5", Position::Defender),
+            make_player_with_position("player-6", Position::Defender),
+            make_player_with_position("player-7", Position::Midfielder),
+            make_player_with_position("player-8", Position::Midfielder),
+            make_player_with_position("player-9", Position::Midfielder),
+            make_player_with_position("player-10", Position::Midfielder),
+            make_player_with_position("player-11", Position::Forward),
+        ];
+        game
     }
 
     #[test]
@@ -480,5 +636,71 @@ mod tests {
         assert_eq!(response.projection.current_annual_wage_bill, 12_000);
         assert_eq!(response.projection.projected_annual_wage_bill, 15_000);
         assert!(response.projection.policy_allows);
+    }
+
+    #[test]
+    fn contract_exit_intent_internal_updates_state() {
+        let state = StateManager::new();
+        state.set_game(make_game());
+
+        let marked =
+            set_contract_exit_intent_internal(&state, "player-1", None).expect("intent response");
+        let marked_player = marked
+            .game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("player should exist");
+        assert!(marked_player
+            .morale_core
+            .renewal_state
+            .as_ref()
+            .and_then(|state| state.exit_intent.as_ref())
+            .is_some());
+
+        let cleared =
+            clear_contract_exit_intent_internal(&state, "player-1").expect("clear response");
+        let cleared_player = cleared
+            .game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("player should exist");
+        assert!(cleared_player
+            .morale_core
+            .renewal_state
+            .as_ref()
+            .and_then(|state| state.exit_intent.as_ref())
+            .is_none());
+    }
+
+    #[test]
+    fn terminate_contract_now_internal_returns_updated_game() {
+        let state = StateManager::new();
+        state.set_game(make_squad_game());
+
+        let preview =
+            preview_contract_termination_internal(&state, "player-1").expect("preview response");
+        assert!(preview.preview.squad_safety.can_field_matchday_squad);
+
+        let response =
+            terminate_contract_now_internal(&state, "player-1").expect("termination response");
+        assert_eq!(response.severance_cost, 132_000);
+        assert!(response.squad_safety.can_field_matchday_squad);
+        let player = response
+            .game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("player should exist");
+        assert_eq!(player.team_id, None);
+
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("stored player should exist");
+        assert_eq!(stored_player.team_id, None);
     }
 }

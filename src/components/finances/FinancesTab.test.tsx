@@ -16,7 +16,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => {},
+    init: () => { },
   },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
@@ -25,7 +25,7 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.activeSponsor") return "Active Sponsor";
       if (key === "finances.noActiveSponsor") return "No active sponsor";
       if (key === "finances.sponsorWeeklyValue")
-        return `Weekly value: €${params?.amount}`;
+        return `Weekly value: ${params?.amount}`;
       if (key === "finances.sponsorRemainingWeeks")
         return `${params?.count} weeks remaining`;
       if (key === "finances.pendingSponsorOffers") return "Pending Offers";
@@ -57,7 +57,7 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.contractExpiresOn")
         return `Expires ${params?.date}`;
       if (key === "finances.atRiskWages")
-        return `€${params?.amount}/wk at risk`;
+        return `${params?.amount}/wk at risk`;
       if (key === "finances.noContractRisks")
         return "No imminent contract risks";
       if (key === "common.renewContract") return "Renew Contract";
@@ -68,7 +68,7 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.upgradeFacility") return "Upgrade";
       if (key === "finances.insufficientFunds") return "Insufficient funds";
       if (key === "finances.nextUpgradeCost")
-        return `Next upgrade: €${params?.amount}`;
+        return `Next upgrade: ${params?.amount}`;
       if (key === "finances.facilityTrainingEffect")
         return "Improves training quality";
       if (key === "finances.facilityMedicalEffect") return "Improves recovery";
@@ -372,7 +372,7 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Sponsors")).toBeInTheDocument();
     expect(screen.getByText("Active Sponsor")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
-    expect(screen.getByText("Weekly value: €125000")).toBeInTheDocument();
+    expect(screen.getByText("Weekly value: €125,000")).toBeInTheDocument();
     expect(screen.getByText("8 weeks remaining")).toBeInTheDocument();
     expect(screen.getByText("Pending Offers")).toBeInTheDocument();
     expect(
@@ -495,7 +495,7 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Warning")).toBeInTheDocument();
     expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
     expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
-    expect(screen.getByText("€1153/wk at risk")).toBeInTheDocument();
+    expect(screen.getByText("€1,153/wk at risk")).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Renew Contract" }),
     ).toHaveLength(2);

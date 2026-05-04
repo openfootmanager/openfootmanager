@@ -58,8 +58,8 @@ export default function TrainingSettingsPanel({
                 disabled={isSaving}
                 onClick={() => onSetSchedule(scheduleId)}
                 className={`flex-1 p-3 rounded-xl text-left transition-all border-2 ${currentSchedule === scheduleId
-                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
-                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                  ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
+                  : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
                   } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <div className={`mb-1.5 ${scheduleColors[scheduleId]}`}>
@@ -69,7 +69,7 @@ export default function TrainingSettingsPanel({
                   {t(`training.schedules.${scheduleId}.label`)}
                 </p>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                  {t(`training.schedules.${scheduleId}.summary`)}
+                  {t(`training.schedules.${scheduleId}.desc`)}
                 </p>
               </button>
             ))}
@@ -101,8 +101,8 @@ export default function TrainingSettingsPanel({
                 disabled={isSaving}
                 onClick={() => onSetTraining(focusId, currentIntensity)}
                 className={`p-4 rounded-xl text-left transition-all border-2 ${currentFocus === focusId
-                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
-                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                  ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-md shadow-primary-500/10"
+                  : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
                   } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <div className="mb-2 text-gray-600 dark:text-gray-300">
@@ -144,8 +144,8 @@ export default function TrainingSettingsPanel({
                   disabled={isSaving}
                   onClick={() => onSetTraining(currentFocus, intensityId)}
                   className={`flex-1 p-3 rounded-lg text-left transition-all border-2 ${currentIntensity === intensityId
-                      ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10"
-                      : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                    ? "border-primary-500 bg-primary-50 dark:bg-primary-500/10"
+                    : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
                     } ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
                 >
                   <p

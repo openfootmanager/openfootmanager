@@ -14,6 +14,8 @@
 
 [Features](#features) • [Screenshots](#screenshots) • [Installation](#installation--development) • [Contributing](#contributing) • [License](#license)
 
+Join the community on Discord: https://discord.gg/4ppEDH68
+
 </div>
 
 ---
@@ -81,6 +83,8 @@ npm run tauri dev
 ## CONTRIBUTING
 
 Contributions are welcome. For full guidelines, read [CONTRIBUTING](CONTRIBUTING.md).
+
+If you want to discuss ideas, share feedback, or follow development more casually, join the Discord server: https://discord.gg/4ppEDH68
 
 Quick contribution checklist:
 

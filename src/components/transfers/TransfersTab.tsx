@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   GameStateData,
   PlayerData,
@@ -6,6 +6,7 @@ import {
   TransferOfferData,
 } from "../../store/gameStore";
 import { Card, CardBody, Badge, CountryFlag } from "../ui";
+import ContextMenu from "../ContextMenu";
 import {
   Search,
   TrendingUp,
@@ -39,16 +40,14 @@ import TransferBidModal from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
 import {
   counterOffer,
-  makeTransferBid,
-  previewTransferBidFinancialImpact,
   respondToOffer,
-  type TransferBidProjectionData,
+  toggleLoanList,
+  toggleTransferList,
   type TransferNegotiationResponseData,
 } from "../../services/transfersService";
+import { sendScout } from "../../services/scoutingService";
 import {
-  buildResumedBidFeedback,
   buildResumedCounterFeedback,
-  getOutgoingNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
@@ -59,6 +58,17 @@ import {
   getCurrentTransferList,
   type TransferTabView,
 } from "./TransfersTab.model";
+import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
+import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
+import {
+  buildDividerMenuItem,
+  buildScoutPlayerMenuItem,
+  buildToggleLoanListMenuItem,
+  buildToggleTransferListMenuItem,
+  buildViewProfileMenuItem,
+  buildViewTeamMenuItem,
+} from "../playerActions/playerContextMenuItems";
+import { useTransferBidFlow } from "./useTransferBidFlow";
 
 interface TransfersTabProps {
   gameState: GameStateData;
@@ -74,8 +84,6 @@ type CounterTarget = {
   fee: number;
 };
 
-type TransferNegotiationFeedbackData = NegotiationFeedbackPanelData;
-
 export default function TransfersTab({
   gameState,
   onSelectPlayer,
@@ -88,16 +96,6 @@ export default function TransfersTab({
   const [view, setView] = useState<TransferTabView>("my_list");
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
-  const [bidTarget, setBidTarget] = useState<PlayerData | null>(null);
-  const [bidAmount, setBidAmount] = useState("");
-  const [bidResult, setBidResult] = useState<
-    TransferNegotiationResponseData["decision"] | "error" | null
-  >(null);
-  const [bidLoading, setBidLoading] = useState(false);
-  const [bidFeedback, setBidFeedback] =
-    useState<TransferNegotiationFeedbackData | null>(null);
-  const [bidProjection, setBidProjection] =
-    useState<TransferBidProjectionData["projection"] | null>(null);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
   );
@@ -108,22 +106,8 @@ export default function TransfersTab({
     TransferNegotiationResponseData["decision"] | "error" | null
   >(null);
   const [counterFeedback, setCounterFeedback] =
-    useState<TransferNegotiationFeedbackData | null>(null);
-
-  const openBidNegotiation = (player: PlayerData) => {
-    const existingOffer = getOutgoingNegotiationOffer(player, userTeamId);
-
-    setBidTarget(player);
-    setBidAmount(
-      (
-        (existingOffer?.suggested_counter_fee ?? existingOffer?.fee ?? player.market_value) /
-        1_000_000
-      ).toFixed(existingOffer ? 2 : 1),
-    );
-    setBidResult(null);
-    setBidFeedback(buildResumedBidFeedback(existingOffer));
-    setBidProjection(null);
-  };
+    useState<NegotiationFeedbackPanelData | null>(null);
+  const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
 
   const openCounterNegotiation = (
     player: PlayerData,
@@ -145,34 +129,6 @@ export default function TransfersTab({
     setCounterFeedback(buildResumedCounterFeedback(offer));
   };
 
-  const handleMakeBid = async () => {
-    if (!bidTarget || !bidAmount) return;
-    setBidLoading(true);
-    setBidResult(null);
-    setBidFeedback(null);
-    try {
-      const fee = Math.round(parseFloat(bidAmount) * 1_000_000);
-      const res = await makeTransferBid(bidTarget.id, fee);
-      setBidResult(res.decision);
-      setBidFeedback(res.feedback);
-      if (onGameUpdate) onGameUpdate(res.game);
-      if (res.suggested_fee !== null) {
-        setBidAmount((res.suggested_fee / 1_000_000).toFixed(2));
-      }
-      if (res.decision === "accepted") {
-        setTimeout(() => {
-          setBidTarget(null);
-          setBidResult(null);
-          setBidFeedback(null);
-        }, 2000);
-      }
-    } catch (err: any) {
-      setBidResult(err?.toString() || "error");
-      setBidFeedback(null);
-    } finally {
-      setBidLoading(false);
-    }
-  };
 
   const handleRespondOffer = async (
     playerId: string,
@@ -226,12 +182,33 @@ export default function TransfersTab({
     }
   };
 
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
+  const {
+    bidTarget,
+    bidAmount,
+    setBidAmount,
+    bidResult,
+    bidLoading,
+    bidFeedback,
+    bidProjection,
+    bidFee,
+    activeBidOffer,
+    myTeam,
+    hasExistingOffer,
+    bidSubmitDisabled,
+    openBidNegotiation,
+    closeBidNegotiation,
+    handleMakeBid,
+  } = useTransferBidFlow({
+    gameState,
+    onGameUpdate,
+  });
+  const scouts = gameState.staff.filter(
+    (staffMember) =>
+      staffMember.role === "Scout" && staffMember.team_id === userTeamId,
   );
-  const activeBidOffer = bidTarget
-    ? getOutgoingNegotiationOffer(bidTarget, userTeamId)
-    : null;
+  const scoutingAssignments = gameState.scouting_assignments || [];
+  const availableScouts = calculateAvailableScouts(scouts, scoutingAssignments);
+  const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
   const activeCounterOffer = counterTarget
     ? counterTarget.player.transfer_offers.find(
       (offer) => offer.id === counterTarget.offerId,
@@ -308,51 +285,24 @@ export default function TransfersTab({
   const weeklyWageBudget = myTeam
     ? annualAmountToWeeklyCommitment(myTeam.wage_budget)
     : 0;
-  const bidAmountMillions = Number.parseFloat(bidAmount);
-  const bidFee = Number.isFinite(bidAmountMillions)
-    ? Math.round(bidAmountMillions * 1_000_000)
-    : null;
 
-  useEffect(() => {
-    if (!bidTarget || bidFee === null || bidFee <= 0) {
-      setBidProjection(null);
+  const handleScoutPlayer = async (playerId: string): Promise<void> => {
+    if (availableScouts.length === 0) {
       return;
     }
 
-    let cancelled = false;
+    const scout = availableScouts[0];
+    setScoutingPlayerId(playerId);
 
-    const loadProjection = async (): Promise<void> => {
-      try {
-        const result = await previewTransferBidFinancialImpact(
-          bidTarget.id,
-          bidFee,
-        );
-
-        if (!cancelled) {
-          setBidProjection(result.projection ?? null);
-        }
-      } catch {
-        if (!cancelled) {
-          setBidProjection(null);
-        }
-      }
-    };
-
-    loadProjection();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bidFee, bidTarget]);
-
-  const bidSubmitDisabled =
-    bidLoading ||
-    bidResult === "accepted" ||
-    bidFee === null ||
-    bidFee <= 0 ||
-    bidProjection === null ||
-    bidProjection.exceeds_transfer_budget ||
-    bidProjection.exceeds_finance;
+    try {
+      const updated = await sendScout(scout.id, playerId);
+      onGameUpdate?.(updated);
+    } catch (error) {
+      console.error("Failed to send scout:", error);
+    } finally {
+      setScoutingPlayerId(null);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -542,7 +492,67 @@ export default function TransfersTab({
                     );
                     const age = calcAge(player.date_of_birth);
                     const offersForThisPlayer = player.transfer_offers;
-                    return (
+                    const scoutState = alreadyScoutingIds.has(player.id)
+                      ? "already-assigned"
+                      : scoutingPlayerId === player.id
+                        ? "busy"
+                        : availableScouts.length === 0
+                          ? "unavailable"
+                          : "ready";
+                    const contextItems = [
+                      buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
+                      ...(player.team_id
+                        ? [
+                          buildViewTeamMenuItem(t, () => {
+                            onSelectTeam(player.team_id!);
+                          }),
+                        ]
+                        : []),
+                    ];
+
+                    if (view === "my_list") {
+                      contextItems.push(buildDividerMenuItem());
+                      contextItems.push(
+                        buildToggleTransferListMenuItem(
+                          t,
+                          player.transfer_listed,
+                          async () => {
+                            try {
+                              const updated = await toggleTransferList(player.id);
+                              onGameUpdate?.(updated);
+                            } catch {
+                              return;
+                            }
+                          },
+                        ),
+                      );
+                      contextItems.push(
+                        buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
+                          try {
+                            const updated = await toggleLoanList(player.id);
+                            onGameUpdate?.(updated);
+                          } catch {
+                            return;
+                          }
+                        }),
+                      );
+                    }
+
+                    if (view === "market" || view === "loans") {
+                      contextItems.push(buildDividerMenuItem());
+                      contextItems.push(
+                        buildScoutPlayerMenuItem(t, scoutState, () => {
+                          void handleScoutPlayer(player.id);
+                        }),
+                      );
+                      contextItems.push({
+                        label: t("transfers.bid"),
+                        icon: <Gavel className="w-4 h-4" />,
+                        onClick: () => openBidNegotiation(player),
+                      });
+                    }
+
+                    const row = (
                       <tr
                         key={player.id}
                         className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
@@ -710,6 +720,12 @@ export default function TransfersTab({
                         )}
                       </tr>
                     );
+
+                    return (
+                      <ContextMenu items={contextItems} key={player.id}>
+                        {row}
+                      </ContextMenu>
+                    );
                   })}
                 </tbody>
               </table>
@@ -744,17 +760,12 @@ export default function TransfersTab({
           bidProjection={bidProjection}
           bidFeedback={bidFeedback}
           activeBidOffer={activeBidOffer}
-          hasExistingOffer={activeBidOffer !== null}
+          hasExistingOffer={hasExistingOffer}
           bidResult={bidResult}
           bidLoading={bidLoading}
           bidSubmitDisabled={bidSubmitDisabled}
           onSubmit={handleMakeBid}
-          onClose={() => {
-            setBidTarget(null);
-            setBidFeedback(null);
-            setBidResult(null);
-            setBidProjection(null);
-          }}
+          onClose={closeBidNegotiation}
         />
       )}
       {counterTarget && (

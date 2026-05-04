@@ -236,6 +236,8 @@
     "growth": "成长",
     "traits": "特质",
     "condition": "状态",
+    "delegateToYouthAcademy": "下放至青训营",
+    "promoteToSeniorSquad": "提拔至一线队",
     "potWorldClass": "世界级",
     "potExcellent": "优秀",
     "potPromising": "有前途",
@@ -287,6 +289,7 @@
     "wage": "周薪",
     "name": "姓名",
     "team": "球队",
+    "viewTeam": "查看球队",
     "player": "球员",
     "actions": "操作",
     "position": "位置",
@@ -946,6 +949,15 @@
     "renewalCounter": "要价更高:每周 €{{wage}},为期 {{years}} 年",
     "renewalBlocked": "由于你之前的决定,谈判已中断",
     "renewalCooledOff": "之前的谈判已冷却,本次作为全新对话重新开始。",
+    "letContractExpire": "任其到期",
+    "reopenContractTalks": "重启谈判",
+    "terminateContract": "立即解约",
+    "terminateContractTitle": "终止合同",
+    "terminateContractBody": "立即让{{name}}离队,并支付其剩余合同工资作为解约补偿。",
+    "terminationSeverance": "解约补偿",
+    "projectedHealthyPlayers": "解约后健康球员数",
+    "terminationUnsafe": "此次解约将导致球队无法排出比赛日首发十一人。",
+    "confirmTerminateContract": "终止合同",
     "delegateRenewal": "委托给助理",
     "renewalDelegateMissingReport": "助理报告中未包含该球员。",
     "renewalConversationTitle": "谈判动态",
@@ -1468,7 +1480,16 @@
     "resolveBeforeContinuing": "请在继续前解决这些问题",
     "goTo": "前往",
     "reviewIssues": "查看问题",
-    "continueAnyway": "仍然继续"
+    "continueAnyway": "仍然继续",
+    "blockers": {
+      "injuredXi": "首发十一人中有{{count}}名伤员:{{players}}",
+      "incompleteXi": "首发十一人中仅有{{count}}名健康球员——请设置您的阵容",
+      "squadSizeCrisis": "阵中仅有{{count}}名签约球员——请在比赛日前完成引援",
+      "plannedContractExitCrisis": "计划中的合同离队将使球队仅剩{{healthyPlayers}}名健康球员和{{goalkeepers}}名门将:{{players}}",
+      "urgentMessages": "{{count}}条紧急未读消息",
+      "keyContractRisk": "阵容规划中的关键球员合同风险:{{players}}",
+      "contractWageRisk": "{{amount}}的工资与高风险合同绑定——请审查您的薪资预算"
+    }
   },
   "squadCompare": {
     "compare": "比较"
@@ -1847,16 +1868,16 @@
         "subject": "助理教练报告——合同续约",
         "body": "老板,我梳理了{{team}}的续约名单。{{successes}}个已完成,{{stalled}}个仍在推进,{{failures}}个未成。",
         "case": {
-          "successful": "已完成:{{player}}同意以€{{wage}}/周签约{{years}}年。",
+          "successful": "已完成:{{player}}同意以{{wage}}/周签约{{years}}年。",
           "stalled": "仍有难度:{{player}}——{{detail}}",
           "failed": "未成功:{{player}}——{{detail}}"
         },
         "notes": {
           "managerBlocked": "您交代过暂不重启合同谈判。",
           "completed": "我无需您亲自出面便已谈妥此人。",
-          "beyondLimits": "他们团队要求约€{{wage}}/周、{{years}}年,超出了我可授权的范围。",
+          "beyondLimits": "他们团队要求约{{wage}}/周、{{years}}年,超出了我可授权的范围。",
           "boardWagePolicy": "董事会薪资政策阻止了此次续约。在恢复期内,年薪总额需维持在€{{budget}}左右。",
-          "prefersManager": "他们愿意听取建议,但仍要求约€{{wage}}/周、{{years}}年,且希望直接与您沟通。",
+          "prefersManager": "他们愿意听取建议,但仍要求约{{wage}}/周、{{years}}年,且希望直接与您沟通。",
           "relationshipBlocked": "在当前的关系和合同状况下,他们不愿通过我方签约。"
         }
       },
@@ -1880,7 +1901,18 @@
         "subject": "经理职位空缺——{{team}}",
         "body": "{{team}}({{city}})董事会正在寻找新任经理带领俱乐部前行。上赛季排名:{{league_position}}。\n\n在审视了您的资历后,我们认为您可能是合适的人选。您是否愿意接受这一挑战?",
         "accept": "接受职位",
-        "decline": "婉拒邀约"
+        "decline": "婉拒邀约",
+        "effects": {
+          "accepted": "您已被任命为{{team}}经理",
+          "declined": "您拒绝了{{team}}的邀约",
+          "alreadyEmployed": "您目前已有任职,无法接受{{team}}的邀约",
+          "unavailable": "{{team}}的职位已有人选,该邀约不再有效",
+          "failed": "无法接受{{team}}的邀约"
+        }
+      },
+      "jobOfferExpired": {
+        "subject": "职位已有人选——{{team}}",
+        "body": "{{team}}的空缺职位现已补齐,因此该邀约不再有效。"
       },
       "jobHired": {
         "subject": "欢迎来到{{team}}",
@@ -1931,6 +1963,24 @@
         "headline1": "超级联赛新赛季即将开战",
         "headline2": "{{favourite}}能否加冕?赛季前瞻",
         "body": "超级联赛即将揭幕,{{teamCount}}支球队将为冠军展开争夺。\n\n季前预测将{{favourite}}视为早期夺冠热门,但{{darkHorse}}可能成为本赛季值得关注的黑马。\n\n部分俱乐部迎来了新任经理,本赛季有望成为近年来竞争最激烈的一届。冠军争夺战白热化之际,每一分都至关重要。\n\n球队:{{teamList}}"
+      },
+      "managerialChange": {
+        "headline": "{{team}}解雇{{manager}}",
+        "body": "{{team}}在一连串糟糕战绩后解雇了{{manager}},俱乐部现正寻找新任经理。"
+      },
+      "managerialAppointment": {
+        "headline": "{{team}}任命{{manager}}",
+        "body": "{{team}}迅速填补俱乐部空缺,任命{{manager}}为新任经理。"
+      },
+      "majorTransfer": {
+        "headline": "{{player}}转会至{{toTeam}}",
+        "body": "{{toTeam}}已完成从{{fromTeam}}签下{{player}}的交易,转会费为{{fee}}。"
+      },
+      "seasonAwards": {
+        "headline": "第{{season}}赛季奖项",
+        "bodyBoth": "第{{season}}赛季落下帷幕,{{goldenBootWinner}}（{{goldenBootTeam}}）以{{goldenBootGoals}}粒进球荣膺金靴奖。年度最佳球员由{{potyWinner}}（{{potyTeam}}）获得,其平均评分为{{potyRating}}。",
+        "bodyGoldenBootOnly": "第{{season}}赛季结束,{{goldenBootWinner}}（{{goldenBootTeam}}）以{{goldenBootGoals}}粒进球加冕最佳射手。",
+        "bodyPotyOnly": "第{{season}}赛季结束,{{potyWinner}}（{{potyTeam}}）凭借{{potyRating}}的平均评分当选年度最佳球员。"
       },
       "weeklyDigest": {
         "headline": "每周摘要——{{weekStart}}当周",
@@ -2065,6 +2115,7 @@
     "leaguePosition": "上赛季排名：{{position}}",
     "refresh": "查看新职位",
     "sameTeam": "您已经是该俱乐部的主教练。",
+    "notBetterClub": "您只能申请比当前俱乐部级别更高的俱乐部。",
     "switchConfirmTitle": "离开当前俱乐部？",
     "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
     "switchConfirmAccept": "接受新职位"

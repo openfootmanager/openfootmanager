@@ -287,6 +287,7 @@
     "wage": "Salaire",
     "name": "Nom",
     "team": "Équipe",
+    "viewTeam": "Voir l'équipe",
     "player": "Joueur",
     "actions": "Actions",
     "position": "Position",
@@ -689,13 +690,13 @@
     "facilityMedicalEffect": "Améliore la récupération et le suivi médical des joueurs.",
     "facilityScoutingEffect": "Améliore la qualité du recrutement et la profondeur des informations.",
     "facilityLevel": "Niveau {{level}}",
-    "nextUpgradeCost": "Prochaine amélioration : €{{amount}}",
+    "nextUpgradeCost": "Prochaine amélioration : {{amount}}",
     "upgradeFacility": "Améliorer",
     "insufficientFunds": "Fonds insuffisants",
     "sponsors": "Sponsors",
     "activeSponsor": "Sponsor actif",
     "noActiveSponsor": "Aucun sponsor actif",
-    "sponsorWeeklyValue": "Valeur hebdomadaire : €{{amount}}",
+    "sponsorWeeklyValue": "Valeur hebdomadaire : {{amount}}",
     "sponsorRemainingWeeks": "{{count}} semaines restantes",
     "pendingSponsorOffers": "Offres en attente",
     "noPendingSponsorOffers": "Aucune offre de sponsoring en attente",
@@ -717,7 +718,7 @@
     "contractRiskWarning": "Alerte",
     "contractRiskStable": "Stable",
     "contractExpiresOn": "Expire le {{date}}",
-    "atRiskWages": "€{{amount}}/semaine à risque",
+    "atRiskWages": "{{amount}}/semaine à risque",
     "noContractRisks": "Aucun risque contractuel imminent"
   },
   "inbox": {
@@ -946,6 +947,15 @@
     "renewalCounter": "Il veut plus : €{{wage}}/semaine pour {{years}} ans",
     "renewalBlocked": "Les discussions sont bloquées après votre décision précédente",
     "renewalCooledOff": "Les discussions précédentes se sont apaisées, donc cela repart comme une nouvelle négociation.",
+    "letContractExpire": "Laisser expirer",
+    "reopenContractTalks": "Rouvrir les discussions",
+    "terminateContract": "Résilier maintenant",
+    "terminateContractTitle": "Résilier le contrat",
+    "terminateContractBody": "Libérer {{name}} immédiatement et payer les salaires restants du contrat en indemnité.",
+    "terminationSeverance": "Indemnité",
+    "projectedHealthyPlayers": "Joueurs aptes après libération",
+    "terminationUnsafe": "Cette libération laisserait l'effectif incapable d'aligner un onze de match.",
+    "confirmTerminateContract": "Résilier le contrat",
     "delegateRenewal": "Déléguer à l'adjoint",
     "renewalDelegateMissingReport": "Le rapport de l'adjoint n'incluait pas ce joueur.",
     "renewalConversationTitle": "Tendance de la négociation",
@@ -1468,7 +1478,16 @@
     "resolveBeforeContinuing": "Résolvez ces problèmes avant de continuer",
     "goTo": "Aller à",
     "reviewIssues": "Examiner les problèmes",
-    "continueAnyway": "Continuer quand même"
+    "continueAnyway": "Continuer quand même",
+    "blockers": {
+      "injuredXi": "{{count}} joueur(s) blessé(s) dans le onze de départ : {{players}}",
+      "incompleteXi": "Le onze de départ ne compte que {{count}} joueurs valides — ajustez votre composition",
+      "squadSizeCrisis": "L'effectif ne compte que {{count}} joueur(s) sous contrat — recrutez avant le jour du match",
+      "plannedContractExitCrisis": "Les départs contractuels prévus ne laisseraient que {{healthyPlayers}} joueur(s) valides et {{goalkeepers}} gardien(s) : {{players}}",
+      "urgentMessages": "{{count}} message(s) urgent(s) non lu(s)",
+      "keyContractRisk": "Risque contractuel d'un joueur clé dans la planification de l'effectif : {{players}}",
+      "contractWageRisk": "{{amount}} de salaires sont liés à des contrats à risque — revoyez votre budget salarial"
+    }
   },
   "squadCompare": {
     "compare": "Comparer"
@@ -1505,14 +1524,14 @@
     },
     "source": {
       "sportsGazette": "Gazette Sportive",
-      "footballHerald": "Le Héraut du Football",
+      "playersUnder21": "{{count}} joueurs du centre",
       "matchDayPress": "Presse du Match",
       "leagueChronicle": "Chronique de la Ligue",
       "leagueWire": "Fil de la Ligue"
     },
     "msg": {
       "welcome": {
-        "subject0": "Bienvenue à {{team}}",
+        "noYouthPlayers": "Aucun joueur n'est actuellement affecté au centre de formation.",
         "subject1": "Nouvelle Ère à {{team}}",
         "subject2": "{{team}} Attend Votre Leadership",
         "body0": "Le conseil d'administration de {{team}} est ravi de vous accueillir en tant que nouveau manager.\n\nNous avons de grands espoirs pour votre mandat et croyons que vous pouvez mener ce club vers la gloire. Votre première tâche sera de passer en revue l'effectif et de préparer un plan tactique pour la saison à venir.\n\nNous vous souhaitons bonne chance.",
@@ -1521,6 +1540,8 @@
         "actionReview": "Examiner l'Effectif",
         "actionThank": "Remercier le Conseil"
       },
+      "delegateToYouthAcademy": "Envoyer au centre de formation",
+      "promoteToSeniorSquad": "Promouvoir en équipe première",
       "schedule": {
         "subject": "Calendrier de la Saison Publié",
         "body0": "Le calendrier de la {{league}} a été publié. La saison commence le {{start}}.\n\nConsultez la liste des matchs et assurez-vous que votre effectif est prêt pour les défis à venir. La préparation de pré-saison sera cruciale.",
@@ -1847,16 +1868,16 @@
         "subject": "Rapport de l'adjoint — Renouvellements",
         "body": "Coach, j'ai passé en revue notre liste de renouvellements à {{team}}. {{successes}} conclus, {{stalled}} encore en attente, {{failures}} échoués.",
         "case": {
-          "successful": "Conclu : {{player}} a accepté {{years}} an(s) à €{{wage}}/semaine.",
+          "successful": "Conclu : {{player}} a accepté {{years}} an(s) à {{wage}}/semaine.",
           "stalled": "Toujours compliqué : {{player}} — {{detail}}",
           "failed": "Échec : {{player}} — {{detail}}"
         },
         "notes": {
           "managerBlocked": "Tu m'as dit de ne pas rouvrir les discussions contractuelles pour l'instant.",
           "completed": "J'ai pu régler ce dossier sans que tu aies besoin d'intervenir.",
-          "beyondLimits": "Le clan du joueur veut environ €{{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
-          "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale annuelle près de €{{budget}} pendant la phase de redressement.",
-          "prefersManager": "Ils écouteraient, mais demandent encore environ €{{wage}}/semaine pour {{years}} ans et préfèrent parler directement avec toi.",
+          "beyondLimits": "Le clan du joueur veut environ {{wage}}/semaine pour {{years}} ans, au-delà des limites de délégation.",
+          "boardWagePolicy": "La politique salariale du conseil bloque ce renouvellement. Maintiens la masse salariale annuelle près de {{budget}} pendant la phase de redressement.",
+          "prefersManager": "Ils écouteraient, mais demandent encore environ {{wage}}/semaine pour {{years}} ans et préfèrent parler directement avec toi.",
           "relationshipBlocked": "Ils ne sont pas prêts à s'engager par mon intermédiaire dans le contexte relationnel et contractuel actuel."
         }
       },
@@ -1880,7 +1901,18 @@
         "subject": "Poste d'entraîneur — {{team}}",
         "body": "Le conseil du {{team}} ({{city}}) cherche un nouvel entraîneur pour guider le club. Classement la saison dernière : {{league_position}}.\n\nAprès avoir examiné votre parcours, nous pensons que vous pourriez être le bon candidat. Seriez-vous intéressé par ce défi ?",
         "accept": "Accepter le poste",
-        "decline": "Décliner l'offre"
+        "decline": "Décliner l'offre",
+        "effects": {
+          "accepted": "Vous avez été nommé entraîneur de {{team}}",
+          "declined": "Vous avez décliné l'offre de {{team}}",
+          "alreadyEmployed": "Vous êtes déjà en poste et ne pouvez pas accepter l'offre de {{team}}",
+          "unavailable": "L'offre de {{team}} n'est plus disponible car le poste a déjà été pourvu",
+          "failed": "Impossible d'accepter l'offre de {{team}}"
+        }
+      },
+      "jobOfferExpired": {
+        "subject": "Poste pourvu — {{team}}",
+        "body": "Le poste vacant à {{team}} a désormais été pourvu, cette offre n'est donc plus disponible."
       },
       "jobHired": {
         "subject": "Bienvenue au {{team}}",
@@ -1931,6 +1963,24 @@
         "headline1": "La Saison de Première Division Va Commencer",
         "headline2": "{{favourite}} Peut-il Décrocher le Titre ? Avant-Saison",
         "body": "La Première Division est prête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics de pré-saison désignent {{favourite}} comme favori, mais {{darkHorse}} pourrait être la surprise de cette campagne.\n\nAvec de nouveaux managers aux commandes de certains clubs, cette saison promet d'être l'une des plus compétitives de mémoire récente. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
+      },
+      "managerialChange": {
+        "headline": "{{team}} limoge {{manager}}",
+        "body": "{{team}} a limogé {{manager}} après une série de mauvais résultats et recherche désormais un nouvel entraîneur."
+      },
+      "managerialAppointment": {
+        "headline": "{{team}} nomme {{manager}}",
+        "body": "{{team}} a nommé {{manager}} comme nouvel entraîneur après avoir rapidement comblé la vacance au club."
+      },
+      "majorTransfer": {
+        "headline": "{{player}} rejoint {{toTeam}}",
+        "body": "{{toTeam}} a finalisé le recrutement de {{player}} en provenance de {{fromTeam}} pour {{fee}}."
+      },
+      "seasonAwards": {
+        "headline": "Prix de la saison {{season}}",
+        "bodyBoth": "La saison {{season}} s'est conclue avec {{goldenBootWinner}} ({{goldenBootTeam}}) remportant le Soulier d'Or avec {{goldenBootGoals}} buts. Le Joueur de l'Année a été attribué à {{potyWinner}} ({{potyTeam}}), avec une note moyenne de {{potyRating}}.",
+        "bodyGoldenBootOnly": "La saison {{season}} s'est terminée avec {{goldenBootWinner}} ({{goldenBootTeam}}) sacré meilleur buteur avec {{goldenBootGoals}} buts.",
+        "bodyPotyOnly": "La saison {{season}} s'est terminée avec {{potyWinner}} ({{potyTeam}}) nommé Joueur de l'Année, avec une note moyenne de {{potyRating}}."
       },
       "weeklyDigest": {
         "headline": "Digest Hebdomadaire — Semaine du {{weekStart}}",
@@ -2065,6 +2115,7 @@
     "leaguePosition": "Dernière saison : {{position}}",
     "refresh": "Vérifier les nouvelles offres",
     "sameTeam": "Vous êtes déjà l'entraîneur de ce club.",
+    "notBetterClub": "Vous ne pouvez postuler qu'à des clubs représentant une progression par rapport à votre club actuel.",
     "switchConfirmTitle": "Quitter votre club actuel ?",
     "switchConfirmBody": "Accepter cette opportunité mettra fin à votre mandat à {{currentClub}} et vous fera rejoindre {{newClub}}.",
     "switchConfirmAccept": "Accepter le nouveau poste"

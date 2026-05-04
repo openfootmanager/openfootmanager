@@ -1,4 +1,6 @@
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+use domain::league::{
+    CompletedTransfer, Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
+};
 use rusqlite::{Connection, params};
 
 /// Insert or replace the league row and its fixtures + standings.
@@ -7,6 +9,8 @@ pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
         .map_err(|e| format!("Failed to clear fixtures: {}", e))?;
     conn.execute("DELETE FROM standings", [])
         .map_err(|e| format!("Failed to clear standings: {}", e))?;
+    conn.execute("DELETE FROM transfer_log", [])
+        .map_err(|e| format!("Failed to clear transfer log: {}", e))?;
     conn.execute("DELETE FROM league", [])
         .map_err(|e| format!("Failed to clear league rows: {}", e))?;
 
@@ -58,6 +62,22 @@ pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
             ],
         )
         .map_err(|e| format!("Failed to insert standing: {}", e))?;
+    }
+
+    for transfer in &league.transfer_log {
+        conn.execute(
+            "INSERT INTO transfer_log (league_id, date, from_team_id, to_team_id, player_id, fee)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                league.id,
+                transfer.date,
+                transfer.from_team_id,
+                transfer.to_team_id,
+                transfer.player_id,
+                transfer.fee,
+            ],
+        )
+        .map_err(|e| format!("Failed to insert transfer log row: {}", e))?;
     }
 
     Ok(())
@@ -160,12 +180,37 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
         standings.push(row.map_err(|e| format!("Failed to read standing: {}", e))?);
     }
 
+    let mut transfer_stmt = conn
+        .prepare(
+            "SELECT date, from_team_id, to_team_id, player_id, fee
+             FROM transfer_log WHERE league_id = ?1 ORDER BY date, id",
+        )
+        .map_err(|e| format!("Failed to prepare transfer log query: {}", e))?;
+
+    let transfer_rows = transfer_stmt
+        .query_map(params![league_id], |row| {
+            Ok(CompletedTransfer {
+                date: row.get(0)?,
+                from_team_id: row.get(1)?,
+                to_team_id: row.get(2)?,
+                player_id: row.get(3)?,
+                fee: row.get(4)?,
+            })
+        })
+        .map_err(|e| format!("Failed to query transfer log: {}", e))?;
+
+    let mut transfer_log = Vec::new();
+    for row in transfer_rows {
+        transfer_log.push(row.map_err(|e| format!("Failed to read transfer log row: {}", e))?);
+    }
+
     Ok(Some(League {
         id: league_id,
         name,
         season,
         fixtures,
         standings,
+        transfer_log,
     }))
 }
 
@@ -200,8 +245,23 @@ pub fn needs_cleanup(conn: &Connection, active_league_id: Option<&str>) -> Resul
             |row| row.get(0),
         )
         .map_err(|e| format!("Failed to count stale standings: {}", e))?;
+    if stale_standings_count > 0 {
+        return Ok(true);
+    }
 
-    Ok(stale_standings_count > 0)
+    let stale_transfer_log_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM transfer_log WHERE league_id != ?1",
+            params![active_league_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to count stale transfer log rows: {}", e))?;
+
+    if stale_transfer_log_count > 0 {
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 #[cfg(test)]
@@ -253,6 +313,13 @@ mod tests {
                 }),
             },
         ];
+        league.transfer_log = vec![CompletedTransfer {
+            date: "2026-08-18".to_string(),
+            from_team_id: "team-001".to_string(),
+            to_team_id: "team-002".to_string(),
+            player_id: "player-001".to_string(),
+            fee: 1_250_000,
+        }];
         league
     }
 
@@ -297,6 +364,21 @@ mod tests {
         let loaded = load_league(db.conn()).unwrap().unwrap();
 
         assert_eq!(loaded.standings.len(), 2);
+    }
+
+    #[test]
+    fn test_league_transfer_log_roundtrip() {
+        let db = test_db();
+        let league = sample_league();
+
+        upsert_league(db.conn(), &league).unwrap();
+        let loaded = load_league(db.conn()).unwrap().unwrap();
+
+        assert_eq!(loaded.transfer_log.len(), 1);
+        assert_eq!(loaded.transfer_log[0].player_id, "player-001");
+        assert_eq!(loaded.transfer_log[0].from_team_id, "team-001");
+        assert_eq!(loaded.transfer_log[0].to_team_id, "team-002");
+        assert_eq!(loaded.transfer_log[0].fee, 1_250_000);
     }
 
     #[test]
@@ -354,6 +436,7 @@ mod tests {
                 StandingEntry::new("team-001".to_string()),
                 StandingEntry::new("team-002".to_string()),
             ],
+            transfer_log: vec![],
         };
 
         upsert_league(db.conn(), &replacement).unwrap();

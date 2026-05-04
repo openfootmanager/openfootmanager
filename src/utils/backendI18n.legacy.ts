@@ -58,7 +58,7 @@ function resolveLegacyDelegatedRenewalsDetail(
     const beyondLimits = detail.match(LEGACY_DELEGATED_RENEWALS_BEYOND_LIMITS_RE);
     if (beyondLimits?.groups) {
         return resolve("be.msg.delegatedRenewals.notes.beyondLimits", detail, {
-            wage: beyondLimits.groups.wage,
+            wage: `€${beyondLimits.groups.wage}`,
             years: beyondLimits.groups.years,
         });
     }
@@ -66,7 +66,7 @@ function resolveLegacyDelegatedRenewalsDetail(
     const prefersManager = detail.match(LEGACY_DELEGATED_RENEWALS_PREFERS_MANAGER_RE);
     if (prefersManager?.groups) {
         return resolve("be.msg.delegatedRenewals.notes.prefersManager", detail, {
-            wage: prefersManager.groups.wage,
+            wage: `€${prefersManager.groups.wage}`,
             years: prefersManager.groups.years,
         });
     }
@@ -110,7 +110,7 @@ function resolveLegacyDelegatedRenewalsBody(
                 return resolve("be.msg.delegatedRenewals.case.successful", trimmed, {
                     player: success.groups.player,
                     years: success.groups.years,
-                    wage: success.groups.wage,
+                    wage: `€${success.groups.wage}`,
                 });
             }
 

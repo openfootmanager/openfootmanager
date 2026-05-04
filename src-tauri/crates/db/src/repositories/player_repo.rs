@@ -1,4 +1,4 @@
-use domain::player::{Footedness, Player, PlayerAttributes, Position};
+use domain::player::{Footedness, Player, PlayerAttributes, Position, SquadRole};
 use domain::team::TrainingFocus;
 use rusqlite::{Connection, params};
 
@@ -30,8 +30,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           attributes, condition, morale, injury, team_id, traits,
           contract_end, wage, market_value, stats, career,
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
-          natural_position, training_focus, morale_core, footedness, weak_foot, fitness)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)",
+          natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30)",
         params![
             p.id,
             p.match_name,
@@ -62,6 +62,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             footedness_str,
             p.weak_foot,
             p.fitness,
+            format!("{:?}", p.squad_role),
         ],
     )
     .map_err(|e| format!("Failed to upsert player: {}", e))?;
@@ -107,6 +108,13 @@ fn parse_footedness(s: &str) -> Footedness {
     }
 }
 
+fn parse_squad_role(s: &str) -> SquadRole {
+    match s {
+        "Youth" => SquadRole::Youth,
+        _ => SquadRole::Senior,
+    }
+}
+
 fn parse_training_focus(s: &str) -> Option<TrainingFocus> {
     match s {
         "Physical" => Some(TrainingFocus::Physical),
@@ -127,7 +135,7 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     attributes, condition, morale, injury, team_id, traits,
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
-                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness
+                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role
              FROM players",
         )
         .map_err(|e| format!("Failed to prepare players query: {}", e))?;
@@ -151,7 +159,7 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     attributes, condition, morale, injury, team_id, traits,
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
-                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness
+                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role
              FROM players WHERE team_id = ?1",
         )
         .map_err(|e| format!("Failed to prepare players query: {}", e))?;
@@ -182,6 +190,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
     let footedness_str: String = row.get(26)?;
     let weak_foot: u8 = row.get(27)?;
     let fitness: u8 = row.get(28).unwrap_or(75); // default 75 for saves before V13
+    let squad_role_str: String = row.get(29).unwrap_or_else(|_| "Senior".to_string());
     let transfer_listed_int: i32 = row.get(19)?;
     let loan_listed_int: i32 = row.get(20)?;
     let market_value_i64: i64 = row.get(16)?;
@@ -232,6 +241,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         fitness,
         injury: injury_json.and_then(|j| serde_json::from_str(&j).ok()),
         team_id: row.get(12)?,
+        squad_role: parse_squad_role(&squad_role_str),
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
         contract_end: row.get(14)?,
         wage: row.get(15)?,
@@ -323,6 +333,18 @@ mod tests {
 
         assert_eq!(loaded[0].football_nation, "ENG");
         assert_eq!(loaded[0].birth_country, Some("ENG".to_string()));
+    }
+
+    #[test]
+    fn test_player_squad_role_roundtrip() {
+        let db = test_db();
+        let mut player = sample_player("p-youth", Some("team-001"));
+        player.squad_role = SquadRole::Youth;
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+
+        assert_eq!(loaded[0].squad_role, SquadRole::Youth);
     }
 
     #[test]

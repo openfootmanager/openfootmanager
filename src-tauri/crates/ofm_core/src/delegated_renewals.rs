@@ -2,7 +2,7 @@ use crate::contract_wage_policy::renewal_wage_policy_allows;
 use crate::contracts::{
     ContractWarningStage, DelegatedRenewalCase, DelegatedRenewalOptions, DelegatedRenewalReport,
     DelegatedRenewalResultStatus, contract_warning_stage, expected_contract_years, expected_wage,
-    has_active_manager_block, round_up_to_nearest_thousand,
+    has_active_manager_block, has_let_expire_intent, round_up_to_nearest_thousand,
 };
 use crate::game::Game;
 use chrono::{Months, NaiveDate};
@@ -54,6 +54,10 @@ pub fn delegate_renewals(
                 return None;
             }
 
+            if selected_ids.is_none() && has_let_expire_intent(player) {
+                return None;
+            }
+
             if let Some(selected_ids) = selected_ids.as_ref() {
                 if selected_ids.contains(&player.id) {
                     return Some(index);
@@ -98,6 +102,14 @@ pub fn delegate_renewals(
             note_key: None,
             note_params: HashMap::new(),
         };
+
+        if has_let_expire_intent(player) {
+            report.failure_count += 1;
+            case.note = "You already marked this contract to expire.".to_string();
+            case.note_key = Some("be.msg.delegatedRenewals.notes.markedLetExpire".to_string());
+            report.cases.push(case);
+            continue;
+        }
 
         if has_active_manager_block(player, current_date) {
             report.failure_count += 1;
@@ -171,6 +183,7 @@ pub fn delegate_renewals(
             state.last_assistant_attempt_date = Some(today.clone());
             state.last_outcome = Some(RenewalSessionOutcome::AcceptedByAssistant);
             state.conversation_round = 0;
+            state.exit_intent = None;
 
             report.success_count += 1;
             case.status = DelegatedRenewalResultStatus::Successful;

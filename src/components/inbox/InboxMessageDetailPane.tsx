@@ -61,11 +61,17 @@ export default function InboxMessageDetailPane({
     actionId: string,
     optionId: string,
   ) => {
+    const offerTeamId = selectedMessage?.context?.team_id ?? null;
+    const currentTeamId = gameState.manager?.team_id ?? null;
     const isSwitch =
       messageId.startsWith("job_offer_") &&
       optionId === "accept" &&
-      !!gameState.manager?.team_id &&
-      !!selectedMessage;
+      !!currentTeamId &&
+      !!selectedMessage &&
+      // Skip the "leave your current club?" modal when the offer points at
+      // the manager's own current club — the backend treats that as a no-op
+      // and the warning would otherwise misleadingly suggest a real switch.
+      offerTeamId !== currentTeamId;
     if (!isSwitch) {
       onAction(messageId, actionId, optionId);
       return;

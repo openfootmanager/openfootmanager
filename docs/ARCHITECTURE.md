@@ -13,7 +13,7 @@ OpenFoot Manager is a desktop football management simulation built with **Tauri*
 | **Frontend** | React + TypeScript | UI rendering, user interaction |
 | **Styling** | Tailwind CSS | Utility-first CSS framework |
 | **State (frontend)** | Zustand | Lightweight stores for game and settings |
-| **i18n** | i18next + react-i18next | Internationalization (5 languages) |
+| **i18n** | i18next + react-i18next | Internationalization (7 locales) |
 | **Build** | Vite | Frontend bundler and dev server |
 
 ---
@@ -28,10 +28,12 @@ openfootmanager/
 │   │   └── ui/                   # Design system primitives (Badge, ThemeToggle)
 │   ├── context/                  # React contexts (ThemeContext)
 │   ├── i18n/                     # Internationalization config + locale files
-│   │   └── locales/              # en.json, es.json, pt.json, fr.json, de.json
+│   │   └── locales/              # en.json, de.json, es.json, fr.json, it.json, pt.json, pt-BR.json
 │   ├── lib/                      # Shared utilities (helpers.ts, countries.ts)
 │   ├── pages/                    # Route-level pages
-│   │   └── store/                # Zustand stores (gameStore, settingsStore)
+│   ├── services/                 # Frontend Tauri/invoke wrappers
+│   ├── store/                    # Zustand stores (gameStore, settingsStore)
+│   ├── utils/                    # Frontend helpers and i18n adapters
 │   ├── App.tsx                   # Router setup
 │   └── main.tsx                  # Entry point
 ├── src-tauri/                    # Backend (Rust + Tauri)
@@ -85,7 +87,7 @@ Contains only structs and enums with no game logic. All other crates depend on i
 - **`staff.rs`** — `Staff`, `StaffRole` (4 roles), `CoachingSpecialization` (7 specializations), `StaffAttributes`
 - **`manager.rs`** — `Manager`, `ManagerCareerStats`, `ManagerCareerEntry`
 - **`league.rs`** — `League`, `Fixture`, `StandingEntry`, `MatchResult`, `GoalEvent`
-- **`message.rs`** — `InboxMessage`, `MessageCategory` (13 categories), `MessagePriority`, `MessageAction`, `ActionType`
+- **`message.rs`** — `InboxMessage`, `MessageCategory` (15 categories), `MessagePriority`, `MessageAction`, `ActionType`
 - **`news.rs`** — `NewsArticle`, `NewsCategory` (8 categories), `NewsMatchScore`
 
 **Design decision**: Domain types use `#[serde(default)]` extensively on newer fields for backward compatibility with old save files.
@@ -116,14 +118,19 @@ The core game loop — ties domain, engine, and all game systems together.
 - **`generator.rs`** — World generation: name/team definition loading, player/staff/team creation
 - **`live_match_manager.rs`** — `LiveMatchSession` wrapping the engine's `LiveMatchState` with RNG, AI profiles
 - **`messages.rs`** — Inbox message generation (welcome, match previews/results, board directives, etc.)
-- **`news.rs`** — News article generation (match reports, league roundups, standings updates)
+- **`job_offers.rs`** — Vacancy-backed job opportunities, direct applications, offer responses, and offer expiry
+- **`firing.rs`** — Board warning/firing flow and managerial-change dismissal news
+- **`ai_hiring.rs`** — AI manager seeding, vacancy aging, and delayed replacement hires
+- **`board_objectives.rs`** — Board objective messages and objective tracking
+- **`news.rs`** — News article generation (match reports, league roundups, standings, season previews, managerial appointments)
 
 ### `db` — Persistence
 
 Save/load functionality:
 
-- **`manager.rs`** — Game state serialization to/from SQLite or JSON
-- **`save.rs`** — Save slot management
+- **`save_manager.rs`** — Save slot orchestration, load/save flows, and round-trip tests
+- **`game_persistence.rs`** — `Game` serialization/deserialization between runtime state and storage records
+- **`repositories/`** — SQLite repositories for saves, metadata, news, and related persistence records
 
 ---
 

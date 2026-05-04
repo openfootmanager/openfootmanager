@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { Card, CardBody, Badge, Select, CountryFlag } from "../ui";
+import ContextMenu from "../ContextMenu";
 import {
   Search,
   Filter,
@@ -22,9 +23,28 @@ import {
   normalisePosition,
   translatePositionAbbreviation,
 } from "../squad/SquadTab.helpers";
+import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
+import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
+import { sendScout } from "../../services/scoutingService";
+import {
+  toggleLoanList,
+  toggleTransferList,
+} from "../../services/transfersService";
+import {
+  buildDividerMenuItem,
+  buildMakeTransferBidMenuItem,
+  buildScoutPlayerMenuItem,
+  buildToggleLoanListMenuItem,
+  buildToggleTransferListMenuItem,
+  buildViewProfileMenuItem,
+  buildViewTeamMenuItem,
+} from "../playerActions/playerContextMenuItems";
+import TransferBidModal from "../transfers/TransferBidModal";
+import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 
 interface PlayersListTabProps {
   gameState: GameStateData;
+  onGameUpdate?: (game: GameStateData) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onSelectTeam: (id: string) => void;
 }
@@ -33,6 +53,7 @@ type SortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
 
 export default function PlayersListTab({
   gameState,
+  onGameUpdate,
   onSelectPlayer,
   onSelectTeam,
 }: PlayersListTabProps) {
@@ -46,7 +67,54 @@ export default function PlayersListTab({
     "all",
   );
   const [page, setPage] = useState(1);
+  const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const pageSize = 30;
+  const managerTeamId = gameState.manager.team_id ?? "";
+  const {
+    bidTarget,
+    bidAmount,
+    setBidAmount,
+    bidResult,
+    bidLoading,
+    bidFeedback,
+    bidProjection,
+    bidFee,
+    activeBidOffer,
+    myTeam,
+    hasExistingOffer,
+    bidSubmitDisabled,
+    openBidNegotiation,
+    closeBidNegotiation,
+    handleMakeBid,
+  } = useTransferBidFlow({
+    gameState,
+    onGameUpdate,
+  });
+  const scouts = gameState.staff.filter(
+    (staffMember) =>
+      staffMember.role === "Scout" && staffMember.team_id === managerTeamId,
+  );
+  const scoutingAssignments = gameState.scouting_assignments || [];
+  const availableScouts = calculateAvailableScouts(scouts, scoutingAssignments);
+  const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
+
+  const handleScoutPlayer = async (playerId: string): Promise<void> => {
+    if (availableScouts.length === 0) {
+      return;
+    }
+
+    const scout = availableScouts[0];
+    setSendingPlayerId(playerId);
+
+    try {
+      const updated = await sendScout(scout.id, playerId);
+      onGameUpdate?.(updated);
+    } catch (error) {
+      console.error("Failed to send scout:", error);
+    } finally {
+      setSendingPlayerId(null);
+    }
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -140,11 +208,10 @@ export default function PlayersListTab({
         <div className="flex gap-1.5">
           <button
             onClick={() => setPosFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-              !posFilter
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter
                 ? "bg-primary-500 text-white shadow-sm"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+              }`}
           >
             {t("players.allPos")}
           </button>
@@ -152,11 +219,10 @@ export default function PlayersListTab({
             <button
               key={pos}
               onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-                posFilter === pos
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos
                   ? "bg-primary-500 text-white shadow-sm"
                   : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
+                }`}
             >
               {t(`common.posAbbr.${pos}`)}
             </button>
@@ -270,7 +336,67 @@ export default function PlayersListTab({
                       player.natural_position || player.position,
                     );
                     const age = calcAge(player.date_of_birth);
-                    return (
+                    const scoutState = alreadyScoutingIds.has(player.id)
+                      ? "already-assigned"
+                      : sendingPlayerId === player.id
+                        ? "busy"
+                        : availableScouts.length === 0
+                          ? "unavailable"
+                          : "ready";
+                    const contextItems = [
+                      buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
+                      ...(player.team_id
+                        ? [
+                          buildViewTeamMenuItem(t, () => {
+                            onSelectTeam(player.team_id!);
+                          }),
+                        ]
+                        : []),
+                    ];
+
+                    if (player.team_id === managerTeamId) {
+                      contextItems.push(buildDividerMenuItem());
+                      contextItems.push(
+                        buildToggleTransferListMenuItem(
+                          t,
+                          player.transfer_listed,
+                          async () => {
+                            try {
+                              const updated = await toggleTransferList(player.id);
+                              onGameUpdate?.(updated);
+                            } catch {
+                              return;
+                            }
+                          },
+                        ),
+                      );
+                      contextItems.push(
+                        buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
+                          try {
+                            const updated = await toggleLoanList(player.id);
+                            onGameUpdate?.(updated);
+                          } catch {
+                            return;
+                          }
+                        }),
+                      );
+                    } else {
+                      contextItems.push(buildDividerMenuItem());
+                      if (player.team_id) {
+                        contextItems.push(
+                          buildMakeTransferBidMenuItem(t, () => {
+                            openBidNegotiation(player);
+                          }),
+                        );
+                      }
+                      contextItems.push(
+                        buildScoutPlayerMenuItem(t, scoutState, () => {
+                          void handleScoutPlayer(player.id);
+                        }),
+                      );
+                    }
+
+                    const row = (
                       <tr
                         key={player.id}
                         onClick={() => onSelectPlayer(player.id)}
@@ -322,13 +448,12 @@ export default function PlayersListTab({
                         </td>
                         <td className="py-2.5 px-4">
                           <span
-                            className={`font-heading font-bold text-base tabular-nums ${
-                              ovr >= 75
+                            className={`font-heading font-bold text-base tabular-nums ${ovr >= 75
                                 ? "text-primary-500"
                                 : ovr >= 55
                                   ? "text-accent-500"
                                   : "text-gray-400"
-                            }`}
+                              }`}
                           >
                             {ovr}
                           </span>
@@ -351,6 +476,12 @@ export default function PlayersListTab({
                           )}
                         </td>
                       </tr>
+                    );
+
+                    return (
+                      <ContextMenu items={contextItems} key={player.id}>
+                        {row}
+                      </ContextMenu>
                     );
                   })}
               </tbody>
@@ -415,6 +546,25 @@ export default function PlayersListTab({
             })()}
         </CardBody>
       </Card>
+      {bidTarget && (
+        <TransferBidModal
+          bidTarget={bidTarget}
+          teams={gameState.teams}
+          bidAmount={bidAmount}
+          onBidAmountChange={setBidAmount}
+          myTeam={myTeam}
+          bidFee={bidFee}
+          bidProjection={bidProjection}
+          bidFeedback={bidFeedback}
+          activeBidOffer={activeBidOffer}
+          hasExistingOffer={hasExistingOffer}
+          bidResult={bidResult}
+          bidLoading={bidLoading}
+          bidSubmitDisabled={bidSubmitDisabled}
+          onSubmit={handleMakeBid}
+          onClose={closeBidNegotiation}
+        />
+      )}
     </div>
   );
 }

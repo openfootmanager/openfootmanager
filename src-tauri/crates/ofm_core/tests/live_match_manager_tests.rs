@@ -154,6 +154,7 @@ fn make_game_with_fixture() -> Game {
             StandingEntry::new("team1".to_string()),
             StandingEntry::new("team2".to_string()),
         ],
+        transfer_log: vec![],
     };
 
     let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);

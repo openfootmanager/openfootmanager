@@ -1,8 +1,8 @@
 use crate::game::Game;
 use chrono::Days;
 use domain::player::{
-    ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind, RecentTreatmentMemory,
-    RenewalSessionOutcome, RenewalSessionStatus,
+    ContractExitIntent, ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind,
+    RecentTreatmentMemory, RenewalSessionOutcome, RenewalSessionStatus,
 };
 use rand::RngExt;
 use serde::Serialize;
@@ -658,7 +658,7 @@ pub fn apply_player_response(
         }
 
         if should_apply_talk_cooldown(message_id) {
-            player.morale_core.talk_cooldown_until = Some(current_day);
+            player.morale_core.talk_cooldown_until = Some(current_day.clone());
         }
 
         if message_id.starts_with("contract_concern_") {
@@ -687,6 +687,10 @@ pub fn apply_player_response(
                     renewal_state.status = RenewalSessionStatus::Blocked;
                     renewal_state.manager_blocked_until = blocked_until;
                     renewal_state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
+                    renewal_state.exit_intent = Some(ContractExitIntent::LetExpire {
+                        set_on: current_day.clone(),
+                        reason: Some("manager_inbox_response".to_string()),
+                    });
                 }
                 _ => {}
             }

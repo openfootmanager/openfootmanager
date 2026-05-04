@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => {},
+    init: () => { },
   },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
@@ -66,6 +66,20 @@ vi.mock("react-i18next", () => ({
         return "Talks are blocked after your earlier decision";
       if (key === "playerProfile.renewalCooledOff")
         return "Previous talks cooled off, so this starts as a fresh conversation.";
+      if (key === "playerProfile.letContractExpire") return "Let Expire";
+      if (key === "playerProfile.reopenContractTalks") return "Reopen Talks";
+      if (key === "playerProfile.terminateContract") return "Terminate Now";
+      if (key === "playerProfile.terminateContractTitle")
+        return "Terminate Contract";
+      if (key === "playerProfile.terminateContractBody")
+        return `Release ${params?.name} immediately.`;
+      if (key === "playerProfile.terminationSeverance") return "Severance";
+      if (key === "playerProfile.projectedHealthyPlayers")
+        return "Healthy players after release";
+      if (key === "playerProfile.terminationUnsafe")
+        return "This release would leave the squad unable to field a matchday XI.";
+      if (key === "playerProfile.confirmTerminateContract")
+        return "Terminate Contract";
       if (key === "playerProfile.delegateRenewal")
         return "Delegate to Assistant";
       if (key === "playerProfile.renewalDelegateMissingReport")
@@ -107,6 +121,9 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.noRecentMatches") return "No recent match data";
       if (key === "playerProfile.careerHistory") return "Career History";
       if (key === "playerProfile.noCareer") return "No Career";
+      if (key === "scouting.noScoutsHint") return "Hire a scout first";
+      if (key === "scouting.scoutingInProgress") return "Scouting in progress";
+      if (key === "scouting.scoutBtn") return "Scout";
       if (key === "finances.wagePerWeek") return "Wage/wk";
       return key;
     },
@@ -853,6 +870,128 @@ describe("PlayerProfile contract surfaces", () => {
       expect(
         screen.getByText("Assistant report did not include this player."),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("marks a contract to expire and can reopen talks", async () => {
+    const markedPlayer = createPlayer({
+      morale_core: {
+        manager_trust: 50,
+        renewal_state: {
+          status: "blocked",
+          manager_blocked_until: null,
+          last_attempt_date: "2026-08-01",
+          last_assistant_attempt_date: null,
+          last_outcome: "BlockedByManager",
+          conversation_round: 0,
+          exit_intent: {
+            kind: "let_expire",
+            set_on: "2026-08-01",
+            reason: "manager_profile_action",
+          },
+        },
+      },
+    });
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        return { game: createGameState(markedPlayer) };
+      }
+
+      if (command === "clear_contract_exit_intent") {
+        return { game: createGameState(createPlayer()) };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(<RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        playerId: "player-1",
+        reason: "manager_profile_action",
+      });
+      expect(screen.getByRole("button", { name: "Reopen Talks" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Reopen Talks" }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+        playerId: "player-1",
+      });
+      expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
+    });
+  });
+
+  it("previews and confirms immediate contract termination", async () => {
+    const releasedPlayer = createPlayer({
+      team_id: null,
+      contract_end: null,
+      wage: 0,
+    });
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "preview_contract_termination") {
+        return {
+          preview: {
+            player_id: "player-1",
+            player_name: "J. Smith",
+            severance_cost: 132000,
+            squad_safety: {
+              team_id: "team-1",
+              projected_roster_size: 11,
+              healthy_players: 11,
+              healthy_goalkeepers: 1,
+              effective_xi_size: 11,
+              can_field_matchday_squad: true,
+              missing_reasons: [],
+            },
+          },
+        };
+      }
+
+      if (command === "terminate_contract_now") {
+        return {
+          game: createGameState(releasedPlayer),
+          severance_cost: 132000,
+          squad_safety: {
+            team_id: "team-1",
+            projected_roster_size: 11,
+            healthy_players: 11,
+            healthy_goalkeepers: 1,
+            effective_xi_size: 11,
+            can_field_matchday_squad: true,
+            missing_reasons: [],
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(<RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminate Now" }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("preview_contract_termination", {
+        playerId: "player-1",
+      });
+      expect(screen.getByText("Severance")).toBeInTheDocument();
+      expect(screen.getByText("11/11")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Terminate Contract" }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("terminate_contract_now", {
+        playerId: "player-1",
+      });
+      expect(screen.getByText("No Contract")).toBeInTheDocument();
     });
   });
 });

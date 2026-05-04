@@ -3,6 +3,8 @@ import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
+import type { BlockerData } from "../../services/advanceTimeService";
+import { resolveBackendText } from "../../utils/backendI18n";
 import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardBlockerModalProps {
@@ -31,6 +33,10 @@ function getBlockerTextClassName(severity: string): string {
   return "text-sm font-medium text-blue-600 dark:text-blue-400";
 }
 
+function getBlockerText(blocker: BlockerData): string {
+  return resolveBackendText(blocker.text_key, blocker.text, blocker.text_params);
+}
+
 export default function DashboardBlockerModal({
   blockerModal,
   onClose,
@@ -38,6 +44,12 @@ export default function DashboardBlockerModal({
   onNavigate,
 }: DashboardBlockerModalProps): JSX.Element {
   const { t } = useTranslation();
+
+  const getBlockerTabLabel = (tab: string): string => {
+    const translationKey = `dashboard.${tab.charAt(0).toLowerCase()}${tab.slice(1)}`;
+    const resolved = t(translationKey);
+    return resolved === translationKey ? tab : resolved;
+  };
 
   return (
     <DashboardModalFrame maxWidthClassName="max-w-md">
@@ -65,10 +77,10 @@ export default function DashboardBlockerModal({
             className={getBlockerButtonClassName(blocker.severity)}
           >
             <p className={getBlockerTextClassName(blocker.severity)}>
-              {blocker.text}
+              {getBlockerText(blocker)}
             </p>
             <p className="mt-1 text-[10px] font-heading uppercase tracking-widest text-gray-400">
-              {t("notifications.goTo", "Go to")} {blocker.tab} →
+              {t("notifications.goTo", "Go to")} {getBlockerTabLabel(blocker.tab)} →
             </p>
           </button>
         ))}

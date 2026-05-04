@@ -92,6 +92,29 @@ export interface CareerEntry {
   assists: number;
 }
 
+export interface ContractExitIntentData {
+  kind: "let_expire";
+  set_on: string;
+  reason?: string | null;
+}
+
+export interface ContractRenewalStateData {
+  status: "idle" | "open" | "agreed" | "blocked" | "stalled";
+  manager_blocked_until?: string | null;
+  last_attempt_date?: string | null;
+  last_assistant_attempt_date?: string | null;
+  last_outcome?: string | null;
+  conversation_round: number;
+  exit_intent?: ContractExitIntentData | null;
+}
+
+export interface PlayerMoraleCoreData {
+  manager_trust: number;
+  renewal_state?: ContractRenewalStateData | null;
+}
+
+export type PlayerSquadRole = "Senior" | "Youth";
+
 export interface PlayerData {
   id: string;
   match_name: string;
@@ -129,6 +152,7 @@ export interface PlayerData {
   morale: number;
   injury: null | { name: string; days_remaining: number };
   team_id: string | null;
+  squad_role?: PlayerSquadRole;
   contract_end: string | null;
   wage: number;
   market_value: number;
@@ -138,6 +162,7 @@ export interface PlayerData {
   loan_listed: boolean;
   transfer_offers: TransferOfferData[];
   traits: string[];
+  morale_core?: PlayerMoraleCoreData;
 }
 
 export interface TransferOfferData {
@@ -231,6 +256,7 @@ export interface DelegatedRenewalReportMessageData {
 
 export interface PlayerSelectionOptions {
   openRenewal?: boolean;
+  openTermination?: boolean;
 }
 
 export interface MessageContext {

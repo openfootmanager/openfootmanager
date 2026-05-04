@@ -294,7 +294,8 @@ The inbox system provides contextual communication from in-game characters. Mess
 | MatchPreview | Scout / Asst. Manager | Day before a fixture |
 | MatchResult | Asst. Manager | After each fixture |
 | Training | Physio / Asst. Manager | Fitness warnings (daily) |
-| BoardDirective | Chairman | (Future: board expectations) |
+| BoardDirective | Chairman | Board objectives, warnings, dismissal, and hiring welcome messages |
+| JobOffer | Board of Directors | Vacancy-driven approaches and application replies for unemployed managers |
 | Finance | (Future) | Budget updates |
 | Transfer | (Future) | Transfer offers |
 | Injury | (Future) | Injury reports |
@@ -310,6 +311,7 @@ Each `InboxMessage` has:
 - **Category** and **Priority** (Low, Normal, High, Urgent)
 - **Actions**: Interactive buttons (Acknowledge, NavigateTo, ChooseOption, Dismiss)
 - **Context**: References to teams, players, fixtures, match results
+- **Optional i18n metadata**: backend subject/body/sender keys plus interpolation params for localized rendering
 
 ### Message Variations
 
@@ -334,8 +336,8 @@ The news system generates public-facing articles about league events, displayed 
 | **StandingsUpdate** | After each matchday | Current league positions |
 | **TransferRumour** | (Future) | Transfer speculation |
 | **InjuryNews** | (Future) | Injury updates |
-| **ManagerialChange** | (Future) | Manager hirings/firings |
-| **SeasonPreview** | (Future) | Pre-season analysis |
+| **ManagerialChange** | Manager firing or vacancy fill | Public dismissal and appointment coverage |
+| **SeasonPreview** | End of season / preseason rollover | Pre-season analysis and contenders |
 | **Editorial** | (Future) | Opinion pieces |
 
 ### Article Structure
@@ -345,6 +347,7 @@ Each `NewsArticle` has:
 - **Team/player IDs**: Referenced entities for linking
 - **Match score**: Optional score context for match reports
 - **Read status**: Tracks whether the user has read it
+- **Optional i18n metadata**: headline/body/source keys plus interpolation params for localized rendering
 
 ### Article Generation
 
@@ -353,7 +356,7 @@ Match reports use randomized commentary templates (3 variations per article). Th
 - Scorer details with minutes
 - Contextual commentary about league implications
 
-League roundup articles summarize all matchday results with scores, and standings update articles report the current top positions.
+League roundup articles summarize all matchday results with scores, standings update articles report the current top positions, managerial-change articles cover firings and appointments, and season preview articles frame the new campaign before kickoff.
 
 ---
 

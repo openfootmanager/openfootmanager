@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import {
     buildPlayerAdvancedStats,
     formatPlayerMarketValue,
@@ -40,6 +41,18 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
         ...overrides,
     };
 }
+
+const originalSettings = useSettingsStore.getState().settings;
+
+beforeEach(() => {
+    useSettingsStore.setState({
+        settings: { ...originalSettings, currency: "EUR", language: "en" },
+    });
+});
+
+afterEach(() => {
+    useSettingsStore.setState({ settings: originalSettings });
+});
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     return {
@@ -143,6 +156,15 @@ describe("PlayerProfile.helpers", function (): void {
 
     it("formats annual wages as weekly display values", function (): void {
         expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
+    });
+
+    it("respects the selected settings currency for market values and wages", function (): void {
+        useSettingsStore.setState({
+            settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+        });
+
+        expect(formatPlayerMarketValue(125000)).toBe("£125K");
+        expect(formatPlayerWage(52000, "/wk")).toMatch(/^£1[.,]000\/wk$/);
     });
 
     it("maps attribute values to the expected color classes", function (): void {

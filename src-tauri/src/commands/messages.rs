@@ -164,13 +164,16 @@ fn resolve_message_action_internal(
             if random_effect.is_some() {
                 (random_effect, None, None)
             } else {
-                (
-                    ofm_core::job_offers::apply_job_offer_response(
-                        &mut game, message_id, action_id, opt,
+                match ofm_core::job_offers::apply_job_offer_response(
+                    &mut game, message_id, action_id, opt,
+                ) {
+                    Some(effect) => (
+                        Some(effect.message),
+                        Some(effect.i18n_key),
+                        Some(effect.i18n_params),
                     ),
-                    None,
-                    None,
-                )
+                    None => (None, None, None),
+                }
             }
         }
     } else {
@@ -349,6 +352,50 @@ mod tests {
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.messages[0].actions[0].resolved, true);
+    }
+
+    #[test]
+    fn resolve_message_action_internal_returns_job_offer_i18n_effect() {
+        let state = StateManager::new();
+        let mut game = make_game();
+
+        let mut vacancy_team = Team::new(
+            "team-2".to_string(),
+            "Vacancy FC".to_string(),
+            "VAC".to_string(),
+            "England".to_string(),
+            "Liverpool".to_string(),
+            "Vacancy Ground".to_string(),
+            30_000,
+        );
+        vacancy_team.reputation = 450;
+        game.teams.push(vacancy_team);
+
+        let mut offer = actionable_message("job_offer_team-2_2026-08-20", "2026-08-20");
+        offer.context.team_id = Some("team-2".to_string());
+        game.messages = vec![offer];
+        game.manager.team_id = None;
+        state.set_game(game);
+
+        let response = resolve_message_action_internal(
+            &state,
+            "job_offer_team-2_2026-08-20",
+            "action-job_offer_team-2_2026-08-20",
+            Some("decline"),
+        )
+        .expect("response");
+
+        assert_eq!(
+            response["effect_i18n_key"].as_str(),
+            Some("be.msg.jobOffer.effects.declined")
+        );
+        assert_eq!(
+            response["effect_i18n_params"]["team"].as_str(),
+            Some("Vacancy FC")
+        );
+        assert!(response["effect"]
+            .as_str()
+            .is_some_and(|value| value.contains("declined")));
     }
 
     #[test]

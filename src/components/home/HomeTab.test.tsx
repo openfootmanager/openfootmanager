@@ -14,6 +14,18 @@ vi.mock("../NextMatchDisplay", () => ({
   default: () => <div data-testid="next-match-display" />,
 }));
 
+vi.mock("./HomeSquadOverviewCard", () => ({
+  default: ({ avgCondition, avgOvr, exhaustedCount }: { avgCondition: number; avgOvr: number; exhaustedCount: number }) => (
+    <div data-testid="home-squad-overview">{`${avgCondition}|${avgOvr}|${exhaustedCount}`}</div>
+  ),
+}));
+
+vi.mock("./HomeUnavailablePlayersCard", () => ({
+  default: ({ players }: { players: Array<{ full_name: string }> }) => (
+    <div data-testid="home-unavailable-players">{players.map((player) => player.full_name).join(",")}</div>
+  ),
+}));
+
 vi.mock("../../utils/backendI18n", () => ({
   resolveBoardObjective: (value: unknown) => value,
   resolveMessage: (value: unknown) => value,
@@ -289,5 +301,46 @@ describe("HomeTab", function (): void {
 
     expect(screen.getByText("No upcoming league fixture.")).toBeInTheDocument();
     expect(screen.getByText("No league digest yet.")).toBeInTheDocument();
+  });
+
+  it("keeps youth academy players out of first-team home summaries", function (): void {
+    render(
+      <HomeTab
+        gameState={createGameState({
+          players: [
+            createPlayer({
+              id: "senior-1",
+              full_name: "Senior Starter",
+              condition: 80,
+              injury: {
+                name: "hamstring_strain",
+                days_remaining: 5,
+              },
+            }),
+            createPlayer({
+              id: "youth-1",
+              full_name: "Youth Prospect",
+              condition: 10,
+              injury: {
+                name: "ankle_sprain",
+                days_remaining: 14,
+              },
+              squad_role: "Youth",
+            }),
+          ],
+        })}
+        visitedOnboardingTabs={new Set<string>()}
+      />,
+    );
+
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent(
+      "80|1|0",
+    );
+    expect(screen.getByTestId("home-unavailable-players")).toHaveTextContent(
+      "Senior Starter",
+    );
+    expect(screen.getByTestId("home-unavailable-players")).not.toHaveTextContent(
+      "Youth Prospect",
+    );
   });
 });

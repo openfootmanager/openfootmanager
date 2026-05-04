@@ -4,7 +4,10 @@ import {
     Calendar,
     DollarSign,
     Heart,
+    RotateCcw,
     TrendingUp,
+    Trash2,
+    TimerOff,
 } from "lucide-react";
 import {
     formatDate,
@@ -32,7 +35,12 @@ interface PlayerProfileContractCardProps {
     contractRiskLevel: "critical" | "warning" | "stable";
     contractRiskLabel: string;
     isOwnClub: boolean;
+    hasLetExpireIntent: boolean;
+    actionSubmitting: boolean;
     onOpenRenewal: () => void;
+    onMarkLetExpire: () => void;
+    onClearLetExpire: () => void;
+    onOpenTermination: () => void;
     t: TranslateFn;
 }
 
@@ -49,7 +57,12 @@ export default function PlayerProfileContractCard({
     contractRiskLevel,
     contractRiskLabel,
     isOwnClub,
+    hasLetExpireIntent,
+    actionSubmitting,
     onOpenRenewal,
+    onMarkLetExpire,
+    onClearLetExpire,
+    onOpenTermination,
     t,
 }: PlayerProfileContractCardProps) {
     return (
@@ -107,9 +120,46 @@ export default function PlayerProfileContractCard({
                     />
                 </div>
                 {isOwnClub ? (
-                    <div className="pt-3">
-                        <Button size="sm" variant="outline" onClick={onOpenRenewal}>
-                            {t("common.renewContract")}
+                    <div className="flex flex-wrap gap-2 pt-3">
+                        {hasLetExpireIntent ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                icon={<RotateCcw />}
+                                disabled={actionSubmitting}
+                                onClick={onClearLetExpire}
+                            >
+                                {t("playerProfile.reopenContractTalks")}
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={onOpenRenewal}
+                                >
+                                    {t("common.renewContract")}
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    icon={<TimerOff />}
+                                    disabled={actionSubmitting}
+                                    onClick={onMarkLetExpire}
+                                >
+                                    {t("playerProfile.letContractExpire")}
+                                </Button>
+                            </>
+                        )}
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            icon={<Trash2 />}
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            disabled={actionSubmitting || contractEnd === null}
+                            onClick={onOpenTermination}
+                        >
+                            {t("playerProfile.terminateContract")}
                         </Button>
                     </div>
                 ) : null}

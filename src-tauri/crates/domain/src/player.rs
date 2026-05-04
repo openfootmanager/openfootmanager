@@ -41,6 +41,8 @@ pub struct Player {
 
     pub injury: Option<Injury>,
     pub team_id: Option<String>,
+    #[serde(default)]
+    pub squad_role: SquadRole,
 
     // Traits / flairs derived from attributes
     #[serde(default)]
@@ -131,6 +133,13 @@ pub enum Footedness {
     #[default]
     Right,
     Both,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum SquadRole {
+    #[default]
+    Senior,
+    Youth,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -245,6 +254,16 @@ pub enum RenewalSessionOutcome {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ContractExitIntent {
+    LetExpire {
+        set_on: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ContractRenewalState {
     pub status: RenewalSessionStatus,
@@ -253,6 +272,7 @@ pub struct ContractRenewalState {
     pub last_assistant_attempt_date: Option<String>,
     pub last_outcome: Option<RenewalSessionOutcome>,
     pub conversation_round: u8,
+    pub exit_intent: Option<ContractExitIntent>,
 }
 
 impl Default for ContractRenewalState {
@@ -264,6 +284,7 @@ impl Default for ContractRenewalState {
             last_assistant_attempt_date: None,
             last_outcome: None,
             conversation_round: 0,
+            exit_intent: None,
         }
     }
 }
@@ -514,6 +535,7 @@ impl Player {
             fitness: 75,
             injury: None,
             team_id: None,
+            squad_role: SquadRole::Senior,
             traits,
             contract_end: None,
             wage: 0,
@@ -571,6 +593,8 @@ mod tests {
 
         assert_eq!(player.footedness, Footedness::Right);
         assert_eq!(player.weak_foot, 2);
+        assert_eq!(player.squad_role, SquadRole::Senior);
+        assert_eq!(player.squad_role, SquadRole::Senior);
     }
 
     #[test]

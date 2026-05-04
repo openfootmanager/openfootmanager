@@ -220,14 +220,14 @@
   },
   "youthAcademy": {
     "title": "Youth Academy",
-    "playersUnder21": "{{count}} players ≤21",
+    "playersUnder21": "{{count}} academy players",
     "youthPlayers": "Youth Players",
     "avgOvr": "Avg OVR",
     "avgPotential": "Avg Potential",
     "highPotential": "High Potential",
     "youthCoach": "Youth Coach:",
     "youthProspects": "Youth Prospects",
-    "noYouthPlayers": "No youth players (≤21) in your squad.",
+    "noYouthPlayers": "No players are currently assigned to the youth academy.",
     "player": "Player",
     "pos": "Pos",
     "age": "Age",
@@ -236,6 +236,8 @@
     "growth": "Growth",
     "traits": "Traits",
     "condition": "Condition",
+    "delegateToYouthAcademy": "Delegate to youth academy",
+    "promoteToSeniorSquad": "Promote to senior squad",
     "potWorldClass": "World Class",
     "potExcellent": "Excellent",
     "potPromising": "Promising",
@@ -287,6 +289,7 @@
     "wage": "Wage",
     "name": "Name",
     "team": "Team",
+    "viewTeam": "View team",
     "player": "Player",
     "actions": "Actions",
     "position": "Position",
@@ -689,13 +692,13 @@
     "facilityMedicalEffect": "Improves player recovery and treatment support.",
     "facilityScoutingEffect": "Improves scouting quality and information depth.",
     "facilityLevel": "Level {{level}}",
-    "nextUpgradeCost": "Next upgrade: €{{amount}}",
+    "nextUpgradeCost": "Next upgrade: {{amount}}",
     "upgradeFacility": "Upgrade",
     "insufficientFunds": "Insufficient funds",
     "sponsors": "Sponsors",
     "activeSponsor": "Active Sponsor",
     "noActiveSponsor": "No active sponsor",
-    "sponsorWeeklyValue": "Weekly value: €{{amount}}",
+    "sponsorWeeklyValue": "Weekly value: {{amount}}",
     "sponsorRemainingWeeks": "{{count}} weeks remaining",
     "pendingSponsorOffers": "Pending Offers",
     "noPendingSponsorOffers": "No pending sponsor offers",
@@ -717,7 +720,7 @@
     "contractRiskWarning": "Warning",
     "contractRiskStable": "Stable",
     "contractExpiresOn": "Expires {{date}}",
-    "atRiskWages": "€{{amount}}/wk at risk",
+    "atRiskWages": "{{amount}}/wk at risk",
     "noContractRisks": "No imminent contract risks"
   },
   "inbox": {
@@ -946,6 +949,15 @@
     "renewalCounter": "Wants more: €{{wage}}/wk for {{years}} years",
     "renewalBlocked": "Talks are blocked after your earlier decision",
     "renewalCooledOff": "Previous talks cooled off, so this starts as a fresh conversation.",
+    "letContractExpire": "Let Expire",
+    "reopenContractTalks": "Reopen Talks",
+    "terminateContract": "Terminate Now",
+    "terminateContractTitle": "Terminate Contract",
+    "terminateContractBody": "Release {{name}} immediately and pay the remaining contracted wages as severance.",
+    "terminationSeverance": "Severance",
+    "projectedHealthyPlayers": "Healthy players after release",
+    "terminationUnsafe": "This release would leave the squad unable to field a matchday XI.",
+    "confirmTerminateContract": "Terminate Contract",
     "delegateRenewal": "Delegate to Assistant",
     "renewalDelegateMissingReport": "Assistant report did not include this player.",
     "renewalConversationTitle": "Negotiation pulse",
@@ -1468,7 +1480,16 @@
     "resolveBeforeContinuing": "Resolve these issues before continuing",
     "goTo": "Go to",
     "reviewIssues": "Review Issues",
-    "continueAnyway": "Continue Anyway"
+    "continueAnyway": "Continue Anyway",
+    "blockers": {
+      "injuredXi": "{{count}} injured player(s) in Starting XI: {{players}}",
+      "incompleteXi": "Starting XI has only {{count}} healthy players — set your lineup",
+      "squadSizeCrisis": "Squad has only {{count}} contracted player(s) — sign players before match day",
+      "plannedContractExitCrisis": "Planned contract exits would leave only {{healthyPlayers}} healthy player(s) and {{goalkeepers}} goalkeeper(s): {{players}}",
+      "urgentMessages": "{{count}} urgent unread message(s)",
+      "keyContractRisk": "Key player contract risk in squad planning: {{players}}",
+      "contractWageRisk": "{{amount}} of wages are tied to at-risk contracts — review your wage budget"
+    }
   },
   "squadCompare": {
     "compare": "Compare"
@@ -1847,16 +1868,16 @@
         "subject": "Assistant Report — Contract Renewals",
         "body": "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
         "case": {
-          "successful": "Completed: {{player}} agreed to {{years}} year(s) on €{{wage}}/wk.",
+          "successful": "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
           "stalled": "Still difficult: {{player}} — {{detail}}",
           "failed": "Failed: {{player}} — {{detail}}"
         },
         "notes": {
           "managerBlocked": "You told me not to reopen contract talks yet.",
           "completed": "I was able to close this one without needing you to step in.",
-          "beyondLimits": "Their camp want around €{{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
-          "boardWagePolicy": "Board wage policy blocks this renewal. Keep annual wages near €{{budget}} while we recover.",
-          "prefersManager": "They would listen, but they still want about €{{wage}}/wk for {{years}} years and prefer to hear from you directly.",
+          "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
+          "boardWagePolicy": "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
+          "prefersManager": "They would listen, but they still want about {{wage}}/wk for {{years}} years and prefer to hear from you directly.",
           "relationshipBlocked": "They are not willing to commit through me under the current relationship and contract situation."
         }
       },
@@ -1880,7 +1901,18 @@
         "subject": "Managerial Vacancy — {{team}}",
         "body": "The board at {{team}} ({{city}}) is looking for a new manager to lead the club forward. Last season finish: {{league_position}}.\n\nAfter reviewing your credentials, we believe you could be the right fit. Would you be interested in taking on this challenge?",
         "accept": "Accept the position",
-        "decline": "Decline the offer"
+        "decline": "Decline the offer",
+        "effects": {
+          "accepted": "You have been appointed manager of {{team}}",
+          "declined": "You declined the offer from {{team}}",
+          "alreadyEmployed": "You are already employed and cannot accept the offer from {{team}}",
+          "unavailable": "The offer from {{team}} is no longer available because the position has been filled",
+          "failed": "Could not accept the offer from {{team}}"
+        }
+      },
+      "jobOfferExpired": {
+        "subject": "Position Filled — {{team}}",
+        "body": "The vacancy at {{team}} has now been filled, so this offer is no longer available."
       },
       "jobHired": {
         "subject": "Welcome to {{team}}",
@@ -1931,6 +1963,24 @@
         "headline1": "Premier Division Season Set to Begin",
         "headline2": "Can {{favourite}} Claim the Title? Season Preview",
         "body": "The Premier Division is set to kick off with {{teamCount}} teams vying for the title.\n\nPre-season predictions have {{favourite}} as the early favourites, but {{darkHorse}} could be the dark horse to watch this campaign.\n\nWith new managers taking the reins at some clubs, this season promises to be one of the most competitive in recent memory. Every point will matter as the race for the title heats up.\n\nTeams: {{teamList}}"
+      },
+      "managerialChange": {
+        "headline": "{{team}} sack {{manager}}",
+        "body": "{{team}} have dismissed {{manager}} after a damaging run of results, leaving the club searching for a new manager."
+      },
+      "managerialAppointment": {
+        "headline": "{{team}} appoint {{manager}}",
+        "body": "{{team}} have appointed {{manager}} as their new manager after moving quickly to fill the vacancy at the club."
+      },
+      "majorTransfer": {
+        "headline": "{{player}} Completes Move to {{toTeam}}",
+        "body": "{{toTeam}} have completed the signing of {{player}} from {{fromTeam}} for {{fee}}."
+      },
+      "seasonAwards": {
+        "headline": "Season {{season}} Awards",
+        "bodyBoth": "Season {{season}} concluded with {{goldenBootWinner}} ({{goldenBootTeam}}) lifting the Golden Boot with {{goldenBootGoals}} goals. Player of the Year went to {{potyWinner}} ({{potyTeam}}) with an average rating of {{potyRating}}.",
+        "bodyGoldenBootOnly": "Season {{season}} closed with {{goldenBootWinner}} ({{goldenBootTeam}}) crowned top scorer with {{goldenBootGoals}} goals.",
+        "bodyPotyOnly": "Season {{season}} ended with {{potyWinner}} ({{potyTeam}}) named Player of the Year, posting an average rating of {{potyRating}}."
       },
       "weeklyDigest": {
         "headline": "Weekly Digest — Week of {{weekStart}}",
@@ -2065,6 +2115,7 @@
     "leaguePosition": "Last Season: {{position}}",
     "refresh": "Check for new positions",
     "sameTeam": "You are already managing that club.",
+    "notBetterClub": "You can only apply for clubs that are a step up from your current one.",
     "switchConfirmTitle": "Leave your current club?",
     "switchConfirmBody": "Accepting this opportunity will end your tenure at {{currentClub}} and move you to {{newClub}}.",
     "switchConfirmAccept": "Accept new role"

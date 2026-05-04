@@ -8,15 +8,20 @@ import {
   CountryFlag,
 } from "../ui";
 import { calcOvr, calcAge, positionBadgeVariant } from "../../lib/helpers";
+import { isYouthAcademyPlayer } from "../../lib/playerSquad";
 import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import ContextMenu from "../ContextMenu";
+import { buildPromoteToSeniorSquadMenuItem, buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
+import { setPlayerSquadRole } from "../../services/squadService";
 import { GraduationCap, TrendingUp, Star, Users, Sparkles } from "lucide-react";
 
 interface YouthAcademyTabProps {
   gameState: GameStateData;
   onSelectPlayer?: (id: string) => void;
+  onGameUpdate?: (game: GameStateData) => void;
 }
 
 // Estimate potential: younger players with good attributes have higher ceiling
@@ -47,6 +52,7 @@ function getPotentialLabel(
 export default function YouthAcademyTab({
   gameState,
   onSelectPlayer,
+  onGameUpdate,
 }: YouthAcademyTabProps) {
   const { t, i18n } = useTranslation();
   const myTeam = gameState.teams.find(
@@ -57,27 +63,27 @@ export default function YouthAcademyTab({
     ? gameState.players.filter((p) => p.team_id === myTeam.id)
     : [];
   const youthPlayers = roster
+    .filter((player) => isYouthAcademyPlayer(player))
     .map((p) => ({
       ...p,
       age: calcAge(p.date_of_birth),
       ovr: calcOvr(p, p.natural_position || p.position),
       potential: estimatePotential(p),
     }))
-    .filter((p) => p.age <= 21)
     .sort((a, b) => b.potential - a.potential);
 
   const avgOvr =
     youthPlayers.length > 0
       ? Math.round(
-          youthPlayers.reduce((s, p) => s + p.ovr, 0) / youthPlayers.length,
-        )
+        youthPlayers.reduce((s, p) => s + p.ovr, 0) / youthPlayers.length,
+      )
       : 0;
   const avgPotential =
     youthPlayers.length > 0
       ? Math.round(
-          youthPlayers.reduce((s, p) => s + p.potential, 0) /
-            youthPlayers.length,
-        )
+        youthPlayers.reduce((s, p) => s + p.potential, 0) /
+        youthPlayers.length,
+      )
       : 0;
   const highPotential = youthPlayers.filter((p) => p.potential >= 75).length;
 
@@ -219,102 +225,114 @@ export default function YouthAcademyTab({
                 {youthPlayers.map((player) => {
                   const potLabel = getPotentialLabel(player.potential, t);
                   const growthRoom = player.potential - player.ovr;
+                  const contextItems = [
+                    buildViewProfileMenuItem(t, () => onSelectPlayer?.(player.id)),
+                    buildPromoteToSeniorSquadMenuItem(t, async () => {
+                      try {
+                        const updated = await setPlayerSquadRole(player.id, "Senior");
+                        onGameUpdate?.(updated);
+                      } catch {
+                        return;
+                      }
+                    }),
+                  ];
+
                   return (
-                    <tr
-                      key={player.id}
-                      onClick={() => onSelectPlayer?.(player.id)}
-                      className="hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer transition-colors"
-                    >
-                      <td className="py-2.5 px-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                            {player.full_name}
+                    <ContextMenu items={contextItems} key={player.id}>
+                      <tr
+                        onClick={() => onSelectPlayer?.(player.id)}
+                        className="hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer transition-colors"
+                      >
+                        <td className="py-2.5 px-4">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                              {player.full_name}
+                            </p>
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
+                              <CountryFlag
+                                code={player.nationality}
+                                locale={i18n.language}
+                                className="text-xs leading-none"
+                              />
+                              <span>
+                                {countryName(player.nationality, i18n.language)}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <Badge
+                            variant={positionBadgeVariant(
+                              player.natural_position || player.position,
+                            )}
+                            size="sm"
+                          >
+                            {translatePositionAbbreviation(
+                              t,
+                              player.natural_position || player.position,
+                            )}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300 tabular-nums">
+                            {player.age}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100 tabular-nums">
+                            {player.ovr}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span
+                            className={`text-sm font-heading font-bold tabular-nums ${potLabel.color}`}
+                          >
+                            {player.potential}
+                          </span>
+                          <p
+                            className={`text-[9px] font-heading uppercase tracking-wider ${potLabel.color}`}
+                          >
+                            {potLabel.label}
                           </p>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
-                            <CountryFlag
-                              code={player.nationality}
-                              locale={i18n.language}
-                              className="text-xs leading-none"
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <ProgressBar
+                              value={Math.min(
+                                100,
+                                (player.ovr / player.potential) * 100,
+                              )}
+                              variant={
+                                growthRoom > 15
+                                  ? "accent"
+                                  : growthRoom > 5
+                                    ? "primary"
+                                    : "auto"
+                              }
+                              size="sm"
                             />
-                            <span>
-                              {countryName(player.nationality, i18n.language)}
+                            <span className="text-[10px] font-heading font-bold text-gray-500 tabular-nums w-6">
+                              +{growthRoom}
                             </span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={positionBadgeVariant(
-                            player.natural_position || player.position,
-                          )}
-                          size="sm"
-                        >
-                          {translatePositionAbbreviation(
-                            t,
-                            player.natural_position || player.position,
-                          )}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300 tabular-nums">
-                          {player.age}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100 tabular-nums">
-                          {player.ovr}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span
-                          className={`text-sm font-heading font-bold tabular-nums ${potLabel.color}`}
-                        >
-                          {player.potential}
-                        </span>
-                        <p
-                          className={`text-[9px] font-heading uppercase tracking-wider ${potLabel.color}`}
-                        >
-                          {potLabel.label}
-                        </p>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <ProgressBar
-                            value={Math.min(
-                              100,
-                              (player.ovr / player.potential) * 100,
-                            )}
-                            variant={
-                              growthRoom > 15
-                                ? "accent"
-                                : growthRoom > 5
-                                  ? "primary"
-                                  : "auto"
-                            }
-                            size="sm"
-                          />
-                          <span className="text-[10px] font-heading font-bold text-gray-500 tabular-nums w-6">
-                            +{growthRoom}
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <TraitList traits={player.traits || []} max={2} />
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span
+                            className={`text-xs font-heading font-bold tabular-nums ${player.condition >= 70
+                                ? "text-green-500"
+                                : player.condition >= 40
+                                  ? "text-yellow-500"
+                                  : "text-red-500"
+                              }`}
+                          >
+                            {player.condition}%
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <TraitList traits={player.traits || []} max={2} />
-                      </td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span
-                          className={`text-xs font-heading font-bold tabular-nums ${
-                            player.condition >= 70
-                              ? "text-green-500"
-                              : player.condition >= 40
-                                ? "text-yellow-500"
-                                : "text-red-500"
-                          }`}
-                        >
-                          {player.condition}%
-                        </span>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    </ContextMenu>
                   );
                 })}
               </tbody>

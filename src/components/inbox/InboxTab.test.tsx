@@ -14,6 +14,7 @@ import type {
   MessageAction,
   MessageData,
 } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
 
 const mockTranslationState = vi.hoisted(function () {
@@ -52,7 +53,7 @@ vi.mock("react-i18next", async (importOriginal) => {
       t: (key: string, value?: unknown) => {
         const resolved =
           mockTranslationState.translations[mockTranslationState.language]?.[
-            key
+          key
           ];
 
         if (resolved) {
@@ -97,12 +98,14 @@ beforeAll(function defineMatchMedia(): void {
       "be.msg.delegatedRenewals.body":
         "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
       "be.msg.delegatedRenewals.case.successful":
-        "Completed: {{player}} agreed to {{years}} year(s) on €{{wage}}/wk.",
+        "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
       "be.msg.delegatedRenewals.case.stalled":
         "Still difficult: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.case.failed": "Failed: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.notes.beyondLimits":
-        "Their camp want around €{{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
+        "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
+      "be.msg.delegatedRenewals.notes.boardWagePolicy":
+        "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
       "be.msg.delegatedRenewals.notes.relationshipBlocked":
         "They are not willing to commit through me under the current relationship and contract situation.",
     },
@@ -113,6 +116,13 @@ beforeAll(function defineMatchMedia(): void {
 
 beforeEach(function resetMocks(): void {
   mockedInvoke.mockReset();
+  useSettingsStore.setState({
+    settings: {
+      ...useSettingsStore.getState().settings,
+      currency: "EUR",
+      language: "en",
+    },
+  });
 });
 
 function createMessage(overrides: Partial<MessageData> = {}): MessageData {
@@ -506,7 +516,15 @@ describe("InboxTab", function (): void {
     }
   });
 
-  it("renders delegated renewal report details from localized structured context", function (): void {
+  it("renders delegated renewal report details with settings-aware money formatting", function (): void {
+    useSettingsStore.setState({
+      settings: {
+        ...useSettingsStore.getState().settings,
+        currency: "GBP",
+        language: "en",
+      },
+    });
+
     renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -564,12 +582,12 @@ describe("InboxTab", function (): void {
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Completed: Alex Done agreed to 3 year(s) on €24000/wk.",
+        "Completed: Alex Done agreed to 3 year(s) on £24,000/wk.",
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Still difficult: Ben Pending — Their camp want around €26000/wk for 4 years, which is beyond the delegation limits.",
+        "Still difficult: Ben Pending — Their camp want around £26,000/wk for 4 years, which is beyond the delegation limits.",
       ),
     ).toBeInTheDocument();
     expect(

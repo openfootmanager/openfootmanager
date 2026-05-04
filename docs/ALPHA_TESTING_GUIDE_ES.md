@@ -122,6 +122,8 @@ Ejemplos:
 
 La forma más fácil de enviar feedback es a través de nuestros **templates de issue en GitHub**. Solo elige el correcto y rellénalo — **¡puedes escribir en tu idioma!**
 
+Si quieres hablar con el equipo o con otros jugadores, también puedes unirte al servidor de Discord: https://discord.gg/4ppEDH68
+
 - [**Reporte de Bug**](https://github.com/openfootmanager/openfootmanager/issues/new?template=bug_report_es.yml) — Algo crasheó, se rompió o se comportó incorrectamente
 - [**Feedback / Sugerencia**](https://github.com/openfootmanager/openfootmanager/issues/new?template=feedback_es.yml) — Problemas de usabilidad, balance o ideas
 - [**Reporte de Sesión**](https://github.com/openfootmanager/openfootmanager/issues/new?template=session_report_es.yml) — Un resumen de tu sesión de juego (¡super valioso!)

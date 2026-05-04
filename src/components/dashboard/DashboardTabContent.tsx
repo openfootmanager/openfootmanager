@@ -100,6 +100,7 @@ export default function DashboardTabContent({
       {activeTab === "Players" && (
         <PlayersListTab
           gameState={gameState}
+          onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
           onSelectTeam={onSelectTeam}
         />
@@ -122,12 +123,14 @@ export default function DashboardTabContent({
           gameState={gameState}
           onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
+          onSelectTeam={onSelectTeam}
         />
       )}
 
       {activeTab === "Youth" && (
         <YouthAcademyTab
           gameState={gameState}
+          onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
         />
       )}

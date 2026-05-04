@@ -26,6 +26,8 @@ vi.mock("react-i18next", () => ({
       }
       if (key === "common.all") return "All";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "common.viewTeam") return "View team";
+      if (key === "squad.viewProfile") return "View profile";
       return key;
     },
     i18n: { language: "en" },
@@ -125,6 +127,7 @@ describe("ScoutingPlayerSearchCard", () => {
     const onPositionFilterChange = vi.fn();
     const onSearchQueryChange = vi.fn();
     const onSelectPlayer = vi.fn();
+    const onSelectTeam = vi.fn();
     const onSendScout = vi.fn();
     const onPreviousPage = vi.fn();
     const onNextPage = vi.fn();
@@ -148,6 +151,7 @@ describe("ScoutingPlayerSearchCard", () => {
         onPositionFilterChange={onPositionFilterChange}
         onSearchQueryChange={onSearchQueryChange}
         onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
         onSendScout={onSendScout}
         onPreviousPage={onPreviousPage}
         onNextPage={onNextPage}
@@ -173,5 +177,16 @@ describe("ScoutingPlayerSearchCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(onNextPage).toHaveBeenCalledOnce();
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });
 });

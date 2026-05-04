@@ -262,6 +262,26 @@ describe("TacticsTab", () => {
     expect(screen.getByTestId("pitch-bench-player-d5")).toBeInTheDocument();
   });
 
+  it("keeps youth academy players out of first-team tactics selection", () => {
+    const gameState = makeGameState();
+    gameState.players.push(
+      makePlayer("y1", "Forward", {
+        full_name: "Academy Prospect",
+        squad_role: "Youth",
+      }),
+    );
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Academy Prospect")).not.toBeInTheDocument();
+  });
+
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
     render(
       <TacticsTab
@@ -323,10 +343,10 @@ describe("TacticsTab", () => {
     gameState.players = gameState.players.map((player) =>
       player.id === "d5"
         ? {
-            ...player,
-            position: "Midfielder",
-            natural_position: "Defender",
-          }
+          ...player,
+          position: "Midfielder",
+          natural_position: "Defender",
+        }
         : player,
     );
 

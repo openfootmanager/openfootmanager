@@ -202,6 +202,8 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         }
     }
 
+    crate::reputation::update_team_reputation(game, &final_standings);
+
     // 5. Record player career entries and reset stats
     for player in game.players.iter_mut() {
         if player.stats.appearances > 0 {
@@ -289,6 +291,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     // 6c. Clear old news articles from the previous season
     game.news.clear();
+
+    // 6d. Publish the season awards ceremony article (skipped when no marquee winners)
+    if let Some(article) = crate::news::season_awards_article(&awards, season, &last_fixture_date) {
+        game.news.push(article);
+    }
 
     // 7. Generate next season schedule
     let next_season = season + 1;

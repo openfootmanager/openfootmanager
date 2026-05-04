@@ -216,4 +216,16 @@ describe("TrainingTab", () => {
     expect(screen.getByText("Staff alert")).toBeInTheDocument();
     expect(screen.getByText(/Critical advice/)).toBeInTheDocument();
   });
+
+  it("ignores youth academy players in first-team training summaries", () => {
+    const state = createGameState(true);
+    state.players = [
+      createPlayer({ id: "senior-1", condition: 80 }),
+      createPlayer({ id: "youth-1", condition: 10, squad_role: "Youth" }),
+    ];
+
+    render(<TrainingTab gameState={state} />);
+
+    expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
+  });
 });

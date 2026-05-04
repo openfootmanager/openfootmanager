@@ -3,6 +3,7 @@ use log::info;
 use ofm_core::contracts::contract_warning_stage;
 use ofm_core::game::Game;
 use ofm_core::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
+use ofm_core::squad_safety::{project_user_team_planned_exit_safety, user_team_squad_safety};
 
 fn user_team_context<'a>(
     game: &'a Game,
@@ -18,11 +19,20 @@ fn user_team_context<'a>(
     Some((team, roster))
 }
 
-fn build_blocker(id: &str, severity: &str, text: String, tab: &str) -> serde_json::Value {
+fn build_blocker(
+    id: &str,
+    severity: &str,
+    text: String,
+    tab: &str,
+    text_key: Option<&str>,
+    text_params: Option<serde_json::Value>,
+) -> serde_json::Value {
     serde_json::json!({
         "id": id,
         "severity": severity,
         "text": text,
+        "text_key": text_key,
+        "text_params": text_params,
         "tab": tab
     })
 }
@@ -136,15 +146,21 @@ fn injured_starting_xi_blocker(
         .collect();
 
     (!injured_in_xi.is_empty()).then(|| {
+        let injured_count = injured_in_xi.len().to_string();
+        let injured_players = injured_in_xi.join(", ");
         build_blocker(
             "injured_xi",
             "warn",
             format!(
                 "{} injured player(s) in Starting XI: {}",
-                injured_in_xi.len(),
-                injured_in_xi.join(", ")
+                injured_count, injured_players
             ),
             "Squad",
+            Some("notifications.blockers.injuredXi"),
+            Some(serde_json::json!({
+                "count": injured_count,
+                "players": injured_players,
+            })),
         )
     })
 }
@@ -156,14 +172,69 @@ fn incomplete_starting_xi_blocker(
     let healthy_xi = effective_healthy_xi_ids.len();
 
     (healthy_xi < 11 && roster.len() >= 11).then(|| {
+        let healthy_count = healthy_xi.to_string();
         build_blocker(
             "incomplete_xi",
             "warn",
             format!(
                 "Starting XI has only {} healthy players — set your lineup",
-                healthy_xi
+                healthy_count
             ),
             "Squad",
+            Some("notifications.blockers.incompleteXi"),
+            Some(serde_json::json!({
+                "count": healthy_count,
+            })),
+        )
+    })
+}
+
+fn squad_size_crisis_blocker(game: &Game) -> Option<serde_json::Value> {
+    let safety = user_team_squad_safety(game)?;
+
+    (safety.projected_roster_size < 11).then(|| {
+        let roster_size = safety.projected_roster_size.to_string();
+        build_blocker(
+            "squad_size_crisis",
+            "warn",
+            format!(
+                "Squad has only {} contracted player(s) — sign players before match day",
+                roster_size
+            ),
+            "Squad",
+            Some("notifications.blockers.squadSizeCrisis"),
+            Some(serde_json::json!({
+                "count": roster_size,
+            })),
+        )
+    })
+}
+
+fn planned_contract_exit_crisis_blocker(game: &Game) -> Option<serde_json::Value> {
+    let planned_exit_report = project_user_team_planned_exit_safety(game)?;
+
+    (!planned_exit_report.squad_safety.can_field_matchday_squad).then(|| {
+        let mut names = planned_exit_report.departing_player_names;
+        names.sort();
+        let listed_names = names.into_iter().take(3).collect::<Vec<_>>().join(", ");
+        let healthy_players = planned_exit_report.squad_safety.healthy_players.to_string();
+        let healthy_goalkeepers = planned_exit_report.squad_safety.healthy_goalkeepers.to_string();
+        build_blocker(
+            "planned_contract_exit_crisis",
+            "warn",
+            format!(
+                "Planned contract exits would leave only {} healthy player(s) and {} goalkeeper(s): {}",
+                healthy_players,
+                healthy_goalkeepers,
+                listed_names
+            ),
+            "Squad",
+            Some("notifications.blockers.plannedContractExitCrisis"),
+            Some(serde_json::json!({
+                "healthyPlayers": healthy_players,
+                "goalkeepers": healthy_goalkeepers,
+                "players": listed_names,
+            })),
         )
     })
 }
@@ -178,11 +249,16 @@ fn urgent_unread_messages_blocker(game: &Game) -> Option<serde_json::Value> {
         .count();
 
     (urgent_unread > 0).then(|| {
+        let unread_count = urgent_unread.to_string();
         build_blocker(
             "urgent_messages",
             "info",
-            format!("{} urgent unread message(s)", urgent_unread),
+            format!("{} urgent unread message(s)", unread_count),
             "Inbox",
+            Some("notifications.blockers.urgentMessages"),
+            Some(serde_json::json!({
+                "count": unread_count,
+            })),
         )
     })
 }
@@ -218,14 +294,16 @@ fn key_contract_risk_blocker(
         .collect();
 
     (!risky_key_players.is_empty()).then(|| {
+        let players = risky_key_players.join(", ");
         build_blocker(
             "key_contract_risk",
             "warn",
-            format!(
-                "Key player contract risk in squad planning: {}",
-                risky_key_players.join(", ")
-            ),
+            format!("Key player contract risk in squad planning: {}", players),
             "Squad",
+            Some("notifications.blockers.keyContractRisk"),
+            Some(serde_json::json!({
+                "players": players,
+            })),
         )
     })
 }
@@ -246,14 +324,19 @@ fn contract_wage_risk_blocker(
 
     let wage_budget = team.wage_budget.max(0) as u32;
     (wage_budget > 0 && at_risk_wages > wage_budget).then(|| {
+        let at_risk_wages_text = at_risk_wages.to_string();
         build_blocker(
             "contract_wage_risk",
             "warn",
             format!(
                 "{} of wages are tied to at-risk contracts — review your wage budget",
-                at_risk_wages
+                at_risk_wages_text
             ),
             "Finances",
+            Some("notifications.blockers.contractWageRisk"),
+            Some(serde_json::json!({
+                "amount": at_risk_wages_text,
+            })),
         )
     })
 }
@@ -277,6 +360,14 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
     }
 
     if let Some(blocker) = incomplete_starting_xi_blocker(&effective_healthy_xi_ids, &roster) {
+        blockers.push(blocker);
+    }
+
+    if let Some(blocker) = squad_size_crisis_blocker(game) {
+        blockers.push(blocker);
+    }
+
+    if let Some(blocker) = planned_contract_exit_crisis_blocker(game) {
         blockers.push(blocker);
     }
 

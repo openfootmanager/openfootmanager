@@ -3,6 +3,9 @@ contact_links:
   - name: "\U0001F4D6 Alpha Testing Guide (English)"
     url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE.md
     about: "Read the full alpha testing guide before submitting feedback."
+  - name: "\U0001F4D6 Alpha 测试指南（简体中文）"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_ZH-CN.md
+    about: "提交反馈前，请先阅读完整的 Alpha 测试指南。"
   - name: "\U0001F4D6 Guida Alpha (Italiano)"
     url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_IT.md
     about: "Leggi la guida completa per i tester alpha."

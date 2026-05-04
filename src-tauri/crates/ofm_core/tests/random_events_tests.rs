@@ -106,6 +106,7 @@ fn make_game_with_league() -> Game {
             result: None,
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
+        transfer_log: vec![],
     });
     game
 }
@@ -325,6 +326,7 @@ fn check_random_events_board_confidence_triggers_on_losses() {
             },
         ],
         standings: vec![],
+        transfer_log: vec![],
     });
 
     check_random_events(&mut game);
@@ -407,6 +409,7 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
             },
         ],
         standings: vec![],
+        transfer_log: vec![],
     });
 
     check_random_events(&mut game);
@@ -443,6 +446,7 @@ fn check_random_events_international_callup_with_upcoming_match() {
             result: None,
         }],
         standings: vec![],
+        transfer_log: vec![],
     });
 
     // Run many times to trigger the 5% chance

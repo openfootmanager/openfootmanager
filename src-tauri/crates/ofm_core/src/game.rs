@@ -9,6 +9,7 @@ use domain::staff::Staff;
 use domain::team::Team;
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ObjectiveType {
@@ -38,6 +39,10 @@ pub struct ScoutingAssignment {
 pub struct Game {
     pub clock: GameClock,
     pub manager: Manager,
+    #[serde(default)]
+    pub manager_id: String,
+    #[serde(default)]
+    pub managers: Vec<Manager>,
     pub teams: Vec<Team>,
     pub players: Vec<Player>,
     pub staff: Vec<Staff>,
@@ -53,6 +58,8 @@ pub struct Game {
     pub season_context: SeasonContext,
     #[serde(default)]
     pub days_since_last_job_offer: Option<u32>,
+    #[serde(default)]
+    pub vacant_team_days: HashMap<String, u32>,
 }
 
 impl Game {
@@ -64,9 +71,13 @@ impl Game {
         staff: Vec<Staff>,
         messages: Vec<InboxMessage>,
     ) -> Self {
+        let manager_id = manager.id.clone();
+        let managers = vec![manager.clone()];
         let mut game = Self {
             clock,
             manager,
+            manager_id,
+            managers,
             teams,
             players,
             staff,
@@ -77,9 +88,23 @@ impl Game {
             board_objectives: vec![],
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,
+            vacant_team_days: HashMap::new(),
         };
         crate::football_identity::upgrade_game_football_identities(&mut game);
         crate::season_context::refresh_game_context(&mut game);
         game
+    }
+
+    pub fn sync_user_manager_record(&mut self) {
+        let user_manager_id = self.manager_id.clone();
+        if let Some(existing) = self
+            .managers
+            .iter_mut()
+            .find(|manager| manager.id == user_manager_id)
+        {
+            *existing = self.manager.clone();
+        } else {
+            self.managers.push(self.manager.clone());
+        }
     }
 }

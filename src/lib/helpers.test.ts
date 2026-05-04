@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getTeamName,
   getTeamShort,
@@ -14,11 +14,13 @@ import {
   formatDateShort,
   calcOvr,
   calcAge,
+  formatExactMoney,
   formatVal,
   formatWeeklyAmount,
   positionBadgeVariant,
 } from "./helpers";
 import type { TeamData, FixtureData, PlayerData } from "../store/gameStore";
+import { useSettingsStore } from "../store/settingsStore";
 
 // ---------------------------------------------------------------------------
 // Minimal test fixtures
@@ -98,6 +100,18 @@ const makeFixture = (overrides: Partial<FixtureData> = {}): FixtureData => ({
   status: "Scheduled",
   result: null,
   ...overrides,
+});
+
+const originalSettings = useSettingsStore.getState().settings;
+
+beforeEach(() => {
+  useSettingsStore.setState({
+    settings: { ...originalSettings, currency: "EUR", language: "en" },
+  });
+});
+
+afterEach(() => {
+  useSettingsStore.setState({ settings: originalSettings });
 });
 
 // ---------------------------------------------------------------------------
@@ -347,6 +361,26 @@ describe("formatVal", () => {
   it("formats small values", () => {
     expect(formatVal(500)).toBe("€500");
     expect(formatVal(0)).toBe("€0");
+  });
+
+  it("uses the selected settings currency", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+    });
+
+    expect(formatVal(5000000)).toBe("£5.0M");
+    expect(formatVal(500)).toBe("£500");
+  });
+});
+
+describe("formatExactMoney", () => {
+  it("formats exact amounts using the selected settings currency", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "USD" },
+    });
+
+    expect(formatExactMoney(125000)).toBe("$125,000");
+    expect(formatExactMoney(-30000)).toBe("-$30,000");
   });
 });
 

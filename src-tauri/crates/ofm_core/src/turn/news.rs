@@ -554,6 +554,7 @@ mod tests {
                 ),
             ],
             standings: vec![alpha, beta, gamma],
+            transfer_log: vec![],
         });
 
         game

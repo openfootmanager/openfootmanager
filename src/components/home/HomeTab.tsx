@@ -1,6 +1,7 @@
 import type { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import { formatDateShort } from "../../lib/helpers";
+import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
 import {
@@ -73,7 +74,9 @@ export default function HomeTab({
   );
   const league = gameState.league;
   const roster = myTeam
-    ? gameState.players.filter((p) => p.team_id === myTeam.id)
+    ? gameState.players.filter(
+        (p) => p.team_id === myTeam.id && isSeniorSquadPlayer(p),
+      )
     : [];
   const {
     avgCondition,
@@ -234,26 +237,35 @@ export default function HomeTab({
         )}
 
       {myTeam ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Next Match Card */}
-          <Card accent="primary" className="md:col-span-2">
-            <CardHeader>{t("home.nextMatch")}</CardHeader>
-            <CardBody>
-              <NextMatchDisplay gameState={gameState} />
-            </CardBody>
-          </Card>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Next Match Card */}
+            <Card accent="primary" className="md:col-span-2">
+              <CardHeader>{t("home.nextMatch")}</CardHeader>
+              <CardBody>
+                <NextMatchDisplay gameState={gameState} />
+              </CardBody>
+            </Card>
 
-          {/* League Position */}
-          <HomeLeaguePositionCard
-            isPreseason={isPreseason}
-            phase={seasonContext.phase}
-            seasonStartLabel={seasonStartLabel}
-            myStanding={myStanding}
-            myStandingData={myStandingData}
-            teamForm={myTeam?.form ?? []}
-            onNavigate={onNavigate}
-          />
-        </div>
+            {/* League Position */}
+            <HomeLeaguePositionCard
+              isPreseason={isPreseason}
+              phase={seasonContext.phase}
+              seasonStartLabel={seasonStartLabel}
+              myStanding={myStanding}
+              myStandingData={myStandingData}
+              teamForm={myTeam?.form ?? []}
+              onNavigate={onNavigate}
+            />
+          </div>
+          {onGameUpdate && (
+            <JobOpportunitiesCard
+              gameState={gameState}
+              onGameUpdate={onGameUpdate}
+              hideWhenEmpty
+            />
+          )}
+        </>
       ) : (
         <>
           <HomeLeaguePositionCard

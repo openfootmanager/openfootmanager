@@ -6,6 +6,8 @@ export interface BlockerData {
   id: string;
   severity: string;
   text: string;
+  text_key?: string;
+  text_params?: Record<string, string>;
   tab: string;
 }
 

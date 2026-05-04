@@ -6,7 +6,7 @@ pub use responses::{
     build_response_band_weights, pick_response_band,
 };
 
-use crate::contracts::contract_warning_stage;
+use crate::contracts::{contract_warning_stage, has_let_expire_intent};
 use crate::game::Game;
 use domain::message::InboxMessage;
 use rand::RngExt;
@@ -35,6 +35,10 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
 
     for player in game.players.iter_mut() {
         if player.team_id.as_deref() != Some(&user_team_id) {
+            continue;
+        }
+
+        if has_let_expire_intent(player) {
             continue;
         }
 

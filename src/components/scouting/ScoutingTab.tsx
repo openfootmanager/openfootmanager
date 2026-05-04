@@ -23,11 +23,14 @@ import ScoutingAssignmentsList from "./ScoutingAssignmentsList";
 import ScoutingOverviewCards from "./ScoutingOverviewCards";
 import ScoutingScoutDetailsCard from "./ScoutingScoutDetailsCard";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
+import TransferBidModal from "../transfers/TransferBidModal";
+import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 
 interface ScoutingTabProps {
   gameState: GameStateData;
   onGameUpdate: (state: GameStateData) => void;
   onSelectPlayer?: (id: string) => void;
+  onSelectTeam?: (id: string) => void;
 }
 
 const SCOUTING_PAGE_SIZE = 20;
@@ -36,12 +39,33 @@ export default function ScoutingTab({
   gameState,
   onGameUpdate,
   onSelectPlayer,
+  onSelectTeam,
 }: ScoutingTabProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [posFilter, setPosFilter] = useState<string>("All");
   const [sending, setSending] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const {
+    bidTarget,
+    bidAmount,
+    setBidAmount,
+    bidResult,
+    bidLoading,
+    bidFeedback,
+    bidProjection,
+    bidFee,
+    activeBidOffer,
+    myTeam,
+    hasExistingOffer,
+    bidSubmitDisabled,
+    openBidNegotiation,
+    closeBidNegotiation,
+    handleMakeBid,
+  } = useTransferBidFlow({
+    gameState,
+    onGameUpdate,
+  });
 
   const myTeamId = gameState.manager.team_id ?? "";
   const scouts = gameState.staff.filter(
@@ -151,12 +175,33 @@ export default function ScoutingTab({
             setSearchQuery(query);
             setPage(0);
           }}
+          onBidPlayer={openBidNegotiation}
           onSelectPlayer={onSelectPlayer}
+          onSelectTeam={onSelectTeam}
           onSendScout={handleSendScout}
           onPreviousPage={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
           onNextPage={() =>
             setPage((currentPage) => Math.min(totalPages - 1, currentPage + 1))
           }
+        />
+      )}
+      {bidTarget && (
+        <TransferBidModal
+          bidTarget={bidTarget}
+          teams={gameState.teams}
+          bidAmount={bidAmount}
+          onBidAmountChange={setBidAmount}
+          myTeam={myTeam}
+          bidFee={bidFee}
+          bidProjection={bidProjection}
+          bidFeedback={bidFeedback}
+          activeBidOffer={activeBidOffer}
+          hasExistingOffer={hasExistingOffer}
+          bidResult={bidResult}
+          bidLoading={bidLoading}
+          bidSubmitDisabled={bidSubmitDisabled}
+          onSubmit={handleMakeBid}
+          onClose={closeBidNegotiation}
         />
       )}
     </div>
