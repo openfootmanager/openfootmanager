@@ -68,6 +68,11 @@ export default function JobOpportunitiesCard({
       const response = await applyForJob(job.team_id);
       onGameUpdate(response.game);
       if (response.result === "hired") {
+        // After a club switch the prior list reflects opportunities relative
+        // to the old club — refetch so we don't keep showing offers that
+        // would now fail the "step up" check.
+        const updated = await getAvailableJobs();
+        setJobs(updated);
         setFeedback({ type: "success", message: t("jobs.hired") });
       } else if (response.result === "rejected") {
         setFeedback({ type: "error", message: t("jobs.rejected") });
