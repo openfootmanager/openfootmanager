@@ -2348,8 +2348,8 @@
     "refresh": "Verificar novas vagas",
     "sameTeam": "Já és o treinador desse clube.",
     "notBetterClub": "Só te podes candidatar a clubes que representem uma progressão face ao teu clube atual.",
-    "switchConfirmTitle": "Deixar o seu clube atual?",
-    "switchConfirmBody": "Aceitar esta oportunidade encerrará a sua passagem pelo {{currentClub}} e levá-lo-á ao {{newClub}}.",
+    "switchConfirmTitle": "Deixar o teu clube atual?",
+    "switchConfirmBody": "Aceitar esta oportunidade encerrará a tua passagem pelo {{currentClub}} e levar-te-á ao {{newClub}}.",
     "switchConfirmAccept": "Aceitar novo cargo"
   }
 }

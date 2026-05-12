@@ -96,7 +96,12 @@ export default function JobOpportunitiesCard({
 
   const handleApply = (job: JobOpportunity) => {
     if (applyingTo) return;
-    if (gameState.manager?.team_id) {
+    // Only prompt for confirmation when the offer points at a different club —
+    // applying to your current club is a backend no-op (returns `same_team`).
+    if (
+      gameState.manager?.team_id &&
+      gameState.manager.team_id !== job.team_id
+    ) {
       setPendingSwitch(job);
       return;
     }

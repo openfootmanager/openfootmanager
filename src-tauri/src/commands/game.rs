@@ -112,11 +112,20 @@ pub async fn select_team(
 
     // Assign manager to team
     game.manager.hire(team_id.clone());
-    game.manager.career_history.push(ManagerCareerEntry::open(
-        team_id.clone(),
-        team_name.clone(),
-        game.clock.current_date.format("%Y-%m-%d").to_string(),
-    ));
+    // Avoid duplicating open career entries when select_team is retried
+    // (e.g., a double-submit from the frontend) for the same club.
+    let already_open = game
+        .manager
+        .career_history
+        .iter()
+        .any(|e| e.team_id == team_id && e.end_date.is_none());
+    if !already_open {
+        game.manager.career_history.push(ManagerCareerEntry::open(
+            team_id.clone(),
+            team_name.clone(),
+            game.clock.current_date.format("%Y-%m-%d").to_string(),
+        ));
+    }
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == team_id) {
         t.manager_id = Some(game.manager.id.clone());
     }

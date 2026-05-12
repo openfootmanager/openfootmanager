@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { JSX } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { calcAge, formatDateFull, getTeamName } from "../../lib/helpers";
@@ -50,6 +50,13 @@ export default function InboxMessageDetailPane({
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(
     null,
   );
+
+  // Drop any in-flight switch-confirm when the selected message changes —
+  // otherwise the modal can survive selection changes and confirm an action
+  // captured against a now-unrelated message.
+  useEffect(() => {
+    setPendingSwitch(null);
+  }, [selectedMessage?.id]);
 
   const currentClubName = getTeamName(
     gameState.teams,

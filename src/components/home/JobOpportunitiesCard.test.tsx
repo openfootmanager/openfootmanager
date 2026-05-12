@@ -375,10 +375,9 @@ describe("JobOpportunitiesCard", () => {
       />,
     );
 
+    // Applying to the manager's current club bypasses the switch-confirm
+    // modal — the backend's same_team result surfaces directly as an error.
     fireEvent.click(await screen.findByRole("button", { name: "Apply" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Accept new role" }),
-    );
 
     expect(
       await screen.findByText("You are already managing that club."),
