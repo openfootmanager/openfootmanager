@@ -91,39 +91,65 @@ pub fn generate_league(
 }
 
 pub fn generate_preseason_friendlies(
-    user_team_id: &str,
-    opponent_ids: &[String],
+    team_ids: &[String],
     season_start: DateTime<Utc>,
     max_friendlies: usize,
 ) -> Vec<Fixture> {
-    opponent_ids
-        .iter()
-        .filter(|opponent_id| opponent_id.as_str() != user_team_id)
-        .take(max_friendlies)
-        .enumerate()
-        .map(|(index, opponent_id)| {
-            let weeks_before_start = (max_friendlies.saturating_sub(index)) as i64;
-            let date = (season_start - Duration::days(weeks_before_start * 7))
-                .format("%Y-%m-%d")
-                .to_string();
-            let (home_team_id, away_team_id) = if index % 2 == 0 {
-                (user_team_id.to_string(), opponent_id.clone())
-            } else {
-                (opponent_id.clone(), user_team_id.to_string())
+    if team_ids.len() < 2 || max_friendlies == 0 {
+        return Vec::new();
+    }
+
+    let mut rotation: Vec<Option<usize>> = (0..team_ids.len()).map(Some).collect();
+    if rotation.len() % 2 != 0 {
+        rotation.push(None);
+    }
+
+    let rounds_available = rotation.len().saturating_sub(1);
+    let rounds_to_schedule = max_friendlies.min(rounds_available);
+    if rounds_to_schedule == 0 {
+        return Vec::new();
+    }
+
+    let half = rotation.len() / 2;
+    let mut fixtures = Vec::with_capacity(rounds_to_schedule * half);
+
+    for round in 0..rounds_to_schedule {
+        let weeks_before_start = (rounds_to_schedule.saturating_sub(round)) as i64;
+        let date = (season_start - Duration::days(weeks_before_start * 7))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        for i in 0..half {
+            let Some(left_idx) = rotation[i] else {
+                continue;
+            };
+            let Some(right_idx) = rotation[rotation.len() - 1 - i] else {
+                continue;
             };
 
-            Fixture {
+            let (home_idx, away_idx) = if (round + i) % 2 == 0 {
+                (left_idx, right_idx)
+            } else {
+                (right_idx, left_idx)
+            };
+
+            fixtures.push(Fixture {
                 id: Uuid::new_v4().to_string(),
                 matchday: 0,
-                date,
-                home_team_id,
-                away_team_id,
+                date: date.clone(),
+                home_team_id: team_ids[home_idx].clone(),
+                away_team_id: team_ids[away_idx].clone(),
                 competition: FixtureCompetition::Friendly,
                 status: FixtureStatus::Scheduled,
                 result: None,
-            }
-        })
-        .collect()
+            });
+        }
+
+        let last = rotation.pop().unwrap();
+        rotation.insert(1, last);
+    }
+
+    fixtures
 }
 
 pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture>) {
@@ -204,8 +230,8 @@ mod tests {
     fn generate_preseason_friendlies_marks_fixtures_as_friendlies() {
         let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
         let friendlies = generate_preseason_friendlies(
-            "team_1",
             &[
+                "team_1".to_string(),
                 "team_2".to_string(),
                 "team_3".to_string(),
                 "team_4".to_string(),
@@ -214,7 +240,7 @@ mod tests {
             3,
         );
 
-        assert_eq!(friendlies.len(), 3);
+        assert_eq!(friendlies.len(), 6);
         assert!(
             friendlies
                 .iter()
@@ -222,6 +248,52 @@ mod tests {
         );
         assert!(friendlies.iter().all(|fixture| fixture.matchday == 0));
         assert_eq!(friendlies[0].date, "2026-07-11");
-        assert_eq!(friendlies[2].date, "2026-07-25");
+        assert_eq!(friendlies[5].date, "2026-07-25");
+    }
+
+    #[test]
+    fn generate_preseason_friendlies_gives_each_team_a_fixture_each_week() {
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (1..=8).map(|n| format!("team_{}", n)).collect();
+        let friendlies = generate_preseason_friendlies(&teams, start, 4);
+
+        assert_eq!(friendlies.len(), 16);
+
+        for team in &teams {
+            let appearances = friendlies
+                .iter()
+                .filter(|fixture| fixture.home_team_id == *team || fixture.away_team_id == *team)
+                .count();
+            assert_eq!(
+                appearances, 4,
+                "{team} should get one fixture per preseason week"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_preseason_friendlies_does_not_double_book_teams_on_same_day() {
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (1..=16).map(|n| format!("team_{}", n)).collect();
+        let friendlies = generate_preseason_friendlies(&teams, start, 4);
+
+        let unique_dates: std::collections::HashSet<_> = friendlies
+            .iter()
+            .map(|fixture| fixture.date.clone())
+            .collect();
+        assert_eq!(unique_dates.len(), 4);
+
+        for date in unique_dates {
+            for team in &teams {
+                let appearances = friendlies
+                    .iter()
+                    .filter(|fixture| {
+                        fixture.date == date
+                            && (fixture.home_team_id == *team || fixture.away_team_id == *team)
+                    })
+                    .count();
+                assert!(appearances <= 1, "{team} is double-booked on {date}");
+            }
+        }
     }
 }

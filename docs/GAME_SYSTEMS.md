@@ -334,11 +334,12 @@ The news system generates public-facing articles about league events, displayed 
 | **MatchReport** | After each fixture | Score, scorers, commentary variations |
 | **LeagueRoundup** | After each matchday | Summary of all results |
 | **StandingsUpdate** | After each matchday | Current league positions |
-| **TransferRumour** | (Future) | Transfer speculation |
-| **InjuryNews** | (Future) | Injury updates |
+| **TransferRumour** | Weekly digest (Monday) | Gossip/speculation about notable AI players |
+| **TransferRoundup** | Weekly digest (Monday) + major completed transfers | Confirmed major move announcements and roundup coverage |
+| **InjuryNews** | When a notable player (market value ≥ €500K or starting XI) suffers a training injury | Injury duration and impact report |
 | **ManagerialChange** | Manager firing or vacancy fill | Public dismissal and appointment coverage |
-| **SeasonPreview** | End of season / preseason rollover | Pre-season analysis and contenders |
-| **Editorial** | (Future) | Opinion pieces |
+| **SeasonPreview** | End of season / preseason rollover | Preseason analysis and contenders |
+| **Editorial** | Weekly storylines, season awards, weekly digest | Opinion pieces, standings narratives |
 
 ### Article Structure
 
@@ -357,6 +358,10 @@ Match reports use randomized commentary templates (3 variations per article). Th
 - Contextual commentary about league implications
 
 League roundup articles summarize all matchday results with scores, standings update articles report the current top positions, managerial-change articles cover firings and appointments, and season preview articles frame the new campaign before kickoff.
+
+**Transfer rumours** are generated every Monday (alongside the weekly digest). Up to 2 notable AI-team players — those with a market value ≥ €800K, an expiring contract (≤ 12 months), or low morale — are picked and receive a speculative gossip article attributed to tabloid-leaning sources (Transfer Intelligence, Sports Gazette, or The Football Herald). These rumours do not correspond to actual pending transfer offers; they are flavour-driven speculation.
+
+**Injury news** articles are generated whenever a notable player suffers a training-ground injury. Notability is defined as a market value ≥ €500K or membership of the user club's starting XI. The article reports the injury duration and is attributed to a factual source (League Wire, The Football Herald, or Match Day Press).
 
 ---
 

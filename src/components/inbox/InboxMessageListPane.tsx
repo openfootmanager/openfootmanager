@@ -4,6 +4,12 @@ import { useTranslation } from "react-i18next";
 
 import { formatDateShort } from "../../lib/helpers";
 import type { MessageData } from "../../store/gameStore";
+import ContextMenu from "../ContextMenu";
+import {
+  buildDeleteMessageMenuItem,
+  buildMarkMessageReadMenuItem,
+  buildOpenMessageMenuItem,
+} from "./inboxContextMenuItems";
 import {
   getCategoryColor,
   getCategoryIcon,
@@ -22,6 +28,8 @@ interface InboxMessageListPaneProps {
   selectedMessageIds: string[];
   onSelectMessage: (messageId: string) => void;
   onToggleMessageSelection: (messageId: string) => void;
+  onRequestDeleteMessage: (message: MessageData) => void;
+  onRequestMarkMessageRead: (messageId: string) => void;
 }
 
 export default function InboxMessageListPane({
@@ -33,6 +41,8 @@ export default function InboxMessageListPane({
   selectedMessageIds,
   onSelectMessage,
   onToggleMessageSelection,
+  onRequestDeleteMessage,
+  onRequestMarkMessageRead,
 }: InboxMessageListPaneProps): JSX.Element {
   const { t } = useTranslation();
 
@@ -61,59 +71,65 @@ export default function InboxMessageListPane({
             const categoryIcon = getCategoryIcon(message.category);
             const categoryColor = getCategoryColor(message.category);
             const isSelected = selectedMessageId === message.id;
+            const contextItems = [
+              buildOpenMessageMenuItem(t, () => onSelectMessage(message.id)),
+              buildMarkMessageReadMenuItem(t, message.read, () =>
+                onRequestMarkMessageRead(message.id),
+              ),
+              buildDeleteMessageMenuItem(t, () => onRequestDeleteMessage(message)),
+            ];
 
             return (
-              <div
-                key={message.id}
-                onClick={() => onSelectMessage(message.id)}
-                className={getMessageRowClassName(isSelected, message.read)}
-                data-testid={`inbox-row-${message.id}`}
-              >
-                {bulkSelectionEnabled ? (
-                  <div
-                    className="mt-1 flex shrink-0 items-center"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedMessageIds.includes(message.id)}
-                      onChange={() => onToggleMessageSelection(message.id)}
-                      aria-label={t(
-                        "inbox.selectMessageForDeletion",
-                        "Select {{subject}}",
-                        { subject: message.subject },
-                      )}
-                      data-testid={`inbox-select-message-${message.id}`}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500/30"
-                    />
-                  </div>
-                ) : null}
+              <ContextMenu items={contextItems} key={message.id}>
                 <div
-                  className={getMessageIconClassName(
-                    categoryColor,
-                    isSelected,
-                    message.read,
-                  )}
+                  onClick={() => onSelectMessage(message.id)}
+                  className={getMessageRowClassName(isSelected, message.read)}
+                  data-testid={`inbox-row-${message.id}`}
                 >
-                  {categoryIcon}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className={getMessageSubjectClassName(message.read)}>
-                      {message.subject}
-                    </h4>
-                    {!message.read ? (
-                      <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" />
-                    ) : null}
+                  {bulkSelectionEnabled ? (
+                    <div
+                      className="mt-1 flex shrink-0 items-center"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMessageIds.includes(message.id)}
+                        onChange={() => onToggleMessageSelection(message.id)}
+                        aria-label={t("inbox.selectMessageForDeletion", {
+                          subject: message.subject,
+                        })}
+                        data-testid={`inbox-select-message-${message.id}`}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500/30"
+                      />
+                    </div>
+                  ) : null}
+                  <div
+                    className={getMessageIconClassName(
+                      categoryColor,
+                      isSelected,
+                      message.read,
+                    )}
+                  >
+                    {categoryIcon}
                   </div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
-                    {message.sender}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                    {formatDateShort(message.date, language)}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className={getMessageSubjectClassName(message.read)}>
+                        {message.subject}
+                      </h4>
+                      {!message.read ? (
+                        <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" />
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                      {message.sender}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      {formatDateShort(message.date, language)}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </ContextMenu>
             );
           })
         )}

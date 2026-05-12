@@ -1,6 +1,7 @@
 {
   "app": {
     "name": "OpenFoot Manager",
+    "publisher": "Sturdy Robot",
     "version": "v0.2.0-alpha"
   },
   "menu": {
@@ -90,7 +91,10 @@
       "injuredStartingXi": "{{count}} joueur(s) blessé(s) dans le onze de départ — remplacez-les",
       "incompleteStartingXi": "Le onze de départ est incomplet — définissez votre composition",
       "urgentUnread": "{{count}} message(s) urgent(s) non lu(s)",
-      "matchTodayStartingXi": "Match aujourd'hui ! Définissez votre onze de départ"
+      "matchTodayStartingXi": "Match aujourd'hui ! Définissez votre onze de départ",
+      "financeCrisis": "Finances critiques — solde {{balance}}, autonomie {{weeks}} semaine(s)",
+      "financeRunway": "Autonomie de trésorerie réduite à {{count}} semaine(s)",
+      "wagePressure": "Masse salariale à {{percent}}% du budget"
     },
     "unemployedBanner": "Vous êtes actuellement sans club. Des offres d'emploi pourraient arriver dans votre boîte de réception."
   },
@@ -216,11 +220,19 @@
     "repWorldClass": "Classe Mondiale",
     "repStrong": "Solide",
     "repAverage": "Moyen",
-    "repDeveloping": "En Développement"
+    "repDeveloping": "En Développement",
+    "failedToSelectTeam": "Impossible de sélectionner l'équipe : {{error}}"
   },
   "youthAcademy": {
     "title": "Académie des Jeunes",
     "playersUnder21": "{{count}} joueurs ≤21",
+    "recoveryTitle": "Construire votre centre",
+    "recoveryDescription": "Envoyez les joueurs U21 éligibles depuis l'effectif senior ou ouvrez le scouting pour trouver d'autres prospects.",
+    "eligibleSeniorPlayers": "{{count}} joueurs seniors éligibles",
+    "openScouting": "Ouvrir le scouting",
+    "recruitmentWorkflowTitle": "Flux de recrutement des jeunes",
+    "recruitmentWorkflowHint": "Démarrez, annulez ou réattribuez les recherches du centre de formation sans quitter la vue de l'académie.",
+    "noEligibleSeniorPlayers": "Aucun joueur senior U21 éligible n'est disponible pour le moment.",
     "youthPlayers": "Joueurs Jeunes",
     "avgOvr": "Moy. OVR",
     "avgPotential": "Moy. Potentiel",
@@ -240,7 +252,9 @@
     "potExcellent": "Excellent",
     "potPromising": "Prometteur",
     "potDecent": "Correct",
-    "potLimited": "Limité"
+    "potLimited": "Limité",
+    "delegateToYouthAcademy": "Déléguer au centre de formation",
+    "promoteToSeniorSquad": "Promouvoir en équipe première"
   },
   "common": {
     "loading": "Chargement...",
@@ -265,6 +279,7 @@
     "all": "Tous",
     "allPlayers": "Tous les joueurs",
     "cancel": "Annuler",
+    "close": "Fermer",
     "done": "Terminé",
     "confirm": "Confirmer",
     "save": "Sauvegarder",
@@ -640,6 +655,11 @@
     "noStaffMatch": "Aucun membre du staff ne correspond à vos filtres.",
     "noAvailableStaff": "Aucun staff disponible.",
     "releaseStaff": "Libérer un membre du staff",
+    "openScoutingWorkflow": "Ouvrir le flux de scouting",
+    "activeAssignment": "mission active",
+    "activeAssignments": "missions actives",
+    "youthSearch": "recherche jeune",
+    "youthSearches": "recherches jeunes",
     "hireStaff": "Engager un membre du staff",
     "best": "Meilleur",
     "roles": {
@@ -696,6 +716,18 @@
     "sponsors": "Sponsors",
     "activeSponsor": "Sponsor actif",
     "noActiveSponsor": "Aucun sponsor actif",
+    "pitchSponsor": "Chercher un sponsor",
+    "sponsorPitchDescription": "Demandez à l'équipe commerciale de trouver un sponsor court terme pour un club sous pression financière.",
+    "marketingCampaign": "Campagne marketing",
+    "launchMarketingCampaign": "Lancer la campagne",
+    "marketingCampaignDescription": "Lancez une campagne ponctuelle de merchandising et de promotion pour obtenir du cash immédiat quand le club est sous pression.",
+    "marketingCampaignUnavailable": "Les campagnes marketing sont réservées aux clubs sous pression salariale ou de trésorerie.",
+    "marketingCampaignCoolingDown": "La campagne marketing sera à nouveau disponible dans {{days}} jours.",
+    "marketingCampaignSummary": "La campagne a généré {{netIncome}} nets après {{campaignCost}} de dépenses ({{grossRevenue}} bruts). Recharge: {{days}} jours.",
+    "sponsorPitchUnavailable": "Cette recherche de sponsor est réservée aux clubs sous pression salariale ou de trésorerie.",
+    "sponsorPitchActiveSponsor": "Un contrat de sponsoring est déjà en cours.",
+    "sponsorPitchPendingOffer": "Traitez d'abord l'offre de sponsoring en attente.",
+    "sponsorPitchSummary": "{{sponsor}} est prêt à verser {{amount}} par semaine pendant {{weeks}} semaines. Consultez l'offre ci-dessous.",
     "sponsorWeeklyValue": "Valeur hebdomadaire : {{amount}}",
     "sponsorRemainingWeeks": "{{count}} semaines restantes",
     "pendingSponsorOffers": "Offres en attente",
@@ -707,6 +739,11 @@
     "cashRunway": "Autonomie de trésorerie",
     "runwayWeeks": "{{count}} semaines au rythme actuel",
     "runwayStable": "Stable au rythme actuel",
+    "boardSupport": "Soutien du conseil",
+    "boardSupportDescription": "Demandez un financement d'urgence au conseil pour stabiliser la trésorerie. Cela réduit la confiance et resserre souvent le budget transferts.",
+    "requestBoardSupport": "Demander un soutien",
+    "boardSupportUnavailable": "Le soutien du conseil est réservé aux clubs endettés ou proches d'une crise de trésorerie.",
+    "boardSupportSummary": "Le conseil a accordé {{amount}} de financement d'urgence. Le budget transferts baisse de {{transferBudgetReduction}} et la confiance du conseil recule de {{satisfactionPenalty}}.",
     "wagePressure": "Pression salariale",
     "wageBudgetUsed": "{{percent}}% du budget salarial utilisé",
     "contractRisk": "Risque contractuel",
@@ -733,7 +770,10 @@
     "important": "Important",
     "effectOutcomeLabel": "Résultat",
     "chooseResponse": "Choisissez votre réponse",
+    "chooseResponseOutcomeVaries": "Choisissez votre réponse — l'issue peut varier",
     "responded": "Réponse envoyée",
+    "openMessage": "Ouvrir le message",
+    "markAsRead": "Marquer comme lu",
     "markAllRead": "Tout marquer comme lu",
     "clearOld": "Effacer les anciens",
     "sortLabel": "Trier",
@@ -801,7 +841,8 @@
     "objective": {
       "LeaguePosition": "Terminez dans le top {{target}}",
       "Wins": "Remportez au moins {{target}} matchs",
-      "GoalsScored": "Marquez au moins {{target}} buts"
+      "GoalsScored": "Marquez au moins {{target}} buts",
+      "FinancialStability": "Maintenez la masse salariale à {{target}} % du budget ou moins"
     }
   },
   "transfers": {
@@ -825,6 +866,12 @@
     "bid": "Offrir",
     "playerValue": "Valeur : {{value}}",
     "bidAmount": "Montant de l'Offre (€M)",
+    "bidImpactTitle": "Impact prévisionnel",
+    "bidImpactTransferBudget": "Budget transferts {{before}} → {{after}}",
+    "bidImpactBalance": "Solde du club {{before}} → {{after}}",
+    "bidImpactWagePressure": "Utilisation prévue du budget salarial {{percent}}%",
+    "bidImpactOverTransferBudget": "Cette offre dépasse votre budget transferts",
+    "bidImpactOverBalance": "Cette offre plongerait le club dans la dette",
     "bidAccepted": "Offre acceptée ! Joueur signé.",
     "bidCountered": "Ils sont revenus avec des conditions révisées.",
     "bidRejected": "Offre refusée — montant insuffisant.",
@@ -911,6 +958,30 @@
     "overview": "Aperçu",
     "leagueTable": "Tableau de la Ligue",
     "topScorers": "Meilleurs Buteurs",
+    "loadingAwards": "Chargement des récompenses...",
+    "awardsTab": "Récompenses",
+    "awards": {
+      "goldenBootTitle": "Soulier d'or",
+      "goldenBootSubtitle": "Meilleurs buteurs",
+      "assistKingTitle": "Roi des passes",
+      "assistKingSubtitle": "Plus de passes décisives",
+      "playerOfYearTitle": "Joueur de l'année",
+      "playerOfYearSubtitle": "Meilleure note moyenne (min. 5 matchs)",
+      "goldenGloveTitle": "Gant d'or",
+      "goldenGloveSubtitle": "Plus de clean sheets (G)",
+      "everPresentTitle": "Toujours présent",
+      "everPresentSubtitle": "Plus d'apparitions",
+      "youngPlayerTitle": "Jeune joueur de l'année",
+      "youngPlayerSubtitle": "Meilleure note moyenne U21 (min. 3 matchs)",
+      "noDataYet": "Aucune donnée pour le moment",
+      "units": {
+        "goals": "buts",
+        "assists": "passes",
+        "rating": "note",
+        "cleanSheets": "cages inviolées",
+        "apps": "matchs"
+      }
+    },
     "noGoals": "Aucun but marqué."
   },
   "news": {
@@ -923,6 +994,7 @@
       "LeagueRoundup": "Résumé de Journée",
       "StandingsUpdate": "Classement",
       "TransferRumour": "Transfert",
+      "TransferRoundup": "Résumé des Transferts",
       "InjuryNews": "Blessure",
       "SeasonPreview": "Avant-Saison",
       "Editorial": "Éditorial",
@@ -941,7 +1013,7 @@
     "renewalLength": "Durée du contrat",
     "renewalSubmit": "Envoyer l'offre",
     "renewalInvalidWage": "Saisissez un salaire hebdomadaire valide",
-    "renewalBudgetWarning": "Dépasse le budget salarial",
+    "renewalBudgetWarning": "L'offre dépasse la limite de pression salariale fixée par le conseil",
     "renewalAccepted": "Offre acceptée",
     "renewalRejected": "Offre refusée",
     "renewalCounter": "Il veut plus : €{{wage}}/semaine pour {{years}} ans",
@@ -990,6 +1062,9 @@
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile indisponible",
     "recentMatches": "Matchs récents",
+    "recentMatchesScore": "Score",
+    "recentMatchesGoalsAssists": "B / P",
+    "recentMatchesRating": "Note",
     "vs": "vs",
     "noRecentMatches": "Aucune donnée de match récente",
     "apps": "Matchs",
@@ -1046,6 +1121,21 @@
     "languageDesc": "Choisissez la langue d'affichage",
     "currency": "Devise",
     "currencyDesc": "Affichage des valeurs monétaires",
+    "currencyOptions": {
+      "eur": "Euro",
+      "gbp": "Livre sterling",
+      "usd": "Dollar"
+    },
+    "languages": {
+      "en": "Anglais",
+      "es": "Espagnol",
+      "pt": "Portugais",
+      "fr": "Français",
+      "de": "Allemand",
+      "it": "Italien",
+      "ptBR": "Portugais (Brésil)",
+      "zhCN": "Chinois simplifié"
+    },
     "gameplay": "Gameplay",
     "defaultMatchMode": "Mode de Match par Défaut",
     "defaultMatchModeDesc": "Comment les matchs démarrent quand vous appuyez sur Continuer",
@@ -1116,6 +1206,23 @@
     "scouts": "Recruteurs",
     "activeAssignments": "Missions Actives",
     "freeSlots": "Recruteurs Disponibles",
+    "youthRecruitment": "Recrutement des jeunes",
+    "youthSearchScoutLabel": "Recruteur",
+    "youthSearchRegionLabel": "Région",
+    "youthSearchObjectiveLabel": "Objectif",
+    "selectScout": "Sélectionner un recruteur",
+    "regionDomestic": "National",
+    "regionInternational": "International",
+    "objectiveBalanced": "Équilibré",
+    "objectiveHighPotential": "Haut potentiel",
+    "objectiveReadySoon": "Prêt rapidement",
+    "youthRecruitmentHint": "Envoyez un recruteur disponible chercher un nouveau prospect pour le centre. Les recherches terminées ajoutent directement des joueurs à votre académie.",
+    "startYouthSearch": "Lancer une recherche de jeunes",
+    "activeYouthSearches": "{{count}} recherches de jeunes actives",
+    "noYouthSearches": "Aucune recherche de recrutement des jeunes n'est en cours.",
+    "youthProspectSearch": "Recherche de jeune prospect",
+    "youthTargetLabel": "Cible jeune",
+    "youthAnyPosition": "N'importe quel poste",
     "activeScoutingAssignments": "Missions de Recrutement Actives",
     "yourScouts": "Vos Recruteurs",
     "slots": "places",
@@ -1135,10 +1242,15 @@
     "action": "Action",
     "scoutingInProgress": "Observation...",
     "noScoutsFree": "Aucun recruteur disponible",
+    "cancelSearch": "Annuler",
+    "reassignSearch": "Réattribuer",
+    "noAlternateScout": "Aucun autre recruteur",
     "scoutBtn": "Observer",
     "noPlayersFound": "Aucun joueur trouvé correspondant à votre recherche.",
     "scoutingPlayer": "Observation : <strong>{{name}}</strong> — {{days}}j restants",
     "showingRange": "Affichage {{from}}–{{to}} sur {{total}}",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
     "viewPlayer": "Voir",
     "condition": "État",
     "morale": "Moral",
@@ -1182,6 +1294,12 @@
     "selectPlayerOff": "Sélectionnez un joueur à remplacer",
     "takingOff": "Sortie de : {{name}}",
     "selectReplacement": "Sélectionnez un remplaçant du banc",
+    "selectToTakeOff": "Sélectionner pour faire sortir",
+    "clearReplacementSelection": "Effacer le remplaçant",
+    "selectReplacementMenu": "Sélectionner le remplaçant",
+    "selectPlayerToTakeOffFirst": "Sélectionnez d'abord le joueur à faire sortir",
+    "selectForSwap": "Sélectionner pour permutation",
+    "swapWithSelectedStarter": "Permuter avec le titulaire sélectionné",
     "benchPlayers": "Joueurs du banc",
     "selectBenchToCompare": "Sélectionnez un joueur du banc à comparer",
     "confirmSubstitution": "Confirmer le remplacement",
@@ -1465,6 +1583,7 @@
     "startNextSeason": "Démarrer la Saison Suivante",
     "processing": "Traitement...",
     "statsArchived": "Les statistiques des joueurs seront archivées. Un nouveau calendrier sera généré.",
+    "seasonLine": "{{league}} — Saison {{season}}",
     "newSeason": "Saison {{n}}",
     "newScheduleReleased": "Le nouveau calendrier a été publié. Bonne chance !",
     "goldenBoot": "Soulier d'Or",
@@ -1493,6 +1612,44 @@
     "compare": "Comparer"
   },
   "be": {
+    "error": {
+      "noActiveGameSession": "Aucune partie active",
+      "noActiveSaveSession": "Aucune session de sauvegarde active",
+      "teamNotFound": "Équipe introuvable",
+      "noTeamAssigned": "Aucune équipe assignée",
+      "playerNotFound": "Joueur introuvable",
+      "invalidSquadRole": "Rôle d'effectif invalide",
+      "staffMemberNotFound": "Membre du staff introuvable",
+      "staffMemberAlreadyEmployed": "Ce membre du staff est déjà employé par une équipe",
+      "playerNotInSquad": "Le joueur ne fait pas partie de votre effectif",
+      "invalidDateOfBirth": "Date de naissance invalide",
+      "youthAcademyOverage": "Seuls les joueurs âgés de 21 ans ou moins peuvent rejoindre le centre de formation",
+      "staffMemberNotInTeam": "Ce membre du staff n'appartient pas à votre équipe",
+      "noActiveLiveMatch": "Aucun match en direct actif",
+      "seasonNotComplete": "La saison n'est pas encore terminée",
+      "managedTeamNotFound": "Équipe gérée introuvable",
+      "unknownFacilityType": "Type d'installation inconnu",
+      "finance": {
+        "boardSupportUnavailable": "Le soutien d'urgence du conseil n'est disponible que lorsque la trésorerie est sous pression.",
+        "boardSupportAlreadyUsed": "Le conseil a déjà accordé un soutien d'urgence cette saison.",
+        "sponsorPitchUnavailable": "La recherche de sponsor n'est disponible que lorsque le club subit une pression salariale ou de trésorerie.",
+        "sponsorPitchPendingOffer": "Une offre de sponsor attend déjà votre décision.",
+        "sponsorPitchAlreadyAttemptedToday": "L'équipe commerciale a déjà sollicité des sponsors aujourd'hui.",
+        "sponsorPitchActiveSponsor": "Un contrat de sponsoring est déjà en cours.",
+        "marketingCampaignUnavailable": "Les campagnes marketing ne sont disponibles que lorsque le club subit une pression salariale ou de trésorerie.",
+        "marketingCampaignCoolingDown": "L'équipe commerciale a besoin de temps avant de relancer une autre campagne marketing.",
+        "facilityUpgradeOverBudget": "Les améliorations d'installations sont bloquées tant que le club dépasse son budget salarial.",
+        "facilityUpgradeCritical": "Les améliorations d'installations sont bloquées tant que le club subit une forte pression financière."
+      },
+      "createManager": {
+        "nameRequired": "Le prénom et le nom sont requis.",
+        "nameMaxLength": "Le prénom et le nom ne doivent pas dépasser 30 caractères.",
+        "nationalityRequired": "La nationalité est requise.",
+        "invalidDobFormat": "Date de naissance invalide. Utilisez le format AAAA-MM-JJ.",
+        "minAge": "L'entraîneur doit avoir au moins 30 ans.",
+        "invalidDob": "Date de naissance invalide."
+      }
+    },
     "sender": {
       "boardOfDirectors": "Conseil d'Administration",
       "leagueOffice": "Bureau de la Ligue",
@@ -1524,14 +1681,17 @@
     },
     "source": {
       "sportsGazette": "Gazette Sportive",
+      "footballHerald": "Le Héraut du Football",
       "playersUnder21": "{{count}} joueurs du centre",
       "matchDayPress": "Presse du Match",
       "leagueChronicle": "Chronique de la Ligue",
-      "leagueWire": "Fil de la Ligue"
+      "leagueWire": "Fil de la Ligue",
+      "transferIntelligence": "Renseignements Transferts"
     },
     "msg": {
       "welcome": {
         "noYouthPlayers": "Aucun joueur n'est actuellement affecté au centre de formation.",
+        "subject0": "Bienvenue à {{team}}",
         "subject1": "Nouvelle Ère à {{team}}",
         "subject2": "{{team}} Attend Votre Leadership",
         "body0": "Le conseil d'administration de {{team}} est ravi de vous accueillir en tant que nouveau manager.\n\nNous avons de grands espoirs pour votre mandat et croyons que vous pouvez mener ce club vers la gloire. Votre première tâche sera de passer en revue l'effectif et de préparer un plan tactique pour la saison à venir.\n\nNous vous souhaitons bonne chance.",
@@ -1582,7 +1742,7 @@
       },
       "boardObjectives": {
         "subject": "Saison {{season}} — Objectifs du Conseil",
-        "body": "Le conseil a fixé les objectifs suivants pour cette saison :\n\n1. Terminer dans le top {{expectedPos}}\n2. Remporter au moins {{winTarget}} matchs\n3. Marquer au moins {{goalsTarget}} buts\n\nAtteindre ces objectifs renforcera la confiance du conseil dans votre gestion. Ne pas répondre aux attentes peut entraîner une baisse des budgets ou d'autres conséquences."
+        "body": "Le conseil a fixé les objectifs suivants pour cette saison :\n\n1. Terminer dans le top {{expectedPos}}\n2. Remporter au moins {{winTarget}} matchs\n3. Marquer au moins {{goalsTarget}} buts\n4. Maintenir la masse salariale à {{financeTarget}} % du budget ou moins\n\nAtteindre ces objectifs renforcera la confiance du conseil dans votre gestion. Ne pas répondre aux attentes peut entraîner une baisse des budgets ou d'autres conséquences."
       },
       "financeCritical": {
         "subject": "URGENT : Club endetté",
@@ -1595,6 +1755,15 @@
       "wageOverBudget": {
         "subject": "La masse salariale dépasse le budget",
         "body": "Notre masse salariale annuelle (€{{annualWages}}) dépasse actuellement le budget salarial alloué (€{{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
+      },
+      "financeBoardPressure": {
+        "subject": "Conseil — Pression financière",
+        "bodyWarning": "Le conseil reste préoccupé par la situation financière du club. La confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nVous devez améliorer la masse salariale et la trésorerie à court terme avant que la patience ne s'épuise davantage.",
+        "bodyCritical": "Le conseil a réévalué la détérioration de la situation financière du club, et sa confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nLa trésorerie et les engagements salariaux sont désormais dans un état critique. Des mesures immédiates sont attendues."
+      },
+      "marketingCampaign": {
+        "subject": "Rapport de campagne marketing",
+        "body": "L'opération commerciale est terminée avec €{{grossRevenue}} de ventes brutes. Après €{{campaignCost}} de coûts de campagne, le club encaisse €{{netIncome}} de revenus supplémentaires.\n\nL'équipe commerciale devra attendre {{days}} jours avant de lancer une nouvelle campagne."
       },
       "seasonPayout": {
         "subject": "Saison {{season}} — Prime attribuée",
@@ -1635,6 +1804,9 @@
       "event": {
         "ack": "Understood",
         "respond": "Respond"
+      },
+      "action": {
+        "viewFinances": "Voir les finances"
       },
       "playerEvent": {
         "respond": "Répondre",
@@ -1864,6 +2036,13 @@
         "body0": "{{player}} est venu te voir au sujet de sa situation contractuelle. Avec seulement {{days}} jours restants sur son contrat, il veut savoir à quoi s'en tenir.\n\n\"Coach, mon contrat arrive à son terme. J'ai besoin de savoir si je fais partie de tes plans ou si je dois chercher ailleurs.\"",
         "body1": "Ton adjoint signale que le contrat de {{player}} expire dans environ {{months}} mois. Le joueur s'interroge déjà dans le vestiaire sur son avenir.\n\nMieux vaut sans doute en parler avant qu'il ne se trouble ou que d'autres clubs ne commencent à tourner autour."
       },
+      "takeoverContractReview": {
+        "subject": "Entraîneur Adjoint - Revue des Contrats",
+        "bodyNoneUrgent": "Votre entraîneur adjoint a passé en revue les contrats de l'effectif après votre arrivée. {{totalExpiring}} joueur(s) arrivent en fin de contrat cette saison, mais aucun ne demande une décision immédiate aujourd'hui.\n\nCommencez à définir ceux que vous souhaitez conserver afin de garder la situation sous contrôle.",
+        "bodyUrgent": "Votre entraîneur adjoint a passé en revue les contrats de l'effectif après votre arrivée. {{totalExpiring}} joueur(s) arrivent en fin de contrat cette saison et {{urgentContracts}} demandent déjà de l'attention dans les six prochains mois.\n\nVous n'avez pas besoin de tout régler d'un coup, mais ces dossiers doivent figurer en tête de vos priorités initiales.",
+        "bodyFinalMonth": "Votre entraîneur adjoint a passé en revue les contrats de l'effectif après votre arrivée. {{totalExpiring}} joueur(s) arrivent en fin de contrat cette saison, {{urgentContracts}} demandent de l'attention dans les six prochains mois et {{finalMonthContracts}} sont déjà dans leur dernier mois.\n\nStabilisez d'abord les cas urgents, puis avancez sur le reste de la liste par étapes.",
+        "actionReview": "Examiner les contrats de l'effectif"
+      },
       "delegatedRenewals": {
         "subject": "Rapport de l'adjoint — Renouvellements",
         "body": "Coach, j'ai passé en revue notre liste de renouvellements à {{team}}. {{successes}} conclus, {{stalled}} encore en attente, {{failures}} échoués.",
@@ -1944,19 +2123,35 @@
         },
         "body0": "Dans l'action de la Journée {{matchday}}, le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Le résultat pourrait avoir des implications sur le classement au fil de la saison.\n\nButs : {{scorers}}",
         "body1": "Le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}} lors d'un choc de la Journée {{matchday}}. Les deux équipes ont tout donné dans une rencontre passionnante.\n\nButs : {{scorers}}",
-        "body2": "La Journée {{matchday}} a offert une autre rencontre passionnante entre {{home}} et {{away}} ({{homeGoals}}-{{awayGoals}}). Les fans ont eu droit à un match compétitif.\n\nButs : {{scorers}}"
+        "body2": "La Journée {{matchday}} a offert une autre rencontre passionnante entre {{home}} et {{away}} ({{homeGoals}}-{{awayGoals}}). Les fans ont eu droit à un match compétitif.\n\nButs : {{scorers}}",
+        "body0.noScorers": "Dans l'action de la Journée {{matchday}}, le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Le résultat pourrait avoir des implications sur le classement au fil de la saison.",
+        "body1.noScorers": "Le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}} lors d'un choc de la Journée {{matchday}}. Les deux équipes ont tout donné dans une rencontre passionnante.",
+        "body2.noScorers": "La Journée {{matchday}} a offert une autre rencontre passionnante entre {{home}} et {{away}} ({{homeGoals}}-{{awayGoals}}). Les fans ont eu droit à un match compétitif.",
+        "scorer": "{{player}} ({{minute}}', {{team}})",
+        "scorersSection": "\n\nButs : {{scorers}}",
+        "reportFriendly": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : compte-rendu amical",
+          "body": "En match amical, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont utilisé cette rencontre pour gagner en rythme avant le début de la compétition officielle.{{scorersSection}}"
+        },
+        "reportPreseason": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : compte-rendu du tournoi de présaison",
+          "body": "Dans le tournoi de présaison, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont utilisé cette rencontre pour gagner en rythme avant le début de la compétition officielle.{{scorersSection}}"
+        }
       },
       "roundup": {
         "headline0": "Résumé Journée {{matchday}} : {{totalGoals}} Buts dans une Journée Riche en Action",
         "headline1": "Première Division Journée {{matchday}} : Tous les Résultats",
         "headline2": "Pluie de Buts à la Journée {{matchday}}",
-        "body": "La Journée {{matchday}} est terminée. Voici les résultats complets :\n\n{{results}}\n\n{{totalGoals}} buts marqués en {{matchCount}} matchs."
+        "body": "La Journée {{matchday}} est terminée. Voici les résultats complets :\n\n{{results}}\n\n{{totalGoals}} buts marqués en {{matchCount}} matchs.{{biggestWinnerLine}}",
+        "resultLine": "  {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+        "biggestWinnerLine": " {{biggestWinner}} a signé la plus large victoire de la journée."
       },
       "standings": {
         "headline0": "{{leader}} en Tête Après la Journée {{matchday}}",
         "headline1": "Classement de Première Division : {{leader}} au Sommet",
         "headline2": "Mise à Jour du Classement — Journée {{matchday}}",
-        "body": "Après la Journée {{matchday}}, {{leader}} trône en tête du classement de Première Division.\n\nClassement :\n{{standings}}"
+        "body": "Après la Journée {{matchday}}, {{leader}} trône en tête du classement de Première Division.\n\nClassement :\n{{standings}}",
+        "entry": "  {{rank}}. {{team}} — {{points}} pts (Diff.: {{goalDifference}})"
       },
       "seasonPreview": {
         "headline0": "Avant-Saison : {{teamCount}} Équipes en Lice pour la Gloire",
@@ -1976,6 +2171,11 @@
         "headline": "{{player}} rejoint {{toTeam}}",
         "body": "{{toTeam}} a finalisé le recrutement de {{player}} en provenance de {{fromTeam}} pour {{fee}}."
       },
+      "transferRoundup": {
+        "headline": "Résumé des Transferts — Semaine du {{weekStart}}",
+        "body": "Le marché des transferts est resté animé cette semaine. {{transferCount}} transfert(s) conclu(s) ont marqué la division.\n\n{{deals}}",
+        "dealLine": "  {{player}} : de {{fromTeam}} à {{toTeam}} ({{fee}})"
+      },
       "seasonAwards": {
         "headline": "Prix de la saison {{season}}",
         "bodyBoth": "La saison {{season}} s'est conclue avec {{goldenBootWinner}} ({{goldenBootTeam}}) remportant le Soulier d'Or avec {{goldenBootGoals}} buts. Le Joueur de l'Année a été attribué à {{potyWinner}} ({{potyTeam}}), avec une note moyenne de {{potyRating}}.",
@@ -1987,6 +2187,17 @@
         "bodyNoTopScorer": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement et {{storylineCount}} intrigue(s) façonnent la division cette semaine.",
         "bodyWithTopScorer": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement, tandis que {{topScorer}} domine le classement des buteurs avec {{topScorerGoals}} but(s). {{storylineCount}} intrigue(s) façonnent la division cette semaine."
       },
+      "preseasonDigest": {
+        "headline": "Digest de présaison — Semaine du {{weekStart}}",
+        "bodyNoResults": "Le dernier digest de présaison est là. Les stages, les décisions de sélection et le mercato se poursuivent dans toute la division pendant que les clubs préparent la journée d'ouverture.{{unbeatenLine}}",
+        "bodyWithResults": "Le dernier digest de présaison est là. {{resultCount}} match(es) amical(aux) ont été disputé(s) dans toute la division cette semaine, pour un total de {{totalGoals}} but(s).\n\nRésultats :\n{{results}}{{unbeatenLine}}",
+        "resultLine": "  {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+        "unbeatenLine": {
+          "one": "\n\n{{team}} reste invaincu en présaison.",
+          "two": "\n\n{{first}} et {{second}} restent invaincus en présaison.",
+          "multiple": "\n\n{{teams}} restent invaincus en présaison."
+        }
+      },
       "storyline": {
         "titleRace": {
           "headline": "La course au titre s'intensifie — {{leader}} devance {{challenger}} de {{gap}} point(s)",
@@ -1996,6 +2207,23 @@
           "headline": "{{team}} porte sa série d'invincibilité à {{runLength}}",
           "body": "{{team}} reste sur {{runLength}} match(es) sans défaite et prend un vrai élan."
         }
+      },
+      "transferRumour": {
+        "headline0": "{{player}} suscite l'intérêt de plusieurs clubs",
+        "headline1": "Les clubs s'approchent alors que l'avenir de {{player}} reste incertain",
+        "headline2": "{{player}} lié à un départ de {{team}}",
+        "body0": "Des sources proches de la situation suggèrent que {{player}} pourrait partir, plusieurs clubs surveillant apparemment le joueur de {{team}}. {{team}} n'a pas commenté publiquement, mais la spéculation est peu susceptible de s'estomper rapidement.",
+        "body1": "{{player}} aurait attiré l'attention de clubs de toute la division. La star de {{team}} a été l'un des joueurs les plus remarquables cette saison, et on pense que des offres pourraient se concrétiser avant la fermeture du mercato.",
+        "body2": "Les rumeurs de transfert autour de {{player}} s'intensifient, le joueur de {{team}} étant dit en train de peser ses options. Des discussions avec des agents auraient eu lieu, bien que rien n'ait été confirmé."
+      },
+      "injuryNews": {
+        "headline0": "Coup dur pour {{team}} : blessure de {{player}}",
+        "headline1": "{{player}} contraint à une période d'indisponibilité",
+        "headline2": "{{weeksOut}} semaine(s) — {{team}} dans l'inquiétude pour un joueur clé",
+        "body0Days": "{{team}} a confirmé que {{player}} s'est blessé et devrait être indisponible pendant {{daysOut}} jour(s). Le club évaluera la situation avant de fournir une mise à jour supplémentaire.",
+        "body0Weeks": "{{team}} a confirmé que {{player}} s'est blessé et devrait être indisponible pendant environ {{weeksOut}} semaine(s). Le club évaluera la situation avant de fournir une mise à jour supplémentaire.",
+        "body1Days": "{{player}} a subi un revers à l'entraînement, le joueur de {{team}} étant écarté pour {{daysOut}} jour(s). Cette absence sera un coup significatif alors que la saison entre dans une phase cruciale.",
+        "body1Weeks": "{{player}} a subi un revers à l'entraînement, le joueur de {{team}} étant écarté pour environ {{weeksOut}} semaine(s). Cette absence sera un coup significatif alors que la saison entre dans une phase cruciale."
       }
     }
   },
@@ -2079,6 +2307,10 @@
     "SetPieceSpecialist": {
       "label": "Spéc. Coups de Pied",
       "desc": "Mortel sur coups de pied arrêtés"
+    },
+    "Wonderkid": {
+      "label": "Enfant Prodige",
+      "desc": "Jeune talent au potentiel exceptionnel"
     }
   },
   "date": {

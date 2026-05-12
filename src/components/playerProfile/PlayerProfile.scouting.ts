@@ -1,4 +1,8 @@
-import type { ScoutingAssignment, StaffData } from "../../store/gameStore";
+import type {
+    ScoutingAssignment,
+    StaffData,
+    YouthScoutingAssignment,
+} from "../../store/gameStore";
 
 export type PlayerProfileScoutStatus =
     | "idle"
@@ -9,6 +13,7 @@ export type PlayerProfileScoutStatus =
 interface ScoutAvailabilityArgs {
     staff: StaffData[];
     scoutingAssignments: ScoutingAssignment[];
+    youthScoutingAssignments: YouthScoutingAssignment[];
     managerTeamId: string | null;
     playerId: string;
     scoutStatus: PlayerProfileScoutStatus;
@@ -25,6 +30,7 @@ export interface ScoutAvailability {
 export function getScoutAvailability({
     staff,
     scoutingAssignments,
+    youthScoutingAssignments,
     managerTeamId,
     playerId,
     scoutStatus,
@@ -36,10 +42,11 @@ export function getScoutAvailability({
     const alreadyScouting = scoutingAssignments.some(
         (assignment) => assignment.player_id === playerId,
     );
+    const allAssignments = [...scoutingAssignments, ...youthScoutingAssignments];
     const availableScout =
         scouts.find(
             (scout) =>
-                !scoutingAssignments.some(
+                !allAssignments.some(
                     (assignment) => assignment.scout_id === scout.id,
                 ),
         ) ?? null;

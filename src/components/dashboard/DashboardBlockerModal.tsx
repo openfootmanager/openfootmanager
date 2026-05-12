@@ -59,13 +59,10 @@ export default function DashboardBlockerModal({
         </div>
         <div>
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {t("notifications.attentionRequired", "Attention Required")}
+            {t("notifications.attentionRequired")}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {t(
-              "notifications.resolveBeforeContinuing",
-              "Resolve these issues before continuing",
-            )}
+            {t("notifications.resolveBeforeContinuing")}
           </p>
         </div>
       </div>
@@ -80,7 +77,7 @@ export default function DashboardBlockerModal({
               {getBlockerText(blocker)}
             </p>
             <p className="mt-1 text-[10px] font-heading uppercase tracking-widest text-gray-400">
-              {t("notifications.goTo", "Go to")} {getBlockerTabLabel(blocker.tab)} →
+              {t("notifications.goTo")} {getBlockerTabLabel(blocker.tab)} →
             </p>
           </button>
         ))}
@@ -90,14 +87,14 @@ export default function DashboardBlockerModal({
           onClick={onClose}
           className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600"
         >
-          {t("notifications.reviewIssues", "Review Issues")}
+          {t("notifications.reviewIssues")}
         </button>
         {onContinueAnyway && (
           <button
             onClick={onContinueAnyway}
             className="flex-1 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-colors hover:bg-amber-600"
           >
-            {t("notifications.continueAnyway", "Continue Anyway")}
+            {t("notifications.continueAnyway")}
           </button>
         )}
       </div>

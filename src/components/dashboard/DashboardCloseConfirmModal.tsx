@@ -19,26 +19,23 @@ export default function DashboardCloseConfirmModal({
   return (
     <DashboardModalFrame maxWidthClassName="max-w-sm">
       <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-        {t("closeConfirm.title", "Unsaved Changes")}
+        {t("closeConfirm.title")}
       </h3>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        {t(
-          "closeConfirm.message",
-          "You have unsaved changes. What would you like to do?",
-        )}
+        {t("closeConfirm.message")}
       </p>
       <div className="mt-6 flex flex-col gap-2">
         <button
           onClick={onSaveAndQuit}
           className="w-full rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-colors hover:bg-primary-600"
         >
-          {t("closeConfirm.saveQuit", "Save & Quit")}
+          {t("closeConfirm.saveQuit")}
         </button>
         <button
           onClick={onQuitWithoutSave}
           className="w-full rounded-lg bg-red-500 px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-colors hover:bg-red-600"
         >
-          {t("closeConfirm.quitNoSave", "Quit Without Saving")}
+          {t("closeConfirm.quitNoSave")}
         </button>
         <button
           onClick={onCancel}

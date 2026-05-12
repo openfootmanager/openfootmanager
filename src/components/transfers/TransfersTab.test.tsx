@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import TransfersTab from "./TransfersTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -187,6 +187,28 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
       },
     ],
     traits: [],
+    ...overrides,
+  };
+}
+
+function createScout(overrides: Partial<StaffData> = {}): StaffData {
+  return {
+    id: "staff-1",
+    first_name: "Sam",
+    last_name: "Scout",
+    date_of_birth: "1985-01-01",
+    nationality: "England",
+    role: "Scout",
+    attributes: {
+      coaching: 20,
+      judging_ability: 65,
+      judging_potential: 70,
+      physiotherapy: 10,
+    },
+    team_id: "team-1",
+    specialization: null,
+    wage: 1000,
+    contract_end: "2027-06-30",
     ...overrides,
   };
 }
@@ -382,6 +404,44 @@ describe("TransfersTab", function (): void {
     expect(screen.getByText("Their last signal")).toBeInTheDocument();
     expect(screen.getByText("Round 2")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1.15")).toBeInTheDocument();
+  });
+
+  it("shows scout assignment errors inline on the transfer market", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "player-market-1",
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    ]);
+    state.staff = [createScout()];
+
+    mockedInvoke.mockRejectedValueOnce(
+      new Error("Scout is already assigned to another scouting task."),
+    );
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Scout is already assigned to another scouting task.",
+      );
+    });
   });
 
   it("resumes an incoming transfer negotiation when reopening the counter-offer modal", function (): void {

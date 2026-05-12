@@ -13,6 +13,11 @@ import { useTranslation } from "react-i18next";
 import { getTeamName } from "../../lib/helpers";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
+import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import {
+  buildViewProfileMenuItem,
+  buildViewTeamMenuItem,
+} from "../playerActions/playerContextMenuItems";
 import { Badge, ThemeToggle } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { getPlayerBadgeVariant } from "./dashboardHelpers";
@@ -193,24 +198,32 @@ function renderSearchResults(props: {
           <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             {t("dashboard.searchTeams")}
           </p>
-          {matchedTeams.map((team) => (
-            <button
-              key={team.id}
-              onMouseDown={() => onSelectSearchTeam(team.id)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
-            >
-              <div
-                className="flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white"
-                style={{ backgroundColor: team.colors.primary }}
-              >
-                {team.short_name.charAt(0)}
-              </div>
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {team.name}
-              </span>
-              <span className="ml-auto text-xs text-gray-400">{team.city}</span>
-            </button>
-          ))}
+          {matchedTeams.map((team) => {
+            const contextItems = [
+              buildViewTeamMenuItem(t, () => onSelectSearchTeam(team.id)),
+            ];
+
+            return (
+              <ContextMenu items={contextItems} key={team.id}>
+                <button
+                  onMouseDown={() => onSelectSearchTeam(team.id)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
+                  data-testid={`dashboard-search-team-${team.id}`}
+                >
+                  <div
+                    className="flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white"
+                    style={{ backgroundColor: team.colors.primary }}
+                  >
+                    {team.short_name.charAt(0)}
+                  </div>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                    {team.name}
+                  </span>
+                  <span className="ml-auto text-xs text-gray-400">{team.city}</span>
+                </button>
+              </ContextMenu>
+            );
+          })}
         </div>
       )}
       {matchedPlayers.length > 0 && (
@@ -218,23 +231,37 @@ function renderSearchResults(props: {
           <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
             {t("dashboard.searchPlayers")}
           </p>
-          {matchedPlayers.map((player) => (
-            <button
-              key={player.id}
-              onMouseDown={() => onSelectSearchPlayer(player.id)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
-            >
-              <Badge variant={getPlayerBadgeVariant(player.position)} size="sm">
-                {translatePositionAbbreviation(t, player.position)}
-              </Badge>
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {player.full_name}
-              </span>
-              <span className="ml-auto text-xs text-gray-400">
-                {getTeamName(teams, player.team_id ?? "")}
-              </span>
-            </button>
-          ))}
+          {matchedPlayers.map((player) => {
+            const contextItems: ContextMenuItem[] = [
+              buildViewProfileMenuItem(t, () => onSelectSearchPlayer(player.id)),
+            ];
+
+            if (player.team_id) {
+              contextItems.push(
+                buildViewTeamMenuItem(t, () => onSelectSearchTeam(player.team_id!)),
+              );
+            }
+
+            return (
+              <ContextMenu items={contextItems} key={player.id}>
+                <button
+                  onMouseDown={() => onSelectSearchPlayer(player.id)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
+                  data-testid={`dashboard-search-player-${player.id}`}
+                >
+                  <Badge variant={getPlayerBadgeVariant(player.position)} size="sm">
+                    {translatePositionAbbreviation(t, player.position)}
+                  </Badge>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                    {player.full_name}
+                  </span>
+                  <span className="ml-auto text-xs text-gray-400">
+                    {getTeamName(teams, player.team_id ?? "")}
+                  </span>
+                </button>
+              </ContextMenu>
+            );
+          })}
         </div>
       )}
     </>

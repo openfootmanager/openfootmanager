@@ -36,6 +36,7 @@ export type {
   NewsArticle,
   BoardObjective,
   ScoutingAssignment,
+  YouthScoutingAssignment,
   GameStateData,
 } from './types';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { getPositionOvr, parseFormationNeeds, condColor, statColor, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import { getPositionOvr, parseFormationNeeds, condColor, statColor, starterOvrColor, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
 import PreMatchLineup from "./PreMatchLineup";
 import type { EnginePlayerData, EngineTeamData } from "./types";
 
@@ -19,6 +19,14 @@ vi.mock("react-i18next", () => ({
         typeof (arg as Record<string, unknown>).count !== "undefined"
       ) {
         return `${key}:${String((arg as Record<string, unknown>).count)}`;
+      }
+
+      if (key === "match.selectForSwap") {
+        return "Select for swap";
+      }
+
+      if (key === "match.swapWithSelectedStarter") {
+        return "Swap with selected starter";
       }
 
       return key;
@@ -127,18 +135,26 @@ describe("condColor", () => {
 
 describe("statColor", () => {
   it("returns primary + bold for high stats (>= 75)", () => {
-    expect(statColor(75)).toBe("text-primary-400 font-bold");
-    expect(statColor(99)).toBe("text-primary-400 font-bold");
+    expect(statColor(75)).toBe("text-primary-500 dark:text-primary-400 font-bold");
+    expect(statColor(99)).toBe("text-primary-500 dark:text-primary-400 font-bold");
   });
 
-  it("returns gray-200 for medium stats (60-74)", () => {
-    expect(statColor(60)).toBe("text-gray-200");
-    expect(statColor(74)).toBe("text-gray-200");
+  it("returns theme-safe neutral for medium stats (60-74)", () => {
+    expect(statColor(60)).toBe("text-gray-700 dark:text-gray-200");
+    expect(statColor(74)).toBe("text-gray-700 dark:text-gray-200");
   });
 
-  it("returns gray-500 for low stats (< 60)", () => {
-    expect(statColor(59)).toBe("text-gray-500");
-    expect(statColor(0)).toBe("text-gray-500");
+  it("returns subdued but readable neutral for low stats (< 60)", () => {
+    expect(statColor(59)).toBe("text-gray-500 dark:text-gray-400");
+    expect(statColor(0)).toBe("text-gray-500 dark:text-gray-400");
+  });
+});
+
+describe("starterOvrColor", () => {
+  it("uses theme-safe colors for each OVR tier", () => {
+    expect(starterOvrColor(72)).toBe("text-primary-600 dark:text-primary-400");
+    expect(starterOvrColor(58)).toBe("text-gray-700 dark:text-gray-300");
+    expect(starterOvrColor(44)).toBe("text-red-600 dark:text-red-400");
   });
 });
 
@@ -257,16 +273,73 @@ describe("PreMatchLineup component", () => {
     expect(onSelectStarter).toHaveBeenCalledWith("m1");
   });
 
+  it("offers a context menu action to select a starter for swapping", () => {
+    const onSelectStarter = vi.fn();
+
+    render(<PreMatchLineup {...defaultProps} onSelectStarter={onSelectStarter} />);
+
+    fireEvent.contextMenu(screen.getByTestId("pre-match-starter-m1"));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("button", {
+        name: "Select for swap",
+      }),
+    );
+
+    expect(onSelectStarter).toHaveBeenCalledWith("m1");
+  });
+
   it("shows swap prompt when a starter is selected", () => {
     render(<PreMatchLineup {...defaultProps} selectedStarterId="m1" />);
     expect(screen.getByText("match.swapPrompt")).toBeInTheDocument();
     expect(screen.getByText("match.cancel")).toBeInTheDocument();
   });
 
+  it("offers a context menu action to clear the selected starter", () => {
+    const onSelectStarter = vi.fn();
+
+    render(
+      <PreMatchLineup
+        {...defaultProps}
+        selectedStarterId="m1"
+        onSelectStarter={onSelectStarter}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("pre-match-starter-m1"));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("button", {
+        name: "match.cancel",
+      }),
+    );
+
+    expect(onSelectStarter).toHaveBeenCalledWith(null);
+  });
+
   it("calls onSwap when bench player is clicked while a starter is selected", () => {
     const onSwap = vi.fn();
     render(<PreMatchLineup {...defaultProps} selectedStarterId="m1" onSwap={onSwap} />);
     fireEvent.click(screen.getByText("Bench One"));
+    expect(onSwap).toHaveBeenCalledWith("b1");
+  });
+
+  it("offers a context menu action to swap in a bench player", () => {
+    const onSwap = vi.fn();
+
+    render(
+      <PreMatchLineup
+        {...defaultProps}
+        selectedStarterId="m1"
+        onSwap={onSwap}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("pre-match-bench-b1"));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("button", {
+        name: "Swap with selected starter",
+      }),
+    );
+
     expect(onSwap).toHaveBeenCalledWith("b1");
   });
 

@@ -100,6 +100,7 @@ pub fn finish_live_match_day(game: &mut Game) {
     generate_matchday_news(game, &today);
 
     crate::contracts::process_contract_expiries(game);
+    crate::finances::process_weekly_finances(game);
 
     board_objectives::generate_objectives(game);
     board_objectives::update_objective_progress(game);
@@ -119,6 +120,116 @@ pub fn finish_live_match_day(game: &mut Game) {
 
     game.clock.advance_days(1);
     crate::season_context::refresh_game_context(game);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::finish_live_match_day;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position};
+    use domain::staff::{Staff, StaffAttributes, StaffRole};
+    use domain::team::Team;
+
+    fn make_team() -> Team {
+        let mut team = Team::new(
+            "team1".to_string(),
+            "Test FC".to_string(),
+            "TST".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Stadium".to_string(),
+            40_000,
+        );
+        team.finance = 5_000_000;
+        team.wage_budget = 2_000_000;
+        team
+    }
+
+    fn make_player() -> Player {
+        let attrs = PlayerAttributes {
+            pace: 65,
+            stamina: 65,
+            strength: 65,
+            agility: 65,
+            passing: 65,
+            shooting: 65,
+            tackling: 65,
+            dribbling: 65,
+            defending: 65,
+            positioning: 65,
+            vision: 65,
+            decisions: 65,
+            composure: 65,
+            aggression: 50,
+            teamwork: 65,
+            leadership: 50,
+            handling: 20,
+            reflexes: 30,
+            aerial: 60,
+        };
+        let mut player = Player::new(
+            "player1".to_string(),
+            "Player".to_string(),
+            "Test Player".to_string(),
+            "1995-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            attrs,
+        );
+        player.team_id = Some("team1".to_string());
+        player.wage = 52_000;
+        player
+    }
+
+    fn make_staff() -> Staff {
+        let mut staff = Staff::new(
+            "staff1".to_string(),
+            "Staff".to_string(),
+            "Coach".to_string(),
+            "1980-01-01".to_string(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 70,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 30,
+            },
+        );
+        staff.team_id = Some("team1".to_string());
+        staff.nationality = "GB".to_string();
+        staff.wage = 10_400;
+        staff
+    }
+
+    #[test]
+    fn finish_live_match_day_runs_weekly_finances_on_monday() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+
+        let mut game = Game::new(
+            clock,
+            manager,
+            vec![make_team()],
+            vec![make_player()],
+            vec![make_staff()],
+            vec![],
+        );
+        let initial_finance = game.teams[0].finance;
+
+        finish_live_match_day(&mut game);
+
+        assert_eq!(game.teams[0].finance, initial_finance - ((52_000 + 10_400) / 52));
+    }
 }
 
 // ---------------------------------------------------------------------------

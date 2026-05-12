@@ -89,7 +89,7 @@ export default function InboxToolbar({
             htmlFor="inbox-sort-order"
             className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
           >
-            {t("inbox.sortLabel", "Sort")}
+            {t("inbox.sortLabel")}
           </label>
           <Select
             id="inbox-sort-order"
@@ -99,10 +99,10 @@ export default function InboxToolbar({
             }
             selectSize="sm"
             wrapperClassName="min-w-[170px]"
-            aria-label={t("inbox.sortByDate", "Sort messages by date")}
+            aria-label={t("inbox.sortByDate")}
           >
-            <option value="newest">{t("inbox.sortNewest", "Newest first")}</option>
-            <option value="oldest">{t("inbox.sortOldest", "Oldest first")}</option>
+            <option value="newest">{t("inbox.sortNewest")}</option>
+            <option value="oldest">{t("inbox.sortOldest")}</option>
           </Select>
         </div>
         <Button
@@ -113,13 +113,13 @@ export default function InboxToolbar({
           data-testid="inbox-toggle-selection-mode"
         >
           {bulkSelectionEnabled
-            ? t("inbox.cancelSelection", "Cancel selection")
-            : t("inbox.selectMessages", "Select messages")}
+            ? t("inbox.cancelSelection")
+            : t("inbox.selectMessages")}
         </Button>
         {bulkSelectionEnabled ? (
           <>
             <Badge variant="neutral" size="sm">
-              {t("inbox.selectedCount", "{{count}} selected", {
+              {t("inbox.selectedCount", {
                 count: selectedMessageCount,
               })}
             </Badge>
@@ -132,7 +132,7 @@ export default function InboxToolbar({
               className="bg-red-500 hover:bg-red-600 active:bg-red-700 focus:ring-red-500"
               data-testid="inbox-delete-selected"
             >
-              {t("inbox.deleteSelected", "Delete selected")}
+              {t("inbox.deleteSelected")}
             </Button>
           </>
         ) : null}
@@ -142,7 +142,7 @@ export default function InboxToolbar({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-primary-500 hover:border-primary-300 transition-all"
           >
             <CheckCheck className="w-3.5 h-3.5" />
-            {t("inbox.markAllRead", "Mark all read")}
+            {t("inbox.markAllRead")}
           </button>
         ) : null}
         <button
@@ -150,7 +150,7 @@ export default function InboxToolbar({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-red-500 hover:border-red-300 transition-all"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          {t("inbox.clearOld", "Clear old")}
+          {t("inbox.clearOld")}
         </button>
       </div>
     </div>

@@ -1,4 +1,3 @@
-import type { TFunction } from "i18next";
 import {
     ArrowUp,
     Building2,
@@ -11,6 +10,11 @@ import {
 } from "lucide-react";
 
 import type { ContextMenuItem } from "../ContextMenu";
+
+type MenuTranslateFn = (
+    key: string,
+    options?: Record<string, string | number>,
+) => string;
 
 export type ScoutMenuState =
     | "ready"
@@ -28,57 +32,57 @@ export function buildDividerMenuItem(): ContextMenuItem {
 }
 
 export function buildViewProfileMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     onClick: () => void,
 ): ContextMenuItem {
     return {
-        label: t("squad.viewProfile", "View profile"),
+        label: t("squad.viewProfile"),
         icon: <User className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildViewTeamMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     onClick: () => void,
 ): ContextMenuItem {
     return {
-        label: t("common.viewTeam", "View team"),
+        label: t("common.viewTeam"),
         icon: <Building2 className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildToggleTransferListMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     transferListed: boolean,
     onClick: () => void,
 ): ContextMenuItem {
     return {
         label: transferListed
-            ? t("squad.removeFromTransferList", "Remove from transfer list")
-            : t("squad.addToTransferList", "Add to transfer list"),
+            ? t("squad.removeFromTransferList")
+            : t("squad.addToTransferList"),
         icon: <ShoppingCart className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildToggleLoanListMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     loanListed: boolean,
     onClick: () => void,
 ): ContextMenuItem {
     return {
         label: loanListed
-            ? t("squad.removeFromLoanList", "Remove from loan list")
-            : t("squad.addToLoanList", "Add to loan list"),
+            ? t("squad.removeFromLoanList")
+            : t("squad.addToLoanList"),
         icon: <Repeat className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildScoutPlayerMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     state: ScoutMenuState,
     onClick: () => void,
 ): ContextMenuItem {
@@ -96,33 +100,33 @@ export function buildScoutPlayerMenuItem(
 }
 
 export function buildMakeTransferBidMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     onClick: () => void,
 ): ContextMenuItem {
     return {
-        label: t("transfers.makeBid", "Make Transfer Bid"),
+        label: t("transfers.makeBid"),
         icon: <Gavel className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildDelegateToYouthAcademyMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     onClick: () => void,
 ): ContextMenuItem {
     return {
-        label: t("youthAcademy.delegateToYouthAcademy", "Delegate to youth academy"),
+        label: t("youthAcademy.delegateToYouthAcademy"),
         icon: <GraduationCap className="w-4 h-4" />,
         onClick,
     };
 }
 
 export function buildPromoteToSeniorSquadMenuItem(
-    t: TFunction,
+    t: MenuTranslateFn,
     onClick: () => void,
 ): ContextMenuItem {
     return {
-        label: t("youthAcademy.promoteToSeniorSquad", "Promote to senior squad"),
+        label: t("youthAcademy.promoteToSeniorSquad"),
         icon: <ArrowUp className="w-4 h-4" />,
         onClick,
     };

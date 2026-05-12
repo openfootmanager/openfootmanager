@@ -30,8 +30,9 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           attributes, condition, morale, injury, team_id, traits,
           contract_end, wage, market_value, stats, career,
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
-          natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30)",
+          natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
+          ovr, potential)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
         params![
             p.id,
             p.match_name,
@@ -63,6 +64,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             p.weak_foot,
             p.fitness,
             format!("{:?}", p.squad_role),
+            p.ovr as i64,
+            p.potential as i64,
         ],
     )
     .map_err(|e| format!("Failed to upsert player: {}", e))?;
@@ -135,7 +138,8 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     attributes, condition, morale, injury, team_id, traits,
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
-                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role
+                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
+                    ovr, potential
              FROM players",
         )
         .map_err(|e| format!("Failed to prepare players query: {}", e))?;
@@ -159,7 +163,8 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     attributes, condition, morale, injury, team_id, traits,
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
-                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role
+                    natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
+                    ovr, potential
              FROM players WHERE team_id = ?1",
         )
         .map_err(|e| format!("Failed to prepare players query: {}", e))?;
@@ -191,6 +196,8 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
     let weak_foot: u8 = row.get(27)?;
     let fitness: u8 = row.get(28).unwrap_or(75); // default 75 for saves before V13
     let squad_role_str: String = row.get(29).unwrap_or_else(|_| "Senior".to_string());
+    let ovr: u8 = row.get::<_, i64>(30).unwrap_or(0) as u8; // default 0 for saves before V20
+    let potential: u8 = row.get::<_, i64>(31).unwrap_or(0) as u8; // default 0 for saves before V20
     let transfer_listed_int: i32 = row.get(19)?;
     let loan_listed_int: i32 = row.get(20)?;
     let market_value_i64: i64 = row.get(16)?;
@@ -243,6 +250,8 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         team_id: row.get(12)?,
         squad_role: parse_squad_role(&squad_role_str),
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
+        ovr,
+        potential,
         contract_end: row.get(14)?,
         wage: row.get(15)?,
         market_value: market_value_i64 as u64,
@@ -345,6 +354,24 @@ mod tests {
         let loaded = load_all_players(db.conn()).unwrap();
 
         assert_eq!(loaded[0].squad_role, SquadRole::Youth);
+    }
+
+    #[test]
+    fn test_player_ovr_potential_roundtrip() {
+        let db = test_db();
+        let mut player = sample_player("p-rated", Some("team-001"));
+        player.ovr = 78;
+        player.potential = 85;
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded
+            .iter()
+            .find(|candidate| candidate.id == "p-rated")
+            .expect("stored player should exist");
+
+        assert_eq!(stored.ovr, 78);
+        assert_eq!(stored.potential, 85);
     }
 
     #[test]

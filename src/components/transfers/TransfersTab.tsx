@@ -46,6 +46,7 @@ import {
   type TransferNegotiationResponseData,
 } from "../../services/transfersService";
 import { sendScout } from "../../services/scoutingService";
+import { getErrorMessage } from "../../utils/errorMessage";
 import {
   buildResumedCounterFeedback,
   getTransferOfferBadgeVariant,
@@ -108,6 +109,7 @@ export default function TransfersTab({
   const [counterFeedback, setCounterFeedback] =
     useState<NegotiationFeedbackPanelData | null>(null);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
+  const [scoutError, setScoutError] = useState<string | null>(null);
 
   const openCounterNegotiation = (
     player: PlayerData,
@@ -207,7 +209,11 @@ export default function TransfersTab({
       staffMember.role === "Scout" && staffMember.team_id === userTeamId,
   );
   const scoutingAssignments = gameState.scouting_assignments || [];
-  const availableScouts = calculateAvailableScouts(scouts, scoutingAssignments);
+  const allScoutingAssignments = [
+    ...scoutingAssignments,
+    ...(gameState.youth_scouting_assignments || []),
+  ];
+  const availableScouts = calculateAvailableScouts(scouts, allScoutingAssignments);
   const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
   const activeCounterOffer = counterTarget
     ? counterTarget.player.transfer_offers.find(
@@ -288,17 +294,21 @@ export default function TransfersTab({
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
     if (availableScouts.length === 0) {
+      setScoutError(null);
       return;
     }
 
     const scout = availableScouts[0];
+    setScoutError(null);
     setScoutingPlayerId(playerId);
 
     try {
       const updated = await sendScout(scout.id, playerId);
+      setScoutError(null);
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
+      setScoutError(getErrorMessage(error));
     } finally {
       setScoutingPlayerId(null);
     }
@@ -411,6 +421,15 @@ export default function TransfersTab({
         </p>
       </div>
 
+      {scoutError && (view === "market" || view === "loans") ? (
+        <p
+          role="alert"
+          className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {scoutError}
+        </p>
+      ) : null}
+
       {/* Content */}
       {view === "my_list" && filteredList.length === 0 && (
         <Card>
@@ -486,7 +505,7 @@ export default function TransfersTab({
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                   {filteredList.map((player) => {
-                    const ovr = calcOvr(
+                    const ovr = player.ovr ?? calcOvr(
                       player,
                       player.natural_position || player.position,
                     );

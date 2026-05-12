@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TournamentsTab from "./TournamentsTab";
@@ -14,6 +15,8 @@ vi.mock("react-i18next", () => ({
       if (key === "tournaments.noActive") return "No active tournament";
       if (key === "schedule.standings") return "Standings";
       if (key === "schedule.fixtures") return "Fixtures";
+      if (key === "common.viewTeam") return "View team";
+      if (key === "squad.viewProfile") return "View profile";
       if (key === "tournaments.overview") return "Overview";
       if (key === "tournaments.leagueTable") return "League Table";
       if (key === "tournaments.nTeams") return `${params?.count} teams`;
@@ -137,7 +140,7 @@ function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
     result: {
       home_goals: 1,
       away_goals: 0,
-      home_scorers: [],
+      home_scorers: [{ player_id: "player-1", minute: 14 }],
       away_scorers: [],
     },
     ...overrides,
@@ -183,33 +186,33 @@ function createGameState(withLeague = true): GameStateData {
     news: [],
     league: withLeague
       ? {
-          id: "league-1",
-          name: "Premier League",
-          season: 1,
-          fixtures: [createFixture()],
-          standings: [
-            {
-              team_id: "team-1",
-              played: 1,
-              won: 1,
-              drawn: 0,
-              lost: 0,
-              goals_for: 1,
-              goals_against: 0,
-              points: 3,
-            },
-            {
-              team_id: "team-2",
-              played: 1,
-              won: 0,
-              drawn: 0,
-              lost: 1,
-              goals_for: 0,
-              goals_against: 1,
-              points: 0,
-            },
-          ],
-        }
+        id: "league-1",
+        name: "Premier League",
+        season: 1,
+        fixtures: [createFixture()],
+        standings: [
+          {
+            team_id: "team-1",
+            played: 1,
+            won: 1,
+            drawn: 0,
+            lost: 0,
+            goals_for: 1,
+            goals_against: 0,
+            points: 3,
+          },
+          {
+            team_id: "team-2",
+            played: 1,
+            won: 0,
+            drawn: 0,
+            lost: 1,
+            goals_for: 0,
+            goals_against: 1,
+            points: 0,
+          },
+        ],
+      }
       : null,
     scouting_assignments: [],
     board_objectives: [],
@@ -217,6 +220,10 @@ function createGameState(withLeague = true): GameStateData {
 }
 
 describe("TournamentsTab", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
   it("renders the empty state when there is no active tournament", () => {
     render(<TournamentsTab gameState={createGameState(false)} onSelectTeam={vi.fn()} />);
 
@@ -232,5 +239,34 @@ describe("TournamentsTab", () => {
     fireEvent.click(screen.getAllByText("Beta FC")[0]);
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("offers fixture context menu actions to open a team", () => {
+    const onSelectTeam = vi.fn();
+
+    render(<TournamentsTab gameState={createGameState(true)} onSelectTeam={onSelectTeam} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Fixtures/i }));
+    fireEvent.contextMenu(screen.getByTestId("tournaments-fixture-fixture-1"));
+    fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("offers a top-scorer context menu action to view the player profile", () => {
+    const onSelectPlayer = vi.fn();
+
+    render(
+      <TournamentsTab
+        gameState={createGameState(true)}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("tournaments-top-scorer-player-1"));
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });
 });

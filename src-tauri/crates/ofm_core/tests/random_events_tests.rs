@@ -577,6 +577,67 @@ fn check_random_events_community_event_structure() {
 }
 
 // ---------------------------------------------------------------------------
+// InjuryNews article tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn injury_news_article_created_for_notable_player() {
+    let mut game = make_game();
+    // Make at least one user-team player notable via market value
+    game.players[0].market_value = 1_000_000;
+    game.league = None;
+    // Run many days to trigger training injuries
+    for _ in 0..2000 {
+        check_random_events(&mut game);
+        // Clear injury messages so the same player can be injured again next day
+        game.messages
+            .retain(|m| !m.id.starts_with("training_injury_"));
+        // Clear the actual injury so the player is eligible again
+        for p in &mut game.players {
+            p.injury = None;
+        }
+        game.clock.advance_days(1);
+    }
+    let injury_news: Vec<_> = game
+        .news
+        .iter()
+        .filter(|a| a.id.starts_with("injury_news_"))
+        .collect();
+    assert!(
+        !injury_news.is_empty(),
+        "A notable player (market_value = 1_000_000, above the 500K threshold) should generate InjuryNews articles"
+    );
+}
+
+#[test]
+fn injury_news_article_not_created_for_non_notable_player() {
+    let mut game = make_game();
+    // Ensure no player is notable: all have default market_value = 0 and empty starting_xi
+    for p in &mut game.players {
+        p.market_value = 0;
+    }
+    game.league = None;
+    for _ in 0..2000 {
+        check_random_events(&mut game);
+        game.messages
+            .retain(|m| !m.id.starts_with("training_injury_"));
+        for p in &mut game.players {
+            p.injury = None;
+        }
+        game.clock.advance_days(1);
+    }
+    let injury_news_count = game
+        .news
+        .iter()
+        .filter(|a| a.id.starts_with("injury_news_"))
+        .count();
+    assert_eq!(
+        injury_news_count, 0,
+        "Non-notable players should not generate InjuryNews articles"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // apply_event_response tests
 // ---------------------------------------------------------------------------
 
@@ -694,6 +755,25 @@ fn apply_sponsor_no_manager_team_returns_none() {
     game.messages.push(sponsor_message(100_000));
     let result = apply_event_response(&mut game, "sponsor_2025-06-15", "respond", "accept");
     assert!(result.is_none());
+}
+
+#[test]
+fn apply_sponsor_accept_parses_formatted_amount_param() {
+    let mut game = make_game();
+    let mut message = sponsor_message(100_000);
+    message
+        .i18n_params
+        .insert("amount".to_string(), "100,000".to_string());
+    game.messages.push(message);
+
+    let result = apply_event_response(&mut game, "sponsor_2025-06-15", "respond", "accept");
+
+    assert!(result.is_some());
+    let sponsorship = game.teams[0]
+        .sponsorship
+        .as_ref()
+        .expect("accepted sponsor should create active sponsorship state");
+    assert_eq!(sponsorship.base_value, 100_000);
 }
 
 fn board_message() -> InboxMessage {

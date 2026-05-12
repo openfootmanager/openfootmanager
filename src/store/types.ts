@@ -16,6 +16,19 @@ export interface SponsorshipData {
   bonus_criteria: unknown[];
 }
 
+export type TransactionKind =
+  | "PrizeMoney"
+  | "ContractTermination"
+  | "BoardSupport"
+  | "CommercialCampaign";
+
+export interface FinancialTransactionData {
+  date: string;
+  description: string;
+  amount: number;
+  kind: TransactionKind;
+}
+
 export interface TeamSeasonRecord {
   season: number;
   league_position: number;
@@ -50,6 +63,7 @@ export interface TeamData {
   transfer_budget: number;
   season_income: number;
   season_expenses: number;
+  financial_ledger?: FinancialTransactionData[];
   formation: string;
   play_style: string;
   training_focus: string;
@@ -163,6 +177,10 @@ export interface PlayerData {
   transfer_offers: TransferOfferData[];
   traits: string[];
   morale_core?: PlayerMoraleCoreData;
+  /** Position-weighted overall rating (1–99). Computed by the backend from the player's natural position. */
+  ovr?: number;
+  /** Player's potential ceiling (1–99). Set at generation; higher than ovr for young players. */
+  potential?: number;
 }
 
 export interface TransferOfferData {
@@ -263,6 +281,10 @@ export interface MessageContext {
   team_id: string | null;
   player_id: string | null;
   fixture_id: string | null;
+  youth_target_position?: string | null;
+  youth_search_region?: string | null;
+  youth_search_objective?: string | null;
+  youth_prospects?: PlayerData[];
   match_result: null | {
     home_team_id: string;
     away_team_id: string;
@@ -433,6 +455,15 @@ export interface ScoutingAssignment {
   days_remaining: number;
 }
 
+export interface YouthScoutingAssignment {
+  id: string;
+  scout_id: string;
+  region?: string;
+  objective?: string;
+  target_position?: string | null;
+  days_remaining: number;
+}
+
 export interface GameStateData {
   clock: {
     current_date: string;
@@ -458,6 +489,7 @@ export interface GameStateData {
   news: NewsArticle[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
+  youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;
 }

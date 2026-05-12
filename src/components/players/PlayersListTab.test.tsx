@@ -333,6 +333,39 @@ describe("PlayersListTab", () => {
     });
   });
 
+  it("shows scout assignment errors inline", async () => {
+    const onGameUpdate = vi.fn();
+    const gameState = createGameState();
+    gameState.staff = [createScout()];
+
+    mockedInvoke.mockRejectedValueOnce(
+      new Error("Scout is already assigned to another scouting task."),
+    );
+
+    render(
+      <PlayersListTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    const playerRow = screen.getByText("Alex Keeper").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Scout is already assigned to another scouting task.",
+      );
+    });
+
+    expect(onGameUpdate).not.toHaveBeenCalled();
+  });
+
   it("opens and submits a transfer bid from the player context menu", async () => {
     const onGameUpdate = vi.fn();
     const gameState = createGameState();

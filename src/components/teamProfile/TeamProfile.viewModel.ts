@@ -26,7 +26,7 @@ function calculateAverageOvr(roster: PlayerData[]): number {
 
   return Math.round(
     roster.reduce((sum, player) => {
-      return sum + calcOvr(player, player.natural_position || player.position);
+      return sum + (player.ovr ?? calcOvr(player, player.natural_position || player.position));
     }, 0) / roster.length,
   );
 }

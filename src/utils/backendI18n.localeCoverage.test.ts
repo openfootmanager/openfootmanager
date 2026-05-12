@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  collectMissingKeys,
+  type LocaleTree,
+} from "../i18n/i18nTestHelpers";
 import de from "../i18n/locales/de.json";
 import en from "../i18n/locales/en.json";
 import es from "../i18n/locales/es.json";
@@ -8,8 +12,6 @@ import itLocale from "../i18n/locales/it.json";
 import ptBR from "../i18n/locales/pt-BR.json";
 import pt from "../i18n/locales/pt.json";
 import zhCN from "../i18n/locales/zh-CN.json";
-
-type LocaleTree = Record<string, unknown>;
 
 const LOCALES: Record<string, LocaleTree> = {
   de,
@@ -42,6 +44,11 @@ const REQUIRED_KEYS = [
   "be.msg.boardWarning.body",
   "be.msg.boardFinalWarning.subject",
   "be.msg.boardFinalWarning.body",
+  "be.msg.financeBoardPressure.subject",
+  "be.msg.financeBoardPressure.bodyWarning",
+  "be.msg.financeBoardPressure.bodyCritical",
+  "be.msg.marketingCampaign.subject",
+  "be.msg.marketingCampaign.body",
   "be.msg.boardFired.subject",
   "be.msg.boardFired.body",
   "be.msg.jobOffer.subject",
@@ -69,9 +76,38 @@ const REQUIRED_KEYS = [
   "be.news.seasonAwards.bodyPotyOnly",
   "be.news.majorTransfer.headline",
   "be.news.majorTransfer.body",
+  "be.error.noActiveGameSession",
+  "be.error.noActiveSaveSession",
+  "be.error.teamNotFound",
+  "be.error.noTeamAssigned",
+  "be.error.playerNotFound",
+  "be.error.invalidSquadRole",
+  "be.error.staffMemberNotFound",
+  "be.error.staffMemberAlreadyEmployed",
+  "be.error.noActiveLiveMatch",
+  "be.error.seasonNotComplete",
+  "be.error.managedTeamNotFound",
+  "be.error.unknownFacilityType",
+  "be.error.finance.boardSupportUnavailable",
+  "be.error.finance.boardSupportAlreadyUsed",
+  "be.error.finance.sponsorPitchUnavailable",
+  "be.error.finance.sponsorPitchPendingOffer",
+  "be.error.finance.sponsorPitchAlreadyAttemptedToday",
+  "be.error.finance.sponsorPitchActiveSponsor",
+  "be.error.finance.marketingCampaignUnavailable",
+  "be.error.finance.marketingCampaignCoolingDown",
+  "be.error.finance.facilityUpgradeOverBudget",
+  "be.error.finance.facilityUpgradeCritical",
+  "be.error.createManager.nameRequired",
+  "be.error.createManager.nameMaxLength",
+  "be.error.createManager.nationalityRequired",
+  "be.error.createManager.invalidDobFormat",
+  "be.error.createManager.minAge",
+  "be.error.createManager.invalidDob",
   "boardObjectives.objective.LeaguePosition",
   "boardObjectives.objective.Wins",
   "boardObjectives.objective.GoalsScored",
+  "boardObjectives.objective.FinancialStability",
 ] as const;
 
 function getNestedValue(tree: LocaleTree, keyPath: string): unknown {
@@ -84,35 +120,6 @@ function getNestedValue(tree: LocaleTree, keyPath: string): unknown {
 
       return (value as Record<string, unknown>)[segment];
     }, tree);
-}
-
-function collectMissingKeys(
-  reference: LocaleTree,
-  candidate: LocaleTree,
-  path: string[] = [],
-): string[] {
-  return Object.entries(reference).flatMap(([key, value]) => {
-    const nextPath = [...path, key];
-    const candidateValue = candidate[key];
-
-    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-      if (
-        candidateValue === null ||
-        typeof candidateValue !== "object" ||
-        Array.isArray(candidateValue)
-      ) {
-        return [nextPath.join(".")];
-      }
-
-      return collectMissingKeys(
-        value as LocaleTree,
-        candidateValue as LocaleTree,
-        nextPath,
-      );
-    }
-
-    return candidateValue === undefined ? [nextPath.join(".")] : [];
-  });
 }
 
 describe("backend i18n locale coverage", () => {

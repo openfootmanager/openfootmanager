@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { formatDateFull, getTeamName } from "../../lib/helpers";
+import { calcAge, formatDateFull, getTeamName } from "../../lib/helpers";
 import type { GameStateData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
@@ -54,6 +54,10 @@ export default function InboxMessageDetailPane({
   const currentClubName = getTeamName(
     gameState.teams,
     gameState.manager?.team_id ?? null,
+  );
+
+  const hasYouthProspects = Boolean(
+    selectedMessage?.context?.youth_prospects?.length,
   );
 
   const handleOptionClick = (
@@ -152,7 +156,7 @@ export default function InboxMessageDetailPane({
             className="bg-red-500 hover:bg-red-600 active:bg-red-700 focus:ring-red-500"
             data-testid="inbox-delete-message"
           >
-            {t("inbox.deleteMessage", "Delete message")}
+            {t("inbox.deleteMessage")}
           </Button>
         </div>
       </div>
@@ -170,6 +174,104 @@ export default function InboxMessageDetailPane({
               report={selectedMessage.context.scout_report}
               onPlayerClick={onScoutPlayerClick}
             />
+          ) : null}
+
+          {selectedMessage.category === "ScoutReport" &&
+            !selectedMessage.context?.scout_report ? (
+            <div className="mt-6 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-navy-600 dark:bg-navy-700/60">
+                <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  {t("scouting.youthTargetLabel")}
+                </span>
+                <Badge variant="neutral" size="sm">
+                  {selectedMessage.context?.youth_target_position
+                    ? t(
+                      `common.positions.${selectedMessage.context.youth_target_position}`,
+                    )
+                    : t("scouting.youthAnyPosition")}
+                </Badge>
+                {selectedMessage.context?.youth_search_region ? (
+                  <Badge variant="neutral" size="sm">
+                    {selectedMessage.context.youth_search_region}
+                  </Badge>
+                ) : null}
+                {selectedMessage.context?.youth_search_objective ? (
+                  <Badge variant="neutral" size="sm">
+                    {selectedMessage.context.youth_search_objective}
+                  </Badge>
+                ) : null}
+              </div>
+
+              {selectedMessage.context?.youth_prospects?.length ? (
+                <div className="grid gap-3">
+                  {selectedMessage.context.youth_prospects.map((prospect) => {
+                    const action = selectedMessage.actions.find(
+                      (candidate) => candidate.id === `prospect:${prospect.id}`,
+                    );
+                    const chooseOptionActionType =
+                      action && isChooseOptionAction(action.action_type)
+                        ? action.action_type
+                        : null;
+                    const chooseOptionActionId = action?.id ?? null;
+                    const options = chooseOptionActionType
+                      ? chooseOptionActionType.ChooseOption.options
+                      : [];
+
+                    return (
+                      <div
+                        key={prospect.id}
+                        className="rounded-xl border border-gray-200 bg-white p-4 dark:border-navy-600 dark:bg-navy-800/60"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
+                              {prospect.full_name}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {t(`common.positions.${prospect.position}`)} · Age {calcAge(prospect.date_of_birth)} · {prospect.nationality}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="neutral" size="sm">
+                              OVR {prospect.ovr ?? 0}
+                            </Badge>
+                            <Badge variant="neutral" size="sm">
+                              POT {prospect.potential ?? 0}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {action?.resolved ? (
+                          <div className="mt-3 text-xs font-heading font-bold uppercase tracking-wider text-primary-500">
+                            {t("inbox.responded")}
+                          </div>
+                        ) : chooseOptionActionId && options.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {options.map((option: (typeof options)[number]) => (
+                              <Button
+                                key={option.id}
+                                type="button"
+                                size="sm"
+                                variant={option.id === "discard" ? "outline" : "primary"}
+                                onClick={() =>
+                                  onAction(
+                                    selectedMessage.id,
+                                    chooseOptionActionId,
+                                    option.id,
+                                  )
+                                }
+                              >
+                                {option.label}
+                              </Button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {selectedMessage.context?.match_result ? (
@@ -197,12 +299,12 @@ export default function InboxMessageDetailPane({
             <div className="mt-4 p-3 bg-primary-50 dark:bg-primary-500/10 border border-primary-200 dark:border-primary-500/30 rounded-xl flex items-center gap-2 animate-pulse">
               <CheckCircle2 className="w-4 h-4 text-primary-500 shrink-0" />
               <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
-                {t("inbox.effectOutcomeLabel", "Outcome")}: {effectFeedback}
+                {t("inbox.effectOutcomeLabel")}: {effectFeedback}
               </span>
             </div>
           ) : null}
 
-          {selectedMessage.actions.length > 0 ? (
+          {selectedMessage.actions.length > 0 && !hasYouthProspects ? (
             <div className="mt-6">
               {selectedMessage.actions.map((action) => {
                 if (isChooseOptionAction(action.action_type)) {
@@ -216,7 +318,7 @@ export default function InboxMessageDetailPane({
                       >
                         <CheckCircle2 className="w-4 h-4 text-primary-500" />
                         <span className="font-heading font-bold uppercase tracking-wider text-xs">
-                          {t("inbox.responded", "Response sent")}
+                          {t("inbox.responded")}
                         </span>
                       </div>
                     );
@@ -227,14 +329,8 @@ export default function InboxMessageDetailPane({
                       <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5 mb-3">
                         <MessageCircle className="w-3.5 h-3.5" />
                         {isPlayerEventMessage(selectedMessage.id)
-                          ? t(
-                              "inbox.chooseResponseOutcomeVaries",
-                              "Choose your response — outcome varies",
-                            )
-                          : t(
-                              "inbox.chooseResponse",
-                              "Choose your response",
-                            )}
+                          ? t("inbox.chooseResponseOutcomeVaries")
+                          : t("inbox.chooseResponse")}
                       </p>
                       {options.map((option) => (
                         <button

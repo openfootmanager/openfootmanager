@@ -22,7 +22,20 @@ const mockTranslationState = vi.hoisted(function () {
     language: "en",
     translations: {
       en: {
+        "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
+        "inbox.deleteMessage": "Delete message",
         "inbox.effectOutcomeLabel": "Outcome",
+        "inbox.markAsRead": "Mark as read",
+        "inbox.openMessage": "Open message",
+        "scouting.youthTargetLabel": "Youth target",
+        "scouting.youthAnyPosition": "Any position",
+        "common.positions.Defender": "Defender",
+        "common.positions.Midfielder": "Midfielder",
+        "common.positions.Forward": "Forward",
+        "inbox.sortByDate": "Sort messages by date",
+        "inbox.sortLabel": "Sort",
+        "inbox.sortNewest": "Newest first",
+        "inbox.sortOldest": "Oldest first",
       },
       "pt-BR": {
         "inbox.effectOutcomeLabel": "Desfecho",
@@ -141,6 +154,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
       team_id: null,
       player_id: null,
       fixture_id: null,
+      youth_target_position: null,
       match_result: null,
     },
     ...overrides,
@@ -307,6 +321,19 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
   });
 
+  it("opens the context menu on a message row and requests deletion", function (): void {
+    renderInboxTab({
+      gameState: createGameState([createMessage({ id: "m1", read: true })]),
+    });
+
+    fireEvent.contextMenu(screen.getByTestId("inbox-row-m1"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete message" }));
+
+    expect(
+      screen.getByTestId("inbox-delete-confirm-modal"),
+    ).toBeInTheDocument();
+  });
+
   it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
     const updatedGameState = createGameState([
@@ -367,6 +394,34 @@ describe("InboxTab", function (): void {
     await waitFor(function (): void {
       expect(onNavigate).toHaveBeenCalledWith("__selectTeam", {
         messageId: "team-99",
+      });
+    });
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("navigates to a player route without resolving the message action", async function (): Promise<void> {
+    const onNavigate = vi.fn();
+    const action: MessageAction = {
+      id: "action-1",
+      label: "Open Player",
+      action_type: { NavigateTo: { route: "/player/player-99" } },
+      resolved: false,
+    };
+
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", read: true, actions: [action] }),
+      ]),
+      initialMessageId: "m1",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Player" }));
+
+    await waitFor(function (): void {
+      expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+        messageId: "player-99",
       });
     });
 
@@ -849,5 +904,30 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByText("Choose your response — outcome varies"),
     ).toBeInTheDocument();
+  });
+
+  it("shows the selected youth scouting target on youth recruitment reports", function (): void {
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-scout-1",
+          category: "ScoutReport",
+          read: true,
+          subject: "Youth prospect found",
+          body: "Scout report body",
+          context: {
+            team_id: "t1",
+            player_id: "p1",
+            fixture_id: null,
+            youth_target_position: "Defender",
+            match_result: null,
+          },
+        }),
+      ]),
+      initialMessageId: "youth-scout-1",
+    });
+
+    expect(screen.getByText("Youth target")).toBeInTheDocument();
+    expect(screen.getByText("Defender")).toBeInTheDocument();
   });
 });

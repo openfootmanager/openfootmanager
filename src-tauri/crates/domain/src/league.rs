@@ -142,6 +142,15 @@ impl Fixture {
     pub fn counts_for_league_standings(&self) -> bool {
         matches!(self.competition, FixtureCompetition::League)
     }
+
+    pub fn generates_match_report_news(&self) -> bool {
+        matches!(
+            self.competition,
+            FixtureCompetition::League
+                | FixtureCompetition::Friendly
+                | FixtureCompetition::PreseasonTournament
+        )
+    }
 }
 
 impl League {

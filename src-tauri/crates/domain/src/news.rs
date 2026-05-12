@@ -7,6 +7,7 @@ pub enum NewsCategory {
     LeagueRoundup,
     StandingsUpdate,
     TransferRumour,
+    TransferRoundup,
     InjuryNews,
     ManagerialChange,
     SeasonPreview,

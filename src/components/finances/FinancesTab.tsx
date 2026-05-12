@@ -21,12 +21,22 @@ import {
   annualAmountToWeeklyCommitment,
   getTeamFinanceSnapshot,
 } from "../../lib/finance";
+import {
+  getFinanceSnapshot,
+  type FinanceSnapshotData,
+  type TeamFinanceSnapshotData,
+} from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import { resolveMessage } from "../../utils/backendI18n";
+import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 
 type FacilityId = "Training" | "Medical" | "Scouting";
+
+interface FacilityUpgradeErrorState {
+  facilityId: FacilityId;
+  message: string;
+}
 
 interface FacilityDefinition {
   effectKey: string;
@@ -71,6 +81,69 @@ function formatSignedAmount(value: number): string {
   return value < 0 ? `-${formatted}` : formatted;
 }
 
+function facilityUpgradeBlockReason(
+  snapshot: TeamFinanceSnapshotData,
+): string | null {
+  if (snapshot.currentlyOverBudget) {
+    return "be.error.finance.facilityUpgradeOverBudget";
+  }
+
+  if (
+    snapshot.overallStatus === "warning" ||
+    snapshot.overallStatus === "critical"
+  ) {
+    return "be.error.finance.facilityUpgradeCritical";
+  }
+
+  return null;
+}
+
+function boardSupportAvailable(snapshot: TeamFinanceSnapshotData): boolean {
+  return (
+    snapshot.currentlyInDebt ||
+    snapshot.runwayStatus === "warning" ||
+    snapshot.runwayStatus === "critical"
+  );
+}
+
+function sponsorPitchAvailable(snapshot: TeamFinanceSnapshotData): boolean {
+  return (
+    snapshot.currentlyOverBudget ||
+    snapshot.currentlyInDebt ||
+    snapshot.wageBudgetStatus === "warning" ||
+    snapshot.wageBudgetStatus === "critical" ||
+    snapshot.runwayStatus === "warning" ||
+    snapshot.runwayStatus === "critical"
+  );
+}
+
+function marketingCampaignAvailable(snapshot: TeamFinanceSnapshotData): boolean {
+  return sponsorPitchAvailable(snapshot);
+}
+
+function mapLocalFinanceSnapshot(
+  team: GameStateData["teams"][number],
+  snapshot: ReturnType<typeof getTeamFinanceSnapshot>,
+): TeamFinanceSnapshotData {
+  return {
+    annualWageBill: snapshot.annualWageBill,
+    weeklyWageSpend: snapshot.weeklyWageSpend,
+    weeklyWageBudget: snapshot.weeklyWageBudget,
+    weeklyRecurringIncome: snapshot.weeklySponsorIncome,
+    weeklySponsorIncome: snapshot.weeklySponsorIncome,
+    projectedWeeklyNet: snapshot.projectedWeeklyNet,
+    cashRunwayWeeks: snapshot.cashRunwayWeeks,
+    wageBudgetUsagePercent: snapshot.wageBudgetUsagePercent,
+    currentlyInDebt: team.finance < 0,
+    currentlyOverBudget: snapshot.annualWageBill > team.wage_budget,
+    wageBudgetStatus: snapshot.wageBudgetStatus,
+    runwayStatus: snapshot.runwayStatus,
+    overallStatus: snapshot.overallStatus,
+    marketingCampaignCooldownDaysRemaining:
+      snapshot.marketingCampaignCooldownDaysRemaining,
+  };
+}
+
 interface ResolveMessageActionResult {
   game: GameStateData;
   effect: string | null;
@@ -84,6 +157,41 @@ interface DelegatedRenewalResponseData {
     success_count: number;
     failure_count: number;
     stalled_count: number;
+  };
+}
+
+interface TaggedFinanceSnapshotData {
+  key: string;
+  data: FinanceSnapshotData;
+}
+
+interface BoardSupportResponseData {
+  game: GameStateData;
+  result: {
+    support_amount: number;
+    transfer_budget_reduction: number;
+    satisfaction_penalty: number;
+  };
+}
+
+interface SponsorPitchResponseData {
+  game: GameStateData;
+  result: {
+    message_id: string;
+    sponsor_name: string;
+    weekly_amount: number;
+    duration_weeks: number;
+  };
+}
+
+interface MarketingCampaignResponseData {
+  game: GameStateData;
+  result: {
+    message_id: string;
+    gross_revenue: number;
+    campaign_cost: number;
+    net_income: number;
+    cooldown_days: number;
   };
 }
 
@@ -126,7 +234,7 @@ export default function FinancesTab({
     return (
       <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
     );
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<
     string | null
@@ -134,12 +242,70 @@ export default function FinancesTab({
   const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>(
     [],
   );
+  const [remoteFinanceData, setRemoteFinanceData] =
+    useState<TaggedFinanceSnapshotData | null>(null);
+  const [facilityUpgradeError, setFacilityUpgradeError] =
+    useState<FacilityUpgradeErrorState | null>(null);
+  const [boardSupportFeedback, setBoardSupportFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [sponsorPitchFeedback, setSponsorPitchFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [marketingCampaignFeedback, setMarketingCampaignFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
   const teamStaff = gameState.staff.filter(
     (staffMember) => staffMember.team_id === myTeam.id,
   );
-  const financeSnapshot = getTeamFinanceSnapshot(myTeam, roster, teamStaff);
+  const financeSnapshotKey = [
+    myTeam.id,
+    gameState.clock.current_date,
+    myTeam.finance,
+    myTeam.wage_budget,
+    myTeam.transfer_budget,
+    myTeam.season_income,
+    myTeam.season_expenses,
+    myTeam.facilities?.training ?? DEFAULT_FACILITIES.training,
+    myTeam.facilities?.medical ?? DEFAULT_FACILITIES.medical,
+    myTeam.facilities?.scouting ?? DEFAULT_FACILITIES.scouting,
+    myTeam.sponsorship?.sponsor_name ?? "",
+    myTeam.sponsorship?.base_value ?? 0,
+    myTeam.sponsorship?.remaining_weeks ?? 0,
+    roster
+      .map(
+        (player) => `${player.id}:${player.wage}:${player.contract_end ?? ""}`,
+      )
+      .join("|"),
+    teamStaff
+      .map((staffMember) => `${staffMember.id}:${staffMember.wage}`)
+      .join("|"),
+    gameState.messages
+      .filter(isPendingSponsorOffer)
+      .map((message) => message.id)
+      .join("|"),
+  ].join("::");
+  const isRemoteFinanceDataCurrent = remoteFinanceData?.key === financeSnapshotKey;
+  const localFinanceSnapshot = mapLocalFinanceSnapshot(
+    myTeam,
+    getTeamFinanceSnapshot(
+      myTeam,
+      roster,
+      teamStaff,
+      gameState.clock.current_date,
+    ),
+  );
+  const financeSnapshot = isRemoteFinanceDataCurrent
+    ? remoteFinanceData.data.snapshot
+    : localFinanceSnapshot;
+  const recoveryPreviews = isRemoteFinanceDataCurrent
+    ? remoteFinanceData.data.previews
+    : null;
   const totalWages = financeSnapshot.weeklyWageSpend;
   const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
   const facilities = myTeam.facilities ?? DEFAULT_FACILITIES;
@@ -152,6 +318,82 @@ export default function FinancesTab({
   const sponsorOffers = gameState.messages
     .filter(isPendingSponsorOffer)
     .map(resolveMessage);
+  const hasPendingSponsorOffer = sponsorOffers.length > 0;
+  const hasActiveSponsor = Boolean(
+    activeSponsorship && activeSponsorship.remaining_weeks > 0,
+  );
+  const previewsLoaded = recoveryPreviews !== null;
+  const previewBoardSupportAvailable = recoveryPreviews
+    ? Boolean(recoveryPreviews.boardSupport)
+    : null;
+  const previewSponsorPitchAvailable = recoveryPreviews
+    ? Boolean(recoveryPreviews.sponsorPitch)
+    : null;
+  const previewMarketingCampaignAvailable = recoveryPreviews
+    ? Boolean(recoveryPreviews.marketingCampaign)
+    : null;
+  const canRequestBoardSupport = previewsLoaded
+    ? previewBoardSupportAvailable ?? false
+    : boardSupportAvailable(financeSnapshot);
+  const canRequestSponsorPitch =
+    (previewsLoaded
+      ? previewSponsorPitchAvailable ?? false
+      : sponsorPitchAvailable(financeSnapshot)) &&
+    !hasPendingSponsorOffer &&
+    !hasActiveSponsor;
+  const canRequestMarketingCampaign =
+    (previewsLoaded
+      ? previewMarketingCampaignAvailable ?? false
+      : marketingCampaignAvailable(financeSnapshot)) &&
+    financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
+  const sponsorPitchDisabledReason = hasActiveSponsor
+    ? t("finances.sponsorPitchActiveSponsor")
+    : hasPendingSponsorOffer
+      ? t("finances.sponsorPitchPendingOffer")
+      : !(previewsLoaded
+        ? previewSponsorPitchAvailable ?? false
+        : sponsorPitchAvailable(financeSnapshot))
+        ? t("finances.sponsorPitchUnavailable")
+        : null;
+  const marketingCampaignDisabledReason =
+    financeSnapshot.marketingCampaignCooldownDaysRemaining > 0
+      ? t("finances.marketingCampaignCoolingDown", {
+        days: financeSnapshot.marketingCampaignCooldownDaysRemaining,
+      })
+      : !(previewsLoaded
+        ? previewMarketingCampaignAvailable ?? false
+        : marketingCampaignAvailable(financeSnapshot))
+        ? t("finances.marketingCampaignUnavailable")
+        : null;
+  const boardSupportPreviewText = recoveryPreviews?.boardSupport
+    ? t("finances.boardSupportSummary", {
+      amount: formatExactMoney(recoveryPreviews.boardSupport.supportAmount),
+      transferBudgetReduction: formatExactMoney(
+        recoveryPreviews.boardSupport.transferBudgetReduction,
+      ),
+      satisfactionPenalty: recoveryPreviews.boardSupport.satisfactionPenalty,
+    })
+    : null;
+  const sponsorPitchPreviewText = recoveryPreviews?.sponsorPitch
+    ? t("finances.sponsorPitchSummary", {
+      sponsor: recoveryPreviews.sponsorPitch.sponsorName,
+      amount: formatExactMoney(recoveryPreviews.sponsorPitch.weeklyAmount),
+      weeks: recoveryPreviews.sponsorPitch.durationWeeks,
+    })
+    : null;
+  const marketingCampaignPreviewText = recoveryPreviews?.marketingCampaign
+    ? t("finances.marketingCampaignSummary", {
+      netIncome: formatExactMoney(recoveryPreviews.marketingCampaign.netIncome),
+      grossRevenue: formatExactMoney(
+        recoveryPreviews.marketingCampaign.grossRevenue,
+      ),
+      cost: formatExactMoney(recoveryPreviews.marketingCampaign.campaignCost),
+      campaignCost: formatExactMoney(
+        recoveryPreviews.marketingCampaign.campaignCost,
+      ),
+      days: recoveryPreviews.marketingCampaign.cooldownDays,
+    })
+    : null;
   const contractRiskPlayers = roster
     .map((player) => {
       const riskLevel = getContractRiskLevel(
@@ -180,6 +422,30 @@ export default function FinancesTab({
     selectedRiskPlayerIds.includes(player.id),
   );
   const allRiskPlayerIds = contractRiskPlayers.map(({ player }) => player.id);
+
+  useEffect(() => {
+    let cancelled = false;
+    const requestKey = financeSnapshotKey;
+
+    setRemoteFinanceData(null);
+
+    void getFinanceSnapshot(myTeam.id)
+      .then((financeData) => {
+        if (!cancelled) {
+          setRemoteFinanceData({ key: requestKey, data: financeData });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load finance snapshot:", error);
+        if (!cancelled) {
+          setRemoteFinanceData(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [financeSnapshotKey, myTeam.id]);
 
   useEffect(() => {
     setSelectedRiskPlayerIds((currentIds) => {
@@ -217,6 +483,7 @@ export default function FinancesTab({
   }
 
   async function handleUpgradeFacility(facility: FacilityId): Promise<void> {
+    setFacilityUpgradeError(null);
     setActionLoading(facility);
     try {
       const updated = await invoke<GameStateData>("upgrade_facility", {
@@ -225,6 +492,100 @@ export default function FinancesTab({
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to upgrade facility:", error);
+      setFacilityUpgradeError({
+        facilityId: facility,
+        message: resolveBackendError(error),
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleRequestBoardSupport(): Promise<void> {
+    const loadingKey = "board-support";
+    setBoardSupportFeedback(null);
+    setActionLoading(loadingKey);
+
+    try {
+      const response = await invoke<BoardSupportResponseData>(
+        "request_board_support",
+      );
+      onGameUpdate?.(response.game);
+      setBoardSupportFeedback({
+        tone: "success",
+        text: t("finances.boardSupportSummary", {
+          amount: formatExactMoney(response.result.support_amount),
+          transferBudgetReduction: formatExactMoney(
+            response.result.transfer_budget_reduction,
+          ),
+          satisfactionPenalty: response.result.satisfaction_penalty,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to request board support:", error);
+      setBoardSupportFeedback({
+        tone: "error",
+        text: resolveBackendError(error),
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleRequestSponsorPitch(): Promise<void> {
+    const loadingKey = "sponsor-pitch";
+    setSponsorPitchFeedback(null);
+    setActionLoading(loadingKey);
+
+    try {
+      const response = await invoke<SponsorPitchResponseData>(
+        "request_sponsor_pitch",
+      );
+      onGameUpdate?.(response.game);
+      setSponsorPitchFeedback({
+        tone: "success",
+        text: t("finances.sponsorPitchSummary", {
+          sponsor: response.result.sponsor_name,
+          amount: formatExactMoney(response.result.weekly_amount),
+          weeks: response.result.duration_weeks,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to pitch sponsors:", error);
+      setSponsorPitchFeedback({
+        tone: "error",
+        text: resolveBackendError(error),
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleRequestMarketingCampaign(): Promise<void> {
+    const loadingKey = "marketing-campaign";
+    setMarketingCampaignFeedback(null);
+    setActionLoading(loadingKey);
+
+    try {
+      const response = await invoke<MarketingCampaignResponseData>(
+        "request_marketing_campaign",
+      );
+      onGameUpdate?.(response.game);
+      setMarketingCampaignFeedback({
+        tone: "success",
+        text: t("finances.marketingCampaignSummary", {
+          netIncome: formatExactMoney(response.result.net_income),
+          grossRevenue: formatExactMoney(response.result.gross_revenue),
+          cost: formatExactMoney(response.result.campaign_cost),
+          days: response.result.cooldown_days,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to launch marketing campaign:", error);
+      setMarketingCampaignFeedback({
+        tone: "error",
+        text: resolveBackendError(error),
+      });
     } finally {
       setActionLoading(null);
     }
@@ -433,6 +794,42 @@ export default function FinancesTab({
               </p>
             </div>
           </div>
+          <div className="mt-4 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 space-y-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  {t("finances.boardSupport")}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t("finances.boardSupportDescription")}
+                </p>
+                {boardSupportPreviewText ? (
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {boardSupportPreviewText}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                disabled={!canRequestBoardSupport || actionLoading === "board-support"}
+                onClick={() => void handleRequestBoardSupport()}
+                size="sm"
+              >
+                {t("finances.requestBoardSupport")}
+              </Button>
+            </div>
+            {boardSupportFeedback ? (
+              <p
+                className={`text-sm ${boardSupportFeedback.tone === "error" ? "text-red-500" : "text-primary-500"}`}
+              >
+                {boardSupportFeedback.text}
+              </p>
+            ) : null}
+            {!canRequestBoardSupport ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t("finances.boardSupportUnavailable")}
+              </p>
+            ) : null}
+          </div>
         </CardBody>
       </Card>
 
@@ -612,6 +1009,92 @@ export default function FinancesTab({
               <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 {t("finances.pendingSponsorOffers")}
               </p>
+              <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 p-4 space-y-3">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                      {t("finances.pitchSponsor")}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {t("finances.sponsorPitchDescription")}
+                    </p>
+                    {sponsorPitchPreviewText ? (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {sponsorPitchPreviewText}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleRequestSponsorPitch()}
+                    disabled={
+                      actionLoading === "sponsor-pitch" ||
+                      !canRequestSponsorPitch
+                    }
+                  >
+                    {t("finances.pitchSponsor")}
+                  </Button>
+                </div>
+                {sponsorPitchDisabledReason ? (
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {sponsorPitchDisabledReason}
+                  </p>
+                ) : null}
+                {sponsorPitchFeedback ? (
+                  <p
+                    className={
+                      sponsorPitchFeedback.tone === "error"
+                        ? "text-sm text-red-500"
+                        : "text-sm text-primary-500"
+                    }
+                  >
+                    {sponsorPitchFeedback.text}
+                  </p>
+                ) : null}
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 p-4 space-y-3">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                      {t("finances.marketingCampaign")}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {t("finances.marketingCampaignDescription")}
+                    </p>
+                    {marketingCampaignPreviewText ? (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {marketingCampaignPreviewText}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleRequestMarketingCampaign()}
+                    disabled={
+                      actionLoading === "marketing-campaign" ||
+                      !canRequestMarketingCampaign
+                    }
+                  >
+                    {t("finances.launchMarketingCampaign")}
+                  </Button>
+                </div>
+                {marketingCampaignDisabledReason ? (
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {marketingCampaignDisabledReason}
+                  </p>
+                ) : null}
+                {marketingCampaignFeedback ? (
+                  <p
+                    className={
+                      marketingCampaignFeedback.tone === "error"
+                        ? "text-sm text-red-500"
+                        : "text-sm text-primary-500"
+                    }
+                  >
+                    {marketingCampaignFeedback.text}
+                  </p>
+                ) : null}
+              </div>
               {sponsorOffers.length > 0 ? (
                 sponsorOffers.map((message) => {
                   const sponsorAction = message.actions.find(
@@ -680,10 +1163,7 @@ export default function FinancesTab({
                 })
               ) : (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t(
-                    "finances.noPendingSponsorOffers",
-                    "No pending sponsor offers",
-                  )}
+                  {t("finances.noPendingSponsorOffers")}
                 </p>
               )}
             </div>
@@ -698,8 +1178,15 @@ export default function FinancesTab({
             {FACILITY_DEFINITIONS.map((facility) => {
               const level = facilities[facility.levelKey];
               const nextUpgradeCost = getFacilityUpgradeCost(level);
-              const canUpgrade = myTeam.finance >= nextUpgradeCost;
+              const financeBlockReason = facilityUpgradeBlockReason(financeSnapshot);
+              const canAffordUpgrade = myTeam.finance >= nextUpgradeCost;
+              const canUpgrade = canAffordUpgrade && !financeBlockReason;
               const isLoading = actionLoading === facility.id;
+              const upgradeReason = financeBlockReason
+                ? resolveBackendError(financeBlockReason)
+                : facilityUpgradeError?.facilityId === facility.id
+                  ? facilityUpgradeError.message
+                  : null;
 
               return (
                 <div
@@ -731,10 +1218,13 @@ export default function FinancesTab({
                     >
                       {t("finances.upgradeFacility")}
                     </Button>
-                    {!canUpgrade && (
+                    {!canAffordUpgrade && !upgradeReason && (
                       <p className="text-xs text-red-500">
                         {t("finances.insufficientFunds")}
                       </p>
+                    )}
+                    {upgradeReason && (
+                      <p className="text-xs text-red-500">{upgradeReason}</p>
                     )}
                   </div>
                 </div>
@@ -777,7 +1267,7 @@ export default function FinancesTab({
                     const contextItems = onSelectPlayer
                       ? [
                         {
-                          label: t("squad.viewProfile", "View profile"),
+                          label: t("squad.viewProfile"),
                           icon: <User className="w-4 h-4" />,
                           onClick: () => onSelectPlayer(p.id),
                         },

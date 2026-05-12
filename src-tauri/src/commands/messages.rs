@@ -18,7 +18,7 @@ fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<
     log::debug!("[cmd] mark_message_read: {}", message_id);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
         msg.read = true;
@@ -37,7 +37,7 @@ fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Gam
     log::debug!("[cmd] delete_message: {}", message_id);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     game.messages.retain(|message| message.id != message_id);
 
@@ -60,7 +60,7 @@ fn delete_messages_internal(
     log::debug!("[cmd] delete_messages: {}", message_ids.len());
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
     let message_ids: HashSet<String> = message_ids.into_iter().collect();
 
     game.messages
@@ -79,7 +79,7 @@ fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String>
     log::debug!("[cmd] mark_all_messages_read");
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     for msg in game.messages.iter_mut() {
         msg.read = true;
@@ -98,7 +98,7 @@ fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
     log::debug!("[cmd] clear_old_messages");
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
     // Keep only: unread messages, messages with unresolved actions, and messages from recent 14 days
@@ -144,7 +144,7 @@ fn resolve_message_action_internal(
     );
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     // Try to apply player conversation or random event response
     let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
@@ -172,7 +172,15 @@ fn resolve_message_action_internal(
                         Some(effect.i18n_key),
                         Some(effect.i18n_params),
                     ),
-                    None => (None, None, None),
+                    None => match ofm_core::scouting::apply_youth_recruitment_response(
+                        &mut game,
+                        message_id,
+                        action_id,
+                        opt,
+                    ) {
+                        Some(effect) => (Some(effect.message), None, None),
+                        None => (None, None, None),
+                    },
                 }
             }
         }

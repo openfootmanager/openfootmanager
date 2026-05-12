@@ -57,7 +57,7 @@ pub fn advance_time_with_mode(
     info!("[cmd] advance_time_with_mode: mode={}", mode);
     let mut game = state
         .get_game(|current_game| current_game.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let round_context = round_context_for_today(&game, &today);

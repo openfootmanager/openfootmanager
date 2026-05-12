@@ -10,6 +10,12 @@ import type {
   TeamData,
 } from "../../store/gameStore";
 
+const backendI18nMocks = vi.hoisted(() => ({
+  resolveBoardObjective: vi.fn((value: unknown) => value),
+  resolveMessage: vi.fn((value: unknown) => value),
+  resolveNewsArticle: vi.fn((value: unknown) => value),
+}));
+
 vi.mock("../NextMatchDisplay", () => ({
   default: () => <div data-testid="next-match-display" />,
 }));
@@ -27,9 +33,9 @@ vi.mock("./HomeUnavailablePlayersCard", () => ({
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
-  resolveBoardObjective: (value: unknown) => value,
-  resolveMessage: (value: unknown) => value,
-  resolveNewsArticle: (value: unknown) => value,
+  resolveBoardObjective: backendI18nMocks.resolveBoardObjective,
+  resolveMessage: backendI18nMocks.resolveMessage,
+  resolveNewsArticle: backendI18nMocks.resolveNewsArticle,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -259,6 +265,42 @@ function createGameState(
 }
 
 describe("HomeTab", function (): void {
+  it("resolves latest news articles before rendering the home widget", function (): void {
+    backendI18nMocks.resolveNewsArticle.mockImplementationOnce(
+      (value: unknown) => ({
+        ...(value as NewsArticle),
+        headline: "Resolved headline",
+        source: "Resolved source",
+      }),
+    );
+
+    render(
+      <HomeTab
+        gameState={createGameState({
+          news: [
+            createNewsArticle({
+              id: "news-resolve-1",
+              headline: "Fallback headline",
+              source: "Fallback source",
+              category: "SeasonPreview",
+              date: "2025-01-16",
+            }),
+          ],
+        })}
+        visitedOnboardingTabs={new Set<string>()}
+      />,
+    );
+
+    expect(backendI18nMocks.resolveNewsArticle).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "news-resolve-1" }),
+      0,
+      expect.any(Array),
+    );
+    expect(screen.getByText("Resolved headline")).toBeInTheDocument();
+    expect(screen.getByText(/Resolved source/)).toBeInTheDocument();
+  });
+
   it("renders the next opponent and league digest widgets when data is available", function (): void {
     render(
       <HomeTab

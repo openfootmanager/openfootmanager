@@ -93,7 +93,7 @@ export default function TacticsSetupPanel({
           </div>
           <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 dark:border-navy-600 dark:bg-navy-800/70">
             <div className="mb-1 text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("squad.playStyleImpactTitle", "What this changes")}
+              {t("squad.playStyleImpactTitle")}
             </div>
             <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
               {t(

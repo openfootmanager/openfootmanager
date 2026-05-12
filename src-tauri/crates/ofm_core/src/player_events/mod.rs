@@ -13,7 +13,67 @@ use rand::RngExt;
 
 use message_builders::{
     bench_complaint_message, contract_concern_message, happy_player_message, low_morale_message,
+    takeover_contract_review_message,
 };
+
+fn should_generate_contract_concern(stage: crate::contracts::ContractWarningStage) -> bool {
+    !matches!(stage, crate::contracts::ContractWarningStage::TwelveMonths)
+}
+
+pub fn generate_takeover_contract_review_message(game: &mut Game) {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = match game.manager.team_id.as_deref() {
+        Some(id) => id,
+        None => return,
+    };
+
+    let summary_id = format!("contract_review_takeover_{}", user_team_id);
+    if game.messages.iter().any(|message| message.id == summary_id) {
+        return;
+    }
+
+    let current_date = game.clock.current_date.date_naive();
+    let mut total_expiring_this_season = 0;
+    let mut urgent_contracts = 0;
+    let mut final_weeks_contracts = 0;
+
+    for player in &game.players {
+        if player.team_id.as_deref() != Some(user_team_id) {
+            continue;
+        }
+
+        let Some(stage) = contract_warning_stage(player.contract_end.as_deref(), current_date)
+        else {
+            continue;
+        };
+
+        total_expiring_this_season += 1;
+
+        match stage {
+            crate::contracts::ContractWarningStage::FinalWeeks => {
+                urgent_contracts += 1;
+                final_weeks_contracts += 1;
+            }
+            crate::contracts::ContractWarningStage::ThreeMonths
+            | crate::contracts::ContractWarningStage::SixMonths => {
+                urgent_contracts += 1;
+            }
+            crate::contracts::ContractWarningStage::TwelveMonths => {}
+        }
+    }
+
+    if total_expiring_this_season == 0 {
+        return;
+    }
+
+    game.messages.push(takeover_contract_review_message(
+        &summary_id,
+        total_expiring_this_season,
+        urgent_contracts,
+        final_weeks_contracts,
+        &today,
+    ));
+}
 
 fn talk_cooldown_active(player: &domain::player::Player, today: &str) -> bool {
     player.morale_core.talk_cooldown_until.as_deref() == Some(today)
@@ -46,6 +106,10 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
         else {
             continue;
         };
+
+        if !should_generate_contract_concern(stage) {
+            continue;
+        }
 
         let msg_id = format!("contract_concern_{}_{}", player.id, stage.message_suffix());
 

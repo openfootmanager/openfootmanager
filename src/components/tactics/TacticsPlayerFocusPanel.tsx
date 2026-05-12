@@ -91,13 +91,13 @@ function PlayerSummary({
                 code={player.nationality}
                 className="text-xs leading-none mr-1"
               />
-              {t("common.age", "Age")} {calcAge(player.date_of_birth)}
+              {t("common.age")} {calcAge(player.date_of_birth)}
             </span>
           </div>
         </div>
         <div className="text-right shrink-0">
           <div className="text-sm font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-            {t("common.ovr", "OVR")}
+            {t("common.ovr")}
           </div>
           <div className="text-3xl font-heading font-bold text-primary-500 dark:text-primary-400">
             {overallRating}
@@ -176,20 +176,17 @@ function CompareAttributes({
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <PlayerSummary
-          label={t("tactics.selectedPlayer", "Selected player")}
+          label={t("tactics.selectedPlayer")}
           player={selectedPlayer}
         />
         <PlayerSummary
-          label={t("tactics.comparePlayer", "Comparison player")}
+          label={t("tactics.comparePlayer")}
           player={comparePlayer}
         />
       </div>
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          {t(
-            "tactics.compareSelectionHint",
-            "Review both players below, then confirm the swap when you're ready.",
-          )}
+          {t("tactics.compareSelectionHint")}
         </p>
         <Button
           type="button"
@@ -197,7 +194,7 @@ function CompareAttributes({
           onClick={onConfirmSwap}
           disabled={!canConfirmSwap}
         >
-          {t("tactics.confirmSwap", "Confirm swap")}
+          {t("tactics.confirmSwap")}
         </Button>
       </div>
       {ATTRIBUTE_GROUPS.filter(
@@ -295,14 +292,11 @@ export default function TacticsPlayerFocusPanel({
           ) : (
             <div className="space-y-4">
               <PlayerSummary
-                label={t("tactics.selectedPlayer", "Selected player")}
+                label={t("tactics.selectedPlayer")}
                 player={selectedPlayer}
               />
               <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                {t(
-                  "tactics.selectSecondPlayer",
-                  "Select a second player in the lineup view to compare attributes and prepare the swap.",
-                )}
+                {t("tactics.selectSecondPlayer")}
               </div>
               <SinglePlayerAttributes player={selectedPlayer} />
             </div>
@@ -311,16 +305,10 @@ export default function TacticsPlayerFocusPanel({
           <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-8 text-center">
             <GitCompareArrows className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              {t(
-                "tactics.selectPitchPlayer",
-                "Select a player in the lineup view to inspect their attributes.",
-              )}
+              {t("tactics.selectPitchPlayer")}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              {t(
-                "tactics.selectAnotherToSwap",
-                "Select a second player to compare them and confirm the swap.",
-              )}
+              {t("tactics.selectAnotherToSwap")}
             </p>
           </div>
         )}

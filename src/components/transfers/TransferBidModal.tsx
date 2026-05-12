@@ -109,42 +109,33 @@ export default function TransferBidModal({
         {myTeam && bidFee !== null && bidProjection ? (
           <div className="rounded-lg border border-gray-200 dark:border-navy-700 bg-white/70 dark:bg-navy-900/40 p-3 mb-3 space-y-2">
             <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("transfers.bidImpactTitle", {
-                defaultValue: "Projected impact",
-              })}
+              {t("transfers.bidImpactTitle")}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("transfers.bidImpactTransferBudget", {
                 before: formatVal(bidProjection.transfer_budget_before),
                 after: formatVal(bidProjection.transfer_budget_after),
-                defaultValue: "Transfer budget {{before}} -> {{after}}",
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("transfers.bidImpactBalance", {
                 before: formatVal(bidProjection.finance_before),
                 after: formatVal(bidProjection.finance_after),
-                defaultValue: "Club balance {{before}} -> {{after}}",
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("transfers.bidImpactWagePressure", {
                 percent: bidProjection.projected_wage_budget_usage_pct,
-                defaultValue: "Projected wage budget usage {{percent}}%",
               })}
             </p>
             {bidProjection.exceeds_transfer_budget ? (
               <p className="text-xs text-red-500">
-                {t("transfers.bidImpactOverTransferBudget", {
-                  defaultValue: "This bid exceeds your transfer budget",
-                })}
+                {t("transfers.bidImpactOverTransferBudget")}
               </p>
             ) : null}
             {bidProjection.exceeds_finance ? (
               <p className="text-xs text-red-500">
-                {t("transfers.bidImpactOverBalance", {
-                  defaultValue: "This bid would push the club into debt",
-                })}
+                {t("transfers.bidImpactOverBalance")}
               </p>
             ) : null}
           </div>

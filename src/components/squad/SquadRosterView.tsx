@@ -75,7 +75,7 @@ export default function SquadRosterView({
   onSelectPlayer,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const weeklySuffix = t("finances.perWeekSuffix");
   const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
@@ -112,8 +112,8 @@ export default function SquadRosterView({
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
         (posOrder[normalisePosition(b.position)] || 99) ||
-        calcOvr(b, b.natural_position || b.position) -
-        calcOvr(a, a.natural_position || a.position),
+        (b.ovr ?? calcOvr(b, b.natural_position || b.position)) -
+        (a.ovr ?? calcOvr(a, a.natural_position || a.position)),
     );
 
   const playersById = useMemo(
@@ -216,9 +216,16 @@ export default function SquadRosterView({
             ? xiActivePosition.get(b.id) || b.position
             : b.natural_position || b.position;
 
+          const aOvr = xiIds.has(a.id)
+            ? calcOvr(a, aPosition)
+            : (a.ovr ?? calcOvr(a, aPosition));
+          const bOvr = xiIds.has(b.id)
+            ? calcOvr(b, bPosition)
+            : (b.ovr ?? calcOvr(b, bPosition));
+
           return (
             (posOrder[getPos(a)] || 99) - (posOrder[getPos(b)] || 99) ||
-            calcOvr(b, bPosition) - calcOvr(a, aPosition)
+            bOvr - aOvr
           );
         }
         case "name":
@@ -230,14 +237,14 @@ export default function SquadRosterView({
         case "morale":
           return a.morale - b.morale;
         case "ovr": {
-          const aPosition = xiIds.has(a.id)
-            ? xiActivePosition.get(a.id) || a.position
-            : a.natural_position || a.position;
-          const bPosition = xiIds.has(b.id)
-            ? xiActivePosition.get(b.id) || b.position
-            : b.natural_position || b.position;
+          const aOvr = xiIds.has(a.id)
+            ? calcOvr(a, xiActivePosition.get(a.id) || a.position)
+            : (a.ovr ?? calcOvr(a, a.natural_position || a.position));
+          const bOvr = xiIds.has(b.id)
+            ? calcOvr(b, xiActivePosition.get(b.id) || b.position)
+            : (b.ovr ?? calcOvr(b, b.natural_position || b.position));
 
-          return calcOvr(a, aPosition) - calcOvr(b, bPosition);
+          return aOvr - bOvr;
         }
         default:
           return 0;
@@ -314,16 +321,13 @@ export default function SquadRosterView({
         <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
           <div>
             <label className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">
-              {t("common.search", "Search")}
+              {t("common.search")}
             </label>
             <input
               type="text"
               value={playerSearch}
               onChange={(event) => setPlayerSearch(event.target.value)}
-              placeholder={t(
-                "squad.filterPlayers",
-                "Filter by player name or position",
-              )}
+              placeholder={t("squad.filterPlayers")}
               className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
           </div>
@@ -336,7 +340,7 @@ export default function SquadRosterView({
               onChange={(event) => setPositionFilter(event.target.value)}
               fullWidth
             >
-              <option value="All">{t("common.all", "All")}</option>
+              <option value="All">{t("common.all")}</option>
               {CORE_POSITIONS.map((position) => (
                 <option key={position} value={position}>
                   {translatePositionAbbreviation(t, position)}
@@ -346,7 +350,7 @@ export default function SquadRosterView({
           </div>
           <div>
             <label className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">
-              {t("common.status", "Status")}
+              {t("common.status")}
             </label>
             <Select
               value={statusFilter}
@@ -356,18 +360,18 @@ export default function SquadRosterView({
               fullWidth
             >
               <option value="all">
-                {t("common.allPlayers", "All players")}
+                {t("common.allPlayers")}
               </option>
               <option value="xi">
-                {t("preMatch.startingXI", "Starting XI")}
+                {t("preMatch.startingXI")}
               </option>
               <option value="bench">
-                {t("preMatch.substitutes", "Substitutes")}
+                {t("preMatch.substitutes")}
               </option>
               <option value="outOfPosition">
-                {t("squad.outOfPosition", "Out of position")}
+                {t("squad.outOfPosition")}
               </option>
-              <option value="injured">{t("common.injured", "Injured")}</option>
+              <option value="injured">{t("common.injured")}</option>
             </Select>
           </div>
           <button
@@ -383,7 +387,7 @@ export default function SquadRosterView({
               : "bg-gray-100 dark:bg-navy-700 text-gray-400 cursor-not-allowed"
               }`}
           >
-            {t("common.clear", "Clear")}
+            {t("common.clear")}
           </button>
         </div>
         <div className="px-4 pb-4 flex flex-wrap gap-2">
@@ -391,13 +395,13 @@ export default function SquadRosterView({
             variant={outOfPositionCount > 0 ? "danger" : "success"}
             size="sm"
           >
-            {outOfPositionCount} {t("squad.outOfPosition", "Out of position")}
+            {outOfPositionCount} {t("squad.outOfPosition")}
           </Badge>
           <Badge variant={injuredCount > 0 ? "danger" : "neutral"} size="sm">
-            {injuredCount} {t("common.injured", "Injured")}
+            {injuredCount} {t("common.injured")}
           </Badge>
           <Badge variant="primary" size="sm">
-            {filteredRoster.length} {t("squad.playersLabel", "players")}
+            {filteredRoster.length} {t("squad.playersLabel")}
           </Badge>
         </div>
       </Card>
@@ -410,7 +414,7 @@ export default function SquadRosterView({
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {filteredRoster.length} / {roster.length}{" "}
-            {t("squad.playersLabel", "players")}
+            {t("squad.playersLabel")}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -449,7 +453,11 @@ export default function SquadRosterView({
                 const currentPos = inXI
                   ? xiActivePosition.get(player.id) || player.position
                   : player.natural_position || player.position;
-                const ovr = calcOvr(player, currentPos);
+                // For XI players show position-specific OVR (includes out-of-position penalty).
+                // For bench/non-XI players use the backend natural-position OVR.
+                const ovr = inXI
+                  ? calcOvr(player, currentPos)
+                  : (player.ovr ?? calcOvr(player, currentPos));
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const contractRiskLevel = getContractRiskLevel(
@@ -557,7 +565,7 @@ export default function SquadRosterView({
                           {inXI ? (
                             <span
                               className="w-1.5 h-1.5 rounded-full bg-primary-500"
-                              title={t("preMatch.startingXI", "Starting XI")}
+                              title={t("preMatch.startingXI")}
                             />
                           ) : null}
                           <Badge
@@ -569,10 +577,7 @@ export default function SquadRosterView({
                           {wrongPos ? (
                             <span
                               className="text-amber-500"
-                              title={t(
-                                "squad.outOfPositionTooltip",
-                                "Playing outside the player's preferred role",
-                              )}
+                              title={t("squad.outOfPositionTooltip")}
                             >
                               <AlertTriangle className="w-3.5 h-3.5" />
                             </span>

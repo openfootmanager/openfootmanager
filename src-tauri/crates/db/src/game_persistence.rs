@@ -1,8 +1,12 @@
 use chrono::Utc;
+use domain::player::Position;
 use domain::stats::StatsState;
 
 use ofm_core::clock::GameClock;
-use ofm_core::game::{BoardObjective, Game, ObjectiveType, ScoutingAssignment};
+use ofm_core::game::{
+    BoardObjective, Game, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
+    YouthScoutingObjective, YouthScoutingRegion,
+};
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
@@ -87,6 +91,23 @@ impl GamePersistenceWriter {
             .collect();
         scouting_repo::upsert_scouting_list(conn, &scouting_rows)?;
 
+        let youth_scouting_rows: Vec<scouting_repo::YouthScoutingAssignmentRow> = game
+            .youth_scouting_assignments
+            .iter()
+            .map(|assignment| scouting_repo::YouthScoutingAssignmentRow {
+                id: assignment.id.clone(),
+                scout_id: assignment.scout_id.clone(),
+                region: format!("{:?}", assignment.region),
+                objective: format!("{:?}", assignment.objective),
+                target_position: assignment
+                    .target_position
+                    .as_ref()
+                    .map(|position| format!("{:?}", position)),
+                days_remaining: assignment.days_remaining,
+            })
+            .collect();
+        scouting_repo::upsert_youth_scouting_list(conn, &youth_scouting_rows)?;
+
         Ok(())
     }
 }
@@ -132,14 +153,16 @@ impl GamePersistenceReader {
         let objective_rows = objective_repo::load_all_objectives(conn)?;
         let board_objectives: Vec<BoardObjective> = objective_rows
             .into_iter()
-            .map(|objective| BoardObjective {
-                id: objective.id,
-                description: objective.description,
-                target: objective.target,
-                objective_type: parse_objective_type(&objective.objective_type),
-                met: objective.met,
+            .map(|objective| {
+                Ok(BoardObjective {
+                    id: objective.id,
+                    description: objective.description,
+                    target: objective.target,
+                    objective_type: parse_objective_type(&objective.objective_type)?,
+                    met: objective.met,
+                })
             })
-            .collect();
+            .collect::<Result<_, String>>()?;
 
         let scouting_rows = scouting_repo::load_all_scouting(conn)?;
         let scouting_assignments: Vec<ScoutingAssignment> = scouting_rows
@@ -151,6 +174,20 @@ impl GamePersistenceReader {
                 days_remaining: assignment.days_remaining,
             })
             .collect();
+        let youth_scouting_rows = scouting_repo::load_all_youth_scouting(conn)?;
+        let youth_scouting_assignments: Vec<YouthScoutingAssignment> = youth_scouting_rows
+            .into_iter()
+            .map(|assignment| {
+                Ok(YouthScoutingAssignment {
+                    id: assignment.id,
+                    scout_id: assignment.scout_id,
+                    region: parse_youth_region(&assignment.region)?,
+                    objective: parse_youth_objective(&assignment.objective)?,
+                    target_position: assignment.target_position.as_deref().map(parse_position),
+                    days_remaining: assignment.days_remaining,
+                })
+            })
+            .collect::<Result<_, String>>()?;
 
         let mut game = Game {
             clock,
@@ -164,6 +201,7 @@ impl GamePersistenceReader {
             news,
             league,
             scouting_assignments,
+            youth_scouting_assignments,
             board_objectives,
             season_context: domain::season::SeasonContext::default(),
             days_since_last_job_offer: None,
@@ -181,11 +219,52 @@ impl GamePersistenceReader {
     }
 }
 
-fn parse_objective_type(value: &str) -> ObjectiveType {
+fn parse_objective_type(value: &str) -> Result<ObjectiveType, String> {
     match value {
-        "LeaguePosition" => ObjectiveType::LeaguePosition,
-        "Wins" => ObjectiveType::Wins,
-        "GoalsScored" => ObjectiveType::GoalsScored,
-        _ => ObjectiveType::Wins,
+        "LeaguePosition" => Ok(ObjectiveType::LeaguePosition),
+        "Wins" => Ok(ObjectiveType::Wins),
+        "GoalsScored" => Ok(ObjectiveType::GoalsScored),
+        "FinancialStability" => Ok(ObjectiveType::FinancialStability),
+        _ => Err(format!("unknown objective type: {}", value)),
+    }
+}
+
+fn parse_position(value: &str) -> Position {
+    match value {
+        "Goalkeeper" => Position::Goalkeeper,
+        "Defender" => Position::Defender,
+        "Midfielder" => Position::Midfielder,
+        "Forward" => Position::Forward,
+        "RightBack" => Position::RightBack,
+        "CenterBack" => Position::CenterBack,
+        "LeftBack" => Position::LeftBack,
+        "RightWingBack" => Position::RightWingBack,
+        "LeftWingBack" => Position::LeftWingBack,
+        "DefensiveMidfielder" => Position::DefensiveMidfielder,
+        "CentralMidfielder" => Position::CentralMidfielder,
+        "AttackingMidfielder" => Position::AttackingMidfielder,
+        "RightMidfielder" => Position::RightMidfielder,
+        "LeftMidfielder" => Position::LeftMidfielder,
+        "RightWinger" => Position::RightWinger,
+        "LeftWinger" => Position::LeftWinger,
+        "Striker" => Position::Striker,
+        _ => Position::Midfielder,
+    }
+}
+
+fn parse_youth_region(value: &str) -> Result<YouthScoutingRegion, String> {
+    match value {
+        "Domestic" => Ok(YouthScoutingRegion::Domestic),
+        "International" => Ok(YouthScoutingRegion::International),
+        _ => Err(format!("unknown youth scouting region: {}", value)),
+    }
+}
+
+fn parse_youth_objective(value: &str) -> Result<YouthScoutingObjective, String> {
+    match value {
+        "Balanced" => Ok(YouthScoutingObjective::Balanced),
+        "HighPotential" => Ok(YouthScoutingObjective::HighPotential),
+        "ReadySoon" => Ok(YouthScoutingObjective::ReadySoon),
+        _ => Err(format!("unknown youth scouting objective: {}", value)),
     }
 }

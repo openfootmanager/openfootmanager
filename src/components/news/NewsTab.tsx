@@ -6,6 +6,7 @@ import {
   Trophy,
   BarChart3,
   TrendingUp,
+  ArrowLeftRight,
   FileText,
   ArrowLeft,
   Clock,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { resolveNewsArticle } from "../../utils/backendI18n";
+import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { Select } from "../ui";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
@@ -22,6 +25,7 @@ const CAT_ICONS: Record<string, React.ReactNode> = {
   LeagueRoundup: <Trophy className="w-4 h-4" />,
   StandingsUpdate: <BarChart3 className="w-4 h-4" />,
   TransferRumour: <TrendingUp className="w-4 h-4" />,
+  TransferRoundup: <ArrowLeftRight className="w-4 h-4" />,
   InjuryNews: <FileText className="w-4 h-4" />,
   SeasonPreview: <FileText className="w-4 h-4" />,
   Editorial: <FileText className="w-4 h-4" />,
@@ -32,6 +36,7 @@ const CAT_COLORS: Record<string, string> = {
   LeagueRoundup: "text-accent-500",
   StandingsUpdate: "text-blue-500",
   TransferRumour: "text-purple-500",
+  TransferRoundup: "text-fuchsia-500",
   InjuryNews: "text-red-500",
   SeasonPreview: "text-emerald-500",
   Editorial: "text-gray-500",
@@ -42,6 +47,7 @@ const CAT_BG: Record<string, string> = {
   LeagueRoundup: "bg-accent-500/10",
   StandingsUpdate: "bg-blue-500/10",
   TransferRumour: "bg-purple-500/10",
+  TransferRoundup: "bg-fuchsia-500/10",
   InjuryNews: "bg-red-500/10",
   SeasonPreview: "bg-emerald-500/10",
   Editorial: "bg-gray-500/10",
@@ -54,6 +60,22 @@ interface NewsTabProps {
 }
 
 const PAGE_SIZE = 13; // 1 hero + 12 grid (4x3)
+
+function buildArticleTeamMenuItems(
+  t: ReturnType<typeof useTranslation>["t"],
+  article: NewsArticle,
+  gameState: GameStateData,
+  onSelectTeam?: (id: string) => void,
+): ContextMenuItem[] {
+  if (!onSelectTeam) {
+    return [];
+  }
+
+  return (article.team_ids ?? []).map((teamId) => ({
+    ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
+    label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, teamId)}`,
+  }));
+}
 
 export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   const { t } = useTranslation();
@@ -89,7 +111,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
 
   const selectedArticle = selectedId
     ? filtered.find((a) => a.id === selectedId) ||
-      sortedNews.find((a) => a.id === selectedId)
+    sortedNews.find((a) => a.id === selectedId)
     : null;
 
   // Empty state
@@ -129,11 +151,10 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
             setFilterCategory(null);
             setPage(0);
           }}
-          className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-            !filterCategory
-              ? "bg-primary-500 text-white shadow-sm"
-              : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
-          }`}
+          className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${!filterCategory
+            ? "bg-primary-500 text-white shadow-sm"
+            : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+            }`}
         >
           {t("common.all")}
         </button>
@@ -144,11 +165,10 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
               setFilterCategory(filterCategory === cat ? null : cat);
               setPage(0);
             }}
-            className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-              filterCategory === cat
-                ? "bg-primary-500 text-white shadow-sm"
-                : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
-            }`}
+            className={`px-3 py-1.5 rounded-full text-xs font-heading font-bold uppercase tracking-wider transition-colors ${filterCategory === cat
+              ? "bg-primary-500 text-white shadow-sm"
+              : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+              }`}
           >
             {t(`news.categories.${cat}`)}
           </button>
@@ -168,7 +188,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
               selectSize="sm"
               className="min-w-40 font-heading font-bold uppercase tracking-wider"
             >
-              <option value="">{t("news.allTeams", "All Teams")}</option>
+              <option value="">{t("news.allTeams")}</option>
               {teamsInNews.map((tm) => (
                 <option key={tm.id} value={tm.id}>
                   {tm.name}
@@ -204,6 +224,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
               article={article}
               gameState={gameState}
               onSelect={() => setSelectedId(article.id)}
+              onSelectTeam={onSelectTeam}
             />
           ))}
         </div>
@@ -248,6 +269,12 @@ function HeroArticle({
 }) {
   const { t, i18n } = useTranslation();
   const formatNewsDate = (d: string) => fmtMatchDate(d, i18n.language);
+  const contextItems = buildArticleTeamMenuItems(
+    t,
+    article,
+    gameState,
+    onSelectTeam,
+  );
   const meta = {
     icon: CAT_ICONS[article.category] || <FileText className="w-4 h-4" />,
     color: CAT_COLORS[article.category] || "text-gray-500",
@@ -255,8 +282,9 @@ function HeroArticle({
     label: t(`news.categories.${article.category}`),
   };
 
-  return (
+  const articleButton = (
     <button
+      data-testid={`news-article-${article.id}`}
       onClick={onSelect}
       className="w-full text-left bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm overflow-hidden hover:shadow-md dark:hover:border-navy-600 transition-all group"
     >
@@ -302,9 +330,9 @@ function HeroArticle({
           <p className="text-[10px] text-gray-400 dark:text-gray-600 font-heading uppercase tracking-widest">
             — {article.source}
           </p>
-          {article.team_ids.length > 0 && onSelectTeam && (
+          {(article.team_ids ?? []).length > 0 && onSelectTeam && (
             <div className="flex gap-1.5">
-              {article.team_ids.slice(0, 3).map((tid) => (
+              {(article.team_ids ?? []).slice(0, 3).map((tid) => (
                 <span
                   key={tid}
                   onClick={(e) => {
@@ -322,19 +350,33 @@ function HeroArticle({
       </div>
     </button>
   );
+
+  if (contextItems.length > 0) {
+    return <ContextMenu items={contextItems}>{articleButton}</ContextMenu>;
+  }
+
+  return articleButton;
 }
 
 function ArticleCard({
   article,
   gameState,
   onSelect,
+  onSelectTeam,
 }: {
   article: NewsArticle;
   gameState: GameStateData;
   onSelect: () => void;
+  onSelectTeam?: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const formatNewsDate = (d: string) => fmtMatchDate(d, i18n.language);
+  const contextItems = buildArticleTeamMenuItems(
+    t,
+    article,
+    gameState,
+    onSelectTeam,
+  );
   const meta = {
     icon: CAT_ICONS[article.category] || <FileText className="w-4 h-4" />,
     color: CAT_COLORS[article.category] || "text-gray-500",
@@ -342,8 +384,9 @@ function ArticleCard({
     label: t(`news.categories.${article.category}`),
   };
 
-  return (
+  const articleButton = (
     <button
+      data-testid={`news-article-${article.id}`}
       onClick={onSelect}
       className="w-full text-left bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm overflow-hidden hover:shadow-md dark:hover:border-navy-600 transition-all group flex flex-col"
     >
@@ -392,6 +435,12 @@ function ArticleCard({
       </div>
     </button>
   );
+
+  if (contextItems.length > 0) {
+    return <ContextMenu items={contextItems}>{articleButton}</ContextMenu>;
+  }
+
+  return articleButton;
 }
 
 function ArticleDetail({
@@ -481,9 +530,9 @@ function ArticleDetail({
             <p className="text-[10px] text-gray-400 dark:text-gray-600 font-heading uppercase tracking-widest">
               — {article.source}
             </p>
-            {article.team_ids.length > 0 && onSelectTeam && (
+            {(article.team_ids ?? []).length > 0 && onSelectTeam && (
               <div className="flex flex-wrap gap-2">
-                {article.team_ids.map((tid) => (
+                {(article.team_ids ?? []).map((tid) => (
                   <button
                     key={tid}
                     onClick={() => onSelectTeam(tid)}

@@ -7,8 +7,11 @@ use std::path::{Path, PathBuf};
 
 use domain::player::{Player, Position};
 use ofm_core::game::Game;
+use ofm_core::generator;
 use ofm_core::player_identity;
-use ofm_core::player_rating::{effective_rating_for_assignment, formation_slots};
+use ofm_core::player_rating::{
+    effective_rating_for_assignment, formation_slots, refresh_player_derived,
+};
 
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
@@ -214,6 +217,37 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // Backfill OVR/potential for players from older saves that don't have them yet.
+        // We use the game clock year so age is accurate.
+        let current_year = game
+            .clock
+            .current_date
+            .format("%Y")
+            .to_string()
+            .parse::<u32>()
+            .unwrap_or(2026);
+        let backfill_count = game.players.iter().filter(|p| p.ovr == 0).count();
+        if backfill_count > 0 {
+            for player in game.players.iter_mut() {
+                if player.ovr == 0 {
+                    refresh_player_derived(player, current_year);
+                }
+            }
+            info!(
+                "[save_manager] backfilled OVR/potential for {} players in save {}",
+                backfill_count, save_id
+            );
+            needs_resave = true;
+        }
+
+        if generator::repair_opening_youth_academies(&mut game) {
+            info!(
+                "[save_manager] backfilled opening youth academy players for save {}",
+                save_id
+            );
+            needs_resave = true;
+        }
+
         if league_repo::needs_cleanup(
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
@@ -278,6 +312,7 @@ impl SaveManager {
         game.messages.clear();
         game.news.clear();
         game.scouting_assignments.clear();
+        game.youth_scouting_assignments.clear();
         game.board_objectives.clear();
 
         // Reset clock to start date
@@ -425,12 +460,14 @@ mod tests {
     use super::*;
     use chrono::TimeZone;
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
-    use domain::player::{Footedness, Player, PlayerAttributes, Position};
+    use domain::player::{Footedness, Player, PlayerAttributes, Position, SquadRole};
     use domain::staff::{StaffAttributes, StaffRole};
     use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
     use domain::team::Team;
     use ofm_core::clock::GameClock;
-    use ofm_core::game::{BoardObjective, ObjectiveType, ScoutingAssignment};
+    use ofm_core::game::{
+        BoardObjective, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
+    };
     use rusqlite::params;
 
     fn sample_game() -> Game {
@@ -714,6 +751,74 @@ mod tests {
             make_lineup_player("rm", Position::RightMidfielder, Footedness::Right),
             make_lineup_player("st1", Position::Striker, Footedness::Right),
             make_lineup_player("st2", Position::Striker, Footedness::Right),
+        ];
+
+        Game::new(clock, manager, vec![team], players, vec![], vec![])
+    }
+
+    fn make_opening_repair_player(id: &str, position: Position, date_of_birth: &str) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_uppercase(),
+            format!("Player {}", id),
+            date_of_birth.to_string(),
+            "GB".to_string(),
+            position,
+            PlayerAttributes {
+                pace: 70,
+                stamina: 70,
+                strength: 70,
+                agility: 70,
+                passing: 70,
+                shooting: 70,
+                tackling: 70,
+                dribbling: 70,
+                defending: 70,
+                positioning: 70,
+                vision: 70,
+                decisions: 70,
+                composure: 70,
+                aggression: 70,
+                teamwork: 70,
+                leadership: 70,
+                handling: 20,
+                reflexes: 20,
+                aerial: 70,
+            },
+        );
+        player.team_id = Some("team-001".to_string());
+        player.squad_role = SquadRole::Senior;
+        player
+    }
+
+    fn sample_opening_save_without_youth_academy() -> Game {
+        let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+        let clock = GameClock::new(start);
+        let mut manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "John".to_string(),
+            "Smith".to_string(),
+            "1990-01-15".to_string(),
+            "British".to_string(),
+        );
+        manager.hire("team-001".to_string());
+
+        let team = Team::new(
+            "team-001".to_string(),
+            "London FC".to_string(),
+            "LFC".to_string(),
+            "GB".to_string(),
+            "London".to_string(),
+            "London Stadium".to_string(),
+            50000,
+        );
+
+        let players = vec![
+            make_opening_repair_player("gk", Position::Goalkeeper, "2002-01-01"),
+            make_opening_repair_player("def", Position::Defender, "2008-01-01"),
+            make_opening_repair_player("mid", Position::Midfielder, "2007-01-01"),
+            make_opening_repair_player("fwd", Position::Forward, "2006-01-01"),
+            make_opening_repair_player("senior", Position::Defender, "2000-01-01"),
         ];
 
         Game::new(clock, manager, vec![team], players, vec![], vec![])
@@ -1060,6 +1165,68 @@ mod tests {
     }
 
     #[test]
+    fn test_load_game_backfills_opening_youth_academy_for_legacy_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let game = sample_opening_save_without_youth_academy();
+        let save_id = sm
+            .create_save(&game, "Legacy Youth Academy Career")
+            .unwrap();
+        let db_path = saves_dir.join(format!("{}.db", save_id));
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        let youth_players: Vec<_> = loaded
+            .players
+            .iter()
+            .filter(|player| player.squad_role == SquadRole::Youth)
+            .collect();
+
+        assert_eq!(youth_players.len(), 3);
+        assert!(
+            youth_players
+                .iter()
+                .all(|player| player.position != Position::Goalkeeper)
+        );
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let persisted = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(
+            persisted
+                .players
+                .iter()
+                .filter(|player| player.squad_role == SquadRole::Youth)
+                .count(),
+            3
+        );
+    }
+
+    #[test]
+    fn test_load_game_does_not_backfill_opening_youth_academy_after_opening_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_opening_save_without_youth_academy();
+        game.clock.advance_days(31);
+
+        let save_id = sm
+            .create_save(&game, "Late Legacy Youth Academy Career")
+            .unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .filter(|player| player.squad_role == SquadRole::Youth)
+                .count(),
+            0
+        );
+    }
+
+    #[test]
     fn test_delete_save() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -1188,12 +1355,27 @@ mod tests {
             player_id: "p-001".to_string(),
             days_remaining: 7,
         });
+        game.youth_scouting_assignments
+            .push(YouthScoutingAssignment {
+                id: "ysa-001".to_string(),
+                scout_id: "staff-001".to_string(),
+                region: ofm_core::game::YouthScoutingRegion::Domestic,
+                objective: ofm_core::game::YouthScoutingObjective::Balanced,
+                target_position: Some(domain::player::Position::Defender),
+                days_remaining: 5,
+            });
 
         let save_id = sm.create_save(&game, "With Scouting").unwrap();
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert_eq!(loaded.scouting_assignments.len(), 1);
         assert_eq!(loaded.scouting_assignments[0].days_remaining, 7);
+        assert_eq!(loaded.youth_scouting_assignments.len(), 1);
+        assert_eq!(
+            loaded.youth_scouting_assignments[0].target_position,
+            Some(domain::player::Position::Defender)
+        );
+        assert_eq!(loaded.youth_scouting_assignments[0].days_remaining, 5);
     }
 
     #[test]
@@ -1219,6 +1401,15 @@ mod tests {
             player_id: "p-001".to_string(),
             days_remaining: 5,
         });
+        game.youth_scouting_assignments
+            .push(YouthScoutingAssignment {
+                id: "ysa-1".to_string(),
+                scout_id: "staff-001".to_string(),
+                region: ofm_core::game::YouthScoutingRegion::Domestic,
+                objective: ofm_core::game::YouthScoutingObjective::Balanced,
+                target_position: Some(domain::player::Position::Forward),
+                days_remaining: 6,
+            });
         game.manager.reputation = 999;
 
         let save_id = sm.create_save(&game, "Source Save").unwrap();
@@ -1230,6 +1421,7 @@ mod tests {
         assert!(new_game.messages.is_empty());
         assert!(new_game.news.is_empty());
         assert!(new_game.scouting_assignments.is_empty());
+        assert!(new_game.youth_scouting_assignments.is_empty());
         assert!(new_game.board_objectives.is_empty());
         assert!(new_game.league.is_none());
 

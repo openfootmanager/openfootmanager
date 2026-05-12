@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   initReactI18next: {
     type: "3rdParty",
-    init: () => {},
+    init: () => { },
   },
   useTranslation: () => ({
     t: (key: string) => {
@@ -67,6 +67,7 @@ vi.mock("react-i18next", () => ({
         "common.nationality": "Nationality",
         "common.value": "Value",
         "common.ovr": "OVR",
+        "squad.viewProfile": "View profile",
       };
 
       return map[key] ?? key;
@@ -321,5 +322,35 @@ describe("TeamProfile", () => {
       expect(screen.getByText("3-1")).toBeInTheDocument();
       expect(screen.getByText("62.0%")).toBeInTheDocument();
     });
+  });
+
+  it("offers a roster context menu action to view the player profile", async () => {
+    const team = createTeam();
+    const onSelectPlayer = vi.fn();
+
+    render(
+      <TeamProfile
+        team={team}
+        gameState={createGameState(team)}
+        isOwnTeam
+        onClose={vi.fn()}
+        onSelectPlayer={onSelectPlayer}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_team_stats_overview", {
+        teamId: "team-1",
+      });
+      expect(invoke).toHaveBeenCalledWith("get_team_match_history", {
+        teamId: "team-1",
+        limit: 5,
+      });
+    });
+
+    fireEvent.contextMenu(screen.getByTestId("team-profile-roster-player-1"));
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });
 });

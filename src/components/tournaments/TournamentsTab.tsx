@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { GameStateData, FixtureData } from "../../store/gameStore";
+import ContextMenu from "../ContextMenu";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import {
   Trophy,
@@ -19,6 +20,10 @@ import {
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { useTranslation } from "react-i18next";
+import {
+  buildViewProfileMenuItem,
+  buildViewTeamMenuItem,
+} from "../playerActions/playerContextMenuItems";
 
 interface AwardEntry {
   player_id: string;
@@ -39,11 +44,13 @@ interface SeasonAwards {
 interface TournamentsTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
+  onSelectPlayer?: (id: string) => void;
 }
 
 export default function TournamentsTab({
   gameState,
   onSelectTeam,
+  onSelectPlayer,
 }: TournamentsTabProps) {
   const { t } = useTranslation();
   const league = gameState.league;
@@ -53,15 +60,46 @@ export default function TournamentsTab({
   const [view, setView] = useState<
     "overview" | "fixtures" | "standings" | "awards"
   >("overview");
-  const [awards, setAwards] = useState<SeasonAwards | null>(null);
+  const [awardsBySeason, setAwardsBySeason] = useState<
+    Record<number, SeasonAwards>
+  >({});
+  const [awardsLoadState, setAwardsLoadState] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
+  const [awardsRetryCount, setAwardsRetryCount] = useState(0);
+  const currentSeason = league?.season ?? 0;
+  const awards = awardsBySeason[currentSeason] ?? null;
 
   useEffect(() => {
-    if (view === "awards" && !awards) {
-      invoke<SeasonAwards>("get_season_awards")
-        .then(setAwards)
-        .catch(() => {});
+    if (view !== "awards" || awards) {
+      return;
     }
-  }, [view, awards]);
+
+    let cancelled = false;
+    setAwardsLoadState("loading");
+
+    invoke<SeasonAwards>("get_season_awards")
+      .then((nextAwards) => {
+        if (cancelled) {
+          return;
+        }
+
+        setAwardsBySeason((current) => ({
+          ...current,
+          [currentSeason]: nextAwards,
+        }));
+        setAwardsLoadState("idle");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAwardsLoadState("error");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [view, awards, currentSeason, awardsRetryCount]);
 
   if (!league) {
     return (
@@ -126,6 +164,35 @@ export default function TournamentsTab({
       .slice(0, 10);
   })();
 
+  const buildFixtureMenuItems = (fixture: FixtureData) => [
+    {
+      ...buildViewTeamMenuItem(t, () => onSelectTeam(fixture.home_team_id)),
+      label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, fixture.home_team_id)}`,
+    },
+    {
+      ...buildViewTeamMenuItem(t, () => onSelectTeam(fixture.away_team_id)),
+      label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, fixture.away_team_id)}`,
+    },
+  ];
+
+  const buildStandingMenuItems = (teamId: string) => [
+    buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
+  ];
+
+  const buildPlayerMenuItems = (playerId: string, teamId?: string | null) => {
+    const items = [];
+
+    if (typeof onSelectPlayer === "function") {
+      items.push(buildViewProfileMenuItem(t, () => onSelectPlayer(playerId)));
+    }
+
+    if (teamId) {
+      items.push(buildViewTeamMenuItem(t, () => onSelectTeam(teamId)));
+    }
+
+    return items;
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {isPreseason && (
@@ -139,8 +206,8 @@ export default function TournamentsTab({
                 <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
                   {seasonContext.season_start
                     ? t("season.startsOn", {
-                        date: formatMatchDate(seasonContext.season_start),
-                      })
+                      date: formatMatchDate(seasonContext.season_start),
+                    })
                     : t("season.noOpener")}
                 </span>
               </div>
@@ -204,11 +271,10 @@ export default function TournamentsTab({
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${
-              view === v
-                ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
-                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-navy-600"
-            }`}
+            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${view === v
+              ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
+              : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-navy-600"
+              }`}
           >
             {v === "overview" ? (
               <>
@@ -223,7 +289,7 @@ export default function TournamentsTab({
             ) : v === "awards" ? (
               <>
                 <Award className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                Awards
+                {t("tournaments.awardsTab")}
               </>
             ) : (
               <>
@@ -287,40 +353,45 @@ export default function TournamentsTab({
                       const isUser = entry.team_id === userTeamId;
                       const gd = entry.goals_for - entry.goals_against;
                       return (
-                        <tr
+                        <ContextMenu
+                          items={buildStandingMenuItems(entry.team_id)}
                           key={entry.team_id}
-                          onClick={() => onSelectTeam(entry.team_id)}
-                          className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                         >
-                          <td className="py-2 px-3 font-heading font-bold text-sm text-gray-400">
-                            {idx + 1}
-                          </td>
-                          <td
-                            className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          <tr
+                            onClick={() => onSelectTeam(entry.team_id)}
+                            className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                            data-testid={`tournaments-overview-standing-${entry.team_id}`}
                           >
-                            {getTeamName(gameState.teams, entry.team_id)}
-                          </td>
-                          <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.played}
-                          </td>
-                          <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.won}
-                          </td>
-                          <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.drawn}
-                          </td>
-                          <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                            {entry.lost}
-                          </td>
-                          <td
-                            className={`py-2 px-3 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
-                          >
-                            {gd > 0 ? `+${gd}` : gd}
-                          </td>
-                          <td className="py-2 px-3 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                            {entry.points}
-                          </td>
-                        </tr>
+                            <td className="py-2 px-3 font-heading font-bold text-sm text-gray-400">
+                              {idx + 1}
+                            </td>
+                            <td
+                              className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                            >
+                              {getTeamName(gameState.teams, entry.team_id)}
+                            </td>
+                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                              {entry.played}
+                            </td>
+                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                              {entry.won}
+                            </td>
+                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                              {entry.drawn}
+                            </td>
+                            <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                              {entry.lost}
+                            </td>
+                            <td
+                              className={`py-2 px-3 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
+                            >
+                              {gd > 0 ? `+${gd}` : gd}
+                            </td>
+                            <td className="py-2 px-3 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
+                              {entry.points}
+                            </td>
+                          </tr>
+                        </ContextMenu>
                       );
                     })}
                   </tbody>
@@ -340,28 +411,36 @@ export default function TournamentsTab({
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-navy-600">
                   {topScorers.map((entry, i) => (
-                    <div
+                    <ContextMenu
+                      items={buildPlayerMenuItems(
+                        entry.player!.id,
+                        entry.player!.team_id,
+                      )}
                       key={entry.player!.id}
-                      className="flex items-center px-4 py-2.5 gap-3"
                     >
-                      <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500 w-5 text-center">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
-                          {entry.player!.full_name}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {getTeamName(
-                            gameState.teams,
-                            entry.player!.team_id ?? "",
-                          )}
-                        </p>
+                      <div
+                        className="flex items-center px-4 py-2.5 gap-3"
+                        data-testid={`tournaments-top-scorer-${entry.player!.id}`}
+                      >
+                        <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500 w-5 text-center">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                            {entry.player!.full_name}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {getTeamName(
+                              gameState.teams,
+                              entry.player!.team_id ?? "",
+                            )}
+                          </p>
+                        </div>
+                        <span className="font-heading font-bold text-lg text-accent-500 tabular-nums">
+                          {entry.goals}
+                        </span>
                       </div>
-                      <span className="font-heading font-bold text-lg text-accent-500 tabular-nums">
-                        {entry.goals}
-                      </span>
-                    </div>
+                    </ContextMenu>
                   ))}
                 </div>
               )}
@@ -436,46 +515,51 @@ export default function TournamentsTab({
                     const isUser = entry.team_id === userTeamId;
                     const gd = entry.goals_for - entry.goals_against;
                     return (
-                      <tr
+                      <ContextMenu
+                        items={buildStandingMenuItems(entry.team_id)}
                         key={entry.team_id}
-                        onClick={() => onSelectTeam(entry.team_id)}
-                        className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                       >
-                        <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400">
-                          {idx + 1}
-                        </td>
-                        <td
-                          className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                        <tr
+                          onClick={() => onSelectTeam(entry.team_id)}
+                          className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                          data-testid={`tournaments-standing-${entry.team_id}`}
                         >
-                          {getTeamName(gameState.teams, entry.team_id)}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.played}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.won}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.drawn}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.lost}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.goals_for}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.goals_against}
-                        </td>
-                        <td
-                          className={`py-3 px-4 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
-                        >
-                          {gd > 0 ? `+${gd}` : gd}
-                        </td>
-                        <td className="py-3 px-4 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                          {entry.points}
-                        </td>
-                      </tr>
+                          <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400">
+                            {idx + 1}
+                          </td>
+                          <td
+                            className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, entry.team_id)}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.played}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.won}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.drawn}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.lost}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.goals_for}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.goals_against}
+                          </td>
+                          <td
+                            className={`py-3 px-4 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500"}`}
+                          >
+                            {gd > 0 ? `+${gd}` : gd}
+                          </td>
+                          <td className="py-3 px-4 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
+                            {entry.points}
+                          </td>
+                        </tr>
+                      </ContextMenu>
                     );
                   })}
                 </tbody>
@@ -503,34 +587,36 @@ export default function TournamentsTab({
                       f.away_team_id === userTeamId;
                     const completed = f.status === "Completed";
                     return (
-                      <div
-                        key={f.id}
-                        className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
-                      >
-                        <span
-                          onClick={() => onSelectTeam(f.home_team_id)}
-                          className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                      <ContextMenu items={buildFixtureMenuItems(f)} key={f.id}>
+                        <div
+                          className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
+                          data-testid={`tournaments-fixture-${f.id}`}
                         >
-                          {getTeamName(gameState.teams, f.home_team_id)}
-                        </span>
-                        <div className="w-24 text-center mx-3">
-                          {completed && f.result ? (
-                            <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
-                              {f.result.home_goals} - {f.result.away_goals}
-                            </span>
-                          ) : (
-                            <Badge variant="neutral" size="sm">
-                              vs
-                            </Badge>
-                          )}
+                          <span
+                            onClick={() => onSelectTeam(f.home_team_id)}
+                            className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, f.home_team_id)}
+                          </span>
+                          <div className="w-24 text-center mx-3">
+                            {completed && f.result ? (
+                              <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
+                                {f.result.home_goals} - {f.result.away_goals}
+                              </span>
+                            ) : (
+                              <Badge variant="neutral" size="sm">
+                                vs
+                              </Badge>
+                            )}
+                          </div>
+                          <span
+                            onClick={() => onSelectTeam(f.away_team_id)}
+                            className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, f.away_team_id)}
+                          </span>
                         </div>
-                        <span
-                          onClick={() => onSelectTeam(f.away_team_id)}
-                          className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                        >
-                          {getTeamName(gameState.teams, f.away_team_id)}
-                        </span>
-                      </div>
+                      </ContextMenu>
                     );
                   })}
                 </div>
@@ -546,54 +632,85 @@ export default function TournamentsTab({
             <>
               <AwardCard
                 icon={<Zap className="w-5 h-5 text-accent-500" />}
-                title="Golden Boot"
-                subtitle="Top Scorers"
+                title={t("tournaments.awards.goldenBootTitle")}
+                subtitle={t("tournaments.awards.goldenBootSubtitle")}
                 entries={awards.golden_boot}
-                unit="goals"
+                unit={t("tournaments.awards.units.goals")}
+                emptyText={t("tournaments.awards.noDataYet")}
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
               <AwardCard
                 icon={<Star className="w-5 h-5 text-purple-500" />}
-                title="Assist King"
-                subtitle="Most Assists"
+                title={t("tournaments.awards.assistKingTitle")}
+                subtitle={t("tournaments.awards.assistKingSubtitle")}
                 entries={awards.assist_king}
-                unit="assists"
+                unit={t("tournaments.awards.units.assists")}
+                emptyText={t("tournaments.awards.noDataYet")}
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
               <AwardCard
                 icon={<Trophy className="w-5 h-5 text-primary-500" />}
-                title="Player of the Year"
-                subtitle="Best Avg Rating (min 5 apps)"
+                title={t("tournaments.awards.playerOfYearTitle")}
+                subtitle={t("tournaments.awards.playerOfYearSubtitle")}
                 entries={awards.player_of_year}
-                unit="rating"
+                unit={t("tournaments.awards.units.rating")}
+                emptyText={t("tournaments.awards.noDataYet")}
                 decimal
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
               <AwardCard
                 icon={<Shield className="w-5 h-5 text-blue-500" />}
-                title="Golden Glove"
-                subtitle="Most Clean Sheets (GKs)"
+                title={t("tournaments.awards.goldenGloveTitle")}
+                subtitle={t("tournaments.awards.goldenGloveSubtitle")}
                 entries={awards.clean_sheet_king}
-                unit="clean sheets"
+                unit={t("tournaments.awards.units.cleanSheets")}
+                emptyText={t("tournaments.awards.noDataYet")}
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
               <AwardCard
                 icon={<Users className="w-5 h-5 text-green-500" />}
-                title="Ever Present"
-                subtitle="Most Appearances"
+                title={t("tournaments.awards.everPresentTitle")}
+                subtitle={t("tournaments.awards.everPresentSubtitle")}
                 entries={awards.most_appearances}
-                unit="apps"
+                unit={t("tournaments.awards.units.apps")}
+                emptyText={t("tournaments.awards.noDataYet")}
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
               <AwardCard
                 icon={<Star className="w-5 h-5 text-amber-500" />}
-                title="Young Player of the Year"
-                subtitle="Best U21 Avg Rating (min 3 apps)"
+                title={t("tournaments.awards.youngPlayerTitle")}
+                subtitle={t("tournaments.awards.youngPlayerSubtitle")}
                 entries={awards.young_player}
-                unit="rating"
+                unit={t("tournaments.awards.units.rating")}
+                emptyText={t("tournaments.awards.noDataYet")}
                 decimal
+                onSelectPlayer={onSelectPlayer}
+                onSelectTeam={onSelectTeam}
               />
             </>
+          ) : awardsLoadState === "error" ? (
+            <div className="col-span-full text-center py-12">
+              <Award className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
+              <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
+                {t("tournaments.awards.noDataYet")}
+              </p>
+              <button
+                onClick={() => setAwardsRetryCount((count) => count + 1)}
+                className="px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <div className="col-span-full text-center py-12">
               <Award className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
               <p className="text-sm text-gray-400 dark:text-gray-500">
-                Loading awards...
+                {t("tournaments.loadingAwards")}
               </p>
             </div>
           )}
@@ -609,15 +726,34 @@ function AwardCard({
   subtitle,
   entries,
   unit,
+  emptyText,
   decimal,
+  onSelectPlayer,
+  onSelectTeam,
 }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   entries: AwardEntry[];
   unit: string;
+  emptyText: string;
   decimal?: boolean;
+  onSelectPlayer?: (id: string) => void;
+  onSelectTeam: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+  const buildAwardMenuItems = (entry: AwardEntry) => {
+    const items = [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))];
+
+    if (typeof onSelectPlayer === "function") {
+      items.unshift(
+        buildViewProfileMenuItem(t, () => onSelectPlayer(entry.player_id)),
+      );
+    }
+
+    return items;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -634,51 +770,53 @@ function AwardCard({
       <CardBody className="p-0">
         {entries.length === 0 ? (
           <p className="p-4 text-sm text-gray-400 dark:text-gray-500 text-center">
-            No data yet
+            {emptyText}
           </p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-navy-600">
             {entries.map((entry, i) => (
-              <div
+              <ContextMenu
+                items={buildAwardMenuItems(entry)}
                 key={entry.player_id}
-                className="flex items-center px-4 py-2.5 gap-3"
               >
-                <span
-                  className={`font-heading font-bold text-sm w-5 text-center ${
-                    i === 0
+                <div
+                  className="flex items-center px-4 py-2.5 gap-3"
+                  data-testid={`tournaments-award-entry-${entry.player_id}`}
+                >
+                  <span
+                    className={`font-heading font-bold text-sm w-5 text-center ${i === 0
                       ? "text-accent-500"
                       : "text-gray-400 dark:text-gray-500"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-semibold truncate ${
-                      i === 0
+                      }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm font-semibold truncate ${i === 0
                         ? "text-gray-900 dark:text-gray-100"
                         : "text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {entry.player_name}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    {entry.team_name}
-                  </p>
-                </div>
-                <span
-                  className={`font-heading font-bold tabular-nums ${
-                    i === 0
+                        }`}
+                    >
+                      {entry.player_name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {entry.team_name}
+                    </p>
+                  </div>
+                  <span
+                    className={`font-heading font-bold tabular-nums ${i === 0
                       ? "text-lg text-accent-500"
                       : "text-sm text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  {decimal ? entry.value.toFixed(2) : entry.value}
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 w-12">
-                  {unit}
-                </span>
-              </div>
+                      }`}
+                  >
+                    {decimal ? entry.value.toFixed(2) : entry.value}
+                  </span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 w-12">
+                    {unit}
+                  </span>
+                </div>
+              </ContextMenu>
             ))}
           </div>
         )}

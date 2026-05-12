@@ -15,6 +15,12 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.activeScoutingAssignments") {
         return "Active Scouting Assignments";
       }
+      if (key === "squad.viewProfile") {
+        return "View profile";
+      }
+      if (key === "common.viewTeam") {
+        return "View team";
+      }
       if (key === "scouting.scoutLabel") {
         return params?.name ? `Scout ${params.name}` : "Scout";
       }
@@ -176,5 +182,28 @@ describe("ScoutingAssignmentsList", () => {
     fireEvent.click(screen.getByRole("button", { name: "John Smith" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  it("offers a context menu action to view the assigned player's team", () => {
+    const onSelectTeam = vi.fn();
+
+    render(
+      <ScoutingAssignmentsList
+        assignments={[createAssignment()]}
+        scouts={[createScout()]}
+        players={[createPlayer()]}
+        teams={[
+          createTeam(),
+          createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
+        ]}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={onSelectTeam}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("scouting-assignment-assignment-1"));
+    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
 });

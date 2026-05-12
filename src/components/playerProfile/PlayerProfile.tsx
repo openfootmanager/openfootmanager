@@ -127,7 +127,9 @@ export default function PlayerProfile({
     useState(false);
   const [hasConsumedInitialTerminationIntent, setHasConsumedInitialTerminationIntent] =
     useState(false);
-  const ovr = calcOvr(player, primaryPosition);
+  const ovr = player.ovr && player.ovr > 0
+    ? player.ovr
+    : calcOvr(player, primaryPosition);
   const age = getPlayerAge(player.date_of_birth);
   const teamName = getPlayerTeamName(
     gameState.teams,
@@ -178,6 +180,7 @@ export default function PlayerProfile({
   const scoutAvailability = getScoutAvailability({
     staff: gameState.staff,
     scoutingAssignments: gameState.scouting_assignments || [],
+    youthScoutingAssignments: gameState.youth_scouting_assignments || [],
     managerTeamId: gameState.manager.team_id,
     playerId: player.id,
     scoutStatus,

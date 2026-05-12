@@ -6,6 +6,8 @@ import {
   positionBadgeVariant,
 } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
+import ContextMenu from "../ContextMenu";
+import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, ProgressBar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
@@ -62,17 +64,23 @@ export default function TeamProfileRosterCard({
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {roster.map((player) => {
-                const ovr = calcOvr(
+                const ovr = player.ovr ?? calcOvr(
                   player,
                   player.natural_position || player.position,
                 );
                 const age = calcAge(player.date_of_birth);
-
-                return (
+                const contextItems = onSelectPlayer
+                  ? [buildViewProfileMenuItem(t, () => onSelectPlayer(player.id))]
+                  : [];
+                const playerRow = (
                   <tr
                     key={player.id}
+                    data-testid={`team-profile-roster-${player.id}`}
                     onClick={() => onSelectPlayer?.(player.id)}
-                    className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
+                    className={`group transition-colors ${onSelectPlayer
+                        ? "hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer"
+                        : ""
+                      }`}
                   >
                     <td className="py-3 px-5">
                       <Badge
@@ -120,21 +128,30 @@ export default function TeamProfileRosterCard({
                     )}
                     <td className="py-3 px-5">
                       <span
-                        className={`font-heading font-bold text-lg tabular-nums ${
-                          isOwnTeam
+                        className={`font-heading font-bold text-lg tabular-nums ${isOwnTeam
                             ? ovr >= 75
                               ? "text-primary-500"
                               : ovr >= 55
                                 ? "text-accent-500"
                                 : "text-gray-400"
                             : "text-gray-400"
-                        }`}
+                          }`}
                       >
                         {isOwnTeam ? ovr : "??"}
                       </span>
                     </td>
                   </tr>
                 );
+
+                if (contextItems.length > 0) {
+                  return (
+                    <ContextMenu items={contextItems} key={player.id}>
+                      {playerRow}
+                    </ContextMenu>
+                  );
+                }
+
+                return playerRow;
               })}
             </tbody>
           </table>

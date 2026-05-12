@@ -132,7 +132,7 @@ fn propose_renewal_internal(
 
     let mut game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let outcome = ofm_core::contracts::propose_renewal(
         &mut game,
@@ -170,7 +170,7 @@ fn delegate_renewals_internal(
 
     let mut game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let report = ofm_core::contracts::delegate_renewals(
         &mut game,
@@ -198,7 +198,7 @@ fn preview_renewal_financial_impact_internal(
 
     let game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let projection =
         ofm_core::contracts::project_renewal_financial_impact(&game, player_id, weekly_wage)?;
@@ -215,7 +215,7 @@ fn set_contract_exit_intent_internal(
 
     let mut game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     ofm_core::contracts::set_contract_exit_intent(&mut game, player_id, reason)?;
     state.set_game(game.clone());
@@ -231,7 +231,7 @@ fn clear_contract_exit_intent_internal(
 
     let mut game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     ofm_core::contracts::clear_contract_exit_intent(&mut game, player_id)?;
     state.set_game(game.clone());
@@ -250,7 +250,7 @@ fn preview_contract_termination_internal(
 
     let game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
     let preview = ofm_core::contracts::preview_contract_termination(&game, player_id)?;
 
     Ok(ContractTerminationPreviewCommandResponse { preview })
@@ -264,7 +264,7 @@ fn terminate_contract_now_internal(
 
     let mut game = state
         .get_game(|g: &Game| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let ContractTerminationResult {
         severance_cost,

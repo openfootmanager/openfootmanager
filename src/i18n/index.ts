@@ -10,14 +10,14 @@ import it from "./locales/it.json";
 import zhCN from "./locales/zh-CN.json";
 
 export const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "es", label: "Español" },
-  { code: "pt", label: "Português" },
-  { code: "fr", label: "Français" },
-  { code: "de", label: "Deutsch" },
-  { code: "it", label: "Italiano" },
-  { code: "pt-BR", label: "Português (Brasil)" },
-  { code: "zh-CN", label: "简体中文" },
+  { code: "en", labelKey: "settings.languages.en" },
+  { code: "es", labelKey: "settings.languages.es" },
+  { code: "pt", labelKey: "settings.languages.pt" },
+  { code: "fr", labelKey: "settings.languages.fr" },
+  { code: "de", labelKey: "settings.languages.de" },
+  { code: "it", labelKey: "settings.languages.it" },
+  { code: "pt-BR", labelKey: "settings.languages.ptBR" },
+  { code: "zh-CN", labelKey: "settings.languages.zhCN" },
 ] as const;
 
 const SUPPORTED_CODES = new Map(

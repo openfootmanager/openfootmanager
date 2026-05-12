@@ -16,6 +16,8 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.value") return "Value";
       if (key === "scouting.action") return "Action";
       if (key === "scouting.scoutBtn") return "Scout";
+      if (key === "scouting.previousPage") return "Previous page";
+      if (key === "scouting.nextPage") return "Next page";
       if (key === "scouting.noPlayersFound") return "No players found";
       if (key === "scouting.noScoutsFree") return "No scouts free";
       if (key === "scouting.scoutingInProgress") {
@@ -172,7 +174,7 @@ describe("ScoutingPlayerSearchCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "John Smith" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
 
-    fireEvent.click(screen.getByRole("button", { name: /Scout/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Scout$/i }));
     expect(onSendScout).toHaveBeenCalledWith("player-1");
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));

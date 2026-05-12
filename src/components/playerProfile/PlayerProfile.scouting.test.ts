@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ScoutingAssignment, StaffData } from "../../store/gameStore";
+import type {
+    ScoutingAssignment,
+    StaffData,
+    YouthScoutingAssignment,
+} from "../../store/gameStore";
 import { getScoutAvailability } from "./PlayerProfile.scouting";
 
 function createScout(overrides: Partial<StaffData> = {}): StaffData {
@@ -29,6 +33,7 @@ describe("PlayerProfile scouting helpers", () => {
         const availability = getScoutAvailability({
             staff: [createScout()],
             scoutingAssignments: [],
+            youthScoutingAssignments: [],
             managerTeamId: "team-1",
             playerId: "player-1",
             scoutStatus: "idle",
@@ -52,6 +57,7 @@ describe("PlayerProfile scouting helpers", () => {
         const availability = getScoutAvailability({
             staff: [createScout()],
             scoutingAssignments: assignments,
+            youthScoutingAssignments: [],
             managerTeamId: "team-1",
             playerId: "player-1",
             scoutStatus: "idle",
@@ -78,6 +84,33 @@ describe("PlayerProfile scouting helpers", () => {
                     days_remaining: 2,
                 },
             ],
+            youthScoutingAssignments: [],
+            managerTeamId: "team-1",
+            playerId: "player-1",
+            scoutStatus: "idle",
+        });
+
+        expect(availability.availableScout).toBeNull();
+        expect(availability.allBusy).toBe(true);
+        expect(availability.canScout).toBe(false);
+    });
+
+    it("treats scouts on youth assignments as busy", () => {
+        const youthAssignments: YouthScoutingAssignment[] = [
+            {
+                id: "youth-1",
+                scout_id: "scout-1",
+                region: "Domestic",
+                objective: "Balanced",
+                target_position: null,
+                days_remaining: 4,
+            },
+        ];
+
+        const availability = getScoutAvailability({
+            staff: [createScout()],
+            scoutingAssignments: [],
+            youthScoutingAssignments: youthAssignments,
             managerTeamId: "team-1",
             playerId: "player-1",
             scoutStatus: "idle",

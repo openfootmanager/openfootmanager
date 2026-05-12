@@ -303,15 +303,8 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // Start date: roughly a year after current start, or a few weeks from now
     let next_start = game.clock.current_date + Duration::days(28); // 4 weeks break
     let mut new_league = generate_league(&league_name, next_season, &team_ids, next_start);
-    if !user_team_id.is_empty() {
-        let opponents: Vec<String> = team_ids
-            .iter()
-            .filter(|team_id| team_id.as_str() != user_team_id)
-            .cloned()
-            .collect();
-        let friendlies = generate_preseason_friendlies(&user_team_id, &opponents, next_start, 3);
-        append_fixtures(&mut new_league, friendlies);
-    }
+    let friendlies = generate_preseason_friendlies(&team_ids, next_start, 4);
+    append_fixtures(&mut new_league, friendlies);
     game.league = Some(new_league);
 
     let preview_date = game.clock.current_date.to_rfc3339();

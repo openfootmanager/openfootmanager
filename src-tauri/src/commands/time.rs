@@ -10,7 +10,7 @@ use ofm_core::state::StateManager;
 fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
     let mut current_game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     info!(
         "[cmd] advance_time: date={}",
@@ -63,7 +63,7 @@ pub fn check_blocking_actions(state: State<'_, StateManager>) -> Result<serde_js
     log::debug!("[cmd] check_blocking_actions");
     let game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let blockers = compute_blocking_actions(&game);
     info!(
@@ -79,11 +79,11 @@ pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::V
     info!("[cmd] skip_to_match_day");
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
-    let user_team_id = game.manager.team_id.clone().ok_or("No team assigned")?;
+    let user_team_id = game.manager.team_id.clone().ok_or("be.error.noTeamAssigned")?;
     info!(
         "[cmd] skip_to_match_day: start_date={}, user_team_id={}",
         game.clock.current_date.format("%Y-%m-%d"),
@@ -423,10 +423,24 @@ mod tests {
             Some("warn")
         );
         assert_eq!(injured.get("tab").and_then(Value::as_str), Some("Squad"));
-        let injured_text = injured.get("text").and_then(Value::as_str).unwrap();
-        assert!(injured_text.contains("2 injured player(s)"));
-        assert!(injured_text.contains("Player 2"));
-        assert!(injured_text.contains("Player 5"));
+        assert_eq!(
+            injured.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.injuredXi")
+        );
+        assert_eq!(
+            injured
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            injured
+                .get("text_params")
+                .and_then(|params| params.get("players"))
+                .and_then(Value::as_str),
+            Some("Player 2, Player 5")
+        );
 
         let incomplete = blocker_by_id(&blockers, "incomplete_xi").unwrap();
         assert_eq!(
@@ -435,8 +449,15 @@ mod tests {
         );
         assert_eq!(incomplete.get("tab").and_then(Value::as_str), Some("Squad"));
         assert_eq!(
-            incomplete.get("text").and_then(Value::as_str),
-            Some("Starting XI has only 9 healthy players — set your lineup")
+            incomplete.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.incompleteXi")
+        );
+        assert_eq!(
+            incomplete
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("9")
         );
     }
 
@@ -476,9 +497,24 @@ mod tests {
             planned_exit.get("tab").and_then(Value::as_str),
             Some("Squad")
         );
-        let text = planned_exit.get("text").and_then(Value::as_str).unwrap();
-        assert!(text.contains("10 healthy player(s)"));
-        assert!(text.contains("Player 11"));
+        assert_eq!(
+            planned_exit.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.plannedContractExitCrisis")
+        );
+        assert_eq!(
+            planned_exit
+                .get("text_params")
+                .and_then(|params| params.get("healthyPlayers"))
+                .and_then(Value::as_str),
+            Some("10")
+        );
+        assert_eq!(
+            planned_exit
+                .get("text_params")
+                .and_then(|params| params.get("players"))
+                .and_then(Value::as_str),
+            Some("Player 11")
+        );
     }
 
     #[test]
@@ -529,8 +565,15 @@ mod tests {
         assert_eq!(urgent.get("severity").and_then(Value::as_str), Some("info"));
         assert_eq!(urgent.get("tab").and_then(Value::as_str), Some("Inbox"));
         assert_eq!(
-            urgent.get("text").and_then(Value::as_str),
-            Some("2 urgent unread message(s)")
+            urgent.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.urgentMessages")
+        );
+        assert_eq!(
+            urgent
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("2")
         );
     }
 
@@ -572,12 +615,6 @@ mod tests {
             Some("Squad")
         );
 
-        let text = contract_blocker
-            .get("text")
-            .and_then(Value::as_str)
-            .unwrap();
-        assert!(text.contains("Player 10"));
-        assert!(text.contains("Player 11"));
         assert_eq!(
             contract_blocker.get("text_key").and_then(Value::as_str),
             Some("notifications.blockers.keyContractRisk")
@@ -624,9 +661,6 @@ mod tests {
             Some("Finances")
         );
 
-        let text = finance_blocker.get("text").and_then(Value::as_str).unwrap();
-        assert!(text.contains("60000"));
-        assert!(text.contains("wage budget"));
         assert_eq!(
             finance_blocker.get("text_key").and_then(Value::as_str),
             Some("notifications.blockers.contractWageRisk")

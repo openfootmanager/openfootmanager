@@ -10,6 +10,16 @@ pub struct ScoutingAssignmentRow {
     pub days_remaining: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YouthScoutingAssignmentRow {
+    pub id: String,
+    pub scout_id: String,
+    pub region: String,
+    pub objective: String,
+    pub target_position: Option<String>,
+    pub days_remaining: u32,
+}
+
 /// Insert or replace a scouting assignment row.
 pub fn upsert_scouting(conn: &Connection, sa: &ScoutingAssignmentRow) -> Result<(), String> {
     conn.execute(
@@ -54,6 +64,67 @@ pub fn load_all_scouting(conn: &Connection) -> Result<Vec<ScoutingAssignmentRow>
     let mut assignments = Vec::new();
     for row in rows {
         assignments.push(row.map_err(|e| format!("Failed to read scouting: {}", e))?);
+    }
+    Ok(assignments)
+}
+
+pub fn upsert_youth_scouting(
+    conn: &Connection,
+    assignment: &YouthScoutingAssignmentRow,
+) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO youth_scouting_assignments (id, scout_id, region, objective, target_position, days_remaining)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            assignment.id,
+            assignment.scout_id,
+            assignment.region,
+            assignment.objective,
+            assignment.target_position,
+            assignment.days_remaining,
+        ],
+    )
+    .map_err(|e| format!("Failed to upsert youth scouting assignment: {}", e))?;
+    Ok(())
+}
+
+pub fn upsert_youth_scouting_list(
+    conn: &Connection,
+    assignments: &[YouthScoutingAssignmentRow],
+) -> Result<(), String> {
+    conn.execute("DELETE FROM youth_scouting_assignments", [])
+        .map_err(|e| format!("Failed to clear youth scouting assignments: {}", e))?;
+    for assignment in assignments {
+        upsert_youth_scouting(conn, assignment)?;
+    }
+    Ok(())
+}
+
+pub fn load_all_youth_scouting(
+    conn: &Connection,
+) -> Result<Vec<YouthScoutingAssignmentRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, scout_id, region, objective, target_position, days_remaining FROM youth_scouting_assignments",
+        )
+        .map_err(|e| format!("Failed to prepare youth scouting query: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(YouthScoutingAssignmentRow {
+                id: row.get(0)?,
+                scout_id: row.get(1)?,
+                region: row.get(2)?,
+                objective: row.get(3)?,
+                target_position: row.get(4)?,
+                days_remaining: row.get(5)?,
+            })
+        })
+        .map_err(|e| format!("Failed to query youth scouting: {}", e))?;
+
+    let mut assignments = Vec::new();
+    for row in rows {
+        assignments.push(row.map_err(|e| format!("Failed to read youth scouting: {}", e))?);
     }
     Ok(assignments)
 }
@@ -120,5 +191,26 @@ mod tests {
         let db = test_db();
         let loaded = load_all_scouting(db.conn()).unwrap();
         assert!(loaded.is_empty());
+    }
+
+    #[test]
+    fn test_upsert_and_load_youth_scouting() {
+        let db = test_db();
+        let assignments = vec![YouthScoutingAssignmentRow {
+            id: "ysa-001".to_string(),
+            scout_id: "scout-001".to_string(),
+            region: "Domestic".to_string(),
+            objective: "Balanced".to_string(),
+            target_position: Some("Defender".to_string()),
+            days_remaining: 5,
+        }];
+
+        upsert_youth_scouting_list(db.conn(), &assignments).unwrap();
+        let loaded = load_all_youth_scouting(db.conn()).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].region, "Domestic");
+        assert_eq!(loaded[0].objective, "Balanced");
+        assert_eq!(loaded[0].target_position.as_deref(), Some("Defender"));
+        assert_eq!(loaded[0].days_remaining, 5);
     }
 }

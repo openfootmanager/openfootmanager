@@ -469,8 +469,8 @@ fn contract_warning_cadence_changes_by_horizon() {
         twelve_month_game
             .messages
             .iter()
-            .any(|m| m.id == "contract_concern_p_fwd0_12m"),
-        "Should generate a 12-month contract warning"
+            .all(|m| m.id != "contract_concern_p_fwd0_12m"),
+        "Should defer per-player contract warnings until six months"
     );
 
     let mut six_month_game = make_game();
@@ -583,8 +583,8 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
         .morale;
 
     assert!(
-        twelve_month_morale < 80,
-        "Even the early warning window should apply some morale pressure"
+        twelve_month_morale == 80,
+        "Per-player morale pressure should wait until the six-month window"
     );
     assert!(
         final_weeks_morale < twelve_month_morale,
@@ -593,32 +593,42 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
 }
 
 #[test]
-fn seeding_first_day_contract_concerns_adds_messages_without_extra_morale_pressure() {
+fn takeover_contract_review_replaces_first_day_contract_spam() {
     let mut game = make_game();
-    let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
-    player.morale = 80;
-    player.contract_end = Some(
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .contract_end = Some(
         (game.clock.current_date + chrono::Duration::days(20))
             .format("%Y-%m-%d")
             .to_string(),
     );
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd1")
+        .unwrap()
+        .contract_end = Some(
+        (game.clock.current_date + chrono::Duration::days(150))
+            .format("%Y-%m-%d")
+            .to_string(),
+    );
 
-    player_events::generate_contract_concern_messages(&mut game, false);
+    player_events::generate_takeover_contract_review_message(&mut game);
 
     assert!(
         game.messages
             .iter()
-            .any(|message| message.id == "contract_concern_p_fwd0_final"),
-        "First-day contract concern should be seeded immediately"
+            .any(|message| message.id == "contract_review_takeover_team1"),
+        "Takeover should seed one contract review message"
     );
     assert_eq!(
-        game.players
+        game.messages
             .iter()
-            .find(|p| p.id == "p_fwd0")
-            .unwrap()
-            .morale,
-        80,
-        "Seeding the first-day inbox should not apply the daily morale penalty twice"
+            .filter(|message| message.id.starts_with("contract_concern_"))
+            .count(),
+        0,
+        "Takeover should not dump individual contract concern messages into the inbox"
     );
 }
 

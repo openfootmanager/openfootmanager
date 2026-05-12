@@ -42,12 +42,12 @@ function createAssignment(
 }
 
 describe("ScoutingTab.helpers", () => {
-  it("maps judging ability tiers to scout slot counts", () => {
+  it("caps every scout to one assignment", () => {
     expect(scoutMaxSlots(10)).toBe(1);
-    expect(scoutMaxSlots(20)).toBe(2);
-    expect(scoutMaxSlots(40)).toBe(3);
-    expect(scoutMaxSlots(60)).toBe(4);
-    expect(scoutMaxSlots(80)).toBe(5);
+    expect(scoutMaxSlots(20)).toBe(1);
+    expect(scoutMaxSlots(40)).toBe(1);
+    expect(scoutMaxSlots(60)).toBe(1);
+    expect(scoutMaxSlots(80)).toBe(1);
   });
 
   it("counts assignments for a specific scout", () => {
@@ -61,19 +61,16 @@ describe("ScoutingTab.helpers", () => {
     expect(scoutAssignmentCount(assignments, "staff-2")).toBe(1);
   });
 
-  it("returns only scouts with remaining assignment capacity", () => {
+  it("returns only scouts without an active assignment", () => {
     const scouts = [
       createScout({ id: "staff-1", attributes: { coaching: 20, judging_ability: 20, judging_potential: 70, physiotherapy: 10 } }),
       createScout({ id: "staff-2", attributes: { coaching: 20, judging_ability: 80, judging_potential: 70, physiotherapy: 10 } }),
     ];
     const assignments = [
       createAssignment({ id: "a1", scout_id: "staff-1" }),
-      createAssignment({ id: "a2", scout_id: "staff-1" }),
       createAssignment({ id: "a3", scout_id: "staff-2" }),
     ];
 
-    expect(calculateAvailableScouts(scouts, assignments).map((scout) => scout.id)).toEqual([
-      "staff-2",
-    ]);
+    expect(calculateAvailableScouts(scouts, assignments)).toEqual([]);
   });
 });

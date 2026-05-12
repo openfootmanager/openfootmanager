@@ -63,11 +63,11 @@ pub(super) fn opponent_name(state: &StateManager, opponent_team_id: &str) -> Str
 pub(super) fn ensure_team_exists(state: &StateManager, team_id: &str) -> Result<(), String> {
     let team_exists = state
         .get_game(|game| game.teams.iter().any(|team| team.id == team_id))
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     if team_exists {
         Ok(())
     } else {
-        Err("Team not found".to_string())
+        Err("be.error.teamNotFound".to_string())
     }
 }

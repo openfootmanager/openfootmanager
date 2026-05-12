@@ -3,7 +3,7 @@ use domain::league::League;
 use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::news::NewsArticle;
-use domain::player::Player;
+use domain::player::{Player, Position};
 use domain::season::SeasonContext;
 use domain::staff::Staff;
 use domain::team::Team;
@@ -16,6 +16,7 @@ pub enum ObjectiveType {
     LeaguePosition,
     Wins,
     GoalsScored,
+    FinancialStability,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,33 @@ pub struct ScoutingAssignment {
     pub id: String,
     pub scout_id: String,
     pub player_id: String,
+    pub days_remaining: u32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum YouthScoutingRegion {
+    #[default]
+    Domestic,
+    International,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum YouthScoutingObjective {
+    #[default]
+    Balanced,
+    HighPotential,
+    ReadySoon,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YouthScoutingAssignment {
+    pub id: String,
+    pub scout_id: String,
+    #[serde(default)]
+    pub region: YouthScoutingRegion,
+    #[serde(default)]
+    pub objective: YouthScoutingObjective,
+    pub target_position: Option<Position>,
     pub days_remaining: u32,
 }
 
@@ -52,6 +80,8 @@ pub struct Game {
     pub league: Option<League>,
     #[serde(default)]
     pub scouting_assignments: Vec<ScoutingAssignment>,
+    #[serde(default)]
+    pub youth_scouting_assignments: Vec<YouthScoutingAssignment>,
     #[serde(default)]
     pub board_objectives: Vec<BoardObjective>,
     #[serde(default)]
@@ -85,6 +115,7 @@ impl Game {
             news: vec![],
             league: None,
             scouting_assignments: vec![],
+            youth_scouting_assignments: vec![],
             board_objectives: vec![],
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,

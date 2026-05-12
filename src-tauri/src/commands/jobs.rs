@@ -8,7 +8,7 @@ pub fn get_available_jobs(state: State<'_, StateManager>) -> Result<Vec<JobOppor
     info!("[cmd] get_available_jobs");
     let game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
     Ok(job_offers::get_available_jobs(&game))
 }
 
@@ -20,7 +20,7 @@ pub fn apply_for_job(
     info!("[cmd] apply_for_job: team_id={}", team_id);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let result = job_offers::apply_for_job(&mut game, &team_id);
     state.set_game(game.clone());

@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "audit:i18n": "node scripts/audit-i18n.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

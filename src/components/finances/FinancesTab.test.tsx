@@ -31,6 +31,30 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.pendingSponsorOffers") return "Pending Offers";
       if (key === "finances.noPendingSponsorOffers")
         return "No pending sponsor offers";
+      if (key === "finances.pitchSponsor") return "Pitch Sponsor";
+      if (key === "finances.sponsorPitchDescription")
+        return "Ask the commercial team to chase a short-term sponsor deal.";
+      if (key === "finances.marketingCampaign") return "Marketing Campaign";
+      if (key === "finances.launchMarketingCampaign")
+        return "Launch Campaign";
+      if (key === "finances.marketingCampaignDescription")
+        return "Push a one-off merchandise and outreach campaign for immediate cash.";
+      if (key === "finances.marketingCampaignUnavailable")
+        return "Marketing campaigns are reserved for clubs under wage or cash pressure.";
+      if (key === "finances.marketingCampaignCoolingDown")
+        return `Marketing campaign available again in ${params?.days} days`;
+      if (key === "finances.marketingCampaignSummary")
+        return `Campaign netted ${params?.netIncome} after ${params?.cost} in spend (${params?.grossRevenue} gross). Cooldown: ${params?.days} days`;
+      if (key === "finances.sponsorPitchUnavailable")
+        return "Sponsor pitches are reserved for clubs under wage or cash pressure.";
+      if (key === "finances.sponsorPitchActiveSponsor")
+        return "An active sponsorship is already in place.";
+      if (key === "finances.sponsorPitchPendingOffer")
+        return "Review the pending offer first.";
+      if (key === "finances.sponsorPitchSummary")
+        return `${params?.sponsor} will pay ${params?.amount} for ${params?.weeks} weeks`;
+      if (key === "finances.boardSupportSummary")
+        return `Board could inject ${params?.amount}, cut transfer budget by ${params?.transferBudgetReduction}, confidence -${params?.satisfactionPenalty}`;
       if (key === "finances.cashFlow") return "Cash Flow";
       if (key === "finances.weeklyWageSpend") return "Weekly Wage Spend";
       if (key === "finances.weeklySponsorIncome")
@@ -102,6 +126,10 @@ vi.mock("react-i18next", () => ({
 }));
 
 const mockedInvoke = vi.mocked(invoke);
+
+function pendingPromise<T>(): Promise<T> {
+  return new Promise(() => {});
+}
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -302,6 +330,13 @@ function createGameState(
 describe("FinancesTab facilities", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return pendingPromise();
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
   });
 
   it("renders facility cards with levels and disables upgrades when funds are insufficient", () => {
@@ -337,7 +372,17 @@ describe("FinancesTab facilities", () => {
       season_expenses: 750000,
     });
     const onGameUpdate = vi.fn();
-    mockedInvoke.mockResolvedValue(updatedState);
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return pendingPromise();
+      }
+
+      if (command === "upgrade_facility") {
+        return Promise.resolve(updatedState);
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
 
     render(
       <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
@@ -404,9 +449,19 @@ describe("FinancesTab facilities", () => {
     );
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValue({
-      game: updatedState,
-      effect: "Offer accepted",
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return pendingPromise();
+      }
+
+      if (command === "resolve_message_action") {
+        return Promise.resolve({
+          game: updatedState,
+          effect: "Offer accepted",
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
     render(
@@ -424,6 +479,291 @@ describe("FinancesTab facilities", () => {
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("requests a sponsor pitch for a pressured club and publishes the updated state", async () => {
+    const initialState = createGameState(
+      { wage_budget: 50000 },
+      [],
+      [createPlayer({ wage: 5200000 })],
+    );
+    const updatedState = createGameState(
+      { wage_budget: 50000 },
+      [createSponsorOfferMessage()],
+      [createPlayer({ wage: 5200000 })],
+    );
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve({
+          snapshot: {
+            annual_wage_bill: 5200000,
+            weekly_wage_spend: 100000,
+            weekly_wage_budget: 962,
+            weekly_recurring_income: 0,
+            weekly_sponsor_income: 0,
+            projected_weekly_net: -100000,
+            cash_runway_weeks: 9,
+            wage_budget_usage_percent: 10400,
+            currently_in_debt: false,
+            currently_over_budget: true,
+            wage_budget_status: "critical",
+            runway_status: "watch",
+            overall_status: "critical",
+            marketing_campaign_cooldown_days_remaining: 0,
+          },
+        });
+      }
+
+      if (command === "request_sponsor_pitch") {
+        return Promise.resolve({
+          game: updatedState,
+          result: {
+            message_id: "sponsor_pitch_2025-01-20",
+            sponsor_name: "Summit Capital",
+            weekly_amount: 85000,
+            duration_weeks: 12,
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch");
+    });
+
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    expect(
+      screen.getByText("Summit Capital will pay €85,000 for 12 weeks"),
+    ).toBeInTheDocument();
+  });
+
+  it("launches a marketing campaign for a pressured club and publishes the updated state", async () => {
+    const initialState = createGameState(
+      { wage_budget: 50000, finance: -30000 },
+      [],
+      [createPlayer({ wage: 5200000 })],
+    );
+    const updatedState = createGameState(
+      { wage_budget: 50000, finance: 82500 },
+      [],
+      [createPlayer({ wage: 5200000 })],
+    );
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve({
+          snapshot: {
+            annual_wage_bill: 5200000,
+            weekly_wage_spend: 100000,
+            weekly_wage_budget: 962,
+            weekly_recurring_income: 0,
+            weekly_sponsor_income: 0,
+            projected_weekly_net: -100000,
+            cash_runway_weeks: 3,
+            wage_budget_usage_percent: 10400,
+            currently_in_debt: true,
+            currently_over_budget: true,
+            wage_budget_status: "critical",
+            runway_status: "critical",
+            overall_status: "critical",
+            marketing_campaign_cooldown_days_remaining: 0,
+          },
+        });
+      }
+
+      if (command === "request_marketing_campaign") {
+        return Promise.resolve({
+          game: updatedState,
+          result: {
+            message_id: "marketing_campaign_2025-06-16",
+            gross_revenue: 150000,
+            campaign_cost: 37500,
+            net_income: 112500,
+            cooldown_days: 28,
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign");
+    });
+
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    expect(
+      screen.getByText(
+        "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("renders recovery previews from the backend finance snapshot", async () => {
+    const initialState = createGameState(
+      { wage_budget: 50000, finance: -30000 },
+      [],
+      [createPlayer({ wage: 5200000 })],
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve({
+          snapshot: {
+            annual_wage_bill: 5200000,
+            weekly_wage_spend: 100000,
+            weekly_wage_budget: 962,
+            weekly_recurring_income: 0,
+            weekly_sponsor_income: 0,
+            projected_weekly_net: -100000,
+            cash_runway_weeks: 3,
+            wage_budget_usage_percent: 10400,
+            currently_in_debt: true,
+            currently_over_budget: true,
+            wage_budget_status: "critical",
+            runway_status: "critical",
+            overall_status: "critical",
+            marketing_campaign_cooldown_days_remaining: 0,
+          },
+          previews: {
+            board_support: {
+              support_amount: 150000,
+              transfer_budget_reduction: 75000,
+              satisfaction_penalty: 12,
+            },
+            sponsor_pitch: {
+              sponsor_name: "Summit Capital",
+              weekly_amount: 85000,
+              duration_weeks: 12,
+            },
+            marketing_campaign: {
+              gross_revenue: 150000,
+              campaign_cost: 37500,
+              net_income: 112500,
+              cooldown_days: 28,
+            },
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<FinancesTab gameState={initialState} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Board could inject €150,000, cut transfer budget by €75,000, confidence -12",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Summit Capital will pay €85,000 for 12 weeks"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("disables the marketing campaign action while the campaign is cooling down", async () => {
+    const initialState = createGameState(
+      { wage_budget: 50000, finance: -30000 },
+      [],
+      [createPlayer({ wage: 5200000 })],
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve({
+          snapshot: {
+            annual_wage_bill: 5200000,
+            weekly_wage_spend: 100000,
+            weekly_wage_budget: 962,
+            weekly_recurring_income: 0,
+            weekly_sponsor_income: 0,
+            projected_weekly_net: -100000,
+            cash_runway_weeks: 3,
+            wage_budget_usage_percent: 10400,
+            currently_in_debt: true,
+            currently_over_budget: true,
+            wage_budget_status: "critical",
+            runway_status: "critical",
+            overall_status: "critical",
+            marketing_campaign_cooldown_days_remaining: 9,
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<FinancesTab gameState={initialState} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Launch Campaign" }),
+      ).toBeDisabled();
+    });
+
+    expect(
+      screen.getByText("Marketing campaign available again in 9 days"),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks facility upgrades when the backend reports warning-level financial distress", async () => {
+    const gameState = createGameState({ finance: 1000000 });
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return Promise.resolve({
+          snapshot: {
+            annual_wage_bill: 88400,
+            weekly_wage_spend: 1700,
+            weekly_wage_budget: 38461,
+            weekly_recurring_income: 0,
+            weekly_sponsor_income: 0,
+            projected_weekly_net: -1700,
+            cash_runway_weeks: 8,
+            wage_budget_usage_percent: 4,
+            currently_in_debt: false,
+            currently_over_budget: false,
+            wage_budget_status: "stable",
+            runway_status: "warning",
+            overall_status: "warning",
+            marketing_campaign_cooldown_days_remaining: 0,
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(<FinancesTab gameState={gameState} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Upgrade" })[0]).toBeDisabled();
+    });
   });
 
   it("renders a cash-flow projection panel using wages, sponsorship income, and runway", () => {
@@ -549,14 +889,24 @@ describe("FinancesTab facilities", () => {
     );
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValue({
-      game: updatedState,
-      report: {
-        success_count: 1,
-        failure_count: 0,
-        stalled_count: 1,
-        cases: [],
-      },
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") {
+        return pendingPromise();
+      }
+
+      if (command === "delegate_renewals") {
+        return Promise.resolve({
+          game: updatedState,
+          report: {
+            success_count: 1,
+            failure_count: 0,
+            stalled_count: 1,
+            cases: [],
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
     render(

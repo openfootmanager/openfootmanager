@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, StaffData, TeamData } from "../../store/gameStore";
@@ -22,6 +22,11 @@ vi.mock("react-i18next", () => ({
       if (key === "staff.noAvailableStaff") return "No available staff";
       if (key === "staff.releaseStaff") return "Release staff";
       if (key === "staff.hireStaff") return "Hire staff";
+      if (key === "staff.openScoutingWorkflow") return "Open scouting workflow";
+      if (key === "staff.activeAssignment") return "active assignment";
+      if (key === "staff.activeAssignments") return "active assignments";
+      if (key === "staff.youthSearch") return "youth search";
+      if (key === "staff.youthSearches") return "youth searches";
       if (key === "common.age") return "Age";
       if (key === "staff.best") return "Best";
       if (key.startsWith("staff.roles.")) return key.replace("staff.roles.", "");
@@ -172,5 +177,91 @@ describe("StaffTab", () => {
       expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
+  });
+
+  it("offers a hire action from the staff card context menu", async () => {
+    const updatedState = createGameState([]);
+    const onGameUpdate = vi.fn();
+    invokeMock.mockResolvedValue(updatedState);
+
+    render(
+      <StaffTab
+        gameState={createGameState([
+          createStaff({ id: "staff-2", first_name: "Sam", last_name: "Scout", role: "Scout", team_id: null }),
+        ])}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
+    fireEvent.contextMenu(screen.getByTestId("staff-card-staff-2"));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("button", {
+        name: "Hire staff",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("offers a release action from the staff card context menu", async () => {
+    const updatedState = createGameState([]);
+    const onGameUpdate = vi.fn();
+    invokeMock.mockResolvedValue(updatedState);
+
+    render(
+      <StaffTab
+        gameState={createGameState([createStaff()])}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("staff-card-staff-1"));
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByRole("button", {
+        name: "Release staff",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("release_staff", { staffId: "staff-1" });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("shows scout workload details and opens the scouting workflow", () => {
+    const onNavigate = vi.fn();
+
+    render(
+      <StaffTab
+        gameState={{
+          ...createGameState([
+            createStaff({
+              id: "staff-2",
+              first_name: "Sam",
+              last_name: "Scout",
+              role: "Scout",
+            }),
+          ]),
+          scouting_assignments: [
+            { id: "sa-1", scout_id: "staff-2", player_id: "player-1", days_remaining: 2 },
+          ],
+          youth_scouting_assignments: [
+            { id: "ysa-1", scout_id: "staff-2", region: "Domestic", objective: "Balanced", target_position: "Defender", days_remaining: 5 },
+          ],
+        }}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    expect(screen.getByText("2 active assignments")).toBeInTheDocument();
+    expect(screen.getByText("1 youth search")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open scouting workflow" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("Scouting");
   });
 });

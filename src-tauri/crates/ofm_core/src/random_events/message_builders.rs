@@ -6,7 +6,7 @@ use rand::RngExt;
 // Message builders
 // ---------------------------------------------------------------------------
 
-pub(super) fn sponsor_offer_message(
+pub(crate) fn sponsor_offer_message(
     msg_id: &str,
     team_name: &str,
     sponsor: &str,

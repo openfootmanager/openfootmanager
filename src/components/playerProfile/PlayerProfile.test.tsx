@@ -33,6 +33,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.value") return "Value";
       if (key === "common.wage") return "Wage";
       if (key === "common.age") return "Age";
+      if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "common.unknown") return "Unknown";
       if (key === "finances.perWeekSuffix") return "/wk";
@@ -380,6 +381,27 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-1");
+  });
+
+  it("offers a context menu action to open the player's team", () => {
+    const player = createPlayer();
+    const gameState = createGameState(player);
+    const onSelectTeam = vi.fn();
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub
+        onClose={vi.fn()}
+        onSelectTeam={onSelectTeam}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("player-profile-team-link"));
+    fireEvent.click(screen.getByRole("button", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-1");
   });

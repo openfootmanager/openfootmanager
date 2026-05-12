@@ -6,6 +6,7 @@ import { useGameStore, GameStateData, PlayerData } from "../store/gameStore";
 import { formatVal } from "../lib/helpers";
 import { Card, CardBody, Badge, TeamLocation, ThemeToggle } from "../components/ui";
 import { ArrowLeft, Users, Trophy, Landmark, ChevronRight, Star, Loader2 } from "lucide-react";
+import { resolveBackendError } from "../utils/backendI18n";
 
 export default function TeamSelection() {
   const { t, i18n } = useTranslation();
@@ -56,7 +57,11 @@ export default function TeamSelection() {
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to select team:", error);
-      alert("Failed to select team: " + String(error));
+      alert(
+        t("teamSelect.failedToSelectTeam", {
+          error: resolveBackendError(error),
+        }),
+      );
     } finally {
       setIsConfirming(false);
     }

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
+import { getErrorMessage } from "../../utils/errorMessage";
 import {
   Card,
   CardBody,
@@ -9,7 +10,12 @@ import {
   Eye,
   ScanSearch,
 } from "lucide-react";
-import { sendScout } from "../../services/scoutingService";
+import {
+  cancelYouthScouting,
+  reassignYouthScouting,
+  sendScout,
+  startYouthScouting,
+} from "../../services/scoutingService";
 import {
   calculateAvailableScouts,
   scoutMaxSlots,
@@ -23,6 +29,7 @@ import ScoutingAssignmentsList from "./ScoutingAssignmentsList";
 import ScoutingOverviewCards from "./ScoutingOverviewCards";
 import ScoutingScoutDetailsCard from "./ScoutingScoutDetailsCard";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
+import ScoutingYouthRecruitmentCard from "./ScoutingYouthRecruitmentCard";
 import TransferBidModal from "../transfers/TransferBidModal";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 
@@ -45,6 +52,13 @@ export default function ScoutingTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [posFilter, setPosFilter] = useState<string>("All");
   const [sending, setSending] = useState<string | null>(null);
+  const [playerSearchError, setPlayerSearchError] = useState<string | null>(null);
+  const [startingYouthSearch, setStartingYouthSearch] = useState(false);
+  const [selectedYouthScoutId, setSelectedYouthScoutId] = useState("");
+  const [youthRegion, setYouthRegion] = useState("Domestic");
+  const [youthObjective, setYouthObjective] = useState("Balanced");
+  const [youthTargetPosition, setYouthTargetPosition] = useState("");
+  const [youthSearchError, setYouthSearchError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const {
     bidTarget,
@@ -72,7 +86,20 @@ export default function ScoutingTab({
     (s) => s.role === "Scout" && s.team_id === myTeamId,
   );
   const assignments = gameState.scouting_assignments || [];
-  const availableScouts = calculateAvailableScouts(scouts, assignments);
+  const youthAssignments = gameState.youth_scouting_assignments || [];
+  const allAssignments = [...assignments, ...youthAssignments];
+  const availableScouts = calculateAvailableScouts(scouts, allAssignments);
+
+  useEffect(() => {
+    if (
+      selectedYouthScoutId &&
+      availableScouts.some((scout) => scout.id === selectedYouthScoutId)
+    ) {
+      return;
+    }
+
+    setSelectedYouthScoutId(availableScouts[0]?.id ?? "");
+  }, [availableScouts, selectedYouthScoutId]);
 
   const allScoutable = filterScoutablePlayers({
     players: gameState.players,
@@ -87,16 +114,68 @@ export default function ScoutingTab({
   const alreadyScoutingIds = buildAlreadyScoutingIds(assignments);
 
   const handleSendScout = async (playerId: string) => {
-    if (availableScouts.length === 0) return;
+    if (availableScouts.length === 0) {
+      setPlayerSearchError(null);
+      return;
+    }
     const scout = availableScouts[0];
+    setPlayerSearchError(null);
     setSending(playerId);
     try {
       const updated = await sendScout(scout.id, playerId);
+      setPlayerSearchError(null);
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to send scout:", err);
+      setPlayerSearchError(getErrorMessage(err));
     } finally {
       setSending(null);
+    }
+  };
+
+  const handleStartYouthScouting = async () => {
+    if (!selectedYouthScoutId) return;
+    setStartingYouthSearch(true);
+    setYouthSearchError(null);
+    try {
+      const updated = await startYouthScouting({
+        scoutId: selectedYouthScoutId,
+        region: youthRegion,
+        objective: youthObjective,
+        targetPosition: youthTargetPosition || null,
+      });
+      onGameUpdate(updated);
+      setSelectedYouthScoutId("");
+    } catch (err) {
+      console.error("Failed to start youth scouting:", err);
+      setYouthSearchError(String(err));
+    } finally {
+      setStartingYouthSearch(false);
+    }
+  };
+
+  const handleCancelYouthScouting = async (assignmentId: string) => {
+    setYouthSearchError(null);
+    try {
+      const updated = await cancelYouthScouting(assignmentId);
+      onGameUpdate(updated);
+    } catch (err) {
+      console.error("Failed to cancel youth scouting:", err);
+      setYouthSearchError(String(err));
+    }
+  };
+
+  const handleReassignYouthScouting = async (
+    assignmentId: string,
+    scoutId: string,
+  ) => {
+    setYouthSearchError(null);
+    try {
+      const updated = await reassignYouthScouting(assignmentId, scoutId);
+      onGameUpdate(updated);
+    } catch (err) {
+      console.error("Failed to reassign youth scouting:", err);
+      setYouthSearchError(String(err));
     }
   };
 
@@ -112,7 +191,7 @@ export default function ScoutingTab({
 
       <ScoutingOverviewCards
         scouts={scouts}
-        assignmentCount={assignments.length}
+        assignmentCount={allAssignments.length}
         availableScoutCount={availableScouts.length}
         totalCapacity={scouts.reduce(
           (sum, scout) => sum + scoutMaxSlots(scout.attributes.judging_ability),
@@ -131,7 +210,35 @@ export default function ScoutingTab({
         players={gameState.players}
         teams={gameState.teams}
         onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
       />
+
+      {scouts.length > 0 && (
+        <ScoutingYouthRecruitmentCard
+          youthAssignments={youthAssignments}
+          scouts={scouts}
+          availableScouts={availableScouts}
+          isStarting={startingYouthSearch}
+          selectedScoutId={selectedYouthScoutId}
+          region={youthRegion}
+          objective={youthObjective}
+          targetPosition={youthTargetPosition}
+          errorMessage={youthSearchError}
+          onScoutChange={setSelectedYouthScoutId}
+          onRegionChange={setYouthRegion}
+          onObjectiveChange={setYouthObjective}
+          onTargetPositionChange={setYouthTargetPosition}
+          onStartSearch={() => {
+            void handleStartYouthScouting();
+          }}
+          onCancelSearch={(assignmentId) => {
+            void handleCancelYouthScouting(assignmentId);
+          }}
+          onReassignSearch={(assignmentId, scoutId) => {
+            void handleReassignYouthScouting(assignmentId, scoutId);
+          }}
+        />
+      )}
 
       <ScoutingScoutDetailsCard
         scouts={scouts}
@@ -160,6 +267,7 @@ export default function ScoutingTab({
           teams={gameState.teams}
           posFilter={posFilter}
           searchQuery={searchQuery}
+          errorMessage={playerSearchError}
           alreadyScoutingIds={alreadyScoutingIds}
           availableScoutCount={availableScouts.length}
           sendingPlayerId={sending}

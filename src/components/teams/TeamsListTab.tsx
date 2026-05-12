@@ -22,7 +22,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
   const teamsData = gameState.teams.map(team => {
     const roster = gameState.players.filter(p => p.team_id === team.id);
     const avgOvr = roster.length > 0
-      ? Math.round(roster.reduce((s, p) => s + calcPlayerOvr(p), 0) / roster.length)
+      ? Math.round(roster.reduce((s, p) => s + (p.ovr ?? calcPlayerOvr(p)), 0) / roster.length)
       : 0;
     const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
     const leaguePos = allStandings.findIndex(s => s.team_id === team.id) + 1;

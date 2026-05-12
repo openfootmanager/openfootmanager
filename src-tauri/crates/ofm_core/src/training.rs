@@ -2,6 +2,7 @@ mod fitness_warnings;
 pub use fitness_warnings::check_squad_fitness_warnings;
 
 use crate::game::Game;
+use crate::player_rating::refresh_player_derived;
 use domain::staff::{CoachingSpecialization, StaffRole};
 use domain::team::{TrainingFocus, TrainingIntensity, TrainingSchedule};
 
@@ -102,6 +103,11 @@ struct TeamTrainingPlan {
 /// the team default.
 /// `weekday_num` is 0=Mon .. 6=Sun (chrono Weekday::num_days_from_monday()).
 pub fn process_training(game: &mut Game, weekday_num: u32) {
+    // Derive the current year from the game clock for accurate age calculations.
+    let current_year = game.clock.current_date.format("%Y").to_string()
+        .parse::<u32>()
+        .unwrap_or(2026);
+
     // Collect plans for all teams (immutable borrow)
     let team_plans: Vec<TeamTrainingPlan> = game
         .teams
@@ -177,7 +183,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
             // Age, morale, and current condition all affect recovery rate.
             // Older players recover more slowly; high morale aids recovery;
             // severely fatigued players have a harder time bouncing back.
-            let age = estimate_age(&player.date_of_birth);
+            let age = estimate_age(&player.date_of_birth, current_year);
             let age_rec = recovery_factor_from_age(age);
             let morale_rec = recovery_factor_from_morale(player.morale);
             let condition_rec = recovery_factor_from_condition(player.condition);
@@ -232,6 +238,9 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
             // Physical training builds fitness; non-physical days slowly decay it if peak.
             // Recovery focus gives a tiny fitness boost.
             apply_fitness_change(&mut player.fitness, player_focus, intensity_mult);
+
+            // Refresh position-weighted OVR and traits after attribute gains.
+            refresh_player_derived(player, current_year);
 
             // Apply condition: deplete from training, then recover
             player.condition = player.condition.saturating_sub(condition_cost);
@@ -337,16 +346,13 @@ fn apply_focus_gains(
 }
 
 /// Estimate player age from date_of_birth string ("YYYY-MM-DD").
-fn estimate_age(dob: &str) -> u32 {
+fn estimate_age(dob: &str, as_of_year: u32) -> u32 {
     let parts: Vec<&str> = dob.split('-').collect();
     if parts.is_empty() {
         return 25; // fallback
     }
     let birth_year: u32 = parts[0].parse().unwrap_or(2000);
-    // Use a rough estimate — the game clock year would be ideal but
-    // this is close enough for growth factor purposes.
-    let current_year: u32 = 2025;
-    current_year.saturating_sub(birth_year)
+    as_of_year.saturating_sub(birth_year)
 }
 
 /// Recovery multiplier from age: younger players bounce back faster.

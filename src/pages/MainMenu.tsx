@@ -7,6 +7,7 @@ import { useGameStore, GameStateData } from "../store/gameStore";
 import { Button, ThemeToggle, DatePicker, CountryFlag } from "../components/ui";
 import SavesList from "../components/menu/SavesList";
 import WorldSelect, { WorldDatabaseInfo } from "../components/menu/WorldSelect";
+import { resolveBackendError } from "../utils/backendI18n";
 import {
   FolderOpen,
   Settings,
@@ -218,7 +219,7 @@ export default function MainMenu() {
     }
     if (!formData.nationality)
       errors.nationality = t("validation.required", {
-        field: t("createManager.countryOfOrigin", "Country/Region of Origin"),
+        field: t("createManager.countryOfOrigin"),
       });
     setFormErrors(errors);
     return {
@@ -370,7 +371,11 @@ export default function MainMenu() {
       navigate("/select-team");
     } catch (error) {
       console.error("Failed to start game:", error);
-      alert(t("menu.failedStartGame", { error: String(error) }));
+      alert(
+        t("menu.failedStartGame", {
+          error: resolveBackendError(error),
+        }),
+      );
     } finally {
       setIsStarting(false);
     }
@@ -628,10 +633,7 @@ export default function MainMenu() {
                 className={nationalityOpen ? "relative z-50" : undefined}
               >
                 <label className="block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                  {t(
-                    "createManager.countryOfOrigin",
-                    "Country/Region of Origin",
-                  )}
+                  {t("createManager.countryOfOrigin")}
                 </label>
                 <div className="relative">
                   <button
@@ -673,10 +675,7 @@ export default function MainMenu() {
                           </span>
                         </span>
                       ) : (
-                        t(
-                          "createManager.selectCountry",
-                          "Select Country/Region",
-                        )
+                        t("createManager.selectCountry")
                       )}
                     </span>
                     <ChevronDown

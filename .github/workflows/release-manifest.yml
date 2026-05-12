@@ -96,7 +96,9 @@ jobs:
           checksums_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${branch}/checksums.txt"
           release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
 
-          gh api "repos/${WEBSITE_REPOSITORY}/dispatches" \
+          echo "Dispatching ${event_type} to ${WEBSITE_REPOSITORY}"
+
+          gh api --method POST "repos/${WEBSITE_REPOSITORY}/dispatches" \
             -f event_type="$event_type" \
             -f client_payload[repository]="${GITHUB_REPOSITORY}" \
             -f client_payload[tag]="${RELEASE_TAG}" \
