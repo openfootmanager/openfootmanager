@@ -1164,6 +1164,10 @@ mod tests {
             player_id: None,
             fixture_id: None,
             match_result: None,
+            youth_target_position: None,
+            youth_search_region: None,
+            youth_search_objective: None,
+            youth_prospects: None,
             scout_report: None,
             delegated_renewal_report: None,
         })
