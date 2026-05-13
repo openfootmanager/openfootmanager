@@ -16,9 +16,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Typography */
-  --font-sans: "Inter", "Avenir", "Helvetica", "Arial", sans-serif;
-  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", sans-serif;
+  /* Typography — CJK fallbacks (PingFang SC/Microsoft YaHei/Noto Sans CJK SC) kick in on Chinese characters via the font-family fallback chain */
+  --font-sans: "Inter", "Avenir", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
   /* Primary: Emerald Green */
   --color-primary-50: #ecfdf5;

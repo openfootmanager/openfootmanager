@@ -1,4 +1,5 @@
 import { ScanSearch } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type {
     PlayerProfileScoutStatus,
     ScoutAvailability,
@@ -17,16 +18,18 @@ export default function PlayerProfileScoutAction({
     scoutError,
     onScout,
 }: PlayerProfileScoutActionProps) {
+    const { t } = useTranslation();
+
     if (availability.scouts.length === 0) {
         return (
-            <p className="text-xs text-gray-500">Hire a scout to evaluate players</p>
+            <p className="text-xs text-gray-500">{t("scouting.noScoutsHint")}</p>
         );
     }
 
     if (availability.alreadyScouting || scoutStatus === "sent") {
         return (
             <span className="text-xs text-primary-400 font-heading font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <ScanSearch className="w-3.5 h-3.5" /> Scouting in progress
+                <ScanSearch className="w-3.5 h-3.5" /> {t("scouting.scoutingInProgress")}
             </span>
         );
     }
@@ -39,7 +42,9 @@ export default function PlayerProfileScoutAction({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-colors text-xs font-heading font-bold uppercase tracking-wider disabled:opacity-50"
             >
                 <ScanSearch className="w-3.5 h-3.5" />
-                {scoutStatus === "sending" ? "Sending..." : "Scout Player"}
+                {scoutStatus === "sending"
+                    ? t("scouting.scoutingInProgress")
+                    : t("scouting.scoutBtn")}
             </button>
             {scoutError ? (
                 <p className="text-xs text-red-400 mt-1">{scoutError}</p>

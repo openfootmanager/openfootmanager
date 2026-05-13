@@ -13,22 +13,22 @@ fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, Str
     info!("[cmd] hire_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let team_id = game
         .manager
         .team_id
         .clone()
-        .ok_or("No team assigned".to_string())?;
+        .ok_or("be.error.noTeamAssigned".to_string())?;
 
     let staff = game
         .staff
         .iter_mut()
         .find(|s| s.id == staff_id)
-        .ok_or("Staff member not found".to_string())?;
+        .ok_or("be.error.staffMemberNotFound".to_string())?;
 
     if staff.team_id.is_some() {
-        return Err("Staff member already employed by a team".to_string());
+        return Err("be.error.staffMemberAlreadyEmployed".to_string());
     }
 
     staff.team_id = Some(team_id.clone());
@@ -201,22 +201,26 @@ fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, 
     info!("[cmd] release_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let team_id = game
         .manager
         .team_id
         .clone()
-        .ok_or("No team assigned".to_string())?;
+        .ok_or("be.error.noTeamAssigned".to_string())?;
 
     let staff = game
         .staff
         .iter_mut()
         .find(|s| s.id == staff_id)
-        .ok_or("Staff member not found".to_string())?;
+        .ok_or("be.error.staffMemberNotFound".to_string())?;
 
     if staff.team_id.as_deref() != Some(&team_id) {
-        return Err("Staff member does not belong to your team".to_string());
+        return Err("be.error.staffMemberNotInTeam".to_string());
+    }
+
+    if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+        team.season_expenses = team.season_expenses.saturating_sub(staff.wage as i64);
     }
 
     staff.team_id = None;

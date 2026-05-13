@@ -7,6 +7,7 @@ import type {
   ScoutingAssignment,
   StaffData,
   TeamData,
+  YouthScoutingAssignment,
 } from "../../store/gameStore";
 import ScoutingTab from "./ScoutingTab";
 
@@ -27,6 +28,31 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.yourScouts") return "Your Scouts";
       if (key === "scouting.noScouts") return "No scouts";
       if (key === "scouting.noScoutsHint") return "Hire a scout first";
+      if (key === "scouting.youthRecruitment") return "Youth Recruitment";
+      if (key === "scouting.youthRecruitmentHint") {
+        return "Use a scout to search for academy prospects.";
+      }
+      if (key === "scouting.youthTargetLabel") return "Youth target";
+      if (key === "scouting.youthAnyPosition") return "Any position";
+      if (key === "scouting.startYouthSearch") return "Start youth search";
+      if (key === "scouting.activeYouthSearches") {
+        return `${params?.count} active youth searches`;
+      }
+      if (key === "scouting.noYouthSearches") return "No youth searches running";
+      if (key === "scouting.youthProspectSearch") return "Youth prospect search";
+      if (key === "scouting.youthSearchScoutLabel") return "Scout";
+      if (key === "scouting.youthSearchRegionLabel") return "Region";
+      if (key === "scouting.youthSearchObjectiveLabel") return "Objective";
+      if (key === "scouting.selectScout") return "Select scout";
+      if (key === "scouting.regionDomestic") return "Domestic";
+      if (key === "scouting.regionInternational") return "International";
+      if (key === "scouting.objectiveBalanced") return "Balanced";
+      if (key === "scouting.objectiveHighPotential") return "High potential";
+      if (key === "scouting.objectiveReadySoon") return "Ready soon";
+      if (key === "scouting.cancelSearch") return "Cancel";
+      if (key === "scouting.reassignSearch") return "Reassign";
+      if (key === "scouting.noAlternateScout") return "No alternate scout";
+      if (key === "inbox.responded") return "Responded";
       if (key === "scouting.findPlayers") return "Find Players";
       if (key === "scouting.searchPlaceholder") return "Search players";
       if (key === "scouting.player") return "Player";
@@ -45,7 +71,32 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.scoutLabel") return params?.name ? `Scout ${params.name}` : "Scout ";
       if (key === "scouting.daysLeft") return `${params?.days} days left`;
       if (key === "common.all") return "All";
+      if (key === "common.positions.Defender") return "Defender";
+      if (key === "common.positions.Midfielder") return "Midfielder";
+      if (key === "common.positions.Forward") return "Forward";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "common.viewTeam") return "View team";
+      if (key === "squad.viewProfile") return "View profile";
+      if (key === "transfers.makeBid") return "Make Transfer Bid";
+      if (key === "transfers.bidAmount") return "Bid Amount";
+      if (key === "transfers.submitBid") return "Submit Bid";
+      if (key === "transfers.close") return "Close";
+      if (key === "transfers.playerValue") return `Value: ${params?.value}`;
+      if (key === "transfers.bidImpactTitle") return "Projected impact";
+      if (key === "transfers.bidImpactTransferBudget") {
+        return `Transfer budget ${params?.before} -> ${params?.after}`;
+      }
+      if (key === "transfers.bidImpactBalance") {
+        return `Club balance ${params?.before} -> ${params?.after}`;
+      }
+      if (key === "transfers.bidImpactWagePressure") {
+        return `Projected wage budget usage ${params?.percent}%`;
+      }
+      if (key === "transfers.negotiationPulse") return "Negotiation pulse";
+      if (key === "transfers.negotiationRound") return `Round ${params?.count}`;
+      if (key === "transfers.negotiationPatience") return "Patience";
+      if (key === "transfers.negotiationTension") return "Tension";
+      if (key === "transfers.bidCountered") return "Bid countered";
       return key;
     },
     i18n: { language: "en" },
@@ -165,6 +216,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
 function createGameState(options?: {
   scouts?: StaffData[];
   assignments?: ScoutingAssignment[];
+  youthAssignments?: YouthScoutingAssignment[];
   players?: PlayerData[];
 }): GameStateData {
   return {
@@ -202,6 +254,7 @@ function createGameState(options?: {
     news: [],
     league: null,
     scouting_assignments: options?.assignments ?? [],
+    youth_scouting_assignments: options?.youthAssignments ?? [],
     board_objectives: [],
   };
 }
@@ -218,6 +271,18 @@ describe("ScoutingTab", () => {
 
     expect(screen.getByText("No scouts")).toBeInTheDocument();
     expect(screen.getByText("Hire a scout first")).toBeInTheDocument();
+  });
+
+  it("renders the youth recruitment card when scouts are available", () => {
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Youth Recruitment")).toBeInTheDocument();
+    expect(screen.getByText("No youth searches running")).toBeInTheDocument();
   });
 
   it("sends a scout assignment and forwards the updated state", async () => {
@@ -238,6 +303,218 @@ describe("ScoutingTab", () => {
       expect(invokeMock).toHaveBeenCalledWith("send_scout", {
         scoutId: "staff-1",
         playerId: "player-1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("shows scout assignment errors inline in the player search card", async () => {
+    invokeMock.mockRejectedValueOnce(
+      new Error("Scout is already assigned to another scouting task."),
+    );
+
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Scout/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Scout is already assigned to another scouting task.",
+      );
+    });
+  });
+
+  it("starts a youth scouting search and forwards the updated state", async () => {
+    const updatedState = createGameState({
+      scouts: [createScout()],
+      youthAssignments: [{ id: "ysa-1", scout_id: "staff-1", region: "Domestic", objective: "Balanced", target_position: "Defender", days_remaining: 5 }],
+    });
+    const onGameUpdate = vi.fn();
+    invokeMock.mockResolvedValue(updatedState);
+
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Youth target" }));
+    fireEvent.click(screen.getByRole("option", { name: "Defender" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Start youth search" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("start_youth_scouting", {
+        scoutId: "staff-1",
+        region: "Domestic",
+        objective: "Balanced",
+        targetPosition: "Defender",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("cancels an active youth scouting assignment", async () => {
+    const updatedState = createGameState({
+      scouts: [createScout()],
+      youthAssignments: [
+        {
+          id: "ysa-1",
+          scout_id: "staff-1",
+          region: "Domestic",
+          objective: "Balanced",
+          target_position: "Defender",
+          days_remaining: 5,
+        },
+      ],
+    });
+    const onGameUpdate = vi.fn();
+    invokeMock.mockResolvedValue(updatedState);
+
+    render(
+      <ScoutingTab
+        gameState={createGameState({
+          scouts: [createScout()],
+          youthAssignments: [
+            {
+              id: "ysa-1",
+              scout_id: "staff-1",
+              region: "Domestic",
+              objective: "Balanced",
+              target_position: "Defender",
+              days_remaining: 5,
+            },
+          ],
+        })}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("cancel_youth_scouting", {
+        assignmentId: "ysa-1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+    });
+  });
+
+  it("only offers free scouts when reassigning a youth search", () => {
+    render(
+      <ScoutingTab
+        gameState={createGameState({
+          scouts: [createScout(), createScout({ id: "staff-2", first_name: "Alex" })],
+          assignments: [
+            {
+              id: "assignment-1",
+              scout_id: "staff-2",
+              player_id: "player-1",
+              days_remaining: 3,
+            },
+          ],
+          youthAssignments: [
+            {
+              id: "ysa-1",
+              scout_id: "staff-1",
+              region: "Domestic",
+              objective: "Balanced",
+              target_position: "Defender",
+              days_remaining: 5,
+            },
+          ],
+        })}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Reassign ysa-1" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reassign" })).toBeDisabled();
+  });
+
+  it("opens and submits a transfer bid from the scouting search context menu", async () => {
+    const updatedState = createGameState();
+    const onGameUpdate = vi.fn();
+
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        return {
+          projection: {
+            transfer_budget_before: 250000,
+            transfer_budget_after: -100000,
+            finance_before: 500000,
+            finance_after: 150000,
+            annual_wage_bill_before: 1000,
+            annual_wage_bill_after: 2000,
+            annual_wage_budget: 50000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "counter_offer",
+          suggested_fee: 425000,
+          is_terminal: false,
+          feedback: {
+            mood: "firm",
+            headline_key: "headline",
+            detail_key: null,
+            tension: 45,
+            patience: 62,
+            round: 1,
+          },
+          game: updatedState,
+        };
+      }
+
+      return updatedState;
+    });
+
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Make Transfer Bid" }));
+
+    expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "preview_transfer_bid_financial_impact",
+        {
+          playerId: "player-1",
+          fee: 300000,
+        },
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "player-1",
+        fee: 300000,
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });

@@ -173,13 +173,10 @@ export default function TacticsPitch({
         <div>
           <h3 className="flex items-center gap-2 text-sm font-heading font-bold uppercase tracking-wide text-white">
             <Star className="h-4 w-4 fill-current text-accent-400" />
-            {t("preMatch.startingXI", "Starting XI")} — {formation}
+            {t("preMatch.startingXI")} — {formation}
           </h3>
           <p className="mt-0.5 text-xs text-gray-400">
-            {t(
-              "tactics.pitchInteractionHint",
-              "Drag players between the pitch and bench, click one player to inspect them, click a second player to compare them, then confirm the swap in the compare panel.",
-            )}
+            {t("tactics.pitchInteractionHint")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -187,7 +184,7 @@ export default function TacticsPitch({
             variant={outOfPositionCount > 0 ? "danger" : "success"}
             size="sm"
           >
-            {outOfPositionCount} {t("squad.outOfPosition", "Out of position")}
+            {outOfPositionCount} {t("squad.outOfPosition")}
           </Badge>
           {selectedPlayer ? (
             <button
@@ -282,7 +279,7 @@ export default function TacticsPitch({
                           {translatePositionAbbreviation(t, slot.position)}
                         </div>
                         <div className="mt-1 text-[9px] leading-tight text-white/50">
-                          {t("squad.dropPlayerHere", "Drop player here")}
+                          {t("squad.dropPlayerHere")}
                         </div>
                       </div>
                     )}
@@ -296,7 +293,7 @@ export default function TacticsPitch({
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-white/80">
-                {t("preMatch.substitutes", "Substitutes")}
+                {t("preMatch.substitutes")}
               </h4>
               <p className="mt-1 text-sm text-black dark:text-white/50">
                 {benchPlayers.length} {t("squad.playersLabel", "players")}
@@ -357,7 +354,7 @@ export default function TacticsPitch({
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/15 bg-black/10 px-3 py-4 text-sm text-white/50">
-              {t("preMatch.noBench", "No bench players available.")}
+              {t("preMatch.noBench")}
             </div>
           )}
         </div>

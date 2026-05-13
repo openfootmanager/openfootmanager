@@ -7,6 +7,7 @@ import HomeRecentMessagesCard from "./HomeRecentMessagesCard";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => {
+      if (key === "inbox.openMessage") return "Open message";
       if (key === "home.viewAll") return "View All";
       if (key === "home.recentMessages") return "Recent Messages";
       if (key === "home.noMessages") return "No messages.";
@@ -61,5 +62,22 @@ describe("HomeRecentMessagesCard", () => {
     render(<HomeRecentMessagesCard messages={[]} lang="en" />);
 
     expect(screen.getByText("No messages.")).toBeInTheDocument();
+  });
+
+  it("offers a context menu action to open the message in inbox", () => {
+    const onNavigate = vi.fn();
+
+    render(
+      <HomeRecentMessagesCard
+        messages={[createMessage()]}
+        lang="en"
+        onNavigate={onNavigate}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText("Welcome"));
+    fireEvent.click(screen.getByRole("button", { name: "Open message" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("Inbox", { messageId: "message-1" });
   });
 });

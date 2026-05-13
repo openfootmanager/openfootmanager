@@ -5,7 +5,7 @@ import type {
 } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { annualAmountToWeeklyCommitment } from "../../lib/finance";
-import { formatWeeklyAmount } from "../../lib/helpers";
+import { formatExactMoney, formatVal, formatWeeklyAmount } from "../../lib/helpers";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
@@ -77,13 +77,7 @@ export function getPlayerAge(
 }
 
 export function formatPlayerMarketValue(value: number): string {
-    if (value >= 1_000_000) {
-        return `€${(value / 1_000_000).toFixed(1)}M`;
-    }
-    if (value >= 1_000) {
-        return `€${(value / 1_000).toFixed(0)}K`;
-    }
-    return `€${value}`;
+    return formatVal(value);
 }
 
 export function formatPlayerWage(
@@ -91,7 +85,7 @@ export function formatPlayerWage(
     weeklySuffix: string,
 ): string {
     const weeklyWage = annualAmountToWeeklyCommitment(annualWage);
-    return formatWeeklyAmount(`€${weeklyWage.toLocaleString()}`, weeklySuffix);
+    return formatWeeklyAmount(formatExactMoney(weeklyWage), weeklySuffix);
 }
 
 export function getAttributeColorClass(value: number): string {

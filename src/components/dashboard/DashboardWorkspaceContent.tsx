@@ -1,4 +1,4 @@
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import PlayerProfile from "../playerProfile/PlayerProfile";
 import TeamProfile from "../teamProfile";
 import DashboardAlerts from "./DashboardAlerts";
@@ -16,7 +16,7 @@ interface DashboardWorkspaceContentProps {
   dashboardTabContentModel: DashboardTabContentModel;
   onBack: () => void;
   onNavigate: (tab: string) => void;
-  onSelectPlayer: (id: string) => void;
+  onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onSelectTeam: (id: string) => void;
   onGameUpdate: (state: GameStateData) => void;
   isUnemployed: boolean;
@@ -42,7 +42,7 @@ export default function DashboardWorkspaceContent({
     : null;
   const selectedTeam = profileNavigation.selectedTeamId
     ? gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ??
-      null
+    null
     : null;
 
   return (
@@ -67,6 +67,9 @@ export default function DashboardWorkspaceContent({
           isOwnClub={selectedPlayer.team_id === gameState.manager.team_id}
           startWithRenewalModal={
             profileNavigation.selectedPlayerOptions?.openRenewal === true
+          }
+          startWithTerminationModal={
+            profileNavigation.selectedPlayerOptions?.openTermination === true
           }
           onClose={onBack}
           onSelectTeam={onSelectTeam}

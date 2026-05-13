@@ -106,7 +106,8 @@ export default function MatchSimulation() {
         matchMode,
       });
       try {
-        const snap = await invoke<MatchSnapshot>("get_match_snapshot");
+        const snap = await invoke<MatchSnapshot | null>("get_match_snapshot");
+        if (!snap) throw new Error("No active match snapshot");
         console.info("[MatchSimulation] fetchSnapshot:success", {
           awayPlayers: snap.away_team.players.length,
           awayTeam: snap.away_team.name,

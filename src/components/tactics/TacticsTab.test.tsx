@@ -251,15 +251,37 @@ describe("TacticsTab", () => {
       />,
     );
 
-    expect(screen.getByText("What this changes")).toBeInTheDocument();
+    expect(screen.getByText("squad.playStyleImpactTitle")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Keeps your team measured in and out of possession, with a steady shape and fewer extremes.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Substitutes").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("preMatch.substitutes").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByTestId("bench-player-d5")).toBeInTheDocument();
     expect(screen.getByTestId("pitch-bench-player-d5")).toBeInTheDocument();
+  });
+
+  it("keeps youth academy players out of first-team tactics selection", () => {
+    const gameState = makeGameState();
+    gameState.players.push(
+      makePlayer("y1", "Forward", {
+        full_name: "Academy Prospect",
+        squad_role: "Youth",
+      }),
+    );
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Academy Prospect")).not.toBeInTheDocument();
   });
 
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
@@ -323,10 +345,10 @@ describe("TacticsTab", () => {
     gameState.players = gameState.players.map((player) =>
       player.id === "d5"
         ? {
-            ...player,
-            position: "Midfielder",
-            natural_position: "Defender",
-          }
+          ...player,
+          position: "Midfielder",
+          natural_position: "Defender",
+        }
         : player,
     );
 
@@ -374,15 +396,17 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
-    expect(screen.getByText("Selected player")).toBeInTheDocument();
+    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
     expect(screen.getAllByText("Player d5").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
     expect(mockedInvoke).not.toHaveBeenCalled();
-    expect(screen.getByText("Comparison player")).toBeInTheDocument();
+    expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Confirm swap" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.confirmSwap" }),
+    );
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
@@ -417,16 +441,18 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
-    expect(screen.getByText("Selected player")).toBeInTheDocument();
+    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
     expect(screen.getAllByText("Player d1").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
     expect(mockedInvoke).not.toHaveBeenCalled();
-    expect(screen.getByText("Comparison player")).toBeInTheDocument();
+    expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Confirm swap" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.confirmSwap" }),
+    );
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
@@ -459,13 +485,13 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByTestId("pitch-player-m1"));
 
-    expect(screen.getByText("Comparison player")).toBeInTheDocument();
+    expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
     expect(screen.getAllByText("Player m1").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText("common.attributes.vision").length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: "Confirm swap" }),
+      screen.getByRole("button", { name: "tactics.confirmSwap" }),
     ).toBeInTheDocument();
   });
 
@@ -494,9 +520,11 @@ describe("TacticsTab", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Set pieces & roles" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Auto-select defaults" }),
+      screen.getByRole("button", { name: "tactics.rolesTab" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.autoSelectAssignments" }),
     );
 
     await waitFor(() => {

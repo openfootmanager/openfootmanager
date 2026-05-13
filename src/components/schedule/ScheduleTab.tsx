@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { GameStateData, FixtureData } from "../../store/gameStore";
+import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { Card, CardBody, Badge } from "../ui";
 import {
   Calendar as CalendarIcon,
@@ -45,6 +46,14 @@ export default function ScheduleTab({
 
     return `${t("season.friendly")} — ${formatMatchDate(fixture.date)}`;
   };
+
+  const buildTeamMenuItem = (
+    label: string,
+    teamId: string,
+  ): ContextMenuItem => ({
+    label,
+    onClick: () => onSelectTeam(teamId),
+  });
 
   if (!league) {
     return (
@@ -92,8 +101,8 @@ export default function ScheduleTab({
                 <span className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
                   {seasonContext.season_start
                     ? t("season.startsOn", {
-                        date: formatMatchDate(seasonContext.season_start),
-                      })
+                      date: formatMatchDate(seasonContext.season_start),
+                    })
                     : t("season.noOpener")}
                 </span>
               </div>
@@ -109,22 +118,20 @@ export default function ScheduleTab({
       <div className="flex gap-2 mb-5">
         <button
           onClick={() => setView("fixtures")}
-          className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${
-            view === "fixtures"
+          className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${view === "fixtures"
               ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
               : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-navy-600"
-          }`}
+            }`}
         >
           <CalendarIcon className="w-4 h-4 inline mr-1.5 -mt-0.5" />{" "}
           {t("schedule.fixtures")}
         </button>
         <button
           onClick={() => setView("standings")}
-          className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${
-            view === "standings"
+          className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all ${view === "standings"
               ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
               : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-navy-600"
-          }`}
+            }`}
         >
           <TableProperties className="w-4 h-4 inline mr-1.5 -mt-0.5" />{" "}
           {t("schedule.standings")}
@@ -147,35 +154,48 @@ export default function ScheduleTab({
                       f.home_team_id === userTeamId ||
                       f.away_team_id === userTeamId;
                     const completed = f.status === "Completed";
+                    const contextItems = [
+                      buildTeamMenuItem(
+                        `${t("common.viewTeam")}: ${getTeamName(gameState.teams, f.home_team_id)}`,
+                        f.home_team_id,
+                      ),
+                      buildTeamMenuItem(
+                        `${t("common.viewTeam")}: ${getTeamName(gameState.teams, f.away_team_id)}`,
+                        f.away_team_id,
+                      ),
+                    ];
+
                     return (
-                      <div
-                        key={f.id}
-                        className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
-                      >
-                        <span
-                          onClick={() => onSelectTeam(f.home_team_id)}
-                          className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                      <ContextMenu items={contextItems} key={f.id}>
+                        <div
+                          className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
+                          data-testid={`schedule-fixture-${f.id}`}
                         >
-                          {getTeamName(gameState.teams, f.home_team_id)}
-                        </span>
-                        <div className="w-24 text-center mx-3">
-                          {completed && f.result ? (
-                            <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
-                              {f.result.home_goals} - {f.result.away_goals}
-                            </span>
-                          ) : (
-                            <Badge variant="neutral" size="sm">
-                              vs
-                            </Badge>
-                          )}
+                          <span
+                            onClick={() => onSelectTeam(f.home_team_id)}
+                            className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, f.home_team_id)}
+                          </span>
+                          <div className="w-24 text-center mx-3">
+                            {completed && f.result ? (
+                              <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
+                                {f.result.home_goals} - {f.result.away_goals}
+                              </span>
+                            ) : (
+                              <Badge variant="neutral" size="sm">
+                                vs
+                              </Badge>
+                            )}
+                          </div>
+                          <span
+                            onClick={() => onSelectTeam(f.away_team_id)}
+                            className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, f.away_team_id)}
+                          </span>
                         </div>
-                        <span
-                          onClick={() => onSelectTeam(f.away_team_id)}
-                          className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                        >
-                          {getTeamName(gameState.teams, f.away_team_id)}
-                        </span>
-                      </div>
+                      </ContextMenu>
                     );
                   })}
                 </div>
@@ -197,8 +217,8 @@ export default function ScheduleTab({
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {seasonContext.season_start
                     ? t("season.startsOn", {
-                        date: formatMatchDate(seasonContext.season_start),
-                      })
+                      date: formatMatchDate(seasonContext.season_start),
+                    })
                     : t("season.noOpener")}
                 </p>
               </div>
@@ -253,47 +273,53 @@ export default function ScheduleTab({
                   {standings.map((entry, idx) => {
                     const isUser = entry.team_id === userTeamId;
                     const gd = entry.goals_for - entry.goals_against;
+                    const contextItems = [
+                      buildTeamMenuItem(t("common.viewTeam"), entry.team_id),
+                    ];
+
                     return (
-                      <tr
-                        key={entry.team_id}
-                        className={`transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
-                      >
-                        <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400 dark:text-gray-500">
-                          {idx + 1}
-                        </td>
-                        <td
-                          onClick={() => onSelectTeam(entry.team_id)}
-                          className={`py-3 px-4 font-semibold text-sm cursor-pointer hover:underline ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                      <ContextMenu items={contextItems} key={entry.team_id}>
+                        <tr
+                          className={`transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                          data-testid={`schedule-standings-row-${entry.team_id}`}
                         >
-                          {getTeamName(gameState.teams, entry.team_id)}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.played}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.won}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.drawn}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.lost}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.goals_for}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {entry.goals_against}
-                        </td>
-                        <td
-                          className={`py-3 px-4 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
-                        >
-                          {gd > 0 ? `+${gd}` : gd}
-                        </td>
-                        <td className="py-3 px-4 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
-                          {entry.points}
-                        </td>
-                      </tr>
+                          <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400 dark:text-gray-500">
+                            {idx + 1}
+                          </td>
+                          <td
+                            onClick={() => onSelectTeam(entry.team_id)}
+                            className={`py-3 px-4 font-semibold text-sm cursor-pointer hover:underline ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                          >
+                            {getTeamName(gameState.teams, entry.team_id)}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.played}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.won}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.drawn}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.lost}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.goals_for}
+                          </td>
+                          <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                            {entry.goals_against}
+                          </td>
+                          <td
+                            className={`py-3 px-4 text-center text-sm font-semibold tabular-nums ${gd > 0 ? "text-primary-500" : gd < 0 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
+                          >
+                            {gd > 0 ? `+${gd}` : gd}
+                          </td>
+                          <td className="py-3 px-4 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
+                            {entry.points}
+                          </td>
+                        </tr>
+                      </ContextMenu>
                     );
                   })}
                 </tbody>

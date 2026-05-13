@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import i18n from "../i18n";
 import {
   resolveBackendText,
+  resolveBackendError,
   resolveMessage,
   resolveAction,
   resolveNewsArticle,
@@ -35,6 +36,7 @@ beforeAll(async () => {
     "boardObjectives.objective.LeaguePosition": "Finish in the top {{target}}",
     "boardObjectives.objective.Wins": "Win at least {{target}} matches",
     "boardObjectives.objective.GoalsScored": "Score at least {{target}} goals",
+    "boardObjectives.objective.FinancialStability": "Keep wage spending at or below {{target}}% of budget",
   }, true, true);
 });
 
@@ -315,6 +317,51 @@ describe("resolveMessage", () => {
     }
   });
 
+  it("localizes legacy takeover contract review messages without persisted i18n keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const msg = makeMessage({
+        id: "contract_review_takeover_team-1",
+        subject: "Assistant Manager - Contract Review",
+        body:
+          "Your assistant has reviewed the squad contracts after your arrival. 2 player(s) are due to come up for renewal this season, but none require an immediate decision today.\n\nStart mapping out who you want to keep so the situation stays under control.",
+        sender: "Assistant Manager",
+        sender_role: "Assistant Manager",
+        actions: [
+          makeAction({
+            id: "view_squad",
+            label: "Review Squad Contracts",
+            action_type: {
+              NavigateTo: {
+                route: "/dashboard?tab=Squad",
+              },
+            },
+          }),
+          makeAction({
+            id: "ack",
+            label: "Acknowledge",
+            action_type: "Acknowledge",
+          }),
+        ],
+      });
+
+      const result = resolveMessage(msg);
+
+      expect(result.subject).toBe("Assistente Técnico - Revisão de Contratos");
+      expect(result.sender).toBe("Auxiliar Técnico");
+      expect(result.sender_role).toBe("Auxiliar Técnico");
+      expect(result.body).toBe(
+        "Seu assistente revisou os contratos do elenco após a sua chegada. 2 jogador(es) devem entrar em negociação de renovação nesta temporada, mas nenhum exige uma decisão imediata hoje.\n\nComece a mapear quem você quer manter para que a situação fique sob controle.",
+      );
+      expect(result.actions[0].label).toBe("Revisar Contratos do Elenco");
+      expect(result.actions[1].label).toBe("Entendido");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("preserves non-translatable fields", () => {
     const msg = makeMessage({ id: "msg_99", read: true, category: "transfer" });
     const result = resolveMessage(msg);
@@ -373,6 +420,235 @@ describe("resolveNewsArticle", () => {
     }
   });
 
+  it("localizes transfer roundup articles through backend keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Transfer Roundup — Week of 2026-07-27",
+        headline_key: "be.news.transferRoundup.headline",
+        body: "The transfer market stayed busy this week.",
+        body_key: "be.news.transferRoundup.body",
+        source: "Transfer Intelligence",
+        source_key: "be.source.transferIntelligence",
+        i18n_params: {
+          weekStart: "2026-07-27",
+          transferCount: "2",
+          dealsData: JSON.stringify([
+            {
+              player: "Adam Smith",
+              fromTeam: "Alpha FC",
+              toTeam: "Beta FC",
+              fee: "€1.8M",
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Resumo de Transferências — Semana de 2026-07-27");
+      expect(result.body).toContain("2 transferência(s) concluída(s)");
+      expect(result.body).toContain("Adam Smith: de Alpha FC para Beta FC (€1.8M)");
+      expect(result.source).toBe("Inteligência de Transferências");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes friendly match report scorer sections through backend keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Alpha FC 2 - 1 Beta FC: friendly report",
+        headline_key: "be.news.matchReport.reportFriendly.title",
+        body: "In friendly action, Alpha FC 2-1 Beta FC. Both sides used the fixture to build sharpness before the competitive campaign.\n\nGoals: Alice (10', Alpha FC)",
+        body_key: "be.news.matchReport.reportFriendly.body",
+        source: "Sports Gazette",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "2",
+          awayGoals: "1",
+          scorersSection: "\n\nGoals: Alice (10', Alpha FC)",
+          scorersData: JSON.stringify([
+            {
+              player: "Alice",
+              minute: 10,
+              team: "Alpha FC",
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 2 - 1 Beta FC: resumo do amistoso");
+      expect(result.body).toContain("No amistoso, Alpha FC 2 - 1 Beta FC.");
+      expect(result.body).toContain("Gols: Alice (10', Alpha FC)");
+      expect(result.source).toBe("Gazeta Esportiva");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes standings entries through backend keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Table update",
+        headline_key: "be.news.standings.headline2",
+        body: "After Matchday 4, Alpha FC sit at the top of the Premier Division table.\n\nStandings:\n  1. Alpha FC — 12 pts (GD: +5)",
+        body_key: "be.news.standings.body",
+        source: "League Wire",
+        source_key: "be.source.leagueWire",
+        i18n_params: {
+          matchday: "4",
+          leader: "Alpha FC",
+          standings: "  1. Alpha FC — 12 pts (GD: +5)",
+          standingsData: JSON.stringify([
+            {
+              rank: 1,
+              team: "Alpha FC",
+              points: 12,
+              goal_difference: "+5",
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Atualização da Classificação — Rodada 4");
+      expect(result.body).toContain("Após a Rodada 4, o Alpha FC está no topo da tabela da Primeira Divisão.");
+      expect(result.body).toContain("1. Alpha FC — 12 pts (SG: +5)");
+      expect(result.source).toBe("Notícias da Liga");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes roundup result lines and biggest winner copy through backend keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Premier Division Matchday 4: All the Results",
+        headline_key: "be.news.roundup.headline1",
+        body: "Matchday 4 is in the books. Here are the full results:\n\n  Alpha FC 3 - 0 Beta FC\n  Gamma FC 1 - 1 Delta FC\n\n5 goals scored across 2 matches. Alpha FC recorded the biggest win of the day.",
+        body_key: "be.news.roundup.body",
+        source: "League Wire",
+        source_key: "be.source.leagueWire",
+        i18n_params: {
+          matchday: "4",
+          totalGoals: "5",
+          matchCount: "2",
+          results: "  Alpha FC 3 - 0 Beta FC\n  Gamma FC 1 - 1 Delta FC",
+          resultsData: JSON.stringify([
+            {
+              home: "Alpha FC",
+              home_goals: 3,
+              away: "Beta FC",
+              away_goals: 0,
+            },
+            {
+              home: "Gamma FC",
+              home_goals: 1,
+              away: "Delta FC",
+              away_goals: 1,
+            },
+          ]),
+          biggestWinner: "Alpha FC",
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Primeira Divisão Rodada 4: Todos os Resultados");
+      expect(result.body).toContain("A Rodada 4 está encerrada. Confira os resultados completos:");
+      expect(result.body).toContain("Alpha FC 3 - 0 Beta FC");
+      expect(result.body).toContain("Gamma FC 1 - 1 Delta FC");
+      expect(result.body).toContain("5 gols marcados em 2 jogos.");
+      expect(result.body).toContain("O Alpha FC registrou a maior vitória do dia.");
+      expect(result.source).toBe("Notícias da Liga");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes preseason digest result lines and unbeaten copy through backend keys", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Preseason Digest — Week of 2025-08-11",
+        headline_key: "be.news.preseasonDigest.headline",
+        body: "The latest preseason digest is here. 2 friendly result(s) were played across the division this week, producing 3 goal(s).\n\nResults:\n  Alpha FC 2 - 1 Beta FC\n  Gamma FC 0 - 0 Delta FC\n\nAlpha FC and Gamma FC remain unbeaten in preseason.",
+        body_key: "be.news.preseasonDigest.bodyWithResults",
+        source: "League Chronicle",
+        source_key: "be.source.leagueChronicle",
+        i18n_params: {
+          weekStart: "2025-08-11",
+          resultCount: "2",
+          totalGoals: "3",
+          results: "  Alpha FC 2 - 1 Beta FC\n  Gamma FC 0 - 0 Delta FC",
+          resultsData: JSON.stringify([
+            { home: "Alpha FC", home_goals: 2, away: "Beta FC", away_goals: 1 },
+            { home: "Gamma FC", home_goals: 0, away: "Delta FC", away_goals: 0 },
+          ]),
+          unbeatenLine: "\n\nAlpha FC and Gamma FC remain unbeaten in preseason.",
+          unbeatenTeamsData: JSON.stringify(["Alpha FC", "Gamma FC"]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Resumo da pré-temporada — Semana de 2025-08-11");
+      expect(result.body).toContain("2 amistoso(s) foram disputados pela divisão nesta semana, produzindo 3 gol(s).");
+      expect(result.body).toContain("Alpha FC 2 - 1 Beta FC");
+      expect(result.body).toContain("Gamma FC 0 - 0 Delta FC");
+      expect(result.body).toContain("Alpha FC e Gamma FC seguem invictos na pré-temporada.");
+      expect(result.source).toBe("Crônica da Liga");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("includes every unbeaten team when more than two clubs remain unbeaten", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Preseason Digest — Week of 2025-08-11",
+        headline_key: "be.news.preseasonDigest.headline",
+        body: "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.\n\nAlpha FC, Gamma FC, and Delta FC remain unbeaten in preseason.",
+        body_key: "be.news.preseasonDigest.bodyNoResults",
+        source: "League Chronicle",
+        source_key: "be.source.leagueChronicle",
+        i18n_params: {
+          weekStart: "2025-08-11",
+          unbeatenLine: "\n\nAlpha FC, Gamma FC, and Delta FC remain unbeaten in preseason.",
+          unbeatenTeamsData: JSON.stringify(["Alpha FC", "Gamma FC", "Delta FC"]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.body).toContain("Alpha FC, Gamma FC e Delta FC seguem invictos na pré-temporada.");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("preserves non-translatable fields", () => {
     const article = makeNewsArticle({ id: "n_5", category: "transfer", read: true });
     const result = resolveNewsArticle(article);
@@ -416,5 +692,23 @@ describe("resolveBackendText", () => {
     const result = resolveBackendText("test.effect", "fallback", { delta: "+3" });
 
     expect(result).toBe("Morale +3");
+  });
+});
+
+describe("resolveBackendError", () => {
+  it("resolves backend error keys", () => {
+    i18n.addResourceBundle("en", "translation", {
+      "be.error.noActiveGameSession": "No active game session",
+    }, true, true);
+
+    expect(resolveBackendError("be.error.noActiveGameSession")).toBe(
+      "No active game session",
+    );
+  });
+
+  it("keeps raw backend errors when no translation key exists", () => {
+    expect(resolveBackendError(new Error("Something raw happened"))).toBe(
+      "Something raw happened",
+    );
   });
 });

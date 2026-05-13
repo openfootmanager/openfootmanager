@@ -10,10 +10,18 @@ import { createDashboardTabContentModel } from "./dashboardTabContentModel";
 import DashboardWorkspaceContent from "./DashboardWorkspaceContent";
 
 vi.mock("../playerProfile/PlayerProfile", () => ({
-  default: ({ onClose, onSelectTeam, startWithRenewalModal }: any) => (
+  default: ({
+    onClose,
+    onSelectTeam,
+    startWithRenewalModal,
+    startWithTerminationModal,
+  }: any) => (
     <div>
       <span>Player Profile Mock</span>
       <span>{startWithRenewalModal ? "renewal-open" : "renewal-closed"}</span>
+      <span>
+        {startWithTerminationModal ? "termination-open" : "termination-closed"}
+      </span>
       <button onClick={onClose}>close-player</button>
       <button onClick={() => onSelectTeam("team-2")}>select-team</button>
     </div>
@@ -263,7 +271,47 @@ describe("DashboardWorkspaceContent", () => {
 
     expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
     expect(screen.getByText("renewal-open")).toBeInTheDocument();
+    expect(screen.getByText("termination-closed")).toBeInTheDocument();
     expect(screen.queryByText("Tab Content Squad")).not.toBeInTheDocument();
+  });
+
+  it("passes the termination intent to the player profile branch", () => {
+    const gameState = createGameState();
+    const profileNavigation = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "player-1",
+      { openTermination: true },
+    );
+
+    render(
+      <DashboardWorkspaceContent
+        dashboardAlerts={[]}
+        gameState={gameState}
+        profileNavigation={profileNavigation}
+        dashboardTabContentModel={createDashboardTabContentModel({
+          activeTab: "Squad",
+          gameState,
+          seasonComplete: false,
+          visitedOnboardingTabs: new Set<string>(),
+          initialMessageId: null,
+          handlers: {
+            onSelectPlayer: vi.fn(),
+            onSelectTeam: vi.fn(),
+            onGameUpdate: vi.fn(),
+            onNavigate: vi.fn(),
+          },
+        })}
+        onBack={vi.fn()}
+        onNavigate={vi.fn()}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+        isUnemployed={false}
+      />,
+    );
+
+    expect(screen.getByText("termination-open")).toBeInTheDocument();
+    expect(screen.getByText("renewal-closed")).toBeInTheDocument();
   });
 
   it("renders the team profile branch when a team is selected", () => {

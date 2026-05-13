@@ -100,6 +100,7 @@ export default function DashboardTabContent({
       {activeTab === "Players" && (
         <PlayersListTab
           gameState={gameState}
+          onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
           onSelectTeam={onSelectTeam}
         />
@@ -110,11 +111,19 @@ export default function DashboardTabContent({
       )}
 
       {activeTab === "Tournaments" && (
-        <TournamentsTab gameState={gameState} onSelectTeam={onSelectTeam} />
+        <TournamentsTab
+          gameState={gameState}
+          onSelectPlayer={onSelectPlayer}
+          onSelectTeam={onSelectTeam}
+        />
       )}
 
       {activeTab === "Staff" && (
-        <StaffTab gameState={gameState} onGameUpdate={onGameUpdate} />
+        <StaffTab
+          gameState={gameState}
+          onGameUpdate={onGameUpdate}
+          onNavigate={onNavigate}
+        />
       )}
 
       {activeTab === "Scouting" && (
@@ -122,13 +131,16 @@ export default function DashboardTabContent({
           gameState={gameState}
           onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
+          onSelectTeam={onSelectTeam}
         />
       )}
 
       {activeTab === "Youth" && (
         <YouthAcademyTab
           gameState={gameState}
+          onGameUpdate={onGameUpdate}
           onSelectPlayer={onSelectPlayer}
+          onNavigate={onNavigate}
         />
       )}
 
@@ -141,7 +153,9 @@ export default function DashboardTabContent({
         />
       )}
 
-      {activeTab === "Manager" && <ManagerTab gameState={gameState} />}
+      {activeTab === "Manager" && (
+        <ManagerTab gameState={gameState} onSelectTeam={onSelectTeam} />
+      )}
 
       {activeTab === "News" && (
         <NewsTab gameState={gameState} onSelectTeam={onSelectTeam} />

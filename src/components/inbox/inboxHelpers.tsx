@@ -302,6 +302,16 @@ export function getNavigationTarget(route: string): NavigationTarget {
     };
   }
 
+  const playerMatch = route.match(/^\/player\/(.+)$/);
+
+  if (playerMatch) {
+    return {
+      tab: "__selectPlayer",
+      context: { messageId: playerMatch[1] },
+      shouldResolveAction: false,
+    };
+  }
+
   const tabMatch = route.match(/[?&]tab=([^&]+)/i);
 
   if (tabMatch) {

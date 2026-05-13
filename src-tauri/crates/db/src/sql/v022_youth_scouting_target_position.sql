@@ -1,0 +1,2 @@
+ALTER TABLE youth_scouting_assignments
+ADD COLUMN target_position TEXT;

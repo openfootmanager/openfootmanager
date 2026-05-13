@@ -57,6 +57,7 @@ fn parse_news_category(s: &str) -> NewsCategory {
         "LeagueRoundup" => NewsCategory::LeagueRoundup,
         "StandingsUpdate" => NewsCategory::StandingsUpdate,
         "TransferRumour" => NewsCategory::TransferRumour,
+        "TransferRoundup" => NewsCategory::TransferRoundup,
         "InjuryNews" => NewsCategory::InjuryNews,
         "ManagerialChange" => NewsCategory::ManagerialChange,
         "SeasonPreview" => NewsCategory::SeasonPreview,
@@ -183,5 +184,23 @@ mod tests {
         upsert_news_list(db.conn(), &articles).unwrap();
         let all = load_all_news(db.conn()).unwrap();
         assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn test_transfer_roundup_category_roundtrips() {
+        let db = test_db();
+        let article = NewsArticle::new(
+            "news-transfer-roundup".to_string(),
+            "Transfer Roundup".to_string(),
+            "Big moves landed this week.".to_string(),
+            "Transfer Intelligence".to_string(),
+            "2026-08-15".to_string(),
+            NewsCategory::TransferRoundup,
+        );
+
+        upsert_news(db.conn(), &article).unwrap();
+        let all = load_all_news(db.conn()).unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].category, NewsCategory::TransferRoundup);
     }
 }

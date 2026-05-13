@@ -60,7 +60,7 @@ export default function PlayerProfileRecentMatchesCard({
 
                             <div className="text-center">
                                 <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                    Score
+                                    {t("playerProfile.recentMatchesScore")}
                                 </p>
                                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
                                     {match.team_goals}-{match.opponent_goals}
@@ -69,7 +69,7 @@ export default function PlayerProfileRecentMatchesCard({
 
                             <div className="text-center">
                                 <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                    G / A
+                                    {t("playerProfile.recentMatchesGoalsAssists")}
                                 </p>
                                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
                                     {match.goals} / {match.assists}
@@ -78,7 +78,7 @@ export default function PlayerProfileRecentMatchesCard({
 
                             <div className="text-center">
                                 <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                    Rating
+                                    {t("playerProfile.recentMatchesRating")}
                                 </p>
                                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
                                     {match.rating.toFixed(1)}

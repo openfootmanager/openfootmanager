@@ -34,7 +34,7 @@ export default function HomePlayerMomentumCard({
           </button>
         }
       >
-        {t("home.playerMomentum", "Player Momentum")}
+        {t("home.playerMomentum")}
       </CardHeader>
       <CardBody>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -334,3 +334,138 @@ pub(crate) fn contract_concern_message(
     )
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
 }
+
+pub(crate) fn takeover_contract_review_message(
+    msg_id: &str,
+    total_expiring_this_season: usize,
+    urgent_contracts: usize,
+    final_weeks_contracts: usize,
+    date: &str,
+) -> InboxMessage {
+    let (body, body_key) = match (urgent_contracts, final_weeks_contracts) {
+        (0, _) => (
+            format!(
+                "Your assistant has reviewed the squad contracts after your arrival. {} player(s) are due to come up for renewal this season, but none require an immediate decision today.\n\nStart mapping out who you want to keep so the situation stays under control.",
+                total_expiring_this_season,
+            ),
+            "be.msg.takeoverContractReview.bodyNoneUrgent",
+        ),
+        (_, 0) => (
+            format!(
+                "Your assistant has reviewed the squad contracts after your arrival. {} player(s) are due to come up for renewal this season, and {} already need attention inside the next six months.\n\nYou do not need to solve everything at once, but these cases should be near the top of your early workload.",
+                total_expiring_this_season, urgent_contracts,
+            ),
+            "be.msg.takeoverContractReview.bodyUrgent",
+        ),
+        _ => (
+            format!(
+                "Your assistant has reviewed the squad contracts after your arrival. {} player(s) are due to come up for renewal this season, {} need attention inside the next six months, and {} are already in the final month.\n\nStabilize the urgent cases first, then work through the wider renewal list in stages.",
+                total_expiring_this_season, urgent_contracts, final_weeks_contracts,
+            ),
+            "be.msg.takeoverContractReview.bodyFinalMonth",
+        ),
+    };
+
+    InboxMessage::new(
+        msg_id.to_string(),
+        "Assistant Manager - Contract Review".to_string(),
+        body,
+        "Assistant Manager".to_string(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Contract)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("Assistant Manager")
+    .with_i18n(
+        "be.msg.takeoverContractReview.subject",
+        body_key,
+        params(&[
+            ("totalExpiring", &total_expiring_this_season.to_string()),
+            ("urgentContracts", &urgent_contracts.to_string()),
+            ("finalMonthContracts", &final_weeks_contracts.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
+    .with_action(action(
+        "view_squad",
+        "Review Squad Contracts",
+        "be.msg.takeoverContractReview.actionReview",
+        ActionType::NavigateTo {
+            route: "/dashboard?tab=Squad".to_string(),
+        },
+    ))
+    .with_action(action(
+        "ack",
+        "Acknowledge",
+        "be.msg.event.ack",
+        ActionType::Acknowledge,
+    ))
+    .with_context(MessageContext::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::takeover_contract_review_message;
+
+    #[test]
+    fn takeover_contract_review_message_uses_i18n_keys_and_variant_body_keys() {
+        let no_urgency = takeover_contract_review_message("review_1", 2, 0, 0, "2026-07-01");
+        assert_eq!(
+            no_urgency.subject_key.as_deref(),
+            Some("be.msg.takeoverContractReview.subject")
+        );
+        assert_eq!(
+            no_urgency.body_key.as_deref(),
+            Some("be.msg.takeoverContractReview.bodyNoneUrgent")
+        );
+        assert_eq!(
+            no_urgency.sender_key.as_deref(),
+            Some("be.sender.assistantManager")
+        );
+        assert_eq!(
+            no_urgency.sender_role_key.as_deref(),
+            Some("be.role.assistantManager")
+        );
+        assert_eq!(
+            no_urgency.actions[0].label_key.as_deref(),
+            Some("be.msg.takeoverContractReview.actionReview")
+        );
+        assert_eq!(
+            no_urgency.actions[1].label_key.as_deref(),
+            Some("be.msg.event.ack")
+        );
+        assert_eq!(
+            no_urgency
+                .i18n_params
+                .get("totalExpiring")
+                .map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            no_urgency
+                .i18n_params
+                .get("urgentContracts")
+                .map(String::as_str),
+            Some("0")
+        );
+        assert_eq!(
+            no_urgency
+                .i18n_params
+                .get("finalMonthContracts")
+                .map(String::as_str),
+            Some("0")
+        );
+
+        let urgent = takeover_contract_review_message("review_2", 4, 2, 0, "2026-07-01");
+        assert_eq!(
+            urgent.body_key.as_deref(),
+            Some("be.msg.takeoverContractReview.bodyUrgent")
+        );
+
+        let final_month = takeover_contract_review_message("review_3", 5, 3, 1, "2026-07-01");
+        assert_eq!(
+            final_month.body_key.as_deref(),
+            Some("be.msg.takeoverContractReview.bodyFinalMonth")
+        );
+    }
+}

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::player::Player;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MessageCategory {
     Welcome,
@@ -95,6 +97,14 @@ pub struct MessageContext {
     pub player_id: Option<String>,
     pub fixture_id: Option<String>,
     pub match_result: Option<ContextMatchResult>,
+    #[serde(default)]
+    pub youth_target_position: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youth_search_region: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youth_search_objective: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youth_prospects: Option<Vec<Player>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scout_report: Option<ScoutReportData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

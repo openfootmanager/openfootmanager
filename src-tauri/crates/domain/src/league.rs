@@ -7,6 +7,17 @@ pub struct League {
     pub season: u32,
     pub fixtures: Vec<Fixture>,
     pub standings: Vec<StandingEntry>,
+    #[serde(default)]
+    pub transfer_log: Vec<CompletedTransfer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CompletedTransfer {
+    pub date: String,
+    pub from_team_id: String,
+    pub to_team_id: String,
+    pub player_id: String,
+    pub fee: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -131,6 +142,15 @@ impl Fixture {
     pub fn counts_for_league_standings(&self) -> bool {
         matches!(self.competition, FixtureCompetition::League)
     }
+
+    pub fn generates_match_report_news(&self) -> bool {
+        matches!(
+            self.competition,
+            FixtureCompetition::League
+                | FixtureCompetition::Friendly
+                | FixtureCompetition::PreseasonTournament
+        )
+    }
 }
 
 impl League {
@@ -146,6 +166,7 @@ impl League {
             season,
             fixtures: Vec::new(),
             standings,
+            transfer_log: Vec::new(),
         }
     }
 

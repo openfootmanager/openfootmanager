@@ -98,7 +98,10 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
               {t('endOfSeason.seasonComplete')}
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
-              {league?.name} — Season {league?.season}
+              {t("endOfSeason.seasonLine", {
+                league: league?.name ?? "",
+                season: league?.season ?? "",
+              })}
             </p>
             {isChampion && (
               <p className="text-xl font-heading font-bold text-accent-500 mt-2 uppercase tracking-wider animate-pulse">

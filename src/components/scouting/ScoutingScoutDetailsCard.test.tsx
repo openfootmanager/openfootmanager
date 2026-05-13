@@ -128,7 +128,7 @@ describe("ScoutingScoutDetailsCard", () => {
 
     expect(screen.getByText("Your Scouts")).toBeInTheDocument();
     expect(screen.getByText("Sam Scout")).toBeInTheDocument();
-    expect(screen.getByText(/1\/4 slots/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\/1 slots/i)).toBeInTheDocument();
     expect(screen.getByText(/John Smith/)).toBeInTheDocument();
     expect(screen.getByText(/4d/)).toBeInTheDocument();
   });

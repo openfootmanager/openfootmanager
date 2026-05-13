@@ -14,6 +14,7 @@ import type {
   MessageAction,
   MessageData,
 } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
 
 const mockTranslationState = vi.hoisted(function () {
@@ -21,7 +22,20 @@ const mockTranslationState = vi.hoisted(function () {
     language: "en",
     translations: {
       en: {
+        "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
+        "inbox.deleteMessage": "Delete message",
         "inbox.effectOutcomeLabel": "Outcome",
+        "inbox.markAsRead": "Mark as read",
+        "inbox.openMessage": "Open message",
+        "scouting.youthTargetLabel": "Youth target",
+        "scouting.youthAnyPosition": "Any position",
+        "common.positions.Defender": "Defender",
+        "common.positions.Midfielder": "Midfielder",
+        "common.positions.Forward": "Forward",
+        "inbox.sortByDate": "Sort messages by date",
+        "inbox.sortLabel": "Sort",
+        "inbox.sortNewest": "Newest first",
+        "inbox.sortOldest": "Oldest first",
       },
       "pt-BR": {
         "inbox.effectOutcomeLabel": "Desfecho",
@@ -52,7 +66,7 @@ vi.mock("react-i18next", async (importOriginal) => {
       t: (key: string, value?: unknown) => {
         const resolved =
           mockTranslationState.translations[mockTranslationState.language]?.[
-            key
+          key
           ];
 
         if (resolved) {
@@ -97,12 +111,14 @@ beforeAll(function defineMatchMedia(): void {
       "be.msg.delegatedRenewals.body":
         "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
       "be.msg.delegatedRenewals.case.successful":
-        "Completed: {{player}} agreed to {{years}} year(s) on €{{wage}}/wk.",
+        "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
       "be.msg.delegatedRenewals.case.stalled":
         "Still difficult: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.case.failed": "Failed: {{player}} — {{detail}}",
       "be.msg.delegatedRenewals.notes.beyondLimits":
-        "Their camp want around €{{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
+        "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
+      "be.msg.delegatedRenewals.notes.boardWagePolicy":
+        "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
       "be.msg.delegatedRenewals.notes.relationshipBlocked":
         "They are not willing to commit through me under the current relationship and contract situation.",
     },
@@ -113,6 +129,13 @@ beforeAll(function defineMatchMedia(): void {
 
 beforeEach(function resetMocks(): void {
   mockedInvoke.mockReset();
+  useSettingsStore.setState({
+    settings: {
+      ...useSettingsStore.getState().settings,
+      currency: "EUR",
+      language: "en",
+    },
+  });
 });
 
 function createMessage(overrides: Partial<MessageData> = {}): MessageData {
@@ -131,6 +154,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
       team_id: null,
       player_id: null,
       fixture_id: null,
+      youth_target_position: null,
       match_result: null,
     },
     ...overrides,
@@ -297,6 +321,19 @@ describe("InboxTab", function (): void {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
   });
 
+  it("opens the context menu on a message row and requests deletion", function (): void {
+    renderInboxTab({
+      gameState: createGameState([createMessage({ id: "m1", read: true })]),
+    });
+
+    fireEvent.contextMenu(screen.getByTestId("inbox-row-m1"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete message" }));
+
+    expect(
+      screen.getByTestId("inbox-delete-confirm-modal"),
+    ).toBeInTheDocument();
+  });
+
   it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
     const updatedGameState = createGameState([
@@ -357,6 +394,34 @@ describe("InboxTab", function (): void {
     await waitFor(function (): void {
       expect(onNavigate).toHaveBeenCalledWith("__selectTeam", {
         messageId: "team-99",
+      });
+    });
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("navigates to a player route without resolving the message action", async function (): Promise<void> {
+    const onNavigate = vi.fn();
+    const action: MessageAction = {
+      id: "action-1",
+      label: "Open Player",
+      action_type: { NavigateTo: { route: "/player/player-99" } },
+      resolved: false,
+    };
+
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", read: true, actions: [action] }),
+      ]),
+      initialMessageId: "m1",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Player" }));
+
+    await waitFor(function (): void {
+      expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+        messageId: "player-99",
       });
     });
 
@@ -506,7 +571,15 @@ describe("InboxTab", function (): void {
     }
   });
 
-  it("renders delegated renewal report details from localized structured context", function (): void {
+  it("renders delegated renewal report details with settings-aware money formatting", function (): void {
+    useSettingsStore.setState({
+      settings: {
+        ...useSettingsStore.getState().settings,
+        currency: "GBP",
+        language: "en",
+      },
+    });
+
     renderInboxTab({
       gameState: createGameState([
         createMessage({
@@ -564,12 +637,12 @@ describe("InboxTab", function (): void {
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Completed: Alex Done agreed to 3 year(s) on €24000/wk.",
+        "Completed: Alex Done agreed to 3 year(s) on £24,000/wk.",
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Still difficult: Ben Pending — Their camp want around €26000/wk for 4 years, which is beyond the delegation limits.",
+        "Still difficult: Ben Pending — Their camp want around £26,000/wk for 4 years, which is beyond the delegation limits.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -612,5 +685,30 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByText("Choose your response — outcome varies"),
     ).toBeInTheDocument();
+  });
+
+  it("shows the selected youth scouting target on youth recruitment reports", function (): void {
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-scout-1",
+          category: "ScoutReport",
+          read: true,
+          subject: "Youth prospect found",
+          body: "Scout report body",
+          context: {
+            team_id: "t1",
+            player_id: "p1",
+            fixture_id: null,
+            youth_target_position: "Defender",
+            match_result: null,
+          },
+        }),
+      ]),
+      initialMessageId: "youth-scout-1",
+    });
+
+    expect(screen.getByText("Youth target")).toBeInTheDocument();
+    expect(screen.getByText("Defender")).toBeInTheDocument();
   });
 });

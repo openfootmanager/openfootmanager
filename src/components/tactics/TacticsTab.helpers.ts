@@ -1,4 +1,5 @@
 import { calcAge, calcOvr } from "../../lib/helpers";
+import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
@@ -73,13 +74,15 @@ export function buildTacticsRoster(
   teamId: string,
 ): PlayerData[] {
   return players
-    .filter((player) => player.team_id === teamId)
+    .filter(
+      (player) => player.team_id === teamId && isSeniorSquadPlayer(player),
+    )
     .sort((leftPlayer, rightPlayer) => {
       return (
         (POSITION_ORDER[normalisePosition(leftPlayer.position)] ?? 99) -
-          (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
+        (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
         calcOvr(rightPlayer, rightPlayer.natural_position || rightPlayer.position) -
-          calcOvr(leftPlayer, leftPlayer.natural_position || leftPlayer.position)
+        calcOvr(leftPlayer, leftPlayer.natural_position || leftPlayer.position)
       );
     });
 }
@@ -148,7 +151,7 @@ export function sortTacticsPlayers(
       case "pos":
         return (
           (POSITION_ORDER[normalisePosition(leftPosition)] ?? 99) -
-            (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
+          (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
           calcOvr(rightPlayer, rightPosition) - calcOvr(leftPlayer, leftPosition)
         );
       case "name":

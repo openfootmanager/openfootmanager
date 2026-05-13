@@ -271,6 +271,14 @@ export default function InboxTab({
     });
   }
 
+  function handleRequestDeleteMessage(messageId: string, subject: string): void {
+    setDeleteModalState({
+      mode: "single",
+      messageId,
+      subject,
+    });
+  }
+
   function handleShowAll(): void {
     setCategoryFilter(null);
   }
@@ -330,6 +338,12 @@ export default function InboxTab({
           language={i18n.language}
           selectedMessageId={selectedMessageId}
           selectedMessageIds={selectedMessageIds}
+          onRequestDeleteMessage={(message) => {
+            handleRequestDeleteMessage(message.id, message.subject);
+          }}
+          onRequestMarkMessageRead={(messageId) => {
+            void handleSelectMessage(messageId);
+          }}
           onSelectMessage={(messageId) => {
             void handleSelectMessage(messageId);
           }}

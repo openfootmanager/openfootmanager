@@ -37,7 +37,7 @@ export default function DashboardMatchConfirmModal({
         </div>
         <div>
           <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-            {t("continueMenu.matchDayTitle", "Match Day")}
+            {t("continueMenu.matchDayTitle")}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {modeMeta.label}
@@ -62,10 +62,7 @@ export default function DashboardMatchConfirmModal({
       {matchMode === "delegate" && (
         <p className="mt-1 flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
           <AlertCircle className="h-3.5 w-3.5" />
-          {t(
-            "continueMenu.delegateWarning",
-            "Your assistant will manage the match. You won't be able to intervene.",
-          )}
+          {t("continueMenu.delegateWarning")}
         </p>
       )}
       <div className="mt-5 flex gap-3">

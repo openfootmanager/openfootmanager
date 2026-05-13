@@ -1,13 +1,16 @@
 use crate::finances::calc_annual_wages;
 use crate::game::Game;
 use chrono::NaiveDate;
+use domain::league::CompletedTransfer;
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::TransferOfferStatus;
 use domain::season::TransferWindowStatus;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 const TRANSFER_NEGOTIATION_STALE_DAYS: i64 = 14;
+const MAX_COMPLETED_AI_TRANSFERS_PER_DAY: usize = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -43,6 +46,13 @@ enum PlayerImportance {
     Key,
     Regular,
     Fringe,
+}
+
+struct MarketCandidate {
+    player_id: String,
+    owner_team_id: String,
+    score: i32,
+    fee: u64,
 }
 
 fn contract_days_remaining(current_date: NaiveDate, contract_end: Option<&str>) -> Option<i64> {
@@ -328,16 +338,14 @@ fn transfer_window_is_open(game: &Game) -> bool {
     )
 }
 
-pub fn generate_incoming_transfer_offers(game: &mut Game) {
+pub fn evaluate_transfer_market(game: &mut Game) {
     expire_stale_transfer_offers(game);
 
     if !transfer_window_is_open(game) {
         return;
     }
 
-    let Some(user_team_id) = game.manager.team_id.clone() else {
-        return;
-    };
+    let user_team_id = game.manager.team_id.clone();
 
     let current_date = game.clock.current_date.date_naive();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
@@ -345,25 +353,34 @@ pub fn generate_incoming_transfer_offers(game: &mut Game) {
     let buyer_ids: Vec<String> = game
         .teams
         .iter()
-        .filter(|team| team.id != user_team_id)
+        .filter(|team| Some(team.id.as_str()) != user_team_id.as_deref())
         .map(|team| team.id.clone())
         .collect();
+    let mut completed_ai_transfers = 0_usize;
+    let mut moved_player_ids: HashSet<String> = HashSet::new();
 
     for buyer_id in buyer_ids {
-        let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id) else {
+        let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id).cloned() else {
             continue;
         };
 
-        let mut chosen_player_id: Option<String> = None;
-        let mut chosen_score = i32::MIN;
-        let mut chosen_fee = 0_u64;
+        let mut chosen: Option<MarketCandidate> = None;
 
         for player in &game.players {
-            if player.team_id.as_deref() != Some(user_team_id.as_str()) {
+            let Some(owner_team_id) = player.team_id.as_deref() else {
+                continue;
+            };
+
+            if owner_team_id == buyer_id || moved_player_ids.contains(&player.id) {
                 continue;
             }
 
-            if has_open_incoming_offer_from_club(player, &buyer_id) {
+            let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
+            if !is_user_owned && completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
+                continue;
+            }
+
+            if is_user_owned && has_open_incoming_offer_from_club(player, &buyer_id) {
                 continue;
             }
 
@@ -377,51 +394,90 @@ pub fn generate_incoming_transfer_offers(game: &mut Game) {
                 continue;
             }
 
-            if score > chosen_score {
-                chosen_player_id = Some(player.id.clone());
-                chosen_score = score;
-                chosen_fee = fee;
+            if chosen
+                .as_ref()
+                .is_none_or(|candidate| score > candidate.score)
+            {
+                chosen = Some(MarketCandidate {
+                    player_id: player.id.clone(),
+                    owner_team_id: owner_team_id.to_string(),
+                    score,
+                    fee,
+                });
             }
         }
 
-        let Some(player_id) = chosen_player_id else {
+        let Some(candidate) = chosen else {
             continue;
         };
 
-        let Some(player) = game
-            .players
-            .iter_mut()
-            .find(|player| player.id == player_id)
-        else {
+        if Some(candidate.owner_team_id.as_str()) == user_team_id.as_deref() {
+            create_incoming_user_offer(game, &candidate, &buyer_id, &buyer_team.name, &today);
             continue;
-        };
+        }
 
-        let offer_id = Uuid::new_v4().to_string();
+        if candidate.score <= 60 || completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
+            continue;
+        }
 
-        player.transfer_offers.push(domain::player::TransferOffer {
-            id: offer_id.clone(),
-            from_team_id: buyer_id.clone(),
-            fee: chosen_fee,
-            wage_offered: 0,
-            last_manager_fee: None,
-            negotiation_round: 1,
-            suggested_counter_fee: None,
-            status: TransferOfferStatus::Pending,
-            date: today.clone(),
-        });
-
-        let player_name = player.full_name.clone();
-        let buyer_name = buyer_team.name.clone();
-        let message = crate::messages::incoming_transfer_offer_message(
-            &offer_id,
-            &player_id,
-            &player_name,
-            &buyer_name,
-            chosen_fee,
-            &today,
-        );
-        game.messages.push(message);
+        if execute_transfer(
+            game,
+            &candidate.player_id,
+            &buyer_id,
+            &candidate.owner_team_id,
+            candidate.fee,
+        )
+        .is_ok()
+        {
+            moved_player_ids.insert(candidate.player_id);
+            completed_ai_transfers += 1;
+        }
     }
+}
+
+pub fn generate_incoming_transfer_offers(game: &mut Game) {
+    evaluate_transfer_market(game);
+}
+
+fn create_incoming_user_offer(
+    game: &mut Game,
+    candidate: &MarketCandidate,
+    buyer_id: &str,
+    buyer_name: &str,
+    today: &str,
+) {
+    let Some(player) = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == candidate.player_id)
+    else {
+        return;
+    };
+
+    let offer_id = Uuid::new_v4().to_string();
+
+    player.transfer_offers.push(domain::player::TransferOffer {
+        id: offer_id.clone(),
+        from_team_id: buyer_id.to_string(),
+        fee: candidate.fee,
+        wage_offered: 0,
+        last_manager_fee: None,
+        negotiation_round: 1,
+        suggested_counter_fee: None,
+        status: TransferOfferStatus::Pending,
+        date: today.to_string(),
+    });
+
+    let player_name = player.full_name.clone();
+    let message = crate::messages::incoming_transfer_offer_message(
+        &offer_id,
+        &candidate.player_id,
+        &player_name,
+        buyer_name,
+        candidate.fee,
+        today,
+    );
+    game.messages.push(message);
 }
 
 fn buyer_counter_offer_ceiling(
@@ -1053,6 +1109,16 @@ fn execute_transfer(
                 &today,
             ));
         }
+    }
+
+    if let Some(league) = &mut game.league {
+        league.transfer_log.push(CompletedTransfer {
+            date: today,
+            from_team_id: from_team_id.to_string(),
+            to_team_id: to_team_id.to_string(),
+            player_id: player_id.to_string(),
+            fee,
+        });
     }
 
     Ok(())

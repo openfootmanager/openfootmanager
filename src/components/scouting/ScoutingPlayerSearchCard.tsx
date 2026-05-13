@@ -4,6 +4,14 @@ import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import { calcAge, formatVal, getTeamName } from "../../lib/helpers";
 import type { PlayerData, TeamData } from "../../store/gameStore";
+import ContextMenu from "../ContextMenu";
+import {
+  buildDividerMenuItem,
+  buildMakeTransferBidMenuItem,
+  buildScoutPlayerMenuItem,
+  buildViewProfileMenuItem,
+  buildViewTeamMenuItem,
+} from "../playerActions/playerContextMenuItems";
 import { Badge, Card, CardBody, CardHeader, CountryFlag } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
@@ -20,6 +28,7 @@ interface ScoutingPlayerSearchCardProps {
   teams: TeamData[];
   posFilter: string;
   searchQuery: string;
+  errorMessage?: string | null;
   alreadyScoutingIds: Set<string>;
   availableScoutCount: number;
   sendingPlayerId: string | null;
@@ -29,7 +38,9 @@ interface ScoutingPlayerSearchCardProps {
   pageSize: number;
   onPositionFilterChange: (position: string) => void;
   onSearchQueryChange: (query: string) => void;
+  onBidPlayer?: (player: PlayerData) => void;
   onSelectPlayer?: (id: string) => void;
+  onSelectTeam?: (id: string) => void;
   onSendScout: (playerId: string) => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
@@ -40,6 +51,7 @@ export default function ScoutingPlayerSearchCard({
   teams,
   posFilter,
   searchQuery,
+  errorMessage,
   alreadyScoutingIds,
   availableScoutCount,
   sendingPlayerId,
@@ -49,7 +61,9 @@ export default function ScoutingPlayerSearchCard({
   pageSize,
   onPositionFilterChange,
   onSearchQueryChange,
+  onBidPlayer,
   onSelectPlayer,
+  onSelectTeam,
   onSendScout,
   onPreviousPage,
   onNextPage,
@@ -67,8 +81,8 @@ export default function ScoutingPlayerSearchCard({
                 key={position}
                 onClick={() => onPositionFilterChange(position)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors ${posFilter === position
-                    ? "bg-primary-500 text-white"
-                    : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
+                  ? "bg-primary-500 text-white"
+                  : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
                   }`}
               >
                 {position === "All"
@@ -91,6 +105,15 @@ export default function ScoutingPlayerSearchCard({
           />
         </div>
 
+        {errorMessage ? (
+          <p
+            role="alert"
+            className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+          >
+            {errorMessage}
+          </p>
+        ) : null}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -109,8 +132,42 @@ export default function ScoutingPlayerSearchCard({
                 const team = player.team_id
                   ? getTeamName(teams, player.team_id)
                   : t("common.freeAgent");
+                const scoutState = isScouting
+                  ? "already-assigned"
+                  : sendingPlayerId === player.id
+                    ? "busy"
+                    : availableScoutCount === 0
+                      ? "unavailable"
+                      : "ready";
+                const contextItems = [
+                  ...(onSelectPlayer
+                    ? [
+                      buildViewProfileMenuItem(t, () => {
+                        onSelectPlayer(player.id);
+                      }),
+                    ]
+                    : []),
+                  ...(player.team_id && onSelectTeam
+                    ? [
+                      buildViewTeamMenuItem(t, () => {
+                        onSelectTeam(player.team_id!);
+                      }),
+                    ]
+                    : []),
+                  buildDividerMenuItem(),
+                  ...(player.team_id && onBidPlayer
+                    ? [
+                      buildMakeTransferBidMenuItem(t, () => {
+                        onBidPlayer(player);
+                      }),
+                    ]
+                    : []),
+                  buildScoutPlayerMenuItem(t, scoutState, () => {
+                    onSendScout(player.id);
+                  }),
+                ];
 
-                return (
+                const row = (
                   <tr
                     key={player.id}
                     className="border-b border-gray-50 dark:border-navy-700/50 hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors"
@@ -178,6 +235,12 @@ export default function ScoutingPlayerSearchCard({
                     </td>
                   </tr>
                 );
+
+                return (
+                  <ContextMenu items={contextItems} key={player.id}>
+                    {row}
+                  </ContextMenu>
+                );
               })}
             </tbody>
           </table>
@@ -199,7 +262,7 @@ export default function ScoutingPlayerSearchCard({
             </span>
             <div className="flex items-center gap-2">
               <button
-                aria-label="Previous page"
+                aria-label={t("scouting.previousPage")}
                 disabled={safePage === 0}
                 onClick={onPreviousPage}
                 className="p-1.5 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -210,7 +273,7 @@ export default function ScoutingPlayerSearchCard({
                 {safePage + 1} / {totalPages}
               </span>
               <button
-                aria-label="Next page"
+                aria-label={t("scouting.nextPage")}
                 disabled={safePage >= totalPages - 1}
                 onClick={onNextPage}
                 className="p-1.5 rounded-lg bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"

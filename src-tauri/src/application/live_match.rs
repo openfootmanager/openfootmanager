@@ -14,7 +14,7 @@ pub struct FinishLiveMatchResponse {
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
     info!("[cmd] finish_live_match");
-    let session = state.take_live_match().ok_or("No active live match")?;
+    let session = state.take_live_match().ok_or("be.error.noActiveLiveMatch")?;
 
     let fixture_index = session.fixture_index;
     let round_matchday = session.round_matchday;
@@ -33,7 +33,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
 
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let mut captures = Vec::new();
     ofm_core::turn::apply_match_report_with_capture(
@@ -71,7 +71,7 @@ pub fn start_live_match(
     );
     let game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let match_mode = match mode {
         "spectator" => MatchMode::Spectator,
@@ -108,7 +108,7 @@ pub fn step_live_match(
                 session.step_many(minutes)
             }
         })
-        .ok_or_else(|| "No active live match".to_string())?;
+        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())?;
 
     if let Some(last) = results.last() {
         info!(
@@ -134,7 +134,7 @@ pub fn apply_match_command(
             session.apply_command(command)?;
             Ok::<engine::MatchSnapshot, String>(session.snapshot())
         })
-        .ok_or_else(|| "No active live match".to_string())??;
+        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
 
     info!(
         "[cmd] apply_match_command: snapshot phase={:?}, minute={}, home_players={}, away_players={}",
@@ -151,7 +151,7 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
     log::debug!("[cmd] get_match_snapshot");
     let snapshot = state
         .with_live_match(|session| session.snapshot())
-        .ok_or_else(|| "No active live match".to_string())?;
+        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())?;
 
     info!(
         "[cmd] get_match_snapshot: phase={:?}, minute={}, home_team={}, away_team={}",

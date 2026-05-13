@@ -1,4 +1,5 @@
 use crate::end_of_season;
+use crate::finances;
 use crate::game::{BoardObjective, Game, ObjectiveType};
 use domain::league::FixtureStatus;
 use domain::message::*;
@@ -8,6 +9,7 @@ struct ObjectiveTargets {
     expected_pos: u32,
     win_target: u32,
     goals_target: u32,
+    finance_target: u32,
 }
 
 fn objective_targets(reputation: u32, num_teams: u32) -> ObjectiveTargets {
@@ -46,6 +48,7 @@ fn objective_targets(reputation: u32, num_teams: u32) -> ObjectiveTargets {
         expected_pos,
         win_target,
         goals_target,
+        finance_target: 100,
     }
 }
 
@@ -63,13 +66,20 @@ fn build_objectives_message(
     params.insert("expectedPos".to_string(), targets.expected_pos.to_string());
     params.insert("winTarget".to_string(), targets.win_target.to_string());
     params.insert("goalsTarget".to_string(), targets.goals_target.to_string());
+    params.insert(
+        "financeTarget".to_string(),
+        targets.finance_target.to_string(),
+    );
 
     InboxMessage::new(
         board_message_id(season),
         format!("Season {} — Board Objectives", season),
         format!(
-            "The board has set the following objectives for this season:\n\n1. Finish in the top {}\n2. Win at least {} matches\n3. Score at least {} goals\n\nMeeting these targets will improve the board's confidence in your management. Failure to meet expectations may result in reduced budgets or further consequences.",
-            targets.expected_pos, targets.win_target, targets.goals_target
+            "The board has set the following objectives for this season:\n\n1. Finish in the top {}\n2. Win at least {} matches\n3. Score at least {} goals\n4. Keep wage spending at or below {}% of the budget\n\nMeeting these targets will improve the board's confidence in your management. Failure to meet expectations may result in reduced budgets or further consequences.",
+            targets.expected_pos,
+            targets.win_target,
+            targets.goals_target,
+            targets.finance_target,
         ),
         "Board of Directors".to_string(),
         today,
@@ -140,6 +150,13 @@ pub fn generate_objectives(game: &mut Game) {
             objective_type: ObjectiveType::GoalsScored,
             met: false,
         },
+        BoardObjective {
+            id: "obj_finance".to_string(),
+            description: "boardObjectives.objective.FinancialStability".to_string(),
+            target: targets.finance_target,
+            objective_type: ObjectiveType::FinancialStability,
+            met: false,
+        },
     ];
 
     // Send inbox message about objectives
@@ -194,19 +211,21 @@ pub fn update_objective_progress(game: &mut Game) {
         .sum();
 
     let user_wins = user_standing.map(|s| s.won).unwrap_or(0);
+    let finance_snapshot = finances::team_finance_snapshot(game, &user_team_id);
 
     for obj in game.board_objectives.iter_mut() {
-        match obj.objective_type {
-            ObjectiveType::LeaguePosition => {
-                obj.met = league_complete && user_pos <= obj.target;
-            }
-            ObjectiveType::Wins => {
-                obj.met = user_wins >= obj.target;
-            }
-            ObjectiveType::GoalsScored => {
-                obj.met = user_goals >= obj.target;
-            }
-        }
+        obj.met = league_complete
+            && match obj.objective_type {
+                ObjectiveType::LeaguePosition => user_pos <= obj.target,
+                ObjectiveType::Wins => user_wins >= obj.target,
+                ObjectiveType::GoalsScored => user_goals >= obj.target,
+                ObjectiveType::FinancialStability => {
+                    finance_snapshot.as_ref().is_some_and(|snapshot| {
+                        !snapshot.currently_in_debt
+                            && snapshot.wage_budget_usage_percent <= obj.target
+                    })
+                }
+            };
     }
 }
 
@@ -232,7 +251,47 @@ mod tests {
     };
     use domain::manager::Manager;
     use domain::message::{InboxMessage, MessageCategory, MessagePriority};
+    use domain::player::{Player, PlayerAttributes, Position};
     use domain::team::Team;
+
+    fn default_attrs() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 30,
+            reflexes: 30,
+            aerial: 60,
+        }
+    }
+
+    fn make_player(id: &str, team_id: &str, wage: u32) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            "Player".to_string(),
+            "Player".to_string(),
+            "1995-01-01".to_string(),
+            "England".to_string(),
+            Position::Forward,
+            default_attrs(),
+        );
+        player.team_id = Some(team_id.to_string());
+        player.wage = wage;
+        player
+    }
 
     fn make_team(id: &str, name: &str, reputation: u32) -> Team {
         let mut team = Team::new(
@@ -308,7 +367,7 @@ mod tests {
 
         generate_objectives(&mut game);
 
-        assert_eq!(game.board_objectives.len(), 3);
+        assert_eq!(game.board_objectives.len(), 4);
         assert_eq!(objective_by_id(&game, "obj_position").target, 1);
         assert_eq!(
             objective_by_id(&game, "obj_position").description,
@@ -323,6 +382,11 @@ mod tests {
         assert_eq!(
             objective_by_id(&game, "obj_goals").description,
             "boardObjectives.objective.GoalsScored"
+        );
+        assert_eq!(objective_by_id(&game, "obj_finance").target, 100);
+        assert_eq!(
+            objective_by_id(&game, "obj_finance").description,
+            "boardObjectives.objective.FinancialStability"
         );
 
         let message = game
@@ -356,6 +420,10 @@ mod tests {
             message.i18n_params.get("goalsTarget"),
             Some(&"12".to_string())
         );
+        assert_eq!(
+            message.i18n_params.get("financeTarget"),
+            Some(&"100".to_string())
+        );
     }
 
     #[test]
@@ -375,7 +443,7 @@ mod tests {
 
         generate_objectives(&mut game);
 
-        assert_eq!(game.board_objectives.len(), 3);
+        assert_eq!(game.board_objectives.len(), 4);
         assert_eq!(
             game.messages
                 .iter()
@@ -386,12 +454,13 @@ mod tests {
     }
 
     #[test]
-    fn update_objective_progress_updates_each_objective_from_league_state() {
+    fn update_objective_progress_keeps_all_objectives_in_progress_until_league_completion() {
         let mut game = make_game(60, 1, 3);
         game.board_objectives = vec![
             make_objective("obj_position", ObjectiveType::LeaguePosition, 1, false),
             make_objective("obj_wins", ObjectiveType::Wins, 4, false),
             make_objective("obj_goals", ObjectiveType::GoalsScored, 6, false),
+            make_objective("obj_finance", ObjectiveType::FinancialStability, 100, false),
         ];
 
         let mut league = game.league.clone().unwrap();
@@ -466,8 +535,183 @@ mod tests {
         update_objective_progress(&mut game);
 
         assert!(!objective_by_id(&game, "obj_position").met);
-        assert!(objective_by_id(&game, "obj_wins").met);
+        assert!(!objective_by_id(&game, "obj_wins").met);
         assert!(!objective_by_id(&game, "obj_goals").met);
+        assert!(!objective_by_id(&game, "obj_finance").met);
+    }
+
+    #[test]
+    fn update_objective_progress_marks_every_objective_met_once_league_is_complete() {
+        let mut game = make_game(60, 1, 2);
+        game.board_objectives = vec![
+            make_objective("obj_position", ObjectiveType::LeaguePosition, 1, false),
+            make_objective("obj_wins", ObjectiveType::Wins, 2, false),
+            make_objective("obj_goals", ObjectiveType::GoalsScored, 5, false),
+            make_objective("obj_finance", ObjectiveType::FinancialStability, 100, false),
+        ];
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = 300_000;
+        game.players.push(make_player("player-1", "team1", 220_000));
+
+        let mut league = game.league.clone().unwrap();
+        league.standings = vec![
+            StandingEntry {
+                team_id: "team1".to_string(),
+                played: 2,
+                won: 2,
+                drawn: 0,
+                lost: 0,
+                goals_for: 5,
+                goals_against: 1,
+                points: 6,
+            },
+            StandingEntry {
+                team_id: "team2".to_string(),
+                played: 2,
+                won: 0,
+                drawn: 0,
+                lost: 2,
+                goals_for: 1,
+                goals_against: 5,
+                points: 0,
+            },
+        ];
+        league.fixtures = vec![
+            Fixture {
+                id: "f1".to_string(),
+                matchday: 1,
+                date: "2025-08-01".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 2,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                }),
+            },
+            Fixture {
+                id: "f2".to_string(),
+                matchday: 2,
+                date: "2025-08-08".to_string(),
+                home_team_id: "team2".to_string(),
+                away_team_id: "team1".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 3,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                }),
+            },
+        ];
+        game.league = Some(league);
+
+        update_objective_progress(&mut game);
+
+        assert!(objective_by_id(&game, "obj_position").met);
+        assert!(objective_by_id(&game, "obj_wins").met);
+        assert!(objective_by_id(&game, "obj_goals").met);
+        assert!(objective_by_id(&game, "obj_finance").met);
+    }
+
+    #[test]
+    fn update_objective_progress_tracks_financial_stability_from_finance_snapshot_only_after_completion()
+     {
+        let mut game = make_game(60, 1, 2);
+        game.board_objectives = vec![make_objective(
+            "obj_finance",
+            ObjectiveType::FinancialStability,
+            100,
+            false,
+        )];
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = 100_000;
+        game.players.push(make_player("player-1", "team1", 220_000));
+
+        update_objective_progress(&mut game);
+
+        assert!(!objective_by_id(&game, "obj_finance").met);
+
+        let mut league = game.league.clone().unwrap();
+        league.standings = vec![
+            StandingEntry {
+                team_id: "team1".to_string(),
+                played: 2,
+                won: 2,
+                drawn: 0,
+                lost: 0,
+                goals_for: 3,
+                goals_against: 1,
+                points: 6,
+            },
+            StandingEntry {
+                team_id: "team2".to_string(),
+                played: 2,
+                won: 0,
+                drawn: 0,
+                lost: 2,
+                goals_for: 1,
+                goals_against: 3,
+                points: 0,
+            },
+        ];
+        league.fixtures = vec![
+            Fixture {
+                id: "f1".to_string(),
+                matchday: 1,
+                date: "2025-08-01".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                }),
+            },
+            Fixture {
+                id: "f2".to_string(),
+                matchday: 2,
+                date: "2025-08-08".to_string(),
+                home_team_id: "team2".to_string(),
+                away_team_id: "team1".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 1,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                }),
+            },
+        ];
+        game.league = Some(league);
+
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = 300_000;
+
+        update_objective_progress(&mut game);
+
+        assert!(objective_by_id(&game, "obj_finance").met);
     }
 
     #[test]

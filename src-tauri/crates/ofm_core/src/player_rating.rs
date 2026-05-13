@@ -1,10 +1,75 @@
-use domain::player::{Footedness, Player, Position};
+use domain::player::{Footedness, Player, PlayerTrait, Position};
+use rand::RngExt;
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
         .into_iter()
         .flatten()
         .collect()
+}
+
+/// Refresh a player's derived fields: `ovr`, `potential`, and `traits`.
+///
+/// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
+/// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
+///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
+/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied if
+///   the player is young with a meaningful gap between current OVR and potential.
+///
+/// Pass `current_year` for accurate age calculation (use the game clock year).
+pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
+    // 1. Compute position-weighted OVR
+    let ovr_f = natural_ovr(player);
+    let ovr = ovr_f.round() as u8;
+
+    // 2. Compute potential if not yet set (initial generation or legacy saves)
+    let age = player_age(&player.date_of_birth, current_year);
+    let potential = if player.potential == 0 {
+        generate_potential(ovr, age)
+    } else {
+        // Keep existing potential; clamp so it is always >= ovr
+        player.potential.max(ovr)
+    };
+
+    // 3. Recompute attribute-based traits
+    let mut traits = domain::player::compute_traits(&player.attributes, &player.natural_position);
+
+    // 4. Award Wonderkid trait: young player whose ceiling far exceeds current ability
+    let growth_room = potential.saturating_sub(ovr);
+    if age <= 21 && potential >= 75 && growth_room >= 10 {
+        if !traits.contains(&PlayerTrait::Wonderkid) {
+            traits.push(PlayerTrait::Wonderkid);
+        }
+    }
+
+    player.ovr = ovr;
+    player.potential = potential;
+    player.traits = traits;
+}
+
+/// Generate a potential rating for a newly-created player based on current OVR and age.
+/// Returns a value in [1, 99] that is always >= `ovr`.
+/// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
+pub fn generate_potential(ovr: u8, age: u32) -> u8 {
+    let mut rng = rand::rng();
+    let bonus: u8 = match age {
+        ..=18 => rng.random_range(15u8..=30),
+        19..=20 => rng.random_range(8u8..=22),
+        21..=22 => rng.random_range(4u8..=14),
+        23..=25 => rng.random_range(0u8..=7),
+        _ => 0,
+    };
+    (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
+}
+
+/// Parse birth year from a "YYYY-MM-DD" date string and return approximate age.
+fn player_age(date_of_birth: &str, current_year: u32) -> u32 {
+    let birth_year: u32 = date_of_birth
+        .split('-')
+        .next()
+        .and_then(|y| y.parse().ok())
+        .unwrap_or(2000);
+    current_year.saturating_sub(birth_year)
 }
 
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {

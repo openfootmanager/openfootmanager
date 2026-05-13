@@ -124,18 +124,14 @@ export default function PlayerProfileRenewalModal({
 
         {renewalViolatesSoftCap ? (
           <p className="text-sm text-red-500">
-            {t("playerProfile.renewalBudgetWarning", {
-              defaultValue: "Offer exceeds the board wage pressure limit",
-            })}
+            {t("playerProfile.renewalBudgetWarning")}
           </p>
         ) : null}
 
         {renewalProjection ? (
           <div className="rounded-lg border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-700/40 p-3 space-y-2">
             <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("playerProfile.renewalProjectionTitle", {
-                defaultValue: "Projected financial impact",
-              })}
+              {t("playerProfile.renewalProjectionTitle")}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionWageBill", {
@@ -147,7 +143,6 @@ export default function PlayerProfileRenewalModal({
                   renewalProjection.projected_annual_wage_bill,
                   weeklySuffix,
                 ),
-                defaultValue: "Weekly wage bill {{before}} -> {{after}}",
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -168,7 +163,6 @@ export default function PlayerProfileRenewalModal({
                       100,
                     )
                     : 0,
-                defaultValue: "Wage budget use {{before}}% -> {{after}}%",
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -185,7 +179,6 @@ export default function PlayerProfileRenewalModal({
                     : t("finances.runwayWeeks", {
                       count: renewalProjection.projected_cash_runway_weeks,
                     }),
-                defaultValue: "Cash runway {{before}} -> {{after}}",
               })}
             </p>
           </div>

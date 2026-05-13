@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { ComponentPropsWithoutRef } from "react";
 
@@ -23,6 +23,10 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: {
+    type: "3rdParty",
+    init: () => {},
+  },
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) =>
       typeof fallback === "string" ? fallback : key,
@@ -116,8 +120,9 @@ function fillManagerDetails(): void {
 }
 
 function getNationalityTrigger(): HTMLButtonElement {
-  const fieldLabel = screen.getByText("Country/Region of Origin");
-  const fieldContainer = fieldLabel.parentElement;
+  const fieldContainer = document.getElementById(
+    "create-manager-field-nationality",
+  );
   const trigger = fieldContainer?.querySelector("div.relative > button");
 
   if (!(trigger instanceof HTMLButtonElement)) {

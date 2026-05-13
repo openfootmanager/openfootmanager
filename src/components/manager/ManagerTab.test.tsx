@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, TeamData } from "../../store/gameStore";
@@ -32,6 +32,7 @@ vi.mock("react-i18next", () => ({
       if (key === "manager.careerHistory") return "Career History";
       if (key === "manager.club") return "Club";
       if (key === "manager.period") return "Period";
+      if (key === "common.viewTeam") return "View team";
       if (key === "common.played") return "Played";
       if (key === "common.won") return "Won";
       if (key === "common.drawn") return "Drawn";
@@ -113,7 +114,7 @@ function createGameState(withHistory: boolean): GameStateData {
         ]
         : [],
     },
-    teams: [createTeam()],
+    teams: [createTeam(), createTeam({ id: "team-0", name: "Old Town FC", short_name: "OLD" })],
     players: [],
     staff: [],
     messages: [],
@@ -133,5 +134,26 @@ describe("ManagerTab", () => {
     expect(screen.getByText("55%")).toBeInTheDocument();
     expect(screen.getByText("Career History")).toBeInTheDocument();
     expect(screen.getByText("Old Town FC")).toBeInTheDocument();
+  });
+
+  it("offers team navigation from the current club and career history", () => {
+    const onSelectTeam = vi.fn();
+
+    render(
+      <ManagerTab
+        gameState={createGameState(true)}
+        onSelectTeam={onSelectTeam}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("manager-current-team"));
+    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-1");
+
+    fireEvent.contextMenu(screen.getByTestId("manager-history-team-0"));
+    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-0");
   });
 });

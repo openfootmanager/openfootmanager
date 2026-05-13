@@ -6,6 +6,16 @@ import TrainingSettingsPanel from "./TrainingSettingsPanel";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      const scheduleText: Record<string, string> = {
+        "training.schedules.Intense.label": "Intense",
+        "training.schedules.Intense.desc": "Six training days, one rest day",
+        "training.schedules.Balanced.label": "Balanced",
+        "training.schedules.Balanced.desc": "Four training days, three rest days",
+        "training.schedules.Balanced.detail": "Training on Monday, Tuesday, Thursday, and Friday.",
+        "training.schedules.Light.label": "Light",
+        "training.schedules.Light.desc": "Two training days, five rest days",
+      };
+
       if (key === "training.weeklySchedule") return "Weekly Schedule";
       if (key === "training.trainingFocus") return "Training Focus";
       if (key === "training.intensity") return "Intensity";
@@ -17,7 +27,7 @@ vi.mock("react-i18next", () => ({
       if (key === "training.todayIs") return `${params?.day} is ${params?.type}`;
       if (key === "training.aTrainingDay") return "a training day";
       if (key === "training.aRestDay") return "a rest day";
-      if (key.startsWith("training.schedules.")) return key.replace("training.schedules.", "");
+      if (key in scheduleText) return scheduleText[key];
       if (key.startsWith("training.focuses.")) return key.replace("training.focuses.", "");
       if (key.startsWith("training.intensities.")) return key.replace("training.intensities.", "");
       if (key.startsWith("training.days.")) return key.replace("training.days.", "");
@@ -54,6 +64,7 @@ describe("TrainingSettingsPanel", () => {
 
     expect(screen.getByText("Weekly Schedule")).toBeInTheDocument();
     expect(screen.getByText("Training Focus")).toBeInTheDocument();
+    expect(screen.getByText("Four training days, three rest days")).toBeInTheDocument();
     expect(screen.getByText(/Training pace, stamina at Medium.label/)).toBeInTheDocument();
     expect(screen.getByText(/tue is a training day/)).toBeInTheDocument();
   });
@@ -85,7 +96,7 @@ describe("TrainingSettingsPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Intense.label/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Intense/i }));
     fireEvent.click(screen.getByRole("button", { name: /Technical.label/i }));
     fireEvent.click(screen.getByRole("button", { name: /High.label/i }));
 

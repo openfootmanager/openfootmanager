@@ -18,6 +18,7 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.fixtures") return "Fixtures";
       if (key === "schedule.standings") return "Standings";
       if (key === "common.team") return "Team";
+      if (key === "common.viewTeam") return "View team";
       if (key === "common.played") return "P";
       if (key === "common.won") return "W";
       if (key === "common.drawn") return "D";
@@ -118,33 +119,33 @@ function createGameState(withLeague: boolean): GameStateData {
     news: [],
     league: withLeague
       ? {
-          id: "league-1",
-          name: "Premier League",
-          season: 1,
-          fixtures: [createFixture()],
-          standings: [
-            {
-              team_id: "team-1",
-              played: 1,
-              won: 1,
-              drawn: 0,
-              lost: 0,
-              goals_for: 2,
-              goals_against: 1,
-              points: 3,
-            },
-            {
-              team_id: "team-2",
-              played: 1,
-              won: 0,
-              drawn: 0,
-              lost: 1,
-              goals_for: 1,
-              goals_against: 2,
-              points: 0,
-            },
-          ],
-        }
+        id: "league-1",
+        name: "Premier League",
+        season: 1,
+        fixtures: [createFixture()],
+        standings: [
+          {
+            team_id: "team-1",
+            played: 1,
+            won: 1,
+            drawn: 0,
+            lost: 0,
+            goals_for: 2,
+            goals_against: 1,
+            points: 3,
+          },
+          {
+            team_id: "team-2",
+            played: 1,
+            won: 0,
+            drawn: 0,
+            lost: 1,
+            goals_for: 1,
+            goals_against: 2,
+            points: 0,
+          },
+        ],
+      }
       : null,
     scouting_assignments: [],
     board_objectives: [],
@@ -165,6 +166,17 @@ describe("ScheduleTab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Standings/i }));
     fireEvent.click(screen.getByText("Beta FC"));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("offers context menu actions for fixture teams", () => {
+    const onSelectTeam = vi.fn();
+
+    render(<ScheduleTab gameState={createGameState(true)} onSelectTeam={onSelectTeam} />);
+
+    fireEvent.contextMenu(screen.getByTestId("schedule-fixture-fixture-1"));
+    fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });

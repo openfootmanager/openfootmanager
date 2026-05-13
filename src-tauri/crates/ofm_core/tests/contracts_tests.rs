@@ -1,14 +1,17 @@
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
-    ContractRenewalState, Player, PlayerAttributes, Position, RenewalSessionStatus,
+    ContractExitIntent, ContractRenewalState, Player, PlayerAttributes, Position,
+    RenewalSessionStatus,
 };
 use domain::staff::{Staff, StaffAttributes, StaffRole};
-use domain::team::Team;
+use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::contracts::{
     DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision, RenewalOffer,
-    delegate_renewals, evaluate_renewal_offer, propose_renewal,
+    clear_contract_exit_intent, delegate_renewals, evaluate_renewal_offer, has_let_expire_intent,
+    preview_contract_termination, propose_renewal, set_contract_exit_intent,
+    terminate_contract_now,
 };
 use ofm_core::game::Game;
 
@@ -61,6 +64,13 @@ fn make_player_with(id: &str, wage: u32, contract_end: &str) -> Player {
     player.full_name = format!("Player {}", id);
     player.wage = wage;
     player.contract_end = Some(contract_end.to_string());
+    player
+}
+
+fn make_player_with_position(id: &str, position: Position) -> Player {
+    let mut player = make_player_with(id, 12_000, "2026-10-15");
+    player.position = position.clone();
+    player.natural_position = position;
     player
 }
 
@@ -119,6 +129,31 @@ fn make_game() -> Game {
     )
 }
 
+fn make_squad_game() -> Game {
+    let mut game = make_game();
+    game.players = vec![
+        make_player_with_position("gk-1", Position::Goalkeeper),
+        make_player_with_position("player-1", Position::Forward),
+        make_player_with_position("player-2", Position::Forward),
+        make_player_with_position("player-3", Position::Defender),
+        make_player_with_position("player-4", Position::Defender),
+        make_player_with_position("player-5", Position::Defender),
+        make_player_with_position("player-6", Position::Defender),
+        make_player_with_position("player-7", Position::Midfielder),
+        make_player_with_position("player-8", Position::Midfielder),
+        make_player_with_position("player-9", Position::Midfielder),
+        make_player_with_position("player-10", Position::Midfielder),
+        make_player_with_position("player-11", Position::Forward),
+    ];
+    game.teams[0].starting_xi_ids = game
+        .players
+        .iter()
+        .take(11)
+        .map(|player| player.id.clone())
+        .collect();
+    game
+}
+
 #[test]
 fn accepted_offer_updates_wage_and_term_correctly() {
     let mut game = make_game();
@@ -138,6 +173,83 @@ fn accepted_offer_updates_wage_and_term_correctly() {
     let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
     assert_eq!(player.wage, 15_000);
     assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+}
+
+#[test]
+fn let_expire_intent_persists_and_can_be_cleared() {
+    let mut game = make_game();
+
+    set_contract_exit_intent(&mut game, "player-1", Some("manager_choice".to_string()))
+        .expect("exit intent should be set");
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert!(has_let_expire_intent(player));
+    let state = player.morale_core.renewal_state.as_ref().unwrap();
+    assert_eq!(state.status, RenewalSessionStatus::Blocked);
+    assert!(matches!(
+        state.exit_intent,
+        Some(ContractExitIntent::LetExpire { .. })
+    ));
+
+    clear_contract_exit_intent(&mut game, "player-1").expect("exit intent should clear");
+
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert!(!has_let_expire_intent(player));
+    assert_eq!(
+        player.morale_core.renewal_state.as_ref().unwrap().status,
+        RenewalSessionStatus::Idle
+    );
+}
+
+#[test]
+fn termination_preview_reports_severance_and_squad_safety() {
+    let game = make_squad_game();
+
+    let preview = preview_contract_termination(&game, "player-1").expect("preview");
+
+    assert_eq!(preview.player_id, "player-1");
+    assert_eq!(preview.severance_cost, 132_000);
+    assert!(preview.squad_safety.can_field_matchday_squad);
+    assert_eq!(preview.squad_safety.projected_roster_size, 11);
+}
+
+#[test]
+fn terminate_contract_now_releases_player_and_charges_severance() {
+    let mut game = make_squad_game();
+    let original_finance = game.teams[0].finance;
+
+    let result = terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
+
+    assert_eq!(result.severance_cost, 132_000);
+    let player = game.players.iter().find(|p| p.id == "player-1").unwrap();
+    assert_eq!(player.team_id, None);
+    assert_eq!(player.contract_end, None);
+    assert_eq!(player.wage, 0);
+    assert!(!game.teams[0].starting_xi_ids.contains(&"player-1".to_string()));
+    assert_eq!(game.teams[0].finance, original_finance - 132_000);
+    assert_eq!(game.teams[0].season_expenses, 132_000);
+    assert_eq!(
+        game.teams[0].financial_ledger.last().unwrap().kind,
+        FinancialTransactionKind::ContractTermination
+    );
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| message.id == "contract_terminated_player-1")
+    );
+}
+
+#[test]
+fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
+    let mut game = make_squad_game();
+    let original_finance = game.teams[0].finance;
+
+    let error = terminate_contract_now(&mut game, "gk-1").expect_err("termination should fail");
+
+    assert!(error.contains("unable to field"));
+    let player = game.players.iter().find(|p| p.id == "gk-1").unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(game.teams[0].finance, original_finance);
 }
 
 #[test]
@@ -312,6 +424,7 @@ fn manager_block_prevents_manual_renewal_until_it_expires() {
         last_assistant_attempt_date: None,
         last_outcome: None,
         conversation_round: 0,
+        exit_intent: None,
     });
 
     let outcome = propose_renewal(
@@ -339,6 +452,7 @@ fn stale_manual_renewal_talks_cool_off_and_restart_from_round_one() {
         last_assistant_attempt_date: None,
         last_outcome: None,
         conversation_round: 3,
+        exit_intent: None,
     });
     game.clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 26, 12, 0, 0).unwrap());
 

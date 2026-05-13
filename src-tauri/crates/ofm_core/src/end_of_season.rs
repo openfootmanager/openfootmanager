@@ -202,6 +202,8 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         }
     }
 
+    crate::reputation::update_team_reputation(game, &final_standings);
+
     // 5. Record player career entries and reset stats
     for player in game.players.iter_mut() {
         if player.stats.appearances > 0 {
@@ -290,21 +292,19 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 6c. Clear old news articles from the previous season
     game.news.clear();
 
+    // 6d. Publish the season awards ceremony article (skipped when no marquee winners)
+    if let Some(article) = crate::news::season_awards_article(&awards, season, &last_fixture_date) {
+        game.news.push(article);
+    }
+
     // 7. Generate next season schedule
     let next_season = season + 1;
     let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
     // Start date: roughly a year after current start, or a few weeks from now
     let next_start = game.clock.current_date + Duration::days(28); // 4 weeks break
     let mut new_league = generate_league(&league_name, next_season, &team_ids, next_start);
-    if !user_team_id.is_empty() {
-        let opponents: Vec<String> = team_ids
-            .iter()
-            .filter(|team_id| team_id.as_str() != user_team_id)
-            .cloned()
-            .collect();
-        let friendlies = generate_preseason_friendlies(&user_team_id, &opponents, next_start, 3);
-        append_fixtures(&mut new_league, friendlies);
-    }
+    let friendlies = generate_preseason_friendlies(&team_ids, next_start, 4);
+    append_fixtures(&mut new_league, friendlies);
     game.league = Some(new_league);
 
     let preview_date = game.clock.current_date.to_rfc3339();

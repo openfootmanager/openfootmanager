@@ -2,6 +2,8 @@ import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
+import ContextMenu from "../ContextMenu";
+import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { formatPlayerMarketValue, formatPlayerWage } from "./PlayerProfile.helpers";
 import type {
@@ -54,6 +56,10 @@ export default function PlayerProfileHeroCard({
     onSelectTeam,
     t,
 }: PlayerProfileHeroCardProps) {
+    const teamContextItems = player.team_id && onSelectTeam
+        ? [buildViewTeamMenuItem(t, () => onSelectTeam(player.team_id!))]
+        : [];
+
     return (
         <Card accent="primary" className="mb-5">
             <div className="bg-linear-to-r from-navy-700 to-navy-800 p-8 rounded-t-xl">
@@ -95,24 +101,27 @@ export default function PlayerProfileHeroCard({
                             </span>
                             <span className="text-gray-500">•</span>
                             <span className="text-gray-400 text-sm">
-                                {t("common.footednessLabel", { defaultValue: "Foot" })}: {" "}
+                                {t("common.footednessLabel")}: {" "}
                                 {footednessLabel}
                             </span>
                             <span className="text-gray-500">•</span>
                             <span className="text-gray-400 text-sm">
-                                {t("common.weakFoot", { defaultValue: "Weak foot" })}: {" "}
+                                {t("common.weakFoot")}: {" "}
                                 {weakFootValue}/5
                             </span>
                         </div>
                         <p className="text-gray-400 text-sm mt-2 flex items-center gap-1.5">
                             <Shield className="w-4 h-4" />
-                            {player.team_id ? (
-                                <button
-                                    onClick={() => onSelectTeam?.(player.team_id!)}
-                                    className="hover:text-primary-400 transition-colors underline underline-offset-2"
-                                >
-                                    {teamName}
-                                </button>
+                            {player.team_id && onSelectTeam ? (
+                                <ContextMenu items={teamContextItems}>
+                                    <button
+                                        data-testid="player-profile-team-link"
+                                        onClick={() => onSelectTeam(player.team_id!)}
+                                        className="hover:text-primary-400 transition-colors underline underline-offset-2"
+                                    >
+                                        {teamName}
+                                    </button>
+                                </ContextMenu>
                             ) : (
                                 <span>{teamName}</span>
                             )}

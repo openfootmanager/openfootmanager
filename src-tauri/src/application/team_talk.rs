@@ -316,7 +316,7 @@ pub fn apply_team_talk(
     context: &str,
     seed: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let user_team_id = game.manager.team_id.clone().ok_or("No team assigned")?;
+    let user_team_id = game.manager.team_id.clone().ok_or("be.error.noTeamAssigned")?;
     let mut rng = StdRng::seed_from_u64(seed);
     let action_key = team_talk_action_key(tone, context);
     let mut results: Vec<serde_json::Value> = Vec::new();

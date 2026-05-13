@@ -81,3 +81,19 @@ export async function previewTransferBidFinancialImpact(
     },
   );
 }
+
+export async function toggleTransferList(
+  playerId: string,
+): Promise<GameStateData> {
+  return invoke<GameStateData>("toggle_transfer_list", {
+    playerId,
+  });
+}
+
+export async function toggleLoanList(
+  playerId: string,
+): Promise<GameStateData> {
+  return invoke<GameStateData>("toggle_loan_list", {
+    playerId,
+  });
+}

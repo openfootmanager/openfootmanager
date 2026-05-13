@@ -439,7 +439,7 @@ export default function TacticsTab({
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
-          {t("tactics.lineupTab", "Lineup")}
+          {t("tactics.lineupTab")}
         </button>
         <button
           type="button"
@@ -450,7 +450,7 @@ export default function TacticsTab({
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           }`}
         >
-          {t("tactics.rolesTab", "Set pieces & roles")}
+          {t("tactics.rolesTab")}
         </button>
       </div>
 
@@ -511,34 +511,28 @@ export default function TacticsTab({
           />
 
           <TacticsPlayerTable
-            emptyMessage={t(
-              "squad.noLineupMatches",
-              "No starters match the current filters.",
-            )}
+            emptyMessage={t("squad.noLineupMatches")}
             highlightedPlayerId={selectedPlayerId}
             onSelectPlayer={onSelectPlayer}
             players={filteredStartingXI}
             section="xi"
             sortDir={sortDir}
             sortKey={sortKey}
-            title={t("preMatch.startingXI", "Starting XI")}
+            title={t("preMatch.startingXI")}
             toggleSort={toggleSort}
             totalCount={startingXI.length}
             xiActivePosition={xiActivePosition}
           />
 
           <TacticsPlayerTable
-            emptyMessage={t(
-              "squad.noBenchMatches",
-              "No bench players match the current filters.",
-            )}
+            emptyMessage={t("squad.noBenchMatches")}
             highlightedPlayerId={selectedPlayerId}
             onSelectPlayer={onSelectPlayer}
             players={filteredBench}
             section="bench"
             sortDir={sortDir}
             sortKey={sortKey}
-            title={t("preMatch.substitutes", "Substitutes")}
+            title={t("preMatch.substitutes")}
             toggleSort={toggleSort}
             totalCount={bench.length}
             xiActivePosition={xiActivePosition}

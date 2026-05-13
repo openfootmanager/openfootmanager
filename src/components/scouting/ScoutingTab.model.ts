@@ -44,8 +44,8 @@ export function filterScoutablePlayers({
     })
     .sort(
       (left, right) =>
-        calcOvr(right, right.natural_position || right.position) -
-        calcOvr(left, left.natural_position || left.position),
+        (right.ovr ?? calcOvr(right, right.natural_position || right.position)) -
+        (left.ovr ?? calcOvr(left, left.natural_position || left.position)),
     );
 }
 

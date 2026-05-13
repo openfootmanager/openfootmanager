@@ -13,7 +13,10 @@ export interface TeamFinanceSnapshot {
   wageBudgetStatus: FinanceHealthLevel;
   runwayStatus: FinanceHealthLevel;
   overallStatus: FinanceHealthLevel;
+  marketingCampaignCooldownDaysRemaining: number;
 }
+
+const MARKETING_CAMPAIGN_COOLDOWN_DAYS = 28;
 
 const HEALTH_PRIORITY: Record<FinanceHealthLevel, number> = {
   stable: 0,
@@ -105,10 +108,49 @@ function getMostSevereLevel(
   return HEALTH_PRIORITY[left] >= HEALTH_PRIORITY[right] ? left : right;
 }
 
+function parseIsoDate(dateText: string | undefined): Date | null {
+  if (!dateText) {
+    return null;
+  }
+
+  const normalized = dateText.includes("T") ? dateText : `${dateText}T00:00:00Z`;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getMarketingCampaignCooldownDaysRemaining(
+  team: TeamData,
+  currentDate?: string,
+): number {
+  const today = parseIsoDate(currentDate);
+  if (!today) {
+    return 0;
+  }
+
+  const lastCampaign = (team.financial_ledger ?? [])
+    .filter((entry) => entry.kind === "CommercialCampaign")
+    .map((entry) => parseIsoDate(entry.date))
+    .filter((entry): entry is Date => entry !== null)
+    .sort((left, right) => right.getTime() - left.getTime())[0];
+
+  if (!lastCampaign) {
+    return 0;
+  }
+
+  const millisPerDay = 24 * 60 * 60 * 1000;
+  const daysSince = Math.max(
+    0,
+    Math.floor((today.getTime() - lastCampaign.getTime()) / millisPerDay),
+  );
+
+  return Math.max(0, MARKETING_CAMPAIGN_COOLDOWN_DAYS - daysSince);
+}
+
 export function getTeamFinanceSnapshot(
   team: TeamData,
   players: PlayerData[],
   staff: StaffData[] = [],
+  currentDate?: string,
 ): TeamFinanceSnapshot {
   const annualWageBill = getAnnualWageBill(players, staff);
   const weeklyWageSpend = getWeeklyWageSpend(players, staff);
@@ -133,5 +175,7 @@ export function getTeamFinanceSnapshot(
     wageBudgetStatus,
     runwayStatus,
     overallStatus: getMostSevereLevel(wageBudgetStatus, runwayStatus),
+    marketingCampaignCooldownDaysRemaining:
+      getMarketingCampaignCooldownDaysRemaining(team, currentDate),
   };
 }

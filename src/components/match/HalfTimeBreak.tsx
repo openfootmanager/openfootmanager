@@ -434,18 +434,18 @@ export default function HalfTimeBreak({
                     {t("match.playStyle")}
                   </h3>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {PLAY_STYLES.map((s) => (
+                    {PLAY_STYLES.map((style) => (
                       <button
-                        key={s.id}
-                        onClick={() => handlePlayStyleChange(s.id)}
+                        key={style}
+                        onClick={() => handlePlayStyleChange(style)}
                         className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-heading font-bold transition-all ${
-                          userTeam.play_style === s.id
+                          userTeam.play_style === style
                             ? "bg-primary-500/20 text-primary-400 ring-1 ring-primary-500/50"
                             : "bg-gray-100 text-gray-600 hover:text-gray-900 dark:bg-navy-700 dark:text-gray-400 dark:hover:text-gray-300"
                         }`}
                       >
-                        {PLAY_STYLE_ICONS[s.id]}
-                        {s.label}
+                        {PLAY_STYLE_ICONS[style]}
+                        {t(`common.playStyles.${style}`)}
                       </button>
                     ))}
                   </div>

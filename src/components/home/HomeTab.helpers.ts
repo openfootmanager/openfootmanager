@@ -158,7 +158,7 @@ export function getHomeRosterOverview(
       ? Math.round(
           roster.reduce(
             (total, player) =>
-              total + calcOvr(player, player.natural_position || player.position),
+              total + (player.ovr ?? calcOvr(player, player.natural_position || player.position)),
             0,
           ) / roster.length,
         )

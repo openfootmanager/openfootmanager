@@ -122,6 +122,8 @@ Beispiele:
 
 Am einfachsten geht das über unsere **GitHub Issue-Vorlagen**. Wähle einfach die richtige aus und fülle sie aus — **du kannst in deiner Sprache schreiben!**
 
+Wenn du mit dem Team oder anderen Spielern sprechen möchtest, kannst du auch unserem Discord-Server beitreten: https://discord.gg/4ppEDH68
+
 - [**Bug-Report**](https://github.com/openfootmanager/openfootmanager/issues/new?template=bug_report_de.yml) — Etwas ist abgestürzt, kaputt oder hat sich falsch verhalten
 - [**Feedback / Vorschlag**](https://github.com/openfootmanager/openfootmanager/issues/new?template=feedback_de.yml) — Bedienungsprobleme, Balance-Bedenken oder Ideen
 - [**Sitzungsbericht**](https://github.com/openfootmanager/openfootmanager/issues/new?template=session_report_de.yml) — Eine Zusammenfassung deiner Spielsitzung (super wertvoll!)

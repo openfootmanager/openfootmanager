@@ -1,0 +1,97 @@
+name: publish-nightly
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional nightly tag override
+        required: false
+        type: string
+  push:
+    branches:
+      - develop
+
+jobs:
+  publish-tauri-nightly:
+    environment: ${{ vars.RELEASE_ENVIRONMENT || 'release' }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest"
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "ubuntu-22.04-arm"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Resolve nightly tag
+        id: release_settings
+        shell: bash
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          nightly_date="$(date -u +%F)"
+          short_sha="${GITHUB_SHA::7}"
+          tag="${INPUT_RELEASE_TAG:-nightly-develop-${nightly_date}-${short_sha}}"
+
+          {
+            echo "tag=$tag"
+            echo "release_name=Openfoot Manager Nightly"
+            echo "release_body<<EOF"
+            echo "Automated nightly build from develop (${nightly_date}, ${short_sha})."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: install frontend dependencies
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        with:
+          tagName: ${{ steps.release_settings.outputs.tag }}
+          releaseName: ${{ steps.release_settings.outputs.release_name }}
+          releaseBody: ${{ steps.release_settings.outputs.release_body }}
+          releaseDraft: false
+          prerelease: true
+          args: ${{ matrix.args }}

@@ -393,6 +393,7 @@ mod tests {
                 game_date: "2026-08-01".to_string(),
                 created_at: "2026-01-01".to_string(),
                 last_played_at: "2026-01-02".to_string(),
+                vacant_team_days_json: "{}".to_string(),
             },
         )
         .unwrap();
@@ -499,6 +500,7 @@ mod tests {
                 game_date: "2026-08-01".to_string(),
                 created_at: "2026-01-01".to_string(),
                 last_played_at: "2026-01-02".to_string(),
+                vacant_team_days_json: "{}".to_string(),
             },
         )
         .unwrap();

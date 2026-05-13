@@ -1,0 +1,87 @@
+name: "🎮 游戏会话报告（简体中文）"
+description: "用简体中文分享一次游玩会话的总结"
+labels: ["session-report", "alpha"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 游戏会话报告
+        会话报告非常有价值，它能帮助我们理解玩家完整的体验过程。
+        你可以直接使用简体中文填写此模板。
+
+  - type: input
+    id: play-time
+    attributes:
+      label: "游玩时长"
+      description: "你玩了多久？"
+      placeholder: "大约 2 小时"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-did
+    attributes:
+      label: "我做了什么"
+      description: "请简要总结这次游玩过程。"
+      placeholder: "开始了一局新游戏，踢了 10 场比赛，推进到第 12 个比赛日……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-i-enjoyed
+    attributes:
+      label: "我喜欢的部分"
+      description: "哪些地方体验不错？哪些内容让你愿意继续玩下去？"
+      placeholder: "比赛模拟很有意思，尤其是在……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-frustrated-me
+    attributes:
+      label: "让我感到挫败的部分"
+      description: "哪些问题差点让你放弃？哪些内容显得损坏、繁琐或不顺手？"
+      placeholder: "训练页面让我有些困惑，而且……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: top-improvements
+    attributes:
+      label: "我最想改进的 3 件事"
+      description: "如果只能改三个地方，你最想改什么？"
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: play-again
+    attributes:
+      label: "你还会再玩吗？"
+      options:
+        - "会"
+        - "也许会"
+        - "不会"
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-again-why
+    attributes:
+      label: "为什么？"
+      description: "告诉我们你为什么愿意或不愿意再次游玩。"
+      placeholder: "因为……"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "还有什么想补充的吗？"
+      description: "任何其他想法、截图或日志文件都可以放在这里。"
+      placeholder: "把文件拖到这里，或补充更多内容……"
+    validations:
+      required: false

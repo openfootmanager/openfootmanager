@@ -23,9 +23,9 @@ import {
 } from "lucide-react";
 
 const CURRENCY_OPTIONS = [
-  { value: "EUR", label: "Euro (€)", symbol: "€" },
-  { value: "GBP", label: "Pound (£)", symbol: "£" },
-  { value: "USD", label: "Dollar ($)", symbol: "$" },
+  { value: "EUR", labelKey: "settings.currencyOptions.eur", symbol: "€" },
+  { value: "GBP", labelKey: "settings.currencyOptions.gbp", symbol: "£" },
+  { value: "USD", labelKey: "settings.currencyOptions.usd", symbol: "$" },
 ] as const;
 
 const MATCH_MODE_KEYS = ["live", "spectator", "delegate"] as const;
@@ -181,7 +181,7 @@ export default function Settings() {
             >
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>
-                  {lang.label}
+                  {t(lang.labelKey)}
                 </option>
               ))}
             </Select>
@@ -202,18 +202,15 @@ export default function Settings() {
             >
               {CURRENCY_OPTIONS.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.symbol} {c.label}
+                  {c.symbol} {t(c.labelKey)}
                 </option>
               ))}
             </Select>
           </SettingRow>
 
           <SettingRow
-            label={t("settings.uiScale", "UI Scale")}
-            description={t(
-              "settings.uiScaleDesc",
-              "Adjust font size and spacing for readability",
-            )}
+            label={t("settings.uiScale")}
+            description={t("settings.uiScaleDesc")}
           >
             <div className="flex items-center gap-2">
               <Type className="w-4 h-4 text-gray-400" />
@@ -233,11 +230,8 @@ export default function Settings() {
           </SettingRow>
 
           <SettingRow
-            label={t("settings.highContrast", "High Contrast")}
-            description={t(
-              "settings.highContrastDesc",
-              "Boost text contrast in dark mode for improved readability",
-            )}
+            label={t("settings.highContrast")}
+            description={t("settings.highContrastDesc")}
           >
             <Toggle
               checked={settings.high_contrast}
@@ -246,11 +240,8 @@ export default function Settings() {
           </SettingRow>
 
           <SettingRow
-            label={t("settings.fullscreen", "Fullscreen")}
-            description={t(
-              "settings.fullscreenDesc",
-              "Toggle fullscreen mode for an immersive experience",
-            )}
+            label={t("settings.fullscreen")}
+            description={t("settings.fullscreenDesc")}
           >
             <button
               onClick={toggleFullscreen}
@@ -262,8 +253,8 @@ export default function Settings() {
                 <Maximize className="w-4 h-4" />
               )}
               {isFullscreen
-                ? t("settings.exitFullscreen", "Exit")
-                : t("settings.enterFullscreen", "Enter")}
+                ? t("settings.exitFullscreen")
+                : t("settings.enterFullscreen")}
             </button>
           </SettingRow>
         </Section>
@@ -408,14 +399,14 @@ export default function Settings() {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                Openfoot Manager
+                {t("app.name")}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                 {t("app.version")}
               </p>
             </div>
             <span className="text-[10px] font-heading uppercase tracking-widest text-gray-400 dark:text-gray-600">
-              Sturdy Robot
+              {t("app.publisher")}
             </span>
           </div>
         </Section>

@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
 import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
+import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 export const POSITION_KEY_STATS: Record<
@@ -82,9 +83,15 @@ export function condColor(c: number): string {
 }
 
 export function statColor(v: number): string {
-  if (v >= 75) return "text-primary-400 font-bold";
-  if (v >= 60) return "text-gray-200";
-  return "text-gray-500";
+  if (v >= 75) return "text-primary-500 dark:text-primary-400 font-bold";
+  if (v >= 60) return "text-gray-700 dark:text-gray-200";
+  return "text-gray-500 dark:text-gray-400";
+}
+
+export function starterOvrColor(ovr: number): string {
+  if (ovr >= 70) return "text-primary-600 dark:text-primary-400";
+  if (ovr >= 50) return "text-gray-700 dark:text-gray-300";
+  return "text-red-600 dark:text-red-400";
 }
 
 export function getStatVal(p: EnginePlayerData, key: string): number {
@@ -164,7 +171,7 @@ export default function PreMatchLineup({
               const ok = actual === needed;
               return (
                 <div key={pos} className="flex items-center gap-1">
-                    <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                  <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
                     {translatePositionAbbreviation(t, pos)}
                   </span>
                   <span
@@ -181,11 +188,10 @@ export default function PreMatchLineup({
         <button
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            isAutoSelecting
-                ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
-              : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
-           }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
+            ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
+            : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
+            }`}
         >
           <Wand2 className="w-3.5 h-3.5" />
           {isAutoSelecting ? t("match.selecting") : t("match.autoSelectXI")}
@@ -203,7 +209,7 @@ export default function PreMatchLineup({
               {selectedStarterId && (
                 <button
                   onClick={() => onSelectStarter(null)}
-                    className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
+                  className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 font-heading uppercase tracking-wider"
                 >
                   {t("match.cancel")}
                 </button>
@@ -242,7 +248,7 @@ export default function PreMatchLineup({
                   </div>
                   {/* Stat column headers */}
                   <div className="flex items-center gap-0">
-                      <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-7 text-center">
+                    <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-7 text-center">
                       OVR
                     </span>
                     {keyStats.map((s) => (
@@ -261,14 +267,16 @@ export default function PreMatchLineup({
                 {players.map((p) => {
                   const posOvr = getPositionOvr(p);
                   const isSelected = selectedStarterId === p.id;
-                  return (
+                  const starterButton = (
                     <button
+                      type="button"
                       key={p.id}
+                      data-testid={`pre-match-starter-${p.id}`}
                       onClick={() => onSelectStarter(isSelected ? null : p.id)}
                       className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${isSelected
-                          ? "bg-primary-500/20 ring-1 ring-primary-500/50"
-                            : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                      }`}
+                        ? "bg-primary-500/20 ring-1 ring-primary-500/50"
+                        : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                        }`}
                     >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-heading font-bold flex-shrink-0"
@@ -287,7 +295,7 @@ export default function PreMatchLineup({
                       )}
                       <div className="flex items-center gap-0">
                         <span
-                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${posOvr >= 70 ? "text-primary-400" : posOvr >= 50 ? "text-gray-300" : "text-red-400"}`}
+                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${starterOvrColor(posOvr)}`}
                         >
                           {posOvr}
                         </span>
@@ -306,6 +314,22 @@ export default function PreMatchLineup({
                         {Math.round(p.condition)}%
                       </span>
                     </button>
+                  );
+
+                  return (
+                    <ContextMenu
+                      items={[
+                        {
+                          label: isSelected
+                            ? t("match.cancel")
+                            : t("match.selectForSwap"),
+                          onClick: () => onSelectStarter(isSelected ? null : p.id),
+                        },
+                      ]}
+                      key={p.id}
+                    >
+                      {starterButton}
+                    </ContextMenu>
                   );
                 })}
               </div>
@@ -333,7 +357,7 @@ export default function PreMatchLineup({
               <div className="flex items-center gap-2 px-2 pb-1">
                 <span className="w-7" />
                 <span className="flex-1" />
-                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
+                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
                   POS
                 </span>
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center">
@@ -346,14 +370,23 @@ export default function PreMatchLineup({
               {userBench.map((bp) => {
                 const posOvr = getPositionOvr(bp);
                 const keyStats = POSITION_KEY_STATS[bp.position] || [];
-                return (
+                const canSwap = Boolean(selectedStarterId);
+                const benchButton = (
                   <button
+                    type="button"
                     key={bp.id}
-                    onClick={() => (selectedStarterId ? onSwap(bp.id) : null)}
-                    className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${selectedStarterId
-                        ? "hover:bg-primary-500/20 hover:ring-1 hover:ring-primary-500/50 cursor-pointer"
-                     : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                    }`}
+                    data-testid={`pre-match-bench-${bp.id}`}
+                    disabled={!canSwap}
+                    aria-disabled={!canSwap}
+                    onClick={() => {
+                      if (canSwap) {
+                        onSwap(bp.id);
+                      }
+                    }}
+                    className={`flex items-center gap-2 py-1.5 px-2 rounded w-full text-left transition-all ${canSwap
+                      ? "hover:bg-primary-500/20 hover:ring-1 hover:ring-primary-500/50 cursor-pointer"
+                      : "opacity-60 cursor-not-allowed"
+                      }`}
                   >
                     <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-navy-600 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-400 flex-shrink-0 transition-colors duration-300">
                       {posOvr}
@@ -380,6 +413,24 @@ export default function PreMatchLineup({
                       {Math.round(bp.condition)}%
                     </span>
                   </button>
+                );
+
+                if (!selectedStarterId) {
+                  return benchButton;
+                }
+
+                return (
+                  <ContextMenu
+                    items={[
+                      {
+                        label: t("match.swapWithSelectedStarter"),
+                        onClick: () => onSwap(bp.id),
+                      },
+                    ]}
+                    key={bp.id}
+                  >
+                    {benchButton}
+                  </ContextMenu>
                 );
               })}
             </div>

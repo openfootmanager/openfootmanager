@@ -211,13 +211,13 @@ fn build_history_overview(
 ) -> Result<Option<PlayerStatsOverviewDto>, String> {
     let game = state
         .get_game(|game| game.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
     let Some(player) = game
         .players
         .iter()
         .find(|candidate| candidate.id == player_id)
     else {
-        return Err("Player not found".to_string());
+        return Err("be.error.playerNotFound".to_string());
     };
     let target_position = position_key(player).clone();
     let same_position_ids = game
@@ -273,13 +273,13 @@ fn build_legacy_overview(
 ) -> Result<PlayerStatsOverviewDto, String> {
     let game = state
         .get_game(|game| game.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
     let Some(player) = game
         .players
         .iter()
         .find(|candidate| candidate.id == player_id)
     else {
-        return Err("Player not found".to_string());
+        return Err("be.error.playerNotFound".to_string());
     };
     let target_position = position_key(player).clone();
     let peers = game

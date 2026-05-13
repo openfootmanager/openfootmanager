@@ -10,7 +10,7 @@ use ofm_core::state::StateManager;
 fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
     let mut current_game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session".to_string())?;
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     info!(
         "[cmd] advance_time: date={}",
@@ -63,7 +63,7 @@ pub fn check_blocking_actions(state: State<'_, StateManager>) -> Result<serde_js
     log::debug!("[cmd] check_blocking_actions");
     let game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let blockers = compute_blocking_actions(&game);
     info!(
@@ -79,11 +79,11 @@ pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::V
     info!("[cmd] skip_to_match_day");
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
-    let user_team_id = game.manager.team_id.clone().ok_or("No team assigned")?;
+    let user_team_id = game.manager.team_id.clone().ok_or("be.error.noTeamAssigned")?;
     info!(
         "[cmd] skip_to_match_day: start_date={}, user_team_id={}",
         game.clock.current_date.format("%Y-%m-%d"),
@@ -179,7 +179,10 @@ mod tests {
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
     use domain::manager::Manager;
     use domain::message::{InboxMessage, MessagePriority};
-    use domain::player::{Injury, Player, PlayerAttributes, Position};
+    use domain::player::{
+        ContractExitIntent, ContractRenewalState, Injury, Player, PlayerAttributes, Position,
+        RenewalSessionStatus,
+    };
     use domain::stats::StatsState;
     use domain::team::Team;
     use ofm_core::clock::GameClock;
@@ -320,6 +323,7 @@ mod tests {
                 domain::league::StandingEntry::new("team1".to_string()),
                 domain::league::StandingEntry::new("team2".to_string()),
             ],
+            transfer_log: vec![],
         });
         game
     }
@@ -341,6 +345,27 @@ mod tests {
         blockers
             .iter()
             .find(|blocker| blocker.get("id").and_then(Value::as_str) == Some(id))
+    }
+
+    fn mark_player_let_expire(game: &mut Game, player_id: &str) {
+        let player = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == player_id)
+            .unwrap();
+        player.contract_end = Some("2025-08-01".to_string());
+        player.morale_core.renewal_state = Some(ContractRenewalState {
+            status: RenewalSessionStatus::Blocked,
+            manager_blocked_until: None,
+            last_attempt_date: Some("2025-06-15".to_string()),
+            last_assistant_attempt_date: None,
+            last_outcome: None,
+            conversation_round: 0,
+            exit_intent: Some(ContractExitIntent::LetExpire {
+                set_on: "2025-06-15".to_string(),
+                reason: Some("test".to_string()),
+            }),
+        });
     }
 
     #[test]
@@ -398,10 +423,24 @@ mod tests {
             Some("warn")
         );
         assert_eq!(injured.get("tab").and_then(Value::as_str), Some("Squad"));
-        let injured_text = injured.get("text").and_then(Value::as_str).unwrap();
-        assert!(injured_text.contains("2 injured player(s)"));
-        assert!(injured_text.contains("Player 2"));
-        assert!(injured_text.contains("Player 5"));
+        assert_eq!(
+            injured.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.injuredXi")
+        );
+        assert_eq!(
+            injured
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            injured
+                .get("text_params")
+                .and_then(|params| params.get("players"))
+                .and_then(Value::as_str),
+            Some("Player 2, Player 5")
+        );
 
         let incomplete = blocker_by_id(&blockers, "incomplete_xi").unwrap();
         assert_eq!(
@@ -410,8 +449,15 @@ mod tests {
         );
         assert_eq!(incomplete.get("tab").and_then(Value::as_str), Some("Squad"));
         assert_eq!(
-            incomplete.get("text").and_then(Value::as_str),
-            Some("Starting XI has only 9 healthy players — set your lineup")
+            incomplete.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.incompleteXi")
+        );
+        assert_eq!(
+            incomplete
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("9")
         );
     }
 
@@ -432,6 +478,53 @@ mod tests {
 
         assert!(blocker_by_id(&blockers, "injured_xi").is_some());
         assert!(blocker_by_id(&blockers, "incomplete_xi").is_none());
+        assert!(blocker_by_id(&blockers, "squad_size_crisis").is_some());
+    }
+
+    #[test]
+    fn unsafe_planned_contract_exits_trigger_squad_crisis_blocker() {
+        let mut game = make_game(11);
+        mark_player_let_expire(&mut game, "p11");
+
+        let blockers = compute_blocking_actions(&game);
+
+        let planned_exit = blocker_by_id(&blockers, "planned_contract_exit_crisis").unwrap();
+        assert_eq!(
+            planned_exit.get("severity").and_then(Value::as_str),
+            Some("warn")
+        );
+        assert_eq!(
+            planned_exit.get("tab").and_then(Value::as_str),
+            Some("Squad")
+        );
+        assert_eq!(
+            planned_exit.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.plannedContractExitCrisis")
+        );
+        assert_eq!(
+            planned_exit
+                .get("text_params")
+                .and_then(|params| params.get("healthyPlayers"))
+                .and_then(Value::as_str),
+            Some("10")
+        );
+        assert_eq!(
+            planned_exit
+                .get("text_params")
+                .and_then(|params| params.get("players"))
+                .and_then(Value::as_str),
+            Some("Player 11")
+        );
+    }
+
+    #[test]
+    fn safe_planned_contract_exits_do_not_trigger_squad_crisis_blocker() {
+        let mut game = make_game(12);
+        mark_player_let_expire(&mut game, "p12");
+
+        let blockers = compute_blocking_actions(&game);
+
+        assert!(blocker_by_id(&blockers, "planned_contract_exit_crisis").is_none());
     }
 
     #[test]
@@ -472,8 +565,15 @@ mod tests {
         assert_eq!(urgent.get("severity").and_then(Value::as_str), Some("info"));
         assert_eq!(urgent.get("tab").and_then(Value::as_str), Some("Inbox"));
         assert_eq!(
-            urgent.get("text").and_then(Value::as_str),
-            Some("2 urgent unread message(s)")
+            urgent.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.urgentMessages")
+        );
+        assert_eq!(
+            urgent
+                .get("text_params")
+                .and_then(|params| params.get("count"))
+                .and_then(Value::as_str),
+            Some("2")
         );
     }
 
@@ -515,12 +615,17 @@ mod tests {
             Some("Squad")
         );
 
-        let text = contract_blocker
-            .get("text")
-            .and_then(Value::as_str)
-            .unwrap();
-        assert!(text.contains("Player 10"));
-        assert!(text.contains("Player 11"));
+        assert_eq!(
+            contract_blocker.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.keyContractRisk")
+        );
+        assert_eq!(
+            contract_blocker
+                .get("text_params")
+                .and_then(|params| params.get("players"))
+                .and_then(Value::as_str),
+            Some("Player 10, Player 11")
+        );
     }
 
     #[test]
@@ -556,9 +661,17 @@ mod tests {
             Some("Finances")
         );
 
-        let text = finance_blocker.get("text").and_then(Value::as_str).unwrap();
-        assert!(text.contains("60000"));
-        assert!(text.contains("wage budget"));
+        assert_eq!(
+            finance_blocker.get("text_key").and_then(Value::as_str),
+            Some("notifications.blockers.contractWageRisk")
+        );
+        assert_eq!(
+            finance_blocker
+                .get("text_params")
+                .and_then(|params| params.get("amount"))
+                .and_then(Value::as_str),
+            Some("60000")
+        );
     }
 
     fn make_round_summary_game() -> Game {
@@ -682,6 +795,7 @@ mod tests {
                 domain::league::StandingEntry::new("team3".to_string()),
                 domain::league::StandingEntry::new("team4".to_string()),
             ],
+            transfer_log: vec![],
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

@@ -3,12 +3,15 @@ import { Card, CardHeader, CardBody, ProgressBar, CountryFlag } from "../ui";
 import { formatDate } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
+import ContextMenu from "../ContextMenu";
+import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 
 interface ManagerTabProps {
   gameState: GameStateData;
+  onSelectTeam?: (id: string) => void;
 }
 
-export default function ManagerTab({ gameState }: ManagerTabProps) {
+export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps) {
   const { t, i18n } = useTranslation();
   const mgr = gameState.manager;
   const myTeam = gameState.teams.find(tm => tm.id === mgr.team_id);
@@ -28,7 +31,21 @@ export default function ManagerTab({ gameState }: ManagerTabProps) {
               <CountryFlag code={mgr.nationality} locale={i18n.language} className="mr-1 text-sm leading-none" />
               {countryName(mgr.nationality, i18n.language)} • {t('manager.born')} {formatDate(mgr.date_of_birth, i18n.language)}
             </p>
-            {myTeam && <p className="text-primary-400 text-sm font-semibold mt-0.5">{t('manager.managerOf', { team: myTeam.name })}</p>}
+            {myTeam && onSelectTeam ? (
+              <ContextMenu
+                items={[buildViewTeamMenuItem(t, () => onSelectTeam(myTeam.id))]}
+              >
+                <button
+                  data-testid="manager-current-team"
+                  onClick={() => onSelectTeam(myTeam.id)}
+                  className="text-primary-400 text-sm font-semibold mt-0.5 hover:text-primary-300 transition-colors"
+                >
+                  {t('manager.managerOf', { team: myTeam.name })}
+                </button>
+              </ContextMenu>
+            ) : myTeam ? (
+              <p className="text-primary-400 text-sm font-semibold mt-0.5">{t('manager.managerOf', { team: myTeam.name })}</p>
+            ) : null}
           </div>
           <div className="ml-auto text-right">
             <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">{t('manager.reputation')}</p>
@@ -66,9 +83,9 @@ export default function ManagerTab({ gameState }: ManagerTabProps) {
               <ProgressBar value={mgr.satisfaction} variant="auto" size="md" />
               <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
                 {mgr.satisfaction >= 80 ? t('manager.boardVeryPleased') :
-                 mgr.satisfaction >= 50 ? t('manager.boardSatisfied') :
-                 mgr.satisfaction >= 30 ? t('manager.boardConcerns') :
-                 t('manager.boardThreat')}
+                  mgr.satisfaction >= 50 ? t('manager.boardSatisfied') :
+                    mgr.satisfaction >= 30 ? t('manager.boardConcerns') :
+                      t('manager.boardThreat')}
               </p>
             </div>
             {/* Fans */}
@@ -80,10 +97,10 @@ export default function ManagerTab({ gameState }: ManagerTabProps) {
               <ProgressBar value={mgr.fan_approval ?? 50} variant="auto" size="md" />
               <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
                 {(mgr.fan_approval ?? 50) >= 80 ? t('manager.fanAdore') :
-                 (mgr.fan_approval ?? 50) >= 60 ? t('manager.fanBehind') :
-                 (mgr.fan_approval ?? 50) >= 40 ? t('manager.fanMixed') :
-                 (mgr.fan_approval ?? 50) >= 20 ? t('manager.fanRestless') :
-                 t('manager.fanUnrest')}
+                  (mgr.fan_approval ?? 50) >= 60 ? t('manager.fanBehind') :
+                    (mgr.fan_approval ?? 50) >= 40 ? t('manager.fanMixed') :
+                      (mgr.fan_approval ?? 50) >= 20 ? t('manager.fanRestless') :
+                        t('manager.fanUnrest')}
               </p>
             </div>
           </div>
@@ -107,16 +124,47 @@ export default function ManagerTab({ gameState }: ManagerTabProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                {mgr.career_history.map((entry, i) => (
-                  <tr key={i}>
-                    <td className="py-3 px-5 font-semibold text-sm text-gray-800 dark:text-gray-200">{entry.team_name}</td>
-                    <td className="py-3 px-5 text-sm text-gray-500 dark:text-gray-400">{entry.start_date.substring(0, 4)} — {entry.end_date?.substring(0, 4) || t('common.present')}</td>
-                    <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.matches}</td>
-                    <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.wins}</td>
-                    <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.draws}</td>
-                    <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.losses}</td>
-                  </tr>
-                ))}
+                {mgr.career_history.map((entry, i) => {
+                  const canSelectTeam =
+                    !!onSelectTeam &&
+                    gameState.teams.some((team) => team.id === entry.team_id);
+                  const historyRow = (
+                    <tr
+                      key={i}
+                      data-testid={`manager-history-${entry.team_id}`}
+                      onClick={canSelectTeam ? () => onSelectTeam(entry.team_id) : undefined}
+                      onKeyDown={canSelectTeam ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectTeam(entry.team_id);
+                        }
+                      } : undefined}
+                      role={canSelectTeam ? "button" : undefined}
+                      tabIndex={canSelectTeam ? 0 : undefined}
+                      className={canSelectTeam ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors" : undefined}
+                    >
+                      <td className="py-3 px-5 font-semibold text-sm text-gray-800 dark:text-gray-200">{entry.team_name}</td>
+                      <td className="py-3 px-5 text-sm text-gray-500 dark:text-gray-400">{entry.start_date.substring(0, 4)} — {entry.end_date?.substring(0, 4) || t('common.present')}</td>
+                      <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.matches}</td>
+                      <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.wins}</td>
+                      <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.draws}</td>
+                      <td className="py-3 px-5 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">{entry.losses}</td>
+                    </tr>
+                  );
+
+                  if (!canSelectTeam) {
+                    return historyRow;
+                  }
+
+                  return (
+                    <ContextMenu
+                      items={[buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))]}
+                      key={i}
+                    >
+                      {historyRow}
+                    </ContextMenu>
+                  );
+                })}
               </tbody>
             </table>
           </CardBody>

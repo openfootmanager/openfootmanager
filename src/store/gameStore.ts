@@ -9,6 +9,9 @@ export type {
   TeamData,
   PlayerSeasonStats,
   CareerEntry,
+  ContractExitIntentData,
+  ContractRenewalStateData,
+  PlayerMoraleCoreData,
   PlayerData,
   TransferOfferData,
   StaffData,
@@ -33,6 +36,7 @@ export type {
   NewsArticle,
   BoardObjective,
   ScoutingAssignment,
+  YouthScoutingAssignment,
   GameStateData,
 } from './types';
 

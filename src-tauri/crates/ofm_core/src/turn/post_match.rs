@@ -121,12 +121,14 @@ pub fn apply_match_report_with_capture<F>(
         report: Some(compact_match_report(report)),
     };
     let mut counts_for_standings = false;
+    let mut generates_match_news = false;
 
     // Update fixture status, standings
     if let Some(league) = game.league.as_mut() {
         let fixture = &mut league.fixtures[fixture_index];
         fixture.status = FixtureStatus::Completed;
         counts_for_standings = fixture.counts_for_league_standings();
+        generates_match_news = fixture.generates_match_report_news();
 
         if counts_for_standings {
             if let Some(entry) = league
@@ -263,7 +265,7 @@ pub fn apply_match_report_with_capture<F>(
     }
 
     // Generate match report news article
-    if counts_for_standings {
+    if generates_match_news {
         super::news::generate_match_news(game, fixture_index, home_team_id, away_team_id, report);
     }
 }

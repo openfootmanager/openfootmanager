@@ -5,6 +5,7 @@ use rand::{Rng, RngExt};
 use uuid::Uuid;
 
 use super::definitions::NamesDefinition;
+use crate::player_rating::{generate_potential, refresh_player_derived};
 
 // ---------------------------------------------------------------------------
 // Helper functions for world generation
@@ -162,7 +163,13 @@ pub(super) fn generate_random_player_from_def(
     let p_id = Uuid::new_v4().to_string();
     let nationality = nationality.to_string();
 
-    let age = rng.random_range(17..36);
+    // Reserve slots across the back line, midfield, and attack always start youth-aged
+    // so each club can open with real academy prospects instead of an empty youth squad.
+    let age = if matches!(index, 8 | 15 | 21) {
+        rng.random_range(17..22)
+    } else {
+        rng.random_range(17..36)
+    };
     let birth_year = 2026 - age;
     let birth_month = rng.random_range(1..13);
     let birth_day = rng.random_range(1..29);
@@ -227,7 +234,11 @@ pub(super) fn generate_random_player_from_def(
         },
     };
 
-    let ovr = (attributes.pace as u32
+    // For initial market-value sizing, use a temporary simple attribute average.
+    // The accurate position-weighted OVR is computed by refresh_player_derived() below.
+    let current_year: u32 = 2026;
+
+    let approx_ovr = (attributes.pace as u32
         + attributes.stamina as u32
         + attributes.strength as u32
         + attributes.passing as u32
@@ -249,10 +260,20 @@ pub(super) fn generate_random_player_from_def(
     } else {
         0.4
     };
-    let base_value = (ovr as f64).powi(2) * 500.0;
+    let base_value = (approx_ovr as f64).powi(2) * 500.0;
     let market_value = (base_value * age_factor) as u64;
     let wage = (market_value / 200).max(500) as u32;
-    let contract_years = rng.random_range(1..5);
+    let contract_years = if age <= 21 {
+        rng.random_range(3..6)
+    } else if age <= 27 {
+        rng.random_range(2..5)
+    } else if age <= 31 {
+        rng.random_range(2..4)
+    } else if rng.random_range(0..100) < 40 {
+        1
+    } else {
+        2
+    };
     let contract_end = format!("{}-06-30", 2026 + contract_years);
 
     let mut player = Player::new(
@@ -278,6 +299,16 @@ pub(super) fn generate_random_player_from_def(
             player.alternate_positions.push(pos);
         }
     }
+
+    // Set position-weighted OVR, potential, and traits (Wonderkid included if applicable)
+    let player_age = current_year.saturating_sub(birth_year);
+    // Pre-generate a potential so Wonderkid trait is assigned correctly on first refresh
+    let temp_ovr = {
+        use crate::player_rating::natural_ovr;
+        natural_ovr(&player).round() as u8
+    };
+    player.potential = generate_potential(temp_ovr, player_age);
+    refresh_player_derived(&mut player, current_year);
 
     player
 }

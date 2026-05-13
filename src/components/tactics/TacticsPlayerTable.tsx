@@ -134,10 +134,7 @@ function renderTableRow(props: {
           </Badge>
           {isWrongPosition ? (
             <span
-              title={t(
-                "squad.outOfPositionTooltip",
-                "Playing outside the player's preferred role",
-              )}
+              title={t("squad.outOfPositionTooltip")}
               className="text-amber-500"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -185,7 +182,7 @@ function renderTableRow(props: {
         <div className="flex flex-wrap items-center gap-1.5">
           {player.injury ? (
             <Badge variant="danger" size="sm">
-              {t("common.injured", "Injured")}
+              {t("common.injured")}
             </Badge>
           ) : (
             <span className="text-xs text-gray-500">—</span>
@@ -233,7 +230,7 @@ export default function TacticsPlayerTable({
           {title}
         </h3>
         <p className={countClassName}>
-          {players.length} / {totalCount} {t("squad.playersLabel", "players")}
+          {players.length} / {totalCount} {t("squad.playersLabel")}
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -286,7 +283,7 @@ export default function TacticsPlayerTable({
                 toggleSort={toggleSort}
               />
               <th className="px-4 py-2.5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("common.actions", "Actions")}
+                {t("common.actions")}
               </th>
             </tr>
           </thead>

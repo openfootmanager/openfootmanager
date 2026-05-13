@@ -2,6 +2,7 @@ mod builders_reports;
 mod message_builders;
 mod responses;
 
+pub(crate) use message_builders::sponsor_offer_message;
 pub use responses::apply_event_response;
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
@@ -132,11 +133,46 @@ pub fn check_random_events(game: &mut Game) {
 
                         // Apply the injury
                         let pid = player.id.clone();
+                        let player_name = player.match_name.clone();
+                        let player_team_id = player.team_id.clone();
+                        let is_notable = player.market_value >= 500_000
+                            || player_team_id.as_deref().is_some_and(|tid| {
+                                game.teams
+                                    .iter()
+                                    .find(|t| t.id == tid)
+                                    .is_some_and(|t| t.starting_xi_ids.iter().any(|id| id == &pid))
+                            });
+
                         if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
                             p.injury = Some(domain::player::Injury {
                                 name: injury_name.to_string(),
                                 days_remaining: days,
                             });
+                        }
+
+                        // Generate a public news article for notable players
+                        if is_notable {
+                            let news_id = format!("injury_news_{}_{}", pid, today);
+                            let actual_team_id =
+                                player_team_id.as_deref().unwrap_or(&user_team_id);
+                            let team_name = game
+                                .teams
+                                .iter()
+                                .find(|t| t.id == actual_team_id)
+                                .map(|t| t.name.clone())
+                                .unwrap_or_else(|| actual_team_id.to_string());
+                            let date_str = game.clock.current_date.to_rfc3339();
+                            if !game.news.iter().any(|a| a.id == news_id) {
+                                game.news.push(crate::news::injury_news_article(
+                                    &news_id,
+                                    &pid,
+                                    &player_name,
+                                    actual_team_id,
+                                    &team_name,
+                                    days as u32,
+                                    &date_str,
+                                ));
+                            }
                         }
                     }
                 }

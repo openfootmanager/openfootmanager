@@ -41,10 +41,20 @@ pub struct Player {
 
     pub injury: Option<Injury>,
     pub team_id: Option<String>,
+    #[serde(default)]
+    pub squad_role: SquadRole,
 
     // Traits / flairs derived from attributes
     #[serde(default)]
     pub traits: Vec<PlayerTrait>,
+
+    // Derived ratings (set by ofm_core, backend is source of truth)
+    /// Position-weighted overall rating (1–99). Computed from natural position.
+    #[serde(default)]
+    pub ovr: u8,
+    /// Player's ceiling rating (1–99). Set at generation; higher than ovr for young players.
+    #[serde(default)]
+    pub potential: u8,
 
     // Contract & value
     pub contract_end: Option<String>,
@@ -131,6 +141,13 @@ pub enum Footedness {
     #[default]
     Right,
     Both,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum SquadRole {
+    #[default]
+    Senior,
+    Youth,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -245,6 +262,16 @@ pub enum RenewalSessionOutcome {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ContractExitIntent {
+    LetExpire {
+        set_on: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ContractRenewalState {
     pub status: RenewalSessionStatus,
@@ -253,6 +280,7 @@ pub struct ContractRenewalState {
     pub last_assistant_attempt_date: Option<String>,
     pub last_outcome: Option<RenewalSessionOutcome>,
     pub conversation_round: u8,
+    pub exit_intent: Option<ContractExitIntent>,
 }
 
 impl Default for ContractRenewalState {
@@ -264,6 +292,7 @@ impl Default for ContractRenewalState {
             last_assistant_attempt_date: None,
             last_outcome: None,
             conversation_round: 0,
+            exit_intent: None,
         }
     }
 }
@@ -403,6 +432,8 @@ pub enum PlayerTrait {
     CompleteForward, // FWD: shooting >= 75 && dribbling >= 75 && pace >= 70 && strength >= 70
     Engine,          // MID: stamina >= 85 && pace >= 70 && teamwork >= 75
     SetPieceSpecialist, // passing >= 80 && shooting >= 75 && vision >= 75
+    // Potential / Star
+    Wonderkid, // age <= 21 && potential >= 75 && (potential - ovr) >= 10
 }
 
 /// Derive traits purely from a player's attributes (position-independent).
@@ -514,7 +545,10 @@ impl Player {
             fitness: 75,
             injury: None,
             team_id: None,
+            squad_role: SquadRole::Senior,
             traits,
+            ovr: 0,
+            potential: 0,
             contract_end: None,
             wage: 0,
             market_value: 0,
@@ -571,6 +605,8 @@ mod tests {
 
         assert_eq!(player.footedness, Footedness::Right);
         assert_eq!(player.weak_foot, 2);
+        assert_eq!(player.squad_role, SquadRole::Senior);
+        assert_eq!(player.squad_role, SquadRole::Senior);
     }
 
     #[test]

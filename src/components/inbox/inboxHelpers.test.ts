@@ -75,6 +75,12 @@ describe("inboxHelpers", () => {
       shouldResolveAction: false,
     });
 
+    expect(getNavigationTarget("/player/player-99")).toEqual({
+      tab: "__selectPlayer",
+      context: { messageId: "player-99" },
+      shouldResolveAction: false,
+    });
+
     expect(getNavigationTarget("/dashboard?tab=Squad")).toEqual({
       tab: "Squad",
       shouldResolveAction: true,

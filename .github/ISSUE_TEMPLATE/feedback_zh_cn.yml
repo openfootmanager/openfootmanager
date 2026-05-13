@@ -1,0 +1,58 @@
+name: "💬 反馈 / 建议（简体中文）"
+description: "用简体中文分享反馈或改进建议"
+labels: ["feedback", "alpha"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 反馈 / 建议
+        我们很想听听你的想法！
+        你可以直接使用简体中文填写此模板。
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "类别"
+      options:
+        - "易用性"
+        - "平衡性"
+        - "建议"
+        - "其他"
+    validations:
+      required: true
+
+  - type: input
+    id: area
+    attributes:
+      label: "涉及游戏的哪个部分？"
+      description: "例如: 训练、比赛模拟、转会、收件箱、战术……"
+      placeholder: "比赛模拟"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "描述"
+      description: "请详细说明你的体验、问题或建议。"
+      placeholder: "我认为训练系统可以这样改进……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-it-matters
+    attributes:
+      label: "为什么这很重要？"
+      description: "它会如何影响你的游戏体验？"
+      placeholder: "这很重要，因为……"
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "截图"
+      description: "请把相关截图拖拽到这里。"
+      placeholder: "把文件拖到这里……"
+    validations:
+      required: false

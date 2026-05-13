@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use domain::league::League;
 use domain::manager::Manager;
 use domain::message::MessageCategory;
 use domain::news::{NewsArticle, NewsCategory};
@@ -10,8 +11,8 @@ use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::transfers::{
-    TransferNegotiationDecision, counter_offer, generate_incoming_transfer_offers,
-    make_transfer_bid, respond_to_offer,
+    TransferNegotiationDecision, counter_offer, evaluate_transfer_market,
+    generate_incoming_transfer_offers, make_transfer_bid, respond_to_offer,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -105,6 +106,21 @@ fn make_seller_team(starting_xi_ids: Vec<String>) -> Team {
     team
 }
 
+fn make_ai_team(id: &str, name: &str, finance: i64, transfer_budget: i64) -> Team {
+    let mut team = Team::new(
+        id.to_string(),
+        name.to_string(),
+        name.chars().take(3).collect(),
+        "England".to_string(),
+        "Manchester".to_string(),
+        format!("{} Ground", name),
+        30_000,
+    );
+    team.finance = finance;
+    team.transfer_budget = transfer_budget;
+    team
+}
+
 fn make_game_with_player(
     player: Player,
     seller_starting_xi_ids: Vec<String>,
@@ -135,6 +151,16 @@ fn make_game_with_player(
     );
     game.season_context.transfer_window.status = TransferWindowStatus::Open;
     game
+}
+
+fn attach_transfer_log_league(game: &mut Game) {
+    let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+    game.league = Some(League::new(
+        "league-1".to_string(),
+        "Premier Division".to_string(),
+        2026,
+        &team_ids,
+    ));
 }
 
 #[test]
@@ -339,6 +365,90 @@ fn generates_pending_incoming_offer_for_contract_risk_player() {
         message.category == MessageCategory::Transfer
             && message.context.player_id.as_deref() == Some("player-contract-risk")
     }));
+}
+
+#[test]
+fn ai_clubs_complete_transfer_between_themselves_without_inbox_message() {
+    let mut player = make_player("player-ai-market");
+    player.team_id = Some("team-3".to_string());
+    player.contract_end = Some("2026-09-01".to_string());
+    player.market_value = 1_200_000;
+    player.transfer_listed = true;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams
+        .push(make_ai_team("team-3", "Seller FC", 3_000_000, 1_000_000));
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+
+    evaluate_transfer_market(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-ai-market")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(game.messages.is_empty());
+
+    let buyer = game.teams.iter().find(|team| team.id == "team-2").unwrap();
+    let seller = game.teams.iter().find(|team| team.id == "team-3").unwrap();
+    assert_eq!(buyer.finance, 5_100_000);
+    assert_eq!(seller.finance, 3_900_000);
+
+    let transfer_log = &game.league.as_ref().unwrap().transfer_log;
+    assert_eq!(transfer_log.len(), 1);
+    assert_eq!(transfer_log[0].player_id, "player-ai-market");
+    assert_eq!(transfer_log[0].from_team_id, "team-3");
+    assert_eq!(transfer_log[0].to_team_id, "team-2");
+    assert_eq!(transfer_log[0].fee, 900_000);
+}
+
+#[test]
+fn ai_market_limits_completed_ai_transfers_per_day() {
+    let mut first = make_player("player-ai-limit-1");
+    first.team_id = Some("team-3".to_string());
+    first.contract_end = Some("2026-09-01".to_string());
+    first.market_value = 1_200_000;
+    first.transfer_listed = true;
+
+    let mut second = make_player("player-ai-limit-2");
+    second.team_id = Some("team-3".to_string());
+    second.contract_end = Some("2026-09-01".to_string());
+    second.market_value = 1_100_000;
+    second.transfer_listed = true;
+
+    let mut third = make_player("player-ai-limit-3");
+    third.team_id = Some("team-3".to_string());
+    third.contract_end = Some("2026-09-01".to_string());
+    third.market_value = 1_000_000;
+    third.transfer_listed = true;
+
+    let mut game = make_game_with_player(first, vec![], 5_000_000, 2_000_000);
+    game.players.push(second);
+    game.players.push(third);
+    game.teams
+        .push(make_ai_team("team-3", "Seller FC", 3_000_000, 1_000_000));
+    game.teams
+        .push(make_ai_team("team-4", "Buyer B", 6_000_000, 3_000_000));
+    game.teams
+        .push(make_ai_team("team-5", "Buyer C", 6_000_000, 3_000_000));
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+
+    evaluate_transfer_market(&mut game);
+
+    let moved_players = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() != Some("team-3"))
+        .filter(|player| player.id.starts_with("player-ai-limit"))
+        .count();
+
+    assert_eq!(moved_players, 2);
+    assert_eq!(game.league.as_ref().unwrap().transfer_log.len(), 2);
 }
 
 #[test]
@@ -678,6 +788,14 @@ fn accepted_major_transfer_generates_news_article() {
         .find(|article| article.id == "transfer_news_player-news-major_team-2_team-1_2026-08-01")
         .expect("major transfer should create a news article");
     assert_eq!(article.category, NewsCategory::TransferRumour);
+    assert_eq!(
+        article.headline_key.as_deref(),
+        Some("be.news.majorTransfer.headline")
+    );
+    assert_eq!(
+        article.body_key.as_deref(),
+        Some("be.news.majorTransfer.body")
+    );
     assert_eq!(
         article.team_ids,
         vec!["team-2".to_string(), "team-1".to_string()]

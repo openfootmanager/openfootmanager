@@ -190,8 +190,6 @@ export function getDashboardAlerts(
         text: t("dashboard.alerts.financeCrisis", {
           balance: formatVal(myTeam.finance),
           weeks: financeSnapshot.cashRunwayWeeks ?? 0,
-          defaultValue:
-            "Finances critical — balance {{balance}}, runway {{weeks}} week(s)",
         }),
         tab: "Finances",
         severity: "warn",
@@ -201,7 +199,6 @@ export function getDashboardAlerts(
         id: "finance_runway",
         text: t("dashboard.alerts.financeRunway", {
           count: financeSnapshot.cashRunwayWeeks,
-          defaultValue: "Cash runway down to {{count}} week(s)",
         }),
         tab: "Finances",
         severity: "warn",
@@ -216,7 +213,6 @@ export function getDashboardAlerts(
         id: "wage_pressure",
         text: t("dashboard.alerts.wagePressure", {
           percent: financeSnapshot.wageBudgetUsagePercent,
-          defaultValue: "Wage bill at {{percent}}% of budget",
         }),
         tab: "Finances",
         severity: "warn",

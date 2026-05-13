@@ -1,0 +1,130 @@
+name: nightly-release-manifest
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Nightly release tag to process
+        required: true
+        type: string
+
+concurrency:
+  group: nightly-release-metadata
+  cancel-in-progress: true
+
+jobs:
+  publish-nightly-release-metadata:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.target_commitish == 'develop' || startsWith(github.event.release.tag_name, 'nightly-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate release tag input
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TAG:-}" ]; then
+            echo "release_tag is required for manual runs."
+            exit 1
+          fi
+
+      - name: Generate nightly release manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_STREAM: nightly
+          RELEASE_MANIFEST_FILE: nightly-release-manifest.json
+          RELEASE_CHECKSUMS_FILE: nightly-checksums.txt
+          RELEASE_SOURCE_WORKFLOW_FILE: ${{ github.event_name == 'release' && 'nightly-tauri-action.yml' || '' }}
+          RELEASE_SOURCE_WORKFLOW_BRANCH: ${{ github.event_name == 'release' && github.event.release.target_commitish == 'develop' && 'develop' || '' }}
+          RELEASE_SOURCE_WORKFLOW_HEAD_SHA: ${{ github.event_name == 'release' && github.event.release.target_commitish != 'develop' && github.event.release.target_commitish || '' }}
+        run: node .github/scripts/generate-release-manifest.mjs
+
+      - name: Upload nightly manifest assets to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" nightly-release-manifest.json nightly-checksums.txt --clobber
+
+      - name: Publish nightly metadata branch
+        env:
+          RELEASE_METADATA_BRANCH: ${{ vars.NIGHTLY_RELEASE_METADATA_BRANCH }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          branch="${RELEASE_METADATA_BRANCH:-release-metadata-nightly}"
+          worktree_dir="$(mktemp -d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$branch" || true
+
+          if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+            git worktree add "$worktree_dir" "origin/$branch"
+          else
+            git worktree add --detach "$worktree_dir"
+            git -C "$worktree_dir" checkout --orphan "$branch"
+            git -C "$worktree_dir" rm -rf --ignore-unmatch . || true
+            find "$worktree_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+          cp nightly-release-manifest.json nightly-checksums.txt "$worktree_dir"/
+          git -C "$worktree_dir" add nightly-release-manifest.json nightly-checksums.txt
+
+          if git -C "$worktree_dir" diff --cached --quiet; then
+            echo "No nightly metadata changes to publish."
+          else
+            git -C "$worktree_dir" commit -m "chore: update nightly release metadata for ${RELEASE_TAG:-manual}"
+            git -C "$worktree_dir" push origin HEAD:"$branch"
+          fi
+
+          git worktree remove "$worktree_dir" --force
+
+      - name: Dispatch website rebuild
+        env:
+          GH_TOKEN: ${{ secrets.WEBSITE_REPO_DISPATCH_TOKEN }}
+          WEBSITE_REPOSITORY: ${{ vars.WEBSITE_REPOSITORY }}
+          WEBSITE_RELEASE_EVENT_TYPE: ${{ vars.NIGHTLY_WEBSITE_RELEASE_EVENT_TYPE }}
+          RELEASE_METADATA_BRANCH: ${{ vars.NIGHTLY_RELEASE_METADATA_BRANCH }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ] || [ -z "${WEBSITE_REPOSITORY:-}" ]; then
+            echo "Website dispatch skipped because WEBSITE_REPO_DISPATCH_TOKEN or WEBSITE_REPOSITORY is not configured."
+            exit 0
+          fi
+
+          branch="${RELEASE_METADATA_BRANCH:-release-metadata-nightly}"
+          event_type="${WEBSITE_RELEASE_EVENT_TYPE:-game_nightly_published}"
+          manifest_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${branch}/nightly-release-manifest.json"
+          checksums_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${branch}/nightly-checksums.txt"
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
+
+          echo "Dispatching ${event_type} to ${WEBSITE_REPOSITORY}"
+
+          gh api --method POST "repos/${WEBSITE_REPOSITORY}/dispatches" \
+            -f event_type="$event_type" \
+            -f client_payload[repository]="${GITHUB_REPOSITORY}" \
+            -f client_payload[stream]="nightly" \
+            -f client_payload[tag]="${RELEASE_TAG}" \
+            -f client_payload[manifest_url]="$manifest_url" \
+            -f client_payload[checksums_url]="$checksums_url" \
+            -f client_payload[release_url]="$release_url"
