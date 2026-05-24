@@ -6,6 +6,7 @@ interface SaveEntry {
   id: string;
   name: string;
   manager_name: string;
+  team_name: string;
   db_filename: string;
   checksum: string;
   created_at: string;
@@ -78,7 +79,7 @@ export default function SavesList({ saves, isLoading, loadingSaveId, confirmDele
                       {loadingSaveId === save.id ? <Loader2 className="w-4 h-4 text-primary-500 animate-spin flex-shrink-0" /> : <Play className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" />}
                     </div>
                     <div className="flex justify-between items-center w-full text-sm text-gray-500 dark:text-gray-400">
-                      <span>{t('menu.manager', { name: save.manager_name })}</span>
+                      <span>{save.team_name}</span>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         <span>{formatDate(save.last_played_at, i18n.language)}</span>

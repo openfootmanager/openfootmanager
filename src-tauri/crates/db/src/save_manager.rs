@@ -17,7 +17,7 @@ use ofm_core::player_rating::{
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
 use crate::repositories::league_repo;
-use crate::save_index::{SaveEntry, compute_checksum};
+use crate::save_index::{SaveEntry, compute_checksum, save_entry_metadata_from_game};
 use crate::save_index_manager::SaveIndexManager;
 
 /// Manages save sessions: creating, loading, saving, deleting, and listing.
@@ -66,7 +66,34 @@ impl SaveManager {
 
     pub fn load_saves(&mut self) -> Result<Vec<SaveEntry>, String> {
         self.ensure_save_index_ready()?;
-        Ok(self.save_index.list_saves().to_vec())
+        let mut saves = self.save_index.list_saves().to_vec();
+        for save in saves.iter_mut() {
+            if !save.team_name.is_empty() {
+                continue;
+            }
+
+            let db_path = self.saves_dir.join(&save.db_filename);
+            let Ok(db) = GameDatabase::open(&db_path) else {
+                continue;
+            };
+            let Ok(game) = GamePersistenceReader::read_game(&db) else {
+                continue;
+            };
+
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
+            if team_name.is_empty() && save.manager_name.is_empty() {
+                continue;
+            }
+
+            save.team_name = team_name;
+            if save.manager_name.is_empty() {
+                save.manager_name = manager_name;
+            }
+
+            self.save_index.update_save(save.clone())?;
+        }
+
+        Ok(saves)
     }
 
     /// Create a new save from the current in-memory Game state.
@@ -87,12 +114,13 @@ impl SaveManager {
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let entry = SaveEntry {
             id: save_id.clone(),
             name: save_name.to_string(),
             manager_name,
+            team_name,
             db_filename,
             checksum,
             created_at: now.clone(),
@@ -145,13 +173,14 @@ impl SaveManager {
         let checksum_ms = checksum_timer.elapsed().as_millis();
 
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let index_timer = Instant::now();
         let entry = SaveEntry {
             id: save_id.clone(),
             name: save_name.to_string(),
             manager_name,
+            team_name,
             db_filename,
             checksum,
             created_at: now.clone(),
@@ -198,12 +227,13 @@ impl SaveManager {
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         self.save_index.update_save(SaveEntry {
             id: save_id.to_string(),
             name: save_name,
             manager_name,
+            team_name,
             db_filename: entry.db_filename.clone(),
             checksum,
             created_at: entry.created_at.clone(),
@@ -232,6 +262,7 @@ impl SaveManager {
             id: save_id.to_string(),
             name: entry.name,
             manager_name: entry.manager_name,
+            team_name: entry.team_name.clone(),
             db_filename: entry.db_filename,
             checksum,
             created_at: entry.created_at,
@@ -283,13 +314,14 @@ impl SaveManager {
         let checksum_ms = checksum_timer.elapsed().as_millis();
 
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let index_timer = Instant::now();
         self.save_index.update_save(SaveEntry {
             id: save_id.to_string(),
             name: entry.name,
             manager_name,
+            team_name,
             db_filename: entry.db_filename,
             checksum,
             created_at: entry.created_at,
@@ -419,12 +451,13 @@ impl SaveManager {
 
             let checksum = compute_checksum(&db_path)?;
             let now = Utc::now().to_rfc3339();
-            let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
 
             self.save_index.update_save(SaveEntry {
                 id: save_id.to_string(),
                 name: save_name,
                 manager_name,
+                team_name,
                 db_filename: entry.db_filename.clone(),
                 checksum,
                 created_at: entry.created_at.clone(),
@@ -1044,6 +1077,7 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].name, "John's Career");
         assert_eq!(saves[0].manager_name, "John Smith");
+        assert_eq!(saves[0].team_name, "London FC");
         assert!(!saves[0].checksum.is_empty());
     }
 
