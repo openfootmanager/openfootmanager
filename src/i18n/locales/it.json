@@ -21,6 +21,15 @@
     "invalidWorldDb": "File di database del mondo non valido: {{error}}",
     "failedStartGame": "Impossibile avviare il gioco: {{error}}"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Salva profilo",
+      "body": "Hai modificato il profilo di {{name}}. Cosa vuoi fare?",
+      "update": "Aggiorna \"{{name}}\"",
+      "saveNew": "Salva come nuovo profilo",
+      "skip": "Continua senza salvare"
+    }
+  },
   "createManager": {
     "title": "Crea allenatore",
     "firstName": "Nome",
@@ -1819,6 +1828,11 @@
         "parseFailed": "I dati delle impostazioni non sono validi.",
         "saveFailed": "Impossibile salvare le impostazioni.",
         "invalidCurrency": "La valuta selezionata non è supportata."
+      },
+      "profiles": {
+        "loadFailed": "Impossibile caricare i profili dell'allenatore.",
+        "saveFailed": "Impossibile salvare il profilo dell'allenatore.",
+        "pathFailed": "Impossibile determinare il percorso di archiviazione dei profili."
       },
       "finance": {
         "boardSupportUnavailable": "Il supporto d'emergenza del consiglio è disponibile solo quando la liquidità è sotto pressione.",

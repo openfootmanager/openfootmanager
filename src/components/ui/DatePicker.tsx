@@ -98,6 +98,12 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
   const [month, setMonth] = useState<string>("");
   const [year, setYear] = useState<string>("");
 
+  // Keep a stable ref so the notify effect below doesn't need onChange
+  // in its dependency array — avoids firing with stale day/month/year
+  // when the parent re-renders and passes a new inline function reference.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const [monthOpen, setMonthOpen] = useState(false);
   const monthRef = useRef<HTMLDivElement>(null);
 
@@ -138,9 +144,9 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
   // Update parent when any component changes, if valid
   useEffect(() => {
     if (day && month && year && year.length === 4) {
-      onChange(formatDateValue(day, month, year));
+      onChangeRef.current(formatDateValue(day, month, year));
     }
-  }, [day, month, year, onChange]);
+  }, [day, month, year]);
 
   // Generate month names based on current locale
   const months = useMemo(() => createMonths(i18n.language), [i18n.language]);

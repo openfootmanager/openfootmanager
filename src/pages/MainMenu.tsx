@@ -9,6 +9,7 @@ import type {
   CareerStartPhase,
   CreateManagerFormData,
 } from "../components/menu/CreateManagerForm";
+import type { ManagerProfile } from "../components/menu/types";
 import type { WorldDatabaseInfo } from "../components/menu/WorldSelect";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
@@ -21,6 +22,9 @@ import {
 
 const CreateManagerForm = lazy(
   () => import("../components/menu/CreateManagerForm"),
+);
+const ProfileSaveConfirm = lazy(
+  () => import("../components/menu/ProfileSaveConfirm"),
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
@@ -268,11 +272,15 @@ export default function MainMenu() {
   const [menuState, setMenuState] = useState<
     "main" | "create" | "world" | "load"
   >("main");
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
   const [loadingSaveId, setLoadingSaveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+
+  const [profiles, setProfiles] = useState<ManagerProfile[]>([]);
+  const [loadedProfile, setLoadedProfile] = useState<ManagerProfile | null>(null);
 
   const [formData, setFormData] = useState<CreateManagerFormData>({
     firstName: "",
@@ -300,6 +308,12 @@ export default function MainMenu() {
       String(historyDepthYears),
     );
   }, [historyDepthYears]);
+
+  useEffect(() => {
+    invoke<ManagerProfile[]>("get_manager_profiles")
+      .then((p) => setProfiles(p ?? []))
+      .catch(() => {});
+  }, []);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
@@ -389,8 +403,12 @@ export default function MainMenu() {
       deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
     }
-    setMenuState("world");
-    loadWorldDatabases();
+    if (loadedProfile && formDiffersFromProfile(formData, loadedProfile)) {
+      setShowProfileConfirm(true);
+      return;
+    }
+    void autoSaveProfile();
+    proceedToWorldSelect();
   };
 
   const loadWorldDatabases = async () => {
@@ -549,6 +567,89 @@ export default function MainMenu() {
     }
   };
 
+  const handleSelectProfile = (profile: ManagerProfile) => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      dob: profile.date_of_birth,
+      nationality: profile.nationality,
+    }));
+    setFormErrors({});
+    setLoadedProfile(profile);
+    void invoke("touch_manager_profile", { id: profile.id });
+  };
+
+  const formDiffersFromProfile = (form: CreateManagerFormData, profile: ManagerProfile) =>
+    form.firstName !== profile.first_name ||
+    form.lastName !== profile.last_name ||
+    form.dob !== profile.date_of_birth ||
+    form.nationality !== profile.nationality;
+
+  const proceedToWorldSelect = () => {
+    setShowProfileConfirm(false);
+    setMenuState("world");
+    loadWorldDatabases();
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!loadedProfile) return;
+    try {
+      const updated = await invoke<ManagerProfile | null>("update_manager_profile", {
+        id: loadedProfile.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+      });
+      if (updated) {
+        setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setLoadedProfile(updated);
+      }
+    } catch (error) {
+      console.error("Failed to update manager profile:", error);
+    }
+    proceedToWorldSelect();
+  };
+
+  const handleSaveAsNewProfile = () => {
+    void autoSaveProfile(true);
+    setLoadedProfile(null);
+    proceedToWorldSelect();
+  };
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await invoke<boolean>("delete_manager_profile", { id });
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      if (loadedProfile?.id === id) setLoadedProfile(null);
+    } catch (error) {
+      console.error("Failed to delete manager profile:", error);
+    }
+  };
+
+  const autoSaveProfile = async (forceNew = false) => {
+    try {
+      const saved = await invoke<ManagerProfile>("save_manager_profile", {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+        force: forceNew || undefined,
+      });
+      setProfiles((prev) => {
+        if (!forceNew && prev.some((p) => p.id === saved.id)) return prev;
+        return [...prev, saved].sort((a, b) => {
+          const aDate = a.last_used_at ?? a.created_at;
+          const bDate = b.last_used_at ?? b.created_at;
+          return bDate.localeCompare(aDate);
+        });
+      });
+    } catch (error) {
+      console.error("Failed to auto-save manager profile:", error);
+    }
+  };
+
   const handleExitApp = async (): Promise<void> => {
     try {
       if (document.fullscreenElement) {
@@ -651,13 +752,31 @@ export default function MainMenu() {
                 formData={formData}
                 formErrors={formErrors}
                 dobError={dobDisplayedError}
+                profiles={profiles}
+                selectedProfileId={loadedProfile?.id}
                 onChange={updateFormField}
                 onClearError={clearFormError}
                 onClose={() => {
                   setMenuState("main");
                   setFormErrors({});
+                  setLoadedProfile(null);
                 }}
+                onSelectProfile={handleSelectProfile}
+                onDeleteProfile={handleDeleteProfile}
                 onSubmit={handleGoToWorldSelect}
+              />
+            </Suspense>
+          )}
+
+          {/* Profile save confirmation modal */}
+          {showProfileConfirm && loadedProfile && (
+            <Suspense fallback={null}>
+              <ProfileSaveConfirm
+                loadedProfile={loadedProfile}
+                onUpdate={() => { void handleUpdateProfile(); }}
+                onSaveNew={() => { void handleSaveAsNewProfile(); }}
+                onSkip={proceedToWorldSelect}
+                onClose={() => setShowProfileConfirm(false)}
               />
             </Suspense>
           )}
@@ -698,6 +817,7 @@ export default function MainMenu() {
               />
             </Suspense>
           )}
+
         </div>
       </div>
 

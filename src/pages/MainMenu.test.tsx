@@ -249,6 +249,18 @@ describe("MainMenu", () => {
         return { id: "game-1" };
       }
 
+      if (command === "get_manager_profiles") {
+        return [];
+      }
+
+      if (command === "save_manager_profile") {
+        return { id: "profile-1", first_name: "Test", last_name: "Manager", date_of_birth: "1980-01-01", nationality: "GB", created_at: new Date().toISOString(), last_used_at: null };
+      }
+
+      if (command === "touch_manager_profile") {
+        return true;
+      }
+
       return null;
     });
     // MainMenu defers focus with requestAnimationFrame; defer one microtask so React
