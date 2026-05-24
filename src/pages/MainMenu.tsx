@@ -428,6 +428,7 @@ export default function MainMenu() {
       try {
         const json = reader.result as string;
         const parsed = JSON.parse(json);
+        const path = await invoke<string>("write_temp_database", { json });
         const info: WorldDatabaseInfo = {
           id: `file:${file.name}`,
           name: parsed.name || file.name.replace(".json", ""),
@@ -444,10 +445,8 @@ export default function MainMenu() {
               ? parsed.metadata.snapshot_date
               : null,
           source: "imported",
-          path: "", // will use the parsed data directly
+          path,
         };
-        // Store the raw JSON in sessionStorage so we can write it to a temp path
-        sessionStorage.setItem("imported_world_json", json);
         setWorldDatabases((prev) => {
           const filtered = prev.filter((d) => d.source !== "imported");
           return [...filtered, info];
@@ -479,16 +478,11 @@ export default function MainMenu() {
       let worldSource: string | undefined = selectedWorldId;
       if (selectedWorldId === "random") {
         worldSource = undefined;
-      } else if (
-        selectedWorldId.startsWith("file:") &&
-        sessionStorage.getItem("imported_world_json")
-      ) {
-        // For imported files, write to a temp location first
-        const json = sessionStorage.getItem("imported_world_json")!;
-        const path = await invoke<string>("write_temp_database", {
-          json,
-        });
-        worldSource = `file:${path}`;
+      } else {
+        const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
+        if (selectedDb?.path) {
+          worldSource = `file:${selectedDb.path}`;
+        }
       }
 
       const game = await invoke<GameStateData>("start_new_game", {
@@ -499,7 +493,6 @@ export default function MainMenu() {
         startupOptions,
         worldSource,
       });
-      sessionStorage.removeItem("imported_world_json");
       setGameState(game);
       navigate("/select-team");
     } catch (error) {

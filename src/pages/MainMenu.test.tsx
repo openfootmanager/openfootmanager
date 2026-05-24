@@ -545,10 +545,8 @@ describe("MainMenu", () => {
     expect(mockedInvoke).not.toHaveBeenCalledWith("list_world_databases");
   });
 
-  it("does not fall back to a random world when imported database writing fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
-
-    mockedInvoke.mockImplementation(async (command: string) => {
+  it("passes the imported world path directly when starting a new career", async () => {
+    mockedInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
       if (command === "list_world_databases") {
         return [
           {
@@ -558,24 +556,19 @@ describe("MainMenu", () => {
             team_count: 8,
             player_count: 160,
             source: "imported",
-            path: "",
+            path: "/tmp/imported-world.json",
             history_mode: "reference",
           },
         ];
       }
 
-      if (command === "write_temp_database") {
-        throw new Error("write failed");
-      }
-
       if (command === "start_new_game") {
+        expect(args?.worldSource).toBe("file:/tmp/imported-world.json");
         return { id: "game-1" };
       }
 
       return null;
     });
-
-    sessionStorage.setItem("imported_world_json", "{\"name\":\"Imported World\"}");
 
     render(<MainMenu />);
 
@@ -593,17 +586,16 @@ describe("MainMenu", () => {
     fireEvent.click(screen.getByText("start-world"));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("write_temp_database", {
-        json: "{\"name\":\"Imported World\"}",
-      });
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "start_new_game",
+        expect.objectContaining({
+          worldSource: "file:/tmp/imported-world.json",
+        }),
+      );
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "start_new_game",
-      expect.anything(),
-    );
-    expect(alertMock).toHaveBeenCalledWith("menu.failedStartGame");
-    expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("write_temp_database", expect.anything());
+    expect(navigateMock).toHaveBeenCalledWith("/select-team");
   });
 
   it("passes the selected generated history depth when starting a new career", async () => {
