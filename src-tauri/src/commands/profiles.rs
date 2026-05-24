@@ -60,10 +60,7 @@ pub fn update_manager_profile(
 }
 
 #[tauri::command]
-pub fn delete_manager_profile(
-    app_handle: tauri::AppHandle,
-    id: String,
-) -> Result<bool, String> {
+pub fn delete_manager_profile(app_handle: tauri::AppHandle, id: String) -> Result<bool, String> {
     let path = profiles_path(&app_handle)?;
     manager_profile::remove_profile(&path, &id)
 }

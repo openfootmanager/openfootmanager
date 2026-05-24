@@ -46,8 +46,8 @@ pub fn load_profiles(path: &Path) -> Result<ManagerProfileIndex, String> {
 }
 
 pub fn write_profiles(path: &Path, index: &ManagerProfileIndex) -> Result<(), String> {
-    let data =
-        serde_json::to_string_pretty(index).map_err(|_| "be.error.profiles.saveFailed".to_string())?;
+    let data = serde_json::to_string_pretty(index)
+        .map_err(|_| "be.error.profiles.saveFailed".to_string())?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|_| "be.error.profiles.saveFailed".to_string())?;
     }
@@ -86,6 +86,8 @@ pub fn add_profile(
     Ok(profile)
 }
 
+/// Add a new profile unconditionally, bypassing dedup. Used when the caller explicitly
+/// wants a separate profile entry (e.g. "Save as New" from the edit-confirm modal).
 pub fn add_profile_force(
     path: &Path,
     first_name: String,
@@ -132,6 +134,8 @@ pub fn update_profile(
     }
 }
 
+/// Update `last_used_at` to now for the given profile id.
+/// Returns `true` if found and updated, `false` if no profile with that id exists.
 pub fn touch_profile(path: &Path, id: &str) -> Result<bool, String> {
     let mut index = load_profiles(path)?;
     if let Some(profile) = index.profiles.iter_mut().find(|p| p.id == id) {
@@ -266,7 +270,15 @@ mod tests {
         assert_eq!(index.profiles.len(), 1);
         assert_eq!(index.profiles[0].nationality, "ES");
 
-        let not_found = update_profile(&path, "nonexistent-id", "A".to_string(), "B".to_string(), "2000-01-01".to_string(), "DE".to_string()).unwrap();
+        let not_found = update_profile(
+            &path,
+            "nonexistent-id",
+            "A".to_string(),
+            "B".to_string(),
+            "2000-01-01".to_string(),
+            "DE".to_string(),
+        )
+        .unwrap();
         assert!(not_found.is_none());
     }
 
