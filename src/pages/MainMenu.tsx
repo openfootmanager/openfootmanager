@@ -312,7 +312,7 @@ export default function MainMenu() {
   useEffect(() => {
     invoke<ManagerProfile[]>("get_manager_profiles")
       .then((p) => setProfiles(p ?? []))
-      .catch(() => {});
+      .catch((error) => console.error("Failed to load manager profiles:", error));
   }, []);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
@@ -638,8 +638,12 @@ export default function MainMenu() {
         force: forceNew || undefined,
       });
       setProfiles((prev) => {
-        if (!forceNew && prev.some((p) => p.id === saved.id)) return prev;
-        return [...prev, saved].sort((a, b) => {
+        const exists = prev.some((p) => p.id === saved.id);
+        const next =
+          !forceNew && exists
+            ? prev.map((p) => (p.id === saved.id ? saved : p))
+            : [...prev, saved];
+        return next.sort((a, b) => {
           const aDate = a.last_used_at ?? a.created_at;
           const bDate = b.last_used_at ?? b.created_at;
           return bDate.localeCompare(aDate);

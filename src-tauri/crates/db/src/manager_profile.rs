@@ -63,13 +63,16 @@ pub fn add_profile(
 ) -> Result<ManagerProfile, String> {
     let mut index = load_profiles(path)?;
 
-    if let Some(existing) = index.profiles.iter().find(|p| {
+    if let Some(existing) = index.profiles.iter_mut().find(|p| {
         p.first_name == first_name
             && p.last_name == last_name
             && p.date_of_birth == date_of_birth
             && p.nationality == nationality
     }) {
-        return Ok(existing.clone());
+        existing.last_used_at = Some(Utc::now().to_rfc3339());
+        let updated = existing.clone();
+        write_profiles(path, &index)?;
+        return Ok(updated);
     }
 
     let profile = ManagerProfile {

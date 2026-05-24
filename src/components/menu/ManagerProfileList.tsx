@@ -50,6 +50,7 @@ export default function ManagerProfileList({ profiles, selectedProfileId, onSele
 
                         <button
                             type="button"
+                            aria-label={t("menu.delete")}
                             onClick={() => setConfirmDeleteId(profile.id)}
                             className="p-1.5 mr-2 rounded-lg text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all shrink-0"
                         >
