@@ -546,7 +546,7 @@ describe("MainMenu", () => {
   });
 
   it("passes the imported world path directly when starting a new career", async () => {
-    mockedInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+    mockedInvoke.mockImplementation(async (command: string, args?) => {
       if (command === "list_world_databases") {
         return [
           {
@@ -563,7 +563,7 @@ describe("MainMenu", () => {
       }
 
       if (command === "start_new_game") {
-        expect(args?.worldSource).toBe("file:/tmp/imported-world.json");
+        expect((args as Record<string, unknown>)?.worldSource).toBe("file:/tmp/imported-world.json");
         return { id: "game-1" };
       }
 
