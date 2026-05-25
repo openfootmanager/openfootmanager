@@ -81,7 +81,9 @@ impl SaveManager {
             };
 
             let (manager_name, team_name) = save_entry_metadata_from_game(&game);
-            if team_name.is_empty() && save.manager_name.is_empty() {
+            let can_backfill_team = !team_name.is_empty();
+            let can_backfill_manager = save.manager_name.is_empty() && !manager_name.is_empty();
+            if !can_backfill_team && !can_backfill_manager {
                 continue;
             }
 
@@ -90,7 +92,13 @@ impl SaveManager {
                 save.manager_name = manager_name;
             }
 
-            self.save_index.update_save(save.clone())?;
+            if let Err(error) = self.save_index.update_save(save.clone()) {
+                log::warn!(
+                    "[save_manager] failed to persist metadata backfill for save {}: {}",
+                    save.id,
+                    error
+                );
+            }
         }
 
         Ok(saves)
@@ -1010,6 +1018,86 @@ mod tests {
         ];
 
         Game::new(clock, manager, vec![team], players, vec![], vec![])
+    }
+
+    #[test]
+    fn test_load_saves_backfills_legacy_index_missing_team_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let game = sample_game();
+            sm.create_save(&game, "Legacy Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Legacy Career",
+                "manager_name": "John Smith",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].team_name, "London FC");
+    }
+
+    #[test]
+    fn test_load_saves_backfills_manager_name_when_unemployed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+            let clock = GameClock::new(start);
+            let manager = domain::manager::Manager::new(
+                "mgr-user".to_string(),
+                "Jane".to_string(),
+                "Doe".to_string(),
+                "1990-01-15".to_string(),
+                "British".to_string(),
+            );
+            let game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+            sm.create_save(&game, "Unemployed Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Unemployed Career",
+                "manager_name": "",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].manager_name, "Jane Doe");
+        assert_eq!(saves[0].team_name, "");
     }
 
     #[test]

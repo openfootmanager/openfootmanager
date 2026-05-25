@@ -327,6 +327,25 @@ mod tests {
     }
 
     #[test]
+    fn test_load_index_defaults_missing_team_name() {
+        let legacy_json = r#"{
+            "version": 1,
+            "saves": [{
+                "id": "save-001",
+                "name": "Career",
+                "manager_name": "John Smith",
+                "db_filename": "save-001.db",
+                "checksum": "abc123",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }]
+        }"#;
+
+        let index: SaveIndex = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(index.saves[0].team_name, "");
+    }
+
+    #[test]
     fn test_save_index_serialization_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
         let index_path = dir.path().join("save_index.json");
