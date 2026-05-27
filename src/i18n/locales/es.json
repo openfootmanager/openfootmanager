@@ -19,7 +19,9 @@
     "noResults": "Sin resultados",
     "importedDescription": "Base de datos de mundo importada",
     "invalidWorldDb": "Archivo de base de datos de mundo inválido: {{error}}",
-    "failedStartGame": "Error al iniciar el juego: {{error}}"
+    "failedStartGame": "Error al iniciar el juego: {{error}}",
+    "openDiscord": "Abrir comunidad de Discord",
+    "openGithub": "Abrir repositorio de GitHub"
   },
   "createManager": {
     "title": "Crear Mánager",

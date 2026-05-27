@@ -19,7 +19,9 @@
     "noResults": "Keine Ergebnisse",
     "importedDescription": "Importierte Weltdatenbank",
     "invalidWorldDb": "Ungültige Welt-Datenbankdatei: {{error}}",
-    "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}"
+    "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}",
+    "openDiscord": "Discord-Community öffnen",
+    "openGithub": "GitHub-Repository öffnen"
   },
   "createManager": {
     "title": "Manager erstellen",

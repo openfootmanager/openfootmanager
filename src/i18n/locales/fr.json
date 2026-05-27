@@ -19,7 +19,9 @@
     "noResults": "Aucun résultat",
     "importedDescription": "Base de données de monde importée",
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
-    "failedStartGame": "Échec du démarrage du jeu : {{error}}"
+    "failedStartGame": "Échec du démarrage du jeu : {{error}}",
+    "openDiscord": "Ouvrir la communauté Discord",
+    "openGithub": "Ouvrir le dépôt GitHub"
   },
   "createManager": {
     "title": "Créer un Entraîneur",

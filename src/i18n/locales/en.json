@@ -19,7 +19,9 @@
     "noResults": "No results",
     "importedDescription": "Imported world database",
     "invalidWorldDb": "Invalid world database file: {{error}}",
-    "failedStartGame": "Failed to start game: {{error}}"
+    "failedStartGame": "Failed to start game: {{error}}",
+    "openDiscord": "Open Discord community",
+    "openGithub": "Open GitHub repository"
   },
   "createManager": {
     "title": "Create Manager",
