@@ -21,6 +21,15 @@
     "invalidWorldDb": "Invalid world database file: {{error}}",
     "failedStartGame": "Failed to start game: {{error}}"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Save Profile",
+      "body": "You've made changes to {{name}}'s profile. What would you like to do?",
+      "update": "Update \"{{name}}\"",
+      "saveNew": "Save as New Profile",
+      "skip": "Continue without saving"
+    }
+  },
   "createManager": {
     "title": "Create Manager",
     "firstName": "First Name",
@@ -1766,6 +1775,11 @@
         "parseFailed": "Settings data is invalid.",
         "saveFailed": "Failed to save settings.",
         "invalidCurrency": "Selected currency is not supported."
+      },
+      "profiles": {
+        "loadFailed": "Failed to load manager profiles.",
+        "saveFailed": "Failed to save manager profile.",
+        "pathFailed": "Could not resolve the profiles storage path."
       },
       "teamNotFound": "Team not found",
       "jobOffer": {

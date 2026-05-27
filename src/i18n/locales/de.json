@@ -21,6 +21,15 @@
     "invalidWorldDb": "Ungültige Welt-Datenbankdatei: {{error}}",
     "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Profil speichern",
+      "body": "Du hast Änderungen am Profil von {{name}} vorgenommen. Was möchtest du tun?",
+      "update": "\"{{name}}\" aktualisieren",
+      "saveNew": "Als neues Profil speichern",
+      "skip": "Ohne Speichern fortfahren"
+    }
+  },
   "createManager": {
     "title": "Manager erstellen",
     "firstName": "Vorname",
@@ -1819,6 +1828,11 @@
         "parseFailed": "Die Einstellungsdaten sind ungültig.",
         "saveFailed": "Die Einstellungen konnten nicht gespeichert werden.",
         "invalidCurrency": "Die ausgewählte Währung wird nicht unterstützt."
+      },
+      "profiles": {
+        "loadFailed": "Manager-Profile konnten nicht geladen werden.",
+        "saveFailed": "Manager-Profil konnte nicht gespeichert werden.",
+        "pathFailed": "Der Speicherpfad für Profile konnte nicht ermittelt werden."
       },
       "finance": {
         "boardSupportUnavailable": "Notfallhilfe des Vorstands ist nur verfügbar, wenn die Geldreserven unter Druck stehen.",

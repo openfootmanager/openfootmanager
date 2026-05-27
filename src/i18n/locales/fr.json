@@ -21,6 +21,15 @@
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
     "failedStartGame": "Échec du démarrage du jeu : {{error}}"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Enregistrer le profil",
+      "body": "Vous avez modifié le profil de {{name}}. Que souhaitez-vous faire ?",
+      "update": "Mettre à jour \"{{name}}\"",
+      "saveNew": "Enregistrer comme nouveau profil",
+      "skip": "Continuer sans enregistrer"
+    }
+  },
   "createManager": {
     "title": "Créer un Entraîneur",
     "firstName": "Prénom",
@@ -1819,6 +1828,11 @@
         "parseFailed": "Les données de paramètres sont invalides.",
         "saveFailed": "Impossible d'enregistrer les paramètres.",
         "invalidCurrency": "La devise sélectionnée n'est pas prise en charge."
+      },
+      "profiles": {
+        "loadFailed": "Impossible de charger les profils d'entraîneur.",
+        "saveFailed": "Impossible d'enregistrer le profil d'entraîneur.",
+        "pathFailed": "Impossible de résoudre le chemin de stockage des profils."
       },
       "finance": {
         "boardSupportUnavailable": "Le soutien d'urgence du conseil n'est disponible que lorsque la trésorerie est sous pression.",
