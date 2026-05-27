@@ -33,6 +33,7 @@ interface SaveEntry {
   id: string;
   name: string;
   manager_name: string;
+  team_name: string;
   db_filename: string;
   checksum: string;
   created_at: string;

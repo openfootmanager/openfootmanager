@@ -3,7 +3,10 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
 
+use ofm_core::game::Game;
+
 use crate::game_database::GameDatabase;
+use crate::game_persistence::GamePersistenceReader;
 use crate::repositories::meta_repo;
 
 /// A single entry in the save index, representing one save session.
@@ -12,6 +15,8 @@ pub struct SaveEntry {
     pub id: String,
     pub name: String,
     pub manager_name: String,
+    #[serde(default)]
+    pub team_name: String,
     pub db_filename: String,
     pub checksum: String,
     pub created_at: String,
@@ -56,6 +61,7 @@ impl SaveIndex {
         if let Some(existing) = self.saves.iter_mut().find(|e| e.id == entry.id) {
             existing.name = entry.name.clone();
             existing.manager_name = entry.manager_name.clone();
+            existing.team_name = entry.team_name.clone();
             existing.checksum = entry.checksum.clone();
             existing.last_played_at = entry.last_played_at.clone();
             true
@@ -162,6 +168,18 @@ pub fn rebuild_index(saves_dir: &Path) -> Result<(SaveIndex, Vec<DbValidation>),
     Ok((index, validations))
 }
 
+pub fn save_entry_metadata_from_game(game: &Game) -> (String, String) {
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    let team_name = game
+        .manager
+        .team_id
+        .as_ref()
+        .and_then(|team_id| game.teams.iter().find(|team| team.id == *team_id))
+        .map(|team| team.name.clone())
+        .unwrap_or_default();
+    (manager_name, team_name)
+}
+
 /// Validate a single `.db` file: check schema and extract metadata.
 fn validate_db_file(path: &Path) -> Result<SaveEntry, String> {
     let db = GameDatabase::open(path)?;
@@ -181,10 +199,15 @@ fn validate_db_file(path: &Path) -> Result<SaveEntry, String> {
         .unwrap_or("unknown.db")
         .to_string();
 
+    let (manager_name, team_name) = GamePersistenceReader::read_game(&db)
+        .map(|game| save_entry_metadata_from_game(&game))
+        .unwrap_or_default();
+
     Ok(SaveEntry {
         id: meta.save_id.clone(),
         name: meta.save_name,
-        manager_name: String::new(), // Will be filled from managers table later
+        manager_name,
+        team_name,
         db_filename: filename,
         checksum,
         created_at: meta.created_at,
@@ -226,6 +249,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Test Career".to_string(),
             manager_name: "John Smith".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc123".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -245,6 +269,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Old Name".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "old".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -255,6 +280,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "New Name".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "new".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -273,6 +299,7 @@ mod tests {
             id: "nonexistent".to_string(),
             name: "x".to_string(),
             manager_name: "x".to_string(),
+            team_name: String::new(),
             db_filename: "x.db".to_string(),
             checksum: "x".to_string(),
             created_at: "x".to_string(),
@@ -288,6 +315,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Career".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -296,6 +324,25 @@ mod tests {
         assert!(index.remove("save-001"));
         assert!(index.saves.is_empty());
         assert!(!index.remove("save-001")); // already removed
+    }
+
+    #[test]
+    fn test_load_index_defaults_missing_team_name() {
+        let legacy_json = r#"{
+            "version": 1,
+            "saves": [{
+                "id": "save-001",
+                "name": "Career",
+                "manager_name": "John Smith",
+                "db_filename": "save-001.db",
+                "checksum": "abc123",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }]
+        }"#;
+
+        let index: SaveIndex = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(index.saves[0].team_name, "");
     }
 
     #[test]
@@ -308,6 +355,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Career".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc123".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -511,6 +559,7 @@ mod tests {
             id: "existing".to_string(),
             name: "Existing".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "existing.db".to_string(),
             checksum: "abc".to_string(),
             created_at: "2026-01-01".to_string(),
