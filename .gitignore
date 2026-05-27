@@ -34,4 +34,4 @@ coverage/
 .claude/settings.local.json
 
 # Local Vitest reporter output
-vitest-mainmenu.json
+vitest-*.json
