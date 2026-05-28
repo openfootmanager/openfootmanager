@@ -23,6 +23,15 @@
     "openDiscord": "Abrir comunidad de Discord",
     "openGithub": "Abrir repositorio de GitHub"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Guardar Perfil",
+      "body": "Has modificado el perfil de {{name}}. ¿Qué deseas hacer?",
+      "update": "Actualizar \"{{name}}\"",
+      "saveNew": "Guardar como Nuevo Perfil",
+      "skip": "Continuar sin guardar"
+    }
+  },
   "createManager": {
     "title": "Crear Mánager",
     "firstName": "Nombre",
@@ -1851,6 +1860,11 @@
         "parseFailed": "Los datos de configuración no son válidos.",
         "saveFailed": "No se pudo guardar la configuración.",
         "invalidCurrency": "La moneda seleccionada no es compatible."
+      },
+      "profiles": {
+        "loadFailed": "No se pudieron cargar los perfiles de mánager.",
+        "saveFailed": "No se pudo guardar el perfil de mánager.",
+        "pathFailed": "No se pudo resolver la ruta de almacenamiento de perfiles."
       },
       "finance": {
         "boardSupportUnavailable": "El apoyo de emergencia de la directiva solo está disponible cuando la tesorería está bajo presión.",

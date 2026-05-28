@@ -2,6 +2,8 @@ import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, DatePicker, Select } from "../ui";
 import { AlertCircle, ChevronRight, X } from "lucide-react";
+import ManagerProfileList from "./ManagerProfileList";
+import type { ManagerProfile } from "./types";
 
 const CreateManagerNationalityField = lazy(
     () => import("./CreateManagerNationalityField"),
@@ -24,9 +26,13 @@ interface CreateManagerFormProps {
     formData: CreateManagerFormData;
     formErrors: Partial<Record<CreateManagerField, string>>;
     dobError: string | null;
+    profiles: ManagerProfile[];
+    selectedProfileId?: string;
     onChange: (field: CreateManagerField, value: string) => void;
     onClearError: (field: CreateManagerField) => void;
     onClose: () => void;
+    onSelectProfile: (profile: ManagerProfile) => void;
+    onDeleteProfile: (id: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }
 
@@ -73,9 +79,13 @@ export default function CreateManagerForm({
     formData,
     formErrors,
     dobError,
+    profiles,
+    selectedProfileId,
     onChange,
     onClearError,
     onClose,
+    onSelectProfile,
+    onDeleteProfile,
     onSubmit,
 }: CreateManagerFormProps) {
     const { t, i18n } = useTranslation();
@@ -104,6 +114,13 @@ export default function CreateManagerForm({
                     2
                 </div>
             </div>
+
+            <ManagerProfileList
+                profiles={profiles}
+                selectedProfileId={selectedProfileId}
+                onSelect={onSelectProfile}
+                onDelete={onDeleteProfile}
+            />
 
             <div className="flex gap-3">
                 <div className="flex-1" id="create-manager-field-firstName">

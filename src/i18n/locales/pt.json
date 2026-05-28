@@ -23,6 +23,15 @@
     "openDiscord": "Abrir comunidade Discord",
     "openGithub": "Abrir repositório GitHub"
   },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Guardar Perfil",
+      "body": "Fizeste alterações ao perfil de {{name}}. O que queres fazer?",
+      "update": "Atualizar \"{{name}}\"",
+      "saveNew": "Guardar como Novo Perfil",
+      "skip": "Continuar sem guardar"
+    }
+  },
   "createManager": {
     "title": "Criar Treinador",
     "firstName": "Nome",
@@ -1821,6 +1830,11 @@
         "parseFailed": "Os dados das definições são inválidos.",
         "saveFailed": "Não foi possível guardar as definições.",
         "invalidCurrency": "A moeda selecionada não é suportada."
+      },
+      "profiles": {
+        "loadFailed": "Não foi possível carregar os perfis de treinador.",
+        "saveFailed": "Não foi possível guardar o perfil de treinador.",
+        "pathFailed": "Não foi possível resolver o caminho de armazenamento dos perfis."
       },
       "finance": {
         "boardSupportUnavailable": "O apoio de emergência da direção só está disponível quando a tesouraria está sob pressão.",

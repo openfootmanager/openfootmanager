@@ -17,7 +17,7 @@ use ofm_core::player_rating::{
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
 use crate::repositories::league_repo;
-use crate::save_index::{SaveEntry, compute_checksum};
+use crate::save_index::{SaveEntry, compute_checksum, save_entry_metadata_from_game};
 use crate::save_index_manager::SaveIndexManager;
 
 /// Manages save sessions: creating, loading, saving, deleting, and listing.
@@ -66,7 +66,42 @@ impl SaveManager {
 
     pub fn load_saves(&mut self) -> Result<Vec<SaveEntry>, String> {
         self.ensure_save_index_ready()?;
-        Ok(self.save_index.list_saves().to_vec())
+        let mut saves = self.save_index.list_saves().to_vec();
+        for save in saves.iter_mut() {
+            if !save.team_name.is_empty() {
+                continue;
+            }
+
+            let db_path = self.saves_dir.join(&save.db_filename);
+            let Ok(db) = GameDatabase::open(&db_path) else {
+                continue;
+            };
+            let Ok(game) = GamePersistenceReader::read_game(&db) else {
+                continue;
+            };
+
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
+            let can_backfill_team = !team_name.is_empty();
+            let can_backfill_manager = save.manager_name.is_empty() && !manager_name.is_empty();
+            if !can_backfill_team && !can_backfill_manager {
+                continue;
+            }
+
+            save.team_name = team_name;
+            if save.manager_name.is_empty() {
+                save.manager_name = manager_name;
+            }
+
+            if let Err(error) = self.save_index.update_save(save.clone()) {
+                log::warn!(
+                    "[save_manager] failed to persist metadata backfill for save {}: {}",
+                    save.id,
+                    error
+                );
+            }
+        }
+
+        Ok(saves)
     }
 
     /// Create a new save from the current in-memory Game state.
@@ -87,12 +122,13 @@ impl SaveManager {
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let entry = SaveEntry {
             id: save_id.clone(),
             name: save_name.to_string(),
             manager_name,
+            team_name,
             db_filename,
             checksum,
             created_at: now.clone(),
@@ -145,13 +181,14 @@ impl SaveManager {
         let checksum_ms = checksum_timer.elapsed().as_millis();
 
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let index_timer = Instant::now();
         let entry = SaveEntry {
             id: save_id.clone(),
             name: save_name.to_string(),
             manager_name,
+            team_name,
             db_filename,
             checksum,
             created_at: now.clone(),
@@ -198,12 +235,13 @@ impl SaveManager {
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         self.save_index.update_save(SaveEntry {
             id: save_id.to_string(),
             name: save_name,
             manager_name,
+            team_name,
             db_filename: entry.db_filename.clone(),
             checksum,
             created_at: entry.created_at.clone(),
@@ -232,6 +270,7 @@ impl SaveManager {
             id: save_id.to_string(),
             name: entry.name,
             manager_name: entry.manager_name,
+            team_name: entry.team_name.clone(),
             db_filename: entry.db_filename,
             checksum,
             created_at: entry.created_at,
@@ -283,13 +322,14 @@ impl SaveManager {
         let checksum_ms = checksum_timer.elapsed().as_millis();
 
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let index_timer = Instant::now();
         self.save_index.update_save(SaveEntry {
             id: save_id.to_string(),
             name: entry.name,
             manager_name,
+            team_name,
             db_filename: entry.db_filename,
             checksum,
             created_at: entry.created_at,
@@ -419,12 +459,13 @@ impl SaveManager {
 
             let checksum = compute_checksum(&db_path)?;
             let now = Utc::now().to_rfc3339();
-            let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
 
             self.save_index.update_save(SaveEntry {
                 id: save_id.to_string(),
                 name: save_name,
                 manager_name,
+                team_name,
                 db_filename: entry.db_filename.clone(),
                 checksum,
                 created_at: entry.created_at.clone(),
@@ -980,6 +1021,86 @@ mod tests {
     }
 
     #[test]
+    fn test_load_saves_backfills_legacy_index_missing_team_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let game = sample_game();
+            sm.create_save(&game, "Legacy Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Legacy Career",
+                "manager_name": "John Smith",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].team_name, "London FC");
+    }
+
+    #[test]
+    fn test_load_saves_backfills_manager_name_when_unemployed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+            let clock = GameClock::new(start);
+            let manager = domain::manager::Manager::new(
+                "mgr-user".to_string(),
+                "Jane".to_string(),
+                "Doe".to_string(),
+                "1990-01-15".to_string(),
+                "British".to_string(),
+            );
+            let game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+            sm.create_save(&game, "Unemployed Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Unemployed Career",
+                "manager_name": "",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].manager_name, "Jane Doe");
+        assert_eq!(saves[0].team_name, "");
+    }
+
+    #[test]
     fn test_init_creates_directory() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -1044,6 +1165,7 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].name, "John's Career");
         assert_eq!(saves[0].manager_name, "John Smith");
+        assert_eq!(saves[0].team_name, "London FC");
         assert!(!saves[0].checksum.is_empty());
     }
 

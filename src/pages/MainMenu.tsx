@@ -10,6 +10,7 @@ import type {
   CareerStartPhase,
   CreateManagerFormData,
 } from "../components/menu/CreateManagerForm";
+import type { ManagerProfile } from "../components/menu/types";
 import type { WorldDatabaseInfo } from "../components/menu/WorldSelect";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
@@ -42,6 +43,9 @@ function GithubIcon({ className }: { className?: string }) {
 const CreateManagerForm = lazy(
   () => import("../components/menu/CreateManagerForm"),
 );
+const ProfileSaveConfirm = lazy(
+  () => import("../components/menu/ProfileSaveConfirm"),
+);
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
 
@@ -49,6 +53,7 @@ interface SaveEntry {
   id: string;
   name: string;
   manager_name: string;
+  team_name: string;
   db_filename: string;
   checksum: string;
   created_at: string;
@@ -288,11 +293,15 @@ export default function MainMenu() {
   const [menuState, setMenuState] = useState<
     "main" | "create" | "world" | "load"
   >("main");
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
   const [loadingSaveId, setLoadingSaveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+
+  const [profiles, setProfiles] = useState<ManagerProfile[]>([]);
+  const [loadedProfile, setLoadedProfile] = useState<ManagerProfile | null>(null);
 
   const [formData, setFormData] = useState<CreateManagerFormData>({
     firstName: "",
@@ -320,6 +329,12 @@ export default function MainMenu() {
       String(historyDepthYears),
     );
   }, [historyDepthYears]);
+
+  useEffect(() => {
+    invoke<ManagerProfile[]>("get_manager_profiles")
+      .then((p) => setProfiles(p ?? []))
+      .catch((error) => console.error("Failed to load manager profiles:", error));
+  }, []);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
@@ -409,8 +424,12 @@ export default function MainMenu() {
       deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
     }
-    setMenuState("world");
-    loadWorldDatabases();
+    if (loadedProfile && formDiffersFromProfile(formData, loadedProfile)) {
+      setShowProfileConfirm(true);
+      return;
+    }
+    void autoSaveProfile();
+    proceedToWorldSelect();
   };
 
   const loadWorldDatabases = async () => {
@@ -448,6 +467,7 @@ export default function MainMenu() {
       try {
         const json = reader.result as string;
         const parsed = JSON.parse(json);
+        const path = await invoke<string>("write_temp_database", { json });
         const info: WorldDatabaseInfo = {
           id: `file:${file.name}`,
           name: parsed.name || file.name.replace(".json", ""),
@@ -464,10 +484,8 @@ export default function MainMenu() {
               ? parsed.metadata.snapshot_date
               : null,
           source: "imported",
-          path: "", // will use the parsed data directly
+          path,
         };
-        // Store the raw JSON in sessionStorage so we can write it to a temp path
-        sessionStorage.setItem("imported_world_json", json);
         setWorldDatabases((prev) => {
           const filtered = prev.filter((d) => d.source !== "imported");
           return [...filtered, info];
@@ -499,16 +517,11 @@ export default function MainMenu() {
       let worldSource: string | undefined = selectedWorldId;
       if (selectedWorldId === "random") {
         worldSource = undefined;
-      } else if (
-        selectedWorldId.startsWith("file:") &&
-        sessionStorage.getItem("imported_world_json")
-      ) {
-        // For imported files, write to a temp location first
-        const json = sessionStorage.getItem("imported_world_json")!;
-        const path = await invoke<string>("write_temp_database", {
-          json,
-        });
-        worldSource = `file:${path}`;
+      } else {
+        const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
+        if (selectedDb?.path) {
+          worldSource = `file:${selectedDb.path}`;
+        }
       }
 
       const game = await invoke<GameStateData>("start_new_game", {
@@ -519,7 +532,6 @@ export default function MainMenu() {
         startupOptions,
         worldSource,
       });
-      sessionStorage.removeItem("imported_world_json");
       setGameState(game);
       navigate("/select-team");
     } catch (error) {
@@ -566,6 +578,93 @@ export default function MainMenu() {
       setConfirmDeleteId(null);
     } catch (error) {
       console.error("Failed to delete save:", error);
+    }
+  };
+
+  const handleSelectProfile = (profile: ManagerProfile) => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      dob: profile.date_of_birth,
+      nationality: profile.nationality,
+    }));
+    setFormErrors({});
+    setLoadedProfile(profile);
+    void invoke("touch_manager_profile", { id: profile.id });
+  };
+
+  const formDiffersFromProfile = (form: CreateManagerFormData, profile: ManagerProfile) =>
+    form.firstName !== profile.first_name ||
+    form.lastName !== profile.last_name ||
+    form.dob !== profile.date_of_birth ||
+    form.nationality !== profile.nationality;
+
+  const proceedToWorldSelect = () => {
+    setShowProfileConfirm(false);
+    setMenuState("world");
+    loadWorldDatabases();
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!loadedProfile) return;
+    try {
+      const updated = await invoke<ManagerProfile | null>("update_manager_profile", {
+        id: loadedProfile.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+      });
+      if (updated) {
+        setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setLoadedProfile(updated);
+      }
+    } catch (error) {
+      console.error("Failed to update manager profile:", error);
+    }
+    proceedToWorldSelect();
+  };
+
+  const handleSaveAsNewProfile = () => {
+    void autoSaveProfile(true);
+    setLoadedProfile(null);
+    proceedToWorldSelect();
+  };
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await invoke<boolean>("delete_manager_profile", { id });
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      if (loadedProfile?.id === id) setLoadedProfile(null);
+    } catch (error) {
+      console.error("Failed to delete manager profile:", error);
+    }
+  };
+
+  const autoSaveProfile = async (forceNew = false) => {
+    try {
+      const saved = await invoke<ManagerProfile>("save_manager_profile", {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+        force: forceNew || undefined,
+      });
+      setProfiles((prev) => {
+        const exists = prev.some((p) => p.id === saved.id);
+        const next =
+          !forceNew && exists
+            ? prev.map((p) => (p.id === saved.id ? saved : p))
+            : [...prev, saved];
+        return next.sort((a, b) => {
+          const aDate = a.last_used_at ?? a.created_at;
+          const bDate = b.last_used_at ?? b.created_at;
+          return bDate.localeCompare(aDate);
+        });
+      });
+    } catch (error) {
+      console.error("Failed to auto-save manager profile:", error);
     }
   };
 
@@ -671,13 +770,31 @@ export default function MainMenu() {
                 formData={formData}
                 formErrors={formErrors}
                 dobError={dobDisplayedError}
+                profiles={profiles}
+                selectedProfileId={loadedProfile?.id}
                 onChange={updateFormField}
                 onClearError={clearFormError}
                 onClose={() => {
                   setMenuState("main");
                   setFormErrors({});
+                  setLoadedProfile(null);
                 }}
+                onSelectProfile={handleSelectProfile}
+                onDeleteProfile={handleDeleteProfile}
                 onSubmit={handleGoToWorldSelect}
+              />
+            </Suspense>
+          )}
+
+          {/* Profile save confirmation modal */}
+          {showProfileConfirm && loadedProfile && (
+            <Suspense fallback={null}>
+              <ProfileSaveConfirm
+                loadedProfile={loadedProfile}
+                onUpdate={() => { void handleUpdateProfile(); }}
+                onSaveNew={() => { void handleSaveAsNewProfile(); }}
+                onSkip={proceedToWorldSelect}
+                onClose={() => setShowProfileConfirm(false)}
               />
             </Suspense>
           )}
@@ -718,6 +835,7 @@ export default function MainMenu() {
               />
             </Suspense>
           )}
+
         </div>
       </div>
 

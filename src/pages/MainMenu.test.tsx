@@ -5,6 +5,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { countryName } from "../lib/countries";
 import { resetCountryResourcesCache } from "../components/menu/CreateManagerNationalityField";
+import type { ManagerProfile } from "../components/menu/types";
 import MainMenu from "./MainMenu";
 
 const navigateMock = vi.fn();
@@ -253,6 +254,18 @@ describe("MainMenu", () => {
 
       if (command === "start_new_game") {
         return { id: "game-1" };
+      }
+
+      if (command === "get_manager_profiles") {
+        return [];
+      }
+
+      if (command === "save_manager_profile") {
+        return { id: "profile-1", first_name: "Test", last_name: "Manager", date_of_birth: "1980-01-01", nationality: "GB", created_at: new Date().toISOString(), last_used_at: null };
+      }
+
+      if (command === "touch_manager_profile") {
+        return true;
       }
 
       return null;
@@ -551,10 +564,8 @@ describe("MainMenu", () => {
     expect(mockedInvoke).not.toHaveBeenCalledWith("list_world_databases");
   });
 
-  it("does not fall back to a random world when imported database writing fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
-
-    mockedInvoke.mockImplementation(async (command: string) => {
+  it("passes the imported world path directly when starting a new career", async () => {
+    mockedInvoke.mockImplementation(async (command: string, args?) => {
       if (command === "list_world_databases") {
         return [
           {
@@ -564,24 +575,19 @@ describe("MainMenu", () => {
             team_count: 8,
             player_count: 160,
             source: "imported",
-            path: "",
+            path: "/tmp/imported-world.json",
             history_mode: "reference",
           },
         ];
       }
 
-      if (command === "write_temp_database") {
-        throw new Error("write failed");
-      }
-
       if (command === "start_new_game") {
+        expect((args as Record<string, unknown>)?.worldSource).toBe("file:/tmp/imported-world.json");
         return { id: "game-1" };
       }
 
       return null;
     });
-
-    sessionStorage.setItem("imported_world_json", "{\"name\":\"Imported World\"}");
 
     render(<MainMenu />);
 
@@ -599,17 +605,16 @@ describe("MainMenu", () => {
     fireEvent.click(screen.getByText("start-world"));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("write_temp_database", {
-        json: "{\"name\":\"Imported World\"}",
-      });
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "start_new_game",
+        expect.objectContaining({
+          worldSource: "file:/tmp/imported-world.json",
+        }),
+      );
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalledWith(
-      "start_new_game",
-      expect.anything(),
-    );
-    expect(alertMock).toHaveBeenCalledWith("menu.failedStartGame");
-    expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("write_temp_database", expect.anything());
+    expect(navigateMock).toHaveBeenCalledWith("/select-team");
   });
 
   it("passes the selected generated history depth when starting a new career", async () => {
@@ -711,5 +716,119 @@ describe("MainMenu", () => {
 
     expect(openUrlMock).toHaveBeenCalledTimes(1);
     expect(openUrlMock).toHaveBeenCalledWith("https://github.com/openfootmanager/openfootmanager");
+  });
+
+  describe("profile confirm modal", () => {
+    const mockProfile: ManagerProfile = {
+      id: "profile-1",
+      first_name: "Test",
+      last_name: "Manager",
+      date_of_birth: "1980-01-01",
+      nationality: "GB",
+      created_at: "2024-01-01T00:00:00.000Z",
+      last_used_at: null,
+    };
+
+    beforeEach(() => {
+      mockedInvoke.mockImplementation(async (command: string) => {
+        if (command === "list_world_databases") return [];
+        if (command === "get_manager_profiles") return [mockProfile];
+        if (command === "touch_manager_profile") return true;
+        if (command === "save_manager_profile") {
+          return { ...mockProfile, id: "profile-2", last_used_at: new Date().toISOString() };
+        }
+        if (command === "update_manager_profile") {
+          return { ...mockProfile, first_name: "Modified" };
+        }
+        if (command === "delete_manager_profile") return true;
+        if (command === "start_new_game") return { id: "game-1" };
+        return null;
+      });
+    });
+
+    async function selectAndModify(): Promise<void> {
+      render(<MainMenu />);
+      await openCreateManagerForm();
+      fireEvent.click(await screen.findByText("Test Manager"));
+      fireEvent.change(screen.getByPlaceholderText("createManager.placeholderFirst"), {
+        target: { value: "Modified" },
+      });
+    }
+
+    async function openModal(): Promise<void> {
+      await selectAndModify();
+      fireEvent.click(screen.getByText("createManager.chooseWorld"));
+      await screen.findByText("managerProfiles.saveConfirm.title");
+    }
+
+    it("shows the confirm modal when the form differs from the loaded profile", async () => {
+      await openModal();
+      expect(screen.getByText("managerProfiles.saveConfirm.title")).toBeInTheDocument();
+    });
+
+    it("update branch: calls update_manager_profile and proceeds to world select", async () => {
+      await openModal();
+      fireEvent.click(screen.getByText("managerProfiles.saveConfirm.update"));
+      await waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith(
+          "update_manager_profile",
+          expect.objectContaining({ id: "profile-1", firstName: "Modified" }),
+        );
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("world-select")).toBeInTheDocument();
+      });
+    });
+
+    it("save-as-new branch: calls save_manager_profile with force and proceeds to world select", async () => {
+      await openModal();
+      fireEvent.click(screen.getByText("managerProfiles.saveConfirm.saveNew"));
+      await waitFor(() => {
+        expect(screen.getByTestId("world-select")).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith(
+          "save_manager_profile",
+          expect.objectContaining({ firstName: "Modified", force: true }),
+        );
+      });
+    });
+
+    it("skip branch: proceeds to world select without saving profile changes", async () => {
+      await openModal();
+      fireEvent.click(screen.getByText("managerProfiles.saveConfirm.skip"));
+      await waitFor(() => {
+        expect(screen.getByTestId("world-select")).toBeInTheDocument();
+      });
+    });
+
+    it("cancel: dismisses the modal without navigating away from the form", async () => {
+      await openModal();
+      fireEvent.click(screen.getByText("menu.cancel"));
+      await waitFor(() => {
+        expect(screen.queryByText("managerProfiles.saveConfirm.title")).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("world-select")).not.toBeInTheDocument();
+    });
+
+    it("deleting the loaded profile clears it and skips the confirm modal on submit", async () => {
+      render(<MainMenu />);
+      await openCreateManagerForm();
+      fireEvent.click(await screen.findByText("Test Manager"));
+
+      fireEvent.click(screen.getByLabelText("menu.delete"));
+      fireEvent.click(screen.getByText("menu.delete"));
+
+      await waitFor(() => {
+        expect(mockedInvoke).toHaveBeenCalledWith("delete_manager_profile", { id: "profile-1" });
+      });
+
+      fireEvent.click(screen.getByText("createManager.chooseWorld"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("world-select")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("managerProfiles.saveConfirm.title")).not.toBeInTheDocument();
+    });
   });
 });
