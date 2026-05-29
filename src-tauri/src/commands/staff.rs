@@ -10,7 +10,7 @@ pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Resu
     hire_staff_internal(&state, &staff_id)
 }
 
-fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -198,7 +198,7 @@ pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> R
     release_staff_internal(&state, &staff_id)
 }
 
-fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())

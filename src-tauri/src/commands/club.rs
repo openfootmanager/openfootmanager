@@ -11,7 +11,7 @@ pub fn upgrade_facility(state: State<'_, Arc<StateManager>>, facility: String) -
     upgrade_facility_internal(&state, &facility)
 }
 
-fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Game, String> {
+pub fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Game, String> {
     info!("[cmd] upgrade_facility: {}", facility);
     let mut game = state
         .get_game(|g| g.clone())

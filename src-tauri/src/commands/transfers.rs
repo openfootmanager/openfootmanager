@@ -40,7 +40,7 @@ pub fn toggle_transfer_list(
     toggle_transfer_list_internal(&state, &player_id)
 }
 
-fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
+pub fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -60,7 +60,7 @@ pub fn toggle_loan_list(state: State<'_, Arc<StateManager>>, player_id: String) 
     toggle_loan_list_internal(&state, &player_id)
 }
 
-fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
+pub fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -93,7 +93,7 @@ pub fn preview_transfer_bid_financial_impact(
     preview_transfer_bid_financial_impact_internal(&state, &player_id, fee)
 }
 
-fn make_transfer_bid_internal(
+pub fn make_transfer_bid_internal(
     state: &StateManager,
     player_id: &str,
     fee: u64,
@@ -112,7 +112,7 @@ fn make_transfer_bid_internal(
     Ok(map_transfer_negotiation_response(result, game))
 }
 
-fn preview_transfer_bid_financial_impact_internal(
+pub fn preview_transfer_bid_financial_impact_internal(
     state: &StateManager,
     player_id: &str,
     fee: u64,
@@ -142,7 +142,7 @@ pub fn respond_to_offer(
     respond_to_offer_internal(&state, &player_id, &offer_id, accept)
 }
 
-fn respond_to_offer_internal(
+pub fn respond_to_offer_internal(
     state: &StateManager,
     player_id: &str,
     offer_id: &str,
@@ -171,7 +171,7 @@ pub fn counter_offer(
     counter_offer_internal(&state, &player_id, &offer_id, requested_fee)
 }
 
-fn counter_offer_internal(
+pub fn counter_offer_internal(
     state: &StateManager,
     player_id: &str,
     offer_id: &str,

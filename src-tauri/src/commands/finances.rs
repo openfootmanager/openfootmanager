@@ -42,7 +42,7 @@ pub async fn get_finance_snapshot(
     get_finance_snapshot_internal(&state, team_id.as_deref())
 }
 
-fn get_finance_snapshot_internal(
+pub fn get_finance_snapshot_internal(
     state: &StateManager,
     team_id: Option<&str>,
 ) -> Result<FinanceSnapshotCommandResponse, String> {
@@ -90,7 +90,7 @@ pub async fn request_marketing_campaign(
     request_marketing_campaign_internal(&state)
 }
 
-fn request_board_support_internal(
+pub fn request_board_support_internal(
     state: &StateManager,
 ) -> Result<BoardSupportCommandResponse, String> {
     info!("[cmd] request_board_support");
@@ -111,7 +111,7 @@ fn request_board_support_internal(
     Ok(BoardSupportCommandResponse { game, result })
 }
 
-fn request_sponsor_pitch_internal(
+pub fn request_sponsor_pitch_internal(
     state: &StateManager,
 ) -> Result<SponsorPitchCommandResponse, String> {
     info!("[cmd] request_sponsor_pitch");
@@ -132,7 +132,7 @@ fn request_sponsor_pitch_internal(
     Ok(SponsorPitchCommandResponse { game, result })
 }
 
-fn request_marketing_campaign_internal(
+pub fn request_marketing_campaign_internal(
     state: &StateManager,
 ) -> Result<MarketingCampaignCommandResponse, String> {
     info!("[cmd] request_marketing_campaign");

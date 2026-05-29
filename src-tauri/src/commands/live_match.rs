@@ -45,11 +45,11 @@ struct LocalizedPressQuote {
 // Live Match Commands
 // ---------------------------------------------------------------------------
 
-fn finish_live_match_internal(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
+pub fn finish_live_match_internal(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
     finish_live_match_service(state)
 }
 
-fn apply_team_talk_internal(
+pub fn apply_team_talk_internal(
     game: &mut Game,
     tone: &str,
     context: &str,

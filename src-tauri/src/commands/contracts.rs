@@ -167,7 +167,7 @@ pub async fn terminate_contract_now(
     terminate_contract_now_internal(&state, &player_id)
 }
 
-fn propose_renewal_internal(
+pub fn propose_renewal_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -205,7 +205,7 @@ fn propose_renewal_internal(
     })
 }
 
-fn delegate_renewals_internal(
+pub fn delegate_renewals_internal(
     state: &StateManager,
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
@@ -234,7 +234,7 @@ fn delegate_renewals_internal(
     Ok(DelegatedRenewalCommandResponse { game, report })
 }
 
-fn preview_renewal_financial_impact_internal(
+pub fn preview_renewal_financial_impact_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -254,7 +254,7 @@ fn preview_renewal_financial_impact_internal(
     Ok(RenewalFinancialProjectionCommandResponse { projection })
 }
 
-fn offer_free_agent_contract_internal(
+pub fn offer_free_agent_contract_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -292,7 +292,7 @@ fn offer_free_agent_contract_internal(
     })
 }
 
-fn preview_free_agent_contract_impact_internal(
+pub fn preview_free_agent_contract_impact_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -312,7 +312,7 @@ fn preview_free_agent_contract_impact_internal(
     Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
 
-fn set_contract_exit_intent_internal(
+pub fn set_contract_exit_intent_internal(
     state: &StateManager,
     player_id: &str,
     reason: Option<String>,
@@ -329,7 +329,7 @@ fn set_contract_exit_intent_internal(
     Ok(ContractExitIntentCommandResponse { game })
 }
 
-fn clear_contract_exit_intent_internal(
+pub fn clear_contract_exit_intent_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractExitIntentCommandResponse, String> {
@@ -345,7 +345,7 @@ fn clear_contract_exit_intent_internal(
     Ok(ContractExitIntentCommandResponse { game })
 }
 
-fn preview_contract_termination_internal(
+pub fn preview_contract_termination_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractTerminationPreviewCommandResponse, String> {
@@ -362,7 +362,7 @@ fn preview_contract_termination_internal(
     Ok(ContractTerminationPreviewCommandResponse { preview })
 }
 
-fn terminate_contract_now_internal(
+pub fn terminate_contract_now_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractTerminationCommandResponse, String> {

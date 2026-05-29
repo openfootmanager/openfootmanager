@@ -8,7 +8,7 @@ use crate::application::time_blockers::compute_blocking_actions as compute_block
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
-fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
+pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
     let mut current_game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -31,7 +31,7 @@ fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
     Ok(current_game)
 }
 
-fn advance_time_with_mode_internal(
+pub fn advance_time_with_mode_internal(
     state: &StateManager,
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {

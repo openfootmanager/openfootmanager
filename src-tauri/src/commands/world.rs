@@ -21,7 +21,7 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: impl ToStri
     text
 }
 
-fn export_world_database_internal(
+pub fn export_world_database_internal(
     state: &StateManager,
     export_path: &std::path::Path,
 ) -> Result<String, String> {

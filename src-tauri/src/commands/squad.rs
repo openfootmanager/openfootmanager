@@ -133,6 +133,10 @@ pub fn set_starting_xi(
 #[tauri::command]
 pub fn set_play_style(state: State<'_, Arc<StateManager>>, play_style: String) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
+    set_play_style_internal(&state, &play_style)
+}
+
+pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -143,7 +147,7 @@ pub fn set_play_style(state: State<'_, Arc<StateManager>>, play_style: String) -
         .clone()
         .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let style = match play_style.as_str() {
+    let style = match play_style {
         "Attacking" => domain::team::PlayStyle::Attacking,
         "Defensive" => domain::team::PlayStyle::Defensive,
         "Possession" => domain::team::PlayStyle::Possession,
@@ -166,6 +170,13 @@ pub fn set_team_match_roles(
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_match_roles");
+    set_team_match_roles_internal(&state, match_roles)
+}
+
+pub fn set_team_match_roles_internal(
+    state: &StateManager,
+    match_roles: domain::team::MatchRoles,
+) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -194,6 +205,14 @@ pub fn set_training(
         "[cmd] set_training: focus={}, intensity={}",
         focus, intensity
     );
+    set_training_internal(&state, &focus, &intensity)
+}
+
+pub fn set_training_internal(
+    state: &StateManager,
+    focus: &str,
+    intensity: &str,
+) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -204,7 +223,7 @@ pub fn set_training(
         .clone()
         .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let training_focus = match focus.as_str() {
+    let training_focus = match focus {
         "Physical" => domain::team::TrainingFocus::Physical,
         "Technical" => domain::team::TrainingFocus::Technical,
         "Tactical" => domain::team::TrainingFocus::Tactical,
@@ -214,7 +233,7 @@ pub fn set_training(
         _ => domain::team::TrainingFocus::Physical,
     };
 
-    let training_intensity = match intensity.as_str() {
+    let training_intensity = match intensity {
         "Low" => domain::team::TrainingIntensity::Low,
         "Medium" => domain::team::TrainingIntensity::Medium,
         "High" => domain::team::TrainingIntensity::High,
@@ -236,6 +255,13 @@ pub fn set_training_schedule(
     schedule: String,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_schedule: {}", schedule);
+    set_training_schedule_internal(&state, &schedule)
+}
+
+pub fn set_training_schedule_internal(
+    state: &StateManager,
+    schedule: &str,
+) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -246,7 +272,7 @@ pub fn set_training_schedule(
         .clone()
         .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let training_schedule = match schedule.as_str() {
+    let training_schedule = match schedule {
         "Intense" => domain::team::TrainingSchedule::Intense,
         "Balanced" => domain::team::TrainingSchedule::Balanced,
         "Light" => domain::team::TrainingSchedule::Light,
@@ -267,6 +293,13 @@ pub fn set_training_groups(
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_groups: {} groups", groups.len());
+    set_training_groups_internal(&state, groups)
+}
+
+pub fn set_training_groups_internal(
+    state: &StateManager,
+    groups: Vec<domain::team::TrainingGroup>,
+) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -294,7 +327,7 @@ pub fn set_player_training_focus(
     set_player_training_focus_internal(&state, &player_id, focus.as_deref())
 }
 
-fn set_player_training_focus_internal(
+pub fn set_player_training_focus_internal(
     state: &StateManager,
     player_id: &str,
     focus: Option<&str>,
@@ -345,7 +378,7 @@ pub fn set_player_squad_role(
     set_player_squad_role_internal(&state, &player_id, &squad_role)
 }
 
-fn set_player_squad_role_internal(
+pub fn set_player_squad_role_internal(
     state: &StateManager,
     player_id: &str,
     squad_role: &str,
@@ -403,12 +436,19 @@ pub fn auto_select_set_pieces(
     player_ids: Vec<String>,
 ) -> Result<serde_json::Value, String> {
     log::debug!("[cmd] auto_select_set_pieces: {} players", player_ids.len());
+    auto_select_set_pieces_internal(&state, &player_ids)
+}
+
+pub fn auto_select_set_pieces_internal(
+    state: &StateManager,
+    player_ids: &[String],
+) -> Result<serde_json::Value, String> {
     let game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
 
     let (captain, penalty, free_kick, corner) =
-        ofm_core::live_match_manager::auto_select_set_pieces(&game, &player_ids);
+        ofm_core::live_match_manager::auto_select_set_pieces(&game, player_ids);
 
     Ok(serde_json::json!({
         "captain": captain,
