@@ -673,6 +673,7 @@ pub async fn exit_to_menu(
 /// Bootstrap a game for MCP auto-start.
 /// Creates a manager, loads world, selects team, and saves.
 /// Returns the save ID.
+#[cfg(feature = "mcp")]
 pub fn bootstrap_game_for_mcp(
     state_manager: &StateManager,
     save_manager_state: &crate::SaveManagerState,
