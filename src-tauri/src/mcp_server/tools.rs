@@ -5,6 +5,8 @@ use rmcp::model::{CallToolResult, Content, Tool};
 use rmcp::ErrorData as McpError;
 
 use crate::mcp_server::context::McpContext;
+use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::tools_impl;
 
 /// Type alias for our tool router.
 pub type OfmToolRouter = rmcp::handler::server::tool::ToolRouter<Arc<McpContext>>;
@@ -38,8 +40,14 @@ fn not_implemented(name: &str) -> Result<CallToolResult, McpError> {
     )]))
 }
 
+fn error_result(msg: &str) -> CallToolResult {
+    let mut result = CallToolResult::success(vec![Content::text(msg.to_string())]);
+    result.is_error = Some(true);
+    result
+}
+
 /// Build the tool router, omitting any tools whose names appear in `disabled`.
-pub fn build_tool_router(_context: &Arc<McpContext>, disabled: &[String]) -> OfmToolRouter {
+pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmToolRouter {
     let mut router = OfmToolRouter::new();
 
     // Phase 1: ping
@@ -56,20 +64,80 @@ pub fn build_tool_router(_context: &Arc<McpContext>, disabled: &[String]) -> Ofm
         ));
     }
 
-    // Stub tools for phases 2-4.
+    // Phase 2: Real implementations for key tools
+    if !disabled.contains(&"game_is_finished".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("game_is_finished", "Check if the season/game is complete"),
+            move |_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::game_is_finished(ctx) {
+                        Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                        Err(e) => Ok(error_result(&translate_error(&e))),
+                    }
+                })
+            },
+        ));
+    }
+
+    if !disabled.contains(&"info_game_summary".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("info_game_summary", "High-level game overview: date, position, finances, next match"),
+            move |_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::info_game_summary(ctx) {
+                        Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                        Err(e) => Ok(error_result(&translate_error(&e))),
+                    }
+                })
+            },
+        ));
+    }
+
+    if !disabled.contains(&"info_standings".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("info_standings", "League table as formatted text"),
+            move |_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::info_standings(ctx) {
+                        Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                        Err(e) => Ok(error_result(&translate_error(&e))),
+                    }
+                })
+            },
+        ));
+    }
+
+    if !disabled.contains(&"info_fixtures".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("info_fixtures", "Upcoming/past fixtures"),
+            move |_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::info_fixtures(ctx) {
+                        Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                        Err(e) => Ok(error_result(&translate_error(&e))),
+                    }
+                })
+            },
+        ));
+    }
+
+    // Stub tools for phases 2-4 (remaining tools without real implementations).
     let stubs: &[(&str, &str)] = &[
-        // Phase 2 — Game Lifecycle + Information
+        // Phase 2 — Game Lifecycle (remaining)
         ("game_new", "Create manager + generate/load world"),
         ("game_select_team", "Pick a team to manage"),
         ("game_load_save", "Load an existing save"),
         ("game_save", "Persist current game"),
         ("game_exit", "Save and return to menu"),
         ("game_export_world", "Export world to JSON file"),
-        ("game_is_finished", "Check if the season/game is complete"),
-        ("info_game_summary", "High-level game overview: date, position, finances, next match"),
-        ("info_game_state", "Full raw game state (very large; prefer info_game_summary)"),
-        ("info_standings", "League table as formatted text"),
-        ("info_fixtures", "Upcoming/past fixtures"),
         // Phase 3 — Core Gameplay Loop
         ("time_advance", "Advance one day (match forced to delegate mode). Includes round summary on match days"),
         ("time_skip_to_match_day", "Fast-forward to next fixture"),

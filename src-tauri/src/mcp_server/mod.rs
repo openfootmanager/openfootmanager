@@ -2,7 +2,8 @@ pub mod config;
 pub mod context;
 mod formatting;
 mod server;
-mod tools;
+pub mod tools;
+mod tools_impl;
 
 use std::sync::Arc;
 
