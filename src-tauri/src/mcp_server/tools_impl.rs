@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use ofm_core::state::StateManager;
 
-use crate::SaveManagerState;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
 
@@ -335,6 +334,104 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
 
     if upcoming.is_empty() && past.is_empty() {
         output.push_str("No fixtures found for your team.");
+    }
+
+    Ok(output)
+}
+
+// ─── time_advance ───────────────────────────────────────────────────────────
+
+pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
+    // Use the delegate mode to force auto-simulation of matches
+    let response = crate::application::time_advancement::advance_time_with_mode(
+        &ctx.state_manager,
+        "delegate",
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let mut output = String::new();
+
+    // Current date
+    let date_str = if let Some(ref game) = response.game {
+        game.clock.current_date.format("%d %B %Y").to_string()
+    } else {
+        "Unknown".to_string()
+    };
+    output.push_str(&format!("## Day Advanced — {}\n\n", date_str));
+
+    // If there was a match, show round summary
+    if let Some(ref round_summary) = response.round_summary {
+        if !round_summary.completed_results.is_empty() {
+            output.push_str("### Match Results\n\n| Home | Score | Away |\n|------|-------|------|\n");
+            for result in &round_summary.completed_results {
+                output.push_str(&format!(
+                    "| {} | {} - {} | {} |\n",
+                    result.home_team_name,
+                    result.home_goals,
+                    result.away_goals,
+                    result.away_team_name,
+                ));
+            }
+
+            // Highlight user's match
+            if let Some(ref game) = response.game {
+                if let Some(team_id) = &game.manager.team_id {
+                    for result in &round_summary.completed_results {
+                        if result.home_team_id == *team_id || result.away_team_id == *team_id {
+                            let is_home = result.home_team_id == *team_id;
+                            let our_goals = if is_home { result.home_goals } else { result.away_goals };
+                            let their_goals = if is_home { result.away_goals } else { result.home_goals };
+                            let opponent = if is_home { &result.away_team_name } else { &result.home_team_name };
+                            let venue = if is_home { "H" } else { "A" };
+                            let result_text = if our_goals > their_goals {
+                                "won"
+                            } else if our_goals < their_goals {
+                                "lost"
+                            } else {
+                                "drew"
+                            };
+                            output.push_str(&format!(
+                                "\nYour team {} {}-{} vs {} ({}).",
+                                result_text, our_goals, their_goals, opponent, venue
+                            ));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Standings update if we have a game
+        if let Some(ref game) = response.game {
+            if let Some(league) = &game.league {
+                if let Some(team_id) = &game.manager.team_id {
+                    let mut standings = league.standings.clone();
+                    standings.sort_by(|a, b| b.points.cmp(&a.points).then_with(|| b.goals_for.cmp(&a.goals_for)));
+                    if let Some(pos) = standings.iter().position(|s| s.team_id == *team_id) {
+                        let standing = &standings[pos];
+                        output.push_str(&format!(
+                            "\n\n### Standings Update\n\nLeague position: {} | Points: {} | GD: {:+}",
+                            pos + 1,
+                            standing.points,
+                            i64::from(standing.goals_for) - i64::from(standing.goals_against),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if manager was fired during the advance
+    if let Some(ref game) = response.game {
+        if game.manager.team_id.is_none() {
+            output.push_str("\n\n**⚠️ You have been fired!** Use `jobs_available` to find a new position.");
+        }
+    }
+
+    // Notify GUI about state change
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
     Ok(output)

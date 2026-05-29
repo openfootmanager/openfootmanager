@@ -129,6 +129,26 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         ));
     }
 
+    if !disabled.contains(&"time_advance".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            Tool::new(
+                "time_advance",
+                "Advance one day (match forced to delegate mode). Includes round summary on match days",
+                empty_input_schema(),
+            ),
+            move |_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::time_advance(ctx) {
+                        Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                        Err(e) => Ok(error_result(&translate_error(&e))),
+                    }
+                })
+            },
+        ));
+    }
+
     // Stub tools for phases 2-4 (remaining tools without real implementations).
     let stubs: &[(&str, &str)] = &[
         // Phase 2 — Game Lifecycle (remaining)
@@ -138,8 +158,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         ("game_save", "Persist current game"),
         ("game_exit", "Save and return to menu"),
         ("game_export_world", "Export world to JSON file"),
-        // Phase 3 — Core Gameplay Loop
-        ("time_advance", "Advance one day (match forced to delegate mode). Includes round summary on match days"),
+        // Phase 3 — Core Gameplay Loop (remaining stubs)
         ("time_skip_to_match_day", "Fast-forward to next fixture"),
         ("time_check_blockers", "Check if anything blocks time advancement"),
         ("squad_get", "Squad overview with player IDs, stats, and formation"),
