@@ -20,7 +20,7 @@ fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::
     ofm_core::generator::load_world_from_json(&json)
 }
 
-fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
+pub(crate) fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
     result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
 }
 
@@ -43,7 +43,7 @@ fn long_date_format() -> String {
         .collect()
 }
 
-fn default_save_name(manager_name: &str) -> String {
+pub(crate) fn default_save_name(manager_name: &str) -> String {
     let mut save_name = manager_name.to_string();
     save_name.push('\'');
     save_name.push('s');
@@ -64,7 +64,7 @@ pub struct RawStartupOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StartPhase {
+pub(crate) enum StartPhase {
     SeasonStart,
     MidSeason,
 }
@@ -128,7 +128,7 @@ fn age_on_date(birth_date: chrono::NaiveDate, reference_date: chrono::NaiveDate)
     age
 }
 
-fn start_phase_for_game(game: &Game) -> StartPhase {
+pub(crate) fn start_phase_for_game(game: &Game) -> StartPhase {
     if game.clock.current_date > game.clock.start_date {
         StartPhase::MidSeason
     } else {
@@ -311,7 +311,7 @@ fn bootstrap_existing_world_takeover(
     Ok(stats_state)
 }
 
-fn create_new_save(
+pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
     game: &Game,
     stats_state: &StatsState,
@@ -457,7 +457,7 @@ fn bootstrap_midseason_takeover(game: &mut Game, team_id: &str) -> Result<StatsS
     Ok(stats_state)
 }
 
-fn bootstrap_team_selection(
+pub(crate) fn bootstrap_team_selection(
     game: &mut Game,
     team_id: &str,
     start_phase: StartPhase,

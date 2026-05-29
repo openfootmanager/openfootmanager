@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use rmcp::handler::server::tool::ToolRoute;
 use rmcp::model::{CallToolResult, Content, Tool};
-use rmcp::ErrorData as McpError;
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
@@ -55,16 +54,6 @@ fn simple_tool(name: &'static str, description: &'static str) -> Tool {
     Tool::new(name, description, empty_input_schema())
 }
 
-/// Helper to make a "not yet implemented" response.
-fn not_implemented(name: &str) -> Result<CallToolResult, McpError> {
-    Ok(CallToolResult::success(vec![Content::text(
-        format!(
-            "Tool `{}` is not yet implemented. Coming in a future phase.",
-            name
-        ),
-    )]))
-}
-
 fn error_result(msg: &str) -> CallToolResult {
     let mut result = CallToolResult::success(vec![Content::text(msg.to_string())]);
     result.is_error = Some(true);
@@ -102,26 +91,6 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                         let ctx = ctx.clone();
                         Box::pin(async move {
                             match $fn(ctx) {
-                                Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                                Err(e) => Ok(error_result(&translate_error(&e))),
-                            }
-                        })
-                    },
-                ));
-            }
-        };
-    }
-
-    macro_rules! real_tool_schema {
-        ($name:expr, $desc:expr, $schema:expr, $fn:path) => {
-            if !disabled.contains(&$name.to_string()) {
-                let ctx = context.clone();
-                router.add_route(ToolRoute::new_dyn(
-                    Tool::new($name, $desc, $schema),
-                    move |tool_context| {
-                        let ctx = ctx.clone();
-                        Box::pin(async move {
-                            match $fn(ctx, tool_context) {
                                 Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                                 Err(e) => Ok(error_result(&translate_error(&e))),
                             }
@@ -1351,40 +1320,345 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         }
     }
 
-    // ─── Remaining stubs ────────────────────────────────────────────────────
+    // ─── Scouting tools ──────────────────────────────────────────────────
 
-    let stubs: &[(&str, &str)] = &[
-        // Game lifecycle (disabled in competition mode)
-        ("game_new", "Create manager + generate/load world"),
-        ("game_select_team", "Pick a team to manage"),
-        ("game_load_save", "Load an existing save"),
-        ("game_exit", "Save and return to menu"),
-        ("game_export_world", "Export world to JSON file"),
-        // Scouting
-        ("scout_send", "Send scout to report on a player"),
-        ("scout_get_reports", "Get completed scout reports"),
-        ("scout_youth_start", "Start youth scouting assignment"),
-        ("scout_youth_cancel", "Cancel youth scouting"),
-        ("scout_youth_reassign", "Reassign youth scouting parameters"),
-        // Season (remaining)
-        ("season_get_awards", "Get end-of-season awards"),
-        // Jobs
-        ("jobs_available", "List available job openings"),
-        ("jobs_apply", "Apply for a job"),
-    ];
-
-    for (name, desc) in stubs {
-        if disabled.contains(&name.to_string()) {
-            continue;
+    // scout_send
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"scout_send".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "scout_id": { "type": "string", "description": "Staff member ID to send" },
+                    "player_id": { "type": "string", "description": "Player ID to scout" }
+                },
+                "required": ["scout_id", "player_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("scout_send", "Send scout to report on a player", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
+                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        match tools_impl::scout_send(ctx, sid, pid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
         }
-        let name_owned = name.to_string();
-        router.add_route(ToolRoute::new_dyn(
-            simple_tool(name, desc),
-            move |_context| {
-                let n = name_owned.clone();
-                Box::pin(async move { not_implemented(&n) })
-            },
-        ));
+    }
+
+    // scout_get_reports
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"scout_get_reports".to_string()) {
+            router.add_route(ToolRoute::new_dyn(
+                simple_tool("scout_get_reports", "Get completed scout reports"),
+                move |_tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        match tools_impl::scout_get_reports(ctx) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // scout_youth_start
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"scout_youth_start".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "scout_id": { "type": "string", "description": "Staff member ID" },
+                    "region": { "type": "string", "enum": ["Domestic", "International"], "description": "Scouting region" },
+                    "objective": { "type": "string", "enum": ["Balanced", "HighPotential", "ReadySoon"], "description": "Scouting objective" },
+                    "target_position": { "type": "string", "description": "Target position (GK, DF, MF, FW)" }
+                },
+                "required": ["scout_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("scout_youth_start", "Start youth scouting assignment", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
+                        let region = extract_string_param(&tool_context.arguments, "region");
+                        let objective = extract_string_param(&tool_context.arguments, "objective");
+                        let target_position = extract_string_param(&tool_context.arguments, "target_position");
+                        match tools_impl::scout_youth_start(ctx, sid, region, objective, target_position) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // scout_youth_cancel
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"scout_youth_cancel".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "assignment_id": { "type": "string", "description": "Youth scouting assignment ID" }
+                },
+                "required": ["assignment_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("scout_youth_cancel", "Cancel youth scouting", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let aid = extract_string_param(&tool_context.arguments, "assignment_id").unwrap_or_default();
+                        match tools_impl::scout_youth_cancel(ctx, aid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // scout_youth_reassign
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"scout_youth_reassign".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "assignment_id": { "type": "string", "description": "Assignment ID" },
+                    "scout_id": { "type": "string", "description": "New staff member ID" }
+                },
+                "required": ["assignment_id", "scout_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("scout_youth_reassign", "Reassign youth scouting parameters", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let aid = extract_string_param(&tool_context.arguments, "assignment_id").unwrap_or_default();
+                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
+                        match tools_impl::scout_youth_reassign(ctx, aid, sid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // ─── Season/Jobs tools ───────────────────────────────────────────────
+
+    // season_get_awards
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"season_get_awards".to_string()) {
+            router.add_route(ToolRoute::new_dyn(
+                simple_tool("season_get_awards", "Get end-of-season awards"),
+                move |_tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        match tools_impl::season_get_awards(ctx) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // jobs_available
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"jobs_available".to_string()) {
+            router.add_route(ToolRoute::new_dyn(
+                simple_tool("jobs_available", "List available job openings"),
+                move |_tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        match tools_impl::jobs_available(ctx) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // jobs_apply
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"jobs_apply".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "team_id": { "type": "string", "description": "Team ID to apply for" }
+                },
+                "required": ["team_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("jobs_apply", "Apply for a job", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        match tools_impl::jobs_apply(ctx, tid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // ─── Game lifecycle tools ─────────────────────────────────────────────
+
+    // game_new
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"game_new".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "first_name": { "type": "string", "description": "Manager first name" },
+                    "last_name": { "type": "string", "description": "Manager last name" },
+                    "nationality": { "type": "string", "description": "Manager nationality" },
+                    "world_source": { "type": "string", "description": "World JSON path (omit for random)" }
+                },
+                "required": ["first_name", "last_name", "nationality"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("game_new", "Create manager + generate/load world", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let first = extract_string_param(&tool_context.arguments, "first_name").unwrap_or_default();
+                        let last = extract_string_param(&tool_context.arguments, "last_name").unwrap_or_default();
+                        let nat = extract_string_param(&tool_context.arguments, "nationality").unwrap_or_default();
+                        let world = extract_string_param(&tool_context.arguments, "world_source");
+                        match tools_impl::game_new(ctx, first, last, nat, world) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // game_select_team
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"game_select_team".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "team_id": { "type": "string", "description": "Team ID to manage" }
+                },
+                "required": ["team_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("game_select_team", "Pick a team to manage", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        match tools_impl::game_select_team(ctx, tid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // game_load_save
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"game_load_save".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "save_id": { "type": "string", "description": "Save ID to load" }
+                },
+                "required": ["save_id"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("game_load_save", "Load an existing save", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let sid = extract_string_param(&tool_context.arguments, "save_id").unwrap_or_default();
+                        match tools_impl::game_load_save(ctx, sid) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // game_exit
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"game_exit".to_string()) {
+            router.add_route(ToolRoute::new_dyn(
+                simple_tool("game_exit", "Save and return to menu"),
+                move |_tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        match tools_impl::game_exit(ctx) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
+    }
+
+    // game_export_world
+    {
+        let ctx = context.clone();
+        if !disabled.contains(&"game_export_world".to_string()) {
+            let schema = Arc::new(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "export_path": { "type": "string", "description": "Directory to export world JSON" }
+                },
+                "required": ["export_path"]
+            }).as_object().unwrap().clone());
+            router.add_route(ToolRoute::new_dyn(
+                Tool::new("game_export_world", "Export world to JSON file", schema),
+                move |tool_context| {
+                    let ctx = ctx.clone();
+                    Box::pin(async move {
+                        let path = extract_string_param(&tool_context.arguments, "export_path").unwrap_or_default();
+                        match tools_impl::game_export_world(ctx, path) {
+                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
+                            Err(e) => Ok(error_result(&translate_error(&e))),
+                        }
+                    })
+                },
+            ));
+        }
     }
 
     router
