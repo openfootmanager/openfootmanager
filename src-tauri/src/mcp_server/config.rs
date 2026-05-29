@@ -46,13 +46,6 @@ pub enum McpMode {
 }
 
 impl McpMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Sandbox => "sandbox",
-            Self::Competition => "competition",
-        }
-    }
-
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "sandbox" => Some(Self::Sandbox),

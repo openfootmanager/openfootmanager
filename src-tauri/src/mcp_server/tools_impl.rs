@@ -500,9 +500,10 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
         let pos = format_position(&p.position);
         let inj = if p.injury.is_some() { "⚠" } else { "" };
         rows.push_str(&format!(
-            "| {} | {}{} | {} | {} | {} | {} | {} | {} | {} |\n",
+            "| {} | {}{}{} | {} | {} | {} | {} | {} | {} | {} |\n",
             p.id,
             p.match_name,
+            in_xi,
             inj,
             pos,
             age_from_dob(&p.date_of_birth, &game),
@@ -973,7 +974,7 @@ pub fn transfer_preview_bid(ctx: Arc<McpContext>, player_id: String, fee: u64) -
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
 
-    let response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
+    let _response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
         &ctx.state_manager,
         &player_id,
         fee,
@@ -1105,7 +1106,7 @@ pub fn contract_delegate_renewals(ctx: Arc<McpContext>, player_ids: Option<Vec<S
 // ─── contract_preview_renewal ───────────────────────────────────────────────
 
 pub fn contract_preview_renewal(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32) -> Result<String, String> {
-    let response = crate::commands::contracts::preview_renewal_financial_impact_internal(
+    let _response = crate::commands::contracts::preview_renewal_financial_impact_internal(
         &ctx.state_manager,
         &player_id,
         weekly_wage,
@@ -1142,7 +1143,7 @@ pub fn contract_clear_exit_intent(ctx: Arc<McpContext>, player_id: String) -> Re
 // ─── contract_preview_termination ───────────────────────────────────────────
 
 pub fn contract_preview_termination(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
-    let response = crate::commands::contracts::preview_contract_termination_internal(
+    let _response = crate::commands::contracts::preview_contract_termination_internal(
         &ctx.state_manager,
         &player_id,
     )
@@ -1474,8 +1475,8 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
 
     // Opponent position
     let opp_pos = league.standings.iter()
-        .filter(|s| s.team_id == *opponent_id)
-        .position(|s| true)
+        .filter(|st| st.team_id == *opponent_id)
+        .position(|_| true)
         .map(|p| p + 1)
         .unwrap_or(0);
 
@@ -1599,7 +1600,7 @@ pub fn season_advance(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── help_find_tool ─────────────────────────────────────────────────────────
 
-pub fn help_find_tool(ctx: Arc<McpContext>, query: String) -> Result<String, String> {
+pub fn help_find_tool(_ctx: Arc<McpContext>, query: String) -> Result<String, String> {
     // Simple keyword search across all tool names and descriptions
     let query_lower = query.to_lowercase();
     let all_tools: Vec<(&str, &str)> = vec![
@@ -1870,7 +1871,7 @@ pub fn transfer_free_agent_offer(ctx: Arc<McpContext>, player_id: String, weekly
 // ─── transfer_free_agent_preview ────────────────────────────────────────────
 
 pub fn transfer_free_agent_preview(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32) -> Result<String, String> {
-    let response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
+    let _response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
         &ctx.state_manager,
         &player_id,
         weekly_wage,
@@ -1963,7 +1964,7 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
     if let Some(league) = &game.league {
         let mut standings = league.standings.clone();
         standings.sort_by(|a, b| b.points.cmp(&a.points).then_with(|| b.goals_for.cmp(&a.goals_for)));
-        if let Some(pos) = standings.iter().position(|s| s.team_id == team_id) {
+        if let Some(pos) = standings.iter().position(|st| st.team_id == team_id) {
             let s = &standings[pos];
             let gd = i64::from(s.goals_for) - i64::from(s.goals_against);
             output.push_str(&format!(
@@ -2411,7 +2412,7 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<String, Strin
 
 // ─── game_new ───────────────────────────────────────────────────────────────
 
-pub fn game_new(ctx: Arc<McpContext>, first_name: String, last_name: String, nationality: String, world_source: Option<String>) -> Result<String, String> {
+pub fn game_new(_ctx: Arc<McpContext>, first_name: String, last_name: String, nationality: String, _world_source: Option<String>) -> Result<String, String> {
     // Validate inputs
     if first_name.trim().is_empty() || last_name.trim().is_empty() {
         return Err("be.error.createManager.nameRequired".to_string());
@@ -2420,16 +2421,9 @@ pub fn game_new(ctx: Arc<McpContext>, first_name: String, last_name: String, nat
         return Err("be.error.createManager.nationalityRequired".to_string());
     }
 
-    // Default DOB: manager ~45 years old
-    let dob = {
-        let game = require_game(&ctx.state_manager)?;
-        let ref_date = game.clock.current_date.date_naive();
-        let dob = ref_date - chrono::Duration::days(45 * 365);
-        dob.format("%Y-%m-%d").to_string()
-    };
-
-    // This function is complex — delegate to the existing command logic
-    // For now, return a helpful message since this is disabled in competition mode
+    // This function is disabled in competition mode.
+    // In non-competition mode, the agent would call start_new_game + select_team.
+    // For now, return guidance.
     Ok(format!(
         "## Game Creation\n\nTo create a new game, use the GUI or start with `--mcp-auto-start`.\nManager: {} {}, Nationality: {}",
         first_name, last_name, nationality
