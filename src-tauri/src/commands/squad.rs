@@ -25,9 +25,7 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
     Some(age)
 }
 
-#[tauri::command]
-pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> Result<Game, String> {
-    info!("[cmd] set_formation: {}", formation);
+pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -50,7 +48,7 @@ pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> 
     };
 
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.formation = formation;
+        team.formation = formation.to_string();
     }
 
     // Reassign positions for outfield players on this team
@@ -98,12 +96,7 @@ pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> 
     Ok(game)
 }
 
-#[tauri::command]
-pub fn set_starting_xi(
-    state: State<'_, Arc<StateManager>>,
-    player_ids: Vec<String>,
-) -> Result<Game, String> {
-    info!("[cmd] set_starting_xi: {} players", player_ids.len());
+pub fn set_starting_xi_internal(state: &StateManager, player_ids: Vec<String>) -> Result<Game, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
@@ -120,6 +113,21 @@ pub fn set_starting_xi(
 
     state.set_game(game.clone());
     Ok(game)
+}
+
+#[tauri::command]
+pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> Result<Game, String> {
+    info!("[cmd] set_formation: {}", formation);
+    set_formation_internal(&state, &formation)
+}
+
+#[tauri::command]
+pub fn set_starting_xi(
+    state: State<'_, Arc<StateManager>>,
+    player_ids: Vec<String>,
+) -> Result<Game, String> {
+    info!("[cmd] set_starting_xi: {} players", player_ids.len());
+    set_starting_xi_internal(&state, player_ids)
 }
 
 #[tauri::command]

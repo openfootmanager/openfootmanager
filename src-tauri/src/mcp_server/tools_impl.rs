@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 
+use chrono::Datelike;
 use ofm_core::state::StateManager;
 
 use crate::mcp_server::context::McpContext;
@@ -435,4 +436,171 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     Ok(output)
+}
+
+// ─── squad_get ──────────────────────────────────────────────────────────────
+
+pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    let team = user_team(&game)?;
+    let team_id = team.id.as_str();
+
+    let mut squad: Vec<&domain::player::Player> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id))
+        .collect();
+
+    // Sort: starting XI first (by starting_xi_ids order), then rest by OVR descending
+    squad.sort_by(|a, b| {
+        let a_in_xi = team.starting_xi_ids.contains(&a.id);
+        let b_in_xi = team.starting_xi_ids.contains(&b.id);
+        match (a_in_xi, b_in_xi) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b.ovr.cmp(&a.ovr),
+        }
+    });
+
+    let mut rows = String::new();
+    for p in &squad {
+        let in_xi = if team.starting_xi_ids.contains(&p.id) { "★" } else { "" };
+        let pos = format_position(&p.position);
+        let inj = if p.injury.is_some() { "⚠" } else { "" };
+        rows.push_str(&format!(
+            "| {} | {}{} | {} | {} | {} | {} | {} | {} | {} |\n",
+            p.id,
+            p.match_name,
+            inj,
+            pos,
+            age_from_dob(&p.date_of_birth, &game),
+            p.ovr,
+            p.condition,
+            p.morale,
+            p.wage,
+            p.contract_end.as_deref().unwrap_or("-"),
+        ));
+    }
+
+    // Starting XI summary
+    let xi_names: Vec<String> = team.starting_xi_ids.iter()
+        .filter_map(|id| game.players.iter().find(|p| p.id == *id))
+        .map(|p| format!("{} {}", format_position(&p.position), p.match_name))
+        .collect();
+
+    Ok(format!(
+        "## {} — Squad Overview\n\n\
+         | ID | Name | Pos | Age | OVR | Con | Mor | Wage | Contract |\n\
+         |----|-------|-----|-----|-----|-----|-----|------|----------|\n\
+         {}\
+         \n**Starting XI**: {}\n\
+         **Formation**: {} | **Play Style**: {:?}",
+        team.name,
+        rows,
+        xi_names.join(", "),
+        team.formation,
+        team.play_style,
+    ))
+}
+
+fn format_position(pos: &domain::player::Position) -> &'static str {
+    match pos {
+        domain::player::Position::Goalkeeper => "GK",
+        domain::player::Position::Defender => "DF",
+        domain::player::Position::Midfielder => "MF",
+        domain::player::Position::Forward => "FW",
+        domain::player::Position::RightBack => "RB",
+        domain::player::Position::CenterBack => "CB",
+        domain::player::Position::LeftBack => "LB",
+        domain::player::Position::RightWingBack => "RWB",
+        domain::player::Position::LeftWingBack => "LWB",
+        domain::player::Position::DefensiveMidfielder => "DM",
+        domain::player::Position::CentralMidfielder => "CM",
+        domain::player::Position::AttackingMidfielder => "AM",
+        domain::player::Position::RightMidfielder => "RM",
+        domain::player::Position::LeftMidfielder => "LM",
+        domain::player::Position::RightWinger => "RW",
+        domain::player::Position::LeftWinger => "LW",
+        domain::player::Position::Striker => "ST",
+    }
+}
+
+fn age_from_dob(dob: &str, game: &ofm_core::game::Game) -> String {
+    let dob_date = match chrono::NaiveDate::parse_from_str(dob, "%Y-%m-%d") {
+        Ok(d) => d,
+        Err(_) => return "?".to_string(),
+    };
+    let ref_date = game.clock.current_date.date_naive();
+    let mut age = i32::from(ref_date.year()) - i32::from(dob_date.year());
+    if (ref_date.month(), ref_date.day()) < (dob_date.month(), dob_date.day()) {
+        age -= 1;
+    }
+    age.to_string()
+}
+
+// ─── game_save ──────────────────────────────────────────────────────────────
+
+pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    let save_id = ctx.state_manager
+        .get_save_id()
+        .ok_or("be.error.noActiveSaveSession")?;
+
+    let stats_state = ctx.state_manager
+        .get_stats_state(|s| s.clone())
+        .unwrap_or_default();
+
+    {
+        let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        sm.save_game_with_stats(&game, &stats_state, &save_id)?;
+    }
+
+    Ok(format!("## Game Saved\n\n**Save ID**: {}\n**Date**: {}", save_id, game.clock.current_date.format("%d %B %Y")))
+}
+
+// ─── squad_set_starting_xi ─────────────────────────────────────────────────
+
+pub fn squad_set_starting_xi(ctx: Arc<McpContext>, player_ids: Vec<String>) -> Result<String, String> {
+    // Call the internal function from commands/squad.rs
+    crate::commands::squad::set_starting_xi_internal(&ctx.state_manager, player_ids.clone())
+        .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let team = user_team(&game)?;
+
+    // Format the starting XI
+    let xi_names: Vec<String> = player_ids.iter()
+        .map(|id| {
+            game.players.iter()
+                .find(|p| p.id == *id)
+                .map(|p| format!("{} {}", format_position(&p.position), p.match_name))
+                .unwrap_or_else(|| id.clone())
+        })
+        .collect();
+
+    // Notify GUI
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Starting XI Updated\n\n{}\n**Formation**: {}", xi_names.join(", "), team.formation))
+}
+
+// ─── squad_set_formation ────────────────────────────────────────────────────
+
+pub fn squad_set_formation(ctx: Arc<McpContext>, formation: String) -> Result<String, String> {
+    crate::commands::squad::set_formation_internal(&ctx.state_manager, &formation)
+        .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let team = user_team(&game)?;
+
+    // Notify GUI
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Formation Changed\n\n**New Formation**: {}\n**Note**: Outfield player positions have been reassigned based on defending ability.", team.formation))
 }
