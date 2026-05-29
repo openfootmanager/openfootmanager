@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use serde::Serialize;
 use tauri::State;
@@ -82,7 +83,7 @@ fn serialize_session_status(status: RenewalSessionStatus) -> String {
 
 #[tauri::command]
 pub async fn propose_renewal(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
@@ -92,7 +93,7 @@ pub async fn propose_renewal(
 
 #[tauri::command]
 pub async fn delegate_renewals(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
     max_contract_years: u32,
@@ -107,7 +108,7 @@ pub async fn delegate_renewals(
 
 #[tauri::command]
 pub async fn preview_renewal_financial_impact(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
 ) -> Result<RenewalFinancialProjectionCommandResponse, String> {
@@ -116,7 +117,7 @@ pub async fn preview_renewal_financial_impact(
 
 #[tauri::command]
 pub async fn offer_free_agent_contract(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
@@ -126,7 +127,7 @@ pub async fn offer_free_agent_contract(
 
 #[tauri::command]
 pub async fn preview_free_agent_contract_impact(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
 ) -> Result<FreeAgentContractProjectionCommandResponse, String> {
@@ -135,7 +136,7 @@ pub async fn preview_free_agent_contract_impact(
 
 #[tauri::command]
 pub async fn set_contract_exit_intent(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     reason: Option<String>,
 ) -> Result<ContractExitIntentCommandResponse, String> {
@@ -144,7 +145,7 @@ pub async fn set_contract_exit_intent(
 
 #[tauri::command]
 pub async fn clear_contract_exit_intent(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractExitIntentCommandResponse, String> {
     clear_contract_exit_intent_internal(&state, &player_id)
@@ -152,7 +153,7 @@ pub async fn clear_contract_exit_intent(
 
 #[tauri::command]
 pub async fn preview_contract_termination(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractTerminationPreviewCommandResponse, String> {
     preview_contract_termination_internal(&state, &player_id)
@@ -160,7 +161,7 @@ pub async fn preview_contract_termination(
 
 #[tauri::command]
 pub async fn terminate_contract_now(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractTerminationCommandResponse, String> {
     terminate_contract_now_internal(&state, &player_id)

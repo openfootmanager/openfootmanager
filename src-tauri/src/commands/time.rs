@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -43,14 +44,14 @@ fn advance_time_with_mode_internal(
 /// it sets up the live match session instead of auto-simulating.
 #[tauri::command]
 pub fn advance_time_with_mode(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     mode: String,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     advance_time_with_mode_internal(&state, &mode)
 }
 
 #[tauri::command]
-pub fn advance_time(state: State<'_, StateManager>) -> Result<Game, String> {
+pub fn advance_time(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     advance_time_internal(&state)
 }
 
@@ -59,7 +60,7 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
 }
 
 #[tauri::command]
-pub fn check_blocking_actions(state: State<'_, StateManager>) -> Result<serde_json::Value, String> {
+pub fn check_blocking_actions(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
     log::debug!("[cmd] check_blocking_actions");
     let game = state
         .get_game(|g| g.clone())
@@ -75,7 +76,7 @@ pub fn check_blocking_actions(state: State<'_, StateManager>) -> Result<serde_js
 }
 
 #[tauri::command]
-pub fn skip_to_match_day(state: State<'_, StateManager>) -> Result<serde_json::Value, String> {
+pub fn skip_to_match_day(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
     info!("[cmd] skip_to_match_day");
     let mut game = state
         .get_game(|g| g.clone())

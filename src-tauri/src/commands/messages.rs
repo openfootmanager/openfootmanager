@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::HashSet;
 
 use log::info;
@@ -8,7 +9,7 @@ use ofm_core::state::StateManager;
 
 #[tauri::command]
 pub fn mark_message_read(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_id: String,
 ) -> Result<Game, String> {
     mark_message_read_internal(&state, &message_id)
@@ -29,7 +30,7 @@ fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<
 }
 
 #[tauri::command]
-pub fn delete_message(state: State<'_, StateManager>, message_id: String) -> Result<Game, String> {
+pub fn delete_message(state: State<'_, Arc<StateManager>>, message_id: String) -> Result<Game, String> {
     delete_message_internal(&state, &message_id)
 }
 
@@ -47,7 +48,7 @@ fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Gam
 
 #[tauri::command]
 pub fn delete_messages(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_ids: Vec<String>,
 ) -> Result<Game, String> {
     delete_messages_internal(&state, message_ids)
@@ -71,7 +72,7 @@ fn delete_messages_internal(
 }
 
 #[tauri::command]
-pub fn mark_all_messages_read(state: State<'_, StateManager>) -> Result<Game, String> {
+pub fn mark_all_messages_read(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     mark_all_messages_read_internal(&state)
 }
 
@@ -90,7 +91,7 @@ fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String>
 }
 
 #[tauri::command]
-pub fn clear_old_messages(state: State<'_, StateManager>) -> Result<Game, String> {
+pub fn clear_old_messages(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     clear_old_messages_internal(&state)
 }
 
@@ -124,7 +125,7 @@ fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
 
 #[tauri::command]
 pub fn resolve_message_action(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_id: String,
     action_id: String,
     option_id: Option<String>,

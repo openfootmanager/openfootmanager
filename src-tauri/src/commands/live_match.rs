@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,7 @@ fn apply_team_talk_internal(
 /// mode: "live" | "spectator" | "instant"
 #[tauri::command]
 pub fn start_live_match(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     fixture_index: usize,
     mode: String,
     allows_extra_time: bool,
@@ -72,7 +73,7 @@ pub fn start_live_match(
 /// Step the live match forward by N minutes. Returns the events from each minute.
 #[tauri::command]
 pub fn step_live_match(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     minutes: u16,
 ) -> Result<Vec<engine::MinuteResult>, String> {
     step_live_match_service(&state, minutes)
@@ -81,7 +82,7 @@ pub fn step_live_match(
 /// Apply a match command (substitution, tactic change, set piece taker, etc.)
 #[tauri::command]
 pub fn apply_match_command(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     command: engine::MatchCommand,
 ) -> Result<engine::MatchSnapshot, String> {
     apply_match_command_service(&state, command)
@@ -89,14 +90,14 @@ pub fn apply_match_command(
 
 /// Get current match snapshot without advancing time.
 #[tauri::command]
-pub fn get_match_snapshot(state: State<'_, StateManager>) -> Result<engine::MatchSnapshot, String> {
+pub fn get_match_snapshot(state: State<'_, Arc<StateManager>>) -> Result<engine::MatchSnapshot, String> {
     get_match_snapshot_service(&state)
 }
 
 /// Finish the live match: generate report, update game state, clean up.
 #[tauri::command]
 pub fn finish_live_match(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
 ) -> Result<FinishLiveMatchResponse, String> {
     finish_live_match_internal(&state)
 }
@@ -106,7 +107,7 @@ pub fn finish_live_match(
 /// context: "winning" | "losing" | "drawing"
 #[tauri::command]
 pub fn apply_team_talk(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     tone: String,
     context: String,
 ) -> Result<Vec<serde_json::Value>, String> {
@@ -124,7 +125,7 @@ pub fn apply_team_talk(
 /// Process press conference answers: generate news article, affect squad morale.
 #[tauri::command]
 pub fn submit_press_conference(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     answers: Vec<PressConferenceAnswer>,
     home_team: String,
     away_team: String,

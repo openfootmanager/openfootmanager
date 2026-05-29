@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -477,7 +478,7 @@ fn bootstrap_team_selection(
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     first_name: String,
     last_name: String,
     dob: String,
@@ -550,8 +551,8 @@ pub async fn start_new_game(
 /// Step 2: User picks a team. Assigns manager, generates welcome message, saves to DB.
 #[tauri::command]
 pub async fn select_team(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     team_id: String,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
@@ -580,7 +581,7 @@ pub async fn select_team(
 }
 
 #[tauri::command]
-pub async fn get_saves(sm_state: State<'_, SaveManagerState>) -> Result<Vec<SaveEntry>, String> {
+pub async fn get_saves(sm_state: State<'_, Arc<SaveManagerState>>) -> Result<Vec<SaveEntry>, String> {
     log::debug!("[cmd] get_saves");
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     sm.load_saves()
@@ -588,7 +589,7 @@ pub async fn get_saves(sm_state: State<'_, SaveManagerState>) -> Result<Vec<Save
 
 #[tauri::command]
 pub async fn delete_save(
-    sm_state: State<'_, SaveManagerState>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<bool, String> {
     info!("[cmd] delete_save: save_id={}", save_id);
@@ -598,8 +599,8 @@ pub async fn delete_save(
 
 #[tauri::command]
 pub async fn load_game(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<String, String> {
     info!("[cmd] load_game: save_id={}", save_id);
@@ -618,7 +619,7 @@ pub async fn load_game(
 }
 
 #[tauri::command]
-pub async fn get_active_game(state: State<'_, StateManager>) -> Result<Game, String> {
+pub async fn get_active_game(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     log::debug!("[cmd] get_active_game");
     state
         .get_game(|g: &Game| g.clone())
@@ -627,8 +628,8 @@ pub async fn get_active_game(state: State<'_, StateManager>) -> Result<Game, Str
 
 #[tauri::command]
 pub async fn save_game(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
     let game = state
@@ -647,8 +648,8 @@ pub async fn save_game(
 /// Save the current game and clear the active session so the player returns to the main menu.
 #[tauri::command]
 pub async fn exit_to_menu(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
     let game = state

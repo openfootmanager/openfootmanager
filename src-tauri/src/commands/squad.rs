@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use chrono::Datelike;
 use log::info;
 use tauri::State;
@@ -25,7 +26,7 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
 }
 
 #[tauri::command]
-pub fn set_formation(state: State<'_, StateManager>, formation: String) -> Result<Game, String> {
+pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> Result<Game, String> {
     info!("[cmd] set_formation: {}", formation);
     let mut game = state
         .get_game(|g| g.clone())
@@ -99,7 +100,7 @@ pub fn set_formation(state: State<'_, StateManager>, formation: String) -> Resul
 
 #[tauri::command]
 pub fn set_starting_xi(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
     info!("[cmd] set_starting_xi: {} players", player_ids.len());
@@ -122,7 +123,7 @@ pub fn set_starting_xi(
 }
 
 #[tauri::command]
-pub fn set_play_style(state: State<'_, StateManager>, play_style: String) -> Result<Game, String> {
+pub fn set_play_style(state: State<'_, Arc<StateManager>>, play_style: String) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
     let mut game = state
         .get_game(|g| g.clone())
@@ -153,7 +154,7 @@ pub fn set_play_style(state: State<'_, StateManager>, play_style: String) -> Res
 
 #[tauri::command]
 pub fn set_team_match_roles(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_match_roles");
@@ -177,7 +178,7 @@ pub fn set_team_match_roles(
 
 #[tauri::command]
 pub fn set_training(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     focus: String,
     intensity: String,
 ) -> Result<Game, String> {
@@ -223,7 +224,7 @@ pub fn set_training(
 
 #[tauri::command]
 pub fn set_training_schedule(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     schedule: String,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_schedule: {}", schedule);
@@ -254,7 +255,7 @@ pub fn set_training_schedule(
 
 #[tauri::command]
 pub fn set_training_groups(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_groups: {} groups", groups.len());
@@ -278,7 +279,7 @@ pub fn set_training_groups(
 
 #[tauri::command]
 pub fn set_player_training_focus(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     focus: Option<String>,
 ) -> Result<Game, String> {
@@ -329,7 +330,7 @@ fn set_player_training_focus_internal(
 
 #[tauri::command]
 pub fn set_player_squad_role(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     squad_role: String,
 ) -> Result<Game, String> {
@@ -390,7 +391,7 @@ fn set_player_squad_role_internal(
 
 #[tauri::command]
 pub fn auto_select_set_pieces(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_ids: Vec<String>,
 ) -> Result<serde_json::Value, String> {
     log::debug!("[cmd] auto_select_set_pieces: {} players", player_ids.len());

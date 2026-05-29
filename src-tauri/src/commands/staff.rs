@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -5,7 +6,7 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 #[tauri::command]
-pub fn hire_staff(state: State<'_, StateManager>, staff_id: String) -> Result<Game, String> {
+pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
     hire_staff_internal(&state, &staff_id)
 }
 
@@ -193,7 +194,7 @@ mod tests {
 }
 
 #[tauri::command]
-pub fn release_staff(state: State<'_, StateManager>, staff_id: String) -> Result<Game, String> {
+pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
     release_staff_internal(&state, &staff_id)
 }
 

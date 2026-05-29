@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use serde::Serialize;
 use tauri::State;
@@ -35,7 +36,7 @@ pub struct MarketingCampaignCommandResponse {
 
 #[tauri::command]
 pub async fn get_finance_snapshot(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     team_id: Option<String>,
 ) -> Result<FinanceSnapshotCommandResponse, String> {
     get_finance_snapshot_internal(&state, team_id.as_deref())
@@ -70,21 +71,21 @@ fn get_finance_snapshot_internal(
 
 #[tauri::command]
 pub async fn request_board_support(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
 ) -> Result<BoardSupportCommandResponse, String> {
     request_board_support_internal(&state)
 }
 
 #[tauri::command]
 pub async fn request_sponsor_pitch(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
 ) -> Result<SponsorPitchCommandResponse, String> {
     request_sponsor_pitch_internal(&state)
 }
 
 #[tauri::command]
 pub async fn request_marketing_campaign(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
 ) -> Result<MarketingCampaignCommandResponse, String> {
     request_marketing_campaign_internal(&state)
 }

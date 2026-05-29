@@ -2,14 +2,20 @@ mod application;
 mod commands;
 use commands::*;
 
+#[cfg(feature = "mcp")]
+mod mcp_server;
+
 use db::save_manager::SaveManager;
 use ofm_core::state::StateManager;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 
 /// Tauri-managed wrapper around SaveManager.
 pub struct SaveManagerState(pub Mutex<SaveManager>);
+
+#[cfg(feature = "mcp")]
+use crate::mcp_server::config::McpMode;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,6 +26,8 @@ pub fn run() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
+
+    let state_manager = Arc::new(StateManager::new());
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -34,8 +42,8 @@ pub fn run() {
                 .max_file_size(5_000_000) // 5 MB per log file
                 .build(),
         )
-        .manage(StateManager::new())
-        .setup(|app| {
+        .manage(state_manager.clone())
+        .setup(move |app| {
             use tauri::Manager as TauriManager;
             let app_data_dir = app
                 .path()
@@ -80,7 +88,50 @@ pub fn run() {
                 }
             }
 
-            app.manage(SaveManagerState(Mutex::new(save_manager)));
+            app.manage(Arc::new(SaveManagerState(Mutex::new(save_manager))));
+
+            // --- MCP server startup (feature-flagged) ---
+            #[cfg(feature = "mcp")]
+            if let Some(mcp_config) = mcp_server::config::parse_mcp_config_from_args() {
+                use tauri::Manager as TauriManager;
+
+                // Validate competition mode requirements
+                if mcp_config.mode == McpMode::Competition
+                    && mcp_config.auto_start.is_none()
+                {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "--mcp-mode competition requires --mcp-auto-start (world.json,team_id)",
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+
+                let sm: Arc<StateManager> = app.state::<Arc<StateManager>>().inner().clone();
+                let save_mgr: Arc<SaveManagerState> = app.state::<Arc<SaveManagerState>>().inner().clone();
+                let app_handle = app.handle().clone();
+
+                // TODO: implement --mcp-auto-start bootstrap here
+                // (create manager, load world, select team, initial save)
+
+                // TODO: implement --no-gui here (window.hide())
+
+                // Spawn MCP server on the tokio runtime
+                let mcp_port = mcp_config.port;
+                tokio::spawn(async move {
+                    if let Err(e) = mcp_server::start_mcp_server(
+                        mcp_config,
+                        sm,
+                        save_mgr,
+                        app_handle,
+                    )
+                    .await
+                    {
+                        log::error!("[mcp] MCP server failed: {}", e);
+                    }
+                });
+
+                log::info!("[mcp] MCP server will start on port {}", mcp_port);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
