@@ -115,8 +115,6 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     real_tool!("inbox_clear_old", "Clear old messages", tools_impl::inbox_clear_old);
     real_tool!("staff_get", "List all staff (your team + available)", tools_impl::staff_get);
     real_tool!("season_check_complete", "Check if season is finished", tools_impl::season_check_complete);
-    real_tool!("squad_auto_set_pieces", "Auto-assign best set-piece takers", tools_impl::squad_auto_set_pieces);
-    real_tool!("season_advance", "Advance to next season (may be fired if objectives not met)", tools_impl::season_advance);
     real_tool!("game_save", "Persist current game", tools_impl::game_save);
     real_tool!("time_advance", "Advance one day (match forced to delegate mode). Includes round summary on match days", tools_impl::time_advance);
 
