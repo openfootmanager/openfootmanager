@@ -1,5 +1,16 @@
 # MCP Server for OpenFoot Manager
 
+## ✅ Implementation Status: COMPLETE
+
+All phases 1-5 are implemented. The MCP server is fully functional with 78 tools.
+
+- **Phase 1 — Infrastructure**: ✅ Complete (SSE server, CLI args, Arc<StateManager>, competition mode, auto-start, no-gui)
+- **Phase 2 — Game Lifecycle + Information**: ✅ Complete (all info tools, game lifecycle tools)
+- **Phase 3 — Core Gameplay Loop**: ✅ Complete (time advance, squad, training)
+- **Phase 4 — Full Tool Surface**: ✅ Complete (transfers, contracts, scouting, inbox, club, staff, jobs, season awards)
+- **Phase 5 — Formatting & Polish**: ✅ Complete (markdown formatting, rate limiting, auto-save, zero warnings)
+- **Phase 6 — Orchestration**: 🔲 Future work (separate script)
+
 ## Goal
 
 Run ~8 copies of the game with the same initial save, each driven by a different AI agent via a text-based MCP server. Agents compete to achieve the best league position. A human can watch any game through its GUI window in real time.
