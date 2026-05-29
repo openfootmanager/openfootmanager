@@ -670,6 +670,74 @@ pub async fn exit_to_menu(
     Ok(())
 }
 
+/// Bootstrap a game for MCP auto-start.
+/// Creates a manager, loads world, selects team, and saves.
+/// Returns the save ID.
+pub fn bootstrap_game_for_mcp(
+    state_manager: &StateManager,
+    save_manager_state: &crate::SaveManagerState,
+    world_path: &str,
+    team_id: &str,
+    manager_first_name: &str,
+    manager_last_name: &str,
+    manager_nationality: &str,
+) -> Result<String, String> {
+    // Step 1: Load world data
+    let world = load_world_data_from_path(world_path)?;
+
+    // Step 2: Create a manager (DOB set to make age ~45)
+    let startup_options = normalize_startup_options(None)?;
+    let clock = game_clock_for_world(&startup_options, &world.metadata)?;
+    let reference_date = clock.current_date.date_naive();
+    let dob = reference_date - chrono::Duration::days(45 * 365);
+    let dob_str = dob.format("%Y-%m-%d").to_string();
+
+    let manager = Manager::new(
+        "mgr_user".to_string(),
+        manager_first_name.to_string(),
+        manager_last_name.to_string(),
+        dob_str,
+        manager_nationality.to_string(),
+    );
+
+    info!(
+        "[mcp-bootstrap] Created manager {} {}",
+        manager.first_name, manager.last_name
+    );
+
+    // Step 3: Build game from world data
+    let (mut game, current_stats_state) =
+        build_game_from_world_data(clock, manager, &startup_options, world);
+
+    info!(
+        "[mcp-bootstrap] Built game: {} teams, {} players",
+        game.teams.len(),
+        game.players.len()
+    );
+
+    // Step 4: Select team
+    let start_phase = start_phase_for_game(&game);
+    let stats_state =
+        bootstrap_team_selection(&mut game, team_id, start_phase, current_stats_state)?;
+
+    info!("[mcp-bootstrap] Selected team: {}", team_id);
+
+    // Step 5: Create initial save
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    let save_name = default_save_name(&manager_name);
+    let mut sm = map_save_manager_lock_error(save_manager_state.0.lock())?;
+    let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
+
+    // Step 6: Set state
+    state_manager.set_game(game);
+    state_manager.set_stats_state(stats_state);
+    state_manager.set_save_id(save_id.clone());
+
+    info!("[mcp-bootstrap] Game saved with ID: {}", save_id);
+
+    Ok(save_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

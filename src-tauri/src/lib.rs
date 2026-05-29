@@ -109,10 +109,51 @@ pub fn run() {
                 let save_mgr: Arc<SaveManagerState> = app.state::<Arc<SaveManagerState>>().inner().clone();
                 let app_handle = app.handle().clone();
 
-                // TODO: implement --mcp-auto-start bootstrap here
-                // (create manager, load world, select team, initial save)
+                // --no-gui: hide the window
+                if mcp_config.no_gui {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                        log::info!("[mcp] GUI window hidden (--no-gui)");
+                    }
+                }
 
-                // TODO: implement --no-gui here (window.hide())
+                // --mcp-auto-start: bootstrap game
+                if let Some(ref auto_start) = mcp_config.auto_start {
+                    log::info!(
+                        "[mcp] Auto-starting: world={}, team={}",
+                        auto_start.world_path, auto_start.team_id
+                    );
+
+                    let mgr_name = mcp_config.manager_name
+                        .as_deref()
+                        .unwrap_or("Agent")
+                        .to_string();
+                    let mgr_nat = mcp_config.manager_nationality
+                        .as_deref()
+                        .unwrap_or("England")
+                        .to_string();
+
+                    match crate::commands::game::bootstrap_game_for_mcp(
+                        &sm,
+                        &save_mgr,
+                        &auto_start.world_path,
+                        &auto_start.team_id,
+                        &mgr_name,
+                        &"Manager", // last name
+                        &mgr_nat,
+                    ) {
+                        Ok(save_id) => {
+                            log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
+                        }
+                        Err(e) => {
+                            log::error!("[mcp] Bootstrap failed: {}", e);
+                            return Err(Box::new(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                format!("MCP auto-start failed: {}", e),
+                            )) as Box<dyn std::error::Error + Send + Sync>);
+                        }
+                    }
+                }
 
                 // Spawn MCP server on the tokio runtime
                 let mcp_port = mcp_config.port;
