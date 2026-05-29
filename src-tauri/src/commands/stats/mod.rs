@@ -14,8 +14,8 @@ use self::dto::{
     PlayerMatchHistoryEntryDto, PlayerStatsOverviewDto, TeamMatchHistoryEntryDto,
     TeamStatsOverviewDto,
 };
-use self::player::{get_player_match_history_internal, get_player_stats_overview_internal};
-use self::team::{get_team_match_history_internal, get_team_stats_overview_internal};
+pub use self::player::{get_player_match_history_internal, get_player_stats_overview_internal};
+pub use self::team::{get_team_match_history_internal, get_team_stats_overview_internal};
 
 #[tauri::command]
 pub fn get_player_match_history(

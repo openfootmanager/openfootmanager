@@ -1646,3 +1646,491 @@ pub fn help_list_categories() -> String {
 
     output
 }
+
+// ─── time_skip_to_match_day ─────────────────────────────────────────────────
+
+pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    let league = require_league(&game)?;
+    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
+
+    // Find next fixture for user's team
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let next_fixture = league.fixtures.iter()
+        .filter(|f| f.status != domain::league::FixtureStatus::Completed)
+        .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
+        .filter(|f| f.date > today)
+        .min_by_key(|f| &f.date);
+
+    let Some(fixture) = next_fixture else {
+        return Ok("## No Upcoming Match\n\nNo more fixtures scheduled for your team.".to_string());
+    };
+
+    let target_date = fixture.date.clone();
+    let days_to_skip = {
+        let current = game.clock.current_date.date_naive();
+        let target = chrono::NaiveDate::parse_from_str(&target_date, "%Y-%m-%d")
+            .map_err(|e| format!("Date parse error: {}", e))?;
+        (target - current).num_days()
+    };
+
+    if days_to_skip <= 0 {
+        return Ok("## Match Day Today\n\nYour next match is today. Use `time_advance` to play it.".to_string());
+    }
+
+    // Advance time day by day until we reach the match day
+    let mut advanced = 0u32;
+    loop {
+        let game = require_game(&ctx.state_manager)?;
+        let current = game.clock.current_date.format("%Y-%m-%d").to_string();
+        if current >= target_date {
+            break;
+        }
+
+        crate::application::time_advancement::advance_time_with_mode(
+            &ctx.state_manager,
+            "delegate",
+        )
+        .map_err(|e| translate_error(&e))?;
+
+        advanced += 1;
+
+        // Safety limit
+        if advanced > 365 {
+            return Ok("## Skip Aborted\n\nSkipped more than 365 days without reaching match. Something may be wrong.".to_string());
+        }
+    }
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Skipped to Match Day\n\n**{} days advanced** to {}.\nUse `time_advance` to play the match.", advanced, target_date))
+}
+
+// ─── time_check_blockers ────────────────────────────────────────────────────
+
+pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+
+    let mut blockers = Vec::new();
+
+    // Check for live match in progress
+    if ctx.state_manager.with_live_match(|_| true).unwrap_or(false) {
+        blockers.push("Live match in progress — finish the match first".to_string());
+    }
+
+    // Check for pending transfer offers requiring response
+    let team_id = game.manager.team_id.as_deref();
+    if let Some(tid) = team_id {
+        let pending_offers: Vec<_> = game.players.iter()
+            .filter(|p| p.team_id.as_deref() == Some(tid))
+            .flat_map(|p| p.transfer_offers.iter())
+            .filter(|o| o.status == domain::player::TransferOfferStatus::Pending)
+            .collect();
+
+        if !pending_offers.is_empty() {
+            blockers.push(format!("{} pending transfer offer(s) need response", pending_offers.len()));
+        }
+    }
+
+    // Check for contract renewal deadlines
+    if let Some(_tid) = team_id {
+        // Note: exit_intent is nested in player.morale_core.renewal_state.exit_intent
+        // Skip this check for simplicity — agents can use info_player_profile to check
+    }
+
+    if blockers.is_empty() {
+        Ok("## No Blockers\n\nTime can be advanced safely.".to_string())
+    } else {
+        Ok(format!("## ⚠️ Blockers Detected\n\n{}", blockers.iter().map(|b| format!("- {}", b)).collect::<Vec<_>>().join("\n")))
+    }
+}
+
+// ─── transfer_market_browse ─────────────────────────────────────────────────
+
+pub fn transfer_market_browse(ctx: Arc<McpContext>, position: Option<String>, max_price: Option<u64>, listed_only: Option<bool>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
+
+    let players: Vec<_> = game.players.iter()
+        .filter(|p| {
+            // Exclude own players
+            p.team_id.as_deref() != Some(team_id)
+        })
+        .filter(|p| {
+            // Filter by listed status
+            if let Some(true) = listed_only {
+                p.transfer_listed || p.loan_listed
+            } else {
+                true
+            }
+        })
+        .filter(|p| {
+            // Filter by position
+            if let Some(ref pos) = position {
+                format_position(&p.position).to_lowercase() == pos.to_lowercase()
+                    || format!("{:?}", p.position).to_lowercase() == pos.to_lowercase()
+            } else {
+                true
+            }
+        })
+        .filter(|p| {
+            // Filter by max price (use estimated value/wage)
+            if let Some(max) = max_price {
+                (p.wage as u64 * 52) <= max // Rough annual cost estimate
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if players.is_empty() {
+        return Ok("## Transfer Market\n\nNo players found matching criteria.".to_string());
+    }
+
+    let mut output = format!("## Transfer Market ({} players)\n\n| ID | Name | Pos | Age | OVR | Team | Listed | Wage |\n|----|------|-----|-----|-----|------|--------|------|\n", players.len());
+    for p in players.iter().take(30) {
+        let team_name = p.team_id.as_deref()
+            .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
+            .map(|t| t.name.clone())
+            .unwrap_or_else(|| "Free".to_string());
+        let listed = if p.transfer_listed { "T" } else if p.loan_listed { "L" } else { "-" };
+        output.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} | {} |\n",
+            p.id,
+            p.match_name,
+            format_position(&p.position),
+            age_from_dob(&p.date_of_birth, &game),
+            p.ovr,
+            team_name,
+            listed,
+            p.wage,
+        ));
+    }
+    if players.len() > 30 {
+        output.push_str(&format!("\n... and {} more. Use filters to narrow results.", players.len() - 30));
+    }
+
+    Ok(output)
+}
+
+// ─── transfer_free_agent_offer ───────────────────────────────────────────────
+
+pub fn transfer_free_agent_offer(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32, contract_years: u32) -> Result<String, String> {
+    let response = crate::commands::contracts::offer_free_agent_contract_internal(
+        &ctx.state_manager,
+        &player_id,
+        weekly_wage,
+        contract_years,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Free Agent Offer\n\n**Wage**: {}/wk × {}yr\n**Outcome**: {:?}", weekly_wage, contract_years, response.outcome))
+}
+
+// ─── transfer_free_agent_preview ────────────────────────────────────────────
+
+pub fn transfer_free_agent_preview(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32) -> Result<String, String> {
+    let response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
+        &ctx.state_manager,
+        &player_id,
+        weekly_wage,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    Ok(format!("## Free Agent Preview\n\n**Wage**: {}/wk\n**Projected Impact**: (see details)\nThis is a preview — no offer was made.", weekly_wage))
+}
+
+// ─── info_player_stats ──────────────────────────────────────────────────────
+
+pub fn info_player_stats(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
+    let response = crate::commands::stats::get_player_stats_overview_internal(
+        &ctx.state_manager,
+        &player_id,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let player_name = game.players.iter()
+        .find(|p| p.id == player_id)
+        .map(|p| p.match_name.clone())
+        .unwrap_or(player_id);
+
+    Ok(format!("## Player Stats: {}\n\n{}", player_name, serde_json::to_string_pretty(&response).unwrap_or_else(|_| "Stats available".to_string())))
+}
+
+// ─── info_player_match_history ──────────────────────────────────────────────
+
+pub fn info_player_match_history(ctx: Arc<McpContext>, player_id: String, limit: Option<usize>) -> Result<String, String> {
+    let response = crate::commands::stats::get_player_match_history_internal(
+        &ctx.state_manager,
+        &player_id,
+        limit,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let player_name = game.players.iter()
+        .find(|p| p.id == player_id)
+        .map(|p| p.match_name.clone())
+        .unwrap_or(player_id);
+
+    if response.is_empty() {
+        return Ok(format!("## Match History: {}\n\nNo match data available.", player_name));
+    }
+
+    let mut output = format!("## Match History: {} ({} matches)\n\n| # | Date | Opponent | Mins | Goals | Assists |\n|---|------|----------|--------|-------|--------|\n", player_name, response.len());
+    for (i, entry) in response.iter().enumerate() {
+        output.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} |\n",
+            i + 1,
+            entry.date,
+            entry.opponent_name,
+            entry.minutes_played,
+            entry.goals,
+            entry.assists,
+        ));
+    }
+
+    Ok(output)
+}
+
+// ─── info_team_profile ──────────────────────────────────────────────────────
+
+pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    let team = game.teams.iter()
+        .find(|t| t.id == team_id)
+        .ok_or_else(|| format!("Team {} not found", team_id))?;
+
+    let is_own = game.manager.team_id.as_deref() == Some(team_id.as_str());
+    let squad_size = game.players.iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id.as_str()))
+        .count();
+
+    let mut output = format!(
+        "## {} — Team Profile\n\n\
+         | Field | Value |\n|-------|-------|\n\
+         | ID | {} |\n\
+         | Formation | {} |\n\
+         | Play Style | {:?} |\n\
+         | Squad Size | {} |\n\
+         | Training | {:?} / {:?} |\n",
+        team.name, team.id, team.formation, team.play_style, squad_size,
+        team.training_focus, team.training_intensity,
+    );
+
+    // Standings position
+    if let Some(league) = &game.league {
+        let mut standings = league.standings.clone();
+        standings.sort_by(|a, b| b.points.cmp(&a.points).then_with(|| b.goals_for.cmp(&a.goals_for)));
+        if let Some(pos) = standings.iter().position(|s| s.team_id == team_id) {
+            let s = &standings[pos];
+            let gd = i64::from(s.goals_for) - i64::from(s.goals_against);
+            output.push_str(&format!(
+                "| League Position | {} |\n\
+                 | Points | {} ({}/{}/{}) |\n\
+                 | Goal Difference | {:+} |\n",
+                pos + 1, s.points, s.won, s.drawn, s.lost, gd,
+            ));
+        }
+    }
+
+    // Recent form (last 5 results)
+    if let Some(league) = &game.league {
+        let recent: Vec<_> = league.fixtures.iter()
+            .filter(|f| f.status == domain::league::FixtureStatus::Completed)
+            .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
+            .collect();
+
+        let mut form = String::new();
+        for f in recent.iter().rev().take(5) {
+            if let Some(ref result) = f.result {
+                let is_home = f.home_team_id == team_id;
+                let our_goals = if is_home { result.home_goals } else { result.away_goals };
+                let their_goals = if is_home { result.away_goals } else { result.home_goals };
+                let marker = if our_goals > their_goals { "W" } else if our_goals < their_goals { "L" } else { "D" };
+                form.push_str(&format!("{} ", marker));
+            }
+        }
+        if !form.is_empty() {
+            output.push_str(&format!("| Recent Form | {} |\n", form.trim()));
+        }
+    }
+
+    // Financial info for own team
+    if is_own {
+        if let Ok(finance_response) = crate::commands::finances::get_finance_snapshot_internal(&ctx.state_manager, Some(team_id.as_str())) {
+            let snap = &finance_response.snapshot;
+            output.push_str(&format!(
+                "\n### Finances\n\n\
+                 | Item | Value |\n|------|-------|\n\
+                 | Weekly Wage Spend | {} |\n\
+                 | Weekly Wage Budget | {} |\n\
+                 | Projected Weekly Net | {} |\n\
+                 | In Debt | {} |\n\
+                 | Overall Status | {:?} |",
+                snap.weekly_wage_spend,
+                snap.weekly_wage_budget,
+                snap.projected_weekly_net,
+                snap.currently_in_debt,
+                snap.overall_status,
+            ));
+        }
+    }
+
+    Ok(output)
+}
+
+// ─── info_team_stats ────────────────────────────────────────────────────────
+
+pub fn info_team_stats(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
+    let response = crate::commands::stats::get_team_stats_overview_internal(
+        &ctx.state_manager,
+        &team_id,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let team_name = game.teams.iter()
+        .find(|t| t.id == team_id)
+        .map(|t| t.name.clone())
+        .unwrap_or(team_id);
+
+    match response {
+        Some(stats) => Ok(format!("## Team Stats: {}\n\n{}", team_name, serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "Stats available".to_string()))),
+        None => Ok(format!("## Team Stats: {}\n\nNo stats available yet.", team_name)),
+    }
+}
+
+// ─── info_team_match_history ────────────────────────────────────────────────
+
+pub fn info_team_match_history(ctx: Arc<McpContext>, team_id: String, limit: Option<usize>) -> Result<String, String> {
+    let response = crate::commands::stats::get_team_match_history_internal(
+        &ctx.state_manager,
+        &team_id,
+        limit,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let game = require_game(&ctx.state_manager)?;
+    let team_name = game.teams.iter()
+        .find(|t| t.id == team_id)
+        .map(|t| t.name.clone())
+        .unwrap_or(team_id);
+
+    if response.is_empty() {
+        return Ok(format!("## Match History: {}\n\nNo match data available.", team_name));
+    }
+
+    let mut output = format!("## Match History: {} ({} matches)\n\n| # | Date | Opponent | Score |\n|---|------|----------|-------|\n", team_name, response.len());
+    for (i, entry) in response.iter().enumerate() {
+        output.push_str(&format!(
+            "| {} | {} | {} | {} |\n",
+            i + 1,
+            entry.date,
+            entry.opponent_name,
+            format!("{}-{}", entry.goals_for, entry.goals_against),
+        ));
+    }
+
+    Ok(output)
+}
+
+// ─── info_finance_snapshot ──────────────────────────────────────────────────
+
+pub fn info_finance_snapshot(ctx: Arc<McpContext>, team_id: Option<String>) -> Result<String, String> {
+    let response = crate::commands::finances::get_finance_snapshot_internal(
+        &ctx.state_manager,
+        team_id.as_deref(),
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    let snap = &response.snapshot;
+
+    Ok(format!(
+        "## Detailed Financial Snapshot\n\n\
+         | Metric | Value |\n|--------|-------|\n\
+         | Annual Wage Bill | {} |\n\
+         | Weekly Wage Spend | {} |\n\
+         | Weekly Wage Budget | {} |\n\
+         | Weekly Recurring Income | {} |\n\
+         | Weekly Sponsor Income | {} |\n\
+         | Projected Weekly Net | {} |\n\
+         | Cash Runway | {} |\n\
+         | Wage Budget Usage | {}% |\n\
+         | In Debt | {} |\n\
+         | Over Budget | {} |\n\
+         | Budget Status | {:?} |\n\
+         | Runway Status | {:?} |\n\
+         | Overall Status | {:?} |",
+        snap.annual_wage_bill,
+        snap.weekly_wage_spend,
+        snap.weekly_wage_budget,
+        snap.weekly_recurring_income,
+        snap.weekly_sponsor_income,
+        snap.projected_weekly_net,
+        snap.cash_runway_weeks.map(|w| format!("{} weeks", w)).unwrap_or_else(|| "N/A".to_string()),
+        snap.wage_budget_usage_percent,
+        snap.currently_in_debt,
+        snap.currently_over_budget,
+        snap.wage_budget_status,
+        snap.runway_status,
+        snap.overall_status,
+    ))
+}
+
+// ─── club_request_board_support ─────────────────────────────────────────────
+
+pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<String, String> {
+    let response = crate::commands::finances::request_board_support_internal(
+        &ctx.state_manager,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Board Support\n\n**Amount**: {}\n**Transfer Budget Reduction**: {}\n**Satisfaction Penalty**: {}", response.result.support_amount, response.result.transfer_budget_reduction, response.result.satisfaction_penalty))
+}
+
+// ─── club_request_marketing ─────────────────────────────────────────────────
+
+pub fn club_request_marketing(ctx: Arc<McpContext>) -> Result<String, String> {
+    let response = crate::commands::finances::request_marketing_campaign_internal(
+        &ctx.state_manager,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Marketing Campaign\n\n**Gross Revenue**: {}", response.result.gross_revenue))
+}
+
+// ─── club_request_sponsor_pitch ─────────────────────────────────────────────
+
+pub fn club_request_sponsor_pitch(ctx: Arc<McpContext>) -> Result<String, String> {
+    let response = crate::commands::finances::request_sponsor_pitch_internal(
+        &ctx.state_manager,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(format!("## Sponsor Pitch\n\n**Sponsor**: {}\n**Weekly Amount**: {}\n**Duration**: {} weeks", response.result.sponsor_name, response.result.weekly_amount, response.result.duration_weeks))
+}
