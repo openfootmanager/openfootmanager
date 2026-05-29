@@ -157,7 +157,7 @@ pub fn run() {
 
                 // Spawn MCP server on the tokio runtime
                 let mcp_port = mcp_config.port;
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     if let Err(e) = mcp_server::start_mcp_server(
                         mcp_config,
                         sm,
