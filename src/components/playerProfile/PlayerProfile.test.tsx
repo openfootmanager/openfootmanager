@@ -1155,9 +1155,11 @@ describe("PlayerProfile free agent signing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit Offer" }));
 
     await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith("offer_free_agent_contract", expect.objectContaining({
+      expect(invoke).toHaveBeenCalledWith("offer_free_agent_contract", {
         playerId: "player-1",
-      }));
+        weeklyWage: 3000,
+        contractYears: 3,
+      });
       expect(onGameUpdate).toHaveBeenCalled();
     });
   });
