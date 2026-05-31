@@ -87,10 +87,6 @@ export default function PlayerProfile({
   );
   const weakFootValue = player.weak_foot ?? 2;
 
-  if (!player) {
-    return null;
-  }
-
   const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>(
     "idle",
   );
