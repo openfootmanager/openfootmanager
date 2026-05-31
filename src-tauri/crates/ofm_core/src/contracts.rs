@@ -484,10 +484,6 @@ pub fn offer_free_agent_contract(
     player_id: &str,
     offer: RenewalOffer,
 ) -> Result<RenewalOutcome, String> {
-    if !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.to_string());
-    }
-
     let manager_team_id = game
         .manager
         .team_id
