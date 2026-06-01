@@ -317,7 +317,20 @@ export default function MainMenu() {
       .catch((error) => console.error("Failed to load manager profiles:", error));
   }, []);
 
-  // Listen for game loaded by MCP auto-start (backend bootstraps game without frontend involvement)
+  // Check if a game is already active (e.g. loaded by MCP --mcp-auto-start before frontend mounted)
+  useEffect(() => {
+    invoke<GameStateData>("get_active_game")
+      .then((state) => {
+        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameActive(true, mgrName);
+        navigate("/dashboard");
+      })
+      .catch(() => {
+        // No active game — stay on menu
+      });
+  }, [setGameActive, navigate]);
+
+  // Listen for game loaded by MCP auto-start (event may arrive after mount)
   useEffect(() => {
     const unlisten = listen("game-state-changed", async () => {
       try {
