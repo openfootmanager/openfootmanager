@@ -94,6 +94,7 @@ pub fn run() {
             #[cfg(feature = "mcp")]
             if let Some(mcp_config) = mcp_server::config::parse_mcp_config_from_args() {
                 use tauri::Manager as TauriManager;
+                use tauri::Emitter;
 
                 // Validate competition mode requirements
                 if mcp_config.mode == McpMode::Competition
@@ -144,6 +145,8 @@ pub fn run() {
                     ) {
                         Ok(save_id) => {
                             log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
+                            // Notify GUI that a game is now active
+                            let _ = app_handle.emit("game-state-changed", ());
                         }
                         Err(e) => {
                             log::error!("[mcp] Bootstrap failed: {}", e);

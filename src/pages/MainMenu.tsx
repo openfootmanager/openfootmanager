@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
@@ -315,6 +316,23 @@ export default function MainMenu() {
       .then((p) => setProfiles(p ?? []))
       .catch((error) => console.error("Failed to load manager profiles:", error));
   }, []);
+
+  // Listen for game loaded by MCP auto-start (backend bootstraps game without frontend involvement)
+  useEffect(() => {
+    const unlisten = listen("game-state-changed", async () => {
+      try {
+        const state = await invoke<GameStateData>("get_active_game");
+        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameActive(true, mgrName);
+        navigate("/dashboard");
+      } catch {
+        // Game not actually active — ignore
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [setGameActive, navigate]);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
