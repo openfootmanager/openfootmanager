@@ -27,7 +27,7 @@ Alternatively, use the `game_export_world` MCP tool after creating a game.
 openfootmanager \
   --mcp-port 3001 \
   --mcp-mode competition \
-  --mcp-auto-start "/path/to/world.json,team_abc123" \
+  --mcp-auto-start "/path/to/world.json" \
   --no-gui \
   --manager-name "Agent Alpha" \
   --manager-nationality "England" \
@@ -56,7 +56,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 |----------|----------|---------|-------------|
 | `--mcp-port <PORT>` | **Yes** | — | Port for the MCP SSE server. Without this flag, no MCP server starts. |
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
-| `--mcp-auto-start <WORLD,TEAM>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json,team_id"`. **Required in competition mode.** |
+| `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. **Required in competition mode.** |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
 | `--manager-nationality <NAT>` | No | `England` | Manager nationality for auto-start. |
@@ -64,7 +64,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--min-tick-delay-ms <MS>` | No | `0` | Minimum delay between `time_advance` completions. Prevents agents from advancing too fast for the GUI to follow. |
 | `--mcp-disable-tools <LIST>` | No | — | Comma-separated tool names to disable on top of mode restrictions. |
 
-\* `--mcp-auto-start` is **required** when `--mcp-mode competition` is used.
+\* `--mcp-auto-start` is **required** when `--mcp-mode competition` is used. The team ID is optional — omit it if the exported world's manager already has a team assigned.
 
 ---
 
@@ -277,7 +277,7 @@ for i in $(seq 1 8); do
   openfootmanager \
     --mcp-port $PORT \
     --mcp-mode competition \
-    --mcp-auto-start "/path/to/world.json,team_midtable" \
+    --mcp-auto-start "/path/to/world.json" \
     --no-gui \
     --manager-name "Agent $i" \
     --auto-save-interval-days 7 \
