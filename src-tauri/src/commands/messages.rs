@@ -161,8 +161,12 @@ fn resolve_message_action_internal(
             let random_effect = ofm_core::random_events::apply_event_response(
                 &mut game, message_id, action_id, opt,
             );
-            if random_effect.is_some() {
-                (random_effect, None, None)
+            if let Some(effect) = random_effect {
+                (
+                    Some(effect.message),
+                    Some(effect.i18n_key),
+                    Some(effect.i18n_params),
+                )
             } else {
                 match ofm_core::job_offers::apply_job_offer_response(
                     &mut game, message_id, action_id, opt,
@@ -173,12 +177,13 @@ fn resolve_message_action_internal(
                         Some(effect.i18n_params),
                     ),
                     None => match ofm_core::scouting::apply_youth_recruitment_response(
-                        &mut game,
-                        message_id,
-                        action_id,
-                        opt,
+                        &mut game, message_id, action_id, opt,
                     ) {
-                        Some(effect) => (Some(effect.message), None, None),
+                        Some(effect) => (
+                            Some(effect.message),
+                            Some(effect.i18n_key),
+                            Some(effect.i18n_params),
+                        ),
                         None => (None, None, None),
                     },
                 }
@@ -401,9 +406,7 @@ mod tests {
             response["effect_i18n_params"]["team"].as_str(),
             Some("Vacancy FC")
         );
-        assert!(response["effect"]
-            .as_str()
-            .is_some_and(|value| value.contains("declined")));
+        assert_eq!(response["effect"].as_str(), Some(""));
     }
 
     #[test]

@@ -127,8 +127,39 @@ const DEFAULT_DISPLAY = {
   important: false,
 };
 
+const PHASE_LABELS: Record<string, string> = {
+  PreKickOff: "Pre-Match",
+  FirstHalf: "1st Half",
+  HalfTime: "Half Time",
+  SecondHalf: "2nd Half",
+  FullTime: "Full Time",
+  ExtraTimeFirstHalf: "ET 1st Half",
+  ExtraTimeHalfTime: "ET Half Time",
+  ExtraTimeSecondHalf: "ET 2nd Half",
+  ExtraTimeEnd: "ET End",
+  PenaltyShootout: "Penalties",
+  Finished: "Final",
+};
+
+function humanizeEventType(eventType: string): string {
+  return eventType.replace(/([A-Z])/g, " $1").trim();
+}
+
+type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
+
 export function getEventDisplay(evt: MatchEvent) {
   return EVENT_ICONS[evt.event_type] || DEFAULT_DISPLAY;
+}
+
+export function getEventTypeLabel(
+  eventType: string,
+  t?: TranslateFn,
+): string {
+  const fallbackLabel = humanizeEventType(eventType);
+
+  return t
+    ? t(`match.eventTypes.${eventType}`, { defaultValue: fallbackLabel })
+    : fallbackLabel;
 }
 
 export function getPlayerName(
@@ -156,39 +187,12 @@ export function getPlayerName(
   return playerId;
 }
 
-export function phaseLabel(phase: string): string {
-  switch (phase) {
-    case "PreKickOff":
-      return "Pre-Match";
-    case "FirstHalf":
-      return "1st Half";
-    case "HalfTime":
-      return "Half Time";
-    case "SecondHalf":
-      return "2nd Half";
-    case "FullTime":
-      return "Full Time";
-    case "ExtraTimeFirstHalf":
-      return "ET 1st Half";
-    case "ExtraTimeHalfTime":
-      return "ET Half Time";
-    case "ExtraTimeSecondHalf":
-      return "ET 2nd Half";
-    case "ExtraTimeEnd":
-      return "ET End";
-    case "PenaltyShootout":
-      return "Penalties";
-    case "Finished":
-      return "Final";
-    default:
-      return phase;
-  }
-}
+export function phaseLabel(phase: string, t?: TranslateFn): string {
+  const fallbackLabel = PHASE_LABELS[phase] ?? humanizeEventType(phase);
 
-export function calcOvr(attrs: Record<string, number>): number {
-  const vals = Object.values(attrs);
-  if (vals.length === 0) return 0;
-  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  return t
+    ? t(`match.phases.${phase}`, { defaultValue: fallbackLabel })
+    : fallbackLabel;
 }
 
 export function resolveMatchFixture(

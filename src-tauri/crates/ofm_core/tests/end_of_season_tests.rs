@@ -162,6 +162,7 @@ fn make_completed_season_game() -> Game {
         fixtures,
         standings,
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
 
     let mut game = Game::new(
@@ -381,6 +382,30 @@ fn player_stats_reset() {
 }
 
 #[test]
+fn season_end_ages_players_and_retires_out_of_contract_veterans() {
+    let mut game = make_completed_season_game();
+    let veteran = game.players.iter_mut().find(|player| player.id == "p1").unwrap();
+    veteran.date_of_birth = "1988-01-01".to_string();
+    veteran.contract_end = Some("2026-05-01".to_string());
+    veteran.attributes.pace = 16;
+    veteran.attributes.passing = 70;
+
+    process_end_of_season(&mut game);
+
+    let veteran = game.players.iter().find(|player| player.id == "p1").unwrap();
+    assert!(veteran.retired, "older out-of-contract veterans should retire");
+    assert_eq!(veteran.team_id, None, "retired players should leave their club");
+    assert!(
+        veteran.attributes.pace < 16,
+        "seasonal aging should reduce veteran pace"
+    );
+    assert!(
+        veteran.attributes.passing >= 70,
+        "technical attributes should not decline before the post-32 flat phase"
+    );
+}
+
+#[test]
 fn player_with_zero_appearances_no_career_entry() {
     let mut game = make_completed_season_game();
     // Add a player with 0 appearances
@@ -575,13 +600,22 @@ fn season_awards_article_references_top_scorer_and_their_team() {
         .find(|article| article.id == "season_awards_1")
         .expect("awards article should exist");
 
-    assert!(
-        awards_article.body.contains("Star"),
-        "Awards article body should reference the top scorer by name"
+    assert_eq!(awards_article.body, "");
+    assert_eq!(
+        awards_article.headline_key.as_deref(),
+        Some("be.news.seasonAwards.headline")
     );
-    assert!(
-        awards_article.body.contains("Test FC"),
-        "Awards article body should reference the top scorer's club"
+    assert_eq!(
+        awards_article.body_key.as_deref(),
+        Some("be.news.seasonAwards.bodyBoth")
+    );
+    assert_eq!(
+        awards_article.i18n_params.get("goldenBootWinner"),
+        Some(&"Star".to_string())
+    );
+    assert_eq!(
+        awards_article.i18n_params.get("goldenBootTeam"),
+        Some(&"Test FC".to_string())
     );
     assert!(
         awards_article.player_ids.contains(&"p1".to_string()),
@@ -637,6 +671,10 @@ fn champion_receives_prize_money_and_ledger_entry() {
         FinancialTransactionKind::PrizeMoney
     );
     assert_eq!(team1.financial_ledger[0].amount, 5_000_000);
+    assert_eq!(
+        team1.financial_ledger[0].description,
+        "be.msg.seasonPayout.ledgerDescription?season=1&position=1&suffix=st"
+    );
 }
 
 #[test]
@@ -731,7 +769,10 @@ fn season_end_message_sent() {
     let msg = game.messages.iter().find(|m| m.id == "season_end_1");
     assert!(msg.is_some(), "Should send season end message");
     let msg = msg.unwrap();
-    assert!(msg.subject.contains("Season 1"));
+    assert_eq!(msg.subject, "");
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.seasonReview.subject"));
+    assert_eq!(msg.sender, "");
+    assert_eq!(msg.sender_role, "");
 }
 
 #[test]
@@ -742,7 +783,10 @@ fn new_season_schedule_message_sent() {
     let msg = game.messages.iter().find(|m| m.id == "new_season_2");
     assert!(msg.is_some(), "Should send new season message");
     let msg = msg.unwrap();
-    assert!(msg.subject.contains("Season 2"));
+    assert_eq!(msg.subject, "");
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.newSeasonSchedule.subject"));
+    assert_eq!(msg.sender, "");
+    assert_eq!(msg.sender_role, "");
 }
 
 #[test]
@@ -800,10 +844,10 @@ fn champion_gets_congratulatory_message() {
         .iter()
         .find(|m| m.id == "season_end_1")
         .unwrap();
-    assert!(
-        msg.body.contains("champions") || msg.body.contains("Congratulations"),
-        "Champion should get congratulatory message, got: {}",
-        msg.body
+    assert_eq!(msg.body, "");
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.seasonReview.body.champion")
     );
 }
 
@@ -857,10 +901,10 @@ fn bottom_half_gets_concerned_message() {
         .iter()
         .find(|m| m.id == "season_end_1")
         .unwrap();
-    assert!(
-        msg.body.contains("disappointing") || msg.body.contains("concerned"),
-        "Bottom team should get concerned message, got: {}",
-        msg.body
+    assert_eq!(msg.body, "");
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.seasonReview.body.lowerHalf")
     );
 }
 
@@ -1094,6 +1138,8 @@ fn season_end_board_message_has_sender_i18n() {
         Some("be.role.chairman"),
         "Board review sender role must have i18n key"
     );
+    assert_eq!(msg.sender, "");
+    assert_eq!(msg.sender_role, "");
 }
 
 #[test]
@@ -1131,6 +1177,32 @@ fn season_end_new_schedule_message_has_i18n_keys() {
         msg.i18n_params.contains_key("season"),
         "New season schedule i18n params must contain 'season'"
     );
+    assert_eq!(msg.body, "");
+    assert_eq!(msg.sender, "");
+    assert_eq!(msg.sender_role, "");
+}
+
+#[test]
+fn season_end_payout_message_has_i18n_keys() {
+    let mut game = make_completed_season_game();
+    process_end_of_season(&mut game);
+
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == "season_payout_1")
+        .expect("season_payout_1 message must be present");
+
+    assert_eq!(msg.subject, "");
+    assert_eq!(msg.body, "");
+    assert_eq!(msg.sender, "");
+    assert_eq!(msg.sender_role, "");
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.seasonPayout.subject"));
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.seasonPayout.body"));
+    assert_eq!(msg.sender_key.as_deref(), Some("be.sender.boardOfDirectors"));
+    assert_eq!(msg.sender_role_key.as_deref(), Some("be.role.chairman"));
+    assert_eq!(msg.i18n_params.get("season"), Some(&"1".to_string()));
+    assert_eq!(msg.i18n_params.get("position"), Some(&"1".to_string()));
 }
 
 #[test]

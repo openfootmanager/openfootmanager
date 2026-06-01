@@ -1,9 +1,10 @@
-import { calcAge, calcOvr } from "../../lib/helpers";
+import { calcAge, getPlayerOvr } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
   buildStartingXIIds,
+  isPlayerExactForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
@@ -69,6 +70,22 @@ interface ResolveStartingXiIdsOptions {
   savedStartingXiIds: string[];
 }
 
+function comparePlayersForSlot(
+  leftPlayer: PlayerData,
+  rightPlayer: PlayerData,
+  slotPosition: string,
+): number {
+  return (
+    Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
+    Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
+    Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
+    Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
+    getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
+    rightPlayer.condition - leftPlayer.condition ||
+    leftPlayer.full_name.localeCompare(rightPlayer.full_name)
+  );
+}
+
 export function buildTacticsRoster(
   players: PlayerData[],
   teamId: string,
@@ -81,8 +98,7 @@ export function buildTacticsRoster(
       return (
         (POSITION_ORDER[normalisePosition(leftPlayer.position)] ?? 99) -
         (POSITION_ORDER[normalisePosition(rightPlayer.position)] ?? 99) ||
-        calcOvr(rightPlayer, rightPlayer.natural_position || rightPlayer.position) -
-        calcOvr(leftPlayer, leftPlayer.natural_position || leftPlayer.position)
+        getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
       );
     });
 }
@@ -113,10 +129,7 @@ export function resolveStartingXiIds({
     const slotPosition = slotPositions[validPendingIds.length + fillPlayerIds.length];
     const bestPlayer = availablePlayers
       .filter((player) => !usedPlayerIds.has(player.id))
-      .sort(
-        (leftPlayer, rightPlayer) =>
-          calcOvr(rightPlayer, slotPosition) - calcOvr(leftPlayer, slotPosition),
-      )[0];
+      .sort((leftPlayer, rightPlayer) => comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition))[0];
 
     if (!bestPlayer) break;
     fillPlayerIds.push(bestPlayer.id);
@@ -152,7 +165,7 @@ export function sortTacticsPlayers(
         return (
           (POSITION_ORDER[normalisePosition(leftPosition)] ?? 99) -
           (POSITION_ORDER[normalisePosition(rightPosition)] ?? 99) ||
-          calcOvr(rightPlayer, rightPosition) - calcOvr(leftPlayer, leftPosition)
+          getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer)
         );
       case "name":
         return leftPlayer.full_name.localeCompare(rightPlayer.full_name);
@@ -163,7 +176,7 @@ export function sortTacticsPlayers(
       case "morale":
         return leftPlayer.morale - rightPlayer.morale;
       case "ovr":
-        return calcOvr(leftPlayer, leftPosition) - calcOvr(rightPlayer, rightPosition);
+        return getPlayerOvr(leftPlayer) - getPlayerOvr(rightPlayer);
       default:
         return 0;
     }

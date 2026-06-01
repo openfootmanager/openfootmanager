@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { useSettingsStore } from "../../store/settingsStore";
 import {
   getRenewalStatusClassName,
   getRenewalStatusMessage,
   shouldDisableRenewalSubmit,
 } from "./PlayerProfile.renewal";
+
+const originalSettings = useSettingsStore.getState().settings;
+const originalCurrency = useSettingsStore.getState().currency;
+const originalSupportedCurrencies = useSettingsStore.getState().supportedCurrencies;
+
+beforeEach(() => {
+  useSettingsStore.setState({
+    settings: { ...originalSettings, currency: "EUR", language: "en" },
+    currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    supportedCurrencies: {
+      EUR: { code: "EUR", symbol: "€", exchange_rate: 1 },
+      GBP: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+      USD: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    },
+  });
+});
+
+afterEach(() => {
+  useSettingsStore.setState({
+    settings: originalSettings,
+    currency: originalCurrency,
+    supportedCurrencies: originalSupportedCurrencies,
+  });
+});
 
 const t = (key: string, params?: Record<string, string | number>): string => {
   if (key === "playerProfile.renewalBlocked") {
@@ -53,7 +78,7 @@ describe("PlayerProfile renewal helpers", () => {
         },
         t,
       ),
-    ).toBe("Counter 16000/4");
+    ).toBe("Counter €16,000/4");
   });
 
   it("falls back to the raw error when no translated state applies", () => {

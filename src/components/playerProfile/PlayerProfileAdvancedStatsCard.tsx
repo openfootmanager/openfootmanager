@@ -106,7 +106,7 @@ export default function PlayerProfileAdvancedStatsCard({
     t,
 }: PlayerProfileAdvancedStatsCardProps) {
     const labels = {
-        title: resolveLabel(t, "playerProfile.advancedStats", "Advanced Stats"),
+        title: t("playerProfile.advancedStats"),
         shots: resolveLabel(t, "playerProfile.shots", "Shots"),
         shotsOnTarget: resolveLabel(
             t,

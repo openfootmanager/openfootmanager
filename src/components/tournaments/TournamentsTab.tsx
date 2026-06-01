@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { GameStateData, FixtureData } from "../../store/gameStore";
+import type { ReactNode } from "react";
+import {
+  FixtureData,
+  GameStateData,
+  SeasonAwardEntryData,
+  SeasonAwardsData,
+  SeasonManagerAwardEntryData,
+} from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import {
@@ -8,6 +15,7 @@ import {
   Calendar,
   TableProperties,
   Award,
+  Briefcase,
   Star,
   Shield,
   Users,
@@ -24,22 +32,6 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-
-interface AwardEntry {
-  player_id: string;
-  player_name: string;
-  team_id: string;
-  team_name: string;
-  value: number;
-}
-interface SeasonAwards {
-  golden_boot: AwardEntry[];
-  assist_king: AwardEntry[];
-  player_of_year: AwardEntry[];
-  clean_sheet_king: AwardEntry[];
-  most_appearances: AwardEntry[];
-  young_player: AwardEntry[];
-}
 
 interface TournamentsTabProps {
   gameState: GameStateData;
@@ -61,7 +53,7 @@ export default function TournamentsTab({
     "overview" | "fixtures" | "standings" | "awards"
   >("overview");
   const [awardsBySeason, setAwardsBySeason] = useState<
-    Record<number, SeasonAwards>
+    Record<number, SeasonAwardsData>
   >({});
   const [awardsLoadState, setAwardsLoadState] = useState<
     "idle" | "loading" | "error"
@@ -78,7 +70,7 @@ export default function TournamentsTab({
     let cancelled = false;
     setAwardsLoadState("loading");
 
-    invoke<SeasonAwards>("get_season_awards")
+    invoke<SeasonAwardsData>("get_season_awards")
       .then((nextAwards) => {
         if (cancelled) {
           return;
@@ -631,6 +623,16 @@ export default function TournamentsTab({
           {awards ? (
             <>
               <AwardCard
+                icon={<Briefcase className="w-5 h-5 text-accent-500" />}
+                title={t("tournaments.awards.managerOfSeasonTitle")}
+                subtitle={t("tournaments.awards.managerOfSeasonSubtitle")}
+                entries={awards.manager_of_season}
+                unit={t("tournaments.awards.units.winRate")}
+                emptyText={t("tournaments.awards.noDataYet")}
+                decimal={false}
+                onSelectTeam={onSelectTeam}
+              />
+              <AwardCard
                 icon={<Zap className="w-5 h-5 text-accent-500" />}
                 title={t("tournaments.awards.goldenBootTitle")}
                 subtitle={t("tournaments.awards.goldenBootSubtitle")}
@@ -703,7 +705,7 @@ export default function TournamentsTab({
                 onClick={() => setAwardsRetryCount((count) => count + 1)}
                 className="px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider bg-primary-500 text-white hover:bg-primary-600 transition-colors"
               >
-                Retry
+                {t("common.retry")}
               </button>
             </div>
           ) : (
@@ -731,10 +733,10 @@ function AwardCard({
   onSelectPlayer,
   onSelectTeam,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   subtitle: string;
-  entries: AwardEntry[];
+  entries: Array<SeasonAwardEntryData | SeasonManagerAwardEntryData>;
   unit: string;
   emptyText: string;
   decimal?: boolean;
@@ -742,10 +744,10 @@ function AwardCard({
   onSelectTeam: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const buildAwardMenuItems = (entry: AwardEntry) => {
+  const buildAwardMenuItems = (entry: SeasonAwardEntryData | SeasonManagerAwardEntryData) => {
     const items = [buildViewTeamMenuItem(t, () => onSelectTeam(entry.team_id))];
 
-    if (typeof onSelectPlayer === "function") {
+    if (typeof onSelectPlayer === "function" && "player_id" in entry) {
       items.unshift(
         buildViewProfileMenuItem(t, () => onSelectPlayer(entry.player_id)),
       );
@@ -777,11 +779,11 @@ function AwardCard({
             {entries.map((entry, i) => (
               <ContextMenu
                 items={buildAwardMenuItems(entry)}
-                key={entry.player_id}
+                key={"player_id" in entry ? entry.player_id : entry.manager_id}
               >
                 <div
                   className="flex items-center px-4 py-2.5 gap-3"
-                  data-testid={`tournaments-award-entry-${entry.player_id}`}
+                  data-testid={`tournaments-award-entry-${"player_id" in entry ? entry.player_id : entry.manager_id}`}
                 >
                   <span
                     className={`font-heading font-bold text-sm w-5 text-center ${i === 0
@@ -798,7 +800,7 @@ function AwardCard({
                         : "text-gray-700 dark:text-gray-300"
                         }`}
                     >
-                      {entry.player_name}
+                      {"player_name" in entry ? entry.player_name : entry.manager_name}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {entry.team_name}
@@ -810,7 +812,7 @@ function AwardCard({
                       : "text-sm text-gray-600 dark:text-gray-400"
                       }`}
                   >
-                    {decimal ? entry.value.toFixed(2) : entry.value}
+                    {decimal ? entry.value.toFixed(2) : `${Math.round("win_rate" in entry ? entry.win_rate : entry.value)}`}
                   </span>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 w-12">
                     {unit}

@@ -294,6 +294,7 @@ fn bench_complaint_after_5_missed_matches() {
         fixtures,
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
     game.league = Some(league);
 
@@ -350,6 +351,7 @@ fn bench_complaint_not_for_gk() {
         fixtures,
         standings: vec![],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
     // GK has low morale
     game.players
@@ -395,6 +397,7 @@ fn bench_complaint_not_with_fewer_than_5_fixtures() {
         fixtures,
         standings: vec![],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
     // Set low morale so they would complain if threshold was met
     for p in &mut game.players {

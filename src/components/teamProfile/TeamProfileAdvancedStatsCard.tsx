@@ -84,7 +84,7 @@ export default function TeamProfileAdvancedStatsCard({
   t,
 }: TeamProfileAdvancedStatsCardProps) {
   const labels = {
-    title: resolveLabel(t, "teamProfile.advancedStats", "Team Stats"),
+    title: t("teamProfile.advancedStats"),
     matchesPlayed: resolveLabel(t, "teamProfile.matchesPlayed", "Matches"),
     goalsFor: resolveLabel(t, "common.gf", "GF"),
     possession: resolveLabel(t, "teamProfile.possession", "Possession"),

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
-import { getErrorMessage } from "../../utils/errorMessage";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Card, CardBody, Badge, Select, CountryFlag } from "../ui";
 import ContextMenu from "../ContextMenu";
 import {
@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import {
   getTeamName,
-  calcOvr,
   calcAge,
   formatVal,
+  getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -33,6 +33,7 @@ import {
 } from "../../services/transfersService";
 import {
   buildDividerMenuItem,
+  buildOfferFreeAgentContractMenuItem,
   buildMakeTransferBidMenuItem,
   buildScoutPlayerMenuItem,
   buildToggleLoanListMenuItem,
@@ -40,7 +41,9 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
+import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import TransferBidModal from "../transfers/TransferBidModal";
+import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 
 interface PlayersListTabProps {
@@ -92,6 +95,25 @@ export default function PlayersListTab({
     gameState,
     onGameUpdate,
   });
+  const {
+    freeAgentTarget,
+    contractWage,
+    setContractWage,
+    contractLength,
+    setContractLength,
+    contractFeedback,
+    contractProjection,
+    contractSubmitting,
+    contractSubmitDisabled,
+    contractStatusMessage,
+    contractStatusClassName,
+    openFreeAgentContract,
+    closeFreeAgentContract,
+    submitFreeAgentContract,
+  } = useFreeAgentContractFlow({
+    gameState,
+    onGameUpdate,
+  });
   const scouts = gameState.staff.filter(
     (staffMember) =>
       staffMember.role === "Scout" && staffMember.team_id === managerTeamId,
@@ -120,7 +142,7 @@ export default function PlayersListTab({
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setScoutError(getErrorMessage(error));
+      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     } finally {
       setSendingPlayerId(null);
     }
@@ -182,9 +204,7 @@ export default function PlayersListTab({
         cmp = calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
         break;
       case "ovr":
-        cmp =
-          (a.ovr ?? calcOvr(a, a.natural_position || a.position)) -
-          (b.ovr ?? calcOvr(b, b.natural_position || b.position));
+        cmp = getPlayerOvr(a) - getPlayerOvr(b);
         break;
       case "value":
         cmp = (a.market_value || 0) - (b.market_value || 0);
@@ -350,10 +370,7 @@ export default function PlayersListTab({
                 {filtered
                   .slice((page - 1) * pageSize, page * pageSize)
                   .map((player) => {
-                    const ovr = player.ovr ?? calcOvr(
-                      player,
-                      player.natural_position || player.position,
-                    );
+                    const ovr = getPlayerOvr(player);
                     const age = calcAge(player.date_of_birth);
                     const scoutState = alreadyScoutingIds.has(player.id)
                       ? "already-assigned"
@@ -400,19 +417,30 @@ export default function PlayersListTab({
                         }),
                       );
                     } else {
-                      contextItems.push(buildDividerMenuItem());
-                      if (player.team_id) {
-                        contextItems.push(
+                      const playerActions = player.team_id
+                        ? [
                           buildMakeTransferBidMenuItem(t, () => {
                             openBidNegotiation(player);
                           }),
-                        );
+                          buildScoutPlayerMenuItem(t, scoutState, () => {
+                            void handleScoutPlayer(player.id);
+                          }),
+                        ]
+                        : player.retired
+                          ? []
+                          : [
+                            buildOfferFreeAgentContractMenuItem(t, () => {
+                              openFreeAgentContract(player);
+                            }),
+                            buildScoutPlayerMenuItem(t, scoutState, () => {
+                              void handleScoutPlayer(player.id);
+                            }),
+                          ];
+
+                      if (playerActions.length > 0) {
+                        contextItems.push(buildDividerMenuItem());
+                        contextItems.push(...playerActions);
                       }
-                      contextItems.push(
-                        buildScoutPlayerMenuItem(t, scoutState, () => {
-                          void handleScoutPlayer(player.id);
-                        }),
-                      );
                     }
 
                     const row = (
@@ -452,15 +480,21 @@ export default function PlayersListTab({
                           />
                         </td>
                         <td className="py-2.5 px-4">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectTeam(player.team_id!);
-                            }}
-                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
-                          >
-                            {getTeamName(gameState.teams, player.team_id)}
-                          </button>
+                          {player.team_id ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectTeam(player.team_id!);
+                              }}
+                              className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
+                            >
+                              {getTeamName(gameState.teams, player.team_id)}
+                            </button>
+                          ) : (
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {t("common.freeAgent")}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 font-medium">
                           {formatVal(player.market_value)}
@@ -522,7 +556,6 @@ export default function PlayersListTab({
                       from: (page - 1) * pageSize + 1,
                       to: Math.min(page * pageSize, filtered.length),
                       total: filtered.length,
-                      defaultValue: `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} of ${filtered.length}`,
                     })}
                   </p>
                   <div className="flex items-center gap-1">
@@ -582,6 +615,24 @@ export default function PlayersListTab({
           bidSubmitDisabled={bidSubmitDisabled}
           onSubmit={handleMakeBid}
           onClose={closeBidNegotiation}
+        />
+      )}
+      {freeAgentTarget && (
+        <FreeAgentContractModal
+          player={freeAgentTarget}
+          teams={gameState.teams}
+          wage={contractWage}
+          onWageChange={setContractWage}
+          contractLength={contractLength}
+          onContractLengthChange={setContractLength}
+          projection={contractProjection}
+          feedback={contractFeedback}
+          statusMessage={contractStatusMessage(t)}
+          statusClassName={contractStatusClassName}
+          submitting={contractSubmitting}
+          submitDisabled={contractSubmitDisabled}
+          onSubmit={submitFreeAgentContract}
+          onClose={closeFreeAgentContract}
         />
       )}
     </div>

@@ -23,6 +23,7 @@ export default function TeamProfileRecentMatchesCard({
   const title = resolveLabel(t, "teamProfile.recentMatches", "Recent Matches");
   const possessionLabel = resolveLabel(t, "teamProfile.possession", "Possession");
   const shotsLabel = resolveLabel(t, "teamProfile.shots", "Shots");
+  const scoreLabel = t("common.score");
 
   if (matches.length === 0) {
     return null;
@@ -49,7 +50,7 @@ export default function TeamProfileRecentMatchesCard({
 
               <div className="text-center">
                 <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  Score
+                  {scoreLabel}
                 </p>
                 <p className="font-heading font-bold text-base text-gray-700 dark:text-gray-200 tabular-nums">
                   {match.goalsFor}-{match.goalsAgainst}

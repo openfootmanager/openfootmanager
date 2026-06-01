@@ -135,6 +135,7 @@ export interface PlayerData {
   full_name: string;
   date_of_birth: string;
   nationality: string;
+  football_nation?: string;
   position: string;
   natural_position: string;
   alternate_positions: string[];
@@ -166,6 +167,7 @@ export interface PlayerData {
   morale: number;
   injury: null | { name: string; days_remaining: number };
   team_id: string | null;
+  retired: boolean;
   squad_role?: PlayerSquadRole;
   contract_end: string | null;
   wage: number;
@@ -201,6 +203,7 @@ export interface StaffData {
   last_name: string;
   date_of_birth: string;
   nationality: string;
+  football_nation?: string;
   role: "AssistantManager" | "Coach" | "Scout" | "Physio";
   attributes: {
     coaching: number;
@@ -335,6 +338,23 @@ export interface ManagerCareerEntry {
   best_league_position: number | null;
 }
 
+export interface ManagerData {
+  id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  nationality: string;
+  football_nation?: string;
+  birth_country?: string | null;
+  reputation: number;
+  satisfaction: number;
+  fan_approval: number;
+  team_id: string | null;
+  warning_stage?: number;
+  career_stats: ManagerCareerStats;
+  career_history: ManagerCareerEntry[];
+}
+
 export interface FixtureData {
   id: string;
   matchday: number;
@@ -388,12 +408,31 @@ export interface StandingData {
   points: number;
 }
 
+export interface CompletedTransferData {
+  date: string;
+  from_team_id: string;
+  to_team_id: string;
+  player_id: string;
+  fee: number;
+}
+
+export interface TransferRumourData {
+  id: string;
+  date: string;
+  player_id: string;
+  player_name: string;
+  team_id: string;
+  team_name: string;
+}
+
 export interface LeagueData {
   id: string;
   name: string;
   season: number;
   fixtures: FixtureData[];
   standings: StandingData[];
+  transfer_log?: CompletedTransferData[];
+  transfer_rumours?: TransferRumourData[];
 }
 
 export type SeasonPhase = "Preseason" | "InSeason" | "PostSeason";
@@ -440,6 +479,33 @@ export interface NewsArticle {
   i18n_params?: Record<string, string>;
 }
 
+export interface SeasonAwardEntryData {
+  player_id: string;
+  player_name: string;
+  team_id: string;
+  team_name: string;
+  value: number;
+}
+
+export interface SeasonManagerAwardEntryData {
+  manager_id: string;
+  manager_name: string;
+  team_id: string;
+  team_name: string;
+  value: number;
+  win_rate: number;
+}
+
+export interface SeasonAwardsData {
+  golden_boot: SeasonAwardEntryData[];
+  assist_king: SeasonAwardEntryData[];
+  player_of_year: SeasonAwardEntryData[];
+  clean_sheet_king: SeasonAwardEntryData[];
+  most_appearances: SeasonAwardEntryData[];
+  young_player: SeasonAwardEntryData[];
+  manager_of_season: SeasonManagerAwardEntryData[];
+}
+
 export interface BoardObjective {
   id: string;
   description: string;
@@ -469,19 +535,8 @@ export interface GameStateData {
     current_date: string;
     start_date: string;
   };
-  manager: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    date_of_birth: string;
-    nationality: string;
-    reputation: number;
-    satisfaction: number;
-    fan_approval: number;
-    team_id: string | null;
-    career_stats: ManagerCareerStats;
-    career_history: ManagerCareerEntry[];
-  };
+  manager: ManagerData;
+  managers?: ManagerData[];
   teams: TeamData[];
   players: PlayerData[];
   staff: StaffData[];

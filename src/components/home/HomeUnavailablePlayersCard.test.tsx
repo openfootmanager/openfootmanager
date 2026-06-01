@@ -56,6 +56,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
       days_remaining: 6,
     },
     team_id: "team-1",
+    retired: false,
     contract_end: null,
     wage: 0,
     market_value: 0,

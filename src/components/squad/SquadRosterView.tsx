@@ -17,10 +17,10 @@ import {
 } from "lucide-react";
 import {
   calcAge,
-  calcOvr,
   formatExactMoney,
   formatWeeklyAmount,
   formatVal,
+  getPlayerOvr,
   getContractRiskBadgeVariant,
   getContractRiskLevel,
   getContractYearsRemaining,
@@ -112,8 +112,7 @@ export default function SquadRosterView({
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
         (posOrder[normalisePosition(b.position)] || 99) ||
-        (b.ovr ?? calcOvr(b, b.natural_position || b.position)) -
-        (a.ovr ?? calcOvr(a, a.natural_position || a.position)),
+        getPlayerOvr(b) - getPlayerOvr(a),
     );
 
   const playersById = useMemo(
@@ -209,19 +208,8 @@ export default function SquadRosterView({
 
       switch (sortKey) {
         case "pos": {
-          const aPosition = xiIds.has(a.id)
-            ? xiActivePosition.get(a.id) || a.position
-            : a.natural_position || a.position;
-          const bPosition = xiIds.has(b.id)
-            ? xiActivePosition.get(b.id) || b.position
-            : b.natural_position || b.position;
-
-          const aOvr = xiIds.has(a.id)
-            ? calcOvr(a, aPosition)
-            : (a.ovr ?? calcOvr(a, aPosition));
-          const bOvr = xiIds.has(b.id)
-            ? calcOvr(b, bPosition)
-            : (b.ovr ?? calcOvr(b, bPosition));
+          const aOvr = getPlayerOvr(a);
+          const bOvr = getPlayerOvr(b);
 
           return (
             (posOrder[getPos(a)] || 99) - (posOrder[getPos(b)] || 99) ||
@@ -237,12 +225,8 @@ export default function SquadRosterView({
         case "morale":
           return a.morale - b.morale;
         case "ovr": {
-          const aOvr = xiIds.has(a.id)
-            ? calcOvr(a, xiActivePosition.get(a.id) || a.position)
-            : (a.ovr ?? calcOvr(a, a.natural_position || a.position));
-          const bOvr = xiIds.has(b.id)
-            ? calcOvr(b, xiActivePosition.get(b.id) || b.position)
-            : (b.ovr ?? calcOvr(b, b.natural_position || b.position));
+          const aOvr = getPlayerOvr(a);
+          const bOvr = getPlayerOvr(b);
 
           return aOvr - bOvr;
         }
@@ -453,11 +437,7 @@ export default function SquadRosterView({
                 const currentPos = inXI
                   ? xiActivePosition.get(player.id) || player.position
                   : player.natural_position || player.position;
-                // For XI players show position-specific OVR (includes out-of-position penalty).
-                // For bench/non-XI players use the backend natural-position OVR.
-                const ovr = inXI
-                  ? calcOvr(player, currentPos)
-                  : (player.ovr ?? calcOvr(player, currentPos));
+                const ovr = getPlayerOvr(player);
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const contractRiskLevel = getContractRiskLevel(

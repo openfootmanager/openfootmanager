@@ -4,10 +4,13 @@ import type { PlayerData, TransferOfferData } from "../../store/gameStore";
 import {
   buildResumedBidFeedback,
   buildResumedCounterFeedback,
+  formatTransferFeeInput,
   getOutgoingNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
+  normalizeTransferNegotiationFeedback,
+  parseTransferFeeInput,
 } from "./TransfersTab.helpers";
 
 function createOffer(
@@ -65,6 +68,7 @@ function createPlayer(
     morale: 70,
     injury: null,
     team_id: "team-1",
+    retired: false,
     contract_end: "2028-06-30",
     wage: 1000,
     market_value: 1000000,
@@ -110,7 +114,7 @@ describe("TransfersTab.helpers", () => {
     expect(feedback).toMatchObject({
       mood: "tense",
       round: 3,
-      params: { fee: "1800000" },
+      params: { fee: "€1,800,000" },
     });
   });
 
@@ -122,7 +126,29 @@ describe("TransfersTab.helpers", () => {
     expect(feedback).toMatchObject({
       mood: "firm",
       round: 2,
-      params: { fee: "1400000" },
+      params: { fee: "€1,400,000" },
+    });
+  });
+
+  it("formats and parses transfer fee input as exact money units", () => {
+    expect(formatTransferFeeInput(691920)).toBe("691920");
+    expect(parseTransferFeeInput("691920")).toBe(691920);
+    expect(parseTransferFeeInput("€691,920")).toBe(691920);
+  });
+
+  it("normalizes transfer feedback fee params for display", () => {
+    expect(
+      normalizeTransferNegotiationFeedback({
+        mood: "firm",
+        headline_key: "headline",
+        detail_key: "detail",
+        tension: 40,
+        patience: 60,
+        round: 1,
+        params: { fee: "691920" },
+      }),
+    ).toMatchObject({
+      params: { fee: "€691,920" },
     });
   });
 

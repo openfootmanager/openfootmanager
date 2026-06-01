@@ -9,3 +9,4 @@ pub mod season;
 pub mod staff;
 pub mod stats;
 pub mod team;
+pub mod world_history;

@@ -28,55 +28,21 @@ fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> Me
 
 pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     let mut rng = rand::rng();
-    let variations = [
-        (
-            format!("Welcome to {}", team_name),
-            format!(
-                "The board of directors at {} is delighted to welcome you as the new manager.\n\n\
-                We have high hopes for your tenure and believe you can lead this club to glory. \
-                Your first task will be to review the squad and prepare a tactical plan for the upcoming season.\n\n\
-                We wish you the best of luck.",
-                team_name
-            ),
-        ),
-        (
-            format!("New Era at {}", team_name),
-            format!(
-                "On behalf of the entire {} family, we are thrilled to announce your appointment as manager.\n\n\
-                The fans are eager to see your vision for the team. Please take time to assess the squad, \
-                review our financial position, and set your tactical approach.\n\n\
-                The board stands behind you.",
-                team_name
-            ),
-        ),
-        (
-            format!("{} Awaits Your Leadership", team_name),
-            format!(
-                "Welcome to {}! The supporters and staff are excited about the future under your guidance.\n\n\
-                We recommend you start by reviewing your squad's strengths and weaknesses, \
-                then set up your preferred formation and training regime.\n\n\
-                The upcoming season will be a true test — make us proud.",
-                team_name
-            ),
-        ),
-    ];
-
-    let idx = rng.random_range(0..variations.len());
-    let (subject, body) = &variations[idx];
+    let idx = rng.random_range(0..3);
 
     InboxMessage::new(
         "welcome_1".to_string(),
-        subject.clone(),
-        body.clone(),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Welcome)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_action(action(
         "review_squad",
-        "Review Squad",
+        "",
         "be.msg.welcome.actionReview",
         ActionType::NavigateTo {
             route: "/dashboard?tab=Squad".to_string(),
@@ -84,7 +50,7 @@ pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessa
     ))
     .with_action(action(
         "ack_welcome",
-        "Thank the Board",
+        "",
         "be.msg.welcome.actionThank",
         ActionType::Acknowledge,
     ))
@@ -102,36 +68,21 @@ pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessa
 
 pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str) -> InboxMessage {
     let mut rng = rand::rng();
-    let variations = [
-        format!(
-            "The {} schedule has been released. The season kicks off on {}.\n\n\
-            Review the fixture list and ensure your squad is ready for the challenges ahead. \
-            Pre-season preparation will be crucial.",
-            league_name, season_start
-        ),
-        format!(
-            "Fixture list confirmed! The {} season begins on {}.\n\n\
-            Study the opening fixtures carefully — a strong start can set the tone for the whole campaign. \
-            Make sure your key players are match-fit.",
-            league_name, season_start
-        ),
-    ];
-
-    let idx = rng.random_range(0..variations.len());
+    let idx = rng.random_range(0..2);
 
     InboxMessage::new(
         "season_1".to_string(),
-        "Season Schedule Released".to_string(),
-        variations[idx].clone(),
-        "League Office".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::LeagueInfo)
     .with_priority(MessagePriority::Normal)
-    .with_sender_role("Competition Secretary")
+    .with_sender_role("")
     .with_action(action(
         "view_schedule",
-        "View Fixtures",
+        "",
         "be.msg.schedule.actionView",
         ActionType::NavigateTo {
             route: "/dashboard?tab=Schedule".to_string(),
@@ -148,24 +99,22 @@ pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str
 pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     InboxMessage::new(
         "staff_advice_1".to_string(),
-        "Staff Report — Coaching Vacancies".to_string(),
-        format!(
-            "Boss, I've had a look at the staff situation at {} and wanted to flag a few things:\n\n\
-            • A good **Coach** will significantly improve training effectiveness — your players will develop faster.\n\
-            • A qualified **Physio** helps with injury prevention and speeds up recovery between matches.\n\
-            • Our **Scouts** can help identify transfer targets and assess opponents.\n\n\
-            I'd strongly recommend filling any vacancies before the season starts. \
-            You can find available staff in the Staff section.\n\n\
-            Check it out when you get a chance.",
-            team_name
-        ),
-        "Assistant Manager".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Training)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Assistant Manager")
-    .with_action(action("view_staff", "View Staff", "be.msg.staffAdvice.actionView", ActionType::NavigateTo { route: "/dashboard?tab=Staff".to_string() }))
+    .with_sender_role("")
+    .with_action(action(
+        "view_staff",
+        "",
+        "be.msg.staffAdvice.actionView",
+        ActionType::NavigateTo {
+            route: "/dashboard?tab=Staff".to_string(),
+        },
+    ))
     .with_context(MessageContext {
         team_id: Some(team_id.to_string()),
         ..Default::default()
@@ -181,24 +130,17 @@ pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> Inbox
 pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     InboxMessage::new(
         "board_expect_1".to_string(),
-        format!("{} — Season Objectives", team_name),
-        "The board has set the following expectations for this season:\n\n\
-            • Finish in the top half of the table\n\
-            • Maintain financial stability\n\
-            • Develop young talent from the academy\n\n\
-            Meeting these objectives will strengthen your position. Failure to meet minimum \
-            expectations may result in a review of your tenure.\n\n\
-            We trust in your abilities."
-            .to_string(),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_action(action(
         "ack_objectives",
-        "Accept Objectives",
+        "",
         "be.msg.boardExpect.actionAccept",
         ActionType::Acknowledge,
     ))
@@ -215,29 +157,30 @@ pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) ->
 }
 
 pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> InboxMessage {
-    let fee_display = if fee >= 1_000_000 {
-        format!("€{:.1}M", fee as f64 / 1_000_000.0)
-    } else if fee >= 1_000 {
-        format!("€{}K", fee / 1_000)
-    } else {
-        format!("€{}", fee)
-    };
+    let fee_display =
+        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
+            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
 
     let id = format!("transfer_{}", uuid::Uuid::new_v4());
     InboxMessage::new(
         id,
-        format!("Transfer Complete: {}", player_name),
-        format!(
-            "The transfer of {} has been completed for a fee of {}.\n\n\
-            The player has joined the squad and is available for selection.",
-            player_name, fee_display
-        ),
-        "Transfer Committee".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Transfer)
     .with_priority(MessagePriority::Normal)
-    .with_sender_role("Director of Football")
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.transferComplete.subject",
+        "be.msg.transferComplete.body",
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("fee".to_string(), fee_display),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }
 
 pub fn incoming_transfer_offer_message(
@@ -248,30 +191,23 @@ pub fn incoming_transfer_offer_message(
     fee: u64,
     date: &str,
 ) -> InboxMessage {
-    let fee_display = if fee >= 1_000_000 {
-        format!("€{:.1}M", fee as f64 / 1_000_000.0)
-    } else if fee >= 1_000 {
-        format!("€{}K", fee / 1_000)
-    } else {
-        format!("€{}", fee)
-    };
+    let fee_display =
+        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
+            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
 
     InboxMessage::new(
         format!("transfer_offer_{}", offer_id),
-        format!("Incoming Offer for {}", player_name),
-        format!(
-            "{} have submitted an offer of {} for {}. Review the bid in the Transfers tab to accept or reject it.",
-            buying_team_name, fee_display, player_name
-        ),
-        "Director of Football".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Transfer)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Director of Football")
+    .with_sender_role("")
     .with_action(action(
         "view_transfers",
-        "Review Offer",
+        "",
         "be.msg.transferOffer.actionReview",
         ActionType::NavigateTo {
             route: "/dashboard?tab=Transfers".to_string(),
@@ -281,4 +217,14 @@ pub fn incoming_transfer_offer_message(
         player_id: Some(player_id.to_string()),
         ..Default::default()
     })
+    .with_i18n(
+        "be.msg.transferOffer.subject",
+        "be.msg.transferOffer.body",
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("team".to_string(), buying_team_name.to_string()),
+            ("fee".to_string(), fee_display),
+        ]),
+    )
+    .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
 }

@@ -1,24 +1,37 @@
-import HomeTab from "../home/HomeTab";
-import SquadTab from "../squad/SquadTab";
-import TacticsTab from "../tactics/TacticsTab";
-import TrainingTab from "../training/TrainingTab";
-import ScheduleTab from "../schedule/ScheduleTab";
-import FinancesTab from "../finances/FinancesTab";
-import TransfersTab from "../transfers/TransfersTab";
-import PlayersListTab from "../players/PlayersListTab";
-import TeamsListTab from "../teams/TeamsListTab";
-import TournamentsTab from "../tournaments/TournamentsTab";
-import ScoutingTab from "../scouting/ScoutingTab";
-import YouthAcademyTab from "../youthAcademy/YouthAcademyTab";
-import StaffTab from "../staff/StaffTab";
-import InboxTab from "../inbox/InboxTab";
-import ManagerTab from "../manager/ManagerTab";
-import NewsTab from "../news/NewsTab";
+import { lazy, Suspense } from "react";
 import EndOfSeasonScreen from "../EndOfSeasonScreen";
+import HomeTab from "../home/HomeTab";
 import type { DashboardTabContentModel } from "./dashboardTabContentModel";
+
+const SquadTab = lazy(() => import("../squad/SquadTab"));
+const TacticsTab = lazy(() => import("../tactics/TacticsTab"));
+const TrainingTab = lazy(() => import("../training/TrainingTab"));
+const ScheduleTab = lazy(() => import("../schedule/ScheduleTab"));
+const FinancesTab = lazy(() => import("../finances/FinancesTab"));
+const TransfersTab = lazy(() => import("../transfers/TransfersTab"));
+const TransferCentreWorldTab = lazy(() => import("../transfers/TransferCentreWorldTab"));
+const HallOfFameWorldTab = lazy(() => import("../hallOfFame/HallOfFameWorldTab"));
+const PlayersListTab = lazy(() => import("../players/PlayersListTab"));
+const ManagersWorldTab = lazy(() => import("../manager/ManagersWorldTab"));
+const TeamsListTab = lazy(() => import("../teams/TeamsListTab"));
+const TournamentsTab = lazy(() => import("../tournaments/TournamentsTab"));
+const ScoutingTab = lazy(() => import("../scouting/ScoutingTab"));
+const YouthAcademyTab = lazy(() => import("../youthAcademy/YouthAcademyTab"));
+const StaffTab = lazy(() => import("../staff/StaffTab"));
+const InboxTab = lazy(() => import("../inbox/InboxTab"));
+const ManagerTab = lazy(() => import("../manager/ManagerTab"));
+const NewsTab = lazy(() => import("../news/NewsTab"));
 
 interface DashboardTabContentProps {
   viewModel: DashboardTabContentModel;
+}
+
+function DashboardTabFallback() {
+  return (
+    <div className="flex min-h-48 items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+    </div>
+  );
 }
 
 export default function DashboardTabContent({
@@ -39,127 +52,147 @@ export default function DashboardTabContent({
     },
   } = viewModel;
 
-  return (
-    <>
-      {/* End-of-season screen when all fixtures are complete */}
-      {seasonComplete && activeTab === "Home" && (
+  const renderHomeContent = () => {
+    if (seasonComplete) {
+      return (
         <EndOfSeasonScreen gameState={gameState} onGameUpdate={onGameUpdate} />
-      )}
+      );
+    }
 
-      {activeTab === "Home" && !seasonComplete && (
-        <HomeTab
-          gameState={gameState}
-          onNavigate={onNavigate}
-          onGameUpdate={onGameUpdate}
-          visitedOnboardingTabs={visitedOnboardingTabs}
-        />
-      )}
+    return (
+      <HomeTab
+        gameState={gameState}
+        onNavigate={onNavigate}
+        onGameUpdate={onGameUpdate}
+        visitedOnboardingTabs={visitedOnboardingTabs}
+      />
+    );
+  };
 
-      {activeTab === "Squad" && (
-        <SquadTab
-          gameState={gameState}
-          managerId={managerId}
-          onSelectPlayer={onSelectPlayer}
-          onGameUpdate={onGameUpdate}
-        />
-      )}
+  let content = null;
 
-      {activeTab === "Tactics" && (
-        <TacticsTab
-          gameState={gameState}
-          onSelectPlayer={onSelectPlayer}
-          onGameUpdate={onGameUpdate}
-        />
-      )}
+  if (seasonComplete && activeTab === "Home") {
+    content = renderHomeContent();
+  } else if (activeTab === "Home") {
+    content = renderHomeContent();
+  } else if (activeTab === "Squad") {
+    content = (
+      <SquadTab
+        gameState={gameState}
+        managerId={managerId}
+        onSelectPlayer={onSelectPlayer}
+        onGameUpdate={onGameUpdate}
+      />
+    );
+  } else if (activeTab === "Tactics") {
+    content = (
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onGameUpdate={onGameUpdate}
+      />
+    );
+  } else if (activeTab === "Training") {
+    content = <TrainingTab gameState={gameState} onGameUpdate={onGameUpdate} />;
+  } else if (activeTab === "Schedule") {
+    content = <ScheduleTab gameState={gameState} onSelectTeam={onSelectTeam} />;
+  } else if (activeTab === "Finances") {
+    content = (
+      <FinancesTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+      />
+    );
+  } else if (activeTab === "Transfers") {
+    content = (
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+        onGameUpdate={onGameUpdate}
+      />
+    );
+  } else if (activeTab === "TransferCentre") {
+    content = (
+      <TransferCentreWorldTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "HallOfFame") {
+    content = (
+      <HallOfFameWorldTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "Players") {
+    content = (
+      <PlayersListTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "Managers") {
+    content = (
+      <ManagersWorldTab
+        gameState={gameState}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "Teams") {
+    content = <TeamsListTab gameState={gameState} onSelectTeam={onSelectTeam} />;
+  } else if (activeTab === "Tournaments") {
+    content = (
+      <TournamentsTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "Staff") {
+    content = <StaffTab gameState={gameState} onGameUpdate={onGameUpdate} />;
+  } else if (activeTab === "Scouting") {
+    content = (
+      <ScoutingTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />
+    );
+  } else if (activeTab === "Youth") {
+    content = (
+      <YouthAcademyTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+      />
+    );
+  } else if (activeTab === "Inbox") {
+    content = (
+      <InboxTab
+        gameState={gameState}
+        onGameUpdate={onGameUpdate}
+        initialMessageId={initialMessageId}
+        onNavigate={onNavigate}
+      />
+    );
+  } else if (activeTab === "Manager") {
+    content = <ManagerTab gameState={gameState} onSelectTeam={onSelectTeam} />;
+  } else if (activeTab === "News") {
+    content = <NewsTab gameState={gameState} onSelectTeam={onSelectTeam} />;
+  } else {
+    console.warn("DashboardTabContent received unexpected activeTab", activeTab);
+    content = renderHomeContent();
+  }
 
-      {activeTab === "Training" && (
-        <TrainingTab gameState={gameState} onGameUpdate={onGameUpdate} />
-      )}
-
-      {activeTab === "Schedule" && (
-        <ScheduleTab gameState={gameState} onSelectTeam={onSelectTeam} />
-      )}
-
-      {activeTab === "Finances" && (
-        <FinancesTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          onSelectPlayer={onSelectPlayer}
-        />
-      )}
-
-      {activeTab === "Transfers" && (
-        <TransfersTab
-          gameState={gameState}
-          onSelectPlayer={onSelectPlayer}
-          onSelectTeam={onSelectTeam}
-          onGameUpdate={onGameUpdate}
-        />
-      )}
-
-      {activeTab === "Players" && (
-        <PlayersListTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          onSelectPlayer={onSelectPlayer}
-          onSelectTeam={onSelectTeam}
-        />
-      )}
-
-      {activeTab === "Teams" && (
-        <TeamsListTab gameState={gameState} onSelectTeam={onSelectTeam} />
-      )}
-
-      {activeTab === "Tournaments" && (
-        <TournamentsTab
-          gameState={gameState}
-          onSelectPlayer={onSelectPlayer}
-          onSelectTeam={onSelectTeam}
-        />
-      )}
-
-      {activeTab === "Staff" && (
-        <StaffTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          onNavigate={onNavigate}
-        />
-      )}
-
-      {activeTab === "Scouting" && (
-        <ScoutingTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          onSelectPlayer={onSelectPlayer}
-          onSelectTeam={onSelectTeam}
-        />
-      )}
-
-      {activeTab === "Youth" && (
-        <YouthAcademyTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          onSelectPlayer={onSelectPlayer}
-          onNavigate={onNavigate}
-        />
-      )}
-
-      {activeTab === "Inbox" && (
-        <InboxTab
-          gameState={gameState}
-          onGameUpdate={onGameUpdate}
-          initialMessageId={initialMessageId}
-          onNavigate={onNavigate}
-        />
-      )}
-
-      {activeTab === "Manager" && (
-        <ManagerTab gameState={gameState} onSelectTeam={onSelectTeam} />
-      )}
-
-      {activeTab === "News" && (
-        <NewsTab gameState={gameState} onSelectTeam={onSelectTeam} />
-      )}
-    </>
+  return (
+    <Suspense fallback={<DashboardTabFallback />}>{content}</Suspense>
   );
 }

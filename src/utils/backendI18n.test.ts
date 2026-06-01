@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import i18n from "../i18n";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import i18n, { i18nReady } from "../i18n";
+import { useSettingsStore } from "../store/settingsStore";
 import {
   resolveBackendText,
   resolveBackendError,
@@ -15,13 +16,36 @@ import type {
   BoardObjective,
 } from "../store/gameStore";
 
+const originalSettings = useSettingsStore.getState().settings;
+const originalCurrency = useSettingsStore.getState().currency;
+const originalSupportedCurrencies = useSettingsStore.getState().supportedCurrencies;
+
+beforeEach(() => {
+  useSettingsStore.setState({
+    settings: { ...originalSettings, currency: "EUR", language: "en" },
+    currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    supportedCurrencies: {
+      EUR: { code: "EUR", symbol: "€", exchange_rate: 1 },
+      GBP: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+      USD: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    },
+  });
+});
+
+afterEach(() => {
+  useSettingsStore.setState({
+    settings: originalSettings,
+    currency: originalCurrency,
+    supportedCurrencies: originalSupportedCurrencies,
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Bootstrap i18n with a test key so we can verify resolution works
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  // Ensure i18n is initialized (it auto-inits on import) then add test keys
-  await i18n.init; // no-op if already initialised
+  await i18nReady;
   i18n.addResourceBundle("en", "translation", {
     "test.subject": "Resolved Subject",
     "test.body": "Hello {{name}}, welcome!",
@@ -140,7 +164,7 @@ describe("resolveAction", () => {
             options: {
               accept: {
                 label: "Accept the deal",
-                description: "Receive €{{amount}} in sponsorship income.",
+                description: "Receive {{amount}} in sponsorship income.",
               },
             },
           },
@@ -180,8 +204,96 @@ describe("resolveAction", () => {
 
     expect(actionType.ChooseOption.options[0].label).toBe("Accept the deal");
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive €250000 in sponsorship income.",
+      "Receive €250,000 in sponsorship income.",
     );
+  });
+
+  it("converts backend money params inside action descriptions to the selected currency", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+      currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+    });
+
+    i18n.addResourceBundle("en", "translation", {
+      be: {
+        msg: {
+          sponsor: {
+            options: {
+              accept: {
+                label: "Accept the deal",
+                description: "Receive {{amount}} in sponsorship income.",
+              },
+            },
+          },
+        },
+      },
+    }, true, true);
+
+    const result = resolveMessage(makeMessage({
+      id: "sponsor_2026-08-01",
+      i18n_params: { amount: "250000" },
+      actions: [
+        makeAction({
+          id: "respond",
+          label: "Respond",
+          action_type: {
+            ChooseOption: {
+              options: [
+                {
+                  id: "accept",
+                  label: "fallback option",
+                  description: "fallback description",
+                  label_key: "be.msg.sponsor.options.accept.label",
+                  description_key: "be.msg.sponsor.options.accept.description",
+                },
+              ],
+            },
+          },
+        }),
+      ],
+    }));
+
+    const actionType = result.actions[0].action_type;
+
+    if (typeof actionType !== "object" || !("ChooseOption" in actionType)) {
+      throw new Error("Expected ChooseOption action type");
+    }
+
+    expect(actionType.ChooseOption.options[0].description).toBe(
+      "Receive £215,000 in sponsorship income.",
+    );
+  });
+
+  it("does not re-normalize already formatted compact money params from resolveMessage", async () => {
+    const previousLanguage = i18n.language;
+    const previousSettings = useSettingsStore.getState().settings;
+    await i18n.changeLanguage("de");
+    useSettingsStore.setState({
+      settings: { ...previousSettings, language: "de" },
+    });
+
+    i18n.addResourceBundle("de", "translation", {
+      "test.compactActionLabel": "Akzeptiere {{amount}}",
+    }, true, true);
+
+    try {
+      const result = resolveMessage(makeMessage({
+        id: "compact_money_message",
+        i18n_params: { amount: "€1.8M" },
+        actions: [
+          makeAction({
+            id: "accept",
+            label: "fallback option",
+            label_key: "test.compactActionLabel",
+          }),
+        ],
+      }));
+
+      expect(result.actions[0].label).toBe("Akzeptiere €1,8M");
+    } finally {
+      useSettingsStore.setState({ settings: previousSettings });
+      await i18n.changeLanguage(previousLanguage);
+    }
   });
 
   it("keeps raw label when label_key is absent", () => {
@@ -304,10 +416,10 @@ describe("resolveMessage", () => {
         "Chefe, revisei nossa lista de renovações no Lisbon Sporting. 4 concluídas, 2 ainda pendentes e 1 falhas.",
       );
       expect(result.body).toContain(
-        "Concluída: Claes aceitou 1 ano(s) por €5000/semana.",
+        "Concluída: Claes aceitou 1 ano(s) por €5,000/semana.",
       );
       expect(result.body).toContain(
-        "Continua difícil: Vieira — O estafe deles quer cerca de €25000/semana por 3 anos, acima dos limites da delegação.",
+        "Continua difícil: Vieira — O estafe deles quer cerca de €25,000/semana por 3 anos, acima dos limites da delegação.",
       );
       expect(result.body).toContain(
         "Falhou: Fernandes — Você me disse para ainda não reabrir as conversas contratuais.",
@@ -368,6 +480,32 @@ describe("resolveMessage", () => {
     expect(result.id).toBe("msg_99");
     expect(result.read).toBe(true);
     expect(result.category).toBe("transfer");
+  });
+
+  it("localizes football nationality params inside translated inbox messages", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const msg = makeMessage({
+        subject: "raw",
+        subject_key: "be.msg.intlCallup.subject",
+        body: "raw",
+        body_key: "be.msg.intlCallup.body",
+        i18n_params: {
+          player: "King",
+          nationality: "ENG",
+        },
+      });
+
+      const result = resolveMessage(msg);
+
+      expect(result.subject).toBe("Convocação Internacional — King");
+      expect(result.body).toContain("seleção Inglaterra");
+      expect(result.body).not.toContain("ENG");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
   });
 });
 
@@ -457,6 +595,44 @@ describe("resolveNewsArticle", () => {
     }
   });
 
+  it("converts transfer roundup fees to the selected currency", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("en");
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+      currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+    });
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Transfer Roundup — Week of 2026-07-27",
+        headline_key: "be.news.transferRoundup.headline",
+        body: "The transfer market stayed busy this week.",
+        body_key: "be.news.transferRoundup.body",
+        source: "Transfer Intelligence",
+        source_key: "be.source.transferIntelligence",
+        i18n_params: {
+          weekStart: "2026-07-27",
+          transferCount: "1",
+          dealsData: JSON.stringify([
+            {
+              player: "Adam Smith",
+              fromTeam: "Alpha FC",
+              toTeam: "Beta FC",
+              fee: "€1.8M",
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.5M)");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("localizes friendly match report scorer sections through backend keys", async () => {
     const previousLanguage = i18n.language;
     await i18n.changeLanguage("pt-BR");
@@ -491,6 +667,94 @@ describe("resolveNewsArticle", () => {
       expect(result.body).toContain("No amistoso, Alpha FC 2 - 1 Beta FC.");
       expect(result.body).toContain("Gols: Alice (10', Alpha FC)");
       expect(result.source).toBe("Gazeta Esportiva");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes league match report scorers from structured scorer data", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "Alpha FC 2 - 1 Beta FC: Hosts Triumph",
+        headline_key: "be.news.matchReport.headline.homeWin.0",
+        body: "In Matchday 5 action, the match ended Alpha FC 2 - 1 Beta FC. The result could have implications on the league standings as the season progresses.\n\nGoals: Alice (10', Alpha FC), Bob (75', Beta FC)",
+        body_key: "be.news.matchReport.body0",
+        source: "Sports Gazette",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "2",
+          awayGoals: "1",
+          matchday: "5",
+          scorers: "",
+          scorersData: JSON.stringify([
+            {
+              player: "Alice",
+              minute: 10,
+              team: "Alpha FC",
+            },
+            {
+              player: "Bob",
+              minute: 75,
+              team: "Beta FC",
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.body).toContain("Na ação da Rodada 5");
+      expect(result.body).toContain("Gols: Alice (10', Alpha FC), Bob (75', Beta FC)");
+      expect(result.source).toBe("Gazeta Esportiva");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("localizes press conference articles from stored quote metadata", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("pt-BR");
+
+    try {
+      const article = makeNewsArticle({
+        headline: '',
+        headline_key: 'be.news.pressConference.headlinePressConf',
+        body: '',
+        body_key: 'be.news.pressConference.bodyMultiple',
+        source: '',
+        source_key: 'be.source.sportsDaily',
+        i18n_params: {
+          team: 'Madrid Real',
+          result: 'Madrid Real 7 - 1 Rome Gladiators',
+          quotesData: JSON.stringify([
+            {
+              key: 'match.press.result.responses.win.humble.text',
+              fallback: 'The players worked hard. We prepared well and executed the game plan.',
+              params: {},
+            },
+            {
+              key: 'match.press.ahead.responses.focused.text',
+              fallback: 'First recovery, then preparation. We go one game at a time.',
+              params: {},
+            },
+          ]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe(
+        'Coletiva de Imprensa: "Os jogadores trabalharam duro. Nos preparamos bem e executamos o plano de jogo." — técnico do Madrid Real',
+      );
+      expect(result.body).toContain('Após o resultado Madrid Real 7 - 1 Rome Gladiators, o técnico do Madrid Real falou com a imprensa.');
+      expect(result.body).toContain('• "Os jogadores trabalharam duro. Nos preparamos bem e executamos o plano de jogo."');
+      expect(result.body).toContain('• "Primeiro recuperação, depois preparação. Vamos jogo a jogo."');
+      expect(result.source).toBe('Diário Esportivo');
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -693,6 +957,19 @@ describe("resolveBackendText", () => {
 
     expect(result).toBe("Morale +3");
   });
+
+  it("resolves backend text keys with encoded params", () => {
+    i18n.addResourceBundle("en", "translation", {
+      "be.msg.world.exportedDescription": "World with {{teamCount}} teams exported from saved game",
+    }, true, true);
+
+    const result = resolveBackendText(
+      "be.msg.world.exportedDescription?teamCount=18",
+      "fallback",
+    );
+
+    expect(result).toBe("World with 18 teams exported from saved game");
+  });
 });
 
 describe("resolveBackendError", () => {
@@ -710,5 +987,29 @@ describe("resolveBackendError", () => {
     expect(resolveBackendError(new Error("Something raw happened"))).toBe(
       "Something raw happened",
     );
+  });
+
+  it("resolves encoded backend error params", () => {
+    i18n.addResourceBundle("en", "translation", {
+      "be.error.contracts.boardWagePolicy": "Renewal blocked by board wage policy. Keep annual wages near {{budget}} to recover.",
+    }, true, true);
+
+    expect(resolveBackendError("be.error.contracts.boardWagePolicy?budget=200000")).toBe(
+      "Renewal blocked by board wage policy. Keep annual wages near €200,000 to recover.",
+    );
+  });
+
+  it("normalizes non-euro money params into the active currency", () => {
+    i18n.addResourceBundle("en", "translation", {
+      "be.error.finance.facilityUpgradeInsufficientFunds": "Insufficient funds for this facility upgrade. Need {{amount}}.",
+    }, true, true);
+    useSettingsStore.setState({
+      settings: { ...originalSettings, currency: "USD", language: "en" },
+      currency: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    });
+
+    expect(
+      resolveBackendError("be.error.finance.facilityUpgradeInsufficientFunds?amount=%C2%A3215000"),
+    ).toBe("Insufficient funds for this facility upgrade. Need $270,000.");
   });
 });

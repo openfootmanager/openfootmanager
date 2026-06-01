@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import { getErrorMessage } from "../../utils/errorMessage";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   Card,
   CardBody,
@@ -30,7 +30,9 @@ import ScoutingOverviewCards from "./ScoutingOverviewCards";
 import ScoutingScoutDetailsCard from "./ScoutingScoutDetailsCard";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
 import ScoutingYouthRecruitmentCard from "./ScoutingYouthRecruitmentCard";
+import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import TransferBidModal from "../transfers/TransferBidModal";
+import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 
 interface ScoutingTabProps {
@@ -77,6 +79,25 @@ export default function ScoutingTab({
     closeBidNegotiation,
     handleMakeBid,
   } = useTransferBidFlow({
+    gameState,
+    onGameUpdate,
+  });
+  const {
+    freeAgentTarget,
+    contractWage,
+    setContractWage,
+    contractLength,
+    setContractLength,
+    contractFeedback,
+    contractProjection,
+    contractSubmitting,
+    contractSubmitDisabled,
+    contractStatusMessage,
+    contractStatusClassName,
+    openFreeAgentContract,
+    closeFreeAgentContract,
+    submitFreeAgentContract,
+  } = useFreeAgentContractFlow({
     gameState,
     onGameUpdate,
   });
@@ -127,7 +148,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to send scout:", err);
-      setPlayerSearchError(getErrorMessage(err));
+      setPlayerSearchError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
     } finally {
       setSending(null);
     }
@@ -148,7 +169,7 @@ export default function ScoutingTab({
       setSelectedYouthScoutId("");
     } catch (err) {
       console.error("Failed to start youth scouting:", err);
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
     } finally {
       setStartingYouthSearch(false);
     }
@@ -161,7 +182,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to cancel youth scouting:", err);
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
     }
   };
 
@@ -175,7 +196,7 @@ export default function ScoutingTab({
       onGameUpdate(updated);
     } catch (err) {
       console.error("Failed to reassign youth scouting:", err);
-      setYouthSearchError(String(err));
+      setYouthSearchError(resolveTranslatedErrorMessage(err, t));
     }
   };
 
@@ -284,6 +305,7 @@ export default function ScoutingTab({
             setPage(0);
           }}
           onBidPlayer={openBidNegotiation}
+          onOfferFreeAgent={openFreeAgentContract}
           onSelectPlayer={onSelectPlayer}
           onSelectTeam={onSelectTeam}
           onSendScout={handleSendScout}
@@ -310,6 +332,24 @@ export default function ScoutingTab({
           bidSubmitDisabled={bidSubmitDisabled}
           onSubmit={handleMakeBid}
           onClose={closeBidNegotiation}
+        />
+      )}
+      {freeAgentTarget && (
+        <FreeAgentContractModal
+          player={freeAgentTarget}
+          teams={gameState.teams}
+          wage={contractWage}
+          onWageChange={setContractWage}
+          contractLength={contractLength}
+          onContractLengthChange={setContractLength}
+          projection={contractProjection}
+          feedback={contractFeedback}
+          statusMessage={contractStatusMessage(t)}
+          statusClassName={contractStatusClassName}
+          submitting={contractSubmitting}
+          submitDisabled={contractSubmitDisabled}
+          onSubmit={submitFreeAgentContract}
+          onClose={closeFreeAgentContract}
         />
       )}
     </div>

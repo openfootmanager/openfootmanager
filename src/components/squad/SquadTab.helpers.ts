@@ -1,5 +1,5 @@
 import type { PlayerData } from "../../store/gameStore";
-import { calcOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
 
 export type SquadSection = "xi" | "bench";
 export type DragState = {
@@ -328,6 +328,22 @@ export function getPitchSlotWidth(slotCount: number): number {
   return 82;
 }
 
+function comparePlayersForSlot(
+  leftPlayer: PlayerData,
+  rightPlayer: PlayerData,
+  slotPosition: string,
+): number {
+  return (
+    Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
+    Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
+    Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
+    Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
+    getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
+    rightPlayer.condition - leftPlayer.condition ||
+    leftPlayer.full_name.localeCompare(rightPlayer.full_name)
+  );
+}
+
 export function buildStartingXIIds(
   available: PlayerData[],
   savedIds: string[],
@@ -352,9 +368,7 @@ export function buildStartingXIIds(
     while (xi.length < 11) {
       const slotPosition = slotPositions[xi.length];
       const candidates = available.filter((player) => !used.has(player.id));
-      const bestPlayer = candidates.sort(
-        (a, b) => calcOvr(b, slotPosition) - calcOvr(a, slotPosition),
-      )[0];
+      const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
 
       if (!bestPlayer) break;
       xi.push(bestPlayer.id);
@@ -366,9 +380,7 @@ export function buildStartingXIIds(
   const xi: string[] = [];
   slotPositions.slice(0, 11).forEach((slotPosition) => {
     const candidates = available.filter((player) => !used.has(player.id));
-    const bestPlayer = candidates.sort(
-      (a, b) => calcOvr(b, slotPosition) - calcOvr(a, slotPosition),
-    )[0];
+    const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
 
     if (bestPlayer) {
       xi.push(bestPlayer.id);
@@ -424,6 +436,13 @@ export function isPlayerOutOfPosition(
       position === canonicalCurrentPos ||
       normalisePosition(position) === normalizedCurrentPos,
   );
+}
+
+export function isPlayerExactForSlot(
+  player: PlayerData,
+  currentPos: string,
+): boolean {
+  return canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos);
 }
 
 export function applyLineupDrop(

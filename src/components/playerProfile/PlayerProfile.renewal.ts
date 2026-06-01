@@ -1,4 +1,5 @@
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
+import { formatExactMoney } from "../../lib/helpers";
 
 export interface RenewalProjection {
   current_annual_wage_bill: number;
@@ -102,7 +103,7 @@ export function getRenewalStatusMessage(
     context.renewalSuggestedYears !== null
   ) {
     return translate("playerProfile.renewalCounter", {
-      wage: context.renewalSuggestedWage,
+      wage: formatExactMoney(context.renewalSuggestedWage),
       years: context.renewalSuggestedYears,
     });
   }

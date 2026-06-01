@@ -22,20 +22,34 @@ const mockTranslationState = vi.hoisted(function () {
     language: "en",
     translations: {
       en: {
+        "common.age": "Age",
         "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
         "inbox.deleteMessage": "Delete message",
         "inbox.effectOutcomeLabel": "Outcome",
         "inbox.markAsRead": "Mark as read",
         "inbox.openMessage": "Open message",
+        "inbox.responded": "Response sent",
+        "inbox.youthProspectSigned": "Signed to academy",
+        "finances.marketValue": "Market Value",
+        "finances.perWeekSuffix": "/wk",
+        "finances.wagePerWeek": "Wage/wk",
+        "playerProfile.contractInfo": "Contract",
         "scouting.youthTargetLabel": "Youth target",
         "scouting.youthAnyPosition": "Any position",
+        "scouting.regionDomestic": "Domestic",
+        "scouting.objectiveBalanced": "Balanced",
         "common.positions.Defender": "Defender",
-        "common.positions.Midfielder": "Midfielder",
         "common.positions.Forward": "Forward",
+        "common.positions.Midfielder": "Midfielder",
+        "squad.viewProfile": "View profile",
         "inbox.sortByDate": "Sort messages by date",
         "inbox.sortLabel": "Sort",
         "inbox.sortNewest": "Newest first",
         "inbox.sortOldest": "Oldest first",
+        "youthAcademy.growth": "Growth",
+        "youthAcademy.ovr": "OVR",
+        "youthAcademy.potential": "Potential",
+        "youthAcademy.potPromising": "Promising",
       },
       "pt-BR": {
         "inbox.effectOutcomeLabel": "Desfecho",
@@ -121,6 +135,35 @@ beforeAll(function defineMatchMedia(): void {
         "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
       "be.msg.delegatedRenewals.notes.relationshipBlocked":
         "They are not willing to commit through me under the current relationship and contract situation.",
+      "be.msg.youthRecruitmentReport.subject":
+        "Scout Report — Youth Recruitment",
+      "be.msg.youthRecruitmentReport.bodyAny":
+        "{{scout}} has completed the latest youth recruitment search for {{team}}. I found {{count}} prospects in the {{regionLabel}} market with a {{objectiveLabel}} profile.\n\nReview the attached cards and decide who should join the academy.",
+      "be.msg.youthRecruitmentReport.bodyTargeted":
+        "{{scout}} has completed the latest youth recruitment search for {{team}}. I found {{count}} prospects in the {{regionLabel}} market with a {{objectiveLabel}} profile, focused on {{targetLabel}}.\n\nReview the attached cards and decide who should join the academy.",
+      "be.msg.youthRecruitment.option.sign.label": "Sign to academy",
+      "be.msg.youthRecruitment.option.sign.description":
+        "Offer this prospect a youth contract and add them to the academy.",
+      "be.msg.youthRecruitment.option.shortlist.label": "Shortlist",
+      "be.msg.youthRecruitment.option.shortlist.description":
+        "Keep this prospect under consideration and move them into a separate shortlist message.",
+      "be.msg.youthRecruitment.option.discard.label": "Discard",
+      "be.msg.youthRecruitment.option.discard.description":
+        "Pass on this prospect and remove them from the report.",
+    },
+    true,
+    true,
+  );
+
+  i18n.addResourceBundle(
+    "de",
+    "translation",
+    {
+      "be.msg.delegatedRenewals.case.successful":
+        "Completed: {{player}} agreed to {{years}} year(s) on {{wage}}/wk.",
+      "be.msg.delegatedRenewals.case.failed": "Failed: {{player}} — {{detail}}",
+      "be.msg.delegatedRenewals.notes.boardWagePolicy":
+        "Board wage policy blocks this renewal. Keep annual wages near {{budget}} while we recover.",
     },
     true,
     true,
@@ -135,6 +178,7 @@ beforeEach(function resetMocks(): void {
       currency: "EUR",
       language: "en",
     },
+    currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
   });
 });
 
@@ -195,6 +239,71 @@ function createGameState(messages: MessageData[]): GameStateData {
     league: null,
     scouting_assignments: [],
     board_objectives: [],
+  };
+}
+
+function createProspect(overrides: Partial<GameStateData["players"][number]> = {}) {
+  return {
+    id: "prospect-1",
+    match_name: "R. Prospect",
+    full_name: "Rui Prospect",
+    date_of_birth: "2009-03-20",
+    nationality: "BR",
+    football_nation: "BR",
+    position: "Defender",
+    natural_position: "Defender",
+    alternate_positions: [],
+    footedness: "Right",
+    weak_foot: 3,
+    training_focus: null,
+    attributes: {
+      pace: 10,
+      stamina: 10,
+      strength: 10,
+      agility: 10,
+      passing: 10,
+      shooting: 10,
+      tackling: 10,
+      dribbling: 10,
+      defending: 10,
+      positioning: 10,
+      vision: 10,
+      decisions: 10,
+      composure: 10,
+      aggression: 10,
+      teamwork: 10,
+      leadership: 10,
+      handling: 10,
+      reflexes: 10,
+      aerial: 10,
+    },
+    condition: 88,
+    morale: 74,
+    injury: null,
+    team_id: null,
+    squad_role: "Youth" as const,
+    contract_end: "2028-06-30",
+    wage: 950,
+    market_value: 180000,
+    stats: {
+      appearances: 0,
+      goals: 0,
+      assists: 0,
+      clean_sheets: 0,
+      yellow_cards: 0,
+      red_cards: 0,
+      avg_rating: 0,
+      minutes_played: 0,
+    },
+    career: [],
+    retired: false,
+    transfer_listed: false,
+    loan_listed: false,
+    transfer_offers: [],
+    traits: [],
+    ovr: 63,
+    potential: 72,
+    ...overrides,
   };
 }
 
@@ -490,7 +599,7 @@ describe("InboxTab", function (): void {
 
     mockedInvoke.mockResolvedValue({
       game: resolvedGameState,
-      effect: "Player beams at the praise. Morale +3",
+      effect: "",
       effect_i18n_key: "test.effectFeedback",
       effect_i18n_params: { delta: "+3" },
     });
@@ -539,7 +648,7 @@ describe("InboxTab", function (): void {
 
     mockedInvoke.mockResolvedValue({
       game: resolvedGameState,
-      effect: "Player beams at the praise. Morale +3",
+      effect: "",
       effect_i18n_key: "test.effectFeedback",
       effect_i18n_params: { delta: "+3" },
     });
@@ -578,6 +687,7 @@ describe("InboxTab", function (): void {
         currency: "GBP",
         language: "en",
       },
+      currency: { code: "GBP", symbol: "£", exchange_rate: 1 },
     });
 
     renderInboxTab({
@@ -871,6 +981,73 @@ describe("InboxTab", function (): void {
     });
   });
 
+  it("formats delegated renewal money values only once in dot-separated locales", async function (): Promise<void> {
+    const previousLanguage = i18n.language;
+    const previousSettings = useSettingsStore.getState().settings;
+
+    await i18n.changeLanguage("de");
+    useSettingsStore.setState({
+      settings: { ...previousSettings, language: "de", currency: "EUR" },
+      currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    });
+
+    try {
+      renderInboxTab({
+        gameState: createGameState([
+          createMessage({
+            id: "delegated_renewals_locale_2025-01-01_0",
+            read: true,
+            category: "Contract",
+            context: {
+              team_id: "t1",
+              player_id: null,
+              fixture_id: null,
+              match_result: null,
+              delegated_renewal_report: {
+                success_count: 1,
+                failure_count: 1,
+                stalled_count: 0,
+                cases: [
+                  {
+                    player_id: "p1",
+                    player_name: "Alex Done",
+                    status: "successful",
+                    agreed_wage: 24000,
+                    agreed_years: 3,
+                  },
+                  {
+                    player_id: "p2",
+                    player_name: "Chris Failed",
+                    status: "failed",
+                    note_key: "be.msg.delegatedRenewals.notes.boardWagePolicy",
+                    note_params: { budget: "24000" },
+                  },
+                ],
+              },
+            },
+          }),
+        ]),
+        initialMessageId: "delegated_renewals_locale_2025-01-01_0",
+      });
+
+      expect(
+        screen.getByText(
+          "Completed: Alex Done agreed to 3 year(s) on €24.000/wk.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Failed: Chris Failed — Board wage policy blocks this renewal. Keep annual wages near €24.000 while we recover.",
+        ),
+      ).toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+      useSettingsStore.setState({
+        settings: previousSettings,
+      });
+    }
+  });
+
   it("tells the user that player-event response outcomes vary", function (): void {
     const action: MessageAction = {
       id: "respond",
@@ -929,5 +1106,115 @@ describe("InboxTab", function (): void {
 
     expect(screen.getByText("Youth target")).toBeInTheDocument();
     expect(screen.getByText("Defender")).toBeInTheDocument();
+  });
+
+  it("renders translated youth recruitment reports with contract details and signed prospects still visible", function (): void {
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-scout-2",
+          category: "ScoutReport",
+          read: true,
+          subject: "fallback subject",
+          body: "fallback body",
+          sender: "Joao Scout",
+          sender_role: "Scout",
+          subject_key: "be.msg.youthRecruitmentReport.subject",
+          body_key: "be.msg.youthRecruitmentReport.bodyTargeted",
+          i18n_params: {
+            scout: "Joao Scout",
+            team: "FC Test",
+            count: "2",
+            regionLabel: "scouting.regionDomestic",
+            objectiveLabel: "scouting.objectiveBalanced",
+            targetLabel: "common.positions.Defender",
+          },
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            youth_target_position: "Defender",
+            youth_search_region: "Domestic",
+            youth_search_objective: "Balanced",
+            youth_prospects: [
+              createProspect({
+                id: "prospect-signed",
+                full_name: "Mateus Anchor",
+                team_id: "t1",
+              }),
+              createProspect({
+                id: "prospect-open",
+                full_name: "Leo Builder",
+                team_id: null,
+                position: "Forward",
+                natural_position: "Forward",
+              }),
+            ],
+            match_result: null,
+          },
+          actions: [
+            {
+              id: "prospect:prospect-signed",
+              label: "Respond",
+              action_type: {
+                ChooseOption: {
+                  options: [],
+                },
+              },
+              resolved: true,
+            },
+            {
+              id: "prospect:prospect-open",
+              label: "Respond",
+              action_type: {
+                ChooseOption: {
+                  options: [
+                    {
+                      id: "sign",
+                      label: "placeholder",
+                      description: "placeholder",
+                      label_key: "be.msg.youthRecruitment.option.sign.label",
+                      description_key:
+                        "be.msg.youthRecruitment.option.sign.description",
+                    },
+                    {
+                      id: "shortlist",
+                      label: "placeholder",
+                      description: "placeholder",
+                      label_key: "be.msg.youthRecruitment.option.shortlist.label",
+                      description_key:
+                        "be.msg.youthRecruitment.option.shortlist.description",
+                    },
+                    {
+                      id: "discard",
+                      label: "placeholder",
+                      description: "placeholder",
+                      label_key: "be.msg.youthRecruitment.option.discard.label",
+                      description_key:
+                        "be.msg.youthRecruitment.option.discard.description",
+                    },
+                  ],
+                },
+              },
+              resolved: false,
+            },
+          ] as MessageAction[],
+        }),
+      ]),
+      initialMessageId: "youth-scout-2",
+    });
+
+    expect(screen.getAllByText("Scout Report — Youth Recruitment")).toHaveLength(2);
+    expect(screen.getByText("Domestic")).toBeInTheDocument();
+    expect(screen.getByText("Balanced")).toBeInTheDocument();
+    expect(screen.getAllByText("Signed to academy").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Wage\/wk:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: "Sign to academy" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Shortlist" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
   });
 });

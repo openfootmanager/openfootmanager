@@ -194,7 +194,7 @@ fn transfer_bid_is_rejected_when_window_is_closed() {
     let error = make_transfer_bid(&mut game, "player-bid-closed", 1_000_000)
         .expect_err("closed transfer window should reject bids");
 
-    assert_eq!(error, "Transfer window is closed");
+    assert_eq!(error, "be.error.transfers.transferWindowClosed");
 }
 
 #[test]
@@ -333,7 +333,7 @@ fn low_transfer_budget_cannot_behave_unrealistically() {
     let error = make_transfer_bid(&mut game, "player-budget", 900_000)
         .expect_err("bid should be blocked by transfer budget");
 
-    assert_eq!(error, "Transfer budget too low");
+    assert_eq!(error, "be.error.transfers.transferBudgetTooLow");
 }
 
 #[test]

@@ -3,6 +3,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ThemeProvider } from "../../context/ThemeContext";
 
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      if (key === "settings.switchToLightMode") return "Switch to light mode";
+      if (key === "settings.switchToDarkMode") return "Switch to dark mode";
+      return key;
+    },
+  }),
+}));
+
 // jsdom doesn't implement matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,

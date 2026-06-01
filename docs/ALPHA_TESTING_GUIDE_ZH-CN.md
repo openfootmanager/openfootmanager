@@ -125,7 +125,7 @@ Openfoot Manager 是一款**开源足球经理模拟游戏**。你可以把它�
 
 最简单的方式是使用我们的 **GitHub Issue 模板**。选择合适的模板并填写即可，**你可以直接用中文提交**。
 
-如果你想和开发团队或其他玩家交流，也可以加入 Discord 服务器：https://discord.gg/4ppEDH68
+如果你想和开发团队或其他玩家交流，也可以加入 Discord 服务器：https://discord.gg/2CXaesaukT
 
 - [**Bug 报告**](https://github.com/openfootmanager/openfootmanager/issues/new?template=bug_report_zh_cn.yml) — 某些内容崩溃了、出错了，或行为明显不正确
 - [**反馈 / 建议**](https://github.com/openfootmanager/openfootmanager/issues/new?template=feedback_zh_cn.yml) — 易用性问题、平衡性意见或新的想法
@@ -171,4 +171,4 @@ Openfoot Manager 是一款**开源足球经理模拟游戏**。你可以把它�
 
 ---
 
-Alpha 版本 0.2.0
+*Alpha 版本 0.2.0*

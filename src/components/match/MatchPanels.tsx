@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
-import { getEventDisplay, getPlayerName } from "./helpers";
+import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
@@ -17,7 +17,7 @@ export function EventFeed({
   return (
     <div ref={feedRef} className="flex flex-col gap-1">
       {events.length === 0 ? (
-          <div className="flex items-center justify-center h-40 text-gray-600 dark:text-gray-500">
+        <div className="flex items-center justify-center h-40 text-gray-600 dark:text-gray-500">
           <p className="font-heading text-sm uppercase tracking-wider">
             {t("match.waitingKickoff")}
           </p>
@@ -43,7 +43,7 @@ export function EventFeed({
                     {isHome ? snapshot.home_team.name : snapshot.away_team.name}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {evt.event_type.replace(/([A-Z])/g, " $1").trim()}
+                    {getEventTypeLabel(evt.event_type, t)}
                   </span>
                 </div>
                 {evt.player_id && (
@@ -139,14 +139,14 @@ export function MatchStats({ snapshot }: { snapshot: MatchSnapshot }) {
               <span className="font-heading font-bold text-primary-400 tabular-nums">
                 {stat.home}
               </span>
-                <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-[10px]">
+              <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-[10px]">
                 {stat.label}
               </span>
               <span className="font-heading font-bold text-indigo-400 tabular-nums">
                 {stat.away}
               </span>
             </div>
-             <div className="flex h-1.5 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden transition-colors duration-300">
+            <div className="flex h-1.5 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden transition-colors duration-300">
               <div
                 className="h-full bg-primary-500 transition-all duration-500"
                 style={{ width: `${pct}%` }}
@@ -189,7 +189,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
           className={`font-heading font-bold text-sm uppercase tracking-wider mb-3 ${side === "Home" ? "text-primary-400" : "text-indigo-400"}`}
         >
           {team.name}{" "}
-            <span className="text-gray-600 dark:text-gray-500 font-normal text-xs">
+          <span className="text-gray-600 dark:text-gray-500 font-normal text-xs">
             ({team.formation})
           </span>
         </h4>
@@ -220,7 +220,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                       <span className="text-green-400 text-[10px]">▲</span>
                     )}
                     <span
-                       className={`font-medium flex-1 truncate ${isOff ? "line-through text-gray-600 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}
+                      className={`font-medium flex-1 truncate ${isOff ? "line-through text-gray-600 dark:text-gray-500" : "text-gray-700 dark:text-gray-300"}`}
                     >
                       {p.name}
                     </span>
@@ -233,13 +233,13 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                       <span className="w-3 h-4 rounded-sm bg-red-500" />
                     )}
                     <div className="w-14 flex items-center gap-1">
-                       <div className="flex-1 h-1.5 bg-gray-300 dark:bg-navy-600 rounded-full overflow-hidden transition-colors duration-300">
+                      <div className="flex-1 h-1.5 bg-gray-300 dark:bg-navy-600 rounded-full overflow-hidden transition-colors duration-300">
                         <div
                           className={`h-full ${condColor} rounded-full transition-all`}
                           style={{ width: `${p.condition}%` }}
                         />
                       </div>
-                       <span className="text-gray-500 dark:text-gray-400 tabular-nums text-[10px] w-6 text-right">
+                      <span className="text-gray-500 dark:text-gray-400 tabular-nums text-[10px] w-6 text-right">
                         {Math.round(p.condition)}
                       </span>
                     </div>
@@ -252,8 +252,8 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
 
         {/* Bench */}
         {bench.length > 0 && (
-           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-navy-700">
-             <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-navy-700">
+            <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
               {t("match.bench")}
             </p>
             {bench.map((p) => {
@@ -266,13 +266,13 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                   {wasSubbedOff && (
                     <span className="text-red-400 text-[10px]">▼</span>
                   )}
-                   <span className="text-gray-600 dark:text-gray-400 font-medium flex-1 truncate">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium flex-1 truncate">
                     {p.name}
                   </span>
                   <Badge variant="neutral" size="sm">
                     {translatePositionAbbreviation(t, p.position)}
                   </Badge>
-                   <span className="text-gray-500 dark:text-gray-400 tabular-nums text-[10px] w-6 text-right">
+                  <span className="text-gray-500 dark:text-gray-400 tabular-nums text-[10px] w-6 text-right">
                     {Math.round(p.condition)}
                   </span>
                 </div>
@@ -283,8 +283,8 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
 
         {/* Sub History */}
         {snapshot.substitutions.filter((s) => s.side === side).length > 0 && (
-           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-navy-700">
-             <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-navy-700">
+            <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
               {t("match.substitutions")}
             </p>
             {snapshot.substitutions
@@ -294,15 +294,15 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
                   key={i}
                   className="flex items-center gap-1.5 py-0.5 text-[11px]"
                 >
-                   <span className="text-gray-600 dark:text-gray-500 tabular-nums w-5 text-right font-heading">
+                  <span className="text-gray-600 dark:text-gray-500 tabular-nums w-5 text-right font-heading">
                     {sub.minute}'
                   </span>
                   <span className="text-green-400">▲</span>
-                   <span className="text-gray-700 dark:text-gray-300 truncate">
+                  <span className="text-gray-700 dark:text-gray-300 truncate">
                     {getPlayerName(snapshot, sub.player_on_id)}
                   </span>
                   <span className="text-red-400">▼</span>
-                   <span className="text-gray-500 dark:text-gray-400 truncate">
+                  <span className="text-gray-500 dark:text-gray-400 truncate">
                     {getPlayerName(snapshot, sub.player_off_id)}
                   </span>
                 </div>

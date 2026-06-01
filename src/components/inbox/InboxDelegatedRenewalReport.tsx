@@ -24,20 +24,6 @@ export default function InboxDelegatedRenewalReport({
     return formatExactMoney(amount);
   };
 
-  const buildNoteParams = (
-    params?: Record<string, string>,
-  ): Record<string, string> | undefined => {
-    if (!params) {
-      return undefined;
-    }
-
-    return {
-      ...params,
-      ...(params.wage ? { wage: formatMoneyParam(params.wage) } : {}),
-      ...(params.budget ? { budget: formatMoneyParam(params.budget) } : {}),
-    };
-  };
-
   if (!report || report.cases.length === 0) {
     return null;
   }
@@ -49,11 +35,10 @@ export default function InboxDelegatedRenewalReport({
     >
       <div className="space-y-2">
         {report.cases.map((renewalCase, index) => {
-          const noteParams = buildNoteParams(renewalCase.note_params);
           const detail = resolveBackendText(
             renewalCase.note_key,
             "",
-            noteParams,
+            renewalCase.note_params,
           );
           const formattedWage = formatMoneyParam(renewalCase.agreed_wage);
 
@@ -65,7 +50,7 @@ export default function InboxDelegatedRenewalReport({
                 {
                   player: renewalCase.player_name,
                   years: String(renewalCase.agreed_years ?? 0),
-                  wage: formattedWage,
+                  wage: String(renewalCase.agreed_wage ?? 0),
                 },
               )
               : renewalCase.status === "stalled"

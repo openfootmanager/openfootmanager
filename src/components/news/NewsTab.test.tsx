@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { GameStateData, NewsArticle, TeamData } from "../../store/gameStore";
 import NewsTab from "./NewsTab";
 
+vi.mock("../season/AwardsCeremonyScreen", () => ({
+  default: () => <div>Awards Ceremony Mock</div>,
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
@@ -185,5 +189,36 @@ describe("NewsTab", () => {
     expect(
       screen.queryByRole("button", { name: /League roundup headline/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the dedicated awards ceremony page from a season awards article", () => {
+    render(
+      <NewsTab
+        gameState={createGameState([
+          createNewsArticle({
+            id: "season_awards_6",
+            headline: "Season awards night",
+            category: "Editorial",
+            i18n_params: {
+              season: "6",
+              leagueName: "Premier League",
+              goldenBootWinner: "Victor Vale",
+              goldenBootGoals: "24",
+              goldenBootTeam: "Alpha FC",
+              potyWinner: "Victor Vale",
+              potyRating: "7.8",
+              potyTeam: "Alpha FC",
+              managerWinner: "Jane Doe",
+              managerTeam: "Alpha FC",
+            },
+          }),
+        ])}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Season awards night/i }));
+
+    expect(screen.getByText("Awards Ceremony Mock")).toBeInTheDocument();
   });
 });

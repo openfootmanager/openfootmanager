@@ -1,0 +1,1 @@
+ALTER TABLE game_meta ADD COLUMN world_history_json TEXT NOT NULL DEFAULT '{}';

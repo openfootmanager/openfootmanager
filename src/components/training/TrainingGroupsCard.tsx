@@ -65,10 +65,7 @@ export default function TrainingGroupsCard({
     }
 
     const index = groups.length;
-    const defaultName = t(
-      `training.groups.defaultGroupNames.${index}`,
-      `Group ${index + 1}`,
-    );
+    const defaultName = t(`training.groups.defaultGroupNames.${index}`);
 
     saveGroups([
       ...groups,

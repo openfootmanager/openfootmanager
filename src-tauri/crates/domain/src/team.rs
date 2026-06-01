@@ -287,4 +287,24 @@ impl Team {
             history: Vec::new(),
         }
     }
+
+    pub fn remove_player_references(&mut self, player_id: &str) {
+        self.starting_xi_ids.retain(|id| id != player_id);
+
+        for group in &mut self.training_groups {
+            group.player_ids.retain(|id| id != player_id);
+        }
+
+        clear_match_role_if_matches(&mut self.match_roles.captain, player_id);
+        clear_match_role_if_matches(&mut self.match_roles.vice_captain, player_id);
+        clear_match_role_if_matches(&mut self.match_roles.penalty_taker, player_id);
+        clear_match_role_if_matches(&mut self.match_roles.free_kick_taker, player_id);
+        clear_match_role_if_matches(&mut self.match_roles.corner_taker, player_id);
+    }
+}
+
+fn clear_match_role_if_matches(role: &mut Option<String>, player_id: &str) {
+    if role.as_deref() == Some(player_id) {
+        *role = None;
+    }
 }

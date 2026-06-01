@@ -18,7 +18,12 @@ vi.mock("react-i18next", () => ({
       if (key === "common.viewTeam") return "View team";
       if (key === "squad.viewProfile") return "View profile";
       if (key === "tournaments.overview") return "Overview";
+      if (key === "tournaments.awardsTab") return "Awards";
       if (key === "tournaments.leagueTable") return "League Table";
+      if (key === "tournaments.awards.managerOfSeasonTitle") return "Manager of the Season";
+      if (key === "tournaments.awards.managerOfSeasonSubtitle") return "Best campaign on the touchline";
+      if (key === "tournaments.awards.noDataYet") return "No data yet";
+      if (key === "tournaments.awards.units.winRate") return "win rate";
       if (key === "tournaments.nTeams") return `${params?.count} teams`;
       if (key === "tournaments.progress") return "Progress";
       if (key === "tournaments.matches") return "Matches";
@@ -106,6 +111,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     morale: 75,
     injury: null,
     team_id: "team-1",
+    retired: false,
     contract_end: "2027-06-30",
     wage: 12000,
     market_value: 350000,
@@ -268,5 +274,33 @@ describe("TournamentsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  it("renders manager of the season in the awards view", async () => {
+    vi.mocked(invoke).mockResolvedValue({
+      golden_boot: [],
+      assist_king: [],
+      player_of_year: [],
+      clean_sheet_king: [],
+      most_appearances: [],
+      young_player: [],
+      manager_of_season: [
+        {
+          manager_id: "manager-1",
+          manager_name: "Jane Doe",
+          team_id: "team-1",
+          team_name: "Alpha FC",
+          value: 83,
+          win_rate: 66,
+        },
+      ],
+    });
+
+    render(<TournamentsTab gameState={createGameState(true)} onSelectTeam={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Awards/i }));
+
+    expect(await screen.findByText("Manager of the Season")).toBeInTheDocument();
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,3 @@
-use log::{error, info, warn};
 use rusqlite::Connection;
 use std::fs;
 use std::path::Path;
@@ -7,6 +6,8 @@ use ofm_core::game::Game;
 use ofm_core::player_identity;
 
 use crate::save_manager::{SaveManager, canonicalize_game_starting_xi_ids};
+
+const LEGACY_MIGRATION_FAILED_ERROR: &str = "be.error.gameDatabase.migrationFailed";
 
 /// A row extracted from the legacy `saves.db` file.
 #[derive(Debug)]
@@ -52,27 +53,16 @@ pub fn migrate_legacy_saves(
 ) -> Result<Vec<LegacyMigrationResult>, String> {
     let legacy_path = app_data_dir.join("saves.db");
     if !legacy_path.exists() {
-        info!("[legacy] no saves.db found, nothing to migrate");
         return Ok(Vec::new());
     }
 
-    info!("[legacy] found legacy saves.db, starting migration");
-
     let rows = extract_legacy_rows(&legacy_path)?;
-    info!(
-        "[legacy] extracted {} saves from legacy database",
-        rows.len()
-    );
 
     let mut results = Vec::new();
 
     for row in &rows {
         match migrate_single_save(row, save_manager) {
             Ok(new_id) => {
-                info!(
-                    "[legacy] migrated save '{}' ({}) -> {}",
-                    row.name, row.id, new_id
-                );
                 results.push(LegacyMigrationResult::Success {
                     old_id: row.id.clone(),
                     new_id,
@@ -80,10 +70,6 @@ pub fn migrate_legacy_saves(
                 });
             }
             Err(reason) => {
-                error!(
-                    "[legacy] failed to migrate save '{}' ({}): {}",
-                    row.name, row.id, reason
-                );
                 results.push(LegacyMigrationResult::Failed {
                     old_id: row.id.clone(),
                     name: row.name.clone(),
@@ -96,19 +82,15 @@ pub fn migrate_legacy_saves(
     // Rename the old database to prevent re-migration
     let migrated_path = app_data_dir.join("saves.db.migrated");
     fs::rename(&legacy_path, &migrated_path)
-        .map_err(|e| format!("Failed to rename saves.db: {}", e))?;
-    info!(
-        "[legacy] renamed saves.db -> saves.db.migrated ({} saves processed)",
-        results.len()
-    );
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     Ok(results)
 }
 
 /// Extract all save rows from the legacy database.
 fn extract_legacy_rows(legacy_path: &Path) -> Result<Vec<LegacySaveRow>, String> {
-    let conn = Connection::open(legacy_path)
-        .map_err(|e| format!("Failed to open legacy database: {}", e))?;
+    let conn =
+        Connection::open(legacy_path).map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     // Check if the saves table exists
     let table_exists: bool = conn
@@ -118,10 +100,9 @@ fn extract_legacy_rows(legacy_path: &Path) -> Result<Vec<LegacySaveRow>, String>
             |row| row.get::<_, i64>(0),
         )
         .map(|count| count > 0)
-        .map_err(|e| format!("Failed to check for saves table: {}", e))?;
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     if !table_exists {
-        warn!("[legacy] saves.db has no 'saves' table");
         return Ok(Vec::new());
     }
 
@@ -130,7 +111,7 @@ fn extract_legacy_rows(legacy_path: &Path) -> Result<Vec<LegacySaveRow>, String>
             "SELECT id, name, manager_name, game_data, created_at, last_played_at
              FROM saves ORDER BY last_played_at DESC",
         )
-        .map_err(|e| format!("Failed to prepare legacy query: {}", e))?;
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -143,11 +124,11 @@ fn extract_legacy_rows(legacy_path: &Path) -> Result<Vec<LegacySaveRow>, String>
                 last_played_at: row.get(5)?,
             })
         })
-        .map_err(|e| format!("Failed to query legacy saves: {}", e))?;
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     let mut saves = Vec::new();
     for row in rows {
-        saves.push(row.map_err(|e| format!("Failed to read legacy row: {}", e))?);
+        saves.push(row.map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?);
     }
     Ok(saves)
 }
@@ -159,7 +140,7 @@ fn migrate_single_save(
     save_manager: &mut SaveManager,
 ) -> Result<String, String> {
     let mut game: Game = serde_json::from_str(&row.game_data)
-        .map_err(|e| format!("Failed to parse game JSON: {}", e))?;
+        .map_err(|_| LEGACY_MIGRATION_FAILED_ERROR.to_string())?;
 
     canonicalize_game_starting_xi_ids(&mut game);
     player_identity::upgrade_game_player_identities(&mut game);

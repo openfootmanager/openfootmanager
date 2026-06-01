@@ -239,6 +239,22 @@ CREATE TABLE scouting_assignments (
   via migration version check, rebuild index.
 - **If DB invalid**: mark as corrupted in UI, do not crash.
 
+### 3a. Query Safety and Atomicity
+
+- Repository queries use static SQL with positional placeholders and `rusqlite`
+  parameter binding for runtime values such as save names, manager names, player
+  names, news text, and message content.
+- User-controlled or imported strings are persisted as bound values, not spliced
+  into SQL text, which is the primary defense against SQL injection in the save
+  layer.
+- Raw `execute_batch` usage is reserved for fixed internal statements such as
+  migrations and savepoint management, not arbitrary user input.
+- Save writes are grouped transactionally so game state and stats state commit as
+  one unit, while repository-level savepoints protect multi-step updates such as
+  league rewrites from partial failure.
+- If dynamic identifiers or query fragments are ever introduced later, they must
+  be whitelisted explicitly rather than assembled from unchecked input.
+
 ### 4. Crate Boundaries
 
 ```
@@ -267,10 +283,11 @@ db crate (persistence layer):
 **New Game:**
 1. User fills form → `start_new_game` → generates world in memory → `Game` in `StateManager`
 2. User selects team → `select_team` → updates `Game` in memory (NO DB write yet)
-3. User explicitly saves → `save_game` → `SaveManager::save()`:
+3. User explicitly saves → `save_game` → `SaveManager` persistence flow:
    - Creates `saves/<uuid>.db` if new
    - Applies migrations
-   - Writes all entities from `Game` to tables
+   - Writes all entities from `Game` plus stats state to tables in one
+     transactional persistence pass
    - Computes checksum, updates `save_index.json`
 
 **Load Game:**

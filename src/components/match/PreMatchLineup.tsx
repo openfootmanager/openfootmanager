@@ -31,51 +31,6 @@ export const POSITION_KEY_STATS: Record<
   ],
 };
 
-export function getPositionOvr(p: EnginePlayerData): number {
-  switch (p.position) {
-    case "Goalkeeper":
-      return Math.round(
-        (p.handling * 2 +
-          p.reflexes * 2 +
-          p.aerial +
-          p.positioning +
-          p.composure) /
-        7,
-      );
-    case "Defender":
-      return Math.round(
-        (p.defending * 2 +
-          p.tackling * 2 +
-          p.strength +
-          p.positioning +
-          p.aerial) /
-        7,
-      );
-    case "Midfielder":
-      return Math.round(
-        (p.passing * 2 +
-          p.vision +
-          p.decisions +
-          p.stamina +
-          p.dribbling +
-          p.teamwork) /
-        7,
-      );
-    case "Forward":
-      return Math.round(
-        (p.shooting * 2 +
-          p.pace +
-          p.dribbling +
-          p.composure +
-          p.strength +
-          p.positioning) /
-        7,
-      );
-    default:
-      return 50;
-  }
-}
-
 export function condColor(c: number): string {
   if (c >= 75) return "text-primary-400";
   if (c >= 50) return "text-amber-400";
@@ -92,6 +47,70 @@ export function starterOvrColor(ovr: number): string {
   if (ovr >= 70) return "text-primary-600 dark:text-primary-400";
   if (ovr >= 50) return "text-gray-700 dark:text-gray-300";
   return "text-red-600 dark:text-red-400";
+}
+
+function hexToRgb(color: string): { red: number; green: number; blue: number } | null {
+  const normalized = normalizeHexColor(color);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const hex = normalized.slice(1);
+
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function normalizeHexColor(color: string): string | null {
+  const normalized = color.trim();
+  const hex = normalized.startsWith("#") ? normalized.slice(1) : normalized;
+
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) {
+    return null;
+  }
+
+  const expanded = hex.length === 3
+    ? hex.split("").map((char) => char + char).join("")
+    : hex;
+
+  return `#${expanded.toLowerCase()}`;
+}
+
+function isLightColor(color: string): boolean {
+  const rgb = hexToRgb(color);
+
+  if (!rgb) {
+    return false;
+  }
+
+  const brightness = (rgb.red * 299 + rgb.green * 587 + rgb.blue * 114) / 1000;
+  return brightness >= 205;
+}
+
+export function starterBadgeStyle(userColor: string): Record<string, string | number> {
+  const normalizedHex = normalizeHexColor(userColor);
+
+  if (!normalizedHex || isLightColor(normalizedHex)) {
+    return {
+      backgroundColor: "#f8fafc",
+      color: "#334155",
+      borderColor: "#cbd5e1",
+      borderWidth: 1,
+      borderStyle: "solid",
+    };
+  }
+
+  return {
+    backgroundColor: `${normalizedHex}30`,
+    color: normalizedHex,
+    borderColor: `${normalizedHex}55`,
+    borderWidth: 1,
+    borderStyle: "solid",
+  };
 }
 
 export function getStatVal(p: EnginePlayerData, key: string): number {
@@ -265,7 +284,7 @@ export default function PreMatchLineup({
                   </div>
                 </div>
                 {players.map((p) => {
-                  const posOvr = getPositionOvr(p);
+                  const posOvr = p.ovr;
                   const isSelected = selectedStarterId === p.id;
                   const starterButton = (
                     <button
@@ -280,10 +299,7 @@ export default function PreMatchLineup({
                     >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-heading font-bold flex-shrink-0"
-                        style={{
-                          backgroundColor: userColor + "30",
-                          color: userColor,
-                        }}
+                        style={starterBadgeStyle(userColor)}
                       >
                         {posOvr}
                       </div>
@@ -368,7 +384,7 @@ export default function PreMatchLineup({
                 </span>
               </div>
               {userBench.map((bp) => {
-                const posOvr = getPositionOvr(bp);
+                const posOvr = bp.ovr;
                 const keyStats = POSITION_KEY_STATS[bp.position] || [];
                 const canSwap = Boolean(selectedStarterId);
                 const benchButton = (
@@ -457,7 +473,7 @@ export default function PreMatchLineup({
                   {oppTeam.name}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {oppTeam.formation} · {t(`tactics.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
+                  {oppTeam.formation} · {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
                 </p>
               </div>
             </div>

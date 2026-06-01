@@ -11,10 +11,22 @@ pub fn upgrade_game_football_identities(game: &mut Game) -> bool {
 
     changed |=
         upgrade_world_football_identities(&mut game.teams, &mut game.players, &mut game.staff);
+    changed |= upgrade_world_manager_identities(&game.teams, &mut game.managers);
 
     let team_nations = build_team_nation_map(&game.teams);
 
     changed |= upgrade_manager_identity(&mut game.manager, &team_nations);
+
+    changed
+}
+
+pub fn upgrade_world_manager_identities(teams: &[Team], managers: &mut [Manager]) -> bool {
+    let mut changed = false;
+    let team_nations = build_team_nation_map(teams);
+
+    for manager in managers.iter_mut() {
+        changed |= upgrade_manager_identity(manager, &team_nations);
+    }
 
     changed
 }
@@ -57,6 +69,15 @@ fn normalize_optional_birth_country(value: Option<String>, fallback: &str) -> Op
     }
 }
 
+fn resolve_legacy_nationality(nationality: &str, football_nation: &str) -> String {
+    let normalized_nationality = normalize_football_nation_code(nationality);
+    if normalized_nationality == "GB" && !football_nation.is_empty() && football_nation != "GB" {
+        football_nation.to_string()
+    } else {
+        nationality.to_string()
+    }
+}
+
 fn normalize_existing_or_fallback(existing: &str, fallback: &str) -> String {
     if existing.trim().is_empty() {
         normalize_football_nation_code(fallback)
@@ -83,53 +104,66 @@ fn inherit_team_football_nation(
 }
 
 fn upgrade_manager_identity(manager: &mut Manager, team_nations: &HashMap<&str, &str>) -> bool {
+    let original_nationality = manager.nationality.clone();
     let mut football_nation =
-        normalize_existing_or_fallback(&manager.football_nation, &manager.nationality);
+        normalize_existing_or_fallback(&manager.football_nation, &original_nationality);
     if let Some(inherited) =
         inherit_team_football_nation(&football_nation, manager.team_id.as_deref(), team_nations)
     {
         football_nation = inherited;
     }
     let birth_country =
-        normalize_optional_birth_country(manager.birth_country.clone(), &manager.nationality);
+        normalize_optional_birth_country(manager.birth_country.clone(), &original_nationality);
+    let nationality = resolve_legacy_nationality(&original_nationality, &football_nation);
 
-    let changed =
-        manager.football_nation != football_nation || manager.birth_country != birth_country;
+    let changed = manager.nationality != nationality
+        || manager.football_nation != football_nation
+        || manager.birth_country != birth_country;
+    manager.nationality = nationality;
     manager.football_nation = football_nation;
     manager.birth_country = birth_country;
     changed
 }
 
 fn upgrade_player_identity(player: &mut Player, team_nations: &HashMap<&str, &str>) -> bool {
+    let original_nationality = player.nationality.clone();
     let mut football_nation =
-        normalize_existing_or_fallback(&player.football_nation, &player.nationality);
+        normalize_existing_or_fallback(&player.football_nation, &original_nationality);
     if let Some(inherited) =
         inherit_team_football_nation(&football_nation, player.team_id.as_deref(), team_nations)
     {
         football_nation = inherited;
     }
     let birth_country =
-        normalize_optional_birth_country(player.birth_country.clone(), &player.nationality);
+        normalize_optional_birth_country(player.birth_country.clone(), &original_nationality);
+    let nationality = resolve_legacy_nationality(&original_nationality, &football_nation);
 
-    let changed =
-        player.football_nation != football_nation || player.birth_country != birth_country;
+    let changed = player.nationality != nationality
+        || player.football_nation != football_nation
+        || player.birth_country != birth_country;
+    player.nationality = nationality;
     player.football_nation = football_nation;
     player.birth_country = birth_country;
     changed
 }
 
 fn upgrade_staff_identity(staff: &mut Staff, team_nations: &HashMap<&str, &str>) -> bool {
+    let original_nationality = staff.nationality.clone();
     let mut football_nation =
-        normalize_existing_or_fallback(&staff.football_nation, &staff.nationality);
+        normalize_existing_or_fallback(&staff.football_nation, &original_nationality);
     if let Some(inherited) =
         inherit_team_football_nation(&football_nation, staff.team_id.as_deref(), team_nations)
     {
         football_nation = inherited;
     }
     let birth_country =
-        normalize_optional_birth_country(staff.birth_country.clone(), &staff.nationality);
+        normalize_optional_birth_country(staff.birth_country.clone(), &original_nationality);
+    let nationality = resolve_legacy_nationality(&original_nationality, &football_nation);
 
-    let changed = staff.football_nation != football_nation || staff.birth_country != birth_country;
+    let changed = staff.nationality != nationality
+        || staff.football_nation != football_nation
+        || staff.birth_country != birth_country;
+    staff.nationality = nationality;
     staff.football_nation = football_nation;
     staff.birth_country = birth_country;
     changed
@@ -250,19 +284,62 @@ mod tests {
             vec![staff],
             vec![],
         );
+        game.manager.nationality = "British".to_string();
+        game.manager.football_nation.clear();
+        game.manager.birth_country = None;
+        game.players[0].nationality = "GB".to_string();
         game.players[0].football_nation.clear();
         game.players[0].birth_country = None;
+        game.staff[0].nationality = "British".to_string();
         game.staff[0].football_nation.clear();
         game.staff[0].birth_country = None;
         game.teams[0].football_nation.clear();
         let changed = upgrade_game_football_identities(&mut game);
 
         assert!(changed);
+        assert_eq!(game.manager.nationality, "ENG");
         assert_eq!(game.manager.football_nation, "ENG");
         assert_eq!(game.manager.birth_country, None);
+        assert_eq!(game.players[0].nationality, "ENG");
         assert_eq!(game.players[0].football_nation, "ENG");
         assert_eq!(game.players[0].birth_country, None);
+        assert_eq!(game.staff[0].nationality, "ENG");
         assert_eq!(game.staff[0].football_nation, "ENG");
         assert_eq!(game.teams[0].football_nation, "ENG");
+    }
+
+    #[test]
+    fn upgrade_game_football_identities_keeps_ambiguous_gb_without_evidence() {
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Ada".to_string(),
+            "Lovelace".to_string(),
+            "1980-01-01".to_string(),
+            "British".to_string(),
+        );
+        let mut player = Player::new(
+            "p1".to_string(),
+            "J. Smith".to_string(),
+            "John Smith".to_string(),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            sample_attrs(),
+        );
+        player.football_nation.clear();
+        player.birth_country = None;
+
+        let mut game = Game::new(clock, manager, vec![], vec![player], vec![], vec![]);
+        game.players[0].nationality = "GB".to_string();
+        game.players[0].football_nation.clear();
+        game.players[0].birth_country = None;
+
+        let changed = upgrade_game_football_identities(&mut game);
+
+        assert!(changed);
+        assert_eq!(game.players[0].nationality, "GB");
+        assert_eq!(game.players[0].football_nation, "GB");
+        assert_eq!(game.players[0].birth_country, None);
     }
 }

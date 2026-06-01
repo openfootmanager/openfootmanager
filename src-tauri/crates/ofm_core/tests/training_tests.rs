@@ -517,10 +517,9 @@ fn warning_when_avg_condition_below_50() {
         .filter(|m| m.id.starts_with("fitness_warn_"))
         .collect();
     assert_eq!(fitness_msgs.len(), 1, "Should send fitness warning");
-    assert!(
-        fitness_msgs[0].subject.contains("Warning"),
-        "Should be a warning, got: {}",
-        fitness_msgs[0].subject
+    assert_eq!(
+        fitness_msgs[0].subject_key.as_deref(),
+        Some("be.msg.fitness.warning.subject")
     );
 }
 
@@ -539,10 +538,9 @@ fn critical_warning_when_many_players_below_25() {
         .filter(|m| m.id.starts_with("fitness_warn_"))
         .collect();
     assert_eq!(fitness_msgs.len(), 1, "Should send fitness message");
-    assert!(
-        fitness_msgs[0].subject.contains("URGENT") || fitness_msgs[0].subject.contains("Crisis"),
-        "Should be critical, got: {}",
-        fitness_msgs[0].subject
+    assert_eq!(
+        fitness_msgs[0].subject_key.as_deref(),
+        Some("be.msg.fitness.critical.subject")
     );
 }
 
@@ -600,11 +598,10 @@ fn warning_uses_physio_sender_when_available() {
         .iter()
         .find(|m| m.id.starts_with("fitness_warn_"))
         .unwrap();
-    // We have a physio on staff, so sender_role should be physio-related
     assert!(
-        msg.sender_role == "Head Physio",
-        "Sender should be Head Physio when physio is on staff, got: {}",
-        msg.sender_role
+        msg.sender_role_key.as_deref() == Some("be.role.headPhysio"),
+        "Sender role key should be be.role.headPhysio when physio is on staff, got: {:?}",
+        msg.sender_role_key
     );
 }
 
@@ -625,9 +622,9 @@ fn warning_uses_assistant_manager_when_no_physio() {
         .find(|m| m.id.starts_with("fitness_warn_"))
         .unwrap();
     assert!(
-        msg.sender_role == "Assistant Manager",
-        "Sender should be Assistant Manager when no physio, got: {}",
-        msg.sender_role
+        msg.sender_role_key.as_deref() == Some("be.role.assistantManager"),
+        "Sender role key should be be.role.assistantManager when no physio, got: {:?}",
+        msg.sender_role_key
     );
 }
 

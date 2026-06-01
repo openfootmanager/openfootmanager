@@ -31,13 +31,13 @@ export default function InboxDeleteConfirmModal({
   const message =
     deleteModalState.mode === "single"
       ? t(
-          "inbox.deleteMessageBody",
-          { subject: deleteModalState.subject },
-        )
+        "inbox.deleteMessageBody",
+        { subject: deleteModalState.subject },
+      )
       : t(
         "inbox.deleteSelectedBody",
-          { count: deleteModalState.messageIds.length },
-        );
+        { count: deleteModalState.messageIds.length },
+      );
 
   return (
     <DashboardModalFrame maxWidthClassName="max-w-md">
@@ -68,7 +68,7 @@ export default function InboxDeleteConfirmModal({
             className="bg-red-500 hover:bg-red-600 active:bg-red-700 focus:ring-red-500"
             data-testid="inbox-confirm-delete"
           >
-            {t("inbox.deleteAction", "Delete")}
+            {t("inbox.deleteAction")}
           </Button>
         </div>
       </div>

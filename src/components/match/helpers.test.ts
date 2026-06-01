@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   getPlayerName,
   phaseLabel,
-  calcOvr,
   getEventDisplay,
+  getEventTypeLabel,
   resolveMatchFixture,
 } from "./helpers";
-import i18n from "../../i18n";
+import i18n, { i18nReady } from "../../i18n";
 import { getTeamTalkOptions } from "./types";
 import type { MatchSnapshot, EnginePlayerData, EngineTeamData } from "./types";
 import type { GameStateData } from "../../store/gameStore";
@@ -15,19 +15,24 @@ import type { GameStateData } from "../../store/gameStore";
 // Minimal fixtures
 // ---------------------------------------------------------------------------
 
-const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => ({
-  id: "p1",
-  name: "Test Player",
-  position: "Midfielder",
-  condition: 100,
-  pace: 70, stamina: 70, strength: 70, agility: 70,
-  passing: 70, shooting: 70, tackling: 70, dribbling: 70,
-  defending: 70, positioning: 70, vision: 70, decisions: 70,
-  composure: 50, aggression: 50, teamwork: 50,
-  leadership: 50, handling: 30, reflexes: 30, aerial: 50,
-  traits: [],
-  ...overrides,
-});
+const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => {
+  const { ovr = 70, ...rest } = overrides;
+
+  return {
+    id: "p1",
+    name: "Test Player",
+    position: "Midfielder",
+    ovr,
+    condition: 100,
+    pace: 70, stamina: 70, strength: 70, agility: 70,
+    passing: 70, shooting: 70, tackling: 70, dribbling: 70,
+    defending: 70, positioning: 70, vision: 70, decisions: 70,
+    composure: 50, aggression: 50, teamwork: 50,
+    leadership: 50, handling: 30, reflexes: 30, aerial: 50,
+    traits: [],
+    ...rest,
+  };
+};
 
 const makeTeam = (overrides: Partial<EngineTeamData> = {}): EngineTeamData => ({
   id: "team1",
@@ -63,6 +68,20 @@ const makeSnapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => 
   away_yellows: {},
   sent_off: [],
   ...overrides,
+});
+
+beforeAll(async () => {
+  await i18nReady;
+});
+
+let defaultLanguage = "en";
+
+beforeAll(() => {
+  defaultLanguage = i18n.resolvedLanguage || i18n.language || "en";
+});
+
+afterEach(async () => {
+  await i18n.changeLanguage(defaultLanguage);
 });
 
 // ---------------------------------------------------------------------------
@@ -137,7 +156,9 @@ describe("resolveMatchFixture", () => {
 // ---------------------------------------------------------------------------
 
 describe("phaseLabel", () => {
-  it("maps all known phases", () => {
+  it("maps all known phases in english", async () => {
+    await i18n.changeLanguage("en");
+
     expect(phaseLabel("PreKickOff")).toBe("Pre-Match");
     expect(phaseLabel("FirstHalf")).toBe("1st Half");
     expect(phaseLabel("HalfTime")).toBe("Half Time");
@@ -151,26 +172,29 @@ describe("phaseLabel", () => {
     expect(phaseLabel("Finished")).toBe("Final");
   });
 
-  it("returns the input for unknown phases", () => {
-    expect(phaseLabel("SomeOtherPhase")).toBe("SomeOtherPhase");
-  });
-});
+  it("returns translated phase labels for pt-BR", async () => {
+    await i18n.changeLanguage("pt-BR");
 
-// ---------------------------------------------------------------------------
-// calcOvr (match version — averages all attrs)
-// ---------------------------------------------------------------------------
+    const t = i18n.t.bind(i18n);
 
-describe("calcOvr (match)", () => {
-  it("averages all attribute values", () => {
-    expect(calcOvr({ pace: 80, shooting: 60, passing: 70 })).toBe(70);
+    expect(phaseLabel("FirstHalf", t)).toBe("1º Tempo");
+    expect(phaseLabel("SecondHalf", t)).toBe("2º Tempo");
+    expect(phaseLabel("PenaltyShootout", t)).toBe("Pênaltis");
   });
 
-  it("rounds to nearest integer", () => {
-    expect(calcOvr({ pace: 71, shooting: 72 })).toBe(72); // 143/2 = 71.5 → 72
+  it("humanizes unknown phases when no fixed label exists", () => {
+    expect(phaseLabel("SomeOtherPhase")).toBe("Some Other Phase");
   });
 
-  it("returns 0 for empty attributes", () => {
-    expect(calcOvr({})).toBe(0);
+  it("passes a humanized default value when translating unknown phases", () => {
+    const translate = vi.fn((_: string, options?: { defaultValue?: string }) => {
+      return options?.defaultValue ?? "";
+    });
+
+    expect(phaseLabel("SomeOtherPhase", translate)).toBe("Some Other Phase");
+    expect(translate).toHaveBeenCalledWith("match.phases.SomeOtherPhase", {
+      defaultValue: "Some Other Phase",
+    });
   });
 });
 
@@ -201,6 +225,24 @@ describe("getEventDisplay", () => {
     const display = getEventDisplay({ minute: 1, event_type: "UnknownEvent", side: "Home", zone: "Midfield", player_id: null, secondary_player_id: null });
     expect(display.color).toBe("text-gray-700 dark:text-gray-400");
     expect(display.important).toBe(false);
+  });
+});
+
+describe("getEventTypeLabel", () => {
+  it("returns translated event labels for pt-BR", async () => {
+    await i18n.changeLanguage("pt-BR");
+
+    const t = i18n.t.bind(i18n);
+
+    expect(getEventTypeLabel("Goal", t)).toBe("Gol");
+    expect(getEventTypeLabel("SecondHalfStart", t)).toBe("Início do 2º Tempo");
+    expect(getEventTypeLabel("PenaltyAwarded", t)).toBe("Pênalti Marcado");
+  });
+
+  it("falls back to a humanized label for unknown events", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(getEventTypeLabel("UnknownEvent")).toBe("Unknown Event");
   });
 });
 

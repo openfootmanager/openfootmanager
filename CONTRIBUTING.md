@@ -7,7 +7,7 @@ There are several ways to contribute, whether you are a programmer or just a fan
 If you do not code, you can still help in many ways:
 
 - Give us a star!
-- Join the Discord server: https://discord.gg/4ppEDH68
+- Join the Discord server: https://discord.gg/2CXaesaukT
 - Tweet about the project!
 - Refer this project in your project's readme!
 - Tell your friends about us!
@@ -21,10 +21,10 @@ If you do not code, you can still help in many ways:
 If you really want to help us directly, thank you very much! We have a few jobs that you might be interested in:
 
 - **Report a problem**  
-  You can report bugs or issues you encounter in the game. Open an Issue and follow the steps to report the problem. Please read carefully the bug reporting issue template before submitting a new bug report. Provide as much information as you can to help us track the bug and solve it as fast as we possibly can. If you want to discuss a problem before filing it, you can also join the Discord server: https://discord.gg/4ppEDH68
+  You can report bugs or issues you encounter in the game. Open an Issue and follow the steps to report the problem. Please read carefully the bug reporting issue template before submitting a new bug report. Provide as much information as you can to help us track the bug and solve it as fast as we possibly can. If you want to discuss a problem before filing it, you can also join the Discord server: https://discord.gg/2CXaesaukT
 
 - **Propose enhancements**  
-  You can also propose new enhancements or improvements to the game. We're considering new ideas every day, and you can propose yours by opening an Issue and following the steps to propose enhancements. Just make sure to check the Issues page for similar ideas before opening up a new Issue. We don't want to flood the page with duplicated issues. Discord is also a good place for early discussion: https://discord.gg/4ppEDH68
+  You can also propose new enhancements or improvements to the game. We're considering new ideas every day, and you can propose yours by opening an Issue and following the steps to propose enhancements. Just make sure to check the Issues page for similar ideas before opening up a new Issue. We don't want to flood the page with duplicated issues. Discord is also a good place for early discussion: https://discord.gg/2CXaesaukT
 
 - **Documentation**  
   Do you think we can improve our documentation somehow? You can propose changes to the text, or write useful tutorials or examples on how to do certain things in the game.

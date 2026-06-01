@@ -128,13 +128,66 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
 }
 
 /// Serialisable world database — can be saved to / loaded from JSON.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum WorldDataKind {
+    #[default]
+    RosterBaseline,
+    HistoricalSnapshot,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorldDataMetadata {
+    #[serde(default)]
+    pub kind: WorldDataKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_year: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_date: Option<String>,
+}
+
+impl Default for WorldDataMetadata {
+    fn default() -> Self {
+        Self {
+            kind: WorldDataKind::RosterBaseline,
+            base_year: None,
+            snapshot_date: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WorldData {
     pub name: String,
     pub description: String,
     pub teams: Vec<domain::team::Team>,
     pub players: Vec<domain::player::Player>,
     pub staff: Vec<domain::staff::Staff>,
+    pub managers: Vec<domain::manager::Manager>,
+    pub league: Option<domain::league::League>,
+    pub news: Vec<domain::news::NewsArticle>,
+    pub stats: domain::stats::StatsState,
+    pub world_history: domain::world_history::WorldHistoryArchive,
+    pub metadata: WorldDataMetadata,
+}
+
+impl Default for WorldData {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            teams: Vec::new(),
+            players: Vec::new(),
+            staff: Vec::new(),
+            managers: Vec::new(),
+            league: None,
+            news: Vec::new(),
+            stats: domain::stats::StatsState::default(),
+            world_history: domain::world_history::WorldHistoryArchive::default(),
+            metadata: WorldDataMetadata::default(),
+        }
+    }
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.
@@ -145,6 +198,9 @@ pub struct WorldDatabaseInfo {
     pub description: String,
     pub team_count: usize,
     pub player_count: usize,
+    pub history_mode: String,
+    pub base_year: Option<i32>,
+    pub snapshot_date: Option<String>,
     /// "builtin" | "user"
     pub source: String,
     /// Filesystem path (empty for built-in random)

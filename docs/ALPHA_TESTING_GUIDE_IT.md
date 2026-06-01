@@ -125,7 +125,7 @@ Esempi:
 
 Il modo più semplice per inviare feedback è tramite i nostri **template di issue su GitHub**. Basta scegliere quello giusto e compilarlo — **puoi scrivere in italiano!**
 
-Se vuoi parlare con il team o con altri giocatori, puoi anche unirti al server Discord: https://discord.gg/4ppEDH68
+Se vuoi parlare con il team o con altri giocatori, puoi anche unirti al server Discord: https://discord.gg/2CXaesaukT
 
 - [**Segnalazione Bug (Italiano)**](https://github.com/openfootmanager/openfootmanager/issues/new?template=bug_report_it.yml) — Qualcosa è andato in crash, si è rotto o si è comportato in modo scorretto
 - [**Feedback / Suggerimento (Italiano)**](https://github.com/openfootmanager/openfootmanager/issues/new?template=feedback_it.yml) — Problemi di usabilità, bilanciamento o idee

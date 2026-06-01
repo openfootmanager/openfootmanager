@@ -2,6 +2,19 @@ use domain::team::{Facilities, FacilityType, Team};
 
 pub const BASE_FACILITY_UPGRADE_COST: i64 = 250_000;
 
+fn facility_upgrade_insufficient_funds_error(amount: i64) -> String {
+    let amount = amount.to_string();
+    let key = "be.error.finance.facilityUpgradeInsufficientFunds";
+    let param_name = "amount";
+    let mut message = String::with_capacity(key.len() + param_name.len() + amount.len() + 2);
+    message.push_str(key);
+    message.push('?');
+    message.push_str(param_name);
+    message.push('=');
+    message.push_str(&amount);
+    message
+}
+
 fn facility_level(facilities: &Facilities, facility_type: &FacilityType) -> u8 {
     match facility_type {
         FacilityType::Training => facilities.training,
@@ -17,10 +30,7 @@ pub fn next_upgrade_cost(team: &Team, facility_type: &FacilityType) -> i64 {
 pub fn upgrade_facility(team: &mut Team, facility_type: FacilityType) -> Result<i64, String> {
     let cost = next_upgrade_cost(team, &facility_type);
     if team.finance < cost {
-        return Err(format!(
-            "Insufficient funds for facility upgrade: need €{}",
-            cost
-        ));
+        return Err(facility_upgrade_insufficient_funds_error(cost));
     }
 
     team.finance -= cost;

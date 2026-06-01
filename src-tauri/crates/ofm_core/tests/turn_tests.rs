@@ -201,6 +201,7 @@ fn make_game_with_match() -> Game {
             StandingEntry::new("team2".to_string()),
         ],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
 
     let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);
@@ -538,12 +539,22 @@ fn process_day_releases_players_with_expired_contracts() {
     assert_eq!(released_player.team_id, None);
     assert_eq!(released_player.contract_end, None);
     assert_eq!(released_player.wage, 0);
-    assert!(
-        game.messages
-            .iter()
-            .any(|message| message.id == "contract_expired_t1_fwd0"),
-        "An inbox message should explain that the player left on a free"
+    let message = game
+        .messages
+        .iter()
+        .find(|message| message.id == "contract_expired_t1_fwd0")
+        .expect("An inbox message should explain that the player left on a free");
+    assert_eq!(
+        message.subject_key.as_deref(),
+        Some("be.msg.contractExpired.subject")
     );
+    assert_eq!(message.body_key.as_deref(), Some("be.msg.contractExpired.body"));
+    assert_eq!(message.sender_key.as_deref(), Some("be.sender.assistantManager"));
+    assert_eq!(message.sender_role_key.as_deref(), Some("be.role.assistantManager"));
+    assert!(message.subject.is_empty());
+    assert!(message.body.is_empty());
+    assert!(message.sender.is_empty());
+    assert!(message.sender_role.is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -1557,6 +1568,7 @@ fn make_round_summary_game() -> Game {
             standing_entry("team4", 11, 27, 19, 14),
         ],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
 
     let mut game = Game::new(

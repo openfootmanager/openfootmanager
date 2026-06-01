@@ -52,10 +52,7 @@ export default function NegotiationFeedbackPanel({
           </p>
         </div>
         <Badge variant="neutral">
-          {t(roundKey, {
-            count: feedback.round,
-            defaultValue: `Round ${feedback.round}`,
-          })}
+          {t(roundKey, { count: feedback.round })}
         </Badge>
       </div>
 

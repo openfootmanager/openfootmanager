@@ -328,7 +328,7 @@ impl LiveMatchState {
                 player_on_id,
             } => {
                 if self.phase != MatchPhase::PreKickOff {
-                    return Err("Pre-match swaps only allowed before kick-off".into());
+                    return Err("be.error.liveMatch.preMatchSwapTooLate".into());
                 }
                 self.do_pre_match_swap(side, &player_off_id, &player_on_id)
             }

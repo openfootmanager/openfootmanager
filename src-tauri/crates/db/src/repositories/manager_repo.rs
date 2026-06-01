@@ -1,12 +1,15 @@
 use domain::manager::{Manager, ManagerCareerEntry, ManagerCareerStats};
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Insert or replace a manager row.
 pub fn upsert_manager(conn: &Connection, m: &Manager) -> Result<(), String> {
-    let career_stats_json =
-        serde_json::to_string(&m.career_stats).map_err(|e| format!("JSON error: {}", e))?;
-    let career_history_json =
-        serde_json::to_string(&m.career_history).map_err(|e| format!("JSON error: {}", e))?;
+    let career_stats_json = serde_json::to_string(&m.career_stats)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let career_history_json = serde_json::to_string(&m.career_history)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     conn.execute(
         "INSERT OR REPLACE INTO managers
@@ -29,7 +32,7 @@ pub fn upsert_manager(conn: &Connection, m: &Manager) -> Result<(), String> {
             career_history_json,
         ],
     )
-    .map_err(|e| format!("Failed to upsert manager: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -40,7 +43,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
             "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history
              FROM managers WHERE id = ?1",
         )
-        .map_err(|e| format!("Failed to prepare manager query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut rows = stmt
         .query_map(params![id], |row| {
@@ -63,7 +66,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
                 career_history_json,
             ))
         })
-        .map_err(|e| format!("Failed to query manager: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     match rows.next() {
         Some(Ok((
@@ -83,9 +86,9 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
             history_json,
         ))) => {
             let career_stats: ManagerCareerStats = serde_json::from_str(&stats_json)
-                .map_err(|e| format!("JSON parse error: {}", e))?;
+                .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
             let career_history: Vec<ManagerCareerEntry> = serde_json::from_str(&history_json)
-                .map_err(|e| format!("JSON parse error: {}", e))?;
+                .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
             Ok(Some(Manager {
                 id,
@@ -104,7 +107,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
                 career_history,
             }))
         }
-        Some(Err(e)) => Err(format!("Failed to read manager row: {}", e)),
+        Some(Err(_)) => Err(GAME_PERSISTENCE_LOAD_ERROR.to_string()),
         None => Ok(None),
     }
 }
@@ -116,7 +119,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
             "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history
              FROM managers",
         )
-        .map_err(|e| format!("Failed to prepare managers query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -137,7 +140,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
                 row.get::<_, String>(13)?,
             ))
         })
-        .map_err(|e| format!("Failed to query managers: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut managers = Vec::new();
     for row in rows {
@@ -156,11 +159,11 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
             warning_stage,
             stats_json,
             history_json,
-        ) = row.map_err(|e| format!("Failed to read manager row: {}", e))?;
-        let career_stats: ManagerCareerStats =
-            serde_json::from_str(&stats_json).map_err(|e| format!("JSON parse error: {}", e))?;
-        let career_history: Vec<ManagerCareerEntry> =
-            serde_json::from_str(&history_json).map_err(|e| format!("JSON parse error: {}", e))?;
+        ) = row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+        let career_stats: ManagerCareerStats = serde_json::from_str(&stats_json)
+            .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+        let career_history: Vec<ManagerCareerEntry> = serde_json::from_str(&history_json)
+            .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
         managers.push(Manager {
             id,
             first_name,
@@ -185,6 +188,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -277,5 +281,24 @@ mod tests {
         assert_eq!(loaded.career_stats.matches_managed, 42);
         assert_eq!(loaded.career_stats.wins, 20);
         assert_eq!(loaded.career_stats.trophies, 1);
+    }
+
+    #[test]
+    fn test_upsert_manager_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let manager = sample_manager();
+
+        let result = upsert_manager(&conn, &manager);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_manager_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_manager(&conn, "mgr_user");
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

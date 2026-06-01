@@ -1,4 +1,4 @@
-import { calcOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 
 import type { LeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
@@ -26,7 +26,7 @@ function calculateAverageOvr(roster: PlayerData[]): number {
 
   return Math.round(
     roster.reduce((sum, player) => {
-      return sum + (player.ovr ?? calcOvr(player, player.natural_position || player.position));
+      return sum + getPlayerOvr(player);
     }, 0) / roster.length,
   );
 }
@@ -40,8 +40,8 @@ function getSortedStandings(gameState: GameStateData): LeagueStanding[] {
     (leftEntry, rightEntry) =>
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
-        rightEntry.goals_against -
-        (leftEntry.goals_for - leftEntry.goals_against) ||
+      rightEntry.goals_against -
+      (leftEntry.goals_for - leftEntry.goals_against) ||
       rightEntry.goals_for - leftEntry.goals_for,
   );
 }

@@ -14,6 +14,10 @@ use domain::player::{ContractRenewalState, Player, RenewalSessionOutcome, Renewa
 use domain::staff::StaffRole;
 use std::collections::{HashMap, HashSet};
 
+const ERR_NO_ASSISTANT_MANAGER_ASSIGNED: &str = "be.error.contracts.noAssistantManagerAssigned";
+const ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE: &str =
+    "be.error.contracts.unableToCalculateContractEndDate";
+
 pub fn delegate_renewals(
     game: &mut Game,
     options: DelegatedRenewalOptions,
@@ -22,12 +26,12 @@ pub fn delegate_renewals(
         .manager
         .team_id
         .clone()
-        .ok_or("No team assigned".to_string())?;
+        .ok_or("be.error.noTeamAssigned".to_string())?;
     let team = game
         .teams
         .iter()
         .find(|candidate| candidate.id == manager_team_id)
-        .ok_or("Manager team not found".to_string())?
+        .ok_or("be.error.managedTeamNotFound".to_string())?
         .clone();
     let assistant = game
         .staff
@@ -36,7 +40,7 @@ pub fn delegate_renewals(
             staff.team_id.as_deref() == Some(team.id.as_str())
                 && staff.role == StaffRole::AssistantManager
         })
-        .ok_or("No assistant manager assigned to your team".to_string())?;
+        .ok_or(ERR_NO_ASSISTANT_MANAGER_ASSIGNED.to_string())?;
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
     let max_years = options.max_contract_years.max(1);
@@ -105,7 +109,7 @@ pub fn delegate_renewals(
 
         if has_let_expire_intent(player) {
             report.failure_count += 1;
-            case.note = "You already marked this contract to expire.".to_string();
+            case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.markedLetExpire".to_string());
             report.cases.push(case);
             continue;
@@ -113,7 +117,7 @@ pub fn delegate_renewals(
 
         if has_active_manager_block(player, current_date) {
             report.failure_count += 1;
-            case.note = "You told me not to reopen contract talks yet.".to_string();
+            case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.managerBlocked".to_string());
             report.cases.push(case);
             continue;
@@ -122,10 +126,7 @@ pub fn delegate_renewals(
         if max_wage < expected_wage || max_years < expected_years {
             report.stalled_count += 1;
             case.status = DelegatedRenewalResultStatus::Stalled;
-            case.note = format!(
-                "Their camp want around €{}/wk for {} years, which is beyond the delegation limits.",
-                expected_wage, expected_years
-            );
+            case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.beyondLimits".to_string());
             case.note_params = delegated_note_params(&[
                 ("wage", expected_wage.to_string()),
@@ -151,7 +152,7 @@ pub fn delegate_renewals(
             if !renewal_wage_policy_allows(game, &team, player.wage, agreed_wage) {
                 report.stalled_count += 1;
                 case.status = DelegatedRenewalResultStatus::Stalled;
-                case.note = "I could progress the talks, but board wage limits prevented this renewal from being completed.".to_string();
+                case.note = String::new();
                 case.note_key = Some("be.msg.delegatedRenewals.notes.boardWagePolicy".to_string());
                 case.note_params =
                     delegated_note_params(&[("budget", team.wage_budget.to_string())]);
@@ -170,7 +171,7 @@ pub fn delegate_renewals(
 
             let new_contract_end = current_date
                 .checked_add_months(Months::new(agreed_years * 12))
-                .ok_or("Unable to calculate delegated contract end date".to_string())?;
+                .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
             let player = &mut game.players[player_index];
             player.wage = agreed_wage;
             player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
@@ -189,7 +190,7 @@ pub fn delegate_renewals(
             case.status = DelegatedRenewalResultStatus::Successful;
             case.agreed_wage = Some(player.wage);
             case.agreed_years = Some(agreed_years);
-            case.note = "I was able to close this one without needing you to step in.".to_string();
+            case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.completed".to_string());
             report.cases.push(case);
             continue;
@@ -198,10 +199,7 @@ pub fn delegate_renewals(
         if delegation_score >= 72 {
             report.stalled_count += 1;
             case.status = DelegatedRenewalResultStatus::Stalled;
-            case.note = format!(
-                "They would listen, but they still want about €{}/wk for {} years and prefer to hear from you directly.",
-                expected_wage, expected_years
-            );
+            case.note = String::new();
             case.note_key = Some("be.msg.delegatedRenewals.notes.prefersManager".to_string());
             case.note_params = delegated_note_params(&[
                 ("wage", expected_wage.to_string()),
@@ -221,7 +219,7 @@ pub fn delegate_renewals(
         }
 
         report.failure_count += 1;
-        case.note = "They are not willing to commit through me under the current relationship and contract situation.".to_string();
+        case.note = String::new();
         case.note_key = Some("be.msg.delegatedRenewals.notes.relationshipBlocked".to_string());
         let player = &mut game.players[player_index];
         let state = player
@@ -303,17 +301,14 @@ fn delegated_renewal_report_message(
 ) -> InboxMessage {
     InboxMessage::new(
         format!("delegated_renewals_{}_{}", date, id_suffix),
-        "Assistant Report — Contract Renewals".to_string(),
-        format!(
-            "Boss, I went through our renewal list at {}. {} completed, {} still pending, {} failed.",
-            team_name, report.success_count, report.stalled_count, report.failure_count
-        ),
-        "Assistant Manager".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Contract)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Assistant Manager")
+    .with_sender_role("")
     .with_i18n(
         "be.msg.delegatedRenewals.subject",
         "be.msg.delegatedRenewals.body",

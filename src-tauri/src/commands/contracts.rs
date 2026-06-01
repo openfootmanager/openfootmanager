@@ -18,7 +18,7 @@ pub struct RenewalCommandResponse {
     pub game: Game,
     pub suggested_wage: Option<u32>,
     pub suggested_years: Option<u32>,
-    pub session_status: RenewalSessionStatus,
+    pub session_status: String,
     pub is_terminal: bool,
     pub cooled_off: bool,
     pub feedback: Option<NegotiationFeedback>,
@@ -32,6 +32,23 @@ pub struct DelegatedRenewalCommandResponse {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RenewalFinancialProjectionCommandResponse {
+    pub projection: RenewalFinancialProjection,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FreeAgentContractCommandResponse {
+    pub outcome: RenewalDecision,
+    pub game: Game,
+    pub suggested_wage: Option<u32>,
+    pub suggested_years: Option<u32>,
+    pub session_status: String,
+    pub is_terminal: bool,
+    pub cooled_off: bool,
+    pub feedback: Option<NegotiationFeedback>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FreeAgentContractProjectionCommandResponse {
     pub projection: RenewalFinancialProjection,
 }
 
@@ -50,6 +67,17 @@ pub struct ContractTerminationCommandResponse {
     pub game: Game,
     pub severance_cost: i64,
     pub squad_safety: SquadSafetyReport,
+}
+
+fn serialize_session_status(status: RenewalSessionStatus) -> String {
+    match status {
+        RenewalSessionStatus::Idle => "idle",
+        RenewalSessionStatus::Open => "open",
+        RenewalSessionStatus::Agreed => "agreed",
+        RenewalSessionStatus::Blocked => "blocked",
+        RenewalSessionStatus::Stalled => "stalled",
+    }
+    .to_string()
 }
 
 #[tauri::command]
@@ -84,6 +112,25 @@ pub async fn preview_renewal_financial_impact(
     weekly_wage: u32,
 ) -> Result<RenewalFinancialProjectionCommandResponse, String> {
     preview_renewal_financial_impact_internal(&state, &player_id, weekly_wage)
+}
+
+#[tauri::command]
+pub async fn offer_free_agent_contract(
+    state: State<'_, StateManager>,
+    player_id: String,
+    weekly_wage: u32,
+    contract_years: u32,
+) -> Result<FreeAgentContractCommandResponse, String> {
+    offer_free_agent_contract_internal(&state, &player_id, weekly_wage, contract_years)
+}
+
+#[tauri::command]
+pub async fn preview_free_agent_contract_impact(
+    state: State<'_, StateManager>,
+    player_id: String,
+    weekly_wage: u32,
+) -> Result<FreeAgentContractProjectionCommandResponse, String> {
+    preview_free_agent_contract_impact_internal(&state, &player_id, weekly_wage)
 }
 
 #[tauri::command]
@@ -150,7 +197,7 @@ fn propose_renewal_internal(
         game,
         suggested_wage: outcome.suggested_wage,
         suggested_years: outcome.suggested_years,
-        session_status: outcome.session_status,
+        session_status: serialize_session_status(outcome.session_status),
         is_terminal: outcome.is_terminal,
         cooled_off: outcome.cooled_off,
         feedback: outcome.feedback,
@@ -204,6 +251,64 @@ fn preview_renewal_financial_impact_internal(
         ofm_core::contracts::project_renewal_financial_impact(&game, player_id, weekly_wage)?;
 
     Ok(RenewalFinancialProjectionCommandResponse { projection })
+}
+
+fn offer_free_agent_contract_internal(
+    state: &StateManager,
+    player_id: &str,
+    weekly_wage: u32,
+    contract_years: u32,
+) -> Result<FreeAgentContractCommandResponse, String> {
+    info!(
+        "[cmd] offer_free_agent_contract: player_id={}, weekly_wage={}, contract_years={}",
+        player_id, weekly_wage, contract_years
+    );
+
+    let mut game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("be.error.noActiveGameSession".to_string())?;
+
+    let outcome = ofm_core::contracts::offer_free_agent_contract(
+        &mut game,
+        player_id,
+        RenewalOffer {
+            weekly_wage,
+            contract_years,
+        },
+    )?;
+
+    state.set_game(game.clone());
+
+    Ok(FreeAgentContractCommandResponse {
+        outcome: outcome.decision,
+        game,
+        suggested_wage: outcome.suggested_wage,
+        suggested_years: outcome.suggested_years,
+        session_status: serialize_session_status(outcome.session_status),
+        is_terminal: outcome.is_terminal,
+        cooled_off: outcome.cooled_off,
+        feedback: outcome.feedback,
+    })
+}
+
+fn preview_free_agent_contract_impact_internal(
+    state: &StateManager,
+    player_id: &str,
+    weekly_wage: u32,
+) -> Result<FreeAgentContractProjectionCommandResponse, String> {
+    info!(
+        "[cmd] preview_free_agent_contract_impact: player_id={}, weekly_wage={}",
+        player_id, weekly_wage
+    );
+
+    let game = state
+        .get_game(|g: &Game| g.clone())
+        .ok_or("be.error.noActiveGameSession".to_string())?;
+
+    let projection =
+        ofm_core::contracts::project_free_agent_contract_impact(&game, player_id, weekly_wage)?;
+
+    Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
 
 fn set_contract_exit_intent_internal(
@@ -284,14 +389,15 @@ fn terminate_contract_now_internal(
 mod tests {
     use super::{
         clear_contract_exit_intent_internal, delegate_renewals_internal,
-        preview_contract_termination_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal, set_contract_exit_intent_internal,
-        terminate_contract_now_internal,
+        offer_free_agent_contract_internal, preview_contract_termination_internal,
+        preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
+        propose_renewal_internal, set_contract_exit_intent_internal, terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
     use domain::manager::Manager;
-    use domain::player::{Player, PlayerAttributes, Position};
+    use domain::player::{Player, PlayerAttributes, Position, RenewalSessionStatus};
+    use domain::season::TransferWindowStatus;
     use domain::staff::{Staff, StaffAttributes, StaffRole};
     use domain::team::Team;
     use ofm_core::clock::GameClock;
@@ -451,6 +557,23 @@ mod tests {
             make_player_with_position("player-10", Position::Midfielder),
             make_player_with_position("player-11", Position::Forward),
         ];
+        game
+    }
+
+    fn make_free_agent_game() -> Game {
+        let mut game = make_game();
+        let player = &mut game.players[0];
+        player.team_id = None;
+        player.contract_end = None;
+        player.wage = 0;
+        player.market_value = 600_000;
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        game
+    }
+
+    fn make_retired_free_agent_game() -> Game {
+        let mut game = make_free_agent_game();
+        game.players[0].retired = true;
         game
     }
 
@@ -636,6 +759,77 @@ mod tests {
         assert_eq!(response.projection.current_annual_wage_bill, 12_000);
         assert_eq!(response.projection.projected_annual_wage_bill, 15_000);
         assert!(response.projection.policy_allows);
+    }
+
+    #[test]
+    fn offer_free_agent_contract_internal_returns_response_and_updates_state() {
+        let state = StateManager::new();
+        state.set_game(make_free_agent_game());
+
+        let response =
+            offer_free_agent_contract_internal(&state, "player-1", 4_000, 3).expect("response");
+
+        assert!(matches!(response.outcome, RenewalDecision::Accepted));
+        assert_eq!(response.session_status, "agreed");
+        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
+        assert_eq!(response.game.players[0].contract_end.as_deref(), Some("2029-08-01"));
+
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        assert_eq!(stored_game.players[0].team_id.as_deref(), Some("team-1"));
+    }
+
+    #[test]
+    fn preview_free_agent_contract_impact_internal_returns_projection() {
+        let state = StateManager::new();
+        state.set_game(make_free_agent_game());
+
+        let response =
+            preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
+                .expect("response");
+
+        assert_eq!(response.projection.current_annual_wage_bill, 0);
+        assert_eq!(response.projection.projected_annual_wage_bill, 4_000);
+        assert!(response.projection.policy_allows);
+    }
+
+    #[test]
+    fn preview_free_agent_contract_impact_internal_rejects_retired_players() {
+        let state = StateManager::new();
+        state.set_game(make_retired_free_agent_game());
+
+        let error = preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
+            .expect_err("retired players should be rejected");
+
+        assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+    }
+
+    #[test]
+    fn offer_free_agent_contract_internal_rejects_retired_players() {
+        let state = StateManager::new();
+        state.set_game(make_retired_free_agent_game());
+
+        let error = offer_free_agent_contract_internal(&state, "player-1", 4_000, 3)
+            .expect_err("retired players should be rejected");
+
+        assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+    }
+
+    #[test]
+    fn serialize_session_status_uses_frontend_casing() {
+        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Idle), "idle");
+        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Open), "open");
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Agreed),
+            "agreed"
+        );
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Blocked),
+            "blocked"
+        );
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Stalled),
+            "stalled"
+        );
     }
 
     #[test]

@@ -60,7 +60,10 @@ fn upgrade_facility_rejects_when_funds_are_insufficient() {
 
     let result = club::upgrade_facility(&mut game.teams[0], FacilityType::Training);
 
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.finance.facilityUpgradeInsufficientFunds?amount=250000"
+    );
     assert_eq!(game.teams[0].finance, 100_000);
     assert_eq!(game.teams[0].facilities.training, 1);
 }

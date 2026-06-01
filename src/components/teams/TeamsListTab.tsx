@@ -1,7 +1,7 @@
 import { GameStateData } from "../../store/gameStore";
 import { Card, CardBody, Badge, TeamLocation } from "../ui";
 import { Users, Trophy } from "lucide-react";
-import { calcOvr as calcPlayerOvr, formatVal } from "../../lib/helpers";
+import { formatVal, getPlayerOvr } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 
 interface TeamsListTabProps {
@@ -15,14 +15,14 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
 
   const allStandings = gameState.league?.standings
     ? [...gameState.league.standings].sort((a, b) =>
-        b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against) || b.goals_for - a.goals_for
-      )
+      b.points - a.points || (b.goals_for - b.goals_against) - (a.goals_for - a.goals_against) || b.goals_for - a.goals_for
+    )
     : [];
 
   const teamsData = gameState.teams.map(team => {
     const roster = gameState.players.filter(p => p.team_id === team.id);
     const avgOvr = roster.length > 0
-      ? Math.round(roster.reduce((s, p) => s + (p.ovr ?? calcPlayerOvr(p)), 0) / roster.length)
+      ? Math.round(roster.reduce((s, p) => s + getPlayerOvr(p), 0) / roster.length)
       : 0;
     const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
     const leaguePos = allStandings.findIndex(s => s.team_id === team.id) + 1;
@@ -36,6 +36,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {teamsData.map(({ team, roster, avgOvr, totalValue, leaguePos, standing }) => {
           const isUser = team.id === userTeamId;
+          const playStyleLabel = t(`common.playStyles.${team.play_style}`, team.play_style);
           return (
             <Card
               key={team.id}
@@ -92,7 +93,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                   <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span className="flex items-center gap-1">
                       <Users className="w-3.5 h-3.5" />
-                      {team.formation} — {team.play_style}
+                      {team.formation} — {playStyleLabel}
                     </span>
                     <span className="flex items-center gap-1">
                       <Trophy className="w-3.5 h-3.5" />

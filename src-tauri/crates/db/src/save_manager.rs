@@ -1,9 +1,10 @@
 use chrono::Utc;
 use domain::stats::StatsState;
-use log::{debug, info};
+use log::info;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use domain::player::{Player, Position};
 use ofm_core::game::Game;
@@ -16,7 +17,7 @@ use ofm_core::player_rating::{
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
 use crate::repositories::league_repo;
-use crate::save_index::{SaveEntry, compute_checksum};
+use crate::save_index::{SaveEntry, compute_checksum, save_entry_metadata_from_game};
 use crate::save_index_manager::SaveIndexManager;
 
 /// Manages save sessions: creating, loading, saving, deleting, and listing.
@@ -25,11 +26,27 @@ pub struct SaveManager {
     save_index: SaveIndexManager,
 }
 
+const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
+const SAVE_DELETE_ERROR: &str = "be.error.saveDeleteFailed";
+
+fn backend_error_with_param(key: &str, param_name: &str, param_value: &str) -> String {
+    let mut message = String::with_capacity(key.len() + param_name.len() + param_value.len() + 2);
+    message.push_str(key);
+    message.push('?');
+    message.push_str(param_name);
+    message.push('=');
+    message.push_str(param_value);
+    message
+}
+
+fn save_not_found_error(save_id: &str) -> String {
+    backend_error_with_param("be.error.saveNotFound", "saveId", save_id)
+}
+
 impl SaveManager {
-    /// Initialize the SaveManager, loading or rebuilding the save index.
+    /// Initialize the SaveManager without blocking startup on a missing save index.
     pub fn init(saves_dir: &Path) -> Result<Self, String> {
-        fs::create_dir_all(saves_dir)
-            .map_err(|e| format!("Failed to create saves directory: {}", e))?;
+        fs::create_dir_all(saves_dir).map_err(|_| SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
         let save_index = SaveIndexManager::init(saves_dir)?;
 
         Ok(Self {
@@ -38,14 +55,60 @@ impl SaveManager {
         })
     }
 
+    fn ensure_save_index_ready(&mut self) -> Result<(), String> {
+        self.save_index.ensure_loaded()
+    }
+
     /// List all save entries.
     pub fn list_saves(&self) -> &[SaveEntry] {
         self.save_index.list_saves()
     }
 
+    pub fn load_saves(&mut self) -> Result<Vec<SaveEntry>, String> {
+        self.ensure_save_index_ready()?;
+        let mut saves = self.save_index.list_saves().to_vec();
+        for save in saves.iter_mut() {
+            if !save.team_name.is_empty() {
+                continue;
+            }
+
+            let db_path = self.saves_dir.join(&save.db_filename);
+            let Ok(db) = GameDatabase::open(&db_path) else {
+                continue;
+            };
+            let Ok(game) = GamePersistenceReader::read_game(&db) else {
+                continue;
+            };
+
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
+            let can_backfill_team = !team_name.is_empty();
+            let can_backfill_manager = save.manager_name.is_empty() && !manager_name.is_empty();
+            if !can_backfill_team && !can_backfill_manager {
+                continue;
+            }
+
+            save.team_name = team_name;
+            if save.manager_name.is_empty() {
+                save.manager_name = manager_name;
+            }
+
+            if let Err(error) = self.save_index.update_save(save.clone()) {
+                log::warn!(
+                    "[save_manager] failed to persist metadata backfill for save {}: {}",
+                    save.id,
+                    error
+                );
+            }
+        }
+
+        Ok(saves)
+    }
+
     /// Create a new save from the current in-memory Game state.
     /// Returns the save_id.
     pub fn create_save(&mut self, game: &Game, save_name: &str) -> Result<String, String> {
+        self.ensure_save_index_ready()?;
+
         let save_id = uuid::Uuid::new_v4().to_string();
         let db_filename = format!("{}.db", save_id);
         let db_path = self.saves_dir.join(&db_filename);
@@ -53,38 +116,112 @@ impl SaveManager {
 
         canonicalize_game_starting_xi_ids(&mut persisted_game);
 
-        debug!("[save_manager] creating save {} at {:?}", save_id, db_path);
-
         let db = GameDatabase::open(&db_path)?;
         GamePersistenceWriter::write_game(&db, &persisted_game, &save_id, save_name)?;
         drop(db);
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         let entry = SaveEntry {
             id: save_id.clone(),
             name: save_name.to_string(),
             manager_name,
+            team_name,
             db_filename,
             checksum,
             created_at: now.clone(),
             last_played_at: now,
         };
 
-        self.save_index.record_new_save(entry)?;
+        if let Err(error) = self.save_index.record_new_save(entry) {
+            let _ = fs::remove_file(&db_path);
+            return Err(error);
+        }
 
-        info!("[save_manager] created save {}", save_id);
+        Ok(save_id)
+    }
+
+    pub fn create_save_with_stats(
+        &mut self,
+        game: &Game,
+        stats: &StatsState,
+        save_name: &str,
+    ) -> Result<String, String> {
+        self.ensure_save_index_ready()?;
+
+        let save_id = uuid::Uuid::new_v4().to_string();
+        let db_filename = format!("{}.db", save_id);
+        let db_path = self.saves_dir.join(&db_filename);
+        let total_timer = Instant::now();
+
+        let clone_timer = Instant::now();
+        let mut persisted_game = game.clone();
+        canonicalize_game_starting_xi_ids(&mut persisted_game);
+        let clone_ms = clone_timer.elapsed().as_millis();
+
+        let db_open_timer = Instant::now();
+        let db = GameDatabase::open(&db_path)?;
+        let db_open_ms = db_open_timer.elapsed().as_millis();
+
+        let write_timer = Instant::now();
+        GamePersistenceWriter::write_game_and_stats(
+            &db,
+            &persisted_game,
+            stats,
+            &save_id,
+            save_name,
+        )?;
+        let write_ms = write_timer.elapsed().as_millis();
+        drop(db);
+
+        let checksum_timer = Instant::now();
+        let checksum = compute_checksum(&db_path)?;
+        let checksum_ms = checksum_timer.elapsed().as_millis();
+
+        let now = Utc::now().to_rfc3339();
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
+
+        let index_timer = Instant::now();
+        let entry = SaveEntry {
+            id: save_id.clone(),
+            name: save_name.to_string(),
+            manager_name,
+            team_name,
+            db_filename,
+            checksum,
+            created_at: now.clone(),
+            last_played_at: now,
+        };
+        if let Err(error) = self.save_index.record_new_save(entry) {
+            let _ = fs::remove_file(&db_path);
+            return Err(error);
+        }
+        let index_ms = index_timer.elapsed().as_millis();
+
+        info!(
+            "[save_manager] create_save_with_stats save_id={} clone_ms={} db_open_ms={} write_ms={} checksum_ms={} index_ms={} total_ms={}",
+            save_id,
+            clone_ms,
+            db_open_ms,
+            write_ms,
+            checksum_ms,
+            index_ms,
+            total_timer.elapsed().as_millis()
+        );
+
         Ok(save_id)
     }
 
     /// Save the current Game state to an existing save.
     pub fn save_game(&mut self, game: &Game, save_id: &str) -> Result<(), String> {
+        self.ensure_save_index_ready()?;
+
         let entry = self
             .save_index
             .find(save_id)
-            .ok_or_else(|| format!("Save '{}' not found", save_id))?;
+            .ok_or_else(|| save_not_found_error(save_id))?;
 
         let db_path = self.saves_dir.join(&entry.db_filename);
         let save_name = entry.name.clone();
@@ -92,35 +229,34 @@ impl SaveManager {
 
         canonicalize_game_starting_xi_ids(&mut persisted_game);
 
-        debug!("[save_manager] saving game to {}", save_id);
-
         let db = GameDatabase::open(&db_path)?;
         GamePersistenceWriter::write_game(&db, &persisted_game, save_id, &save_name)?;
         drop(db);
 
         let checksum = compute_checksum(&db_path)?;
         let now = Utc::now().to_rfc3339();
-        let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
 
         self.save_index.update_save(SaveEntry {
             id: save_id.to_string(),
             name: save_name,
             manager_name,
+            team_name,
             db_filename: entry.db_filename.clone(),
             checksum,
             created_at: entry.created_at.clone(),
             last_played_at: now,
         })?;
-
-        info!("[save_manager] saved game to {}", save_id);
         Ok(())
     }
 
     pub fn save_stats_state(&mut self, stats: &StatsState, save_id: &str) -> Result<(), String> {
+        self.ensure_save_index_ready()?;
+
         let entry = self
             .save_index
             .find(save_id)
-            .ok_or_else(|| format!("Save '{}' not found", save_id))?
+            .ok_or_else(|| save_not_found_error(save_id))?
             .clone();
 
         let db_path = self.saves_dir.join(&entry.db_filename);
@@ -134,6 +270,7 @@ impl SaveManager {
             id: save_id.to_string(),
             name: entry.name,
             manager_name: entry.manager_name,
+            team_name: entry.team_name.clone(),
             db_filename: entry.db_filename,
             checksum,
             created_at: entry.created_at,
@@ -143,11 +280,84 @@ impl SaveManager {
         Ok(())
     }
 
-    pub fn load_stats_state(&mut self, save_id: &str) -> Result<StatsState, String> {
+    pub fn save_game_with_stats(
+        &mut self,
+        game: &Game,
+        stats: &StatsState,
+        save_id: &str,
+    ) -> Result<(), String> {
+        self.ensure_save_index_ready()?;
+
         let entry = self
             .save_index
             .find(save_id)
-            .ok_or_else(|| format!("Save '{}' not found", save_id))?
+            .ok_or_else(|| save_not_found_error(save_id))?
+            .clone();
+
+        let db_path = self.saves_dir.join(&entry.db_filename);
+        let total_timer = Instant::now();
+
+        let clone_timer = Instant::now();
+        let mut persisted_game = game.clone();
+        canonicalize_game_starting_xi_ids(&mut persisted_game);
+        let clone_ms = clone_timer.elapsed().as_millis();
+
+        let db_open_timer = Instant::now();
+        let db = GameDatabase::open(&db_path)?;
+        let db_open_ms = db_open_timer.elapsed().as_millis();
+
+        let write_timer = Instant::now();
+        GamePersistenceWriter::write_game_and_stats(
+            &db,
+            &persisted_game,
+            stats,
+            save_id,
+            &entry.name,
+        )?;
+        let write_ms = write_timer.elapsed().as_millis();
+        drop(db);
+
+        let checksum_timer = Instant::now();
+        let checksum = compute_checksum(&db_path)?;
+        let checksum_ms = checksum_timer.elapsed().as_millis();
+
+        let now = Utc::now().to_rfc3339();
+        let (manager_name, team_name) = save_entry_metadata_from_game(game);
+
+        let index_timer = Instant::now();
+        self.save_index.update_save(SaveEntry {
+            id: save_id.to_string(),
+            name: entry.name,
+            manager_name,
+            team_name,
+            db_filename: entry.db_filename,
+            checksum,
+            created_at: entry.created_at,
+            last_played_at: now,
+        })?;
+        let index_ms = index_timer.elapsed().as_millis();
+
+        info!(
+            "[save_manager] save_game_with_stats save_id={} clone_ms={} db_open_ms={} write_ms={} checksum_ms={} index_ms={} total_ms={}",
+            save_id,
+            clone_ms,
+            db_open_ms,
+            write_ms,
+            checksum_ms,
+            index_ms,
+            total_timer.elapsed().as_millis()
+        );
+
+        Ok(())
+    }
+
+    pub fn load_stats_state(&mut self, save_id: &str) -> Result<StatsState, String> {
+        self.ensure_save_index_ready()?;
+
+        let entry = self
+            .save_index
+            .find(save_id)
+            .ok_or_else(|| save_not_found_error(save_id))?
             .clone();
 
         let db_path = self.saves_dir.join(&entry.db_filename);
@@ -157,15 +367,16 @@ impl SaveManager {
 
     /// Load a Game from a save database.
     pub fn load_game(&mut self, save_id: &str) -> Result<Game, String> {
+        self.ensure_save_index_ready()?;
+
         let entry = self
             .save_index
             .find(save_id)
-            .ok_or_else(|| format!("Save '{}' not found", save_id))?
+            .ok_or_else(|| save_not_found_error(save_id))?
             .clone();
 
         let db_path = self.saves_dir.join(&entry.db_filename);
         let save_name = entry.name.clone();
-        debug!("[save_manager] loading game from {}", save_id);
 
         let db = GameDatabase::open(&db_path)?;
         let mut game = GamePersistenceReader::read_game(&db)?;
@@ -186,34 +397,18 @@ impl SaveManager {
                 .count()
                 != assigned_manager_count_before
         {
-            info!(
-                "[save_manager] backfilled missing world managers for save {}",
-                save_id
-            );
             needs_resave = true;
         }
 
         if canonicalize_game_starting_xi_ids(&mut game) {
-            info!(
-                "[save_manager] canonicalized saved starting XI order for save {}",
-                save_id
-            );
             needs_resave = true;
         }
 
         if player_identity::upgrade_game_player_identities(&mut game) {
-            info!(
-                "[save_manager] upgraded legacy player identities for save {}",
-                save_id
-            );
             needs_resave = true;
         }
 
         if ofm_core::football_identity::upgrade_game_football_identities(&mut game) {
-            info!(
-                "[save_manager] upgraded football identity fields for save {}",
-                save_id
-            );
             needs_resave = true;
         }
 
@@ -252,10 +447,6 @@ impl SaveManager {
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
         )? {
-            info!(
-                "[save_manager] cleaning stale league rows for save {}",
-                save_id
-            );
             needs_resave = true;
         }
 
@@ -268,12 +459,13 @@ impl SaveManager {
 
             let checksum = compute_checksum(&db_path)?;
             let now = Utc::now().to_rfc3339();
-            let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+            let (manager_name, team_name) = save_entry_metadata_from_game(&game);
 
             self.save_index.update_save(SaveEntry {
                 id: save_id.to_string(),
                 name: save_name,
                 manager_name,
+                team_name,
                 db_filename: entry.db_filename.clone(),
                 checksum,
                 created_at: entry.created_at.clone(),
@@ -286,6 +478,8 @@ impl SaveManager {
 
     /// Delete a save (removes DB file and index entry).
     pub fn delete_save(&mut self, save_id: &str) -> Result<bool, String> {
+        self.ensure_save_index_ready()?;
+
         let entry = match self.save_index.find(save_id) {
             Some(e) => e.clone(),
             None => return Ok(false),
@@ -293,12 +487,10 @@ impl SaveManager {
 
         let db_path = self.saves_dir.join(&entry.db_filename);
         if db_path.exists() {
-            fs::remove_file(&db_path).map_err(|e| format!("Failed to delete save file: {}", e))?;
-            debug!("[save_manager] deleted file {:?}", db_path);
+            fs::remove_file(&db_path).map_err(|_| SAVE_DELETE_ERROR.to_string())?;
         }
 
         self.save_index.remove_save(save_id)?;
-        info!("[save_manager] deleted save {}", save_id);
         Ok(true)
     }
 
@@ -342,11 +534,6 @@ impl SaveManager {
 
         // Clear league (will be regenerated)
         game.league = None;
-
-        info!(
-            "[save_manager] created new game template from save {}",
-            source_save_id
-        );
         Ok(game)
     }
 }
@@ -469,6 +656,14 @@ mod tests {
         BoardObjective, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
     };
     use rusqlite::params;
+
+    fn db_file_count(dir: &std::path::Path) -> usize {
+        fs::read_dir(dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("db"))
+            .count()
+    }
 
     fn sample_game() -> Game {
         let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
@@ -598,6 +793,7 @@ mod tests {
                 StandingEntry::new("team-002".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
 
         let mut game = Game::new(
@@ -825,6 +1021,86 @@ mod tests {
     }
 
     #[test]
+    fn test_load_saves_backfills_legacy_index_missing_team_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let game = sample_game();
+            sm.create_save(&game, "Legacy Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Legacy Career",
+                "manager_name": "John Smith",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].team_name, "London FC");
+    }
+
+    #[test]
+    fn test_load_saves_backfills_manager_name_when_unemployed() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        let save_id = {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+            let clock = GameClock::new(start);
+            let manager = domain::manager::Manager::new(
+                "mgr-user".to_string(),
+                "Jane".to_string(),
+                "Doe".to_string(),
+                "1990-01-15".to_string(),
+                "British".to_string(),
+            );
+            let game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+            sm.create_save(&game, "Unemployed Career").unwrap()
+        };
+
+        let legacy_index = format!(
+            r#"{{
+            "version": 1,
+            "saves": [{{
+                "id": "{save_id}",
+                "name": "Unemployed Career",
+                "manager_name": "",
+                "db_filename": "{save_id}.db",
+                "checksum": "stale",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }}]
+        }}"#
+        );
+        fs::write(&index_path, legacy_index).unwrap();
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let saves = sm.load_saves().unwrap();
+
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].manager_name, "Jane Doe");
+        assert_eq!(saves[0].team_name, "");
+    }
+
+    #[test]
     fn test_init_creates_directory() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -832,6 +1108,46 @@ mod tests {
         let sm = SaveManager::init(&saves_dir).unwrap();
         assert!(saves_dir.exists());
         assert!(sm.list_saves().is_empty());
+    }
+
+    #[test]
+    fn test_init_returns_backend_key_when_saves_path_is_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_path = dir.path().join("saves");
+        fs::write(&saves_path, "not a directory").unwrap();
+
+        let result = SaveManager::init(&saves_path);
+
+        match result {
+            Err(error) => assert_eq!(error, SAVE_MANAGER_UNAVAILABLE_ERROR),
+            Ok(_) => panic!("expected save manager init to fail for a file path"),
+        }
+    }
+
+    #[test]
+    fn test_missing_index_rebuilds_lazily_on_first_save_query() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+
+        {
+            let mut sm = SaveManager::init(&saves_dir).unwrap();
+            let game = sample_game();
+            sm.create_save(&game, "Deferred Index Career").unwrap();
+        }
+
+        assert!(index_path.exists());
+        fs::remove_file(&index_path).unwrap();
+        assert!(!index_path.exists());
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        assert!(sm.list_saves().is_empty());
+        assert!(!index_path.exists());
+
+        let saves = sm.load_saves().unwrap();
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].name, "Deferred Index Career");
+        assert!(index_path.exists());
     }
 
     #[test]
@@ -849,7 +1165,45 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].name, "John's Career");
         assert_eq!(saves[0].manager_name, "John Smith");
+        assert_eq!(saves[0].team_name, "London FC");
         assert!(!saves[0].checksum.is_empty());
+    }
+
+    #[test]
+    fn test_create_save_removes_db_when_index_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let game = sample_game();
+
+        assert!(sm.load_saves().unwrap().is_empty());
+        fs::remove_file(&index_path).unwrap();
+        fs::create_dir(&index_path).unwrap();
+
+        let result = sm.create_save(&game, "Broken Index Career");
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.writeFailed");
+        assert_eq!(db_file_count(&saves_dir), 0);
+    }
+
+    #[test]
+    fn test_create_save_with_stats_removes_db_when_index_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let index_path = saves_dir.join("save_index.json");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let game = sample_game();
+        let stats = sample_stats_state();
+
+        assert!(sm.load_saves().unwrap().is_empty());
+        fs::remove_file(&index_path).unwrap();
+        fs::create_dir(&index_path).unwrap();
+
+        let result = sm.create_save_with_stats(&game, &stats, "Broken Stats Career");
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.writeFailed");
+        assert_eq!(db_file_count(&saves_dir), 0);
     }
 
     #[test]
@@ -875,12 +1229,30 @@ mod tests {
     }
 
     #[test]
+    fn test_create_and_load_game_preserves_retired_player_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.players[0].retired = true;
+        game.players[0].team_id = None;
+
+        let save_id = sm.create_save(&game, "Retired Career").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(loaded.players[0].retired);
+        assert_eq!(loaded.players[0].team_id, None);
+    }
+
+    #[test]
     fn test_load_game_upgrades_football_identity_fields() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
+        game.manager.nationality = "British".to_string();
         game.manager.football_nation.clear();
         game.manager.birth_country = None;
         game.teams[0].football_nation.clear();
@@ -890,6 +1262,7 @@ mod tests {
         let save_id = sm.create_save(&game, "Legacy Identity Career").unwrap();
         let loaded = sm.load_game(&save_id).unwrap();
 
+        assert_eq!(loaded.manager.nationality, "ENG");
         assert_eq!(loaded.manager.football_nation, "ENG");
         assert_eq!(loaded.manager.birth_country, None);
         assert_eq!(loaded.teams[0].football_nation, "ENG");
@@ -1049,8 +1422,9 @@ mod tests {
         let game = sample_game_with_league();
         let stats = sample_stats_state();
 
-        let save_id = sm.create_save(&game, "Stats Career").unwrap();
-        sm.save_stats_state(&stats, &save_id).unwrap();
+        let save_id = sm
+            .create_save_with_stats(&game, &stats, "Stats Career")
+            .unwrap();
 
         let loaded_stats = sm.load_stats_state(&save_id).unwrap();
 
@@ -1060,6 +1434,36 @@ mod tests {
         assert_eq!(loaded_stats.player_matches[0].shots, 4);
         assert_eq!(loaded_stats.team_matches[0].team_id, "team-001");
         assert_eq!(loaded_stats.team_matches[0].shots_on_target, 6);
+    }
+
+    #[test]
+    fn test_save_game_with_stats_updates_existing_and_roundtrips_stats() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        let save_id = sm.create_save(&game, "Combined Save Career").unwrap();
+        let old_checksum = sm.list_saves()[0].checksum.clone();
+
+        game.clock.advance_days(3);
+        game.manager.reputation = 777;
+
+        let stats = sample_stats_state();
+        sm.save_game_with_stats(&game, &stats, &save_id).unwrap();
+
+        let saves = sm.list_saves();
+        assert_eq!(saves.len(), 1);
+        assert_ne!(saves[0].checksum, old_checksum);
+
+        let loaded = sm.load_game(&save_id).unwrap();
+        assert_eq!(loaded.manager.reputation, 777);
+
+        let loaded_stats = sm.load_stats_state(&save_id).unwrap();
+        assert_eq!(loaded_stats.player_matches.len(), 1);
+        assert_eq!(loaded_stats.team_matches.len(), 1);
+        assert_eq!(loaded_stats.player_matches[0].player_id, "p-001");
+        assert_eq!(loaded_stats.team_matches[0].team_id, "team-001");
     }
 
     #[test]
@@ -1257,24 +1661,44 @@ mod tests {
     }
 
     #[test]
-    fn test_load_nonexistent_save() {
+    fn test_load_nonexistent_save_uses_backend_key() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let result = sm.load_game("nonexistent");
-        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "be.error.saveNotFound?saveId=nonexistent"
+        );
     }
 
     #[test]
-    fn test_save_to_nonexistent_save() {
+    fn test_save_to_nonexistent_save_uses_backend_key() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let game = sample_game();
         let result = sm.save_game(&game, "nonexistent");
-        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "be.error.saveNotFound?saveId=nonexistent"
+        );
+    }
+
+    #[test]
+    fn test_load_stats_for_nonexistent_save_uses_backend_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let result = sm.load_stats_state("nonexistent");
+
+        assert_eq!(
+            result.unwrap_err(),
+            "be.error.saveNotFound?saveId=nonexistent"
+        );
     }
 
     #[test]

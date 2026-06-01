@@ -1,4 +1,7 @@
 import i18n from '../i18n';
+import { formatExactMoney, formatVal } from "../lib/helpers";
+import { countryName } from "../lib/countries";
+import { useSettingsStore } from "../store/settingsStore";
 import type {
   MessageActionOption,
   MessageData,
@@ -48,18 +51,59 @@ function extractErrorMessage(error: unknown): string {
   return "";
 }
 
+function parseBackendMessage(message: string): {
+  key?: string;
+  fallback: string;
+  params?: Record<string, string>;
+} {
+  const trimmed = message.trim();
+  const separatorIndex = trimmed.indexOf("?");
+
+  if (separatorIndex === -1) {
+    return {
+      key: isTranslationKey(trimmed) ? trimmed : undefined,
+      fallback: trimmed,
+    };
+  }
+
+  const key = trimmed.slice(0, separatorIndex);
+  const rawParams = trimmed.slice(separatorIndex + 1);
+
+  if (!isTranslationKey(key)) {
+    return { fallback: trimmed };
+  }
+
+  return {
+    key,
+    fallback: trimmed,
+    params: Object.fromEntries(new URLSearchParams(rawParams).entries()),
+  };
+}
+
 export function resolveBackendText(
   key: string | undefined,
   fallback: string,
   params?: Record<string, string>,
 ): string {
-  return resolve(key, fallback, params);
+  if (!key) return fallback;
+  const parsed = parseBackendMessage(key);
+  const mergedParams = {
+    ...(parsed.params ?? {}),
+    ...(params ?? {}),
+  };
+
+  const resolvedParams = resolveParamValues(
+    Object.keys(mergedParams).length > 0 ? mergedParams : undefined,
+  );
+
+  return resolve(parsed.key, fallback, resolvedParams);
 }
 
 export function resolveBackendError(error: unknown): string {
   const message = extractErrorMessage(error).trim();
   if (!message) return "";
-  return resolve(isTranslationKey(message) ? message : undefined, message || "");
+  const parsed = parseBackendMessage(message);
+  return resolve(parsed.key, parsed.fallback, resolveParamValues(parsed.params));
 }
 
 function boardObjectiveFallback(objective: BoardObjective): string {
@@ -81,6 +125,93 @@ function boardObjectiveFallback(objective: BoardObjective): string {
  * Pre-resolve any param values that are themselves i18n keys (e.g. "common.moods.excellent").
  * A value is treated as a key if it contains a dot and i18next resolves it to something different.
  */
+const MONEY_PARAM_KEYS = new Set([
+  "amount",
+  "annualWages",
+  "budget",
+  "campaignCost",
+  "cost",
+  "fee",
+  "grossRevenue",
+  "netIncome",
+  "transferBudgetReduction",
+  "wage",
+  "wageBudget",
+  "weeklyWages",
+]);
+
+const COUNTRY_PARAM_KEYS = new Set([
+  "country",
+  "nationality",
+]);
+
+function parseMoneyValue(value: string): { amount: number; compact: boolean } | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(
+    /^(?<sign>-)?(?<symbol>[€£$])?(?<amount>\d[\d,]*(?:\.\d+)?)(?<suffix>[KM])?$/i,
+  );
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const symbol = match.groups.symbol;
+  const sourceExchangeRate = symbol
+    ? Object.values(useSettingsStore.getState().supportedCurrencies).find(
+      (currency) => currency.symbol === symbol,
+    )?.exchange_rate
+    : 1;
+
+  if (!sourceExchangeRate) {
+    return null;
+  }
+
+  const numeric = Number(match.groups.amount.replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  const scaled =
+    match.groups.suffix?.toUpperCase() === "M"
+      ? numeric * 1_000_000
+      : match.groups.suffix?.toUpperCase() === "K"
+        ? numeric * 1_000
+        : numeric;
+  const signed = match.groups.sign === "-" ? -scaled : scaled;
+  const normalizedAmount = Math.round(signed / sourceExchangeRate);
+
+  return {
+    amount: normalizedAmount,
+    compact: Boolean(match.groups.suffix),
+  };
+}
+
+function resolveMoneyParamValue(key: string, value: string): string {
+  if (!MONEY_PARAM_KEYS.has(key)) {
+    return value;
+  }
+
+  const parsed = parseMoneyValue(value);
+  if (!parsed) {
+    return value;
+  }
+
+  return parsed.compact
+    ? formatVal(parsed.amount)
+    : formatExactMoney(parsed.amount);
+}
+
+function resolveCountryParamValue(key: string, value: string): string {
+  if (!COUNTRY_PARAM_KEYS.has(key)) {
+    return value;
+  }
+
+  const locale = i18n.resolvedLanguage || i18n.language || "en";
+  const localizedCountry = countryName(value, locale);
+
+  return localizedCountry || value;
+}
+
 function resolveParamValues(params?: Record<string, string>): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
@@ -89,8 +220,14 @@ function resolveParamValues(params?: Record<string, string>): Record<string, str
       const attempted = i18n.t(value);
       if (attempted !== value) {
         resolved[key] = attempted;
+        continue;
       }
     }
+
+    resolved[key] = resolveCountryParamValue(
+      key,
+      resolveMoneyParamValue(key, resolved[key]),
+    );
   }
   return resolved;
 }
@@ -106,6 +243,12 @@ type MatchReportScorerParam = {
   player: string;
   minute: string | number;
   team: string;
+};
+
+type PressConferenceQuoteParam = {
+  key?: string;
+  fallback?: string;
+  params?: Record<string, string>;
 };
 
 type StandingsEntryParam = {
@@ -297,6 +440,7 @@ function normalizeMatchReportParams(
   params?: Record<string, string>,
 ): Record<string, string> | undefined {
   if (
+    !article.body_key?.startsWith('be.news.matchReport.body') &&
     article.body_key !== 'be.news.matchReport.reportFriendly.body' &&
     article.body_key !== 'be.news.matchReport.reportPreseason.body'
   ) {
@@ -313,6 +457,7 @@ function normalizeMatchReportParams(
     if (scorers.length === 0) {
       return {
         ...params,
+        scorers: '',
         scorersSection: '',
       };
     }
@@ -329,11 +474,49 @@ function normalizeMatchReportParams(
 
     return {
       ...params,
+      scorers: scorersText,
       scorersSection: resolve(
         'be.news.matchReport.scorersSection',
         `\n\nGoals: ${scorersText}`,
         { scorers: scorersText },
       ),
+    };
+  } catch {
+    return params;
+  }
+}
+
+function normalizePressConferenceParams(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  const isPressConferenceArticle = article.headline_key?.startsWith('be.news.pressConference.')
+    || article.body_key?.startsWith('be.news.pressConference.');
+
+  if (!isPressConferenceArticle || !params?.quotesData) {
+    return params;
+  }
+
+  try {
+    const quotes = JSON.parse(params.quotesData) as PressConferenceQuoteParam[];
+    const resolvedQuotes = quotes
+      .map((quote) =>
+        resolve(
+          quote.key,
+          quote.fallback ?? '',
+          resolveParamValues(quote.params),
+        ),
+      )
+      .filter((quote) => quote.length > 0);
+
+    if (resolvedQuotes.length === 0) {
+      return params;
+    }
+
+    return {
+      ...params,
+      quote: resolvedQuotes[0],
+      quotes: resolvedQuotes.map((quote) => `• "${quote}"`).join('\n'),
     };
   } catch {
     return params;
@@ -353,13 +536,18 @@ function normalizeTransferRoundupParams(
     return {
       ...params,
       deals: deals
-        .map((deal) =>
-          resolve(
+        .map((deal) => {
+          const resolvedDeal = {
+            ...deal,
+            fee: resolveMoneyParamValue("fee", deal.fee),
+          };
+
+          return resolve(
             'be.news.transferRoundup.dealLine',
-            `  ${deal.player}: ${deal.fromTeam} -> ${deal.toTeam} (${deal.fee})`,
-            deal,
-          ),
-        )
+            `  ${resolvedDeal.player}: ${resolvedDeal.fromTeam} -> ${resolvedDeal.toTeam} (${resolvedDeal.fee})`,
+            resolvedDeal,
+          );
+        })
         .join('\n'),
     };
   } catch {
@@ -380,12 +568,12 @@ export function resolveMessage(msg: MessageData): MessageData {
     body: resolve(msg.body_key, msg.body, p),
     sender: resolve(msg.sender_key, msg.sender, p),
     sender_role: resolve(msg.sender_role_key, msg.sender_role, p),
-    actions: msg.actions.map((action) => resolveAction(action, msg.id, p)),
+    actions: msg.actions.map((action) => resolveActionWithResolvedParams(action, msg.id, p)),
   };
 
   return resolveLegacyTakeoverContractReviewMessage(
-    resolveLegacyDelegatedRenewalsMessage(resolved, resolve, p),
-    resolve,
+    resolveLegacyDelegatedRenewalsMessage(resolved, resolveBackendText, p),
+    resolveBackendText,
   );
 }
 
@@ -393,6 +581,16 @@ export function resolveMessage(msg: MessageData): MessageData {
  * Resolve the label on a message action.
  */
 export function resolveAction(
+  action: MessageAction,
+  messageId?: string,
+  params?: Record<string, string>,
+): MessageAction {
+  const resolvedParams = resolveParamValues(params);
+
+  return resolveActionWithResolvedParams(action, messageId, resolvedParams);
+}
+
+function resolveActionWithResolvedParams(
   action: MessageAction,
   messageId?: string,
   params?: Record<string, string>,
@@ -439,15 +637,20 @@ function resolveActionOption(
  * Resolve all translatable fields on a news article, returning a copy with resolved strings.
  */
 export function resolveNewsArticle(article: NewsArticle): NewsArticle {
-  const p = normalizeTransferRoundupParams(
-    article,
-    normalizeMatchReportParams(
+  const p = resolveParamValues(
+    normalizeTransferRoundupParams(
       article,
-      normalizeStandingsParams(
+      normalizePressConferenceParams(
         article,
-        normalizeRoundupParams(
+        normalizeMatchReportParams(
           article,
-          normalizePreseasonDigestParams(article, normalizeNewsParams(article)),
+          normalizeStandingsParams(
+            article,
+            normalizeRoundupParams(
+              article,
+              normalizePreseasonDigestParams(article, normalizeNewsParams(article)),
+            ),
+          ),
         ),
       ),
     ),

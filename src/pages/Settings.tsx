@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useSettingsStore, AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
-import { SUPPORTED_LANGUAGES } from "../i18n";
+import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import {
   ArrowLeft,
   Monitor,
@@ -28,8 +28,10 @@ const CURRENCY_OPTIONS = [
   { value: "USD", labelKey: "settings.currencyOptions.usd", symbol: "$" },
 ] as const;
 
+const THEME_OPTION_KEYS = ["light", "dark", "system"] as const;
 const MATCH_MODE_KEYS = ["live", "spectator", "delegate"] as const;
 const MATCH_SPEED_KEYS = ["slow", "normal", "fast"] as const;
+const UI_SCALE_KEYS = ["small", "normal", "large", "xlarge"] as const;
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -69,7 +71,7 @@ export default function Settings() {
   // Sync language with i18n when settings are loaded
   useEffect(() => {
     if (loaded && settings.language && settings.language !== i18n.language) {
-      i18n.changeLanguage(settings.language);
+      void changeAppLanguage(settings.language);
     }
   }, [loaded, settings.language, i18n]);
 
@@ -89,7 +91,7 @@ export default function Settings() {
 
     // Sync language with i18n
     if (partial.language) {
-      i18n.changeLanguage(partial.language);
+      void changeAppLanguage(partial.language);
     }
   };
 
@@ -157,11 +159,18 @@ export default function Settings() {
             description={t("settings.themeDesc")}
           >
             <SegmentedControl
-              options={[
-                { value: "light", icon: <Sun className="w-4 h-4" /> },
-                { value: "dark", icon: <Moon className="w-4 h-4" /> },
-                { value: "system", icon: <Monitor className="w-4 h-4" /> },
-              ]}
+              options={THEME_OPTION_KEYS.map((key) => ({
+                value: key,
+                label: t(`settings.themeOptions.${key}`),
+                icon:
+                  key === "light" ? (
+                    <Sun className="w-4 h-4" />
+                  ) : key === "dark" ? (
+                    <Moon className="w-4 h-4" />
+                  ) : (
+                    <Monitor className="w-4 h-4" />
+                  ),
+              }))}
               value={settings.theme}
               onChange={(v) =>
                 handleUpdate({ theme: v as AppSettings["theme"] })
@@ -215,12 +224,10 @@ export default function Settings() {
             <div className="flex items-center gap-2">
               <Type className="w-4 h-4 text-gray-400" />
               <SegmentedControl
-                options={[
-                  { value: "small", label: "S" },
-                  { value: "normal", label: "M" },
-                  { value: "large", label: "L" },
-                  { value: "xlarge", label: "XL" },
-                ]}
+                options={UI_SCALE_KEYS.map((key) => ({
+                  value: key,
+                  label: t(`settings.uiScaleOptions.${key}`),
+                }))}
                 value={settings.ui_scale}
                 onChange={(v) =>
                   handleUpdate({ ui_scale: v as AppSettings["ui_scale"] })
@@ -477,14 +484,12 @@ function Toggle({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-        checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
-      }`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
+        }`}
     >
       <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-[22px]" : "translate-x-0.5"
-        }`}
+        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? "translate-x-[22px]" : "translate-x-0.5"
+          }`}
       />
     </button>
   );
@@ -505,11 +510,10 @@ function SegmentedControl({
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            value === opt.value
-              ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${value === opt.value
+            ? "bg-white dark:bg-navy-500 text-primary-600 dark:text-primary-400 shadow-sm"
+            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            }`}
         >
           {opt.icon}
           {opt.label || opt.value}

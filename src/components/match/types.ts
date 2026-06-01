@@ -15,6 +15,7 @@ export interface EnginePlayerData {
   id: string;
   name: string;
   position: string;
+  ovr: number;
   condition: number;
   pace: number;
   stamina: number;
@@ -178,13 +179,13 @@ const TEAM_TALK_OPTION_DEFINITIONS: Array<{
   id: TeamTalkTone;
   icon: string;
 }> = [
-  { id: "calm", icon: "calm" },
-  { id: "motivational", icon: "motivational" },
-  { id: "assertive", icon: "assertive" },
-  { id: "aggressive", icon: "aggressive" },
-  { id: "praise", icon: "praise" },
-  { id: "disappointed", icon: "disappointed" },
-];
+    { id: "calm", icon: "calm" },
+    { id: "motivational", icon: "motivational" },
+    { id: "assertive", icon: "assertive" },
+    { id: "aggressive", icon: "aggressive" },
+    { id: "praise", icon: "praise" },
+    { id: "disappointed", icon: "disappointed" },
+  ];
 
 export function getTeamTalkOptions(t: TFunction): TeamTalkOption[] {
   return TEAM_TALK_OPTION_DEFINITIONS.map(({ id, icon }) => ({

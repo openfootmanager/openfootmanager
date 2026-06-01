@@ -10,6 +10,13 @@ use ofm_core::transfers::{
     TransferBidFinancialProjection, TransferNegotiationDecision, TransferNegotiationOutcome,
 };
 
+const INVALID_YOUTH_SCOUTING_REGION_ERROR: &str =
+    "be.error.transfers.invalidYouthScoutingRegion";
+const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
+    "be.error.transfers.invalidYouthScoutingObjective";
+const INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR: &str =
+    "be.error.transfers.invalidYouthScoutingTargetPosition";
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TransferNegotiationCommandResponse {
     pub decision: TransferNegotiationDecision,
@@ -284,7 +291,7 @@ fn parse_youth_region(value: Option<&str>) -> Result<YouthScoutingRegion, String
     match value {
         None | Some("") | Some("Domestic") => Ok(YouthScoutingRegion::Domestic),
         Some("International") => Ok(YouthScoutingRegion::International),
-        Some(other) => Err(format!("Unsupported youth scouting region: {}", other)),
+        Some(_) => Err(INVALID_YOUTH_SCOUTING_REGION_ERROR.to_string()),
     }
 }
 
@@ -293,7 +300,7 @@ fn parse_youth_objective(value: Option<&str>) -> Result<YouthScoutingObjective, 
         None | Some("") | Some("Balanced") => Ok(YouthScoutingObjective::Balanced),
         Some("HighPotential") => Ok(YouthScoutingObjective::HighPotential),
         Some("ReadySoon") => Ok(YouthScoutingObjective::ReadySoon),
-        Some(other) => Err(format!("Unsupported youth scouting objective: {}", other)),
+        Some(_) => Err(INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR.to_string()),
     }
 }
 
@@ -303,10 +310,7 @@ fn parse_youth_target_position(value: Option<&str>) -> Result<Option<Position>, 
         Some("Defender") => Ok(Some(Position::Defender)),
         Some("Midfielder") => Ok(Some(Position::Midfielder)),
         Some("Forward") => Ok(Some(Position::Forward)),
-        Some(other) => Err(format!(
-            "Unsupported youth scouting target position: {}",
-            other
-        )),
+        Some(_) => Err(INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR.to_string()),
     }
 }
 
@@ -661,5 +665,35 @@ mod tests {
         assert_eq!(response.projection.finance_after, 4_000_000);
         assert!(!response.projection.exceeds_transfer_budget);
         assert!(!response.projection.exceeds_finance);
+    }
+
+    #[test]
+    fn parse_youth_region_returns_backend_key_when_value_is_unsupported() {
+        let result = super::parse_youth_region(Some("Intergalactic"));
+
+        assert_eq!(
+            result.unwrap_err(),
+            super::INVALID_YOUTH_SCOUTING_REGION_ERROR
+        );
+    }
+
+    #[test]
+    fn parse_youth_objective_returns_backend_key_when_value_is_unsupported() {
+        let result = super::parse_youth_objective(Some("WonderkidOnly"));
+
+        assert_eq!(
+            result.unwrap_err(),
+            super::INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR
+        );
+    }
+
+    #[test]
+    fn parse_youth_target_position_returns_backend_key_when_value_is_unsupported() {
+        let result = super::parse_youth_target_position(Some("Goalkeeper"));
+
+        assert_eq!(
+            result.unwrap_err(),
+            super::INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR
+        );
     }
 }

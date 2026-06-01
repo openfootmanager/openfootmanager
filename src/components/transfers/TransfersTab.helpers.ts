@@ -1,10 +1,51 @@
 import type { PlayerData, TransferOfferData } from "../../store/gameStore";
 import type { TransferNegotiationFeedbackData } from "../../services/transfersService";
+import { formatExactMoney } from "../../lib/helpers";
 
 type Translate = (
   key: string,
   options?: Record<string, string | number>,
 ) => string;
+
+export function formatTransferFeeInput(fee: number | null | undefined): string {
+  if (fee === null || fee === undefined || !Number.isFinite(fee)) {
+    return "";
+  }
+
+  return String(Math.round(fee));
+}
+
+export function parseTransferFeeInput(value: string): number | null {
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function normalizeTransferNegotiationFeedback(
+  feedback: TransferNegotiationFeedbackData | null,
+): TransferNegotiationFeedbackData | null {
+  if (!feedback?.params?.fee) {
+    return feedback;
+  }
+
+  const parsedFee = Number.parseInt(feedback.params.fee, 10);
+  if (!Number.isFinite(parsedFee)) {
+    return feedback;
+  }
+
+  return {
+    ...feedback,
+    params: {
+      ...feedback.params,
+      fee: formatExactMoney(parsedFee),
+    },
+  };
+}
 
 export function getOutgoingNegotiationOffer(
   player: PlayerData,
@@ -33,7 +74,7 @@ export function buildResumedBidFeedback(
   const tension = Math.min(36 + (round - 1) * 16, 84);
   const patience = Math.max(82 - (round - 1) * 16, 30);
 
-  return {
+  return normalizeTransferNegotiationFeedback({
     mood: round >= 3 ? "tense" : "firm",
     headline_key: "transfers.resumeNegotiationHeadline",
     detail_key: "transfers.resumeNegotiationDetail",
@@ -43,7 +84,7 @@ export function buildResumedBidFeedback(
     params: {
       fee: String(offer.suggested_counter_fee ?? offer.fee),
     },
-  };
+  });
 }
 
 export function buildResumedCounterFeedback(
@@ -57,7 +98,7 @@ export function buildResumedCounterFeedback(
   const tension = Math.min(40 + (round - 1) * 14, 86);
   const patience = Math.max(78 - (round - 1) * 14, 28);
 
-  return {
+  return normalizeTransferNegotiationFeedback({
     mood: round >= 3 ? "tense" : "firm",
     headline_key: "transfers.resumeNegotiationHeadline",
     detail_key: "transfers.resumeNegotiationDetail",
@@ -67,7 +108,7 @@ export function buildResumedCounterFeedback(
     params: {
       fee: String(offer.suggested_counter_fee ?? offer.fee),
     },
-  };
+  });
 }
 
 export function getTransferOfferStatusLabel(

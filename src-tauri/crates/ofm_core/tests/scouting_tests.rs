@@ -152,14 +152,14 @@ fn send_scout_rejects_own_player() {
     let mut game = make_game();
     let result = send_scout(&mut game, "scout1", "p1");
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("own players"));
+    assert_eq!(result.unwrap_err(), "be.error.scouting.cannotScoutOwnPlayer");
 }
 
 #[test]
 fn send_scout_rejects_unknown_player() {
     let mut game = make_game();
     let result = send_scout(&mut game, "scout1", "nonexistent");
-    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "be.error.playerNotFound");
 }
 
 #[test]
@@ -168,8 +168,7 @@ fn send_scout_rejects_duplicate_assignment() {
     send_scout(&mut game, "scout1", "p2").unwrap();
     game.staff.push(make_scout("scout2", "team1", 70, 70));
     let result = send_scout(&mut game, "scout2", "p2");
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("already being scouted"));
+    assert_eq!(result.unwrap_err(), "be.error.scouting.playerAlreadyScouted");
 }
 
 #[test]
@@ -178,8 +177,7 @@ fn send_scout_rejects_non_scout_staff() {
     // Replace scout with a coach
     game.staff[0].role = StaffRole::Coach;
     let result = send_scout(&mut game, "scout1", "p2");
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("not a scout"));
+    assert_eq!(result.unwrap_err(), "be.error.scouting.staffMemberNotScout");
 }
 
 #[test]
@@ -223,8 +221,10 @@ fn start_youth_scouting_respects_shared_scout_capacity() {
         Some(Position::Forward),
     );
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("already assigned"));
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.scouting.scoutAssignmentFull?currentCount=1&maxSlots=1"
+    );
 }
 
 #[test]
@@ -241,8 +241,10 @@ fn send_scout_rejects_when_scout_has_youth_assignment() {
 
     let result = send_scout(&mut game, "scout1", "p2");
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("already assigned"));
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.scouting.scoutAssignmentFull?currentCount=1&maxSlots=1"
+    );
 }
 
 #[test]
@@ -267,8 +269,7 @@ fn start_youth_scouting_rejects_duplicate_search_profile() {
         Some(Position::Defender),
     );
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("already active"));
+    assert_eq!(result.unwrap_err(), "be.error.scouting.youthSearchAlreadyActive");
 }
 
 // ---------------------------------------------------------------------------
@@ -347,9 +348,19 @@ fn process_scouting_completes_youth_recruitment_report() {
     let msg = game
         .messages
         .iter()
-        .find(|message| message.subject == "Youth prospect found")
+        .find(|message| {
+            message.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
         .expect("expected a youth recruitment report");
     assert_eq!(msg.category, MessageCategory::ScoutReport);
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.youthRecruitmentReport.subject")
+    );
+    assert!(matches!(
+        msg.body_key.as_deref(),
+        Some("be.msg.youthRecruitmentReport.bodyTargeted")
+    ));
     assert!(msg.context.player_id.is_none());
     assert_eq!(
         msg.context.youth_target_position.as_deref(),
@@ -360,7 +371,15 @@ fn process_scouting_completes_youth_recruitment_report() {
         msg.context.youth_search_objective.as_deref(),
         Some("Balanced")
     );
-    assert!(msg.body.contains("domestic balanced search"));
+    assert_eq!(msg.sender_role_key.as_deref(), Some("be.role.scout"));
+    assert_eq!(
+        msg.i18n_params.get("regionLabel"),
+        Some(&"scouting.regionDomestic".to_string())
+    );
+    assert_eq!(
+        msg.i18n_params.get("objectiveLabel"),
+        Some(&"scouting.objectiveBalanced".to_string())
+    );
     let prospects = msg
         .context
         .youth_prospects
@@ -397,7 +416,9 @@ fn youth_recruitment_response_signs_selected_prospect() {
     let message = game
         .messages
         .iter()
-        .find(|candidate| candidate.subject == "Youth prospect found")
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
         .expect("expected youth recruitment report")
         .clone();
     let action_id = message.actions[0].id.clone();
@@ -406,7 +427,8 @@ fn youth_recruitment_response_signs_selected_prospect() {
     let effect = apply_youth_recruitment_response(&mut game, &message.id, &action_id, "sign")
         .expect("expected sign effect");
 
-    assert!(effect.message.contains("joined your youth academy"));
+    assert_eq!(effect.message, "");
+    assert_eq!(effect.i18n_key, "be.msg.youthRecruitment.effect.sign");
     let signed_player = game
         .players
         .iter()
@@ -419,8 +441,18 @@ fn youth_recruitment_response_signs_selected_prospect() {
         .iter()
         .find(|candidate| candidate.id == message.id)
         .expect("expected updated report message");
-    assert!(updated_message.actions.iter().all(|action| action.resolved));
-    assert!(updated_message.context.youth_prospects.is_none());
+    assert!(updated_message.actions[0].resolved);
+    assert!(!updated_message.actions[1].resolved);
+    let updated_prospects = updated_message
+        .context
+        .youth_prospects
+        .as_ref()
+        .expect("expected remaining prospects in report");
+    let signed_prospect = updated_prospects
+        .iter()
+        .find(|player| player.id == prospect_id)
+        .expect("expected signed prospect to remain visible");
+    assert_eq!(signed_prospect.team_id.as_deref(), Some("team1"));
 }
 
 #[test]
@@ -439,7 +471,9 @@ fn youth_recruitment_response_shortlists_selected_prospect() {
     let message = game
         .messages
         .iter()
-        .find(|candidate| candidate.subject == "Youth prospect found")
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
         .expect("expected youth recruitment report")
         .clone();
     let action_id = message.actions[1].id.clone();
@@ -447,11 +481,32 @@ fn youth_recruitment_response_shortlists_selected_prospect() {
     let effect = apply_youth_recruitment_response(&mut game, &message.id, &action_id, "shortlist")
         .expect("expected shortlist effect");
 
-    assert!(effect.message.contains("shortlist"));
+    assert_eq!(effect.message, "");
+    assert_eq!(
+        effect.i18n_key,
+        "be.msg.youthRecruitment.effect.shortlist".to_string()
+    );
     assert!(
         game.messages
             .iter()
-            .any(|candidate| candidate.subject == "Youth prospect shortlisted")
+            .any(|candidate| {
+                candidate.subject_key.as_deref()
+                    == Some("be.msg.youthRecruitmentShortlist.subject")
+            })
+    );
+    let updated_message = game
+        .messages
+        .iter()
+        .find(|candidate| candidate.id == message.id)
+        .expect("expected updated original report message");
+    assert_eq!(
+        updated_message
+            .context
+            .youth_prospects
+            .as_ref()
+            .expect("expected remaining prospects")
+            .len(),
+        2
     );
 }
 
@@ -471,7 +526,9 @@ fn youth_recruitment_response_discard_removes_only_selected_prospect() {
     let message = game
         .messages
         .iter()
-        .find(|candidate| candidate.subject == "Youth prospect found")
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
         .expect("expected youth recruitment report")
         .clone();
     let action_id = message.actions[0].id.clone();

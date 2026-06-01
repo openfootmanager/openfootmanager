@@ -2,7 +2,7 @@ import type { DragEvent, JSX } from "react";
 import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { calcOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import { Badge, Card } from "../ui";
 import {
@@ -192,7 +192,7 @@ export default function TacticsPitch({
               onClick={onClearSelection}
               className="text-xs font-heading font-bold uppercase tracking-wider text-accent-400 hover:text-accent-300"
             >
-              {t("common.clear", "Clear")}
+              {t("common.clear")}
             </button>
           ) : null}
         </div>
@@ -225,9 +225,7 @@ export default function TacticsPitch({
                 const wrongPos = player
                   ? isPlayerOutOfPosition(player, slot.position)
                   : false;
-                const slotRating = player
-                  ? calcOvr(player, slot.position)
-                  : null;
+                const slotRating = player ? getPlayerOvr(player) : null;
 
                 return (
                   <div
@@ -303,10 +301,7 @@ export default function TacticsPitch({
           {benchPlayers.length > 0 ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {benchPlayers.map((player) => {
-                const benchRating = calcOvr(
-                  player,
-                  player.natural_position || player.position,
-                );
+                const benchRating = getPlayerOvr(player);
 
                 return (
                   <button

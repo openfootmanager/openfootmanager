@@ -13,7 +13,10 @@ const LOCALES_DIR = path.join(SRC_DIR, "i18n", "locales");
 const FRONTEND_EXTENSIONS = new Set([".ts", ".tsx"]);
 const FRONTEND_IGNORE_RE =
   /(?:\.test\.|\.spec\.|[\\/]i18n[\\/]locales[\\/]|node_modules|dist|src-tauri[\\/]target)/;
-const RUST_IGNORE_RE = /(?:tests\.rs$|node_modules|dist|src-tauri[\\/]target)/;
+const RUST_IGNORE_RE =
+  /(?:[\\/]tests[\\/]|tests\.rs$|node_modules|dist|src-tauri[\\/]target)/;
+const RUST_DATA_FILE_RE =
+  /(?:src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]generator[\\/](?:data|definitions|generation|mod)\.rs$|src-tauri[\\/]crates[\\/]domain[\\/]src[\\/]identity\.rs$|src-tauri[\\/]crates[\\/]ofm_core[\\/]src[\\/]football_identity\.rs$)/;
 
 const FRONTEND_ATTRIBUTE_ALLOWLIST = new Set([
   "placeholder",
@@ -148,8 +151,82 @@ function looksLikeUserFacingText(text) {
   return false;
 }
 
+function isCommentLine(line) {
+  return /^\s*(?:\/\/|\/\*|\*|\*\/)/.test(line);
+}
+
+function isSqlLiteral(text) {
+  return /^(?:SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|PRAGMA|WITH)\b/i.test(
+    text.trim(),
+  );
+}
+
+function isIgnoredRustLiteral(filePath, line, text) {
+  if (RUST_DATA_FILE_RE.test(filePath)) return true;
+  if (isCommentLine(line)) return true;
+  if (isSqlLiteral(text)) return true;
+
+  return false;
+}
+
 function getLine(sourceFile, node) {
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+}
+
+function getFrontendFindingKind(node, sourceFile) {
+  let current = node.parent;
+
+  while (current) {
+    if (ts.isImportDeclaration(current) || ts.isExportDeclaration(current)) {
+      return null;
+    }
+
+    if (ts.isJsxAttribute(current)) {
+      const attributeName = current.name.getText(sourceFile);
+      if (
+        FRONTEND_ATTRIBUTE_ALLOWLIST.has(attributeName) &&
+        !FRONTEND_ATTRIBUTE_SKIP.has(attributeName)
+      ) {
+        return `jsx-attr:${attributeName}`;
+      }
+
+      return null;
+    }
+
+    if (ts.isPropertyAssignment(current)) {
+      const propertyName = current.name.getText(sourceFile).replace(/['"]/g, "");
+      if (FRONTEND_PROPERTY_ALLOWLIST.has(propertyName)) {
+        return `property:${propertyName}`;
+      }
+
+      return null;
+    }
+
+    if (ts.isCallExpression(current)) {
+      const calleeText = current.expression.getText(sourceFile);
+      const argIndex = current.arguments.findIndex(
+        (arg) => arg.pos <= node.pos && node.end <= arg.end,
+      );
+
+      if ((calleeText === "t" || calleeText.endsWith(".t")) && argIndex === 1) {
+        return "t-default";
+      }
+    }
+
+    current = current.parent;
+  }
+
+  return null;
+}
+
+function templateExpressionText(node) {
+  const parts = [node.head.text];
+
+  for (const span of node.templateSpans) {
+    parts.push("${...}", span.literal.text);
+  }
+
+  return parts.join("").trim();
 }
 
 function scanFrontendFile(filePath) {
@@ -187,32 +264,22 @@ function scanFrontendFile(filePath) {
         return;
       }
 
-      const parent = node.parent;
+      const kind = getFrontendFindingKind(node, sourceFile);
+      if (kind) {
+        pushFinding(node, kind, text);
+      }
+    }
 
-      if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) {
+    if (ts.isTemplateExpression(node)) {
+      const text = templateExpressionText(node);
+      if (!looksLikeUserFacingText(text)) {
         ts.forEachChild(node, visit);
         return;
       }
 
-      if (ts.isJsxAttribute(parent)) {
-        const attributeName = parent.name.getText(sourceFile);
-        if (
-          FRONTEND_ATTRIBUTE_ALLOWLIST.has(attributeName) &&
-          !FRONTEND_ATTRIBUTE_SKIP.has(attributeName)
-        ) {
-          pushFinding(node, `jsx-attr:${attributeName}`, text);
-        }
-      } else if (ts.isCallExpression(parent)) {
-        const calleeText = parent.expression.getText(sourceFile);
-        const argIndex = parent.arguments.indexOf(node);
-        if ((calleeText === "t" || calleeText.endsWith(".t")) && argIndex === 1) {
-          pushFinding(node, "t-default", text);
-        }
-      } else if (ts.isPropertyAssignment(parent)) {
-        const propertyName = parent.name.getText(sourceFile).replace(/['"]/g, "");
-        if (FRONTEND_PROPERTY_ALLOWLIST.has(propertyName)) {
-          pushFinding(node, `property:${propertyName}`, text);
-        }
+      const kind = getFrontendFindingKind(node, sourceFile);
+      if (kind) {
+        pushFinding(node, kind, text);
       }
     }
 
@@ -289,6 +356,11 @@ function scanRust() {
         return;
       }
 
+      if (isCommentLine(line)) {
+        braceDepth = nextBraceDepth;
+        return;
+      }
+
       if (/\b(?:trace|debug|info|warn|error)!\s*\(/.test(line)) {
         braceDepth = nextBraceDepth;
         return;
@@ -298,6 +370,7 @@ function scanRust() {
         const text = match[1].trim();
         if (!looksLikeUserFacingText(text)) continue;
         if (isTranslationKey(text)) continue;
+        if (isIgnoredRustLiteral(filePath, line, text)) continue;
         if (/^[A-Z][a-zA-Z]+$/.test(text) && !/\s/.test(text)) continue;
         if (/^\[(?:cmd|setup)\]/.test(text)) continue;
 

@@ -4,23 +4,33 @@ use domain::team::{
 };
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Insert or replace a team row.
 pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
     let starting_xi_json =
-        serde_json::to_string(&t.starting_xi_ids).map_err(|e| format!("JSON error: {}", e))?;
-    let form_json = serde_json::to_string(&t.form).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.starting_xi_ids)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let form_json = serde_json::to_string(&t.form)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let history_json =
-        serde_json::to_string(&t.history).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.history).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let training_groups_json =
-        serde_json::to_string(&t.training_groups).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.training_groups)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let match_roles_json =
-        serde_json::to_string(&t.match_roles).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.match_roles)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let financial_ledger_json =
-        serde_json::to_string(&t.financial_ledger).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.financial_ledger)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let sponsorship_json =
-        serde_json::to_string(&t.sponsorship).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.sponsorship)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let facilities_json =
-        serde_json::to_string(&t.facilities).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&t.facilities)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
     let training_focus_str = format!("{:?}", t.training_focus);
     let training_intensity_str = format!("{:?}", t.training_intensity);
@@ -69,7 +79,7 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
             facilities_json,
         ],
     )
-    .map_err(|e| format!("Failed to upsert team: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -184,15 +194,15 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities
              FROM teams",
         )
-        .map_err(|e| format!("Failed to prepare teams query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], row_to_team)
-        .map_err(|e| format!("Failed to query teams: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut teams = Vec::new();
     for row in rows {
-        teams.push(row.map_err(|e| format!("Failed to read team row: {}", e))?);
+        teams.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(teams)
 }
@@ -209,15 +219,15 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities
              FROM teams WHERE id = ?1",
         )
-        .map_err(|e| format!("Failed to prepare team query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut rows = stmt
         .query_map(params![id], row_to_team)
-        .map_err(|e| format!("Failed to query team: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     match rows.next() {
         Some(Ok(team)) => Ok(Some(team)),
-        Some(Err(e)) => Err(format!("Failed to read team row: {}", e)),
+        Some(Err(_)) => Err(GAME_PERSISTENCE_LOAD_ERROR.to_string()),
         None => Ok(None),
     }
 }
@@ -227,6 +237,7 @@ mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
     use domain::team::{Facilities, Sponsorship, SponsorshipBonusCriterion, TeamSeasonRecord};
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -455,5 +466,24 @@ mod tests {
         assert_eq!(loaded.facilities.training, 2);
         assert_eq!(loaded.facilities.medical, 3);
         assert_eq!(loaded.facilities.scouting, 4);
+    }
+
+    #[test]
+    fn test_upsert_team_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let team = sample_team("team-001", "London FC");
+
+        let result = upsert_team(&conn, &team);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_team_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_team(&conn, "team-001");
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

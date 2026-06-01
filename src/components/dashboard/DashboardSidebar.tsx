@@ -6,8 +6,10 @@ import {
   Mail,
   Settings,
   Briefcase,
+  Medal,
   Trophy,
   TrendingUp,
+  ArrowLeftRight,
   Crosshair,
   Dumbbell,
   DollarSign,
@@ -54,16 +56,14 @@ function NavItem({
   onClick,
 }: NavItemProps): JSX.Element {
   const buttonClassName = collapsed
-    ? `relative flex w-full items-center justify-center rounded-lg p-3 transition-all duration-200 ${
-        active
-          ? "bg-linear-to-r from-primary-500 to-primary-600 text-white shadow-md shadow-primary-500/20"
-          : "text-gray-400 hover:bg-white/5 hover:text-white"
-      }`
-    : `relative flex w-full items-center justify-between rounded-lg p-3 transition-all duration-200 ${
-        active
-          ? "bg-linear-to-r from-primary-500 to-primary-600 text-white shadow-md shadow-primary-500/20"
-          : "text-gray-400 hover:bg-white/5 hover:text-white"
-      }`;
+    ? `relative flex w-full items-center justify-center rounded-lg p-3 transition-all duration-200 ${active
+      ? "bg-linear-to-r from-primary-500 to-primary-600 text-white shadow-md shadow-primary-500/20"
+      : "text-gray-400 hover:bg-white/5 hover:text-white"
+    }`
+    : `relative flex w-full items-center justify-between rounded-lg p-3 transition-all duration-200 ${active
+      ? "bg-linear-to-r from-primary-500 to-primary-600 text-white shadow-md shadow-primary-500/20"
+      : "text-gray-400 hover:bg-white/5 hover:text-white"
+    }`;
 
   return (
     <button
@@ -110,6 +110,9 @@ export default function DashboardSidebar({
   isUnemployed,
 }: DashboardSidebarProps): JSX.Element {
   const { t } = useTranslation();
+  const appName = t("app.name");
+  const [appNamePrimary, ...appNameSecondaryParts] = appName.split(" ");
+  const appNameSecondary = appNameSecondaryParts.join(" ");
 
   const clubItems: Array<{ icon: JSX.Element; label: string; tab: string }> = [
     { icon: <Users />, label: t("dashboard.squad"), tab: "Squad" },
@@ -126,7 +129,10 @@ export default function DashboardSidebar({
     { icon: <TrendingUp />, label: t("dashboard.transfers"), tab: "Transfers" },
   ];
   const worldItems: Array<{ icon: JSX.Element; label: string; tab: string }> = [
+    { icon: <ArrowLeftRight />, label: t("transfers.centre"), tab: "TransferCentre" },
+    { icon: <Medal />, label: t("dashboard.hallOfFame"), tab: "HallOfFame" },
     { icon: <UsersRound />, label: t("dashboard.players"), tab: "Players" },
+    { icon: <UsersRound />, label: t("dashboard.managers"), tab: "Managers" },
     { icon: <Building2 />, label: t("dashboard.teams"), tab: "Teams" },
     {
       icon: <Trophy />,
@@ -140,9 +146,8 @@ export default function DashboardSidebar({
 
   return (
     <aside
-      className={`bg-navy-800 dark:bg-navy-800 border-r border-navy-700 text-white flex h-screen sticky top-0 shrink-0 flex-col transition-[width] duration-200 ${
-        collapsed ? "w-20" : "w-64"
-      }`}
+      className={`bg-navy-800 dark:bg-navy-800 border-r border-navy-700 text-white flex h-screen sticky top-0 shrink-0 flex-col transition-[width] duration-200 ${collapsed ? "w-20" : "w-64"
+        }`}
     >
       {/* Brand */}
       <div
@@ -157,18 +162,20 @@ export default function DashboardSidebar({
             <div className="w-8 h-8 flex items-center justify-center">
               <img
                 src="../../openfootball.svg"
-                alt="Logo"
+                alt={appName}
                 className="w-8 h-8"
               />
             </div>
             {collapsed ? null : (
               <div>
                 <h1 className="text-sm font-heading font-semibold text-white uppercase tracking-wider">
-                  OpenFoot
+                  {appNamePrimary}
                 </h1>
-                <h1 className="font-bold font-heading text-accent-400 uppercase tracking-wider">
-                  Manager
-                </h1>
+                {appNameSecondary ? (
+                  <h1 className="font-bold font-heading text-accent-400 uppercase tracking-wider">
+                    {appNameSecondary}
+                  </h1>
+                ) : null}
               </div>
             )}
           </div>
@@ -190,11 +197,10 @@ export default function DashboardSidebar({
           onClick={() => onNavClick("Manager")}
           title={collapsed ? t("dashboard.manager") : undefined}
           aria-label={t("dashboard.manager")}
-          className={`hover:bg-white/5 mt-3 w-full rounded-lg transition-colors hover:cursor-pointer ${
-            collapsed
+          className={`hover:bg-white/5 mt-3 w-full rounded-lg transition-colors hover:cursor-pointer ${collapsed
               ? "flex justify-center px-0 py-2 text-gray-300"
               : "-mx-1 border-t border-navy-700 px-1 py-1 pt-3 text-left"
-          }`}
+            }`}
         >
           {collapsed ? (
             <User className="h-5 w-5" />
@@ -216,9 +222,8 @@ export default function DashboardSidebar({
 
       {/* Navigation */}
       <nav
-        className={`scrollbar-thin scrollbar-thumb-navy-600 scrollbar-track-transparent flex flex-1 flex-col gap-1 overflow-y-auto py-4 ${
-          collapsed ? "px-2" : "px-3"
-        }`}
+        className={`scrollbar-thin scrollbar-thumb-navy-600 scrollbar-track-transparent flex flex-1 flex-col gap-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"
+          }`}
       >
         <NavItem
           icon={<Briefcase />}
@@ -290,19 +295,17 @@ export default function DashboardSidebar({
 
       {/* Settings & Exit */}
       <div
-        className={`border-t border-navy-700 flex flex-col gap-1 ${
-          collapsed ? "p-2" : "p-3"
-        }`}
+        className={`border-t border-navy-700 flex flex-col gap-1 ${collapsed ? "p-2" : "p-3"
+          }`}
       >
         <button
           onClick={onNavigateSettings}
           title={collapsed ? t("dashboard.settings") : undefined}
           aria-label={t("dashboard.settings")}
-          className={`w-full rounded-lg p-3 text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300 ${
-            collapsed
+          className={`w-full rounded-lg p-3 text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300 ${collapsed
               ? "flex items-center justify-center"
               : "flex items-center gap-3"
-          }`}
+            }`}
         >
           <Settings className="w-5 h-5" />
           {collapsed ? null : (
@@ -315,11 +318,10 @@ export default function DashboardSidebar({
           onClick={onExitClick}
           title={collapsed ? t("dashboard.exitToMenu") : undefined}
           aria-label={t("dashboard.exitToMenu")}
-          className={`w-full rounded-lg p-3 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 ${
-            collapsed
+          className={`w-full rounded-lg p-3 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 ${collapsed
               ? "flex items-center justify-center"
               : "flex items-center gap-3"
-          }`}
+            }`}
         >
           <LogOut className="w-5 h-5" />
           {collapsed ? null : (

@@ -17,13 +17,14 @@ import {
   Gavel,
   Check,
   X,
+  UserPlus,
 } from "lucide-react";
 import {
   getTeamName,
-  calcOvr,
   calcAge,
   formatVal,
   formatWeeklyAmount,
+  getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
 import {
@@ -38,6 +39,7 @@ import { resolveSeasonContext } from "../../lib/seasonContext";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   counterOffer,
   respondToOffer,
@@ -46,12 +48,14 @@ import {
   type TransferNegotiationResponseData,
 } from "../../services/transfersService";
 import { sendScout } from "../../services/scoutingService";
-import { getErrorMessage } from "../../utils/errorMessage";
 import {
   buildResumedCounterFeedback,
+  formatTransferFeeInput,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
+  normalizeTransferNegotiationFeedback,
+  parseTransferFeeInput,
 } from "./TransfersTab.helpers";
 import {
   deriveTransferCollections,
@@ -63,12 +67,15 @@ import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import {
   buildDividerMenuItem,
+  buildOfferFreeAgentContractMenuItem,
   buildScoutPlayerMenuItem,
   buildToggleLoanListMenuItem,
   buildToggleTransferListMenuItem,
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
+import FreeAgentContractModal from "./FreeAgentContractModal";
+import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 
 interface TransfersTabProps {
@@ -122,9 +129,7 @@ export default function TransfersTab({
       fee: offer.fee,
     });
     setCounterAmount(
-      ((offer.suggested_counter_fee ?? offer.fee) / 1_000_000).toFixed(
-        offer.negotiation_round > 1 ? 2 : 1,
-      ),
+      formatTransferFeeInput(offer.suggested_counter_fee ?? offer.fee),
     );
     setCounterError(null);
     setCounterResult(null);
@@ -146,7 +151,9 @@ export default function TransfersTab({
   };
 
   const handleCounterOffer = async () => {
-    if (!counterTarget || !counterAmount) return;
+    const requestedFee = parseTransferFeeInput(counterAmount);
+
+    if (!counterTarget || requestedFee === null || requestedFee <= 0) return;
 
     setCounterLoading(true);
     setCounterError(null);
@@ -154,7 +161,6 @@ export default function TransfersTab({
     setCounterFeedback(null);
 
     try {
-      const requestedFee = Math.round(parseFloat(counterAmount) * 1_000_000);
       const response = await counterOffer(
         counterTarget.player.id,
         counterTarget.offerId,
@@ -163,9 +169,9 @@ export default function TransfersTab({
 
       if (onGameUpdate) onGameUpdate(response.game);
       setCounterResult(response.decision);
-      setCounterFeedback(response.feedback);
+      setCounterFeedback(normalizeTransferNegotiationFeedback(response.feedback));
       if (response.suggested_fee !== null) {
-        setCounterAmount((response.suggested_fee / 1_000_000).toFixed(2));
+        setCounterAmount(formatTransferFeeInput(response.suggested_fee));
       }
       if (response.decision === "accepted") {
         setTimeout(() => {
@@ -248,9 +254,14 @@ export default function TransfersTab({
     myTransferList,
     myLoanList,
     marketPlayers,
+    freeAgentPlayers,
     loanPlayers,
     playersWithOffers,
   } = transferCollections;
+  const isMarketView = view === "market";
+  const isFreeAgentView = view === "free_agents";
+  const isLoanView = view === "loans";
+  const isScoutingView = isMarketView || isFreeAgentView || isLoanView;
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -273,6 +284,12 @@ export default function TransfersTab({
         count: marketPlayers.length,
       },
       {
+        id: "free_agents",
+        label: t("transfers.freeAgents"),
+        icon: <UserPlus className="w-4 h-4" />,
+        count: freeAgentPlayers.length,
+      },
+      {
         id: "loans",
         label: t("transfers.loanMarket"),
         icon: <ArrowRightLeft className="w-4 h-4" />,
@@ -291,6 +308,25 @@ export default function TransfersTab({
   const weeklyWageBudget = myTeam
     ? annualAmountToWeeklyCommitment(myTeam.wage_budget)
     : 0;
+  const {
+    freeAgentTarget,
+    contractWage,
+    setContractWage,
+    contractLength,
+    setContractLength,
+    contractFeedback,
+    contractProjection,
+    contractSubmitting,
+    contractSubmitDisabled,
+    contractStatusMessage,
+    contractStatusClassName,
+    openFreeAgentContract,
+    closeFreeAgentContract,
+    submitFreeAgentContract,
+  } = useFreeAgentContractFlow({
+    gameState,
+    onGameUpdate,
+  });
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
     if (availableScouts.length === 0) {
@@ -308,7 +344,7 @@ export default function TransfersTab({
       onGameUpdate?.(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setScoutError(getErrorMessage(error));
+      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     } finally {
       setScoutingPlayerId(null);
     }
@@ -421,7 +457,7 @@ export default function TransfersTab({
         </p>
       </div>
 
-      {scoutError && (view === "market" || view === "loans") ? (
+      {scoutError && isScoutingView ? (
         <p
           role="alert"
           className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
@@ -496,7 +532,7 @@ export default function TransfersTab({
                         {t("transfers.offers")}
                       </th>
                     )}
-                    {(view === "market" || view === "loans") && (
+                    {isScoutingView && (
                       <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         {t("common.action")}
                       </th>
@@ -505,10 +541,7 @@ export default function TransfersTab({
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                   {filteredList.map((player) => {
-                    const ovr = player.ovr ?? calcOvr(
-                      player,
-                      player.natural_position || player.position,
-                    );
+                    const ovr = getPlayerOvr(player);
                     const age = calcAge(player.date_of_birth);
                     const offersForThisPlayer = player.transfer_offers;
                     const scoutState = alreadyScoutingIds.has(player.id)
@@ -557,18 +590,24 @@ export default function TransfersTab({
                       );
                     }
 
-                    if (view === "market" || view === "loans") {
+                    if (isScoutingView) {
                       contextItems.push(buildDividerMenuItem());
                       contextItems.push(
                         buildScoutPlayerMenuItem(t, scoutState, () => {
                           void handleScoutPlayer(player.id);
                         }),
                       );
-                      contextItems.push({
-                        label: t("transfers.bid"),
-                        icon: <Gavel className="w-4 h-4" />,
-                        onClick: () => openBidNegotiation(player),
-                      });
+                      contextItems.push(
+                        isFreeAgentView
+                          ? buildOfferFreeAgentContractMenuItem(t, () => {
+                            openFreeAgentContract(player);
+                          })
+                          : {
+                            label: t("transfers.bid"),
+                            icon: <Gavel className="w-4 h-4" />,
+                            onClick: () => openBidNegotiation(player),
+                          },
+                      );
                     }
 
                     const row = (
@@ -609,15 +648,21 @@ export default function TransfersTab({
                           {age}
                         </td>
                         <td className="py-2.5 px-4">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (player.team_id) onSelectTeam(player.team_id);
-                            }}
-                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
-                          >
-                            {getTeamName(gameState.teams, player.team_id)}
-                          </button>
+                          {player.team_id ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectTeam(player.team_id!);
+                              }}
+                              className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
+                            >
+                              {getTeamName(gameState.teams, player.team_id)}
+                            </button>
+                          ) : (
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {t("common.freeAgent")}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 font-medium tabular-nums">
                           {formatVal(player.market_value)}
@@ -642,6 +687,11 @@ export default function TransfersTab({
                             {player.loan_listed && (
                               <Badge variant="primary" size="sm">
                                 {t("transfers.loan")}
+                              </Badge>
+                            )}
+                            {isFreeAgentView && (
+                              <Badge variant="neutral" size="sm">
+                                {t("common.freeAgent")}
                               </Badge>
                             )}
                           </div>
@@ -724,16 +774,28 @@ export default function TransfersTab({
                             </div>
                           </td>
                         )}
-                        {(view === "market" || view === "loans") && (
+                        {isScoutingView && (
                           <td className="py-2.5 px-4">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (isFreeAgentView) {
+                                  openFreeAgentContract(player);
+                                  return;
+                                }
                                 openBidNegotiation(player);
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
                             >
-                              <Gavel className="w-3 h-3" /> {t("transfers.bid")}
+                              {isFreeAgentView ? (
+                                <>
+                                  <UserPlus className="w-3 h-3" /> {t("transfers.offerContract")}
+                                </>
+                              ) : (
+                                <>
+                                  <Gavel className="w-3 h-3" /> {t("transfers.bid")}
+                                </>
+                              )}
                             </button>
                           </td>
                         )}
@@ -753,15 +815,17 @@ export default function TransfersTab({
         </Card>
       )}
 
-      {(view === "market" || view === "loans") && filteredList.length === 0 && (
+      {isScoutingView && filteredList.length === 0 && (
         <Card>
           <CardBody>
             <div className="text-center py-8">
               <TrendingUp className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {view === "market"
+                {isMarketView
                   ? t("transfers.noTransferMarket")
-                  : t("transfers.noLoanMarket")}
+                  : isFreeAgentView
+                    ? t("transfers.noFreeAgents")
+                    : t("transfers.noLoanMarket")}
               </p>
             </div>
           </CardBody>
@@ -806,6 +870,24 @@ export default function TransfersTab({
             setCounterResult(null);
             setCounterFeedback(null);
           }}
+        />
+      )}
+      {freeAgentTarget && (
+        <FreeAgentContractModal
+          player={freeAgentTarget}
+          teams={gameState.teams}
+          wage={contractWage}
+          onWageChange={setContractWage}
+          contractLength={contractLength}
+          onContractLengthChange={setContractLength}
+          projection={contractProjection}
+          feedback={contractFeedback}
+          statusMessage={contractStatusMessage(t)}
+          statusClassName={contractStatusClassName}
+          submitting={contractSubmitting}
+          submitDisabled={contractSubmitDisabled}
+          onSubmit={submitFreeAgentContract}
+          onClose={closeFreeAgentContract}
         />
       )}
     </div>

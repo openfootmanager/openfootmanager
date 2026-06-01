@@ -49,33 +49,38 @@ vi.mock("react-i18next", () => ({
     }),
 }));
 
-const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => ({
-    id: "player-1",
-    name: "Player One",
-    position: "Midfielder",
-    condition: 78,
-    pace: 70,
-    stamina: 70,
-    strength: 70,
-    agility: 70,
-    passing: 70,
-    shooting: 70,
-    tackling: 70,
-    dribbling: 70,
-    defending: 70,
-    positioning: 70,
-    vision: 70,
-    decisions: 70,
-    composure: 70,
-    aggression: 60,
-    teamwork: 70,
-    leadership: 60,
-    handling: 20,
-    reflexes: 20,
-    aerial: 60,
-    traits: [],
-    ...overrides,
-});
+const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData => {
+    const { ovr = 70, ...rest } = overrides;
+
+    return {
+        id: "player-1",
+        name: "Player One",
+        position: "Midfielder",
+        ovr,
+        condition: 78,
+        pace: 70,
+        stamina: 70,
+        strength: 70,
+        agility: 70,
+        passing: 70,
+        shooting: 70,
+        tackling: 70,
+        dribbling: 70,
+        defending: 70,
+        positioning: 70,
+        vision: 70,
+        decisions: 70,
+        composure: 70,
+        aggression: 60,
+        teamwork: 70,
+        leadership: 60,
+        handling: 20,
+        reflexes: 20,
+        aerial: 60,
+        traits: [],
+        ...rest,
+    };
+};
 
 const makeTeam = (overrides: Partial<EngineTeamData> = {}): EngineTeamData => ({
     id: "team-1",

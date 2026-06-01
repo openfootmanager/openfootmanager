@@ -7,6 +7,7 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import {
   buildDividerMenuItem,
+  buildOfferFreeAgentContractMenuItem,
   buildMakeTransferBidMenuItem,
   buildScoutPlayerMenuItem,
   buildViewProfileMenuItem,
@@ -39,6 +40,7 @@ interface ScoutingPlayerSearchCardProps {
   onPositionFilterChange: (position: string) => void;
   onSearchQueryChange: (query: string) => void;
   onBidPlayer?: (player: PlayerData) => void;
+  onOfferFreeAgent?: (player: PlayerData) => void;
   onSelectPlayer?: (id: string) => void;
   onSelectTeam?: (id: string) => void;
   onSendScout: (playerId: string) => void;
@@ -62,6 +64,7 @@ export default function ScoutingPlayerSearchCard({
   onPositionFilterChange,
   onSearchQueryChange,
   onBidPlayer,
+  onOfferFreeAgent,
   onSelectPlayer,
   onSelectTeam,
   onSendScout,
@@ -161,6 +164,12 @@ export default function ScoutingPlayerSearchCard({
                         onBidPlayer(player);
                       }),
                     ]
+                    : !player.team_id && onOfferFreeAgent
+                      ? [
+                        buildOfferFreeAgentContractMenuItem(t, () => {
+                          onOfferFreeAgent(player);
+                        }),
+                      ]
                     : []),
                   buildScoutPlayerMenuItem(t, scoutState, () => {
                     onSendScout(player.id);

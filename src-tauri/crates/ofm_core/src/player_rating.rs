@@ -14,7 +14,7 @@ pub fn formation_slots(formation: &str) -> Vec<Position> {
 /// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
 ///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
 /// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied if
-///   the player is young with a meaningful gap between current OVR and potential.
+///   the player is young with elite potential and a meaningful gap to current OVR.
 ///
 /// Pass `current_year` for accurate age calculation (use the game clock year).
 pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
@@ -36,7 +36,7 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
 
     // 4. Award Wonderkid trait: young player whose ceiling far exceeds current ability
     let growth_room = potential.saturating_sub(ovr);
-    if age <= 21 && potential >= 75 && growth_room >= 10 {
+    if age <= 21 && potential >= 85 && growth_room >= 10 {
         if !traits.contains(&PlayerTrait::Wonderkid) {
             traits.push(PlayerTrait::Wonderkid);
         }
@@ -526,5 +526,26 @@ mod tests {
         let out_of_group_role = effective_rating_for_assignment(&player, &Position::RightBack);
 
         assert!(alternate_role > out_of_group_role);
+    }
+
+    #[test]
+    fn refresh_does_not_award_wonderkid_below_elite_potential_threshold() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2007-01-01".to_string();
+        player.natural_position = Position::Striker;
+        player.attributes.shooting = 70;
+        player.attributes.positioning = 70;
+        player.attributes.decisions = 70;
+        player.attributes.pace = 70;
+        player.attributes.dribbling = 70;
+        player.attributes.strength = 70;
+        player.attributes.composure = 70;
+        player.attributes.aerial = 70;
+        player.potential = 84;
+
+        refresh_player_derived(&mut player, 2026);
+
+        assert!(player.potential >= player.ovr.saturating_add(10));
+        assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
     }
 }

@@ -37,7 +37,7 @@ export default function ScheduleTab({
 
   const getFixtureGroupLabel = (fixture: FixtureData): string => {
     if (fixture.competition === "League") {
-      return `${t("schedule.matchday", { number: fixture.matchday })} — ${formatMatchDate(fixture.date)}`;
+      return `${t("schedule.matchday", { number: fixture.matchday })} — ${formatMatchDate(fixture.date, )}`;
     }
 
     if (fixture.competition === "PreseasonTournament") {

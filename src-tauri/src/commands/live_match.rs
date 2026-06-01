@@ -1,5 +1,7 @@
 use log::info;
 use rand::RngExt;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tauri::State;
 
 pub use crate::application::live_match::FinishLiveMatchResponse;
@@ -12,6 +14,31 @@ use crate::application::live_match::{
 use crate::application::team_talk::apply_team_talk as apply_team_talk_service;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
+
+#[derive(Debug, Deserialize)]
+pub struct PressConferenceAnswer {
+    question_id: String,
+    response_id: String,
+    #[serde(rename = "response_tone")]
+    _response_tone: String,
+    response_text: String,
+    #[serde(default)]
+    response_text_key: String,
+    #[serde(default)]
+    response_text_params: HashMap<String, String>,
+    question_text: String,
+    #[serde(default)]
+    player_id: String,
+}
+
+#[derive(Debug, Serialize)]
+struct LocalizedPressQuote {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    key: String,
+    fallback: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    params: HashMap<String, String>,
+}
 
 // ---------------------------------------------------------------------------
 // Live Match Commands
@@ -86,7 +113,7 @@ pub fn apply_team_talk(
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
     let seed = rand::rng().random::<u64>();
     let results = apply_team_talk_internal(&mut game, &tone, &context, seed)?;
 
@@ -95,19 +122,18 @@ pub fn apply_team_talk(
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
-/// answers: array of { question_id, response_id, response_tone, response_text, question_text }
 #[tauri::command]
 pub fn submit_press_conference(
     state: State<'_, StateManager>,
-    answers: Vec<serde_json::Value>,
+    answers: Vec<PressConferenceAnswer>,
     home_team: String,
     away_team: String,
     home_score: u8,
     away_score: u8,
     user_team_name: String,
     user_team_id: String,
-    prerendered_body: Option<String>,
-    prerendered_headline: Option<String>,
+    _prerendered_body: Option<String>,
+    _prerendered_headline: Option<String>,
 ) -> Result<serde_json::Value, String> {
     info!(
         "[cmd] submit_press_conference: {} {} - {} {}",
@@ -115,67 +141,63 @@ pub fn submit_press_conference(
     );
     let mut game = state
         .get_game(|g| g.clone())
-        .ok_or("No active game session")?;
+        .ok_or("be.error.noActiveGameSession")?;
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let mut rng = rand::rng();
 
     // Build news article from press conference answers
     let mut quotes: Vec<String> = Vec::new();
+    let mut localized_quotes: Vec<LocalizedPressQuote> = Vec::new();
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
 
     for answer in &answers {
-        let tone = answer
-            .get("response_tone")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let text = answer
-            .get("response_text")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let qid = answer
-            .get("question_id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let rid = answer.response_id.as_str();
+        let text = answer.response_text.as_str();
+        let qid = answer.question_id.as_str();
+
+        let _ = &answer.question_text;
 
         if !text.is_empty() {
             quotes.push(format!("\"{}\"", text));
+            localized_quotes.push(LocalizedPressQuote {
+                key: answer.response_text_key.clone(),
+                fallback: text.to_string(),
+                params: answer.response_text_params.clone(),
+            });
         }
 
         // Track player mentions
-        if let Some(pid) = answer.get("player_id").and_then(|v| v.as_str()) {
-            if !pid.is_empty() {
-                mentioned_player_ids.push(pid.to_string());
-            }
+        if !answer.player_id.is_empty() {
+            mentioned_player_ids.push(answer.player_id.clone());
         }
 
-        // Morale effects based on tone
-        match tone {
-            "Humble" | "Fair" | "Positive" | "Focused" => morale_delta += rng.random_range(1..=3),
-            "Confident" | "Ambitious" => morale_delta += rng.random_range(2..=5),
-            "Defiant" | "Frustrated" => morale_delta += rng.random_range(-2..=2),
-            "Curt" | "Evasive" => morale_delta += rng.random_range(-3..=0),
-            "Accept" | "Detailed" => morale_delta += rng.random_range(0..=2),
-            "Deflect" => morale_delta += rng.random_range(-1..=1),
-            "Praise" => morale_delta += rng.random_range(3..=6),
-            "Demanding" => morale_delta += rng.random_range(-2..=3),
+        // Morale effects based on stable response identifiers.
+        match rid {
+            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate"
+            | "understand" => morale_delta += rng.random_range(1..=3),
+            "confident" | "ambitious" | "shared" => morale_delta += rng.random_range(2..=5),
+            "defiant" | "frustrated" => morale_delta += rng.random_range(-2..=2),
+            "curt" | "evasive" => morale_delta += rng.random_range(-3..=0),
+            "accept" | "detailed" | "apologize" => morale_delta += rng.random_range(0..=2),
+            "deflect" => morale_delta += rng.random_range(-1..=1),
+            "praise" => morale_delta += rng.random_range(3..=6),
+            "demanding" => morale_delta += rng.random_range(-2..=3),
             _ => {}
         }
 
         // Player-focused question effects
         if qid == "player_focus" {
-            if let Some(pid) = answer.get("player_id").and_then(|v| v.as_str()) {
-                if !pid.is_empty() {
-                    let player_delta: i16 = match tone {
-                        "Praise" => rng.random_range(4..=8),
-                        "Demanding" => rng.random_range(-3..=4),
-                        "Deflect" => rng.random_range(-2..=1),
-                        _ => rng.random_range(0..=3),
-                    };
-                    if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
-                        p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
-                    }
+            if !answer.player_id.is_empty() {
+                let player_delta: i16 = match rid {
+                    "praise" => rng.random_range(4..=8),
+                    "demanding" => rng.random_range(-3..=4),
+                    "deflect" => rng.random_range(-2..=1),
+                    _ => rng.random_range(0..=3),
+                };
+                if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
+                    p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
                 }
             }
         }
@@ -196,53 +218,46 @@ pub fn submit_press_conference(
         "{} {} - {} {}",
         home_team, home_score, away_score, away_team
     );
-    let headline = prerendered_headline.unwrap_or_else(|| {
-        if quotes.is_empty() {
-            format!("Post-Match: {} on {}", user_team_name, result_str)
-        } else {
-            let sources = [
-                format!("{} Manager: {}", user_team_name, quotes[0]),
-                format!(
-                    "Press Conference: \"{}\" — {} boss",
-                    quotes[0].trim_matches('"'),
-                    user_team_name
-                ),
-            ];
-            sources[rng.random_range(0..sources.len())].clone()
-        }
-    });
+    let headline_key = if quotes.is_empty() {
+        ("be.news.pressConference.headlinePostMatch",)
+    } else if rng.random::<bool>() {
+        ("be.news.pressConference.headlineManagerQuote",)
+    } else {
+        ("be.news.pressConference.headlinePressConf",)
+    }
+    .0;
 
-    let body = prerendered_body.unwrap_or_else(|| {
-        if quotes.len() > 1 {
-            format!(
-                "Speaking after the {} result, the {} manager addressed the press.\n\n{}\n\n\
-                The conference covered the result, tactical approach, and what lies ahead for the team.",
-                result_str, user_team_name,
-                quotes.iter().map(|q| format!("• {}", q)).collect::<Vec<_>>().join("\n")
-            )
-        } else if quotes.len() == 1 {
-            format!(
-                "The {} manager spoke briefly after the {} result.\n\n{}",
-                user_team_name, result_str, quotes[0]
-            )
-        } else {
-            format!(
-                "The {} manager declined to speak at length after the {} result.",
-                user_team_name, result_str
-            )
+    let body_key = if quotes.len() > 1 {
+        ("be.news.pressConference.bodyMultiple",)
+    } else if quotes.len() == 1 {
+        ("be.news.pressConference.bodySingle",)
+    } else {
+        ("be.news.pressConference.bodyNone",)
+    }
+    .0;
+
+    let mut i18n_params = HashMap::new();
+    i18n_params.insert("team".to_string(), user_team_name.clone());
+    i18n_params.insert("result".to_string(), result_str.clone());
+    if !localized_quotes.is_empty() {
+        if let Ok(serialized_quotes) = serde_json::to_string(&localized_quotes) {
+            i18n_params.insert("quotesData".to_string(), serialized_quotes);
         }
-    });
+        i18n_params.insert("quote".to_string(), quotes[0].trim_matches('"').to_string());
+    }
 
     let article_id = format!("press_conf_{}", today);
     let article = domain::news::NewsArticle::new(
         article_id,
-        headline,
-        body,
-        "Sports Daily".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today.clone(),
         domain::news::NewsCategory::MatchReport,
     )
-    .with_teams(vec![user_team_id.clone()]);
+    .with_teams(vec![user_team_id.clone()])
+    .with_players(mentioned_player_ids)
+    .with_i18n(headline_key, body_key, "be.source.sportsDaily", i18n_params);
 
     game.news.push(article);
     state.set_game(game.clone());
@@ -410,6 +425,7 @@ mod tests {
                 StandingEntry::new("team4".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

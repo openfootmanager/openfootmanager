@@ -56,7 +56,6 @@ impl ResponseBandWeights {
 struct ResponseOutcome {
     delta: i8,
     effect_key: String,
-    description: String,
     i18n_params: HashMap<String, String>,
 }
 
@@ -72,11 +71,10 @@ fn base_effect_params(delta: i8) -> HashMap<String, String> {
     HashMap::from([("delta".to_string(), signed_delta(delta))])
 }
 
-fn outcome(delta: i8, effect_key: &str, description: String) -> ResponseOutcome {
+fn outcome(delta: i8, effect_key: &str) -> ResponseOutcome {
     ResponseOutcome {
         delta,
         effect_key: effect_key.to_string(),
-        description,
         i18n_params: base_effect_params(delta),
     }
 }
@@ -277,89 +275,71 @@ fn banded_morale_talk_outcome<R: rand::Rng + ?Sized>(
             ResponseOutcomeBand::StrongPositive => outcome(
                 8,
                 "be.msg.playerEvent.effects.moraleCrisis.encourage.positive",
-                "Player feels genuinely lifted by the talk. Morale +8".to_string(),
             ),
             ResponseOutcomeBand::MildPositive => outcome(
                 4,
                 "be.msg.playerEvent.effects.moraleCrisis.encourage.positive",
-                "Player feels a bit better. Morale +4".to_string(),
             ),
             ResponseOutcomeBand::Neutral => outcome(
                 0,
                 "be.msg.playerEvent.effects.moraleCrisis.encourage.negative",
-                "Player listens, but the words do not fully land. Morale 0".to_string(),
             ),
             ResponseOutcomeBand::MildNegative => outcome(
                 -2,
                 "be.msg.playerEvent.effects.moraleCrisis.encourage.negative",
-                "Player doesn't buy it. Morale -2".to_string(),
             ),
             ResponseOutcomeBand::StrongNegative => outcome(
                 -5,
                 "be.msg.playerEvent.effects.moraleCrisis.encourage.negative",
-                "Player feels patronized by the talk. Morale -5".to_string(),
             ),
         },
         "promise_time" => match band {
             ResponseOutcomeBand::StrongPositive => outcome(
                 14,
                 "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-                "Player is reassured by the promise. Morale +14. They'll expect to start soon."
-                    .to_string(),
             ),
             ResponseOutcomeBand::MildPositive => outcome(
                 10,
                 "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-                "Player is reassured by the promise. Morale +10. They'll expect to start soon."
-                    .to_string(),
             ),
             ResponseOutcomeBand::Neutral => outcome(
                 4,
                 "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-                "Player wants to believe you, but remains cautious. Morale +4".to_string(),
             ),
             ResponseOutcomeBand::MildNegative => outcome(
                 -2,
                 "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-                "Player seems unsure the promise will be kept. Morale -2".to_string(),
             ),
             ResponseOutcomeBand::StrongNegative => outcome(
                 -6,
                 "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-                "Player openly doubts the promise and feels worse. Morale -6".to_string(),
             ),
         },
         "work_harder" => match band {
             ResponseOutcomeBand::StrongPositive => outcome(
                 6,
                 "be.msg.playerEvent.effects.moraleCrisis.workHarder.positive",
-                "Player accepts the challenge and responds strongly. Morale +6".to_string(),
             ),
             ResponseOutcomeBand::MildPositive => outcome(
                 2,
                 "be.msg.playerEvent.effects.moraleCrisis.workHarder.positive",
-                "Player accepts the challenge. Morale +2".to_string(),
             ),
             ResponseOutcomeBand::Neutral => outcome(
                 0,
                 "be.msg.playerEvent.effects.moraleCrisis.workHarder.negative",
-                "Player takes the message on board, but shows no reaction. Morale 0".to_string(),
             ),
             ResponseOutcomeBand::MildNegative => outcome(
                 -5,
                 "be.msg.playerEvent.effects.moraleCrisis.workHarder.negative",
-                "Player is offended by the tough love. Morale -5".to_string(),
             ),
             ResponseOutcomeBand::StrongNegative => outcome(
                 -10,
                 "be.msg.playerEvent.effects.moraleCrisis.workHarder.negative",
-                "Player reacts badly and feels alienated. Morale -10".to_string(),
             ),
         },
         _ => outcome(
             0,
             "be.msg.playerEvent.effects.moraleCrisis.encourage.negative",
-            "Player is unmoved. Morale 0".to_string(),
         ),
     }
 }
@@ -495,13 +475,11 @@ pub fn apply_player_response(
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.benchComplaint.explain.positive",
-                        format!("Player grudgingly accepts. Morale +{}", d),
                     )
                 } else {
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.benchComplaint.explain.negative",
-                        format!("Player isn't convinced. Morale {}", d),
                     )
                 }
             }
@@ -511,10 +489,6 @@ pub fn apply_player_response(
                 outcome(
                     d,
                     "be.msg.playerEvent.effects.benchComplaint.promiseChance",
-                    format!(
-                        "Player is excited about the opportunity. Morale +{}. They expect to start next match.",
-                        d
-                    ),
                 )
             }
             "prove_yourself" => {
@@ -524,13 +498,11 @@ pub fn apply_player_response(
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.benchComplaint.proveYourself.positive",
-                        format!("Player is fired up to prove their worth. Morale +{}", d),
                     )
                 } else {
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.benchComplaint.proveYourself.negative",
-                        format!("Player feels dismissed and insulted. Morale {}", d),
                     )
                 }
             }
@@ -543,7 +515,6 @@ pub fn apply_player_response(
                 outcome(
                     d,
                     "be.msg.playerEvent.effects.happyPlayer.praiseBack",
-                    format!("Player beams at the praise. Morale +{}", d),
                 )
             }
             "stay_professional" => {
@@ -553,13 +524,11 @@ pub fn apply_player_response(
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.happyPlayer.stayProfessional.positive",
-                        format!("Player nods professionally. Morale +{}", d),
                     )
                 } else {
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.happyPlayer.stayProfessional.negative",
-                        format!("Player wanted more warmth. Morale {}", d),
                     )
                 }
             }
@@ -570,13 +539,11 @@ pub fn apply_player_response(
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.happyPlayer.higherExpectations.positive",
-                        format!("Player rises to the challenge. Morale +{}", d),
                     )
                 } else {
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.happyPlayer.higherExpectations.negative",
-                        format!("Player feels the pressure is unfair. Morale {}", d),
                     )
                 }
             }
@@ -590,7 +557,6 @@ pub fn apply_player_response(
                 outcome(
                     d,
                     "be.msg.playerEvent.effects.contractConcern.reassure",
-                    format!("Player is reassured about their future. Morale +{}", d),
                 )
             }
             "noncommittal" => {
@@ -600,13 +566,11 @@ pub fn apply_player_response(
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.contractConcern.noncommittal.positive",
-                        format!("Player grudgingly accepts for now. Morale +{}", d),
                     )
                 } else {
                     outcome(
                         d,
                         "be.msg.playerEvent.effects.contractConcern.noncommittal.negative",
-                        format!("Player is unsettled and unhappy. Morale {}", d),
                     )
                 }
             }
@@ -615,10 +579,6 @@ pub fn apply_player_response(
                 outcome(
                     d,
                     "be.msg.playerEvent.effects.contractConcern.noRenewal",
-                    format!(
-                        "Player is devastated. Morale {}. They may affect the dressing room.",
-                        d
-                    ),
                 )
             }
             _ => return None,
@@ -697,7 +657,6 @@ pub fn apply_player_response(
         }
     }
 
-    // "No renewal" tanks morale of nearby players too (dressing room effect)
     if message_id.starts_with("contract_concern_") && option_id == "no_renewal" {
         let user_team_id = game.manager.team_id.clone().unwrap_or_default();
         // Teammates lose 2-5 morale
@@ -710,10 +669,6 @@ pub fn apply_player_response(
             }
         }
         if affected > 0 {
-            outcome.description = format!(
-                "{} The dressing room mood dips — {} teammates lose morale.",
-                outcome.description, affected
-            );
             outcome.effect_key =
                 "be.msg.playerEvent.effects.contractConcern.noRenewalWithDressingRoom".to_string();
             outcome
@@ -730,7 +685,7 @@ pub fn apply_player_response(
     }
 
     Some(PlayerResponseEffect {
-        message: outcome.description,
+        message: String::new(),
         i18n_key: outcome.effect_key,
         i18n_params: outcome.i18n_params,
     })

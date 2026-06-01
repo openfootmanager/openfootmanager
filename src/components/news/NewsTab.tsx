@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { resolveNewsArticle } from "../../utils/backendI18n";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
+import AwardsCeremonyScreen from "../season/AwardsCeremonyScreen";
 import { Select } from "../ui";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
@@ -77,6 +78,24 @@ function buildArticleTeamMenuItems(
   }));
 }
 
+function isSeasonAwardsArticle(article: NewsArticle): boolean {
+  return article.id.startsWith("season_awards_");
+}
+
+function seasonFromArticle(article: NewsArticle): number {
+  const seasonParam = article.i18n_params?.season;
+  if (seasonParam) {
+    const parsed = Number.parseInt(seasonParam, 10);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  const suffix = article.id.replace("season_awards_", "");
+  const parsed = Number.parseInt(suffix, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   const { t } = useTranslation();
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
@@ -131,6 +150,19 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
 
   // Article detail view (replaces list on mobile, shown inline on desktop)
   if (selectedArticle) {
+    if (isSeasonAwardsArticle(selectedArticle)) {
+      return (
+        <AwardsCeremonyScreen
+          season={seasonFromArticle(selectedArticle)}
+          leagueName={gameState.league?.name ?? ""}
+          gameState={gameState}
+          article={selectedArticle}
+          onBack={() => setSelectedId(null)}
+          onSelectTeam={onSelectTeam}
+        />
+      );
+    }
+
     return (
       <ArticleDetail
         article={selectedArticle}

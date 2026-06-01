@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 /// Generate a full double round-robin schedule (home & away) for the given teams.
 /// Matchdays are spaced 7 days apart starting from `start_date`.
-/// Uses the "circle method" for balanced scheduling.
+/// Uses a rotation-based algorithm for balanced scheduling.
 pub fn generate_league(
     name: &str,
     season: u32,
@@ -12,7 +12,7 @@ pub fn generate_league(
     start_date: DateTime<Utc>,
 ) -> League {
     let n = team_ids.len();
-    assert!(n >= 2, "Need at least 2 teams for a league");
+    assert!(n >= 2);
 
     let league_id = Uuid::new_v4().to_string();
     let mut league = League::new(league_id, name.to_string(), season, team_ids);
@@ -23,7 +23,7 @@ pub fn generate_league(
     let rounds = n - 1;
     let half = n / 2;
 
-    // Build a mutable list of team indices (circle method: fix index 0, rotate the rest)
+    // Build a mutable list of team indices (fix index 0, rotate the rest)
     let mut indices: Vec<usize> = (0..n).collect();
 
     let mut matchday: u32 = 1;

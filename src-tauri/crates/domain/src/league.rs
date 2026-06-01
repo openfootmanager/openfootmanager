@@ -9,6 +9,8 @@ pub struct League {
     pub standings: Vec<StandingEntry>,
     #[serde(default)]
     pub transfer_log: Vec<CompletedTransfer>,
+    #[serde(default)]
+    pub transfer_rumours: Vec<TransferRumour>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -18,6 +20,16 @@ pub struct CompletedTransfer {
     pub to_team_id: String,
     pub player_id: String,
     pub fee: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TransferRumour {
+    pub id: String,
+    pub date: String,
+    pub player_id: String,
+    pub player_name: String,
+    pub team_id: String,
+    pub team_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -167,6 +179,7 @@ impl League {
             fixtures: Vec::new(),
             standings,
             transfer_log: Vec::new(),
+            transfer_rumours: Vec::new(),
         }
     }
 

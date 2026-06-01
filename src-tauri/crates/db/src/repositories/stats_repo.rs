@@ -2,6 +2,9 @@ use domain::league::FixtureCompetition;
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 fn competition_to_string(competition: &FixtureCompetition) -> String {
     match competition {
         FixtureCompetition::League => "League".to_string(),
@@ -20,9 +23,9 @@ fn parse_competition(value: &str) -> FixtureCompetition {
 
 pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), String> {
     conn.execute("DELETE FROM player_match_stats", [])
-        .map_err(|e| format!("Failed to clear player_match_stats: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     conn.execute("DELETE FROM team_match_stats", [])
-        .map_err(|e| format!("Failed to clear team_match_stats: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     for record in &stats.player_matches {
         conn.execute(
@@ -61,7 +64,7 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
                 record.rating,
             ],
         )
-        .map_err(|e| format!("Failed to insert player_match_stats row: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     }
 
     for record in &stats.team_matches {
@@ -96,7 +99,7 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
                 record.red_cards,
             ],
         )
-        .map_err(|e| format!("Failed to insert team_match_stats row: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     }
 
     Ok(())
@@ -113,7 +116,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
              FROM player_match_stats
              ORDER BY date, matchday, fixture_id, player_id",
         )
-        .map_err(|e| format!("Failed to prepare player_match_stats query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
     let player_rows = player_stmt
         .query_map([], |row| {
             Ok(PlayerMatchStatsRecord {
@@ -144,12 +147,11 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                 rating: row.get(24)?,
             })
         })
-        .map_err(|e| format!("Failed to query player_match_stats: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut player_matches = Vec::new();
     for row in player_rows {
-        player_matches
-            .push(row.map_err(|e| format!("Failed to read player_match_stats row: {}", e))?);
+        player_matches.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
 
     let mut team_stmt = conn
@@ -161,7 +163,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
              FROM team_match_stats
              ORDER BY date, matchday, fixture_id, team_id",
         )
-        .map_err(|e| format!("Failed to prepare team_match_stats query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
     let team_rows = team_stmt
         .query_map([], |row| {
             Ok(TeamMatchStatsRecord {
@@ -188,15 +190,112 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                 red_cards: row.get(20)?,
             })
         })
-        .map_err(|e| format!("Failed to query team_match_stats: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut team_matches = Vec::new();
     for row in team_rows {
-        team_matches.push(row.map_err(|e| format!("Failed to read team_match_stats row: {}", e))?);
+        team_matches.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
 
     Ok(StatsState {
         player_matches,
         team_matches,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game_database::GameDatabase;
+    use rusqlite::Connection;
+
+    fn test_db() -> GameDatabase {
+        GameDatabase::open_in_memory().unwrap()
+    }
+
+    fn sample_stats_state() -> StatsState {
+        StatsState {
+            player_matches: vec![PlayerMatchStatsRecord {
+                fixture_id: "fixture-001".to_string(),
+                season: 2025,
+                matchday: 1,
+                date: "2025-08-10".to_string(),
+                competition: FixtureCompetition::League,
+                player_id: "player-001".to_string(),
+                team_id: "team-001".to_string(),
+                opponent_team_id: "team-002".to_string(),
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                home_goals: 2,
+                away_goals: 1,
+                minutes_played: 90,
+                goals: 1,
+                assists: 0,
+                shots: 3,
+                shots_on_target: 2,
+                passes_completed: 18,
+                passes_attempted: 22,
+                tackles_won: 1,
+                interceptions: 0,
+                fouls_committed: 1,
+                yellow_cards: 0,
+                red_cards: 0,
+                rating: 7.4,
+            }],
+            team_matches: vec![TeamMatchStatsRecord {
+                fixture_id: "fixture-001".to_string(),
+                season: 2025,
+                matchday: 1,
+                date: "2025-08-10".to_string(),
+                competition: FixtureCompetition::League,
+                team_id: "team-001".to_string(),
+                opponent_team_id: "team-002".to_string(),
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                goals_for: 2,
+                goals_against: 1,
+                possession_pct: 54,
+                shots: 12,
+                shots_on_target: 5,
+                passes_completed: 310,
+                passes_attempted: 360,
+                tackles_won: 14,
+                interceptions: 8,
+                fouls_committed: 10,
+                yellow_cards: 1,
+                red_cards: 0,
+            }],
+        }
+    }
+
+    #[test]
+    fn test_replace_stats_state_roundtrip() {
+        let db = test_db();
+        let stats = sample_stats_state();
+
+        replace_stats_state(db.conn(), &stats).unwrap();
+        let loaded = load_stats_state(db.conn()).unwrap();
+
+        assert_eq!(loaded.player_matches, stats.player_matches);
+        assert_eq!(loaded.team_matches, stats.team_matches);
+    }
+
+    #[test]
+    fn test_replace_stats_state_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let stats = StatsState::default();
+
+        let result = replace_stats_state(&conn, &stats);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_stats_state_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_stats_state(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
+    }
 }

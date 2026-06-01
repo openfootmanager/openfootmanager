@@ -54,12 +54,12 @@ export default function NextMatchDisplay({
     <div className="flex items-center justify-between py-6 px-4 bg-gray-50 dark:bg-navy-800 rounded-lg border border-gray-100 dark:border-navy-600 transition-colors">
       <div className="text-center flex-1">
         <div className="w-16 h-16 bg-linear-to-br from-primary-500/20 to-primary-600/20 dark:from-primary-500/10 dark:to-primary-600/10 rounded-full mx-auto mb-2 flex items-center justify-center font-heading font-bold text-primary-600 dark:text-primary-400 text-lg border-2 border-primary-200 dark:border-primary-800 transition-colors">
-          {getTeamShort(gameState.teams, nextFixture.home_team_id)}
+          {getTeamShort(gameState.teams, userTeamId)}
         </div>
         <p
-          className={`font-heading font-bold uppercase tracking-wide text-sm ${isHome ? "text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+          className="font-heading font-bold uppercase tracking-wide text-sm text-primary-600 dark:text-primary-400"
         >
-          {getTeamName(gameState.teams, nextFixture.home_team_id)}
+          {getTeamName(gameState.teams, userTeamId)}
         </p>
       </div>
 
@@ -81,7 +81,7 @@ export default function NextMatchDisplay({
           {getTeamShort(gameState.teams, opponentId)}
         </div>
         <p
-          className={`font-heading font-bold uppercase tracking-wide text-sm ${!isHome ? "text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+          className="font-heading font-bold uppercase tracking-wide text-sm text-gray-500 dark:text-gray-400"
         >
           {getTeamName(gameState.teams, opponentId)}
         </p>

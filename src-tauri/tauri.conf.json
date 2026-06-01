@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "openfootmanager",
+  "productName": "Openfoot Manager",
   "version": "0.2.0",
   "identifier": "com.sturdyrobot.openfootmanager",
   "build": {

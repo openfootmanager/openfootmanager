@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
-/* Bundled fonts (offline) */
-@import "@fontsource/inter/300.css";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/inter/700.css";
-@import "@fontsource/inter/800.css";
-@import "@fontsource/barlow-condensed/400.css";
-@import "@fontsource/barlow-condensed/500.css";
-@import "@fontsource/barlow-condensed/600.css";
-@import "@fontsource/barlow-condensed/700.css";
-@import "@fontsource/barlow-condensed/800.css";
+/* Bundled fonts (offline, used weights and supported subsets only) */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/inter/latin-ext-400.css";
+@import "@fontsource/inter/latin-ext-500.css";
+@import "@fontsource/inter/latin-ext-600.css";
+@import "@fontsource/inter/latin-ext-700.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+@import "@fontsource/barlow-condensed/latin-ext-600.css";
+@import "@fontsource/barlow-condensed/latin-ext-700.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -79,12 +80,15 @@
   .scrollbar-thin {
     scrollbar-width: thin;
   }
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: var(--color-navy-600);
     border-radius: 9999px;
@@ -95,6 +99,7 @@
 .dark select {
   color-scheme: dark;
 }
+
 .dark select option {
   background-color: var(--color-navy-700);
   color: #e2e8f0;
@@ -104,6 +109,7 @@
 .dark .text-gray-500 {
   color: #8d99ae;
 }
+
 .dark .text-gray-400 {
   color: #a0aec0;
 }
@@ -112,9 +118,11 @@
 .high-contrast.dark .text-gray-500 {
   color: #b0bec5;
 }
+
 .high-contrast.dark .text-gray-400 {
   color: #cfd8dc;
 }
+
 .high-contrast.dark .text-gray-600 {
   color: #90a4ae;
 }

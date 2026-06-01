@@ -1,8 +1,8 @@
 export {
   canonicalPosition,
-  calcOvr,
   positionBadgeVariant,
 } from "./playerRating";
+export { getPlayerOvr } from "./playerOvr";
 export {
   getTeamName,
   getTeamShort,
@@ -32,6 +32,7 @@ export {
 export type { ContractRiskLevel } from "./contractUtils";
 export {
   calcAge,
+  calcAgeOnDate,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,

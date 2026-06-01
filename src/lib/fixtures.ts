@@ -28,11 +28,27 @@ export function findNextFixture(
     fixtures: FixtureData[],
     teamId: string,
 ): FixtureData | undefined {
-    return fixtures.find(
-        (fixture) =>
-            fixture.status === "Scheduled" &&
-            (fixture.home_team_id === teamId || fixture.away_team_id === teamId),
-    );
+    return fixtures.reduce<FixtureData | undefined>((nextFixture, fixture) => {
+        const involvesTeam = fixture.home_team_id === teamId || fixture.away_team_id === teamId;
+
+        if (fixture.status !== "Scheduled" || !involvesTeam) {
+            return nextFixture;
+        }
+
+        if (!nextFixture) {
+            return fixture;
+        }
+
+        if (fixture.date !== nextFixture.date) {
+            return fixture.date < nextFixture.date ? fixture : nextFixture;
+        }
+
+        if (fixture.matchday !== nextFixture.matchday) {
+            return fixture.matchday < nextFixture.matchday ? fixture : nextFixture;
+        }
+
+        return fixture.id < nextFixture.id ? fixture : nextFixture;
+    }, undefined);
 }
 
 export function expectedFixtureCount(teamCount: number): number | null {

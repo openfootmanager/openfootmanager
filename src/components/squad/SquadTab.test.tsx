@@ -68,6 +68,7 @@ const makePlayer = (
   morale: 80,
   injury: null,
   team_id: "team1",
+  retired: false,
   contract_end: "2027-06-30",
   wage: 1000,
   market_value: 100000,

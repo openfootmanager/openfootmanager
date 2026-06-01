@@ -81,11 +81,7 @@ fn refresh_sets_nonzero_ovr_for_goalkeeper() {
         "OVR should be nonzero after refresh, got {}",
         player.ovr
     );
-    assert!(
-        player.ovr <= 99,
-        "OVR should be <= 99, got {}",
-        player.ovr
-    );
+    assert!(player.ovr <= 99, "OVR should be <= 99, got {}", player.ovr);
 }
 
 #[test]
@@ -146,7 +142,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
     refresh_player_derived(&mut player, 2026);
 
     assert!(
-        player.potential >= 75 && player.potential.saturating_sub(player.ovr) >= 10,
+        player.potential >= 85 && player.potential.saturating_sub(player.ovr) >= 10,
         "Expected deterministic Wonderkid setup to qualify with potential={} ovr={}",
         player.potential,
         player.ovr

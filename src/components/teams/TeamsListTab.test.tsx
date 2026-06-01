@@ -6,7 +6,7 @@ import TeamsListTab from "./TeamsListTab";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, fallback?: string) => {
       if (key === "teams.yourTeam") return "Your Team";
       if (key === "common.position") return "Position";
       if (key === "teams.squad") return "Squad";
@@ -15,7 +15,9 @@ vi.mock("react-i18next", () => ({
       if (key === "common.value") return "Value";
       if (key === "common.pts") return "Pts";
       if (key === "teams.est") return "Est";
-      return key;
+      if (key === "common.playStyles.Balanced") return "Equilibrado";
+      if (key === "common.playStyles.Counter") return "Contra-ataque";
+      return fallback ?? key;
     },
     i18n: { language: "en" },
   }),
@@ -98,6 +100,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     morale: 75,
     injury: null,
     team_id: "team-1",
+    retired: false,
     contract_end: "2027-06-30",
     wage: 12000,
     market_value: 350000,
@@ -216,5 +219,32 @@ describe("TeamsListTab", () => {
     fireEvent.click(screen.getByText("Beta FC"));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("renders translated play styles instead of raw values", () => {
+    render(
+      <TeamsListTab
+        gameState={{
+          ...createGameState(),
+          teams: [
+            createTeam({ play_style: "Balanced" }),
+            createTeam({
+              id: "team-2",
+              name: "Beta FC",
+              short_name: "BET",
+              manager_id: "manager-2",
+              founded_year: 1910,
+              play_style: "Counter",
+            }),
+          ],
+        }}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/4-4-2 — Equilibrado/)).toBeInTheDocument();
+    expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();
+    expect(screen.queryByText(/4-4-2 — Balanced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/4-4-2 — Counter/)).not.toBeInTheDocument();
   });
 });

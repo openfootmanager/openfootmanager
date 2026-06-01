@@ -107,6 +107,7 @@ fn make_game_with_league() -> Game {
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
     game
 }
@@ -327,6 +328,7 @@ fn check_random_events_board_confidence_triggers_on_losses() {
         ],
         standings: vec![],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
 
     check_random_events(&mut game);
@@ -410,6 +412,7 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
         ],
         standings: vec![],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
 
     check_random_events(&mut game);
@@ -447,6 +450,7 @@ fn check_random_events_international_callup_with_upcoming_match() {
         }],
         standings: vec![],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     });
 
     // Run many times to trigger the 5% chance
@@ -583,8 +587,12 @@ fn check_random_events_community_event_structure() {
 #[test]
 fn injury_news_article_created_for_notable_player() {
     let mut game = make_game();
-    // Make at least one user-team player notable via market value
+    // Make one user-team player notable and the only eligible training target.
     game.players[0].market_value = 1_000_000;
+    game.players[0].fitness = 1;
+    for player in game.players.iter_mut().skip(1) {
+        player.team_id = Some("other-team".to_string());
+    }
     game.league = None;
     // Run many days to trigger training injuries
     for _ in 0..2000 {
@@ -697,7 +705,9 @@ fn apply_sponsor_accept_adds_finance() {
     let result = apply_event_response(&mut game, "sponsor_2025-06-15", "respond", "accept");
 
     assert!(result.is_some());
-    assert!(result.unwrap().contains("deal signed"));
+    let effect = result.unwrap();
+    assert_eq!(effect.i18n_key, "be.msg.sponsor.effects.accepted");
+    assert_eq!(effect.i18n_params.get("amount"), Some(&"100000".to_string()));
     assert_eq!(game.teams[0].finance, initial_finance);
     assert_eq!(game.teams[0].season_income, 0);
     let sponsorship = game.teams[0]
@@ -729,7 +739,7 @@ fn apply_sponsor_decline_no_finance_change() {
     let result = apply_event_response(&mut game, "sponsor_2025-06-15", "respond", "decline");
 
     assert!(result.is_some());
-    assert!(result.unwrap().contains("declined"));
+    assert_eq!(result.unwrap().i18n_key, "be.msg.sponsor.effects.declined");
     assert_eq!(game.teams[0].finance, initial_finance);
     assert!(game.teams[0].sponsorship.is_none());
     let msg = game
@@ -774,6 +784,25 @@ fn apply_sponsor_accept_parses_formatted_amount_param() {
         .as_ref()
         .expect("accepted sponsor should create active sponsorship state");
     assert_eq!(sponsorship.base_value, 100_000);
+}
+
+#[test]
+fn apply_sponsor_accept_parses_compact_amount_param_from_existing_messages() {
+    let mut game = make_game();
+    let mut message = sponsor_message(100_000);
+    message
+        .i18n_params
+        .insert("amount".to_string(), "1.2M".to_string());
+    game.messages.push(message);
+
+    let result = apply_event_response(&mut game, "sponsor_2025-06-15", "respond", "accept");
+
+    assert!(result.is_some());
+    let sponsorship = game.teams[0]
+        .sponsorship
+        .as_ref()
+        .expect("accepted sponsor should create active sponsorship state");
+    assert_eq!(sponsorship.base_value, 1_200_000);
 }
 
 fn board_message() -> InboxMessage {
@@ -838,7 +867,10 @@ fn apply_board_reassure_resolves() {
         "reassure_board",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("reassured"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.boardConfidence.effects.reassureBoard"
+    );
     let msg = game
         .messages
         .iter()
@@ -858,7 +890,10 @@ fn apply_board_accept_pressure_resolves() {
         "accept_pressure",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("honesty"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.boardConfidence.effects.acceptPressure"
+    );
 }
 
 #[test]
@@ -872,7 +907,10 @@ fn apply_board_blame_resolves() {
         "blame_circumstances",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("wait and see"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.boardConfidence.effects.blameCircumstances"
+    );
 }
 
 #[test]
@@ -929,7 +967,10 @@ fn apply_fan_listen_boosts_morale() {
         "listen_fans",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("morale improved"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.fanPetition.effects.listenFans"
+    );
     // At least some players should have morale > 50 now
     let boosted = game.players.iter().any(|p| p.morale > 50);
     assert!(boosted, "Listening to fans should boost morale");
@@ -946,7 +987,10 @@ fn apply_fan_ignore_resolves() {
         "ignore_fans",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("disappointed"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.fanPetition.effects.ignoreFans"
+    );
 }
 
 #[test]
@@ -960,7 +1004,10 @@ fn apply_fan_address_publicly_resolves() {
         "address_publicly",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("well received"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.fanPetition.effects.addressPublicly"
+    );
 }
 
 #[test]
@@ -1013,7 +1060,10 @@ fn apply_rival_not_for_sale_boosts_morale() {
         "not_for_sale",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("valued"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.rivalInterest.effects.notForSale"
+    );
     assert!(game.players[0].morale > 50, "Morale should increase");
 }
 
@@ -1029,7 +1079,10 @@ fn apply_rival_open_to_offers_drops_morale() {
         "open_to_offers",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("unsettled"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.rivalInterest.effects.openToOffers"
+    );
     assert!(game.players[0].morale < 80, "Morale should decrease");
 }
 
@@ -1044,7 +1097,10 @@ fn apply_rival_no_comment_resolves() {
         "no_comment",
     );
     assert!(result.is_some());
-    assert!(result.unwrap().contains("rumour mill"));
+    assert_eq!(
+        result.unwrap().i18n_key,
+        "be.msg.rivalInterest.effects.noComment"
+    );
 }
 
 #[test]

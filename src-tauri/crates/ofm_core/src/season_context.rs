@@ -200,6 +200,7 @@ mod tests {
                 StandingEntry::new("team2".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
         let game = make_game((2026, 7, 10), Some(league));
 
@@ -229,6 +230,7 @@ mod tests {
                 StandingEntry::new("team2".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
         let game = make_game((2026, 8, 31), Some(league));
 
@@ -259,6 +261,7 @@ mod tests {
             )],
             standings: vec![alpha, beta],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
         let game = make_game((2026, 8, 5), Some(league));
 
@@ -285,6 +288,7 @@ mod tests {
             ],
             standings: vec![alpha, beta],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
         let game = make_game((2026, 8, 9), Some(league));
 

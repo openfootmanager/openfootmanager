@@ -1,10 +1,12 @@
-use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
 
+use ofm_core::game::Game;
+
 use crate::game_database::GameDatabase;
+use crate::game_persistence::GamePersistenceReader;
 use crate::repositories::meta_repo;
 
 /// A single entry in the save index, representing one save session.
@@ -13,6 +15,8 @@ pub struct SaveEntry {
     pub id: String,
     pub name: String,
     pub manager_name: String,
+    #[serde(default)]
+    pub team_name: String,
     pub db_filename: String,
     pub checksum: String,
     pub created_at: String,
@@ -24,6 +28,18 @@ pub struct SaveEntry {
 pub struct SaveIndex {
     pub version: u32,
     pub saves: Vec<SaveEntry>,
+}
+
+fn save_index_checksum_error() -> String {
+    "be.error.saveIndex.checksumReadFailed".to_string()
+}
+
+fn save_index_load_error() -> String {
+    "be.error.saveIndex.loadFailed".to_string()
+}
+
+fn save_index_write_error() -> String {
+    "be.error.saveIndex.writeFailed".to_string()
 }
 
 impl SaveIndex {
@@ -45,6 +61,7 @@ impl SaveIndex {
         if let Some(existing) = self.saves.iter_mut().find(|e| e.id == entry.id) {
             existing.name = entry.name.clone();
             existing.manager_name = entry.manager_name.clone();
+            existing.team_name = entry.team_name.clone();
             existing.checksum = entry.checksum.clone();
             existing.last_played_at = entry.last_played_at.clone();
             true
@@ -74,7 +91,7 @@ impl Default for SaveIndex {
 
 /// Compute SHA-256 checksum of a file. Returns hex string.
 pub fn compute_checksum(path: &Path) -> Result<String, String> {
-    let data = fs::read(path).map_err(|e| format!("Failed to read file for checksum: {}", e))?;
+    let data = fs::read(path).map_err(|_| save_index_checksum_error())?;
     let mut hasher = Sha256::new();
     hasher.update(&data);
     let result = hasher.finalize();
@@ -84,27 +101,20 @@ pub fn compute_checksum(path: &Path) -> Result<String, String> {
 /// Load save index from a JSON file. Returns None if the file doesn't exist.
 pub fn load_index(index_path: &Path) -> Result<Option<SaveIndex>, String> {
     if !index_path.exists() {
-        debug!("[save_index] index file not found at {:?}", index_path);
         return Ok(None);
     }
-    let data =
-        fs::read_to_string(index_path).map_err(|e| format!("Failed to read save index: {}", e))?;
-    let index: SaveIndex =
-        serde_json::from_str(&data).map_err(|e| format!("Failed to parse save index: {}", e))?;
-    debug!("[save_index] loaded index with {} saves", index.saves.len());
+    let data = fs::read_to_string(index_path).map_err(|_| save_index_load_error())?;
+    let index: SaveIndex = serde_json::from_str(&data).map_err(|_| save_index_load_error())?;
     Ok(Some(index))
 }
 
 /// Write save index to a JSON file.
 pub fn write_index(index_path: &Path, index: &SaveIndex) -> Result<(), String> {
-    let data = serde_json::to_string_pretty(index)
-        .map_err(|e| format!("Failed to serialize save index: {}", e))?;
+    let data = serde_json::to_string_pretty(index).map_err(|_| save_index_write_error())?;
     if let Some(parent) = index_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create index directory: {}", e))?;
+        fs::create_dir_all(parent).map_err(|_| save_index_write_error())?;
     }
-    fs::write(index_path, data).map_err(|e| format!("Failed to write save index: {}", e))?;
-    debug!("[save_index] wrote index to {:?}", index_path);
+    fs::write(index_path, data).map_err(|_| save_index_write_error())?;
     Ok(())
 }
 
@@ -120,23 +130,17 @@ pub enum DbValidation {
 /// Rebuild the save index by scanning a directory for `.db` files,
 /// validating each one, and constructing a new index.
 pub fn rebuild_index(saves_dir: &Path) -> Result<(SaveIndex, Vec<DbValidation>), String> {
-    info!(
-        "[save_index] rebuilding index from directory {:?}",
-        saves_dir
-    );
     let mut index = SaveIndex::new();
     let mut validations = Vec::new();
 
     if !saves_dir.exists() {
-        debug!("[save_index] saves directory does not exist, returning empty index");
         return Ok((index, validations));
     }
 
-    let entries =
-        fs::read_dir(saves_dir).map_err(|e| format!("Failed to read saves directory: {}", e))?;
+    let entries = fs::read_dir(saves_dir).map_err(|_| save_index_load_error())?;
 
     for entry in entries {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let entry = entry.map_err(|_| save_index_load_error())?;
         let path = entry.path();
 
         if !path.is_file() {
@@ -147,16 +151,12 @@ pub fn rebuild_index(saves_dir: &Path) -> Result<(SaveIndex, Vec<DbValidation>),
             _ => continue,
         };
 
-        debug!("[save_index] validating database: {}", filename);
-
         match validate_db_file(&path) {
             Ok(save_entry) => {
-                info!("[save_index] valid database: {}", filename);
                 index.add(save_entry.clone());
                 validations.push(DbValidation::Valid(save_entry));
             }
             Err(reason) => {
-                warn!("[save_index] invalid database {}: {}", filename, reason);
                 validations.push(DbValidation::Invalid {
                     filename: filename.clone(),
                     reason,
@@ -168,16 +168,28 @@ pub fn rebuild_index(saves_dir: &Path) -> Result<(SaveIndex, Vec<DbValidation>),
     Ok((index, validations))
 }
 
+pub fn save_entry_metadata_from_game(game: &Game) -> (String, String) {
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    let team_name = game
+        .manager
+        .team_id
+        .as_ref()
+        .and_then(|team_id| game.teams.iter().find(|team| team.id == *team_id))
+        .map(|team| team.name.clone())
+        .unwrap_or_default();
+    (manager_name, team_name)
+}
+
 /// Validate a single `.db` file: check schema and extract metadata.
 fn validate_db_file(path: &Path) -> Result<SaveEntry, String> {
     let db = GameDatabase::open(path)?;
 
     if !db.validate_schema()? {
-        return Err("Schema version mismatch".to_string());
+        return Err(save_index_load_error());
     }
 
     let meta = meta_repo::load_meta(db.conn())?
-        .ok_or_else(|| "No game_meta found in database".to_string())?;
+        .ok_or_else(|| "be.error.gamePersistence.gameMetaMissing".to_string())?;
 
     let checksum = compute_checksum(path)?;
 
@@ -187,10 +199,15 @@ fn validate_db_file(path: &Path) -> Result<SaveEntry, String> {
         .unwrap_or("unknown.db")
         .to_string();
 
+    let (manager_name, team_name) = GamePersistenceReader::read_game(&db)
+        .map(|game| save_entry_metadata_from_game(&game))
+        .unwrap_or_default();
+
     Ok(SaveEntry {
         id: meta.save_id.clone(),
         name: meta.save_name,
-        manager_name: String::new(), // Will be filled from managers table later
+        manager_name,
+        team_name,
         db_filename: filename,
         checksum,
         created_at: meta.created_at,
@@ -208,7 +225,6 @@ pub fn load_or_rebuild_index(
         return Ok((index, Vec::new()));
     }
 
-    info!("[save_index] index file missing, rebuilding...");
     let (index, validations) = rebuild_index(saves_dir)?;
     write_index(index_path, &index)?;
     Ok((index, validations))
@@ -233,6 +249,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Test Career".to_string(),
             manager_name: "John Smith".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc123".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -252,6 +269,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Old Name".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "old".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -262,6 +280,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "New Name".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "new".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -280,6 +299,7 @@ mod tests {
             id: "nonexistent".to_string(),
             name: "x".to_string(),
             manager_name: "x".to_string(),
+            team_name: String::new(),
             db_filename: "x.db".to_string(),
             checksum: "x".to_string(),
             created_at: "x".to_string(),
@@ -295,6 +315,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Career".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -303,6 +324,25 @@ mod tests {
         assert!(index.remove("save-001"));
         assert!(index.saves.is_empty());
         assert!(!index.remove("save-001")); // already removed
+    }
+
+    #[test]
+    fn test_load_index_defaults_missing_team_name() {
+        let legacy_json = r#"{
+            "version": 1,
+            "saves": [{
+                "id": "save-001",
+                "name": "Career",
+                "manager_name": "John Smith",
+                "db_filename": "save-001.db",
+                "checksum": "abc123",
+                "created_at": "2026-01-01",
+                "last_played_at": "2026-01-02"
+            }]
+        }"#;
+
+        let index: SaveIndex = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(index.saves[0].team_name, "");
     }
 
     #[test]
@@ -315,6 +355,7 @@ mod tests {
             id: "save-001".to_string(),
             name: "Career".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "save-001.db".to_string(),
             checksum: "abc123".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -354,6 +395,41 @@ mod tests {
     }
 
     #[test]
+    fn test_compute_checksum_missing_file_uses_backend_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("missing.txt");
+
+        let result = compute_checksum(&file_path);
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.checksumReadFailed");
+    }
+
+    #[test]
+    fn test_load_index_invalid_json_uses_backend_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("save_index.json");
+        fs::write(&index_path, "not-json").unwrap();
+
+        let result = load_index(&index_path);
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.loadFailed");
+    }
+
+    #[test]
+    fn test_write_index_parent_file_uses_backend_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocking_parent = dir.path().join("not-a-directory");
+        fs::write(&blocking_parent, "blocking file").unwrap();
+
+        let index_path = blocking_parent.join("save_index.json");
+        let index = SaveIndex::new();
+
+        let result = write_index(&index_path, &index);
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.writeFailed");
+    }
+
+    #[test]
     fn test_rebuild_index_empty_dir() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -372,6 +448,17 @@ mod tests {
         let (index, validations) = rebuild_index(&saves_dir).unwrap();
         assert!(index.saves.is_empty());
         assert!(validations.is_empty());
+    }
+
+    #[test]
+    fn test_rebuild_index_returns_load_failed_when_path_is_not_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_path = dir.path().join("not-a-directory");
+        fs::write(&saves_path, "occupied").unwrap();
+
+        let result = rebuild_index(&saves_path);
+
+        assert_eq!(result.unwrap_err(), "be.error.saveIndex.loadFailed");
     }
 
     #[test]
@@ -394,6 +481,7 @@ mod tests {
                 created_at: "2026-01-01".to_string(),
                 last_played_at: "2026-01-02".to_string(),
                 vacant_team_days_json: "{}".to_string(),
+                world_history_json: "{}".to_string(),
             },
         )
         .unwrap();
@@ -423,7 +511,11 @@ mod tests {
         let (index, validations) = rebuild_index(&saves_dir).unwrap();
         assert!(index.saves.is_empty());
         assert_eq!(validations.len(), 1);
-        assert!(matches!(&validations[0], DbValidation::Invalid { .. }));
+        assert!(matches!(
+            &validations[0],
+            DbValidation::Invalid { reason, .. }
+                if reason == "be.error.gamePersistence.gameMetaMissing"
+        ));
     }
 
     #[test]
@@ -467,6 +559,7 @@ mod tests {
             id: "existing".to_string(),
             name: "Existing".to_string(),
             manager_name: "John".to_string(),
+            team_name: String::new(),
             db_filename: "existing.db".to_string(),
             checksum: "abc".to_string(),
             created_at: "2026-01-01".to_string(),
@@ -501,6 +594,7 @@ mod tests {
                 created_at: "2026-01-01".to_string(),
                 last_played_at: "2026-01-02".to_string(),
                 vacant_team_days_json: "{}".to_string(),
+                world_history_json: "{}".to_string(),
             },
         )
         .unwrap();

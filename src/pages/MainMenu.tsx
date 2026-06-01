@@ -1,51 +1,147 @@
-import { useState, useRef, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
-import { Button, ThemeToggle, DatePicker, CountryFlag } from "../components/ui";
-import SavesList from "../components/menu/SavesList";
-import WorldSelect, { WorldDatabaseInfo } from "../components/menu/WorldSelect";
+import { ThemeToggle } from "../components/ui/ThemeToggle";
+import type {
+  CareerStartPhase,
+  CreateManagerFormData,
+} from "../components/menu/CreateManagerForm";
+import type { ManagerProfile } from "../components/menu/types";
+import type { WorldDatabaseInfo } from "../components/menu/WorldSelect";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
   FolderOpen,
   Settings,
-  X,
   PlusCircle,
   ChevronRight,
-  AlertCircle,
-  ChevronDown,
-  Check,
   Power,
 } from "lucide-react";
-import { countryName, allNationalities } from "../lib/countries";
+
+const CreateManagerForm = lazy(
+  () => import("../components/menu/CreateManagerForm"),
+);
+const ProfileSaveConfirm = lazy(
+  () => import("../components/menu/ProfileSaveConfirm"),
+);
+const SavesList = lazy(() => import("../components/menu/SavesList"));
+const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
 
 interface SaveEntry {
   id: string;
   name: string;
   manager_name: string;
+  team_name: string;
   db_filename: string;
   checksum: string;
   created_at: string;
   last_played_at: string;
 }
 
-function normaliseSearchText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
 /**
- * Minimum manager age (years) on create — historical rule, unchanged here on purpose.
- * Opinion (retraca, git 1631b76): this floor should probably be removed or lowered (~18);
- * leaving as-is until product agrees.
+ * Minimum manager age (years) on create.
  */
 const MANAGER_MINIMUM_AGE = 30;
+const MIN_CAREER_START_YEAR = 2020;
+const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS = 12;
+const MAX_GENERATED_HISTORY_DEPTH_YEARS = 24;
+const GENERATED_HISTORY_DEPTH_STORAGE_KEY = "ofm-generated-history-depth-years";
 
-function flooredAgeFromIsoDate(isoDob: string): number | null {
+type StartupOptionsPayload = {
+  startYear: number;
+  startPhase: CareerStartPhase;
+  historyDepthYears: number;
+};
+
+function historyModeFromMetadata(
+  metadata: unknown,
+): WorldDatabaseInfo["history_mode"] {
+  const kind =
+    metadata && typeof metadata === "object" && "kind" in metadata
+      ? (metadata as { kind?: unknown }).kind
+      : undefined;
+
+  if (kind === "historicalSnapshot") return "reference";
+  if (kind === "rosterBaseline") return "hybrid";
+  return undefined;
+}
+
+function defaultCareerStartYear(): string {
+  return String(new Date().getFullYear());
+}
+
+function parseCareerStartYear(rawValue: string): number | null {
+  const trimmed = rawValue.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed)) return null;
+  return parsed;
+}
+
+function isCareerStartPhase(value: string): value is CareerStartPhase {
+  return value === "seasonStart" || value === "midSeason";
+}
+
+function normalizeHistoryDepthYears(value: number): number | null {
+  if (!Number.isInteger(value)) return null;
+  if (value < 0 || value > MAX_GENERATED_HISTORY_DEPTH_YEARS) return null;
+  return value;
+}
+
+function initialHistoryDepthYears(): number {
+  if (typeof window === "undefined") {
+    return DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
+  }
+
+  const storedValue = window.localStorage.getItem(
+    GENERATED_HISTORY_DEPTH_STORAGE_KEY,
+  );
+  if (storedValue === null) {
+    return DEFAULT_GENERATED_HISTORY_DEPTH_YEARS;
+  }
+
+  const parsedValue = Number(storedValue);
+  return (
+    normalizeHistoryDepthYears(parsedValue) ??
+    DEFAULT_GENERATED_HISTORY_DEPTH_YEARS
+  );
+}
+
+function buildStartupOptions(
+  formData: CreateManagerFormData,
+  historyDepthYears: number,
+): StartupOptionsPayload | null {
+  const startYear = parseCareerStartYear(formData.startYear);
+  if (startYear === null || startYear < MIN_CAREER_START_YEAR) {
+    return null;
+  }
+  if (!isCareerStartPhase(formData.startPhase)) {
+    return null;
+  }
+  const normalizedHistoryDepthYears = normalizeHistoryDepthYears(
+    historyDepthYears,
+  );
+  if (normalizedHistoryDepthYears === null) {
+    return null;
+  }
+
+  return {
+    startYear,
+    startPhase: formData.startPhase,
+    historyDepthYears: normalizedHistoryDepthYears,
+  };
+}
+
+type IsoDateParts = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+function parseIsoDateParts(isoDob: string): IsoDateParts | null {
   if (!isoDob) return null;
 
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDob);
@@ -54,22 +150,43 @@ function flooredAgeFromIsoDate(isoDob: string): number | null {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
-  const birthDate = new Date(year, month - 1, day);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
 
   if (
     Number.isNaN(birthDate.getTime()) ||
-    birthDate.getFullYear() !== year ||
-    birthDate.getMonth() !== month - 1 ||
-    birthDate.getDate() !== day
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day
   ) {
     return null;
   }
 
-  const today = new Date();
-  let age = today.getFullYear() - year;
+  return { year, month, day };
+}
+
+function careerStartReferenceDate(
+  startYear: number,
+  startPhase: CareerStartPhase,
+): Date {
+  const referenceDate = new Date(Date.UTC(startYear, 6, 1));
+  if (startPhase === "midSeason") {
+    referenceDate.setUTCDate(referenceDate.getUTCDate() + 120);
+  }
+  return referenceDate;
+}
+
+function flooredAgeFromIsoDate(
+  isoDob: string,
+  referenceDate: Date,
+): number | null {
+  const parts = parseIsoDateParts(isoDob);
+  if (!parts) return null;
+
+  let age = referenceDate.getUTCFullYear() - parts.year;
   const hasHadBirthdayThisYear =
-    today.getMonth() > month - 1 ||
-    (today.getMonth() === month - 1 && today.getDate() >= day);
+    referenceDate.getUTCMonth() > parts.month - 1 ||
+    (referenceDate.getUTCMonth() === parts.month - 1 &&
+      referenceDate.getUTCDate() >= parts.day);
 
   if (!hasHadBirthdayThisYear) {
     age -= 1;
@@ -77,19 +194,55 @@ function flooredAgeFromIsoDate(isoDob: string): number | null {
   return Number.isNaN(age) ? null : age;
 }
 
+function dobValidationMessage(
+  formData: CreateManagerFormData,
+  historyDepthYears: number,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
+  if (!formData.dob) return null;
+
+  if (parseIsoDateParts(formData.dob) === null) {
+    return t("validation.invalidDate");
+  }
+
+  const startupOptions = buildStartupOptions(formData, historyDepthYears);
+  if (!startupOptions) return null;
+
+  const age = flooredAgeFromIsoDate(
+    formData.dob,
+    careerStartReferenceDate(startupOptions.startYear, startupOptions.startPhase),
+  );
+  if (age === null) return t("validation.invalidDate");
+  if (age < MANAGER_MINIMUM_AGE) {
+    return t("validation.minAge", { min: MANAGER_MINIMUM_AGE });
+  }
+  if (age > 99) return t("validation.invalidDob");
+  return null;
+}
+
 const CREATE_MANAGER_FIELD_ORDER = [
   "firstName",
   "lastName",
   "dob",
+  "startYear",
+  "startPhase",
   "nationality",
-] as const;
+] as const satisfies ReadonlyArray<keyof CreateManagerFormData>;
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function focusFirstCreateManagerError(errors: Record<string, string>): void {
+function deferFocusToNextPaint(callback: () => void): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(callback);
+  });
+}
+
+function focusFirstCreateManagerError(
+  errors: Partial<Record<keyof CreateManagerFormData, string>>,
+): void {
   const first = CREATE_MANAGER_FIELD_ORDER.find((k) => errors[k]);
   if (!first) return;
   const root = document.getElementById(`create-manager-field-${first}`);
@@ -103,86 +256,89 @@ function focusFirstCreateManagerError(errors: Record<string, string>): void {
   focusable?.focus({ preventScroll: true });
 }
 
-function logNationalityDebug(
-  message: string,
-  details?: Record<string, unknown>,
-): void {
-  console.debug("[MainMenu nationality]", {
-    message,
-    ...(details ?? {}),
-  });
+function MenuPanelFallback() {
+  return (
+    <div className="flex min-h-64 items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+    </div>
+  );
 }
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const setGameActive = useGameStore((state) => state.setGameActive);
   const setGameState = useGameStore((state) => state.setGameState);
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const [menuState, setMenuState] = useState<
     "main" | "create" | "world" | "load"
   >("main");
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
   const [loadingSaveId, setLoadingSaveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [profiles, setProfiles] = useState<ManagerProfile[]>([]);
+  const [loadedProfile, setLoadedProfile] = useState<ManagerProfile | null>(null);
+
+  const [formData, setFormData] = useState<CreateManagerFormData>({
     firstName: "",
     lastName: "",
     dob: "",
+    startYear: defaultCareerStartYear(),
+    startPhase: "seasonStart",
     nationality: "",
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [nationalityOpen, setNationalityOpen] = useState(false);
-  const [nationalitySearch, setNationalitySearch] = useState("");
-  const nationalityRef = useRef<HTMLDivElement>(null);
+  const [formErrors, setFormErrors] = useState<
+    Partial<Record<keyof CreateManagerFormData, string>>
+  >({});
 
   // World database state
   const [worldDatabases, setWorldDatabases] = useState<WorldDatabaseInfo[]>([]);
   const [selectedWorldId, setSelectedWorldId] = useState<string>("random");
   const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
+  const [historyDepthYears, setHistoryDepthYears] = useState(
+    initialHistoryDepthYears,
+  );
 
-  const countriesList = allNationalities(i18n.language);
-  const normalisedNationalitySearch = normaliseSearchText(nationalitySearch);
+  useEffect(() => {
+    window.localStorage.setItem(
+      GENERATED_HISTORY_DEPTH_STORAGE_KEY,
+      String(historyDepthYears),
+    );
+  }, [historyDepthYears]);
+
+  useEffect(() => {
+    invoke<ManagerProfile[]>("get_manager_profiles")
+      .then((p) => setProfiles(p ?? []))
+      .catch((error) => console.error("Failed to load manager profiles:", error));
+  }, []);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
-  const dobLiveRuleMessage = (() => {
-    if (!formData.dob) return null;
-    const age = flooredAgeFromIsoDate(formData.dob);
-    if (age === null) return t("validation.invalidDate");
-    if (age < MANAGER_MINIMUM_AGE)
-      return t("validation.minAge", { min: MANAGER_MINIMUM_AGE });
-    if (age > 99) return t("validation.invalidDob");
-    return null;
-  })();
+  const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
   const dobDisplayedError = formErrors.dob || dobLiveRuleMessage;
 
-  const filteredNationalities = countriesList.filter((nationality) => {
-    const normalisedName = normaliseSearchText(nationality.name);
-    const normalisedCode = normaliseSearchText(nationality.code);
+  const updateFormField = (field: keyof CreateManagerFormData, value: string) => {
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  };
 
-    return (
-      normalisedName.includes(normalisedNationalitySearch) ||
-      normalisedCode.includes(normalisedNationalitySearch)
-    );
-  });
-
-  const toggleNationalityDropdown = () => {
-    setNationalityOpen((open) => {
-      const nextOpen = !open;
-      logNationalityDebug("toggle button", { nextOpen });
-      return nextOpen;
-    });
-    setNationalitySearch("");
+  const clearFormError = (field: keyof CreateManagerFormData) => {
+    setFormErrors((previous) => ({
+      ...previous,
+      [field]: "",
+    }));
   };
 
   const validateForm = (): {
     ok: boolean;
-    errors: Record<string, string>;
+    errors: Partial<Record<keyof CreateManagerFormData, string>>;
   } => {
-    const errors: Record<string, string> = {};
+    const errors: Partial<Record<keyof CreateManagerFormData, string>> = {};
     if (!formData.firstName.trim()) {
       errors.firstName = t("validation.required", {
         field: t("createManager.firstName"),
@@ -208,14 +364,27 @@ export default function MainMenu() {
     if (!formData.dob) {
       errors.dob = t("validation.required", { field: t("createManager.dob") });
     } else {
-      const age = flooredAgeFromIsoDate(formData.dob);
-      if (age === null) {
-        errors.dob = t("validation.invalidDate");
-      } else if (age < MANAGER_MINIMUM_AGE) {
-        errors.dob = t("validation.minAge", { min: MANAGER_MINIMUM_AGE });
-      } else if (age > 99) {
-        errors.dob = t("validation.invalidDob");
+      const dobError = dobValidationMessage(formData, historyDepthYears, t);
+      if (dobError) {
+        errors.dob = dobError;
       }
+    }
+    if (!formData.startYear.trim()) {
+      errors.startYear = t("validation.required", {
+        field: t("createManager.startYear"),
+      });
+    } else {
+      const startYear = parseCareerStartYear(formData.startYear);
+      if (startYear === null || startYear < MIN_CAREER_START_YEAR) {
+        errors.startYear = t("validation.minStartYear", {
+          min: MIN_CAREER_START_YEAR,
+        });
+      }
+    }
+    if (!isCareerStartPhase(formData.startPhase)) {
+      errors.startPhase = t("validation.required", {
+        field: t("createManager.startPhase"),
+      });
     }
     if (!formData.nationality)
       errors.nationality = t("validation.required", {
@@ -232,45 +401,16 @@ export default function MainMenu() {
     e.preventDefault();
     const validation = validateForm();
     if (!validation.ok) {
-      requestAnimationFrame(() =>
-        focusFirstCreateManagerError(validation.errors),
-      );
+      deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
     }
-    setMenuState("world");
-    loadWorldDatabases();
+    if (loadedProfile && formDiffersFromProfile(formData, loadedProfile)) {
+      setShowProfileConfirm(true);
+      return;
+    }
+    void autoSaveProfile();
+    proceedToWorldSelect();
   };
-
-  // Close nationality dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (!nationalityOpen || !nationalityRef.current) {
-        return;
-      }
-
-      const targetNode = e.target instanceof Node ? e.target : null;
-      const eventPath =
-        typeof e.composedPath === "function" ? e.composedPath() : [];
-      const clickedInside =
-        eventPath.includes(nationalityRef.current) ||
-        (targetNode ? nationalityRef.current.contains(targetNode) : false);
-      const targetElement = e.target instanceof HTMLElement ? e.target : null;
-
-      logNationalityDebug("document mousedown", {
-        clickedInside,
-        targetTag: targetElement?.tagName.toLowerCase(),
-        targetClass: targetElement?.className ?? "",
-        targetText: targetElement?.textContent?.trim().slice(0, 60) ?? "",
-      });
-
-      if (!clickedInside) {
-        logNationalityDebug("closing from outside click");
-        setNationalityOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [nationalityOpen]);
 
   const loadWorldDatabases = async () => {
     setIsLoadingWorlds(true);
@@ -287,6 +427,9 @@ export default function MainMenu() {
           description: t("worldSelect.randomDescription"),
           team_count: 8,
           player_count: 160,
+          history_mode: "generated",
+          base_year: null,
+          snapshot_date: null,
           source: "builtin",
           path: "",
         },
@@ -304,17 +447,25 @@ export default function MainMenu() {
       try {
         const json = reader.result as string;
         const parsed = JSON.parse(json);
+        const path = await invoke<string>("write_temp_database", { json });
         const info: WorldDatabaseInfo = {
           id: `file:${file.name}`,
           name: parsed.name || file.name.replace(".json", ""),
           description: parsed.description || t("menu.importedDescription"),
           team_count: parsed.teams?.length ?? 0,
           player_count: parsed.players?.length ?? 0,
+          history_mode: historyModeFromMetadata(parsed.metadata) ?? "hybrid",
+          base_year:
+            typeof parsed.metadata?.base_year === "number"
+              ? parsed.metadata.base_year
+              : null,
+          snapshot_date:
+            typeof parsed.metadata?.snapshot_date === "string"
+              ? parsed.metadata.snapshot_date
+              : null,
           source: "imported",
-          path: "", // will use the parsed data directly
+          path,
         };
-        // Store the raw JSON in sessionStorage so we can write it to a temp path
-        sessionStorage.setItem("imported_world_json", json);
         setWorldDatabases((prev) => {
           const filtered = prev.filter((d) => d.source !== "imported");
           return [...filtered, info];
@@ -330,32 +481,26 @@ export default function MainMenu() {
   };
 
   const handleStartGame = async () => {
+    const startupOptions = buildStartupOptions(formData, historyDepthYears);
+    if (!startupOptions) {
+      const validation = validateForm();
+      setMenuState("create");
+      deferFocusToNextPaint(() =>
+        focusFirstCreateManagerError(validation.errors),
+      );
+      return;
+    }
+
     setIsStarting(true);
     try {
       // Determine world source
       let worldSource: string | undefined = selectedWorldId;
       if (selectedWorldId === "random") {
         worldSource = undefined;
-      } else if (
-        selectedWorldId.startsWith("file:") &&
-        sessionStorage.getItem("imported_world_json")
-      ) {
-        // For imported files, write to a temp location first
-        const json = sessionStorage.getItem("imported_world_json")!;
-        // Write it via a temp file approach — just pass "random" and override
-        // Actually, better to write the file to user databases dir first
-        const path = await invoke<string>("write_temp_database", {
-          json,
-        }).catch(() => null);
-        if (path) {
-          worldSource = `file:${path}`;
-        } else {
-          // Fallback: pass the imported data inline — won't work with current backend
-          // So fall back to random
-          worldSource = undefined;
-          console.warn(
-            "Could not write imported database, falling back to random",
-          );
+      } else {
+        const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
+        if (selectedDb?.path) {
+          worldSource = `file:${selectedDb.path}`;
         }
       }
 
@@ -364,9 +509,9 @@ export default function MainMenu() {
         lastName: formData.lastName,
         dob: formData.dob,
         nationality: formData.nationality,
+        startupOptions,
         worldSource,
       });
-      sessionStorage.removeItem("imported_world_json");
       setGameState(game);
       navigate("/select-team");
     } catch (error) {
@@ -416,6 +561,93 @@ export default function MainMenu() {
     }
   };
 
+  const handleSelectProfile = (profile: ManagerProfile) => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      dob: profile.date_of_birth,
+      nationality: profile.nationality,
+    }));
+    setFormErrors({});
+    setLoadedProfile(profile);
+    void invoke("touch_manager_profile", { id: profile.id });
+  };
+
+  const formDiffersFromProfile = (form: CreateManagerFormData, profile: ManagerProfile) =>
+    form.firstName !== profile.first_name ||
+    form.lastName !== profile.last_name ||
+    form.dob !== profile.date_of_birth ||
+    form.nationality !== profile.nationality;
+
+  const proceedToWorldSelect = () => {
+    setShowProfileConfirm(false);
+    setMenuState("world");
+    loadWorldDatabases();
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!loadedProfile) return;
+    try {
+      const updated = await invoke<ManagerProfile | null>("update_manager_profile", {
+        id: loadedProfile.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+      });
+      if (updated) {
+        setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setLoadedProfile(updated);
+      }
+    } catch (error) {
+      console.error("Failed to update manager profile:", error);
+    }
+    proceedToWorldSelect();
+  };
+
+  const handleSaveAsNewProfile = () => {
+    void autoSaveProfile(true);
+    setLoadedProfile(null);
+    proceedToWorldSelect();
+  };
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await invoke<boolean>("delete_manager_profile", { id });
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      if (loadedProfile?.id === id) setLoadedProfile(null);
+    } catch (error) {
+      console.error("Failed to delete manager profile:", error);
+    }
+  };
+
+  const autoSaveProfile = async (forceNew = false) => {
+    try {
+      const saved = await invoke<ManagerProfile>("save_manager_profile", {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+        force: forceNew || undefined,
+      });
+      setProfiles((prev) => {
+        const exists = prev.some((p) => p.id === saved.id);
+        const next =
+          !forceNew && exists
+            ? prev.map((p) => (p.id === saved.id ? saved : p))
+            : [...prev, saved];
+        return next.sort((a, b) => {
+          const aDate = a.last_used_at ?? a.created_at;
+          const bDate = b.last_used_at ?? b.created_at;
+          return bDate.localeCompare(aDate);
+        });
+      });
+    } catch (error) {
+      console.error("Failed to auto-save manager profile:", error);
+    }
+  };
+
   const handleExitApp = async (): Promise<void> => {
     try {
       if (document.fullscreenElement) {
@@ -447,7 +679,7 @@ export default function MainMenu() {
           {/* Logo */}
           <img
             src="/openfootlogo.svg"
-            alt="OpenFootball"
+            alt={t("app.name")}
             className="text-center w-full h-full object-cover"
           />
 
@@ -513,293 +745,77 @@ export default function MainMenu() {
 
           {/* Step 1: Create Manager Form */}
           {menuState === "create" && (
-            <form
-              onSubmit={handleGoToWorldSelect}
-              className="flex flex-col gap-4"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white transition-colors">
-                  {t("createManager.title")}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuState("main");
-                    setFormErrors({});
-                  }}
-                  className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+            <Suspense fallback={<MenuPanelFallback />}>
+              <CreateManagerForm
+                formData={formData}
+                formErrors={formErrors}
+                dobError={dobDisplayedError}
+                profiles={profiles}
+                selectedProfileId={loadedProfile?.id}
+                onChange={updateFormField}
+                onClearError={clearFormError}
+                onClose={() => {
+                  setMenuState("main");
+                  setFormErrors({});
+                  setLoadedProfile(null);
+                }}
+                onSelectProfile={handleSelectProfile}
+                onDeleteProfile={handleDeleteProfile}
+                onSubmit={handleGoToWorldSelect}
+              />
+            </Suspense>
+          )}
 
-              {/* Step indicator */}
-              <div className="flex items-center gap-2 mb-1">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white text-xs font-bold">
-                  1
-                </div>
-                <div className="h-0.5 flex-1 bg-gray-200 dark:bg-navy-600" />
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-navy-600 text-gray-400 dark:text-gray-500 text-xs font-bold">
-                  2
-                </div>
-              </div>
-
-              {/* Name fields with labels */}
-              <div className="flex gap-3">
-                <div className="flex-1" id="create-manager-field-firstName">
-                  <label className="block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                    {t("createManager.firstName")}
-                  </label>
-                  <input
-                    maxLength={30}
-                    className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 ${formErrors.firstName
-                        ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
-                      }`}
-                    placeholder={t("createManager.placeholderFirst")}
-                    value={formData.firstName}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }));
-                      setFormErrors((prev) => ({ ...prev, firstName: "" }));
-                    }}
-                  />
-                  {formErrors.firstName && (
-                    <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {formErrors.firstName}
-                    </p>
-                  )}
-                </div>
-                <div className="flex-1" id="create-manager-field-lastName">
-                  <label className="block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                    {t("createManager.lastName")}
-                  </label>
-                  <input
-                    maxLength={30}
-                    className={`w-full bg-gray-50 dark:bg-navy-900 border text-gray-900 dark:text-white rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500 ${formErrors.lastName
-                        ? "border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : "border-gray-300 dark:border-navy-600 focus:border-primary-500 focus:ring-primary-500/20"
-                      }`}
-                    placeholder={t("createManager.placeholderLast")}
-                    value={formData.lastName}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }));
-                      setFormErrors((prev) => ({ ...prev, lastName: "" }));
-                    }}
-                  />
-                  {formErrors.lastName && (
-                    <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {formErrors.lastName}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Date of Birth with label */}
-              <div id="create-manager-field-dob">
-                <label className="block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                  {t("createManager.dob")}
-                </label>
-                <DatePicker
-                  value={formData.dob}
-                  onChange={(date) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      dob: date,
-                    }));
-                    setFormErrors((prev) => ({ ...prev, dob: "" }));
-                  }}
-                  error={!!dobDisplayedError}
-                />
-                {dobDisplayedError && (
-                  <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
-                    <AlertCircle className="w-3 h-3 shrink-0" />
-                    {dobDisplayedError}
-                  </p>
-                )}
-              </div>
-
-              {/* Country/Region combobox — elevate stacking when open so the menu paints above the submit button */}
-              <div
-                id="create-manager-field-nationality"
-                ref={nationalityRef}
-                className={nationalityOpen ? "relative z-50" : undefined}
-              >
-                <label className="block text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-                  {t("createManager.countryOfOrigin")}
-                </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      toggleNationalityDropdown();
-                    }}
-                    onClick={(event) => {
-                      if (event.detail === 0) {
-                        toggleNationalityDropdown();
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between bg-gray-50 dark:bg-navy-900 border text-left rounded-lg p-3 outline-none transition-all ${formErrors.nationality
-                        ? "border-red-400 dark:border-red-500"
-                        : nationalityOpen
-                          ? "border-primary-500 ring-2 ring-primary-500/20"
-                          : "border-gray-300 dark:border-navy-600"
-                      }`}
-                  >
-                    <span
-                      className={
-                        formData.nationality
-                          ? "text-gray-900 dark:text-white"
-                          : "text-gray-400 dark:text-gray-500"
-                      }
-                    >
-                      {formData.nationality ? (
-                        <span className="flex items-center gap-2">
-                          <CountryFlag
-                            code={formData.nationality}
-                            locale={i18n.language}
-                            className="text-lg leading-none"
-                          />
-                          <span>
-                            {countryName(formData.nationality, i18n.language) ||
-                              formData.nationality}
-                          </span>
-                        </span>
-                      ) : (
-                        t("createManager.selectCountry")
-                      )}
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform ${nationalityOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {nationalityOpen && (
-                    <div
-                      className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-white dark:bg-navy-700 rounded-lg shadow-xl border border-gray-200 dark:border-navy-600 overflow-hidden"
-                      onMouseDown={(event) => {
-                        event.stopPropagation();
-                        logNationalityDebug("dropdown panel mousedown");
-                      }}
-                    >
-                      <div className="p-2 border-b border-gray-100 dark:border-navy-600">
-                        <input
-                          type="text"
-                          autoFocus
-                          placeholder={t("createManager.searchNationalities")}
-                          value={nationalitySearch}
-                          onChange={(e) => setNationalitySearch(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-gray-900 dark:text-white rounded-md px-3 py-2 text-sm outline-none focus:border-primary-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                        />
-                      </div>
-                      <div className="max-h-[min(20rem,calc(100vh-9rem))] overflow-y-auto overscroll-contain">
-                        {filteredNationalities.length === 0 ? (
-                          <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                            {t("menu.noResults")}
-                          </p>
-                        ) : (
-                          filteredNationalities.map((nat) => (
-                            <button
-                              key={nat.code}
-                              type="button"
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                logNationalityDebug("option selected", {
-                                  code: nat.code,
-                                  name: nat.name,
-                                });
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  nationality: nat.code,
-                                }));
-                                setNationalityOpen(false);
-                                setNationalitySearch("");
-                                setFormErrors((prev) => ({
-                                  ...prev,
-                                  nationality: "",
-                                }));
-                              }}
-                              className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors ${formData.nationality === nat.code
-                                  ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                                  : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"
-                                }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <CountryFlag
-                                  code={nat.code}
-                                  locale={i18n.language}
-                                  className="text-lg leading-none"
-                                />
-                                <span>{nat.name}</span>
-                              </div>
-                              {formData.nationality === nat.code && (
-                                <Check className="w-4 h-4 text-primary-500" />
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {formErrors.nationality && (
-                  <p className="flex items-center gap-1 text-xs text-red-500 mt-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {formErrors.nationality}
-                  </p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="mt-2 w-full"
-                iconRight={<ChevronRight />}
-              >
-                {t("createManager.chooseWorld")}
-              </Button>
-            </form>
+          {/* Profile save confirmation modal */}
+          {showProfileConfirm && loadedProfile && (
+            <Suspense fallback={null}>
+              <ProfileSaveConfirm
+                loadedProfile={loadedProfile}
+                onUpdate={() => { void handleUpdateProfile(); }}
+                onSaveNew={() => { void handleSaveAsNewProfile(); }}
+                onSkip={proceedToWorldSelect}
+                onClose={() => setShowProfileConfirm(false)}
+              />
+            </Suspense>
           )}
 
           {/* Step 2: World Database Selection */}
           {menuState === "world" && (
-            <WorldSelect
-              worldDatabases={worldDatabases}
-              selectedWorldId={selectedWorldId}
-              isLoadingWorlds={isLoadingWorlds}
-              isStarting={isStarting}
-              onSelectWorld={setSelectedWorldId}
-              onImportFile={handleImportFile}
-              onStart={handleStartGame}
-              onBack={() => setMenuState("create")}
-              onClose={() => setMenuState("main")}
-            />
+            <Suspense fallback={<MenuPanelFallback />}>
+              <WorldSelect
+                worldDatabases={worldDatabases}
+                selectedWorldId={selectedWorldId}
+                isLoadingWorlds={isLoadingWorlds}
+                isStarting={isStarting}
+                startYear={parseCareerStartYear(formData.startYear) ?? MIN_CAREER_START_YEAR}
+                startPhase={formData.startPhase}
+                historyDepthYears={historyDepthYears}
+                onSelectWorld={setSelectedWorldId}
+                onChangeHistoryDepthYears={setHistoryDepthYears}
+                onImportFile={handleImportFile}
+                onStart={handleStartGame}
+                onBack={() => setMenuState("create")}
+                onClose={() => setMenuState("main")}
+              />
+            </Suspense>
           )}
 
           {/* Load Game List */}
           {menuState === "load" && (
-            <SavesList
-              loadingSaveId={loadingSaveId}
-              saves={saves}
-              isLoading={isLoadingSaves}
-              confirmDeleteId={confirmDeleteId}
-              onLoad={handleLoadGame}
-              onDelete={handleDeleteSave}
-              onConfirmDelete={setConfirmDeleteId}
-              onClose={() => setMenuState("main")}
-            />
+            <Suspense fallback={<MenuPanelFallback />}>
+              <SavesList
+                loadingSaveId={loadingSaveId}
+                saves={saves}
+                isLoading={isLoadingSaves}
+                confirmDeleteId={confirmDeleteId}
+                onLoad={handleLoadGame}
+                onDelete={handleDeleteSave}
+                onConfirmDelete={setConfirmDeleteId}
+                onClose={() => setMenuState("main")}
+              />
+            </Suspense>
           )}
+
         </div>
       </div>
 

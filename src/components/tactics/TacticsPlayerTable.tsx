@@ -2,7 +2,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, Star } from "lucide-react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import { calcAge, calcOvr, positionBadgeVariant } from "../../lib/helpers";
+import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import { TraitList } from "../TraitBadge";
 import { getOverallRatingClassName, type SortKey } from "./TacticsTab.helpers";
@@ -67,11 +67,10 @@ function SortHeader({
 
   return (
     <th
-      className={`cursor-pointer select-none px-4 py-2.5 font-heading font-bold uppercase tracking-wider transition-colors hover:text-primary-400 ${
-        isActive
+      className={`cursor-pointer select-none px-4 py-2.5 font-heading font-bold uppercase tracking-wider transition-colors hover:text-primary-400 ${isActive
           ? "text-primary-500 dark:text-primary-400"
           : "text-gray-500 dark:text-gray-400"
-      }`}
+        }`}
       onClick={() => toggleSort(column)}
     >
       <div className="flex items-center gap-1">
@@ -111,18 +110,17 @@ function renderTableRow(props: {
   const isHighlighted = highlightedPlayerId === player.id;
   const isWrongPosition =
     section === "xi" && isPlayerOutOfPosition(player, activePosition);
-  const overallRating = calcOvr(player, activePosition);
+  const overallRating = getPlayerOvr(player);
 
   return (
     <tr
       key={player.id}
       data-testid={`${section}-player-${player.id}`}
       onClick={() => onSelectPlayer(player.id)}
-      className={`group cursor-pointer transition-colors ${
-        isHighlighted
+      className={`group cursor-pointer transition-colors ${isHighlighted
           ? "bg-primary-500/10 dark:bg-primary-500/10"
           : "hover:bg-gray-50 dark:hover:bg-navy-700/50"
-      }`}
+        }`}
     >
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1.5">

@@ -1,12 +1,18 @@
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { normalisePosition } from "../squad/SquadTab.helpers";
 
-export type TransferTabView = "my_list" | "market" | "loans" | "offers";
+export type TransferTabView =
+  | "my_list"
+  | "market"
+  | "free_agents"
+  | "loans"
+  | "offers";
 
 export interface TransferCollections {
   myTransferList: PlayerData[];
   myLoanList: PlayerData[];
   marketPlayers: PlayerData[];
+  freeAgentPlayers: PlayerData[];
   loanPlayers: PlayerData[];
   playersWithOffers: PlayerData[];
 }
@@ -24,6 +30,9 @@ export function deriveTransferCollections(
     ),
     marketPlayers: gameState.players.filter(
       (player) => player.transfer_listed && player.team_id !== userTeamId,
+    ),
+    freeAgentPlayers: gameState.players.filter(
+      (player) => player.team_id === null && !player.retired,
     ),
     loanPlayers: gameState.players.filter(
       (player) => player.loan_listed && player.team_id !== userTeamId,
@@ -48,6 +57,8 @@ export function getCurrentTransferList(
       return [...collections.myTransferList, ...collections.myLoanList];
     case "market":
       return collections.marketPlayers;
+    case "free_agents":
+      return collections.freeAgentPlayers;
     case "loans":
       return collections.loanPlayers;
     case "offers":

@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { MatchSnapshot, EnginePlayerData } from "./types";
+import { MatchSnapshot } from "./types";
 import { getPlayerName } from "./helpers";
 import { Badge } from "../ui";
 import { RefreshCw, AlertTriangle, UserMinus, UserPlus } from "lucide-react";
@@ -64,23 +64,6 @@ export function SubPanel({
     expectedCounts.Midfielder = parts[1] + parts[2];
     expectedCounts.Forward = parts[3];
   }
-
-  const getOvr = (p: EnginePlayerData) => {
-    const vals = [
-      p.pace,
-      p.stamina,
-      p.strength,
-      p.passing,
-      p.shooting,
-      p.tackling,
-      p.dribbling,
-      p.defending,
-      p.positioning,
-      p.vision,
-      p.decisions,
-    ];
-    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  };
 
   const condColor = (c: number) =>
     c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
@@ -312,7 +295,7 @@ export function SubPanel({
                       .map((p) => {
                         const isSelected = selectedOff === p.id;
                         const isSubOn = subbedOnIds.has(p.id);
-                        const ovr = getOvr(p);
+                        const ovr = p.ovr;
                         const offPlayerRow = (
                           <tr
                             key={p.id}
@@ -510,7 +493,7 @@ export function SubPanel({
                     </thead>
                     <tbody>
                       {availableBench.map((p) => {
-                        const ovr = getOvr(p);
+                        const ovr = p.ovr;
                         // Off-position indicator: compare with selected player's position
                         const posMatch = selectedPlayer
                           ? p.position === selectedPlayer.position

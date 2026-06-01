@@ -42,6 +42,8 @@ pub struct Player {
     pub injury: Option<Injury>,
     pub team_id: Option<String>,
     #[serde(default)]
+    pub retired: bool,
+    #[serde(default)]
     pub squad_role: SquadRole,
 
     // Traits / flairs derived from attributes
@@ -433,7 +435,7 @@ pub enum PlayerTrait {
     Engine,          // MID: stamina >= 85 && pace >= 70 && teamwork >= 75
     SetPieceSpecialist, // passing >= 80 && shooting >= 75 && vision >= 75
     // Potential / Star
-    Wonderkid, // age <= 21 && potential >= 75 && (potential - ovr) >= 10
+    Wonderkid, // age <= 21 && potential >= 85 && (potential - ovr) >= 10
 }
 
 /// Derive traits purely from a player's attributes (position-independent).
@@ -545,6 +547,7 @@ impl Player {
             fitness: 75,
             injury: None,
             team_id: None,
+            retired: false,
             squad_role: SquadRole::Senior,
             traits,
             ovr: 0,
@@ -651,5 +654,6 @@ mod tests {
         assert_eq!(player.footedness, Footedness::Right);
         assert_eq!(player.weak_foot, 2);
         assert_eq!(player.natural_position, Position::Midfielder);
+        assert!(!player.retired);
     }
 }

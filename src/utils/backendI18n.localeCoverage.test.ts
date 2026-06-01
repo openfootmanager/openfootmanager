@@ -11,6 +11,7 @@ import fr from "../i18n/locales/fr.json";
 import itLocale from "../i18n/locales/it.json";
 import ptBR from "../i18n/locales/pt-BR.json";
 import pt from "../i18n/locales/pt.json";
+import ru from "../i18n/locales/ru.json";
 import zhCN from "../i18n/locales/zh-CN.json";
 
 const LOCALES: Record<string, LocaleTree> = {
@@ -21,6 +22,7 @@ const LOCALES: Record<string, LocaleTree> = {
   it: itLocale,
   pt,
   "pt-BR": ptBR,
+  ru,
   "zh-CN": zhCN,
 };
 
@@ -49,12 +51,26 @@ const REQUIRED_KEYS = [
   "be.msg.financeBoardPressure.bodyCritical",
   "be.msg.marketingCampaign.subject",
   "be.msg.marketingCampaign.body",
+  "be.msg.seasonPayout.ledgerDescription",
+  "be.msg.sponsor.effects.accepted",
+  "be.msg.sponsor.effects.declined",
+  "be.msg.boardConfidence.effects.reassureBoard",
+  "be.msg.boardConfidence.effects.acceptPressure",
+  "be.msg.boardConfidence.effects.blameCircumstances",
+  "be.msg.fanPetition.effects.listenFans",
+  "be.msg.fanPetition.effects.ignoreFans",
+  "be.msg.fanPetition.effects.addressPublicly",
+  "be.msg.rivalInterest.effects.notForSale",
+  "be.msg.rivalInterest.effects.openToOffers",
+  "be.msg.rivalInterest.effects.noComment",
   "be.msg.boardFired.subject",
   "be.msg.boardFired.body",
   "be.msg.jobOffer.subject",
   "be.msg.jobOffer.body",
   "be.msg.jobOffer.accept",
+  "be.msg.jobOffer.acceptDescription",
   "be.msg.jobOffer.decline",
+  "be.msg.jobOffer.declineDescription",
   "be.msg.jobOffer.effects.accepted",
   "be.msg.jobOffer.effects.declined",
   "be.msg.jobOffer.effects.alreadyEmployed",
@@ -78,6 +94,7 @@ const REQUIRED_KEYS = [
   "be.news.majorTransfer.body",
   "be.error.noActiveGameSession",
   "be.error.noActiveSaveSession",
+  "be.error.saveDeleteFailed",
   "be.error.teamNotFound",
   "be.error.noTeamAssigned",
   "be.error.playerNotFound",
@@ -96,6 +113,7 @@ const REQUIRED_KEYS = [
   "be.error.finance.sponsorPitchActiveSponsor",
   "be.error.finance.marketingCampaignUnavailable",
   "be.error.finance.marketingCampaignCoolingDown",
+  "be.error.finance.facilityUpgradeInsufficientFunds",
   "be.error.finance.facilityUpgradeOverBudget",
   "be.error.finance.facilityUpgradeCritical",
   "be.error.createManager.nameRequired",
@@ -104,6 +122,10 @@ const REQUIRED_KEYS = [
   "be.error.createManager.invalidDobFormat",
   "be.error.createManager.minAge",
   "be.error.createManager.invalidDob",
+  "be.error.createManager.invalidStartYear",
+  "be.error.createManager.startYearMin",
+  "be.error.createManager.invalidStartPhase",
+  "be.error.createManager.historyDepthMax",
   "boardObjectives.objective.LeaguePosition",
   "boardObjectives.objective.Wins",
   "boardObjectives.objective.GoalsScored",
@@ -143,5 +165,9 @@ describe("backend i18n locale coverage", () => {
 
   it("keeps zh-CN aligned with the English translation key set", () => {
     expect(collectMissingKeys(en, zhCN)).toEqual([]);
+  });
+
+  it("keeps ru aligned with the English translation key set", () => {
+    expect(collectMissingKeys(en, ru)).toEqual([]);
   });
 });

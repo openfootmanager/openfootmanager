@@ -20,12 +20,12 @@ impl LiveMatchState {
         };
 
         if *subs_made >= self.max_subs {
-            return Err("Maximum substitutions reached".into());
+            return Err("be.error.liveMatch.maxSubstitutionsReached".into());
         }
 
         // Cannot substitute a player who has been sent off
         if self.sent_off.contains(player_off_id) {
-            return Err("Cannot substitute a sent-off player".into());
+            return Err("be.error.liveMatch.cannotSubstituteSentOffPlayer".into());
         }
 
         let team = self.team_mut(side);
@@ -33,7 +33,7 @@ impl LiveMatchState {
             .players
             .iter()
             .position(|p| p.id == player_off_id)
-            .ok_or("Player not on pitch")?;
+            .ok_or("be.error.liveMatch.playerNotOnPitch")?;
 
         // Cannot bring on a player who was already substituted off
         let already_subbed_off: std::collections::HashSet<&str> = self
@@ -42,7 +42,7 @@ impl LiveMatchState {
             .map(|s| s.player_off_id.as_str())
             .collect();
         if already_subbed_off.contains(player_on_id) {
-            return Err("Player has already been substituted off".into());
+            return Err("be.error.liveMatch.playerAlreadySubstitutedOff".into());
         }
 
         let bench = match side {
@@ -52,7 +52,7 @@ impl LiveMatchState {
         let on_idx = bench
             .iter()
             .position(|p| p.id == player_on_id)
-            .ok_or("Player not on bench")?;
+            .ok_or("be.error.liveMatch.playerNotOnBench")?;
 
         let player_on = bench.remove(on_idx);
         let player_off = self.team_mut(side).players.remove(off_idx);
@@ -108,7 +108,7 @@ impl LiveMatchState {
             .players
             .iter()
             .position(|p| p.id == player_off_id)
-            .ok_or("Player not in starting XI")?;
+            .ok_or("be.error.liveMatch.playerNotInStartingXi")?;
 
         let bench = match side {
             Side::Home => &mut self.home_bench,
@@ -117,7 +117,7 @@ impl LiveMatchState {
         let on_idx = bench
             .iter()
             .position(|p| p.id == player_on_id)
-            .ok_or("Player not on bench")?;
+            .ok_or("be.error.liveMatch.playerNotOnBench")?;
 
         let player_on = bench.remove(on_idx);
         let player_off = self.team_mut(side).players.remove(off_idx);

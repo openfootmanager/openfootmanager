@@ -15,7 +15,9 @@ import {
 } from "../../services/transfersService";
 import {
     buildResumedBidFeedback,
+    formatTransferFeeInput,
     getOutgoingNegotiationOffer,
+    normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
 
 interface UseTransferBidFlowArgs {
@@ -137,11 +139,11 @@ export function useTransferBidFlow({
         try {
             const response = await makeTransferBid(bidTarget.id, bidFee);
             setBidResult(response.decision);
-            setBidFeedback(response.feedback);
+            setBidFeedback(normalizeTransferNegotiationFeedback(response.feedback));
             onGameUpdate?.(response.game);
 
             if (response.suggested_fee !== null) {
-                setBidAmount((response.suggested_fee / 1_000_000).toFixed(2));
+                setBidAmount(formatTransferFeeInput(response.suggested_fee));
             }
 
             if (response.decision === "accepted") {

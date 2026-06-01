@@ -14,6 +14,6 @@ describe("TeamLocation", () => {
     render(<TeamLocation city="Cardiff" countryCode="WAL" locale="en" />);
 
     expect(screen.getByText(/Cardiff, Wales/i)).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Wales" })).toHaveTextContent("WAL");
+    expect(screen.getByRole("img", { name: "Wales" })).toBeInTheDocument();
   });
 });

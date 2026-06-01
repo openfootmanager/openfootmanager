@@ -1,13 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import en from "./locales/en.json";
-import es from "./locales/es.json";
-import pt from "./locales/pt.json";
-import fr from "./locales/fr.json";
-import de from "./locales/de.json";
-import ptBR from "./locales/pt-BR.json";
-import it from "./locales/it.json";
-import zhCN from "./locales/zh-CN.json";
+import resourcesToBackend from "i18next-resources-to-backend";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", labelKey: "settings.languages.en" },
@@ -16,6 +9,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "fr", labelKey: "settings.languages.fr" },
   { code: "de", labelKey: "settings.languages.de" },
   { code: "it", labelKey: "settings.languages.it" },
+  { code: "ru", labelKey: "settings.languages.ru" },
   { code: "pt-BR", labelKey: "settings.languages.ptBR" },
   { code: "zh-CN", labelKey: "settings.languages.zhCN" },
 ] as const;
@@ -28,6 +22,33 @@ const SUPPORTED_CODES = new Map(
 );
 
 const SIMPLIFIED_CHINESE_LOCALES = new Set(["zh", "zh-cn", "zh-sg", "zh-my"]);
+
+type TranslationResource = Record<string, unknown>;
+
+const localeModules = import.meta.glob<{ default: TranslationResource }>(
+  "./locales/*.json",
+);
+
+const SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map(
+  ({ code }) => code,
+);
+
+function localeModulePath(language: string): string {
+  return `./locales/${language}.json`;
+}
+
+function localeBackendLoader(language: string): Promise<TranslationResource> {
+  const resolvedLanguage = resolveSupportedLanguage(language);
+  const loader = localeModules[localeModulePath(resolvedLanguage)];
+
+  if (!loader) {
+    return Promise.reject(
+      new Error(`Unsupported locale module: ${resolvedLanguage}`),
+    );
+  }
+
+  return loader().then((module) => module.default);
+}
 
 export function resolveSupportedLanguage(locale: string): string {
   const normalized = locale.trim().replace(/_/g, "-").toLowerCase();
@@ -45,28 +66,47 @@ export function resolveSupportedLanguage(locale: string): string {
   return SUPPORTED_CODES.get(base) ?? "en";
 }
 
-/** Detect the best initial language from the browser / OS locale */
+/**
+ * Detect the best initial language from the runtime locale.
+ *
+ * Browser environments: uses `navigator.language` (for example: "pt-BR", "es-419", "en-US").
+ * Non-browser environments (SSR/tests/Node): falls back to `"en"` when `navigator`
+ * is unavailable or does not expose a valid language string.
+ *
+ * Any provided locale is normalized and mapped by `resolveSupportedLanguage`,
+ * which handles region/script variants and unsupported values.
+ */
 function detectInitialLanguage(): string {
-  const nav = navigator.language; // e.g. "pt-BR", "es-419", "en-US"
-  return resolveSupportedLanguage(nav);
+  const navLanguage =
+    typeof navigator !== "undefined" && typeof navigator.language === "string"
+      ? navigator.language
+      : "en";
+  return resolveSupportedLanguage(navLanguage);
 }
 
-i18n.use(initReactI18next).init({
-  resources: {
-    en: { translation: en },
-    es: { translation: es },
-    pt: { translation: pt },
-    fr: { translation: fr },
-    de: { translation: de },
-    it: { translation: it },
-    "pt-BR": { translation: ptBR },
-    "zh-CN": { translation: zhCN },
-  },
-  lng: detectInitialLanguage(),
-  fallbackLng: "en",
-  interpolation: {
-    escapeValue: false, // React already escapes
-  },
-});
+export async function changeAppLanguage(locale: string): Promise<string> {
+  const resolvedLanguage = resolveSupportedLanguage(locale);
+  await i18n.changeLanguage(resolvedLanguage);
+  return resolvedLanguage;
+}
+
+export const i18nReady = i18n
+  .use(resourcesToBackend(localeBackendLoader))
+  .use(initReactI18next)
+  .init({
+    resources: {},
+    partialBundledLanguages: true,
+    supportedLngs: SUPPORTED_LANGUAGE_CODES,
+    lng: detectInitialLanguage(),
+    fallbackLng: "en",
+    defaultNS: "translation",
+    ns: ["translation"],
+    interpolation: {
+      escapeValue: false,
+    },
+    react: {
+      useSuspense: false,
+    },
+  });
 
 export default i18n;

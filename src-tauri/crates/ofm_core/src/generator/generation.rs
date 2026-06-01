@@ -55,12 +55,22 @@ pub(super) fn pick_nationality_from_def(
 ) -> String {
     // Map team country name → ISO code for the 60% local weight
     let local_code = country_to_iso(team_country);
-    if rng.random_range(0..100) < 60 {
+    let selected_code = if rng.random_range(0..100) < 60 {
         local_code.to_string()
     } else if available_codes.is_empty() {
         local_code.to_string()
     } else {
         available_codes[rng.random_range(0..available_codes.len())].clone()
+    };
+
+    canonicalize_generated_nationality(&selected_code)
+}
+
+pub(super) fn canonicalize_generated_nationality(value: &str) -> String {
+    match value.trim().to_ascii_uppercase().as_str() {
+        // Freshly generated football identities should never persist the ambiguous GB code.
+        "GB" => "ENG".to_string(),
+        other => other.to_string(),
     }
 }
 

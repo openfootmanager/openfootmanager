@@ -124,9 +124,9 @@ describe("useAdvanceTime", function (): void {
 
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("check_blocking_actions");
+      expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     });
 
-    expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
     expect(navigateMock).not.toHaveBeenCalled();
   });
@@ -178,9 +178,9 @@ describe("useAdvanceTime", function (): void {
 
     await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("check_blocking_actions");
+      expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     });
 
-    expect(screen.getByTestId("blocker-count")).toHaveTextContent("1");
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
 });

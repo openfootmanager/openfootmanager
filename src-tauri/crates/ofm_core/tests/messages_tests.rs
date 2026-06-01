@@ -8,16 +8,14 @@ use ofm_core::messages;
 fn welcome_message_has_correct_fields() {
     let msg = messages::welcome_message("Test FC", "team1", "2025-06-01");
     assert_eq!(msg.id, "welcome_1");
-    assert!(
-        msg.subject.contains("Test FC"),
-        "Subject should contain team name: {}",
-        msg.subject
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert!(msg.sender.is_empty());
+    assert!(msg.sender_role.is_empty());
+    assert_eq!(
+        msg.i18n_params.get("team").map(String::as_str),
+        Some("Test FC")
     );
-    assert!(
-        msg.body.contains("Test FC"),
-        "Body should contain team name"
-    );
-    assert_eq!(msg.sender_role, "Chairman");
     assert!(!msg.actions.is_empty(), "Should have actions");
 }
 
@@ -43,9 +41,20 @@ fn welcome_message_has_context() {
 fn season_schedule_message_fields() {
     let msg = messages::season_schedule_message("Premier League", "2025-08-10", "2025-06-01");
     assert_eq!(msg.id, "season_1");
-    assert!(msg.body.contains("Premier League"));
-    assert!(msg.body.contains("2025-08-10"));
-    assert_eq!(msg.sender_role, "Competition Secretary");
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.i18n_params.get("league").map(String::as_str),
+        Some("Premier League")
+    );
+    assert_eq!(
+        msg.i18n_params.get("start").map(String::as_str),
+        Some("2025-08-10")
+    );
+    assert_eq!(
+        msg.sender_role_key.as_deref(),
+        Some("be.role.competitionSecretary")
+    );
 }
 
 #[test]
@@ -71,9 +80,18 @@ fn pre_match_message_home() {
         "2025-09-12",
     );
     assert_eq!(msg.id, "prematch_f1");
-    assert!(msg.subject.contains("Rival FC"));
-    assert!(msg.subject.contains("H"), "Home match should show (H)");
-    assert!(msg.body.contains("home") || msg.body.contains("Home"));
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.preMatch.subject"));
+    assert!(matches!(
+        msg.body_key.as_deref(),
+        Some("be.msg.preMatch.body0Home" | "be.msg.preMatch.body1Home")
+    ));
+    assert_eq!(
+        msg.i18n_params.get("opponent").map(String::as_str),
+        Some("Rival FC")
+    );
+    assert_eq!(msg.i18n_params.get("venue").map(String::as_str), Some("H"));
 }
 
 #[test]
@@ -87,8 +105,13 @@ fn pre_match_message_away() {
         "2025-09-22",
         "2025-09-19",
     );
-    assert!(msg.subject.contains("A"), "Away match should show (A)");
-    assert!(msg.body.contains("away") || msg.body.contains("Away"));
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert!(matches!(
+        msg.body_key.as_deref(),
+        Some("be.msg.preMatch.body0Away" | "be.msg.preMatch.body1Away")
+    ));
+    assert_eq!(msg.i18n_params.get("venue").map(String::as_str), Some("A"));
 }
 
 #[test]
@@ -141,12 +164,24 @@ fn match_result_victory() {
         "2025-10-01",
     );
     assert_eq!(msg.id, "result_f1");
-    assert!(
-        msg.subject.contains("Victory"),
-        "Should show Victory: {}",
-        msg.subject
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.matchResult.subject.victory")
     );
-    assert!(msg.body.contains("3") && msg.body.contains("1"));
+    assert!(matches!(
+        msg.body_key.as_deref(),
+        Some("be.msg.matchResult.body.victory0" | "be.msg.matchResult.body.victory1")
+    ));
+    assert_eq!(
+        msg.i18n_params.get("homeGoals").map(String::as_str),
+        Some("3")
+    );
+    assert_eq!(
+        msg.i18n_params.get("awayGoals").map(String::as_str),
+        Some("1")
+    );
 }
 
 #[test]
@@ -163,11 +198,14 @@ fn match_result_defeat() {
         11,
         "2025-10-08",
     );
-    assert!(
-        msg.subject.contains("Defeat"),
-        "Should show Defeat: {}",
-        msg.subject
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.matchResult.subject.defeat")
     );
+    assert!(matches!(
+        msg.body_key.as_deref(),
+        Some("be.msg.matchResult.body.defeat0" | "be.msg.matchResult.body.defeat1")
+    ));
 }
 
 #[test]
@@ -184,10 +222,13 @@ fn match_result_draw() {
         12,
         "2025-10-15",
     );
-    assert!(
-        msg.subject.contains("Draw"),
-        "Should show Draw: {}",
-        msg.subject
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.matchResult.subject.draw")
+    );
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.matchResult.body.draw")
     );
 }
 
@@ -206,10 +247,9 @@ fn match_result_away_perspective() {
         13,
         "2025-10-22",
     );
-    assert!(
-        msg.subject.contains("Victory"),
-        "Away win should show Victory: {}",
-        msg.subject
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.matchResult.subject.victory")
     );
 }
 
@@ -255,10 +295,17 @@ fn defeat_has_high_priority() {
 fn staff_advice_message_fields() {
     let msg = messages::staff_advice_message("Test FC", "team1", "2025-06-01");
     assert_eq!(msg.id, "staff_advice_1");
-    assert!(msg.body.contains("Coach"));
-    assert!(msg.body.contains("Physio"));
-    assert!(msg.body.contains("Scouts"));
-    assert_eq!(msg.sender_role, "Assistant Manager");
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.staffAdvice.subject")
+    );
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.staffAdvice.body"));
+    assert_eq!(
+        msg.sender_role_key.as_deref(),
+        Some("be.role.assistantManager")
+    );
 }
 
 #[test]
@@ -276,9 +323,18 @@ fn staff_advice_has_view_action() {
 fn board_expectations_message_fields() {
     let msg = messages::board_expectations_message("Test FC", "team1", "2025-06-01");
     assert_eq!(msg.id, "board_expect_1");
-    assert!(msg.subject.contains("Test FC"));
-    assert!(msg.body.contains("top half"));
-    assert_eq!(msg.sender_role, "Chairman");
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.boardExpect.subject")
+    );
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.boardExpect.body"));
+    assert_eq!(
+        msg.i18n_params.get("team").map(String::as_str),
+        Some("Test FC")
+    );
+    assert_eq!(msg.sender_role_key.as_deref(), Some("be.role.chairman"));
 }
 
 #[test]
@@ -295,33 +351,47 @@ fn board_expectations_has_ack_action() {
 #[test]
 fn transfer_message_millions() {
     let msg = messages::transfer_complete_message("John Star", 5_500_000, "2025-08-01");
-    assert!(msg.subject.contains("John Star"));
-    assert!(
-        msg.body.contains("5.5M"),
-        "Should format millions: {}",
-        msg.body
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.transferComplete.subject")
     );
-    assert_eq!(msg.sender_role, "Director of Football");
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.transferComplete.body")
+    );
+    assert_eq!(
+        msg.i18n_params.get("player").map(String::as_str),
+        Some("John Star")
+    );
+    assert_eq!(
+        msg.i18n_params.get("fee").map(String::as_str),
+        Some("€5.5M")
+    );
+    assert_eq!(
+        msg.sender_key.as_deref(),
+        Some("be.sender.transferCommittee")
+    );
+    assert_eq!(
+        msg.sender_role_key.as_deref(),
+        Some("be.role.directorOfFootball")
+    );
 }
 
 #[test]
 fn transfer_message_thousands() {
     let msg = messages::transfer_complete_message("Young Player", 250_000, "2025-08-01");
-    assert!(
-        msg.body.contains("250K"),
-        "Should format thousands: {}",
-        msg.body
+    assert_eq!(
+        msg.i18n_params.get("fee").map(String::as_str),
+        Some("€250K")
     );
 }
 
 #[test]
 fn transfer_message_small_fee() {
     let msg = messages::transfer_complete_message("Free Agent", 500, "2025-08-01");
-    assert!(
-        msg.body.contains("€500"),
-        "Should format small fee: {}",
-        msg.body
-    );
+    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("€500"));
 }
 
 #[test]
@@ -329,4 +399,50 @@ fn transfer_message_has_unique_id() {
     let msg1 = messages::transfer_complete_message("A", 1000, "2025-08-01");
     let msg2 = messages::transfer_complete_message("B", 2000, "2025-08-01");
     assert_ne!(msg1.id, msg2.id, "Transfer messages should have unique IDs");
+}
+
+#[test]
+fn incoming_transfer_offer_message_uses_i18n_keys_and_params() {
+    let msg = messages::incoming_transfer_offer_message(
+        "offer-1",
+        "player-1",
+        "John Star",
+        "Rival FC",
+        1_250_000,
+        "2025-08-01",
+    );
+
+    assert_eq!(msg.id, "transfer_offer_offer-1");
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.transferOffer.subject")
+    );
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.transferOffer.body"));
+    assert_eq!(
+        msg.i18n_params.get("player").map(String::as_str),
+        Some("John Star")
+    );
+    assert_eq!(
+        msg.i18n_params.get("team").map(String::as_str),
+        Some("Rival FC")
+    );
+    assert_eq!(
+        msg.i18n_params.get("fee").map(String::as_str),
+        Some("€1.2M")
+    );
+    assert_eq!(
+        msg.sender_key.as_deref(),
+        Some("be.sender.directorOfFootball")
+    );
+    assert_eq!(
+        msg.sender_role_key.as_deref(),
+        Some("be.role.directorOfFootball")
+    );
+    assert!(msg.actions.iter().any(|action| {
+        action.id == "view_transfers"
+            && action.label.is_empty()
+            && action.label_key.as_deref() == Some("be.msg.transferOffer.actionReview")
+    }));
 }

@@ -7,6 +7,7 @@ use domain::player::{Player, Position};
 use domain::season::SeasonContext;
 use domain::staff::Staff;
 use domain::team::Team;
+use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -90,6 +91,8 @@ pub struct Game {
     pub days_since_last_job_offer: Option<u32>,
     #[serde(default)]
     pub vacant_team_days: HashMap<String, u32>,
+    #[serde(default)]
+    pub world_history: WorldHistoryArchive,
 }
 
 impl Game {
@@ -120,6 +123,7 @@ impl Game {
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,
             vacant_team_days: HashMap::new(),
+            world_history: WorldHistoryArchive::default(),
         };
         crate::football_identity::upgrade_game_football_identities(&mut game);
         crate::season_context::refresh_game_context(&mut game);

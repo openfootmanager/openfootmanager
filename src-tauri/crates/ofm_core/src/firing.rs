@@ -1,7 +1,6 @@
 use crate::game::Game;
 use domain::message::*;
 use domain::news::{NewsArticle, NewsCategory};
-use log::info;
 use std::collections::HashMap;
 
 const WARN_THRESHOLD: u8 = 25;
@@ -129,6 +128,10 @@ fn check_ai_manager_firings(game: &mut Game) {
 
 fn execute_ai_firing(game: &mut Game, manager_index: usize) {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    execute_ai_firing_on_date(game, manager_index, &today);
+}
+
+fn execute_ai_firing_on_date(game: &mut Game, manager_index: usize, today: &str) {
     let manager = game.managers[manager_index].clone();
     let team_id = manager.team_id.clone().unwrap_or_default();
     let team_name = game
@@ -137,13 +140,6 @@ fn execute_ai_firing(game: &mut Game, manager_index: usize) {
         .find(|team| team.id == team_id)
         .map(|team| team.name.clone())
         .unwrap_or_default();
-
-    info!(
-        "[firing] AI manager {} fired from {} (satisfaction={})",
-        manager.full_name(),
-        team_name,
-        manager.satisfaction
-    );
 
     if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
         team.manager_id = None;
@@ -159,6 +155,23 @@ fn execute_ai_firing(game: &mut Game, manager_index: usize) {
     ));
 }
 
+pub fn fire_ai_manager_for_team(game: &mut Game, team_id: &str, date: &str) -> bool {
+    let user_manager_id = if game.manager_id.is_empty() {
+        game.manager.id.clone()
+    } else {
+        game.manager_id.clone()
+    };
+
+    let Some(index) = game.managers.iter().position(|manager| {
+        manager.id != user_manager_id && manager.team_id.as_deref() == Some(team_id)
+    }) else {
+        return false;
+    };
+
+    execute_ai_firing_on_date(game, index, date);
+    true
+}
+
 fn ai_managerial_change_article(
     manager_id: &str,
     manager_name: &str,
@@ -168,12 +181,9 @@ fn ai_managerial_change_article(
 ) -> NewsArticle {
     NewsArticle::new(
         format!("managerial_change_{}_{}", team_id, date),
-        format!("{} sack {}", team_name, manager_name),
-        format!(
-            "{} have dismissed {} after a damaging run of results, leaving the club searching for a new manager.",
-            team_name, manager_name
-        ),
-        "League Wire".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::ManagerialChange,
     )
@@ -182,7 +192,11 @@ fn ai_managerial_change_article(
         "be.news.managerialChange.headline",
         "be.news.managerialChange.body",
         "be.source.leagueWire",
-        params(&[("team", team_name), ("manager", manager_name), ("managerId", manager_id)]),
+        params(&[
+            ("team", team_name),
+            ("manager", manager_name),
+            ("managerId", manager_id),
+        ]),
     )
 }
 
@@ -196,13 +210,6 @@ fn execute_firing(game: &mut Game) {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    info!(
-        "[firing] Manager {} fired from {} (satisfaction={})",
-        game.manager.full_name(),
-        team_name,
-        game.manager.satisfaction
-    );
-
     // Clear manager from team
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
         team.manager_id = None;
@@ -214,18 +221,14 @@ fn execute_firing(game: &mut Game) {
     // Send dismissal message (unique ID so it doesn't collide with a future firing at another club)
     let msg = InboxMessage::new(
         format!("{}_{}_{}", FIRED_ID_PREFIX, team_id, today),
-        format!("Notice of Dismissal — {}", team_name),
-        format!(
-            "The board of directors at {} has decided to relieve you of your duties as manager, \
-             effective immediately.\n\nWe thank you for your service and wish you well in your future career.",
-            team_name
-        ),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today,
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(MessagePriority::Urgent)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_i18n(
         "be.msg.boardFired.subject",
         "be.msg.boardFired.body",
@@ -246,28 +249,18 @@ fn send_warning(game: &mut Game) {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    info!(
-        "[firing] Board warning issued to {} (satisfaction={})",
-        game.manager.full_name(),
-        game.manager.satisfaction
-    );
-
     game.manager.warning_stage = STAGE_WARNING;
 
     let msg = InboxMessage::new(
         format!("{}_{}_{}", WARNING_ID_PREFIX, team_id, today),
-        "Board Concern — Performance Review".to_string(),
-        format!(
-            "The board is growing increasingly concerned with recent results at {}. \
-             Your position will come under serious review if there is no improvement in the near future.",
-            team_name
-        ),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today,
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(MessagePriority::High)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_i18n(
         "be.msg.boardWarning.subject",
         "be.msg.boardWarning.body",
@@ -288,28 +281,18 @@ fn send_final_warning(game: &mut Game) {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    info!(
-        "[firing] Final warning issued to {} (satisfaction={})",
-        game.manager.full_name(),
-        game.manager.satisfaction
-    );
-
     game.manager.warning_stage = STAGE_FINAL;
 
     let msg = InboxMessage::new(
         format!("{}_{}_{}", FINAL_WARNING_ID_PREFIX, team_id, today),
-        "Final Warning — Immediate Improvement Required".to_string(),
-        format!(
-            "This is your final warning. The board at {} has lost patience with the current run of results. \
-             Unless there is an immediate and significant improvement, we will have no choice but to consider your position.",
-            team_name
-        ),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today,
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(MessagePriority::Urgent)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_i18n(
         "be.msg.boardFinalWarning.subject",
         "be.msg.boardFinalWarning.body",
@@ -384,6 +367,22 @@ mod tests {
         assert_eq!(game.messages.len(), 1);
         assert!(game.messages[0].id.starts_with(WARNING_ID_PREFIX));
         assert_eq!(game.messages[0].priority, MessagePriority::High);
+        assert_eq!(
+            game.messages[0].subject_key.as_deref(),
+            Some("be.msg.boardWarning.subject")
+        );
+        assert_eq!(
+            game.messages[0].body_key.as_deref(),
+            Some("be.msg.boardWarning.body")
+        );
+        assert_eq!(
+            game.messages[0].sender_key.as_deref(),
+            Some("be.sender.boardOfDirectors")
+        );
+        assert_eq!(
+            game.messages[0].sender_role_key.as_deref(),
+            Some("be.role.chairman")
+        );
         assert_eq!(game.manager.warning_stage, STAGE_WARNING);
     }
 
@@ -396,6 +395,14 @@ mod tests {
         assert_eq!(game.messages.len(), 1);
         assert!(game.messages[0].id.starts_with(FINAL_WARNING_ID_PREFIX));
         assert_eq!(game.messages[0].priority, MessagePriority::Urgent);
+        assert_eq!(
+            game.messages[0].subject_key.as_deref(),
+            Some("be.msg.boardFinalWarning.subject")
+        );
+        assert_eq!(
+            game.messages[0].body_key.as_deref(),
+            Some("be.msg.boardFinalWarning.body")
+        );
         assert_eq!(game.manager.warning_stage, STAGE_FINAL);
     }
 
@@ -421,6 +428,22 @@ mod tests {
         assert_eq!(game.messages.len(), 1);
         assert!(game.messages[0].id.starts_with(FIRED_ID_PREFIX));
         assert_eq!(game.messages[0].priority, MessagePriority::Urgent);
+        assert_eq!(
+            game.messages[0].subject_key.as_deref(),
+            Some("be.msg.boardFired.subject")
+        );
+        assert_eq!(
+            game.messages[0].body_key.as_deref(),
+            Some("be.msg.boardFired.body")
+        );
+        assert_eq!(
+            game.messages[0].sender_key.as_deref(),
+            Some("be.sender.boardOfDirectors")
+        );
+        assert_eq!(
+            game.messages[0].sender_role_key.as_deref(),
+            Some("be.role.chairman")
+        );
     }
 
     #[test]
@@ -536,8 +559,12 @@ mod tests {
             game.news.iter().any(|article| {
                 article.category == NewsCategory::ManagerialChange
                     && article.team_ids.contains(&"team2".to_string())
+                    && article.headline.is_empty()
+                    && article.body.is_empty()
+                    && article.source.is_empty()
                     && article.headline_key.as_deref() == Some("be.news.managerialChange.headline")
                     && article.body_key.as_deref() == Some("be.news.managerialChange.body")
+                    && article.source_key.as_deref() == Some("be.source.leagueWire")
             }),
             "An AI managerial dismissal should create a managerial-change news article"
         );

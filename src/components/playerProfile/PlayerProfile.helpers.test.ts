@@ -43,15 +43,28 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 }
 
 const originalSettings = useSettingsStore.getState().settings;
+const originalCurrency = useSettingsStore.getState().currency;
+const originalSupportedCurrencies = useSettingsStore.getState().supportedCurrencies;
+const SUPPORTED_CURRENCIES = {
+    EUR: { code: "EUR", symbol: "€", exchange_rate: 1 },
+    GBP: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+    USD: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+} as const;
 
 beforeEach(() => {
     useSettingsStore.setState({
         settings: { ...originalSettings, currency: "EUR", language: "en" },
+        currency: SUPPORTED_CURRENCIES.EUR,
+        supportedCurrencies: SUPPORTED_CURRENCIES,
     });
 });
 
 afterEach(() => {
-    useSettingsStore.setState({ settings: originalSettings });
+    useSettingsStore.setState({
+        settings: originalSettings,
+        currency: originalCurrency,
+        supportedCurrencies: originalSupportedCurrencies,
+    });
 });
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
@@ -90,6 +103,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
         morale: 75,
         injury: null,
         team_id: "team-1",
+        retired: false,
         contract_end: "2026-10-15",
         wage: 12000,
         market_value: 350000,
@@ -161,10 +175,11 @@ describe("PlayerProfile.helpers", function (): void {
     it("respects the selected settings currency for market values and wages", function (): void {
         useSettingsStore.setState({
             settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+            currency: SUPPORTED_CURRENCIES.GBP,
         });
 
-        expect(formatPlayerMarketValue(125000)).toBe("£125K");
-        expect(formatPlayerWage(52000, "/wk")).toMatch(/^£1[.,]000\/wk$/);
+        expect(formatPlayerMarketValue(125000)).toBe("£108K");
+        expect(formatPlayerWage(52000, "/wk")).toBe("£860/wk");
     });
 
     it("maps attribute values to the expected color classes", function (): void {

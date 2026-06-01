@@ -1,0 +1,2696 @@
+{
+  "app": {
+    "name": "OpenFoot Manager",
+    "publisher": "Sturdy Robot",
+    "version": "v0.2.0-alpha"
+  },
+  "menu": {
+    "newGame": "Новая игра",
+    "loadGame": "Загрузить игру",
+    "settings": "Настройки",
+    "exitGame": "Выйти из игры",
+    "noSaves": "Сохраненные игры не найдены.",
+    "loadingSaves": "Загрузка сохранений...",
+    "deleteConfirm": "Удалить <strong>{{name}}</strong>?",
+    "delete": "Удалить",
+    "cancel": "Отмена",
+    "manager": "Менеджер: {{name}}",
+    "deleteSave": "Удалить сохранение",
+    "noResults": "Ничего не найдено",
+    "importedDescription": "Импортированная база мира",
+    "invalidWorldDb": "Недопустимый файл базы мира: {{error}}",
+    "failedStartGame": "Не удалось начать игру: {{error}}"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Сохранить профиль",
+      "body": "Вы изменили профиль {{name}}. Что вы хотите сделать?",
+      "update": "Обновить «{{name}}»",
+      "saveNew": "Сохранить как новый профиль",
+      "skip": "Продолжить без сохранения"
+    }
+  },
+  "createManager": {
+    "title": "Создание менеджера",
+    "firstName": "Имя",
+    "lastName": "Фамилия",
+    "dob": "Дата рождения",
+    "startYear": "Год старта",
+    "startPhase": "Фаза старта",
+    "phaseSeasonStart": "Начало сезона",
+    "phaseMidSeason": "Середина сезона",
+    "nationality": "Национальность",
+    "countryOfOrigin": "Страна/регион происхождения",
+    "selectNationality": "Выберите национальность...",
+    "selectCountry": "Выберите страну/регион...",
+    "searchNationalities": "Поиск национальностей...",
+    "chooseWorld": "Выбрать мир",
+    "placeholderFirst": "например, José",
+    "placeholderLast": "например, Mourinho"
+  },
+  "validation": {
+    "required": "Поле «{{field}}» обязательно",
+    "maxLength": "Поле «{{field}}» не должно превышать {{max}} символов",
+    "minStartYear": "Год старта должен быть не раньше {{min}}",
+    "minAge": "Менеджер должен быть не моложе {{min}} лет — измените дату рождения, чтобы продолжить.",
+    "invalidDate": "Недопустимая дата",
+    "invalidDob": "Недопустимая дата рождения"
+  },
+  "worldSelect": {
+    "title": "Выберите мир",
+    "scanning": "Поиск баз данных...",
+    "importFile": "Импортировать из файла",
+    "startCareer": "Начать карьеру",
+    "creatingWorld": "Создание мира...",
+    "teams": "{{count}} команд",
+    "players": "{{count}} игроков",
+    "randomWorld": "Случайный мир",
+    "randomDescription": "Случайно сгенерированная лига с 8 командами, игроками и персоналом",
+    "historyMode": {
+      "generated": "Сгенерированная история",
+      "reference": "Справочная история",
+      "hybrid": "Гибридная история"
+    },
+    "summary": {
+      "startYear": "Начало карьеры",
+      "seasonStart": {
+        "generated": "Начните карьеру в {{year}} с новым миром и {{count}} сгенерированными сезонами предыстории.",
+        "reference": "Начните карьеру в {{year}}, используя выбранный исторический снимок как основу мира.",
+        "hybrid": "Начните карьеру в {{year}}, используя этот состав базы данных, пока вокруг него будет сгенерировано {{count}} сезонов недостающей истории."
+      },
+      "midSeason": {
+        "generated": "Возглавьте клуб в середине {{year}} с уже сформированными таблицей, календарём, новостями, историей матчей и {{count}} сгенерированными сезонами предыстории.",
+        "reference": "Возглавьте клуб в середине {{year}}, когда выбранный исторический снимок и контекст текущего сезона уже загружены.",
+        "hybrid": "Возглавьте клуб в середине {{year}} с этим составом базы данных, {{count}} сгенерированными сезонами исторического контекста и уже идущим сезоном."
+      }
+    },
+    "historyDepth": {
+      "label": "Сгенерированная история",
+      "hint": "Выберите, какую предысторию нужно создать. Более глубокие архивы добавляют больше контекста, но их создание занимает больше времени.",
+      "reference": "В этом мире уже есть свой исторический архив.",
+      "applied": "{{count}} сгенерированных сезонов",
+      "none": "Нет предыстории",
+      "option": "{{count}} сезона",
+      "recommended": "Рекомендуется"
+    }
+  },
+  "dashboard": {
+    "home": "Главная",
+    "inbox": "Входящие",
+    "manager": "Менеджер",
+    "squad": "Состав",
+    "tactics": "Тактика",
+    "training": "Тренировки",
+    "staff": "Штаб",
+    "finances": "Финансы",
+    "transfers": "Трансферы",
+    "players": "Игроки",
+    "managers": "Тренеры",
+    "hallOfFame": "Зал славы",
+    "teams": "Команды",
+    "tournaments": "Турниры",
+    "schedule": "Календарь",
+    "news": "Новости",
+    "settings": "Настройки",
+    "exitToMenu": "Выйти в меню",
+    "continue": "Продолжить",
+    "simulating": "Симуляция...",
+    "loading": "Загрузка состояния игры...",
+    "noResults": "Ничего не найдено.",
+    "searchPlaceholder": "Поиск игроков, команд...",
+    "sectionClub": "Клуб",
+    "sectionWorld": "Мир",
+    "searchTeams": "Команды",
+    "searchPlayers": "Игроки",
+    "scouting": "Скаутинг",
+    "youthAcademy": "Молодёжная академия",
+    "saveGame": "Сохранить игру",
+    "saving": "Сохранение...",
+    "saved": "Сохранено!",
+    "collapseSidebar": "Свернуть боковую панель",
+    "expandSidebar": "Развернуть боковую панель",
+    "alerts": {
+      "exhausted": "У {{count}} игроков критическое состояние (<25%)",
+      "injuredStartingXi": "{{count}} травмированных игроков в стартовом составе — замените их",
+      "incompleteStartingXi": "Стартовый состав неполный — выставьте состав",
+      "urgentUnread": "Не прочитано срочных сообщений: {{count}}",
+      "matchTodayStartingXi": "Матч сегодня! Выставьте стартовый состав",
+      "financeCrisis": "Финансы в критическом состоянии — баланс {{balance}}, запас на {{weeks}} нед.",
+      "financeRunway": "Запас средств снизился до {{count}} нед.",
+      "wagePressure": "Фонд зарплат съедает {{percent}}% бюджета"
+    },
+    "unemployedBanner": "Сейчас у вас нет клуба. Предложения о работе могут прийти во входящие."
+  },
+  "continueMenu": {
+    "goToField": "Перейти на поле",
+    "goToFieldDesc": "Полный контроль матча (по умолчанию)",
+    "watchSpectator": "Смотреть как зритель",
+    "watchSpectatorDesc": "Следить за матчем без управления",
+    "delegateAssistant": "Передать ассистенту",
+    "delegateAssistantDesc": "ИИ мгновенно возьмёт всё на себя",
+    "skipToMatchDay": "Перейти к матчу",
+    "skipToMatchDayDesc": "Быстро перейти к следующей игре",
+    "matchDayTitle": "День матча",
+    "delegateWarning": "Ассистент проведёт матч. Вмешаться в процесс не получится."
+  },
+  "exitConfirm": {
+    "title": "Выйти в главное меню?",
+    "message": "Игра будет автоматически сохранена перед возвратом в главное меню.",
+    "cancel": "Отмена",
+    "saveExit": "Сохранить и выйти",
+    "savingTitle": "Сохранение игры...",
+    "savingMessage": "Подождите, пока мы сохраняем прогресс и возвращаемся в главное меню."
+  },
+  "closeConfirm": {
+    "title": "Несохранённые изменения",
+    "message": "У вас есть несохранённые изменения. Что вы хотите сделать?",
+    "saveQuit": "Сохранить и выйти",
+    "quitNoSave": "Выйти без сохранения"
+  },
+  "onboarding": {
+    "title": "Начало работы",
+    "description": "Выполните эти шаги, чтобы подготовить команду к предстоящему сезону. Штаб особенно важен — он улучшает тренировки и восстановление.",
+    "reviewSquad": "Проверьте состав",
+    "reviewSquadDesc": "Изучите характеристики, форму и черты игроков",
+    "hireStaff": "Наймите тренерский штаб",
+    "hireStaffDesc": "Штаб улучшает тренировки и восстановление — наймите тренера и физиотерапевта",
+    "setTactics": "Настройте схему и тактику",
+    "setTacticsDesc": "Выберите схему и стиль игры, которые подходят вашей команде",
+    "configTraining": "Настройте тренировки",
+    "configTrainingDesc": "Выберите фокус и расписание для развития игроков",
+    "readMessages": "Прочитайте сообщения",
+    "readMessagesDesc": "Важная информация от совета директоров и штаба уже ждёт"
+  },
+  "home": {
+    "nextMatch": "Следующий матч",
+    "nextOpponent": "Следующий соперник",
+    "leaguePosition": "Положение в лиге",
+    "standings": "Таблица",
+    "noLeague": "Пока нет данных о лиге.",
+    "squadOverview": "Обзор состава",
+    "avgCondition": "Средняя форма",
+    "avgOvr": "Средний OVR",
+    "exhaustedPlayers": "Уставших игроков: {{count}}",
+    "recentResults": "Последние результаты",
+    "noMatches": "Матчей пока нет.",
+    "latestNews": "Последние новости",
+    "allNews": "Все новости",
+    "noNews": "Новостей пока нет.",
+    "recentMessages": "Последние сообщения",
+    "viewAll": "Показать все",
+    "noMessages": "Недавних сообщений нет.",
+    "unreadMessages": "Непрочитанных сообщений: {{count}}",
+    "playerMomentum": "Динамика игроков",
+    "inForm": "В форме",
+    "lowMorale": "Низкий моральный дух",
+    "winningStreak": "Серия побед!",
+    "losingStreak": "Серия поражений",
+    "unbeatenRun": "Серия без поражений",
+    "boardObjectives": "Цели совета директоров",
+    "seasonComplete": "Сезон завершён.",
+    "noLeagueSchedule": "Пока нет данных о лиге.",
+    "noUpcomingOpponent": "Ближайший матч лиги ещё не назначен.",
+    "leagueDigest": "Сводка по лиге",
+    "noLeagueDigest": "Сводки по лиге пока нет.",
+    "scheduleLabel": "Расписание:",
+    "home": "Дом",
+    "away": "В гостях",
+    "matchdayN": "Тур {{n}}",
+    "met": "Встречались",
+    "inProgress": "Идёт",
+    "objectivesMet": "Выполнено целей: {{done}}/{{total}} — удовлетворённость совета: {{pct}}%",
+    "unavailablePlayers": "Недоступные игроки",
+    "daysUnavailable": "Осталось {{count}} дн."
+  },
+  "season": {
+    "preseasonStatus": "Статус предсезонки",
+    "preseasonFocus": "Используйте это время, чтобы подготовить состав, оценить трансферы и подойти во всеоружии к старту.",
+    "friendly": "Товарищеский матч",
+    "preseasonTournament": "Предсезонный турнир",
+    "opener": "Старт сезона",
+    "startsOn": "Начинается {{date}}",
+    "startsInDays": "До начала {{count}} дн.",
+    "noOpener": "Старт сезона ещё не назначен.",
+    "standingsLocked": "Таблица лиги откроется после начала официальных матчей.",
+    "tournamentsPreseasonHint": "Таблицы турниров и гонки наград появятся, когда сезон начнётся.",
+    "windowClosed": "Трансферное окно закрыто",
+    "windowClosesToday": "Последний день трансферного окна",
+    "windowClosesInDays": "До закрытия окна {{count}} дн.",
+    "windowOpensInDays": "До открытия окна {{count}} дн.",
+    "windowOpensOn": "Окно откроется {{date}}",
+    "windowClosesOn": "Окно закроется {{date}}",
+    "phases": {
+      "Preseason": "Предсезонка",
+      "InSeason": "В сезоне",
+      "PostSeason": "После сезона"
+    },
+    "transferWindowStatus": {
+      "Closed": "Окно закрыто",
+      "Open": "Окно открыто",
+      "DeadlineDay": "День дедлайна"
+    }
+  },
+  "teamSelect": {
+    "title": "Выберите клуб",
+    "subtitle": "Выберите команду, которую хотите возглавить",
+    "confirming": "Подтверждаем выбор...",
+    "manage": "Возглавить {{name}}",
+    "reputation": "Репутация",
+    "squad": "Состав",
+    "finances": "Финансы",
+    "avgOvr": "Средний OVR",
+    "seats": "{{name}} — {{capacity}} мест",
+    "repWorldClass": "Мировой уровень",
+    "repStrong": "Сильный",
+    "repAverage": "Средний",
+    "repDeveloping": "Развивающийся",
+    "failedToSelectTeam": "Не удалось выбрать команду: {{error}}."
+  },
+  "youthAcademy": {
+    "title": "Молодёжная академия",
+    "playersUnder21": "{{count}} игроков ≤21",
+    "recoveryTitle": "Развивайте академию",
+    "recoveryDescription": "Делегируйте подходящих игроков младше 21 года из своей старшей команды или откройте скаутинг, чтобы найти больше перспектив.",
+    "eligibleSeniorPlayers": "Подходящих игроков основы: {{count}}",
+    "openScouting": "Открыть скаутинг",
+    "recruitmentWorkflowTitle": "Набор в академию",
+    "recruitmentWorkflowHint": "Запускайте, отменяйте или переназначайте поиск молодых игроков, не выходя из окна академии.",
+    "noEligibleSeniorPlayers": "Сейчас нет подходящих игроков основы младше 21 года.",
+    "youthPlayers": "Игроки академии",
+    "avgOvr": "Средний OVR",
+    "avgPotential": "Средний потенциал",
+    "highPotential": "Высокий потенциал",
+    "youthCoach": "Молодежный тренер:",
+    "youthProspects": "Молодые таланты",
+    "noYouthPlayers": "В вашей команде нет молодых игроков (≤21).",
+    "player": "Игрок",
+    "pos": "Позиция",
+    "age": "Возраст",
+    "ovr": "OVR",
+    "potential": "Потенциал",
+    "growth": "Рост",
+    "traits": "Черты",
+    "condition": "Состояние",
+    "delegateToYouthAcademy": "Передать в академию",
+    "promoteToSeniorSquad": "Перевести в основную команду",
+    "potWorldClass": "Мировой класс",
+    "potExcellent": "Отличный",
+    "potPromising": "Многообещающий",
+    "potDecent": "Приличный",
+    "potLimited": "Ограниченный"
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "loadingGameState": "Загрузка состояния игры...",
+    "noResults": "Ничего не найдено.",
+    "place": {
+      "1": "1-е",
+      "2": "2-е",
+      "3": "3-е",
+      "other": "{{n}}-е"
+    },
+    "pts": "О",
+    "played": "И",
+    "won": "В",
+    "drawn": "Н",
+    "lost": "П",
+    "gf": "ЗМ",
+    "ga": "ПМ",
+    "gd": "РМ",
+    "injured": "Травмирован",
+    "back": "Назад",
+    "all": "Все",
+    "allPlayers": "Все игроки",
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "done": "Готово",
+    "confirm": "Подтвердить",
+    "save": "Сохранить",
+    "search": "Поиск",
+    "noTeam": "Команда не назначена.",
+    "unemployed": "Вы сейчас без команды.",
+    "freeAgent": "Свободный агент",
+    "unknown": "Неизвестно",
+    "present": "Текущий",
+    "season": "Сезон {{n}}",
+    "matchday": "Тур {{n}}",
+    "result": "результат",
+    "results": "результаты",
+    "vs": "против",
+    "age": "Возраст",
+    "ovr": "ОВР",
+    "condition": "Форма",
+    "morale": "Мораль",
+    "value": "Стоимость",
+    "wage": "Зарплата",
+    "name": "Имя",
+    "team": "Команда",
+    "viewTeam": "Открыть команду",
+    "player": "Игрок",
+    "actions": "Действия",
+    "position": "Позиция",
+    "nationality": "Национальность",
+    "contract": "Контракт",
+    "renewContract": "Продлить контракт",
+    "status": "Статус",
+    "average": "Среднее",
+    "goalsFor": "ЗМ",
+    "goalsAgainst": "ПМ",
+    "goalDifference": "РМ",
+    "nPlayersFound": "Найдено игроков: {{count}}",
+    "nResults": "Найдено результатов: {{count}}",
+    "showingFirst": "Показаны первые {{shown}} из {{total}} игроков. Уточните поиск, чтобы увидеть больше.",
+    "noPlayersMatch": "Игроки не найдены по вашим фильтрам.",
+    "positions": {
+      "Goalkeeper": "Вратарь",
+      "Defender": "Защитник",
+      "Midfielder": "Полузащитник",
+      "Forward": "Нападающий",
+      "RightBack": "Правый защитник",
+      "CenterBack": "Центральный защитник",
+      "LeftBack": "Левый защитник",
+      "RightWingBack": "Правый латераль",
+      "LeftWingBack": "Левый латераль",
+      "DefensiveMidfielder": "Опорный полузащитник",
+      "CentralMidfielder": "Центральный полузащитник",
+      "AttackingMidfielder": "Атакующий полузащитник",
+      "RightMidfielder": "Правый полузащитник",
+      "LeftMidfielder": "Левый полузащитник",
+      "RightWinger": "Правый вингер",
+      "LeftWinger": "Левый вингер",
+      "Striker": "Нападающий"
+    },
+    "positionGroups": {
+      "Goalkeeper": "Вратари",
+      "Defender": "Защитники",
+      "Midfielder": "Полузащитники",
+      "Forward": "Нападающие"
+    },
+    "posAbbr": {
+      "Goalkeeper": "ГК",
+      "Defender": "ДЕФ",
+      "Midfielder": "СРЕДНИЙ",
+      "Forward": "вперед",
+      "RightBack": "РБ",
+      "CenterBack": "КБ",
+      "LeftBack": "ФУНТ",
+      "RightWingBack": "ПББ",
+      "LeftWingBack": "LWB",
+      "DefensiveMidfielder": "ДМ",
+      "CentralMidfielder": "СМ",
+      "AttackingMidfielder": "ЯВЛЯЮСЬ",
+      "RightMidfielder": "РМ",
+      "LeftMidfielder": "ЛМ",
+      "RightWinger": "RW",
+      "LeftWinger": "ДВ",
+      "Striker": "СТ"
+    },
+    "footedness": {
+      "Left": "Левая",
+      "Right": "Правая",
+      "Both": "Обе"
+    },
+    "footednessLabel": "Рабочая нога",
+    "weakFoot": "Слабая нога",
+    "playStyles": {
+      "Balanced": "Сбалансированный",
+      "Attacking": "Атакующий",
+      "Defensive": "Оборонительный",
+      "Possession": "Владение мячом",
+      "Counter": "Контратакующий",
+      "HighPress": "Высокий прессинг"
+    },
+    "trainingSchedules": {
+      "Intense": "Интенсивная",
+      "Balanced": "Сбалансированная",
+      "Light": "Лёгкая"
+    },
+    "trainingFocuses": {
+      "Physical": "Физподготовка",
+      "Technical": "Техника",
+      "Tactical": "Тактика",
+      "Defending": "Оборона",
+      "Attacking": "Атака",
+      "Recovery": "Восстановление",
+      "General": "Общее"
+    },
+    "attributes": {
+      "pace": "Скорость",
+      "stamina": "Выносливость",
+      "strength": "Сила",
+      "agility": "Ловкость",
+      "passing": "Пас",
+      "shooting": "Удар",
+      "tackling": "Отбор",
+      "dribbling": "Дриблинг",
+      "defending": "Игра в обороне",
+      "positioning": "Позиционирование",
+      "vision": "Видение",
+      "decisions": "Решения",
+      "composure": "Хладнокровие",
+      "aggression": "Агрессия",
+      "teamwork": "Командная игра",
+      "leadership": "Лидерство",
+      "handling": "Игра руками",
+      "reflexes": "Реакция",
+      "aerial": "Игра головой"
+    },
+    "moods": {
+      "excellent": "Отлично",
+      "good": "Хорошо",
+      "mixed": "Неровно",
+      "poor": "Плохо"
+    },
+    "injuries": {
+      "minorMuscleStrain": "Небольшое растяжение мышцы",
+      "twistedAnkle": "Подвернутая лодыжка",
+      "kneeBruise": "Ушиб колена",
+      "hamstringTightness": "Зажатость задней поверхности бедра",
+      "calfStrain": "Растяжение икроножной мышцы"
+    },
+    "scoutRatings": {
+      "excellent": "Отлично",
+      "veryGood": "Очень хорошо",
+      "good": "Хорошо",
+      "average": "Средне",
+      "belowAverage": "Ниже среднего"
+    },
+    "scoutPotential": {
+      "worldClass": "Потенциал мирового уровня",
+      "strong": "Высокий потенциал развития",
+      "moderate": "Умеренный потенциал роста",
+      "unclear": "Потенциал неясен — нужен дополнительный просмотр"
+    },
+    "scoutConfidence": {
+      "high": "Высокая",
+      "moderate": "Средняя",
+      "low": "Низкая"
+    },
+    "attrGroups": {
+      "physical": "Физические",
+      "technical": "Технические",
+      "mental": "Ментальные",
+      "goalkeeper": "Вратарские"
+    },
+    "retry": "Повторить",
+    "score": "Счёт"
+  },
+  "teamSelection": {
+    "title": "Выберите клуб",
+    "subtitle": "Выберите команду, которой хотите управлять",
+    "confirming": "Подтверждение...",
+    "manage": "Возглавить {{team}}",
+    "reputation": "Репутация",
+    "squad": "Состав",
+    "finances": "Финансы",
+    "avgOvr": "Средний OVR",
+    "worldClass": "Мировой класс",
+    "strong": "Сильный",
+    "average": "Средний",
+    "developing": "Развивающийся"
+  },
+  "squad": {
+    "title": "Состав {{team}}",
+    "playerCount": "{{count}} игроков",
+    "noPlayers": "Игроки в составе не найдены.",
+    "pos": "Позиция",
+    "traits": "Черты",
+    "fullRoster": "Полный состав",
+    "compare": "Сравнить",
+    "selected": "выбран",
+    "playersLabel": "игроков",
+    "noBench": "Игроков на скамейке нет.",
+    "viewProfile": "Открыть профиль",
+    "swapPlayer": "Поменять игрока",
+    "addToTransferList": "Добавить в список на трансфер",
+    "removeFromTransferList": "Убрать из списка на трансфер",
+    "addToLoanList": "Добавить в список на аренду",
+    "removeFromLoanList": "Убрать из списка на аренду",
+    "outOfPosition": "Не на своей позиции",
+    "outOfPositionTooltip": "Игрок играет не на своей предпочитаемой позиции",
+    "dragHint": "Перетаскивайте игроков запаса на поле или меняйте местами игроков основы.",
+    "benchDragHint": "Используйте список запасных, чтобы перетаскивать игроков прямо на поле.",
+    "dropPlayerHere": "Перетащите игрока сюда",
+    "dragToPitch": "Перетащить на поле",
+    "filterPlayers": "Фильтр по имени игрока или позиции",
+    "noBenchMatches": "Запасные игроки не соответствуют текущим фильтрам.",
+    "noLineupMatches": "Игроки стартового состава не соответствуют текущим фильтрам.",
+    "playStyleImpactTitle": "Что это меняет",
+    "playStyleDescriptions": {
+      "Balanced": "Держит Вашу команду собранной в обороне и в атаке, с ровной структурой и без лишних крайностей.",
+      "Attacking": "Двигает больше игроков вперёд, усиливает поддержку у штрафной и требует большей инициативы.",
+      "Defensive": "Заставляет команду сначала защищать пространство, держать компактность и меньше рисковать за спиной мяча.",
+      "Possession": "Поощряет терпеливый розыгрыш мяча, контроль темпа и поиск более чистых моментов.",
+      "Counter": "Просит команду быстро выходить в атаку после отбора, пока соперник не успел перестроиться.",
+      "HighPress": "Просит команду раньше вступать в прессинг, отбирать мяч выше и постоянно держать соперника под давлением."
+    }
+  },
+  "tactics": {
+    "formationStyle": "Схема и стиль",
+    "formation": "Схема",
+    "playStyle": "Стиль игры",
+    "lineupTab": "Расстановка",
+    "rolesTab": "Стандарты и роли",
+    "teamRoles": "Роли в команде",
+    "viceCaptain": "Вице-капитан",
+    "setPiecesSection": "Стандарты",
+    "rolesHint": "Выберите иерархию лидерства и исполнителей стандартов из текущего стартового состава.",
+    "autoSelectAssignments": "Автораспределить",
+    "noStartersForRoles": "Назначьте стартовый состав, чтобы распределить роли и стандарты.",
+    "startingXI": "Стартовый состав — {{formation}}",
+    "fullSquad": "Вся команда",
+    "pitchInteractionHint": "Перетаскивайте игроков между полем и скамейкой, нажмите на игрока, чтобы открыть его карточку, затем выберите второго для сравнения и подтвердите обмен в панели сравнения.",
+    "selectedPlayer": "Выбранный игрок",
+    "comparePlayer": "Игрок для сравнения",
+    "selectSecondPlayer": "Выберите второго игрока в обзоре состава, чтобы сравнить характеристики и подготовить обмен.",
+    "compareSelectionHint": "Проверьте обоих игроков ниже, затем подтвердите обмен, когда будете готовы.",
+    "confirmSwap": "Подтвердить обмен",
+    "selectPitchPlayer": "Выберите игрока на схеме, чтобы просмотреть его характеристики.",
+    "selectAnotherToSwap": "Выберите второго игрока, чтобы сравнить их и подтвердить обмен."
+  },
+  "training": {
+    "weeklySchedule": "Недельный график",
+    "trainingFocus": "Фокус тренировок",
+    "intensity": "Интенсивность",
+    "squadFitness": "Форма команды",
+    "playerFitness": "Форма игроков",
+    "avgCondition": "Средняя форма",
+    "avgMorale": "Средняя мораль",
+    "train": "Тренировка",
+    "rest": "Отдых",
+    "todayIs": "Сегодня <strong>{{day}}</strong> — {{type}}.",
+    "aTrainingDay": "тренировочный день",
+    "aRestDay": "день отдыха",
+    "currentlyTraining": "Сейчас тренируется: <strong>{{attrs}}</strong> при <strong>{{intensity}}</strong> интенсивности.",
+    "recoveryNote": "В дни отдыха игроки полностью восстанавливаются и набирают форму.",
+    "effectiveFocus": "Фокус",
+    "trainingAppliedNote": "Тренировки применяются в запланированные дни, когда Вы продвигаете время. В дни отдыха команда полностью восстанавливается.",
+    "criticalCondition": "{{count}} игроков в критическом состоянии (<25%)",
+    "exhaustedPlayers": "{{count}} игроков утомлены (<40%)",
+    "staffAlert": "Тревога штаба",
+    "staffWarning": "Предупреждение штаба",
+    "staffSuggestion": "Совет штаба",
+    "staffAdvice": {
+      "critical": "Критическая форма! {{criticalCount}} игроков в критическом состоянии. {{scheduleAdvice}}",
+      "warn": "Команда устала (ср. форма {{avgCondition}}%, {{exhaustedCount}} игроков ниже 40%). {{scheduleAdvice}}",
+      "ok": "Форма команды хорошая. Вы можете перейти на Сбалансированный или Интенсивный режим ради прогресса.",
+      "scheduleAdvice": {
+        "criticalIntense": "Немедленно переведите команду на Сбалансированный или Лёгкий режим.",
+        "criticalBalanced": "Рассмотрите Лёгкий режим или фокус на Восстановление.",
+        "criticalLight": "Переведите фокус на Восстановление, пока форма не улучшится.",
+        "warnIntense": "Сбалансированный режим даст больше времени на восстановление.",
+        "warnBalanced": "Лёгкий режим поможет команде быстрее прийти в норму.",
+        "warnLight": "Фокус на Восстановление лучше всего ускорит возврат формы."
+      }
+    },
+    "focuses": {
+      "Physical": {
+        "label": "Физподготовка",
+        "desc": "Форма и мощь"
+      },
+      "Technical": {
+        "label": "Техника",
+        "desc": "Отточить работу с мячом"
+      },
+      "Tactical": {
+        "label": "Тактика",
+        "desc": "Игровое мышление"
+      },
+      "Defending": {
+        "label": "Оборона",
+        "desc": "Укрепить линию обороны"
+      },
+      "Attacking": {
+        "label": "Атака",
+        "desc": "Повысить остроту у ворот"
+      },
+      "Recovery": {
+        "label": "Восстановление",
+        "desc": "День отдыха и максимального восстановления"
+      }
+    },
+    "intensities": {
+      "Low": {
+        "label": "Низкая",
+        "desc": "Меньше усталости, медленнее рост"
+      },
+      "Medium": {
+        "label": "Средняя",
+        "desc": "Сбалансированная нагрузка"
+      },
+      "High": {
+        "label": "Высокая",
+        "desc": "Больше роста, больше усталости"
+      }
+    },
+    "schedules": {
+      "Intense": {
+        "label": "Интенсивная",
+        "desc": "6 дней тренировки, 1 отдых",
+        "detail": "Максимальное развитие игроков. Отдых только в воскресенье. Есть риск накопления усталости."
+      },
+      "Balanced": {
+        "label": "Сбалансированная",
+        "desc": "4 дня тренировки, 3 отдыха",
+        "detail": "Тренировки в пн, вт, чт и пт. Отдых в ср, сб и вс. Рекомендуется для большинства составов."
+      },
+      "Light": {
+        "label": "Лёгкая",
+        "desc": "2 дня тренировки, 5 отдыха",
+        "detail": "Тренировки только во вт и чт. Делает упор на восстановление. Полезно после плотного календаря."
+      }
+    },
+    "days": {
+      "mon": "Пн",
+      "tue": "Вт",
+      "wed": "Ср",
+      "thu": "Чт",
+      "fri": "Пт",
+      "sat": "Сб",
+      "sun": "Вс"
+    },
+    "groups": {
+      "trainingGroups": "Группы тренировок",
+      "trainingGroupsDesc": "Назначайте игроков в группы с разными фокусами тренировок. Игроки без группы используют командный фокус.",
+      "addGroup": "Добавить группу",
+      "groupName": "Название группы",
+      "groupFocus": "Фокус",
+      "removeGroup": "Удалить группу",
+      "ungrouped": "Без группы",
+      "noGroups": "Групп тренировок пока нет. Добавьте группу и распределите игроков, чтобы настроить тренировки.",
+      "group": "Группа",
+      "teamDefault": "Командный фокус",
+      "assignPlayer": "Назначить в группу",
+      "removePlayer": "Убрать из группы",
+      "playerCount": "{{count}} игроков",
+      "maxGroups": "Можно создать не больше 5 групп тренировок.",
+      "defaultGroupNames": {
+        "0": "Защитники",
+        "1": "Полузащитники",
+        "2": "Нападающие",
+        "3": "Молодёжь",
+        "4": "Восстановление"
+      }
+    }
+  },
+  "staff": {
+    "myStaff": "Мой штаб ({{count}})",
+    "available": "Свободно ({{count}})",
+    "searchStaff": "Поиск персонала...",
+    "noStaffMatch": "Персонал не найден по выбранным фильтрам.",
+    "noAvailableStaff": "Свободных сотрудников нет.",
+    "releaseStaff": "Уволить сотрудника",
+    "openScoutingWorkflow": "Открыть сценарий скаутинга",
+    "activeAssignment": "активное задание",
+    "activeAssignments": "активных заданий",
+    "youthSearch": "поиск таланта",
+    "youthSearches": "поисков талантов",
+    "hireStaff": "Нанять сотрудника",
+    "best": "Лучшее",
+    "roles": {
+      "AssistantManager": "Ассистент тренера",
+      "Coach": "Тренер",
+      "Scout": "Скаут",
+      "Physio": "Физиотерапевт"
+    },
+    "attrs": {
+      "coaching": "Тренерство",
+      "judgingAbility": "Оценка уровня",
+      "judgingPotential": "Оценка потенциала",
+      "physiotherapy": "Физиотерапия"
+    },
+    "specializations": {
+      "Fitness": "Фитнес",
+      "Technique": "Техника",
+      "Tactics": "Тактика",
+      "Defending": "Оборона",
+      "Attacking": "Атака",
+      "GoalKeeping": "Вратарская работа",
+      "Youth": "Молодёжь"
+    }
+  },
+  "finances": {
+    "overview": "Финансовый обзор",
+    "wageBill": "Фонд зарплат",
+    "weeklyTotal": "Итого в неделю",
+    "budget": "Бюджет",
+    "underBudget": "В пределах бюджета",
+    "overBudget": "Превышение бюджета!",
+    "payroll": "Фонд зарплат — лидеры по зарплате",
+    "squadValue": "Стоимость состава",
+    "clubBalance": "Баланс клуба",
+    "wageBudget": "Бюджет на зарплаты",
+    "transferBudget": "Бюджет на трансферы",
+    "seasonIncome": "Доход за сезон",
+    "seasonExpenses": "Расходы за сезон",
+    "perWeekSuffix": "/нед.",
+    "wagePerWeek": "Зарплата/нед.",
+    "marketValue": "Рыночная стоимость",
+    "until": "До {{year}}",
+    "facilities": "Инфраструктура",
+    "facilityTraining": "Тренировочная база",
+    "facilityMedical": "Медицинский центр",
+    "facilityScouting": "Скаутский отдел",
+    "facilityTrainingEffect": "Со временем повышает эффективность тренировок.",
+    "facilityMedicalEffect": "Улучшает восстановление и лечение игроков.",
+    "facilityScoutingEffect": "Повышает качество скаутинга и глубину данных.",
+    "facilityLevel": "Уровень {{level}}",
+    "nextUpgradeCost": "Следующее улучшение: €{{amount}}",
+    "upgradeFacility": "Улучшить",
+    "insufficientFunds": "Недостаточно средств",
+    "sponsors": "Спонсоры",
+    "activeSponsor": "Действующий спонсор",
+    "noActiveSponsor": "Нет действующего спонсора",
+    "pitchSponsor": "Найти спонсора",
+    "sponsorPitchDescription": "Поручите коммерческому отделу найти краткосрочного спонсора для клуба, который испытывает финансовое давление.",
+    "marketingCampaign": "Маркетинговая кампания",
+    "launchMarketingCampaign": "Запустить кампанию",
+    "marketingCampaignDescription": "Запустите разовую маркетинговую кампанию, чтобы быстро получить деньги, когда клуб находится под давлением.",
+    "marketingCampaignUnavailable": "Маркетинговые кампании доступны только клубам под давлением по зарплатам или наличности.",
+    "marketingCampaignCoolingDown": "Маркетинговая кампания снова будет доступна через {{days}} дней.",
+    "marketingCampaignSummary": "Кампания принесла чистую прибыль {{netIncome}} после расходов {{cost}} (брутто {{grossRevenue}}). Время восстановления: {{days}} дней.",
+    "sponsorPitchUnavailable": "Поиск спонсора доступен только клубам под давлением по зарплатам или наличности.",
+    "sponsorPitchActiveSponsor": "У клуба уже есть активный спонсор.",
+    "sponsorPitchPendingOffer": "Сначала рассмотрите текущее предложение спонсора, прежде чем искать новое.",
+    "sponsorPitchSummary": "{{sponsor}} готов платить {{amount}} в неделю в течение {{weeks}} недель. Ознакомьтесь с предложением ниже.",
+    "sponsorWeeklyValue": "Еженедельно: €{{amount}}",
+    "sponsorRemainingWeeks": "Осталось {{count}} нед.",
+    "pendingSponsorOffers": "Ожидающие предложения",
+    "noPendingSponsorOffers": "Нет ожидающих спонсорских предложений",
+    "cashFlow": "Движение средств",
+    "weeklyWageSpend": "Еженедельные расходы на зарплаты",
+    "weeklySponsorIncome": "Еженедельный доход от спонсоров",
+    "projectedWeeklyNet": "Прогнозируемый чистый баланс в неделю",
+    "cashRunway": "Финансовый запас",
+    "runwayWeeks": "{{count}} нед. текущего запаса",
+    "runwayStable": "Текущий запас стабилен",
+    "boardSupport": "Поддержка совета директоров",
+    "boardSupportDescription": "Попросите совет директоров о срочном финансировании, чтобы стабилизировать денежный поток. Это снижает доверие и обычно урезает трансферный бюджет.",
+    "requestBoardSupport": "Запросить помощь",
+    "boardSupportUnavailable": "Помощь совета директоров доступна только клубам с долгами или на грани кассового разрыва.",
+    "boardSupportSummary": "Совет директоров одобрил экстренное финансирование {{amount}}. Трансферный бюджет уменьшен на {{transferBudgetReduction}}, а доверие совета снизилось на {{satisfactionPenalty}}.",
+    "wagePressure": "Нагрузка на фонд зарплат",
+    "wageBudgetUsed": "Использовано {{percent}}% бюджета на зарплаты",
+    "contractRisk": "Риск контракта",
+    "delegateMostRenewals": "Делегировать большинство продлений",
+    "delegateSelectedRenewals": "Делегировать выбранные продления",
+    "selectAllAtRisk": "Выбрать все",
+    "delegatedRenewalsSummary": "{{successes}} выполнено, {{stalled}} в ожидании, {{failures}} сбоев",
+    "contractRiskCritical": "Критический",
+    "contractRiskWarning": "Предупреждение",
+    "contractRiskStable": "Стабильный",
+    "contractExpiresOn": "Истекает {{date}}",
+    "atRiskWages": "€{{amount}}/нед. под риском",
+    "noContractRisks": "Срочных рисков по контрактам нет",
+    "selectRiskPlayer": "Выберите {{player}}"
+  },
+  "inbox": {
+    "title": "Входящие",
+    "nMessages": "Сообщений: {{count}}",
+    "noMessages": "Сообщений нет",
+    "noMessagesInCategory": "В этой категории сообщений нет",
+    "selectMessage": "Выберите сообщение для чтения",
+    "backToInbox": "Назад во входящие",
+    "unread": "Непрочитанные ({{count}})",
+    "urgent": "Срочно",
+    "important": "Важно",
+    "effectOutcomeLabel": "Результат",
+    "chooseResponse": "Выберите ответ",
+    "chooseResponseOutcomeVaries": "Выберите ответ — результат зависит от ситуации",
+    "responded": "Ответ отправлен",
+    "youthProspectSigned": "Подписан в академию",
+    "openMessage": "Открыть сообщение",
+    "markAsRead": "Пометить как прочитанное",
+    "markAllRead": "Отметить все как прочитанные",
+    "clearOld": "Очистить старые",
+    "sortLabel": "Сортировка",
+    "sortByDate": "Сортировать сообщения по дате",
+    "sortNewest": "Сначала новые",
+    "sortOldest": "Сначала старые",
+    "selectMessages": "Выбрать сообщения",
+    "cancelSelection": "Отменить выбор",
+    "selectedCount": "Выбрано: {{count}}",
+    "deleteSelected": "Удалить выбранные",
+    "deleteMessage": "Удалить сообщение",
+    "deleteMessageTitle": "Удалить сообщение?",
+    "deleteMessageBody": "Сообщение «{{subject}}» будет удалено безвозвратно. Это действие нельзя отменить.",
+    "deleteSelectedTitle": "Удалить выбранные сообщения?",
+    "deleteSelectedBody": "Будет безвозвратно удалено {{count}} выбранных сообщений. Это действие нельзя отменить.",
+    "deleteAction": "Удалить",
+    "selectMessageForDeletion": "Выбрать {{subject}}",
+    "categories": {
+      "Welcome": "Добро пожаловать",
+      "LeagueInfo": "Лига",
+      "MatchPreview": "Матч",
+      "MatchResult": "Результат",
+      "Transfer": "Трансферы",
+      "BoardDirective": "Совет директоров",
+      "PlayerMorale": "Мораль",
+      "Injury": "Травма",
+      "Training": "Тренировки",
+      "Finance": "Финансы",
+      "Contract": "Контракт",
+      "ScoutReport": "Скаут",
+      "Media": "Медиа",
+      "System": "Система",
+      "JobOffer": "Предложения о работе"
+    }
+  },
+  "manager": {
+    "managerOf": "Главный тренер {{team}}",
+    "reputation": "Репутация",
+    "careerStats": "Статистика карьеры",
+    "boardStatus": "Статус совета директоров",
+    "satisfaction": "Удовлетворённость",
+    "careerHistory": "История карьеры",
+    "club": "Клуб",
+    "period": "Период",
+    "matches": "Матчи",
+    "wins": "Победы",
+    "draws": "Ничьи",
+    "losses": "Поражения",
+    "trophies": "Трофеи",
+    "winPercent": "% побед",
+    "boardVeryPleased": "Совет директоров очень доволен Вашей работой.",
+    "boardSatisfied": "Совет директоров доволен Вашей работой.",
+    "boardConcerns": "У совета директоров есть вопросы к результатам.",
+    "boardThreat": "Ваше место под серьёзной угрозой.",
+    "board": "Совет",
+    "fans": "Болельщики",
+    "born": "Родился",
+    "fanAdore": "Болельщики Вас обожают!",
+    "fanBehind": "Болельщики поддерживают команду.",
+    "fanMixed": "Мнения болельщиков разделились.",
+    "fanRestless": "Болельщики начинают нервничать.",
+    "fanUnrest": "Недовольство болельщиков нарастает."
+  },
+  "managersWorld": {
+    "title": "Тренеры",
+    "subtitle": "Тренеры лиги и открытые вакансии",
+    "vacancy": "Вакансия",
+    "employed": "Работает",
+    "unemployed": "Без клуба",
+    "reputation": "Репутация",
+    "winRate": "Процент побед",
+    "matches": "Матчи",
+    "currentClub": "Текущий клуб",
+    "openRole": "Открытая вакансия в {{team}}",
+    "vacancyBadge": "Совет ищет",
+    "noManagers": "Доступных тренеров нет."
+  },
+  "hallOfFameWorld": {
+    "title": "Зал славы",
+    "subtitle": "Завершившие карьеру легенды и прошлые чемпионы",
+    "legends": "Легенды",
+    "pastChampions": "Прошлые чемпионы",
+    "noLegends": "Завершивших карьеру легенд пока нет.",
+    "noChampions": "Чемпионские сезоны пока не зафиксированы.",
+    "appearances": "Матчи",
+    "goals": "Голы",
+    "assists": "Голевые передачи",
+    "titles": "Титулы",
+    "lastClub": "Последний клуб",
+    "finalSeason": "Финальный сезон",
+    "played": "Сыграно",
+    "record": "Баланс",
+    "goalDifference": "Разница мячей",
+    "legendsCount": "Легенд в архиве",
+    "championsCount": "Чемпионских сезонов",
+    "seasonLabel": "Сезон {{season}}"
+  },
+  "boardObjectives": {
+    "objective": {
+      "LeaguePosition": "Финишировать в топ-{{target}}",
+      "Wins": "Выиграть не менее {{target}} матчей",
+      "GoalsScored": "Забить не менее {{target}} голов",
+      "FinancialStability": "Держать расходы на зарплаты на уровне не выше {{target}}% бюджета"
+    }
+  },
+  "transfers": {
+    "centre": "Трансферный центр",
+    "transferWindow": "Трансферное окно — {{team}}",
+    "myTransferList": "Мой трансферный список",
+    "transferMarket": "Трансферный рынок",
+    "freeAgents": "Свободные агенты",
+    "loanMarket": "Арендный рынок",
+    "offers": "Предложения",
+    "searchByName": "Поиск по имени...",
+    "noPlayersListed": "У вас нет игроков в списке на трансфер или аренду.",
+    "goToProfile": "Перейдите в профиль игрока, чтобы выставить его на трансфер или в аренду.",
+    "noOffers": "Сейчас нет активных трансферных предложений.",
+    "noTransferMarket": "Сейчас нет игроков, доступных для трансфера.",
+    "noFreeAgents": "Свободных агентов на данный момент нет.",
+    "noLoanMarket": "Сейчас нет игроков, доступных для аренды.",
+    "transfer": "Трансфер",
+    "loan": "Аренда",
+    "none": "Нет",
+    "listed": "В списке",
+    "makeBid": "Сделать трансферное предложение",
+    "offerContract": "Предложить контракт",
+    "bid": "Ставка",
+    "playerValue": "Стоимость: {{value}}",
+    "bidAmount": "Сумма предложения (€ млн)",
+    "bidImpactTitle": "Влияние на финансы",
+    "bidImpactTransferBudget": "Трансферный бюджет {{before}} → {{after}}",
+    "bidImpactBalance": "Баланс клуба {{before}} → {{after}}",
+    "bidImpactWagePressure": "Прогноз загрузки зарплатного бюджета: {{percent}}%",
+    "bidImpactOverTransferBudget": "Это предложение превышает Ваш трансферный бюджет",
+    "bidImpactOverBalance": "Это предложение уведёт клуб в минус",
+    "bidAccepted": "Предложение принято! Игрок подписан.",
+    "bidCountered": "Вам прислали встречные условия.",
+    "bidRejected": "Предложение отклонено — сумма слишком низкая.",
+    "submitting": "Отправка...",
+    "submitBid": "Отправить предложение",
+    "close": "Закрыть",
+    "counter": "Ответное предложение",
+    "counterOffer": "Контрпредложение",
+    "currentOffer": "Текущее предложение {{fee}}",
+    "counterAmount": "Сумма контрпредложения",
+    "submitCounter": "Отправить контрпредложение",
+    "counterAccepted": "Контрпредложение принято.",
+    "counterRejected": "Контрпредложение отклонено.",
+    "counterCountered": "В ответ предложили меньшую сумму.",
+    "acceptOffer": "Принять",
+    "rejectOffer": "Отклонить",
+    "negotiationPulse": "Пульс переговоров",
+    "negotiationRound": "Раунд {{count}}",
+    "negotiationPatience": "Терпение",
+    "negotiationTension": "Напряжение",
+    "negotiationHistory": "Последний обмен",
+    "lastBidLabel": "Ваше последнее предложение",
+    "lastClubSignalLabel": "Их последний сигнал",
+    "lastCounterLabel": "Ваше последнее контрпредложение",
+    "currentOfferLabel": "Их текущее предложение",
+    "offerStatusPending": "В работе",
+    "offerStatusAccepted": "Принято",
+    "offerStatusRejected": "Отклонено",
+    "offerStatusWithdrawn": "Переговоры охладились",
+    "negotiationExpiredError": "Переговоры охладились раньше, чем вы успели ответить. Если клуб вернётся, начните заново.",
+    "resumeNegotiationHint": "С этим клубом переговоры всё ещё идут.",
+    "resumeNegotiationHeadline": "Другой клуб ждёт вашего следующего шага.",
+    "resumeNegotiationDetail": "Их последний сигнал указывал на {{fee}}.",
+    "transferFeedbackAcceptedHeadline": "Другой клуб готов вести дела.",
+    "transferFeedbackAcceptedDetail": "Ваша сумма попала в их комфортный диапазон, поэтому разговор пошёл быстро.",
+    "transferFeedbackCounterHeadline": "Они хотят больше перед рукопожатием.",
+    "transferFeedbackCounterDetail": "Предложение было достаточно близким, чтобы продолжать разговор, но их сторона намекает на сумму ближе к {{fee}}.",
+    "transferFeedbackRejectedHeadline": "Они закрыли этот раунд.",
+    "transferFeedbackRejectedDetail": "Предложение не произвело должного эффекта. Чтобы вновь открыть серьёзные переговоры, нужна сумма ближе к {{fee}}."
+  },
+  "transferCentreWorld": {
+    "title": "Трансферный центр",
+    "subtitle": "Следите за слухами и завершёнными сделками по всей лиге",
+    "rumours": "Слухи",
+    "completedDeals": "Завершённые сделки",
+    "currentClub": "Текущий клуб",
+    "sourceClub": "Из",
+    "destinationClub": "В",
+    "reportedOn": "Сообщено",
+    "agreedOn": "Согласовано",
+    "fee": "Сумма",
+    "noRumours": "Никаких активных слухов.",
+    "noCompletedDeals": "Завершенных сделок не зарегистрировано.",
+    "rumourTag": "Слух",
+    "completedTag": "Сделка",
+    "playerButton": "Посмотреть {{player}}"
+  },
+  "schedule": {
+    "noSchedule": "Расписание лиги пока недоступно.",
+    "noLeague": "Расписание лиги пока недоступно.",
+    "fixtures": "Матчи",
+    "standings": "Таблица",
+    "matchday": "Тур {{number}}",
+    "season": "Сезон {{number}}"
+  },
+  "players": {
+    "searchPlaceholder": "Поиск по имени или гражданству...",
+    "allPos": "Все поз.",
+    "allTeams": "Все команды",
+    "nPlayersFound": "{{count}} игроков найдено",
+    "noMatch": "Нет игроков, подходящих под фильтры.",
+    "showingFirst": "Показаны первые {{shown}} из {{total}} игроков. Уточните свой поиск, чтобы увидеть больше.",
+    "showingRange": "{{from}}–{{to}} из {{total}}"
+  },
+  "teams": {
+    "yourTeam": "Ваша команда",
+    "squad": "Состав",
+    "avgOvr": "Сред. OVR",
+    "rep": "Реп.",
+    "est": "Осн."
+  },
+  "playersList": {
+    "searchPlaceholder": "Поиск по имени или гражданству...",
+    "allPos": "Все поз.",
+    "allTeams": "Все команды",
+    "injured": "Травмирован"
+  },
+  "teamsList": {
+    "yourTeam": "Ваша команда",
+    "pos": "Поз.",
+    "rep": "Реп.",
+    "est": "Осн. {{year}}"
+  },
+  "tournaments": {
+    "noTournaments": "Активных турниров пока нет.",
+    "noActive": "Активных турниров пока нет.",
+    "nTeams": "{{count}} команд",
+    "progress": "Прогресс",
+    "matches": "Матчи",
+    "goals": "Голы",
+    "overview": "Обзор",
+    "leagueTable": "Таблица",
+    "topScorers": "Бомбардиры",
+    "loadingAwards": "Загрузка наград...",
+    "awardsTab": "Награды",
+    "awards": {
+      "goldenBootTitle": "Золотая бутса",
+      "goldenBootSubtitle": "Лучшие бомбардиры",
+      "assistKingTitle": "Лучший ассистент",
+      "assistKingSubtitle": "Наибольшее количество передач",
+      "playerOfYearTitle": "Игрок года",
+      "playerOfYearSubtitle": "Лучший средний рейтинг (минимум 5 матчей)",
+      "goldenGloveTitle": "Золотая перчатка",
+      "goldenGloveSubtitle": "Больше всего сухих матчей (вратари)",
+      "everPresentTitle": "Незаменимый",
+      "everPresentSubtitle": "Больше всего матчей",
+      "youngPlayerTitle": "Молодой игрок года",
+      "youngPlayerSubtitle": "Лучший средний рейтинг U21 (минимум 3 матча)",
+      "noDataYet": "Данных пока нет",
+      "units": {
+        "goals": "голов",
+        "assists": "ассистов",
+        "rating": "рейтинг",
+        "cleanSheets": "сухих матчей",
+        "apps": "матчей",
+        "winRate": "процент побед"
+      },
+      "managerOfSeasonTitle": "Тренер сезона",
+      "managerOfSeasonSubtitle": "Лучшая работа на тренерском мостике"
+    },
+    "noGoals": "Голов пока нет."
+  },
+  "news": {
+    "noNews": "Новостей пока нет.",
+    "newsWillAppear": "Новости появятся по мере продвижения сезона.",
+    "backToNews": "Назад к новостям",
+    "nArticles": "{{count}} статей",
+    "categories": {
+      "MatchReport": "Отчёт о матче",
+      "LeagueRoundup": "Обзор лиги",
+      "StandingsUpdate": "Таблица",
+      "TransferRumour": "Трансферы",
+      "TransferRoundup": "Обзор трансферов",
+      "InjuryNews": "Травмы",
+      "SeasonPreview": "Предсезонный обзор",
+      "Editorial": "Редакционная колонка",
+      "ManagerialChange": "Смена тренера"
+    }
+  },
+  "playerProfile": {
+    "contractInfo": "Контракт и информация",
+    "dateOfBirth": "Дата рождения",
+    "noContract": "Без контракта",
+    "weeklyWage": "Недельная зарплата",
+    "yearsRemaining": "Осталось лет",
+    "contractRisk": "Риск по контракту",
+    "renewalTitle": "Продление контракта",
+    "renewalWage": "Предлагаемая зарплата",
+    "renewalLength": "Срок контракта",
+    "renewalSubmit": "Отправить предложение",
+    "renewalInvalidWage": "Введите корректную недельную зарплату",
+    "renewalBudgetWarning": "Предложение превышает лимит по зарплатному бюджету",
+    "renewalAccepted": "Предложение принято",
+    "renewalRejected": "Предложение отклонено",
+    "renewalCounter": "Нужно больше: €{{wage}} в неделю на {{years}} г.",
+    "renewalBlocked": "Переговоры заблокированы после Вашего предыдущего решения",
+    "renewalCooledOff": "Предыдущий раунд переговоров сошёл на нет, поэтому разговор начинается заново.",
+    "letContractExpire": "Дайте истечь",
+    "reopenContractTalks": "Возобновить переговоры",
+    "terminateContract": "Завершить сейчас",
+    "terminateContractTitle": "Расторгнуть контракт",
+    "terminateContractBody": "Немедленно уволите {{name}} и выплатите оставшуюся зарплату по контракту в качестве выходного пособия.",
+    "terminationSeverance": "Выходное пособие",
+    "projectedHealthyPlayers": "Здоровые игроки после релиза",
+    "terminationUnsafe": "В результате этого релиза команда не сможет провести матч XI тура.",
+    "confirmTerminateContract": "Расторгнуть контракт",
+    "delegateRenewal": "Поручить ассистенту",
+    "renewalDelegateMissingReport": "В отчёте ассистента этого игрока не оказалось.",
+    "renewalConversationTitle": "Пульс переговоров",
+    "renewalRound": "Раунд {{count}}",
+    "renewalPatience": "Терпение",
+    "renewalTension": "Напряжение",
+    "renewalFeedbackCalmHeadline": "Сторона игрока пока готова слушать.",
+    "renewalFeedbackCalmDetail": "Пока это в основном деловой разговор. Время имеет значение, но серьёзного напряжения в отношениях ещё нет.",
+    "renewalFeedbackFirmHeadline": "Они хотят лучших условий, прежде чем двигаться дальше.",
+    "renewalFeedbackFirmDetail": "Переговоры остаются открытыми, но зарплата и срок контракта должны выглядеть для их стороны заметно лучше.",
+    "renewalFeedbackTenseHeadline": "Разговор становится всё сложнее.",
+    "renewalFeedbackTenseDetail": "Низкое доверие, слабая мораль или давление по контракту заставляют их давить сильнее. Ещё одно слабое предложение может закрыть дверь.",
+    "renewalFeedbackAcceptedHeadline": "Пакет условий им понравился, и дело пошло быстро.",
+    "renewalFeedbackAcceptedDetail": "Предложение оказалось достаточно близким к их ожиданиям, поэтому переговоры остались конструктивными.",
+    "renewalFeedbackAcceptedLateHeadline": "Они согласились, но терпение уже было на исходе.",
+    "renewalFeedbackAcceptedLateDetail": "Сделку удалось закрыть после тяжёлого обмена условиями. Их сторона была близка к тому, чтобы выйти из разговора.",
+    "renewalFeedbackBlockedHeadline": "Пока они не готовы возвращаться к разговору.",
+    "renewalFeedbackBlockedDetail": "Ваш прежний подход до сих пор влияет на настроение их стороны, поэтому сейчас они не готовы снова вступать в переговоры.",
+    "attributes": "Атрибуты",
+    "attributesHidden": "Атрибуты скрыты",
+    "scoutToView": "Отправьте скаута на этого игрока или подпишите его, чтобы открыть подробные атрибуты.",
+    "seasonStats": "Статистика сезона",
+    "advancedStats": "Продвинутая статистика",
+    "shots": "Удары",
+    "shotsOnTarget": "Удары в створ",
+    "passes": "Передачи",
+    "tacklesWon": "Выигранные отборы",
+    "interceptions": "Перехваты",
+    "foulsCommitted": "Фолы",
+    "per90": "За 90 мин.",
+    "passAccuracy": "Точность передач",
+    "percentile": "Процентиль",
+    "percentileUnavailable": "Процентиль недоступен",
+    "recentMatches": "Последние матчи",
+    "recentMatchesScore": "Счет",
+    "recentMatchesGoalsAssists": "Г/А",
+    "recentMatchesRating": "Рейтинг",
+    "vs": "против",
+    "noRecentMatches": "Данных о последних матчах нет",
+    "apps": "Матчи",
+    "goals": "Голы",
+    "assists": "Ассисты",
+    "mins": "Мин.",
+    "cleanSheets": "Сух. матчи",
+    "yellows": "ЖК",
+    "reds": "КК",
+    "avgRating": "Сред. оценка",
+    "careerHistory": "Карьера",
+    "noCareer": "История карьеры пока пуста — это первый сезон.",
+    "nApps": "{{count}} матч.",
+    "nGoals": "{{count}} гол.",
+    "nAssists": "{{count}} асс.",
+    "daysRemaining": "Осталось {{count}} дн. — игрок недоступен для выбора",
+    "renewalProjectionTitle": "Прогноз финансового влияния",
+    "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
+    "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",
+    "renewalProjectionRunway": "Финансовый запас {{before}} → {{after}}"
+  },
+  "teamProfile": {
+    "clubInfo": "Информация о клубе",
+    "stadium": "Стадион",
+    "capacity": "Вместимость",
+    "leaguePos": "Позиция в лиге",
+    "leagueStanding": "Таблица лиги",
+    "squadOverview": "Обзор состава",
+    "squadSize": "Размер состава",
+    "seasonHistory": "История сезонов",
+    "balance": "Баланс",
+    "totalWages": "Общая зарплатная ведомость",
+    "managerLabel": "Тренер:",
+    "advancedStats": "Командная статистика",
+    "matchesPlayed": "Матчи",
+    "possession": "Владение",
+    "goalDifference": "Разница мячей",
+    "shots": "Удары",
+    "shotsOnTarget": "Удары в створ",
+    "passes": "Передачи",
+    "tacklesWon": "Выигранные отборы",
+    "interceptions": "Перехваты",
+    "foulsCommitted": "Фолы",
+    "perMatch": "За матч",
+    "passAccuracy": "Точность передач",
+    "recentMatches": "Последние матчи"
+  },
+  "settings": {
+    "title": "Настройки",
+    "display": "Отображение",
+    "theme": "Тема",
+    "themeDesc": "Выберите внешний вид приложения",
+    "themeOptions": {
+      "light": "Свет",
+      "dark": "Темный",
+      "system": "Система"
+    },
+    "language": "Язык",
+    "languageDesc": "Выберите язык интерфейса",
+    "currency": "Валюта",
+    "currencyDesc": "Как отображаются денежные значения",
+    "currencyOptions": {
+      "eur": "Евро",
+      "gbp": "Фунт",
+      "usd": "Доллар"
+    },
+    "languages": {
+      "en": "Английский",
+      "es": "Испанский",
+      "pt": "Португальский",
+      "fr": "Французский",
+      "de": "Немецкий",
+      "it": "Итальянский",
+      "ptBR": "Португальский (Бразилия)",
+      "zhCN": "Китайский (упрощённый)",
+      "ru": "Русский"
+    },
+    "gameplay": "Игровой процесс",
+    "defaultMatchMode": "Режим матча по умолчанию",
+    "defaultMatchModeDesc": "Как будут запускаться матчи после нажатия «Продолжить»",
+    "matchSpeed": "Скорость матча",
+    "matchSpeedDesc": "Скорость симуляции по умолчанию для матчей в реальном времени",
+    "matchCommentary": "Комментарии матча",
+    "matchCommentaryDesc": "Показывать текстовые комментарии во время матчей в реальном времени",
+    "confirmAdvance": "Подтверждать переход по дням",
+    "confirmAdvanceDesc": "Запрашивать подтверждение перед переходом к следующему дню",
+    "savesData": "Сохранения и данные",
+    "autoSave": "Автосохранение",
+    "autoSaveDesc": "Автоматически сохранять игру после каждого дня",
+    "exportWorld": "Экспорт базы мира",
+    "exportWorldDesc": "Сохранить текущие данные мира в JSON-файл для обмена",
+    "export": "Экспортировать",
+    "exportedTo": "Экспортировано в: {{path}}",
+    "clearSaves": "Очистить все сохранения",
+    "clearSavesDesc": "Безвозвратно удалить все сохраненные игры",
+    "clear": "Очистить",
+    "savesCleared": "Сохранения очищены!",
+    "about": "О приложении",
+    "matchModes": {
+      "live": "Выйти на поле",
+      "liveDesc": "Полный контроль над матчем",
+      "spectator": "Смотреть как зритель",
+      "spectatorDesc": "Только просмотр, без управления",
+      "delegate": "Доверить помощнику",
+      "delegateDesc": "ИИ возьмет все на себя"
+    },
+    "speeds": {
+      "slow": "Медленно",
+      "normal": "Нормально",
+      "fast": "Быстро"
+    },
+    "uiScale": "Масштаб интерфейса",
+    "uiScaleDesc": "Изменить размер шрифта и отступы для удобства чтения",
+    "uiScaleOptions": {
+      "small": "Маленький",
+      "normal": "Нормальный",
+      "large": "Большой",
+      "xlarge": "Очень большой"
+    },
+    "highContrast": "Высокая контрастность",
+    "highContrastDesc": "Повысить контраст текста в темной теме для лучшей читаемости",
+    "fullscreen": "Полноэкранный режим",
+    "fullscreenDesc": "Переключить полноэкранный режим для более полного погружения",
+    "enterFullscreen": "Включить",
+    "exitFullscreen": "Выключить",
+    "switchToLightMode": "Переключиться в светлый режим",
+    "switchToDarkMode": "Переключиться в темный режим"
+  },
+  "preMatch": {
+    "formationFit": "Формирование",
+    "autoSelect": "Автоматический выбор лучшего XI",
+    "selecting": "Выбор...",
+    "startingXI": "Стартовый состав",
+    "substitutes": "Запасные",
+    "opponent": "Соперник",
+    "nPlayers": "{{count}} игроков",
+    "nAvailable": "{{count}} доступны",
+    "noBench": "Игроков на скамейке нет.",
+    "cancelSwap": "Отмена",
+    "swapHint": "Выберите запасного игрока для замены",
+    "setPieces": "Стандарты и капитан",
+    "lineup": "Расстановка",
+    "startMatch": "Начать матч",
+    "captain": "Капитан",
+    "penaltyTaker": "Исполнитель пенальти",
+    "freeKickTaker": "Исполнитель штрафного",
+    "cornerTaker": "Исполнитель углового",
+    "fit": "ФИТ",
+    "keyStats": "Ключевые показатели"
+  },
+  "scouting": {
+    "title": "Скаутский центр",
+    "scouts": "Скауты",
+    "activeAssignments": "Активные задания",
+    "freeSlots": "Свободные слоты",
+    "youthRecruitment": "Набор молодежи",
+    "youthSearchScoutLabel": "Скаут",
+    "youthSearchRegionLabel": "Область",
+    "youthSearchObjectiveLabel": "Цель",
+    "selectScout": "Выбрать разведчика",
+    "regionDomestic": "Одомашненный",
+    "regionInternational": "Международный",
+    "objectiveBalanced": "Сбалансированный",
+    "objectiveHighPotential": "Высокий потенциал",
+    "objectiveReadySoon": "Скоро будет готово",
+    "youthRecruitmentHint": "Отправьте бесплатного разведчика на поиски нового кандидата в академию. Завершенные поиски доставляют игроков прямо в вашу молодежную академию.",
+    "startYouthSearch": "Начать поиск молодежи",
+    "activeYouthSearches": "{{count}} активный молодежный поиск",
+    "noYouthSearches": "Поиски молодежи по вербовке не проводятся.",
+    "youthProspectSearch": "Поиск молодежи",
+    "youthTargetLabel": "Молодежная цель",
+    "youthAnyPosition": "Любая позиция",
+    "activeScoutingAssignments": "Активные скаутские задания",
+    "yourScouts": "Ваши скауты",
+    "slots": "слотов",
+    "judgingAbility": "Оценка уровня",
+    "judgingPotential": "Оценка потенциала",
+    "scoutingPlayer": "Просмотр: <strong>{{name}}</strong> — осталось {{days}} д.",
+    "scoutLabel": "Скаут: {{name}}",
+    "daysLeft": "Осталось {{days}} д.",
+    "noScouts": "У Вас пока нет скаутов.",
+    "noScoutsHint": "Сначала наймите скаута во вкладке штаба, чтобы начать оценивать игроков.",
+    "findPlayers": "Найти игроков для просмотра",
+    "searchPlaceholder": "Поиск по имени, гражданству или клубу...",
+    "player": "Игрок",
+    "pos": "Поз.",
+    "age": "Возраст",
+    "team": "Клуб",
+    "value": "Стоимость",
+    "action": "Действие",
+    "scoutingInProgress": "Просмотр...",
+    "noScoutsFree": "Нет свободных скаутов",
+    "cancelSearch": "Отмена",
+    "reassignSearch": "Переназначить",
+    "noAlternateScout": "Нет альтернативного разведчика",
+    "scoutBtn": "Отправить",
+    "noPlayersFound": "По заданным фильтрам игроки не найдены.",
+    "showingRange": "{{from}}–{{to}} из {{total}}",
+    "previousPage": "Предыдущая страница",
+    "nextPage": "Следующая страница",
+    "viewPlayer": "Открыть",
+    "condition": "Форма",
+    "morale": "Мораль",
+    "estimatedAttributes": "Оценка качеств",
+    "undiscovered": "Не раскрыто",
+    "confidence": "Надёжность"
+  },
+  "match": {
+    "live": "Матч",
+    "paused": "Пауза",
+    "events": "События",
+    "stats": "Статистика",
+    "lineups": "Составы",
+    "simSpeed": "Скорость симуляции",
+    "pause": "Пауза",
+    "slow": "Медленно",
+    "normal": "Нормально",
+    "fast": "Быстро",
+    "max": "Макс",
+    "step1Min": "Шаг 1 мин.",
+    "teamControls": "Управление командой",
+    "subs": "Замены",
+    "formation": "Схема",
+    "playStyle": "Стиль игры",
+    "keyEvents": "Ключевые события",
+    "noEventsYet": "Матч ещё не начался.",
+    "waitingKickoff": "Ожидание стартового свистка...",
+    "assist": "ассист: {{name}}",
+    "subFor": "вместо {{name}}",
+    "possession": "Владение",
+    "shots": "Удары",
+    "shotsOnTarget": "Удары в створ",
+    "fouls": "Фолы",
+    "corners": "Угловые",
+    "yellowCards": "Жёлтые карточки",
+    "bench": "Скамейка",
+    "substitutions": "Замены",
+    "substitutionsTitle": "Замены",
+    "subsUsed": "Использовано {{used}}/{{max}}",
+    "allSubsUsed": "Все замены использованы",
+    "selectPlayerOff": "Выберите игрока на замену",
+    "takingOff": "Снимаем: {{name}}",
+    "selectReplacement": "Выберите замену со скамейки",
+    "selectToTakeOff": "Выберите, чтобы взлететь",
+    "clearReplacementSelection": "Четкая замена",
+    "selectReplacementMenu": "Выберите замену",
+    "selectPlayerToTakeOffFirst": "Выберите игрока, который взлетит первым",
+    "selectForSwap": "Выбрать для обмена",
+    "swapWithSelectedStarter": "Обмен на выбранный стартер",
+    "benchPlayers": "Игроки на скамейке",
+    "selectBenchToCompare": "Выберите запасного для сравнения",
+    "confirmSubstitution": "Подтвердить замену",
+    "noBenchAvailable": "На скамейке нет игроков",
+    "history": "Ход матча",
+    "player": "Игрок",
+    "fitness": "Готовность",
+    "halfTime": "Перерыв",
+    "ht": "ПТ",
+    "fullTime": "Конец матча",
+    "ft": "ФТ",
+    "firstHalfEvents": "События первого тайма",
+    "noMajorEvents": "Ключевых событий не было.",
+    "teamTalk": "Разговор с командой",
+    "teamTalkPrompt": "Выберите, как Вы обратитесь к команде в перерыве.",
+    "teamTalkOptions": {
+      "calm": {
+        "label": "Сохраняйте спокойствие",
+        "description": "Сохраняйте хладнокровие и придерживайтесь плана на игру."
+      },
+      "motivational": {
+        "label": "Взбодрите команду",
+        "description": "Вдохновите игроков выложиться по максимуму."
+      },
+      "assertive": {
+        "label": "Требуйте большего",
+        "description": "Дайте понять, что такого уровня недостаточно."
+      },
+      "aggressive": {
+        "label": "Заведите команду",
+        "description": "Жёсткая и эмоциональная речь, чтобы встряхнуть игроков."
+      },
+      "praise": {
+        "label": "Похвалите",
+        "description": "Скажите команде, что она действует отлично."
+      },
+      "disappointed": {
+        "label": "Покажите разочарование",
+        "description": "Покажите, что Вы недовольны их самоотдачей."
+      }
+    },
+    "deliverTeamTalk": "Произнести речь",
+    "delivered": "Произнесено",
+    "spectatorMode": "Режим зрителя",
+    "spectatorHT": "Оба тренера беседуют со своими командами в раздевалке.",
+    "makeSubstitution": "Сделать замену",
+    "waitingSecondHalf": "Ожидание второго тайма...",
+    "makeChanges": "Внесите изменения и продолжите матч.",
+    "resumeMatch": "Продолжить матч",
+    "victory": "Победа",
+    "defeat": "Поражение",
+    "draw": "Ничья",
+    "matchEvents": "События матча",
+    "quietMatch": "Спокойный матч.",
+    "quickStats": "Краткая статистика",
+    "postMatchTeamTalk": "Речь после матча",
+    "addressPlayers": "Обратитесь к игрокам после матча.",
+    "matchOver": "Матч завершён",
+    "ratings": "Оценки {{team}}",
+    "motm": "Игрок матча",
+    "roundSummary": "Итоги тура",
+    "roundSummaryUnavailable": "Итоги тура недоступны.",
+    "otherMatches": "Другие матчи",
+    "otherMatchesToday": "Другие матчи дня",
+    "otherMatchesUnavailable": "Контекст по другим матчам для этой игры пока недоступен.",
+    "viewDetails": "Подробнее",
+    "matchDetails": "Детали матча",
+    "scorers": "Авторы голов",
+    "noGoals": "Голов не было.",
+    "matchComplete": "Матч завершён.",
+    "addressPress": "Дайте комментарий прессе или вернитесь в штаб.",
+    "skip": "Пропустить",
+    "pressConference": "Пресс-конференция",
+    "pressSubtitle": "Послематчевая пресс-конференция — {{team}}",
+    "skipConference": "Пропустить пресс-конференцию →",
+    "submitting": "Отправляем...",
+    "leaveConference": "Покинуть пресс-конференцию",
+    "nextQuestion": "Следующий вопрос",
+    "pressReport": {
+      "headlineManagerQuote": "{{team}}: {{quote}} — слова тренера",
+      "headlinePressConf": "Пресс-конференция: \"{{quote}}\" — тренер {{team}}",
+      "headlinePostMatch": "После матча: {{team}} о результате {{result}}",
+      "bodyIntro": "После матча {{result}} главный тренер {{team}} ответил на вопросы прессы.",
+      "bodyOutro": "На пресс-конференции обсуждали результат, тактический план и ближайшие задачи команды.",
+      "bodySingle": "После матча {{result}} главный тренер {{team}} коротко пообщался с прессой.",
+      "bodyNone": "После матча {{result}} главный тренер {{team}} отказался от развёрнутых комментариев."
+    },
+    "press": {
+      "result": {
+        "questions": {
+          "win": "Сегодня сильный результат: победа {{userScore}}-{{oppScore}} над {{oppName}}. Насколько Вы довольны игрой команды?",
+          "loss": "Тяжёлый результат сегодня: поражение {{userScore}}-{{oppScore}} от {{oppName}}. Что пошло не так?",
+          "draw": "Ничья {{userScore}}-{{oppScore}} с {{oppName}}. Считаете такой результат справедливым?"
+        },
+        "responses": {
+          "win": {
+            "humble": {
+              "tone": "Сдержанно",
+              "text": "Игроки много работали. Мы хорошо подготовились и выполнили план на матч."
+            },
+            "confident": {
+              "tone": "Уверенно",
+              "text": "Мы были сильнее от начала и до конца. Это заслуженный результат."
+            },
+            "deflect": {
+              "tone": "Без лишних слов",
+              "text": "Это просто три очка. Двигаемся к следующему матчу."
+            }
+          },
+          "loss": {
+            "accept": {
+              "tone": "Признать",
+              "text": "Сегодня мы были недостаточно хороши. Нужно разобраться, где именно ошиблись."
+            },
+            "defiant": {
+              "tone": "Несогласие",
+              "text": "Не думаю, что мы заслуживали поражения. У нас было достаточно моментов."
+            },
+            "deflect": {
+              "tone": "Без лишних слов",
+              "text": "Не хочу зацикливаться на этом. К следующему матчу мы будем готовы."
+            }
+          },
+          "draw": {
+            "fair": {
+              "tone": "Справедливо",
+              "text": "Ничья справедлива. Обе команды имели свои шансы."
+            },
+            "frustrated": {
+              "tone": "Раздосадованно",
+              "text": "Мы должны были выигрывать. Слишком много упущенных моментов."
+            },
+            "positive": {
+              "tone": "Позитивно",
+              "text": "Очко есть очко. Из сегодняшнего матча можно вынести и хорошие моменты."
+            }
+          }
+        }
+      },
+      "playerFocus": {
+        "questions": {
+          "scored": "{{playerName}} сегодня забил. Насколько важен его вклад для команды?",
+          "default": "Как Вы оцените игру {{playerName}} сегодня?"
+        },
+        "responses": {
+          "praise": {
+            "tone": "Похвала",
+            "text": "{{playerName}} провёл отличный матч. Это важный для нас игрок, и его объём работы образцовый."
+          },
+          "demanding": {
+            "tone": "Требовательно",
+            "text": "{{playerName}} может играть лучше. От футболиста такого уровня я жду большего."
+          },
+          "deflect": {
+            "tone": "Без акцента",
+            "text": "Не люблю выделять отдельных игроков. Это командная игра."
+          }
+        }
+      },
+      "tactics": {
+        "question": "Расскажите о Вашем тактическом плане на сегодня.",
+        "responses": {
+          "detailed": {
+            "tone": "Подробно",
+            "text": "Мы хотели контролировать центр поля и использовать ширину. Думаю, схема сработала как надо."
+          },
+          "brief": {
+            "tone": "Кратко",
+            "text": "У нас был план, и игроки его выполнили. Это главное."
+          },
+          "evasive": {
+            "tone": "Уклончиво",
+            "text": "Не хочу раскрывать слишком многое. У каждой команды есть свои секреты."
+          }
+        }
+      },
+      "fans": {
+        "questions": {
+          "win": "Сегодня болельщики великолепно поддерживали команду. Что для Вас значит их поддержка?",
+          "loss": "После финального свистка часть трибун выражала недовольство. Что Вы хотите им сказать?",
+          "draw": "Атмосфера сегодня временами была напряжённой. Как Вы справляетесь с таким давлением?"
+        },
+        "responses": {
+          "win": {
+            "grateful": {
+              "tone": "С благодарностью",
+              "text": "Наши болельщики невероятны. Они ведут нас вперёд в каждом матче, и мы обязаны отвечать такими выступлениями."
+            },
+            "shared": {
+              "tone": "Вместе",
+              "text": "Мы празднуем все вместе: игроки, штаб и болельщики. Эта победа принадлежит и им тоже."
+            },
+            "deflect": {
+              "tone": "Сдержанно",
+              "text": "Болельщики знают, к чему мы идём. Мы просто сосредоточены на игре."
+            }
+          },
+          "loss": {
+            "apologize": {
+              "tone": "Извиниться",
+              "text": "Я полностью понимаю их разочарование. Они заслуживают большего, и мы будем много работать, чтобы это дать."
+            },
+            "patience": {
+              "tone": "Терпение",
+              "text": "Прошу терпения. Мы строим команду, и неудачные дни случаются. Вернёмся сильнее."
+            },
+            "curt": {
+              "tone": "Коротко",
+              "text": "Не хочу комментировать слова, сказанные на эмоциях. Давайте двигаться дальше."
+            }
+          },
+          "draw": {
+            "appreciate": {
+              "tone": "Благодарно",
+              "text": "Я ценю каждого болельщика, который приходит нас поддержать. Их энергия поднимает команду."
+            },
+            "understand": {
+              "tone": "Понимаю",
+              "text": "Они хотят видеть победы, и я тоже. Мы будем продолжать, пока результаты не придут."
+            },
+            "curt": {
+              "tone": "Коротко",
+              "text": "Я не вмешиваюсь в то, что происходит на трибунах. Моё внимание — на поле."
+            }
+          }
+        }
+      },
+      "ahead": {
+        "question": "На чём будет Ваш главный акцент перед следующим матчем?",
+        "responses": {
+          "focused": {
+            "tone": "Собранно",
+            "text": "Сначала восстановление, потом подготовка. Идём от матча к матчу."
+          },
+          "ambitious": {
+            "tone": "Амбициозно",
+            "text": "Мы хотим развивать этот импульс дальше. Цель у нас ясна."
+          },
+          "curt": {
+            "tone": "Коротко",
+            "text": "Следующий вопрос, пожалуйста. Об этом подумаем, когда придёт время."
+          }
+        }
+      }
+    },
+    "pen": "ПЕН",
+    "home": "Дома",
+    "away": "В гостях",
+    "matchDay": "День матча",
+    "preMatchPrep": "Подготовка к матчу",
+    "startingLineup": "Стартовый состав",
+    "setPiecesCaptain": "Стандарты и капитан",
+    "formationFit": "Соответствие схеме",
+    "selecting": "Подбираем...",
+    "autoSelectXI": "Автоподбор лучшего состава",
+    "startingXI": "Стартовый состав",
+    "cancel": "Отмена",
+    "nPlayers": "{{count}} игроков",
+    "swapPrompt": "Выберите запасного игрока для замены",
+    "substitutes": "Запасные",
+    "nAvailable": "Доступно {{count}}",
+    "noBenchAvailable2": "На скамейке нет доступных игроков.",
+    "opponent": "Соперник",
+    "autoSelectTakers": "Автоподбор лучших исполнителей",
+    "captain": "Капитан",
+    "penaltyTaker": "Исполнитель пенальти",
+    "freeKickTaker": "Исполнитель штрафного",
+    "cornerTaker": "Исполнитель углового",
+    "startMatch": "Начать матч",
+    "notAssigned": "Не назначено",
+    "keyStats": "Ключевые показатели",
+    "continueDashboard": "Продолжить в штаб",
+    "phases": {
+      "PreKickOff": "Предматчевая",
+      "FirstHalf": "1-я половина",
+      "HalfTime": "Половина времени",
+      "SecondHalf": "2-я половина",
+      "FullTime": "На постоянной основе",
+      "ExtraTimeFirstHalf": "Восточноевропейское время, 1-й тайм",
+      "ExtraTimeHalfTime": "Восточноевропейское время, перерыв",
+      "ExtraTimeSecondHalf": "Восточноевропейское время, 2-я половина",
+      "ExtraTimeEnd": "Конец восточноевропейского времени",
+      "PenaltyShootout": "Штрафы",
+      "Finished": "Финал"
+    },
+    "eventTypes": {
+      "Goal": "Цель",
+      "PenaltyGoal": "Пенальти Гол",
+      "PenaltyMiss": "Пенальти Мисс",
+      "YellowCard": "Желтая карточка",
+      "RedCard": "Красная карточка",
+      "SecondYellow": "Второй желтый",
+      "Substitution": "Замена",
+      "Injury": "Рана",
+      "KickOff": "Подать мяч",
+      "HalfTime": "Половина времени",
+      "SecondHalfStart": "2-й тайм-старт",
+      "FullTime": "На постоянной основе",
+      "ShotSaved": "Выстрел сохранен",
+      "ShotOffTarget": "Удар по цели",
+      "ShotBlocked": "Выстрел заблокирован",
+      "Corner": "Угол",
+      "FreeKick": "Штрафной удар",
+      "Foul": "Грязный",
+      "PenaltyAwarded": "Штраф назначен"
+    }
+  },
+  "endOfSeason": {
+    "seasonComplete": "Сезон завершён",
+    "champions": "Чемпионы!",
+    "position": "Место",
+    "points": "Очки",
+    "finalStandings": "Итоговая таблица (топ-5)",
+    "leagueChampions": "Чемпионы лиги",
+    "startNextSeason": "Начать следующий сезон",
+    "processing": "Обработка...",
+    "statsArchived": "Статистика игроков будет архивирована. Будет сгенерирован новый календарь.",
+    "seasonLine": "{{league}} — Сезон {{season}}",
+    "newSeason": "Сезон {{n}}",
+    "newScheduleReleased": "Новый календарь опубликован. Удачи!",
+    "goldenBoot": "Золотая бутса",
+    "nGoals": "{{count}} голов",
+    "playerOfYear": "Игрок года",
+    "avgRating": "Средний рейтинг: {{rating}}",
+    "continueDashboard": "Продолжить в дашборд"
+  },
+  "notifications": {
+    "attentionRequired": "Требуется внимание",
+    "resolveBeforeContinuing": "Устраните эти проблемы перед продолжением",
+    "goTo": "Открыть раздел",
+    "reviewIssues": "Проверить проблемы",
+    "continueAnyway": "Продолжить несмотря на это",
+    "blockers": {
+      "injuredXi": "{{count}} травмированных игроков в стартовом составе: {{players}}",
+      "incompleteXi": "В стартовом составе всего {{count}} здоровых игроков — определите состав",
+      "squadSizeCrisis": "В команде есть только {{count}} игроков, заключивших контракт — подпишите игроков до дня матча",
+      "plannedContractExitCrisis": "При запланированном выходе из контракта останутся только {{healthyPlayers}} здоровых игроков и {{goalkeepers}} вратарей: {{players}}",
+      "urgentMessages": "{{count}} срочных непрочитанных сообщений",
+      "keyContractRisk": "Контрактный риск ключевого игрока при планировании состава: {{players}}",
+      "contractWageRisk": "{{amount}} заработной платы привязано к контрактам с риском — проверьте свой бюджет заработной платы"
+    }
+  },
+  "squadCompare": {
+    "compare": "Сравнение"
+  },
+  "be": {
+    "error": {
+      "noActiveGameSession": "Нет активной игровой сессии",
+      "noActiveSaveSession": "Нет активной сессии сохранения",
+      "saveNotFound": "Сохранение «{{saveId}}» не найдено.",
+      "saveManagerUnavailable": "Менеджер сохранений временно недоступен.",
+      "saveDeleteFailed": "Не удалось удалить файл сохранения.",
+      "settings": {
+        "loadFailed": "Не удалось загрузить настройки.",
+        "parseFailed": "Данные настроек недействительны.",
+        "saveFailed": "Не удалось сохранить настройки.",
+        "invalidCurrency": "Выбранная валюта не поддерживается."
+      },
+      "profiles": {
+        "loadFailed": "Не удалось загрузить профили менеджеров.",
+        "saveFailed": "Не удалось сохранить профиль менеджера.",
+        "pathFailed": "Не удалось определить путь к хранилищу профилей."
+      },
+      "teamNotFound": "Команда не найдена",
+      "jobOffer": {
+        "teamNotVacant": "Этот клуб больше не ищет менеджера."
+      },
+      "noTeamAssigned": "Команда не назначена",
+      "playerNotFound": "Игрок не найден",
+      "invalidSquadRole": "Неверная роль в составе",
+      "staffMemberNotFound": "Сотрудник не найден",
+      "staffMemberAlreadyEmployed": "Этот сотрудник уже работает в команде",
+      "playerNotInSquad": "Игрок не входит в ваш состав",
+      "playerNotInClub": "Игрок не принадлежит вашему клубу",
+      "invalidDateOfBirth": "Неверная дата рождения",
+      "youthAcademyOverage": "В молодежную академию могут присоединиться только игроки в возрасте до 21 года.",
+      "staffMemberNotInTeam": "Сотрудник не принадлежит к вашей команде",
+      "noActiveLiveMatch": "Нет активного живого матча",
+      "seasonNotComplete": "Сезон еще не завершен",
+      "managedTeamNotFound": "Управляемая команда не найдена",
+      "unknownFacilityType": "Неизвестный тип объекта",
+      "liveMatch": {
+        "noLeague": "Данных по этому матчу в лиге нет.",
+        "fixtureNotFound": "Выбранный матч не найден.",
+        "maxSubstitutionsReached": "Достигнуто максимальное количество замен",
+        "preMatchSwapTooLate": "Предматчевые замены разрешены только до начала матча.",
+        "cannotSubstituteSentOffPlayer": "Невозможно заменить удаленного игрока.",
+        "playerNotOnPitch": "Игрок не на поле",
+        "playerAlreadySubstitutedOff": "Игрок уже заменен",
+        "playerNotOnBench": "Игрок не на скамейке запасных",
+        "playerNotInStartingXi": "Игрок не в стартовом составе"
+      },
+      "worldReadFileFailed": "Не удалось прочитать файл мировой базы данных.",
+      "worldParseFailed": "Не удалось проанализировать файл мировой базы данных.",
+      "worldWriteFileFailed": "Не удалось экспортировать файл мировой базы данных.",
+      "worldWriteDatabaseFailed": "Не удалось сохранить импортированную базу данных мира.",
+      "worldSerializeFailed": "Не удалось экспортировать данные мировой базы данных.",
+      "gameDatabase": {
+        "openFailed": "Не удалось открыть данные сохранения.",
+        "migrationFailed": "Не удалось подготовить данные для сохранения.",
+        "schemaVersionReadFailed": "Не удалось прочитать версию схемы данных сохранения.",
+        "currentVersionReadFailed": "Не удалось проверить версию схемы данных сохранения."
+      },
+      "gamePersistence": {
+        "gameMetaMissing": "В данных сохранения отсутствуют основные метаданные игры.",
+        "invalidStartDate": "В данных сохранения указана неверная дата начала.",
+        "invalidGameDate": "В сохраненных данных указана неверная текущая дата.",
+        "managerNotFound": "Менеджер «{{managerId}}» не найден в этом сохранении.",
+        "loadFailed": "Не удалось загрузить данные сохранения.",
+        "writeFailed": "Не удалось сохранить данные игры."
+      },
+      "saveIndex": {
+        "checksumReadFailed": "Не удалось прочитать данные сохранения для проверки контрольной суммы.",
+        "loadFailed": "Не удалось загрузить индекс сохранения.",
+        "writeFailed": "Не удалось обновить индекс сохранения."
+      },
+      "finance": {
+        "boardSupportUnavailable": "Чрезвычайная поддержка совета директоров доступна только тогда, когда денежные резервы находятся под давлением.",
+        "boardSupportAlreadyUsed": "Правление уже одобрило экстренную поддержку в этом сезоне.",
+        "sponsorPitchUnavailable": "Спонсорские площадки доступны только в том случае, если клуб испытывает трудности с заработной платой или денежными средствами.",
+        "sponsorPitchPendingOffer": "Уже есть предложение спонсора, ожидающее вашего решения.",
+        "sponsorPitchAlreadyAttemptedToday": "Коммерческая команда сегодня уже представила спонсоров.",
+        "sponsorPitchActiveSponsor": "Активное спонсорское соглашение уже заключено.",
+        "marketingCampaignUnavailable": "Маркетинговые кампании доступны только тогда, когда клуб испытывает трудности с заработной платой или денежными средствами.",
+        "marketingCampaignCoolingDown": "Коммерческому отделу нужно время, прежде чем запускать новую маркетинговую кампанию.",
+        "facilityUpgradeInsufficientFunds": "Недостаточно средств для модернизации этого объекта. Нужна {{amount}}.",
+        "facilityUpgradeOverBudget": "Модернизация объектов блокируется, пока клуб превышает бюджет заработной платы.",
+        "facilityUpgradeCritical": "Модернизация объектов заблокирована, поскольку клуб испытывает серьезное финансовое давление."
+      },
+      "createManager": {
+        "nameRequired": "Необходимо указать имя и фамилию.",
+        "nameMaxLength": "Имя и фамилия не должны превышать 30 символов.",
+        "nationalityRequired": "Национальность обязательна.",
+        "invalidDobFormat": "Неверная дата рождения. Используйте формат ГГГГ-ММ-ДД.",
+        "minAge": "Менеджеру должно быть не менее 30 лет.",
+        "invalidDob": "Неверная дата рождения.",
+        "startYearMin": "Год начала должен быть 2020 или позже.",
+        "invalidStartYear": "Выбран неверный год начала.",
+        "invalidStartPhase": "Выбрана неверная начальная фаза.",
+        "historyDepthMax": "Глубина созданной истории должна составлять 24 сезона или меньше."
+      },
+      "transfers": {
+        "transferWindowClosed": "Трансферное окно закрыто",
+        "cannotBidOnOwnPlayer": "Невозможно сделать ставку на своего игрока",
+        "playerHasNoTeam": "У игрока нет команды",
+        "insufficientFunds": "Недостаточно средств",
+        "transferBudgetTooLow": "Трансферный бюджет слишком мал",
+        "playerNotOwnedByUser": "Игрок не найден или не ваш",
+        "offerNotPending": "Предложение не найдено или не находится на рассмотрении",
+        "counterOfferMustExceedCurrentOffer": "Встречное предложение должно превышать текущее предложение.",
+        "invalidYouthScoutingRegion": "Неподдерживаемый молодежный скаутский регион.",
+        "invalidYouthScoutingObjective": "Неподдерживаемая цель молодежного скаутинга.",
+        "invalidYouthScoutingTargetPosition": "Неподдерживаемая молодежь ищет целевую позицию."
+      },
+      "contracts": {
+        "playerNotOwnedByClub": "Игрок не принадлежит к вашему клубу",
+        "playerNotFreeAgent": "Игрок не является свободным агентом",
+        "unableToCalculateContractEndDate": "Невозможно рассчитать дату окончания нового контракта",
+        "playerHasNoActiveContract": "У игрока нет действующего контракта",
+        "terminationWouldLeaveMatchdaySquadShort": "Расторжение этого контракта лишит вашу команду возможности выйти на поле в одиннадцатом туре.",
+        "noAssistantManagerAssigned": "В вашей команде нет помощника менеджера",
+        "playerHasNoTeam": "У игрока нет команды",
+        "boardWagePolicy": "Продление заблокировано политикой совета директоров по заработной плате. Чтобы восстановиться, держите годовую заработную плату около {{budget}}."
+      },
+      "scouting": {
+        "scoutNotFound": "Разведчик не найден",
+        "staffMemberNotScout": "Сотрудник не разведчик",
+        "scoutNotInTeam": "Скаут не принадлежит к вашей команде",
+        "cannotScoutOwnPlayer": "Невозможно разведать своих игроков",
+        "scoutAssignmentFull": "Разведчику уже назначена другая задача разведки (назначения {{currentCount}}/{{maxSlots}}).",
+        "playerAlreadyScouted": "Этот игрок уже находится в поиске",
+        "youthSearchAlreadyActive": "Подходящий поиск по подбору молодежи уже активен",
+        "youthAssignmentNotFound": "Задание по набору молодежи не найдено",
+        "scoutAlreadyAssignedToSearch": "Этот скаут уже назначен на этот поиск."
+      }
+    },
+    "sender": {
+      "boardOfDirectors": "Совет директоров",
+      "leagueOffice": "Офис лиги",
+      "assistantManager": "Ассистент тренера",
+      "matchReporter": "Корреспондент матча",
+      "headPhysio": "Главный физиотерапевт",
+      "financialDirector": "Финансовый директор",
+      "commercialDirector": "Коммерческий директор",
+      "communityManager": "Менеджер по работе с сообществом",
+      "directorOfFootball": "Спортивный директор",
+      "intlLiaison": "Международный координатор",
+      "player": "Игрок",
+      "pressOfficer": "Пресс-атташе",
+      "scout": "Скаут",
+      "transferCommittee": "Трансферный комитет"
+    },
+    "role": {
+      "chairman": "Председатель",
+      "competitionSecretary": "Секретарь соревнований",
+      "assistantManager": "Ассистент тренера",
+      "pressOfficer": "Пресс-атташе",
+      "headPhysio": "Главный физиотерапевт",
+      "financialDirector": "Финансовый директор",
+      "commercialDirector": "Коммерческий директор",
+      "communityManager": "Менеджер по работе с сообществом",
+      "directorOfFootball": "Спортивный директор",
+      "intlLiaison": "Международный координатор",
+      "player": "Игрок",
+      "scout": "Скаут"
+    },
+    "source": {
+      "sportsGazette": "Спортивная газета",
+      "footballHerald": "Футбольный вестник",
+      "matchDayPress": "Пресса в день матча",
+      "leagueChronicle": "Хроника Лиги",
+      "leagueWire": "Лига Провод",
+      "transferIntelligence": "Передача разведданных",
+      "sportsDaily": "Спорт Ежедневно"
+    },
+    "msg": {
+      "world": {
+        "randomName": "Случайный мир",
+        "randomDescription": "Случайно сгенерированная лига с {{teamCount}} командами по всей Европе.",
+        "exportedName": "Экспортированный мир",
+        "exportedDescription": "Мир с командами {{teamCount}}, экспортированным из сохраненной игры."
+      },
+      "welcome": {
+        "subject0": "Добро пожаловать в {{team}}",
+        "subject1": "Новая эпоха в {{team}}",
+        "subject2": "{{team}} ждёт Вашего руководства",
+        "body0": "Совет директоров {{team}} рад приветствовать Вас в должности нового главного тренера.\n\nМы возлагаем большие надежды на Вашу работу и верим, что Вы сможете привести клуб к успеху. Вашей первой задачей станет оценка состава и подготовка тактического плана на предстоящий сезон.\n\nЖелаем Вам удачи.",
+        "body1": "От имени всей семьи {{team}} мы рады объявить о Вашем назначении главным тренером.\n\nБолельщики с нетерпением ждут, каким будет Ваше видение команды. Оцените состав, проверьте финансовое положение клуба и определите тактический курс.\n\nСовет директоров поддерживает Вас.",
+        "body2": "Добро пожаловать в {{team}}! Болельщики и штаб с воодушевлением смотрят в будущее под Вашим руководством.\n\nРекомендуем начать с оценки сильных и слабых сторон состава, а затем настроить предпочитаемую схему и тренировочный режим.\n\nПредстоящий сезон станет серьёзной проверкой — оправдайте наши ожидания.",
+        "actionReview": "Проверить состав",
+        "actionThank": "Поблагодарить совет"
+      },
+      "schedule": {
+        "subject": "Опубликован календарь сезона",
+        "body0": "Опубликован календарь {{league}}. Сезон стартует {{start}}.\n\nИзучите расписание матчей и убедитесь, что команда готова к предстоящим испытаниям. Подготовка в межсезонье будет иметь решающее значение.",
+        "body1": "Календарь утверждён! Сезон {{league}} начнётся {{start}}.\n\nВнимательно изучите стартовые туры — сильное начало может задать тон всей кампании. Убедитесь, что ключевые игроки готовы к матчам.",
+        "actionView": "Открыть календарь"
+      },
+      "preMatch": {
+        "subject": "Скоро матч: против {{opponent}} ({{venue}})",
+        "body0": "Ваш матч {{venue}} против {{opponent}} состоится {{matchDate}}.\n\nЭто {{matchday}}-й тур Премьер-дивизиона. Убедитесь, что стартовый состав готов, а тактика настроена.\n\nПостарайтесь извлечь максимум из игры на {{venue}}.",
+        "body1": "Напоминаем: {{matchDate}} Вам предстоит сыграть {{venue}} против {{opponent}}.\n\nЭто {{matchday}}-й тур - проверьте готовность состава и подумайте о возможных тактических корректировках.",
+        "actionTactics": "Настроить тактику",
+        "actionScout": "Изучить соперника",
+        "body0Home": "Ваш домашний матч против {{opponent}} состоится {{matchDate}}.\n\nТур {{matchday}} Премьер-дивизиона. Убедитесь, что ваш стартовый состав в хорошей форме и выбрана тактика.\n\nПреимущество дома может сыграть решающую роль в этом.",
+        "body0Away": "Ваш выездной матч против {{opponent}} состоится {{matchDate}}.\n\nТур {{matchday}} Премьер-дивизиона. Убедитесь, что ваш стартовый состав в хорошей форме и выбрана тактика.\n\nСоответствие их интенсивности вдали от дома может стать ключевым моментом в этом.",
+        "body1Home": "Напоминание: через 3 дня вы столкнетесь с {{opponent}} дома ({{matchDate}}).\n\nСегодня игровой день {{matchday}}. Проверьте физическую форму своего состава и подумайте о возможных тактических корректировках. Болельщики будут поддерживать вас дома.",
+        "body1Away": "Напоминание: через 3 дня вам грозит {{opponent}} ({{matchDate}}).\n\nСегодня игровой день {{matchday}}. Проверьте физическую форму своего состава и подумайте о возможных тактических корректировках. Будет проверена выездная форма — собирайте сильнейший состав."
+      },
+      "matchResult": {
+        "subject": {
+          "victory": "Победа: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+          "defeat": "Поражение: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+          "draw": "Ничья: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}"
+        },
+        "body": {
+          "victory0": "Матч окончен: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nОтличный результат! Команда провела сильную игру. {{matchday}}-й тур позади - продолжайте в том же духе.",
+          "victory1": "Финальный свисток: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nТри очка в копилке! Ребята проявили характер. {{matchday}}-й тур завершён.",
+          "defeat0": "Матч окончен: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nРазочаровывающий результат. Нужно собраться и исправить то, что подвело нас сегодня. {{matchday}}-й тур позади - время переломить ситуацию.",
+          "defeat1": "Итоговый счёт: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nМы рассчитывали не на такой результат. После {{matchday}}-го тура совет директоров захочет увидеть прогресс. Разберите ошибки и готовьтесь к следующему испытанию.",
+          "draw": "Матч окончен: {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.\n\nВ {{matchday}}-м туре команда взяла одно очко. В зависимости от других результатов это может оказаться важным. Команда билась до конца, но победный гол так и не пришёл."
+        },
+        "actionStandings": "Открыть таблицу"
+      },
+      "staffAdvice": {
+        "subject": "Отчёт штаба — вакансии в тренерском составе",
+        "body": "Я посмотрел ситуацию со штабом в {{team}} и хотел отметить несколько моментов:\n\n• Хороший тренер заметно повысит эффективность занятий — игроки будут прогрессировать быстрее.\n• Квалифицированный физиотерапевт помогает предотвращать травмы и ускоряет восстановление между матчами.\n• Наши скауты помогут находить трансферные цели и оценивать соперников.\n\nНастоятельно рекомендую закрыть вакансии до старта сезона. Доступных специалистов Вы найдёте в разделе штаба.\n\nКогда будет возможность, загляните туда.",
+        "actionView": "Открыть штаб"
+      },
+      "boardExpect": {
+        "subject": "{{team}} — задачи на сезон",
+        "body": "Совет директоров поставил на этот сезон следующие задачи:\n\n• Финишировать в верхней половине таблицы\n• Сохранить финансовую стабильность\n• Развивать молодые таланты из академии\n\nВыполнение этих задач укрепит Ваши позиции. Если минимальные ожидания не будут выполнены, итоги Вашей работы могут быть пересмотрены.\n\nМы верим в Ваши способности.",
+        "actionAccept": "Принять задачи"
+      },
+      "boardObjectives": {
+        "subject": "Сезон {{season}} - задачи совета директоров",
+        "body": "Совет директоров поставил на этот сезон следующие задачи:\n\n1. Финишировать в топ-{{expectedPos}}\n2. Выиграть не менее {{winTarget}} матчей\n3. Забить не менее {{goalsTarget}} голов\n4. Держать расходы на зарплаты не выше {{financeTarget}}% бюджета\n\nВыполнение этих задач повысит доверие совета директоров к вашей работе. Невыполнение ожиданий может привести к сокращению бюджетов и другим последствиям."
+      },
+      "financeCritical": {
+        "subject": "СРОЧНО: клуб в долгах",
+        "body": "Сейчас долг клуба составляет €{{amount}}. Такая ситуация недопустима в долгосрочной перспективе.\n\nСовет директоров требует немедленных мер для выхода из финансового кризиса. Рассмотрите продажу игроков, сокращение штата или поиск дополнительных источников дохода.\n\nЕсли ситуацию не исправить, это может серьёзно отразиться на Вашем положении."
+      },
+      "financeWarning": {
+        "subject": "Финансовое предупреждение - резервы на исходе",
+        "body": "Финансовые резервы клуба быстро сокращаются. При текущем уровне расходов (зарплаты €{{weeklyWages}} в неделю) нам хватит примерно на {{weeksLeft}} недель.\n\nРекомендую пересмотреть зарплатную ведомость и поискать способы увеличить доход."
+      },
+      "wageOverBudget": {
+        "subject": "Зарплатная ведомость превышает бюджет",
+        "body": "Годовой фонд зарплат (€{{annualWages}}) сейчас превышает утверждённый зарплатный бюджет (€{{wageBudget}}).\n\nКраткосрочно клуб справится, но совет директоров предпочёл бы увидеть более жёсткий контроль за расходами на зарплаты."
+      },
+      "financeBoardPressure": {
+        "subject": "Проверка Совета директоров — финансовое давление",
+        "bodyWarning": "Правление по-прежнему обеспокоено финансами клуба. На этой неделе доверие к вашему руководству упало на {{penalty}} пунктов.\n\nВам необходимо улучшить положение с заработной платой и краткосрочные перспективы денежной наличности, прежде чем терпение истощится.",
+        "bodyCritical": "Совет директоров рассмотрел ухудшение финансового положения клуба, и доверие к вашему руководству на этой неделе упало на {{penalty}} пунктов.\n\nДенежные резервы и обязательства по заработной плате сейчас находятся в критическом состоянии. Ожидаются немедленные корректирующие действия."
+      },
+      "marketingCampaign": {
+        "subject": "Отчет о маркетинговой кампании",
+        "body": "Коммерческая акция завершилась валовым объемом продаж {{grossRevenue}}. После {{campaignCost}} расходов на кампанию клуб получает {{netIncome}} новых доходов.\n\nКоммерческому отделу потребуется {{days}} дней, прежде чем запустить новую кампанию."
+      },
+      "seasonPayout": {
+        "subject": "Начислены призовые за сезон {{season}}",
+        "body": "Совет директоров подтвердил выплату призовых в размере €{{amount}} за {{position}}-е место в лиге. Сумма зачислена на баланс клуба.",
+        "ledgerDescription": "Призовой фонд сезона {{season}} за {{position}}{{suffix}} место"
+      },
+      "seasonReview": {
+        "subject": "Итоги сезона {{season}}",
+        "body": {
+          "champion": "Поздравляем! {{team}} стали чемпионами лиги! Это выдающееся достижение.\n\nСовет директоров в полном восторге от Вашей работы. Команда завершила сезон с {{points}} очками.\n\nЖдём, что в следующем сезоне Вы защитите титул.",
+          "topFour": "Хороший сезон для {{team}}. Команда финишировала на {{position}}{{suffix}} месте с {{points}} очками.\n\nСовет директоров доволен кампанией. В следующем сезоне пора бороться за титул.",
+          "midTable": "{{team}} завершил сезон на {{position}}{{suffix}} месте с {{points}} очками.\n\nЭто середина таблицы. Совет директоров ждёт прогресса в следующем сезоне. Нам нужно прибавлять в конкурентоспособности.",
+          "lowerHalf": "Сезон для {{team}} получился разочаровывающим. {{position}}{{suffix}} место и всего {{points}} очков — это ниже ожиданий.\n\nСовет директоров обеспокоен. В следующем сезоне потребуется серьёзный прогресс, иначе Ваше положение в клубе окажется под вопросом."
+        }
+      },
+      "newSeasonSchedule": {
+        "subject": "Сезон {{season}} — опубликован новый календарь",
+        "body": "Календарь сезона {{season}} опубликован! Новый чемпионат начнётся через 4 недели.\n\nИспользуйте паузу, чтобы оценить состав, внести необходимые изменения и подготовиться к предстоящим испытаниям.\n\nУдачи!"
+      },
+      "fitness": {
+        "critical": {
+          "subject": "СРОЧНО: кризис физического состояния состава",
+          "body": {
+            "intense": "У нас серьёзный кризис физического состояния состава. {{criticalCount}} игроков находятся в критическом состоянии и рискуют получить травму:\n\n{{players}}\n\nСредняя готовность состава составляет {{avgCondition}}%. При текущем интенсивном графике (6 тренировочных дней) команда перегружена. Переход на сбалансированный режим даст игрокам время на восстановление.\n\nЕсли продолжать без отдыха, травмы неизбежны.",
+            "balanced": "У нас серьёзный кризис физического состояния состава. {{criticalCount}} игроков находятся в критическом состоянии и рискуют получить травму:\n\n{{players}}\n\nСредняя готовность состава составляет {{avgCondition}}%. Даже при сбалансированном графике составу требуется внимание. Временно стоит перейти на лёгкий режим.\n\nЕсли продолжать без отдыха, травмы неизбежны.",
+            "light": "У нас серьёзный кризис физического состояния состава. {{criticalCount}} игроков находятся в критическом состоянии и рискуют получить травму:\n\n{{players}}\n\nСредняя готовность состава составляет {{avgCondition}}%. Команда уже работает по лёгкому графику - проблема может быть в слишком высокой интенсивности тренировок. Стоит снизить нагрузку.\n\nЕсли продолжать без отдыха, травмы неизбежны."
+          }
+        },
+        "warning": {
+          "subject": "Предупреждение по физическому состоянию состава",
+          "body": {
+            "intense": "Состав выглядит уставшим. Средняя готовность - {{avgCondition}}%, а у {{exhaustedCount}} игроков состояние ниже 40%.\n\nПереход на сбалансированный график даст команде больше времени на восстановление.\n\nСтоит дать ребятам немного передохнуть перед следующим матчем.",
+            "balanced": "Состав выглядит уставшим. Средняя готовность - {{avgCondition}}%, а у {{exhaustedCount}} игроков состояние ниже 40%.\n\nЛёгкий график на несколько дней поможет команде прийти в себя.\n\nСтоит дать ребятам немного передохнуть перед следующим матчем.",
+            "light": "Состав выглядит уставшим. Средняя готовность - {{avgCondition}}%, а у {{exhaustedCount}} игроков состояние ниже 40%.\n\nКоманда уже работает по лёгкому графику, так что восстановление должно пойти естественно. Просто следите за особенно уставшими игроками.\n\nСтоит дать ребятам немного передохнуть перед следующим матчем."
+          }
+        },
+        "actionAdjust": "Изменить тренировки"
+      },
+      "event": {
+        "ack": "Понятно",
+        "respond": "Ответить"
+      },
+      "action": {
+        "viewFinances": "Просмотр финансов"
+      },
+      "playerEvent": {
+        "respond": "Ответить",
+        "options": {
+          "moraleCrisis": {
+            "encourage": {
+              "label": "Поддержать игрока",
+              "description": "Проявить понимание и поддержать игрока, чтобы он продолжал работать."
+            },
+            "promiseTime": {
+              "label": "Пообещать больше игрового времени",
+              "description": "Сказать, что игрок получит свой шанс. Мораль вырастет сильнее, но ожидания тоже."
+            },
+            "workHarder": {
+              "label": "Потребовать работать усерднее",
+              "description": "Жёсткий подход - может как сработать, так и дать обратный эффект."
+            }
+          },
+          "benchComplaint": {
+            "explain": {
+              "label": "Объяснить ситуацию",
+              "description": "Спокойно объяснить конкуренцию в составе и ротацию. Надёжный прирост морали."
+            },
+            "promiseChance": {
+              "label": "Пообещать шанс в ближайшее время",
+              "description": "Игрок будет довольнее, но начнёт ждать место в старте в ближайших матчах."
+            },
+            "proveYourself": {
+              "label": "Предложить доказать всё на поле",
+              "description": "Бросить вызов и предложить заслужить место. Рискованный вариант - может вдохновить, а может разозлить."
+            }
+          },
+          "happyPlayer": {
+            "praiseBack": {
+              "label": "Ответить похвалой",
+              "description": "Сказать игроку, насколько Вы цените его вклад."
+            },
+            "stayProfessional": {
+              "label": "Сохранить профессиональный тон",
+              "description": "Отметить хорошую форму, но без лишних эмоций."
+            },
+            "higherExpectations": {
+              "label": "Поднять планку",
+              "description": "Потребовать от игрока ещё большего уровня. Может подстегнуть, а может создать давление."
+            }
+          },
+          "contractConcern": {
+            "reassure": {
+              "label": "Успокоить по поводу продления",
+              "description": "Сказать, что Вы хотите сохранить игрока. Сильный прирост морали."
+            },
+            "noncommittal": {
+              "label": "Уклониться от конкретики",
+              "description": "Оставить варианты открытыми. Игрок может начать нервничать."
+            },
+            "noRenewal": {
+              "label": "Сказать, что продления не будет",
+              "description": "Честно, но жёстко. Мораль резко упадёт."
+            }
+          }
+        },
+        "effects": {
+          "moraleCrisis": {
+            "encourage": {
+              "positive": "Игроку стало немного лучше. Мораль {{delta}}",
+              "negative": "Игрок не поверил Вашим словам. Мораль {{delta}}"
+            },
+            "promiseTime": "Игрок успокоен обещанием. Мораль {{delta}}. Теперь он будет ждать место в старте.",
+            "workHarder": {
+              "positive": "Игрок принял вызов. Мораль {{delta}}",
+              "negative": "Игрок оскорблён жёстким подходом. Мораль {{delta}}"
+            }
+          },
+          "benchComplaint": {
+            "explain": {
+              "positive": "Игрок нехотя принял объяснение. Мораль {{delta}}",
+              "negative": "Игрока это не убедило. Мораль {{delta}}"
+            },
+            "promiseChance": "Игрок воодушевлён возможностью. Мораль {{delta}}. Он ждёт выхода в старте в следующем матче.",
+            "proveYourself": {
+              "positive": "Игрок загорелся желанием доказать свою ценность. Мораль {{delta}}",
+              "negative": "Игрок почувствовал, что его отмахнули и оскорбили. Мораль {{delta}}"
+            }
+          },
+          "happyPlayer": {
+            "praiseBack": "Игрок сияет после похвалы. Мораль {{delta}}",
+            "stayProfessional": {
+              "positive": "Игрок по-деловому кивнул. Мораль {{delta}}",
+              "negative": "Игроку не хватило тепла в ответе. Мораль {{delta}}"
+            },
+            "higherExpectations": {
+              "positive": "Игрок принял вызов. Мораль {{delta}}",
+              "negative": "Игрок считает такое давление несправедливым. Мораль {{delta}}"
+            }
+          },
+          "contractConcern": {
+            "reassure": "Игрок успокоился насчёт своего будущего. Мораль {{delta}}",
+            "noncommittal": {
+              "positive": "Игрок пока нехотя принимает такой ответ. Мораль {{delta}}",
+              "negative": "Игрок нервничает и недоволен. Мораль {{delta}}"
+            },
+            "noRenewal": "Игрок раздавлен. Мораль {{delta}}. Это может повлиять на раздевалку.",
+            "noRenewalWithDressingRoom": "Игрок раздавлен. Мораль {{delta}}. Это может повлиять на раздевалку. Настроение в раздевалке падает - {{affected}} партнёров теряют мораль."
+          }
+        }
+      },
+      "sponsor": {
+        "subject": "Спонсорское предложение - {{sponsor}}",
+        "body": "Хорошие новости: {{sponsor}} заинтересован в том, чтобы стать спонсором {{team}}.\n\nОни предлагают еженедельную выплату €{{amount}} в течение следующих 12 недель в обмен на рекламное место на тренировочной базе.\n\nСделка выглядит разумной, но решение за Вами.",
+        "options": {
+          "accept": {
+            "label": "Принять сделку",
+            "description": "Получать €{{amount}} спонсорского дохода."
+          },
+          "decline": {
+            "label": "Вежливо отказаться",
+            "description": "Отклонить предложение. Финансовых последствий не будет."
+          }
+        },
+        "effects": {
+          "accepted": "Спонсорский договор подписан! Вы будете получать {{amount}} в неделю в течение 12 недель.",
+          "declined": "Спонсорство отклонено."
+        }
+      },
+      "trainingInjury": {
+        "subject": "Травма - {{player}} ({{injury}})",
+        "body0": "Плохие новости с тренировки. Сегодня на занятии {{player}} получил травму: {{injury}}.\n\nМедицинский штаб оценивает срок отсутствия примерно в {{days}} дней. Будем внимательно следить за восстановлением.",
+        "body1": "К сожалению, сегодня на тренировке {{player}} выбыл с травмой: {{injury}}.\n\nПредварительная оценка - около {{days}} дней вне игры. Будем держать Вас в курсе восстановления."
+      },
+      "mediaPositive": {
+        "subject": "Позитивная пресса - {{player}}",
+        "body": "Сегодня местные газеты выпустили очень позитивный материал о {{player}}.\n\nВ публикациях отмечают отличную форму игрока в последнее время и его отношение к делу в {{team}}. Такая пресса полезна и для уверенности игрока, и для имиджа клуба."
+      },
+      "mediaNegative": {
+        "subject": "Негативная пресса - {{player}}",
+        "body": "Сегодня в таблоидах появилась неприятная публикация о {{player}}.\n\nЖурналисты ставят под сомнение форму игрока и его отношение к делу в {{team}}. Это может ударить по морали игрока - возможно, стоит с ним поговорить."
+      },
+      "intlCallup": {
+        "subject": "Вызов в сборную - {{player}}",
+        "body": "{{player}} вызван в сборную {{nationality}} на ближайшее международное окно.\n\nЭто большая честь для игрока и хороший сигнал для клуба. После возвращения он будет в хорошем настроении, но следите за уровнем усталости."
+      },
+      "community": {
+        "subject0": "День открытых дверей для болельщиков",
+        "subject1": "Тренировка для юных футболистов",
+        "subject2": "Объявление о благотворительной акции",
+        "body0": "{{team}} сегодня провёл день открытых дверей на тренировочной базе.\n\nБолельщики смогли встретиться с игроками и посмотреть тренировку. Атмосфера была отличной, и это заметно подняло командный дух.",
+        "body1": "Несколько игроков основной команды {{team}} приняли участие в тренерском занятии для детей в местной школе.\n\nДля клуба это отличная репутационная история, а сами игроки, похоже, зарядились энергией от этой встречи.",
+        "body2": "Клуб запустил благотворительную инициативу совместно с местным фондом.\n\n{{team}} продолжает укреплять связь с сообществом, и совет директоров доволен позитивным имиджем клуба."
+      },
+      "moodReport": {
+        "subject": "Отчёт по раздевалке - настроение: {{mood}}",
+        "body": "Ваш еженедельный отчёт по раздевалке:\n\n• Общее настроение: {{mood}} (средняя мораль: {{avgMorale}})\n• Игроки в отличном настроении (80+): {{highCount}}\n• Игроки с низкой моралью (<40): {{lowCount}}\n• Всего игроков в составе: {{total}}"
+      },
+      "boardConfidence": {
+        "subject": "Заседание совета - результаты вызывают вопросы",
+        "body0": "Совет директоров созвал срочное заседание. Три поражения подряд вызвали серьёзные сомнения в направлении, в котором движется команда.\n\n\"Нам нужно быстро увидеть улучшения. Болельщики недовольны, и результаты должны измениться.\"\n\nКак Вы ответите?",
+        "body1": "После серии слабых результатов председатель пригласил Вас на непростой разговор.\n\n\"Мы дали Вам и ресурсы, и время. Результаты просто недостаточно хороши. Каков Ваш план?\"\n\nПодберите ответ внимательно.",
+        "options": {
+          "reassureBoard": {
+            "label": "Успокоить совет чётким планом",
+            "description": "Представить ясную стратегию выхода из ситуации. Это даст Вам время."
+          },
+          "acceptPressure": {
+            "label": "Взять ответственность на себя",
+            "description": "Признать слабые результаты. Совет ценит честность."
+          },
+          "blameCircumstances": {
+            "label": "Сослаться на травмы и невезение",
+            "description": "Переложить часть вины на внешние обстоятельства. Это может как сработать, так и нет."
+          }
+        },
+        "effects": {
+          "reassureBoard": "Вы успокоили совет. Сейчас они дадут тебе больше времени.",
+          "acceptPressure": "Вы признали давление. Совет ценит вашу честность.",
+          "blameCircumstances": "Правление не совсем убедили оправдания, но они подождут и увидят."
+        }
+      },
+      "fanPetition": {
+        "subject0": "Петиция болельщиков - больше атакующего футбола",
+        "subject1": "Петиция болельщиков - дайте шанс молодёжи",
+        "subject2": "Открытое письмо болельщиков - больше прозрачности",
+        "body0": "Группа болельщиков {{team}} организовала петицию с требованием более атакующего футбола.\n\n\"Мы платим хорошие деньги, чтобы смотреть зрелищный футбол. Мы хотим видеть, как команда идёт вперёд и радует нас!\"\n\nНа данный момент уже более 500 подписей. Как Вы отреагируете?",
+        "body1": "Болельщики {{team}} начали кампанию с призывом чаще доверять молодым игрокам из академии.\n\n\"Будущее нашего клуба зависит от развития собственных воспитанников. Хватит игнорировать ребят!\"\n\nТема набирает обороты в соцсетях. Каков Ваш ответ?",
+        "body2": "Опубликовано открытое письмо от объединения болельщиков {{team}} с призывом к большей прозрачности со стороны руководства.\n\n\"Мы хотим понимать, какова стратегия клуба. Куда мы идём? Каков долгосрочный план?\"\n\nМестная пресса уже подхватила тему. Как Вы будете действовать?",
+        "options": {
+          "listenFans": {
+            "label": "Вступить в диалог с болельщиками",
+            "description": "Встретиться с представителями болельщиков и выслушать их опасения. Это хорошо скажется на морали."
+          },
+          "ignoreFans": {
+            "label": "Сосредоточиться на футболе",
+            "description": "Вежливо отказаться - футбольные решения принимаются внутри команды."
+          },
+          "addressPublicly": {
+            "label": "Выступить публично",
+            "description": "Прокомментировать петицию на пресс-конференции. Прозрачный и проактивный шаг."
+          }
+        },
+        "effects": {
+          "listenFans": "Вы общались с фанатами. Боевой дух отряда немного улучшился.",
+          "ignoreFans": "Вы решили сосредоточиться на футбольных вопросах. Фанаты немного разочарованы.",
+          "addressPublicly": "Ваше публичное выступление было хорошо принято. Доверие болельщиков возросло."
+        }
+      },
+      "rivalInterest": {
+        "subject": "Трансферный слух - {{player}} связывают с {{rival}}",
+        "body0": "До нас дошла информация, что {{rival}} наводит справки по {{player}}.\n\nИх скаутов замечали на наших последних матчах, а источники утверждают, что вскоре может последовать официальное предложение.\n\nКак Вы хотите, чтобы мы отреагировали, если они выйдут на связь?",
+        "body1": "Пресса сообщает, что {{player}} входит в список целей {{rival}}.\n\nПо данным источников, внимание к игроку усилилось после последних выступлений. Формального предложения пока нет, но это может быть лишь вопросом времени.\n\nКакова Ваша позиция?",
+        "options": {
+          "notForSale": {
+            "label": "Не продаётся",
+            "description": "Дать понять, что игрок никуда не уйдёт. Это поднимет его мораль."
+          },
+          "openToOffers": {
+            "label": "Открыты к предложениям",
+            "description": "Дать сигнал о готовности к переговорам. Игрок может занервничать."
+          },
+          "noComment": {
+            "label": "Без комментариев",
+            "description": "Сохранить молчание и посмотреть, как будут развиваться события. Нейтральный вариант."
+          }
+        },
+        "effects": {
+          "notForSale": "Вы дали понять, что плеер не продается. Они чувствуют, что их ценят.",
+          "openToOffers": "Вы указали, что выслушаете предложения. Игрок растерян.",
+          "noComment": "Без комментариев. Мельница слухов продолжается..."
+        }
+      },
+      "moraleCrisis": {
+        "subject": "{{player}} - кризис морали",
+        "body0": "{{player}} попросил личную встречу. В последнее время игрок заметно подавлен и хочет поговорить о своём положении в клубе.\n\nЕго мораль сейчас на уровне {{morale}} - этим стоит заняться до того, как ситуация скажется на раздевалке.",
+        "body1": "{{player}} выглядел подавленным на тренировках и попросил поговорить с Вами о своём состоянии.\n\nМораль: {{morale}}. То, как Вы поведёте этот разговор, может как вернуть игроку уверенность, так и окончательно её подорвать."
+      },
+      "benchComplaint": {
+        "subject": "{{player}} - хочет больше игрового времени",
+        "body0": "{{player}} пришёл к Вам на разговор. Игрок недоволен нехваткой игрового времени в последних матчах и хочет понять, что нужно сделать, чтобы вернуться в команду.\n\n\"Мне кажется, я хорошо тренируюсь, но не получаю шанса показать себя на поле.\"",
+        "body1": "{{player}} постучал в дверь Вашего кабинета явно не в лучшем настроении. В последних матчах он почти не играл и хочет получить ответы.\n\n\"Я пришёл в этот клуб, чтобы играть в футбол. Если я не вхожу в Ваши планы, лучше скажите об этом прямо.\""
+      },
+      "happyPlayer": {
+        "subject": "{{player}} - в отличном настроении",
+        "body0": "{{player}} заглянул к Вам в кабинет с широкой улыбкой. Игрок очень доволен своей формой и тем, как движется команда.\n\n\"Просто хотел сказать, что сейчас я по-настоящему наслаждаюсь футболом, тренер. В раздевалке отличная атмосфера.\"",
+        "body1": "Ваш ассистент отмечает, что {{player}} в последнее время находится в прекрасном расположении духа. После тренировки игрок подошёл к Вам.\n\n\"Тренер, мне здесь нравится каждая минута. Если так пойдёт и дальше, я для Вас горы сверну.\""
+      },
+      "contractConcern": {
+        "subject": "{{player}} - контракт подходит к концу",
+        "body0": "{{player}} обратился к Вам по поводу своей контрактной ситуации. До окончания соглашения осталось всего {{days}} дней, и игрок хочет понять, каково его будущее.\n\n\"Тренер, мой контракт подходит к концу. Мне нужно знать, вхожу ли я в Ваши планы на будущее или пора смотреть по сторонам.\"",
+        "body1": "Ваш ассистент сообщил, что контракт {{player}} истекает примерно через {{months}} мес. Игрок уже расспрашивает партнёров по команде о своём будущем.\n\nСтоит поговорить с ним заранее - до того, как он начнёт нервничать или им заинтересуются другие клубы."
+      },
+      "takeoverContractReview": {
+        "subject": "Помощник менеджера - рассмотрение контракта",
+        "bodyNoneUrgent": "После вашего прибытия ваш помощник проверил контракты с командами. {{totalExpiring}} игроков должны подать заявку на продление в этом сезоне, но ни один из них не требует немедленного решения сегодня.\n\nНачните планировать, кого вы хотите оставить, чтобы ситуация оставалась под контролем.",
+        "bodyUrgent": "После вашего прибытия ваш помощник проверил контракты с командами. Игроки {{totalExpiring}} должны быть продлены в этом сезоне, а {{urgentContracts}} уже требует внимания в течение следующих шести месяцев.\n\nВам не обязательно решать все сразу, но эти дела должны быть в верхней части вашей ранней рабочей нагрузки.",
+        "bodyFinalMonth": "После вашего прибытия ваш помощник проверил контракты с командами. Игроки {{totalExpiring}} должны подать заявку на продление в этом сезоне, {{urgentContracts}} потребует внимания в течение следующих шести месяцев, а {{finalMonthContracts}} уже в последнем месяце.\n\nСначала стабилизируйте срочные дела, а затем поэтапно прорабатывайте более широкий список продлений.",
+        "actionReview": "Обзор контрактов с командами"
+      },
+      "contractExpired": {
+        "subject": "{{player}} покидает клуб свободным агентом",
+        "body": "{{player}} покинул {{team}} после истечения контракта. Теперь игрок является свободным агентом."
+      },
+      "contractTerminated": {
+        "subject": "{{player}} выпущено",
+        "body": "{{player}} выпущен {{team}}. Клуб выплатил {{severance}} оставшуюся заработную плату в качестве выходного пособия.",
+        "ledgerDescription": "Выходное пособие при расторжении контракта выплачено {{player}}"
+      },
+      "freeAgentSigned": {
+        "subject": "{{player}} Знаки для {{team}}",
+        "body": "{{player}} присоединился к {{team}} в качестве свободного агента по контракту сроком на {{years}}."
+      },
+      "delegatedRenewals": {
+        "subject": "Отчёт ассистента - продление контрактов",
+        "body": "Я прошёлся по нашему списку продлений в {{team}}. Успешно завершено: {{successes}}, ещё в работе: {{stalled}}, провалено: {{failures}}.",
+        "case": {
+          "successful": "Завершено: {{player}} согласился на {{years}}-летний контракт с зарплатой €{{wage}} в неделю.",
+          "stalled": "Пока без продвижения: {{player}} - {{detail}}",
+          "failed": "Провалено: {{player}} - {{detail}}"
+        },
+        "notes": {
+          "managerBlocked": "Вы попросили пока не возобновлять переговоры по контракту.",
+          "completed": "Эту сделку удалось закрыть без Вашего личного участия.",
+          "beyondLimits": "Сторона игрока хочет около €{{wage}} в неделю на {{years}} года(лет), что выходит за пределы лимитов делегирования.",
+          "boardWagePolicy": "Политика совета директоров по зарплатам блокирует это продление. Пока мы восстанавливаемся, держите годовой фонд зарплат около €{{budget}}.",
+          "prefersManager": "Они готовы слушать, но по-прежнему хотят около €{{wage}} в неделю на {{years}} года(лет) и предпочитают обсуждать это лично с Вами.",
+          "relationshipBlocked": "В текущей ситуации по отношениям и контракту они не готовы договариваться через меня."
+        }
+      },
+      "youthRecruitmentReport": {
+        "subject": "Отчет скаута — набор молодежи",
+        "bodyAny": "{{scout}} завершил последний поиск молодежи для {{team}}. Я нашел {{count}} потенциальных клиентов на рынке {{regionLabel}} с профилем {{objectiveLabel}}.\n\nПросмотрите прилагаемые карточки и решите, кому следует вступить в академию.",
+        "bodyTargeted": "{{scout}} завершил последний поиск молодежи для {{team}}. Я нашел {{count}} потенциальных клиентов на рынке {{regionLabel}} с профилем {{objectiveLabel}}, ориентированным на {{targetLabel}}.\n\nПросмотрите прилагаемые карточки и решите, кому следует вступить в академию."
+      },
+      "youthRecruitment": {
+        "option": {
+          "sign": {
+            "label": "Войти в академию",
+            "description": "Предложите этому перспективному игроку молодежный контракт и добавьте его в академию."
+          },
+          "shortlist": {
+            "label": "Короткий список",
+            "description": "Держите эту перспективу во внимание и вынесите ее в отдельный список сообщений."
+          },
+          "discard": {
+            "label": "Отказаться",
+            "description": "Передайте эту перспективу и удалите ее из отчета."
+          }
+        },
+        "effect": {
+          "sign": "{{player}} подписал юношеский контракт и присоединился к вашей академии.",
+          "shortlist": "{{player}} добавлен в ваш список молодежи.",
+          "discard": "{{player}} был удален из отчета о наборе молодежи."
+        }
+      },
+      "youthRecruitmentShortlist": {
+        "subject": "Молодёжный проспект в шорт-листе",
+        "body": "{{player}} перенесен в ваш молодежный список. Вы сможете просмотреть их еще раз позже, прежде чем принять окончательное решение."
+      },
+      "scoutReport": {
+        "subject": "Скаутский отчёт: {{player}}",
+        "body": "Ваш скаут {{scout}} завершил оценку {{player}}. Полный отчёт доступен в разделе скаутинга."
+      },
+      "boardWarning": {
+        "subject": "Тревога совета директоров - оценка результатов",
+        "body": "Совет директоров всё сильнее обеспокоен недавними результатами {{team}}. Если в ближайшее время не будет улучшений, Ваше положение окажется под серьёзным вопросом."
+      },
+      "boardFinalWarning": {
+        "subject": "Последнее предупреждение - нужны немедленные улучшения",
+        "body": "Это последнее предупреждение. Совет директоров {{team}} исчерпал терпение из-за текущей серии результатов. Если улучшения не последуют немедленно и в заметном объёме, мы будем вынуждены пересмотреть Ваше пребывание в должности."
+      },
+      "boardFired": {
+        "subject": "Уведомление об увольнении - {{team}}",
+        "body": "Совет директоров {{team}} принял решение освободить Вас от обязанностей главного тренера с немедленным вступлением в силу. Благодарим Вас за работу и желаем успехов в дальнейшей карьере."
+      },
+      "jobOffer": {
+        "subject": "Вакансия главного тренера — {{team}}",
+        "body": "Совет директоров {{team}} ({{city}}) ищет нового главного тренера, который поведёт клуб дальше. Место в прошлом сезоне: {{league_position}}.\n\nИзучив Ваше резюме, мы считаем, что Вы подходите на эту должность. Хотели бы Вы принять этот вызов?",
+        "accept": "Принять должность",
+        "decline": "Отклонить предложение",
+        "effects": {
+          "accepted": "Вы назначены менеджером {{team}}",
+          "declined": "Вы отклонили предложение от {{team}}.",
+          "alreadyEmployed": "Вы уже трудоустроены и не можете принять предложение от {{team}}.",
+          "unavailable": "Предложение от {{team}} больше недоступно, поскольку позиция занята.",
+          "failed": "Не удалось принять предложение от {{team}}."
+        },
+        "acceptDescription": "Возглавить {{team}} в качестве нового главного тренера",
+        "declineDescription": "Продолжить поиск других вариантов"
+      },
+      "jobOfferExpired": {
+        "subject": "Позиция заполнена — {{team}}",
+        "body": "Вакансия в {{team}} уже заполнена, поэтому это предложение больше не доступно."
+      },
+      "jobHired": {
+        "subject": "Добро пожаловать в {{team}}",
+        "body": "Совет директоров {{team}} рад приветствовать Вас в должности нового главного тренера. Мы рассчитываем на плодотворную совместную работу и большие успехи."
+      },
+      "jobRejection": {
+        "subject": "Ответ по заявке — {{team}}",
+        "body": "Спасибо за интерес к вакансии главного тренера в {{team}}. После тщательного рассмотрения мы решили продолжить переговоры с другими кандидатами. Желаем Вам успехов в дальнейшей карьере."
+      },
+      "transferComplete": {
+        "subject": "Переход оформлен: {{player}}",
+        "body": "Переход {{player}} завершён за {{fee}}.\n\nИгрок присоединился к команде и доступен для выбора."
+      },
+      "transferOffer": {
+        "subject": "Входящее предложение по {{player}}",
+        "body": "Клуб {{team}} предложил {{fee}} за {{player}}. Откройте раздел трансферов, чтобы принять предложение или отклонить его.",
+        "actionReview": "Рассмотреть предложение"
+      }
+    },
+    "news": {
+      "matchReport": {
+        "headline": {
+          "homeWin": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: хозяева берут верх",
+            "1": "{{home}} дожимает {{away}} в {{matchday}}-м туре",
+            "2": "{{home}} хладнокровно обыгрывает {{away}}"
+          },
+          "awayWin": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: гости увозят победу",
+            "1": "{{away}} сенсационно обыгрывает {{home}} в гостях",
+            "2": "{{away}} празднует выездную победу"
+          },
+          "draw": {
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: боевая ничья",
+            "1": "{{home}} и {{away}} делят очки",
+            "2": "Ничья на поле {{home}}"
+          }
+        },
+        "body0": "В матче {{matchday}}-го тура встреча завершилась со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Этот результат может повлиять на положение команд в таблице по ходу сезона.\n\nГолы: {{scorers}}",
+        "body1": "Матч {{matchday}}-го тура между {{home}} и {{away}} завершился со счётом {{homeGoals}}:{{awayGoals}}. Обе команды выложились полностью и подарили зрителям содержательную игру.\n\nГолы: {{scorers}}",
+        "body2": "{{matchday}}-й тур подарил ещё одну интересную встречу: {{home}} принимал {{away}} ({{homeGoals}}-{{awayGoals}}). Болельщики увидели напряжённый и конкурентный матч.\n\nГолы: {{scorers}}",
+        "body0.noScorers": "В матче {{matchday}}-го тура встреча завершилась со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Этот результат может повлиять на положение команд в таблице по ходу сезона.",
+        "body1.noScorers": "Матч {{matchday}}-го тура между {{home}} и {{away}} завершился со счётом {{homeGoals}}-{{awayGoals}}. Обе команды выложились полностью и подарили зрителям содержательную игру.",
+        "body2.noScorers": "{{matchday}}-й тур подарил ещё одну интересную встречу: {{home}} принимал {{away}} ({{homeGoals}}-{{awayGoals}}). Болельщики увидели напряжённый и конкурентный матч.",
+        "scorer": "{{player}} ({{minute}}', {{team}})",
+        "scorersSection": "Голы: {{scorers}}",
+        "reportFriendly": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о товарищеском матче",
+          "body": "В товарищеском матче {{home}} сыграл с {{away}} со счётом {{homeGoals}}-{{awayGoals}}. Обе команды использовали эту игру, чтобы набрать форму перед официальными матчами.{{scorersSection}}"
+        },
+        "reportPreseason": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о предсезонном матче",
+          "body": "В предсезонном матче {{home}} сыграл с {{away}} со счётом {{homeGoals}}-{{awayGoals}}. Обе команды использовали эту игру, чтобы набрать форму перед официальными матчами.{{scorersSection}}"
+        }
+      },
+      "roundup": {
+        "headline0": "Обзор тура {{matchday}}: {{totalGoals}} голов в насыщенный игровой день",
+        "headline1": "{{matchday}}-й тур Премьер-дивизиона: все результаты",
+        "headline2": "Голевой фейерверк в {{matchday}}-м туре",
+        "body": "Матчи {{matchday}}-го тура сыграны. Вот полные результаты:\n\n{{results}}\n\nВ {{matchCount}} матчах было забито {{totalGoals}} голов.{{biggestWinnerLine}}",
+        "resultLine": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+        "biggestWinnerLine": "{{biggestWinner}} зафиксировал самую крупную победу дня."
+      },
+      "standings": {
+        "headline0": "{{leader}} возглавляет таблицу после {{matchday}}-го тура",
+        "headline1": "Таблица Премьер-дивизиона: {{leader}} на вершине",
+        "headline2": "Обновление таблицы — {{matchday}}-й тур",
+        "body": "После {{matchday}}-го тура {{leader}} занимает первое место в таблице Премьер-дивизиона.\n\nТаблица:\n{{standings}}",
+        "entry": "{{rank}}. {{team}} — {{points}} баллов (GD: {{goalDifference}})"
+      },
+      "seasonPreview": {
+        "headline0": "Превью сезона: {{teamCount}} команд в борьбе за титул",
+        "headline1": "Премьер-дивизион готов к старту сезона",
+        "headline2": "Сможет ли {{favourite}} взять титул? Превью сезона",
+        "body": "Премьер-дивизион готовится к старту: {{teamCount}} команд вступают в борьбу за титул.\n\nПеред сезоном именно {{favourite}} называют главным фаворитом, но {{darkHorse}} может стать тёмной лошадкой этой кампании.\n\nВ ряде клубов сменились тренеры, поэтому сезон обещает стать одним из самых конкурентных за последнее время. Каждое очко будет на вес золота.\n\nКоманды: {{teamList}}"
+      },
+      "managerialChange": {
+        "headline": "{{team}} мешок {{manager}}",
+        "body": "{{team}} уволил {{manager}} после неудачных результатов, оставив клуб искать нового менеджера."
+      },
+      "managerialAppointment": {
+        "headline": "{{team}} назначить {{manager}}",
+        "body": "{{team}} назначил {{manager}} своим новым менеджером после быстрого заполнения вакансии в клубе."
+      },
+      "majorTransfer": {
+        "headline": "{{player}} переходит в {{toTeam}}",
+        "body": "{{toTeam}} оформил переход {{player}} из {{fromTeam}} за {{fee}}."
+      },
+      "transferRoundup": {
+        "headline": "Обзор трансферов — неделя {{weekStart}}",
+        "body": "Трансферный рынок на этой неделе был оживленным. {{transferCount}} завершенных сделок выделялись во всем подразделении.\n\n{{deals}}",
+        "dealLine": "{{player}}: {{fromTeam}} -> {{toTeam}} ({{fee}})"
+      },
+      "seasonAwards": {
+        "headline": "Награды сезона {{season}}",
+        "bodyBoth": "Сезон {{season}} завершился тем, что {{goldenBootWinner}} ({{goldenBootTeam}}) завоевал Золотую бутсу, забив {{goldenBootGoals}} голов. Игроком года стал {{potyWinner}} ({{potyTeam}}) со средним рейтингом {{potyRating}}.",
+        "bodyGoldenBootOnly": "Сезон {{season}} завершился тем, что {{goldenBootWinner}} ({{goldenBootTeam}}) стал лучшим бомбардиром с {{goldenBootGoals}} голами.",
+        "bodyPotyOnly": "Сезон {{season}} завершился тем, что {{potyWinner}} ({{potyTeam}}) был назван Игроком года со средним рейтингом {{potyRating}}."
+      },
+      "weeklyDigest": {
+        "headline": "Еженедельный обзор — неделя от {{weekStart}}",
+        "bodyNoTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а на этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов.",
+        "bodyWithTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами. На этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов."
+      },
+      "preseasonDigest": {
+        "headline": "Предсезонный дайджест — неделя {{weekStart}}",
+        "bodyNoResults": "Последний предсезонный дайджест здесь. Тренировочные сборы, решения по отбору и трансферные дела продолжаются во всем дивизионе, пока клубы готовятся к дню открытия.{{unbeatenLine}}",
+        "bodyWithResults": "Последний предсезонный дайджест здесь. На этой неделе в дивизионе было сыграно {{resultCount}} товарищеских результатов, в результате чего было забито {{totalGoals}} голов.\n\nРезультаты:\n{{results}}{{unbeatenLine}}",
+        "resultLine": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
+        "unbeatenLine": {
+          "one": "{{team}} остаются непобедимыми в предсезонке.",
+          "two": "{{first}} и {{second}} остаются непобежденными в предсезонке.",
+          "multiple": "{{teams}} остаются непобедимыми в предсезонке."
+        }
+      },
+      "storyline": {
+        "titleRace": {
+          "headline": "Чемпионская гонка обостряется — {{leader}} опережает {{challenger}} на {{gap}} очков",
+          "body": "{{leader}} остаётся впереди, но {{challenger}} отстаёт всего на {{gap}} очков, и чемпионская гонка набирает обороты."
+        },
+        "unbeatenStreak": {
+          "headline": "{{team}} продлевает серию без поражений до {{runLength}} матчей",
+          "body": "{{team}} не проигрывает уже {{runLength}} матчей подряд и набирает серьёзный ход."
+        }
+      },
+      "transferRumour": {
+        "headline0": "{{player}} Привлечение интереса нескольких клубов",
+        "headline1": "Клубы кружатся, поскольку будущее {{player}} остается неопределенным",
+        "headline2": "{{player}} связано с переходом от {{team}}",
+        "body0": "Источники, близкие к ситуации, предполагают, что {{player}} может быть в движении, и, как сообщается, несколько клубов следят за игроком {{team}}. {{team}} публично не прокомментировал ситуацию, но слухи вряд ли утихнут в ближайшее время.",
+        "body1": "Предполагается, что {{player}} привлек внимание клубов всего дивизиона. Звезда {{team}} была одной из выдающихся фигур в этом сезоне, и считается, что предложения могут материализоваться до закрытия окна.",
+        "body2": "Слухи о трансфере вокруг {{player}} становятся все громче, и игрок {{team}}, как сообщается, взвешивает свои варианты. Ходят слухи, что переговоры с агентами состоялись, но ничего не подтверждено."
+      },
+      "injuryNews": {
+        "headline0": "{{player}} Травмирующий удар для {{team}}",
+        "headline1": "{{player}} Набор для заклинаний в сторонке",
+        "headline2": "{{weeksOut}} нед. — {{team}} Потоотделение на ключевом игроке",
+        "body0Days": "{{team}} подтвердили, что {{player}} получил травму и, как ожидается, будет исключен из игры на {{daysOut}} дней. Клуб оценит ситуацию, прежде чем предоставить дальнейшую информацию.",
+        "body0Weeks": "{{team}} подтвердили, что {{player}} получил травму и, как ожидается, будет исключен из игры примерно на {{weeksOut}} недель. Клуб оценит ситуацию, прежде чем предоставить дальнейшую информацию.",
+        "body1Days": "{{player}} потерпел неудачу в тренировке: игрок {{team}} исключен на {{daysOut}} дней. Отсутствие будет серьезным ударом, поскольку сезон достигает критической стадии.",
+        "body1Weeks": "{{player}} потерпел неудачу в тренировках: игрок {{team}} исключен примерно на {{weeksOut}} недель. Отсутствие будет серьезным ударом, поскольку сезон достигает критической стадии."
+      },
+      "pressConference": {
+        "headlineManagerQuote": "{{team}} Менеджер: {{quote}}",
+        "headlinePressConf": "Пресс-конференция: «{{quote}}» — босс {{team}}",
+        "headlinePostMatch": "После матча: {{team}}, {{result}}.",
+        "bodyMultiple": "Выступая после результата {{result}}, менеджер {{team}} обратился к прессе.\n\n{{quotes}}\n\nНа конференции обсуждались результат, тактический подход и то, что ждет команду впереди.",
+        "bodySingle": "После получения результата {{result}} менеджер {{team}} произнес короткое слово.\n\n\"{{quote}}\"",
+        "bodyNone": "Менеджер {{team}} отказался говорить подробно после результата {{result}}."
+      }
+    }
+  },
+  "traits": {
+    "Speedster": {
+      "label": "Спидстер",
+      "desc": "Исключительный темп"
+    },
+    "Tank": {
+      "label": "Танк",
+      "desc": "Мощный и неутомимый"
+    },
+    "Agile": {
+      "label": "Гибкий",
+      "desc": "Быстрый и маневренный"
+    },
+    "Tireless": {
+      "label": "Неутомимый",
+      "desc": "Никогда не иссякает энергия"
+    },
+    "Playmaker": {
+      "label": "плеймейкер",
+      "desc": "Креативный прохожий с видением"
+    },
+    "Sharpshooter": {
+      "label": "Снайпер",
+      "desc": "Клинический финишер"
+    },
+    "Dribbler": {
+      "label": "Дриблер",
+      "desc": "Умелое владение мячом"
+    },
+    "BallWinner": {
+      "label": "Победитель мяча",
+      "desc": "Отыгрывает мяч безжалостно"
+    },
+    "Rock": {
+      "label": "Камень",
+      "desc": "Недвижимая оборонительная стена"
+    },
+    "Leader": {
+      "label": "Лидер",
+      "desc": "Вдохновляет товарищей по команде"
+    },
+    "CoolHead": {
+      "label": "Холодная голова",
+      "desc": "Спокойствие под давлением"
+    },
+    "Visionary": {
+      "label": "Провидец",
+      "desc": "Видит пропуски, которые другие не могут"
+    },
+    "HotHead": {
+      "label": "Горячая голова",
+      "desc": "Склонен к выходу из себя"
+    },
+    "TeamPlayer": {
+      "label": "Командный игрок",
+      "desc": "Всегда ставит команду на первое место"
+    },
+    "SafeHands": {
+      "label": "Безопасные руки",
+      "desc": "Надежный стопор выстрела"
+    },
+    "CatReflexes": {
+      "label": "Кошачьи рефлексы",
+      "desc": "Молниеносные рефлексы"
+    },
+    "AerialDominance": {
+      "label": "Воздушный Дом.",
+      "desc": "Командует коробкой в ​​воздухе"
+    },
+    "CompleteForward": {
+      "label": "Полный вперед",
+      "desc": "Опасен во всех отношениях"
+    },
+    "Engine": {
+      "label": "Двигатель",
+      "desc": "Комплексная электростанция"
+    },
+    "SetPieceSpecialist": {
+      "label": "Спецификация набора.",
+      "desc": "Смертельно от мертвых шаров"
+    },
+    "Wonderkid": {
+      "label": "Чудо-ребенок",
+      "desc": "Молодой талант с исключительным потенциалом"
+    }
+  },
+  "date": {
+    "day": "ДД",
+    "month": "Месяц",
+    "year": "ГГГГ"
+  },
+  "sacked": {
+    "title": "Вы уволены",
+    "subtitle": "Совет директоров утратил уверенность в вашей способности руководить клубом.",
+    "teamLabel": "Клуб",
+    "finalSatisfaction": "Уверенность совета",
+    "careerOverview": "Обзор карьеры",
+    "matchesManaged": "Матчи",
+    "wins": "Победы",
+    "draws": "Ничьи",
+    "losses": "Поражения",
+    "winRate": "Процент побед",
+    "bestFinish": "Лучший результат",
+    "trophies": "Трофеи",
+    "careerHistory": "История карьеры",
+    "returnToMenu": "Вернуться в главное меню",
+    "present": "Сейчас",
+    "bestLabel": "Лучший",
+    "dismissalLetter": "Совет директоров решил освободить вас от обязанностей менеджера клуба {{team}} с немедленным вступлением в силу.\n\nБлагодарим вас за работу и желаем успехов в дальнейшей карьере.\n\nС уважением,\nСовет директоров"
+  },
+  "jobs": {
+    "opportunitiesTitle": "Вакансии",
+    "applyButton": "Откликнуться",
+    "applicationSent": "Отклик отправляется...",
+    "hired": "Вы назначены главным тренером!",
+    "rejected": "Ваша заявка не увенчалась успехом.",
+    "noJobs": "Сейчас нет доступных вакансий.",
+    "leaguePosition": "В прошлом сезоне: {{position}}",
+    "refresh": "Проверить новые вакансии"
+  },
+  "awardsCeremony": {
+    "title": "Церемония награждения",
+    "subtitle": "Сезон {{season}} в {{league}}",
+    "managerOfSeason": "Менеджер сезона",
+    "goldenBoot": "Золотая бутса",
+    "playerOfYear": "Игрок года",
+    "continue": "Перейти к панели управления",
+    "back": "Вернуться к новостям",
+    "goals": "Голы",
+    "rating": "Рейтинг",
+    "winRate": "Процент побед"
+  }
+}

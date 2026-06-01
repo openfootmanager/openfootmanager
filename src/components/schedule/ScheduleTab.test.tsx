@@ -31,6 +31,9 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
       return key;
     },
+    i18n: {
+      language: "en",
+    },
   }),
 }));
 

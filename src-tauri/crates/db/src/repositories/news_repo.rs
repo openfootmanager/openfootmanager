@@ -1,12 +1,17 @@
 use domain::news::{NewsArticle, NewsCategory};
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Insert or replace a news article row.
 pub fn upsert_news(conn: &Connection, article: &NewsArticle) -> Result<(), String> {
     let team_ids_json =
-        serde_json::to_string(&article.team_ids).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&article.team_ids)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let player_ids_json =
-        serde_json::to_string(&article.player_ids).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&article.player_ids)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let match_score_json = article
         .match_score
         .as_ref()
@@ -19,7 +24,8 @@ pub fn upsert_news(conn: &Connection, article: &NewsArticle) -> Result<(), Strin
         "source_key": article.source_key,
         "i18n_params": article.i18n_params,
     });
-    let i18n_json = serde_json::to_string(&i18n).map_err(|e| format!("JSON error: {}", e))?;
+    let i18n_json =
+        serde_json::to_string(&i18n).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     conn.execute(
         "INSERT OR REPLACE INTO news
@@ -39,7 +45,7 @@ pub fn upsert_news(conn: &Connection, article: &NewsArticle) -> Result<(), Strin
             i18n_json,
         ],
     )
-    .map_err(|e| format!("Failed to upsert news: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -72,15 +78,15 @@ pub fn load_all_news(conn: &Connection) -> Result<Vec<NewsArticle>, String> {
             "SELECT id, headline, body, source, date, category, team_ids, player_ids, match_score, read, i18n
              FROM news ORDER BY date DESC",
         )
-        .map_err(|e| format!("Failed to prepare news query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], row_to_news)
-        .map_err(|e| format!("Failed to query news: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut articles = Vec::new();
     for row in rows {
-        articles.push(row.map_err(|e| format!("Failed to read news: {}", e))?);
+        articles.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(articles)
 }
@@ -130,6 +136,7 @@ mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
     use domain::news::NewsMatchScore;
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -202,5 +209,24 @@ mod tests {
         let all = load_all_news(db.conn()).unwrap();
         assert_eq!(all.len(), 1);
         assert_eq!(all[0].category, NewsCategory::TransferRoundup);
+    }
+
+    #[test]
+    fn test_upsert_news_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let article = sample_article("news-001");
+
+        let result = upsert_news(&conn, &article);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_news_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_news(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

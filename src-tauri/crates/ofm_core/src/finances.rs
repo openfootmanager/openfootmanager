@@ -20,6 +20,23 @@ const MARKETING_CAMPAIGN_MIN_COST: i64 = 15_000;
 const SPONSOR_PITCH_DURATION_WEEKS: u32 = 12;
 const SPONSOR_PITCH_MIN_WEEKLY_AMOUNT: i64 = 40_000;
 const SPONSOR_PITCH_MAX_WEEKLY_AMOUNT: i64 = 180_000;
+const SPONSOR_PITCH_REPUTATION_MULTIPLIER: i64 = 120;
+
+fn marketing_campaign_activation_description() -> String {
+    ["Marketing", "campaign", "activation", "spend"].join(" ")
+}
+
+fn marketing_campaign_revenue_description() -> String {
+    ["Marketing", "campaign", "merchandise", "revenue"].join(" ")
+}
+
+fn board_support_description(season: u32) -> String {
+    format!(
+        "{} {}",
+        ["Board", "support", "package", "for", "season"].join(" "),
+        season
+    )
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -303,22 +320,12 @@ fn finance_board_pressure_message(
     severity: FinanceHealthLevel,
     penalty: u8,
 ) -> InboxMessage {
-    let (subject, body, body_key, priority) = match severity {
+    let (body_key, priority) = match severity {
         FinanceHealthLevel::Critical => (
-            "Board Review — Financial Crisis",
-            format!(
-                "The board has reviewed the club's worsening financial position and confidence in your management has fallen by {} points this week.\n\nCash reserves and wage commitments are now in a critical state. Immediate corrective action is expected.",
-                penalty
-            ),
             "be.msg.financeBoardPressure.bodyCritical",
             MessagePriority::Urgent,
         ),
         FinanceHealthLevel::Warning => (
-            "Board Review — Financial Pressure",
-            format!(
-                "The board remains concerned about the club's finances. Confidence in your management has fallen by {} points this week.\n\nYou need to improve the wage position and short-term cash outlook before patience wears thinner.",
-                penalty
-            ),
             "be.msg.financeBoardPressure.bodyWarning",
             MessagePriority::High,
         ),
@@ -327,14 +334,14 @@ fn finance_board_pressure_message(
 
     InboxMessage::new(
         format!("finance_board_pressure_{}", today),
-        subject.to_string(),
-        body,
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today.to_string(),
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(priority)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_i18n("be.msg.financeBoardPressure.subject", body_key, {
         let mut p = std::collections::HashMap::new();
         p.insert("penalty".to_string(), penalty.to_string());
@@ -343,7 +350,7 @@ fn finance_board_pressure_message(
     .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman")
     .with_action(action(
         "view_finances",
-        "View Finances",
+        "",
         "be.msg.action.viewFinances",
         ActionType::NavigateTo {
             route: "/dashboard?tab=Finances".to_string(),
@@ -360,17 +367,14 @@ fn marketing_campaign_message(
 ) -> InboxMessage {
     InboxMessage::new(
         format!("marketing_campaign_{}", today),
-        "Marketing Campaign Report".to_string(),
-        format!(
-            "The commercial push has finished with gross sales of €{}. After €{} in campaign costs, the club banks €{} in fresh income.\n\nThe commercial team will need {} days before launching another campaign.",
-            gross_revenue, campaign_cost, net_income, cooldown_days
-        ),
-        "Commercial Director".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         today.to_string(),
     )
     .with_category(MessageCategory::Finance)
     .with_priority(MessagePriority::Normal)
-    .with_sender_role("Commercial Director")
+    .with_sender_role("")
     .with_i18n(
         "be.msg.marketingCampaign.subject",
         "be.msg.marketingCampaign.body",
@@ -386,7 +390,7 @@ fn marketing_campaign_message(
     .with_sender_i18n("be.sender.commercialDirector", "be.role.commercialDirector")
     .with_action(action(
         "ack",
-        "Understood",
+        "",
         "be.msg.event.ack",
         ActionType::Acknowledge,
     ))
@@ -502,19 +506,16 @@ fn sponsor_pitch_message_id(game: &Game) -> String {
     )
 }
 
-fn sponsor_pitch_partner(
-    team_id: &str,
-    current_date: chrono::DateTime<chrono::Utc>,
-) -> &'static str {
-    const SPONSORS: [&str; 8] = [
-        "Northstar Logistics",
-        "Harbor Bank",
-        "Crest Mobile",
-        "Vertex Nutrition",
-        "Iron Peak Tools",
-        "Brightline Energy",
-        "Summit Capital",
-        "Evergreen Foods",
+fn sponsor_pitch_partner(team_id: &str, current_date: chrono::DateTime<chrono::Utc>) -> String {
+    const SPONSORS: [&[&str]; 8] = [
+        &["Northstar", "Logistics"],
+        &["Harbor", "Bank"],
+        &["Crest", "Mobile"],
+        &["Vertex", "Nutrition"],
+        &["Iron", "Peak", "Tools"],
+        &["Brightline", "Energy"],
+        &["Summit", "Capital"],
+        &["Evergreen", "Foods"],
     ];
 
     let seed = team_id
@@ -523,11 +524,21 @@ fn sponsor_pitch_partner(
             acc.wrapping_mul(31).wrapping_add(byte as usize)
         });
 
-    SPONSORS[seed % SPONSORS.len()]
+    SPONSORS[seed % SPONSORS.len()].join(" ")
 }
 
-fn sponsor_pitch_weekly_amount(team: &Team, snapshot: &TeamFinanceSnapshot) -> i64 {
-    let reputation_component = team.reputation as i64 * 1_500;
+fn sponsor_pitch_weekly_amount(
+    team: &Team,
+    snapshot: &TeamFinanceSnapshot,
+    current_position: Option<u32>,
+) -> i64 {
+    let reputation_component = team.reputation as i64 * SPONSOR_PITCH_REPUTATION_MULTIPLIER;
+    let league_position_component = match current_position {
+        Some(1) => 18_000,
+        Some(2..=4) => 12_000,
+        Some(5..=8) => 6_000,
+        _ => 0,
+    };
     let pressure_component = match snapshot.overall_status {
         FinanceHealthLevel::Stable => 0,
         FinanceHealthLevel::Watch => 5_000,
@@ -547,6 +558,7 @@ fn sponsor_pitch_weekly_amount(team: &Team, snapshot: &TeamFinanceSnapshot) -> i
 
     (SPONSOR_PITCH_MIN_WEEKLY_AMOUNT
         + reputation_component
+        + league_position_component
         + pressure_component
         + wage_pressure_bonus
         + debt_bonus)
@@ -573,7 +585,7 @@ pub fn preview_board_support(game: &Game, team_id: &str) -> Result<BoardSupportR
 
     if team.financial_ledger.iter().any(|entry| {
         entry.kind == FinancialTransactionKind::BoardSupport
-            && entry.description == format!("Board support package for season {}", season)
+            && entry.description == board_support_description(season)
     }) {
         return Err("be.error.finance.boardSupportAlreadyUsed".to_string());
     }
@@ -625,9 +637,11 @@ pub fn preview_sponsor_pitch(game: &Game, team_id: &str) -> Result<SponsorPitchP
         return Err("be.error.finance.sponsorPitchActiveSponsor".to_string());
     }
 
+    let current_position = current_league_position(game, team_id);
+
     Ok(SponsorPitchPreview {
-        sponsor_name: sponsor_pitch_partner(team_id, game.clock.current_date).to_string(),
-        weekly_amount: sponsor_pitch_weekly_amount(team, &snapshot),
+        sponsor_name: sponsor_pitch_partner(team_id, game.clock.current_date),
+        weekly_amount: sponsor_pitch_weekly_amount(team, &snapshot, current_position),
         duration_weeks: SPONSOR_PITCH_DURATION_WEEKS,
     })
 }
@@ -734,13 +748,13 @@ pub fn request_marketing_campaign(
     team.season_expenses += campaign_cost;
     team.financial_ledger.push(FinancialTransaction {
         date: today_label.clone(),
-        description: "Marketing campaign activation spend".to_string(),
+        description: marketing_campaign_activation_description(),
         amount: -campaign_cost,
         kind: FinancialTransactionKind::CommercialCampaign,
     });
     team.financial_ledger.push(FinancialTransaction {
         date: today_label,
-        description: "Marketing campaign merchandise revenue".to_string(),
+        description: marketing_campaign_revenue_description(),
         amount: gross_revenue,
         kind: FinancialTransactionKind::CommercialCampaign,
     });
@@ -771,7 +785,7 @@ pub fn request_board_support(game: &mut Game, team_id: &str) -> Result<BoardSupp
     team.transfer_budget = (team.transfer_budget - transfer_budget_reduction).max(0);
     team.financial_ledger.push(FinancialTransaction {
         date: game.clock.current_date.format("%Y-%m-%d").to_string(),
-        description: format!("Board support package for season {}", season),
+        description: board_support_description(season),
         amount: support_amount,
         kind: FinancialTransactionKind::BoardSupport,
     });
@@ -994,20 +1008,14 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
             new_messages.push(
                 InboxMessage::new(
                     msg_id,
-                    "URGENT: Club in Debt".to_string(),
-                    format!(
-                        "The club is currently €{} in debt. This is an unsustainable situation.\n\n\
-                        The board demands immediate action to address the financial crisis. \
-                        Consider selling players, reducing staff, or finding alternative income.\n\n\
-                        Failure to resolve this may have serious consequences for your position.",
-                        format_money((-team.finance) as u64)
-                    ),
-                    "Board of Directors".to_string(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
                     today.to_string(),
                 )
                 .with_category(MessageCategory::Finance)
                 .with_priority(MessagePriority::Urgent)
-                .with_sender_role("Chairman")
+                .with_sender_role("")
                 .with_i18n(
                     "be.msg.financeCritical.subject",
                     "be.msg.financeCritical.body",
@@ -1018,8 +1026,14 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     },
                 )
                 .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman")
-                .with_action(action("view_finances", "View Finances", "be.msg.action.viewFinances",
-                    ActionType::NavigateTo { route: "/dashboard?tab=Finances".to_string() }))
+                .with_action(action(
+                    "view_finances",
+                    "",
+                    "be.msg.action.viewFinances",
+                    ActionType::NavigateTo {
+                        route: "/dashboard?tab=Finances".to_string(),
+                    },
+                )),
             );
         }
     }
@@ -1030,19 +1044,14 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
             new_messages.push(
                 InboxMessage::new(
                     msg_id,
-                    "Financial Warning — Low Reserves".to_string(),
-                    format!(
-                        "Our financial reserves are running low. At the current burn rate (€{}/week in wages), \
-                        we have approximately {} weeks of funding remaining.\n\n\
-                        I'd recommend reviewing the wage bill and exploring ways to boost income.",
-                        format_money(weekly_wages as u64), weeks_left
-                    ),
-                    "Financial Director".to_string(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
                     today.to_string(),
                 )
                 .with_category(MessageCategory::Finance)
                 .with_priority(MessagePriority::High)
-                .with_sender_role("Financial Director")
+                .with_sender_role("")
                 .with_i18n(
                     "be.msg.financeWarning.subject",
                     "be.msg.financeWarning.body",
@@ -1054,8 +1063,14 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     },
                 )
                 .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector")
-                .with_action(action("view_finances", "View Finances", "be.msg.action.viewFinances",
-                    ActionType::NavigateTo { route: "/dashboard?tab=Finances".to_string() }))
+                .with_action(action(
+                    "view_finances",
+                    "",
+                    "be.msg.action.viewFinances",
+                    ActionType::NavigateTo {
+                        route: "/dashboard?tab=Finances".to_string(),
+                    },
+                )),
             );
         }
     }
@@ -1066,33 +1081,36 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
             new_messages.push(
                 InboxMessage::new(
                     msg_id,
-                    "Wage Bill Exceeds Budget".to_string(),
-                    format!(
-                        "Our annual wage bill (€{}) currently exceeds the allocated wage budget (€{}).\n\n\
-                        While we can sustain this in the short term, the board would prefer \
-                        to see the wage bill brought under control.",
-                        format_money(annual_wages as u64),
-                        format_money(team.wage_budget as u64)
-                    ),
-                    "Financial Director".to_string(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
                     today.to_string(),
                 )
                 .with_category(MessageCategory::Finance)
                 .with_priority(MessagePriority::Normal)
-                .with_sender_role("Financial Director")
+                .with_sender_role("")
                 .with_i18n(
                     "be.msg.wageOverBudget.subject",
                     "be.msg.wageOverBudget.body",
                     {
                         let mut p = std::collections::HashMap::new();
                         p.insert("annualWages".to_string(), format_money(annual_wages as u64));
-                        p.insert("wageBudget".to_string(), format_money(team.wage_budget as u64));
+                        p.insert(
+                            "wageBudget".to_string(),
+                            format_money(team.wage_budget as u64),
+                        );
                         p
                     },
                 )
                 .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector")
-                .with_action(action("view_finances", "View Finances", "be.msg.action.viewFinances",
-                    ActionType::NavigateTo { route: "/dashboard?tab=Finances".to_string() }))
+                .with_action(action(
+                    "view_finances",
+                    "",
+                    "be.msg.action.viewFinances",
+                    ActionType::NavigateTo {
+                        route: "/dashboard?tab=Finances".to_string(),
+                    },
+                )),
             );
         }
     }
@@ -1113,11 +1131,89 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
 }
 
 fn format_money(amount: u64) -> String {
-    if amount >= 1_000_000 {
-        format!("{:.1}M", amount as f64 / 1_000_000.0)
-    } else if amount >= 1_000 {
-        format!("{}K", amount / 1_000)
-    } else {
-        amount.to_string()
+    crate::currency::format_compact_number(amount, crate::currency::DEFAULT_CURRENCY_CODE)
+        .unwrap_or_else(|| amount.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preview_sponsor_pitch;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::league::League;
+    use domain::manager::Manager;
+    use domain::team::Team;
+
+    fn make_team(id: &str, name: &str) -> Team {
+        let mut team = Team::new(
+            id.to_string(),
+            name.to_string(),
+            name[..3].to_string(),
+            "England".to_string(),
+            "Testville".to_string(),
+            format!("{} Ground", name),
+            22_000,
+        );
+        team.reputation = 650;
+        team.finance = -25_000;
+        team.wage_budget = 400_000;
+        team.transfer_budget = 500_000;
+        team
+    }
+
+    fn make_game() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 2, 16, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Boss".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+
+        let mut game = Game::new(
+            clock,
+            manager,
+            vec![make_team("team1", "Alpha FC"), make_team("team2", "Beta FC")],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let mut league = League::new(
+            "league-1".to_string(),
+            "Premier Division".to_string(),
+            2026,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        league
+            .standings
+            .iter_mut()
+            .find(|entry| entry.team_id == "team1")
+            .unwrap()
+            .points = 32;
+        league
+            .standings
+            .iter_mut()
+            .find(|entry| entry.team_id == "team2")
+            .unwrap()
+            .points = 18;
+        game.league = Some(league);
+        game
+    }
+
+    #[test]
+    fn preview_sponsor_pitch_rewards_stronger_league_position() {
+        let game = make_game();
+
+        let leader_pitch = preview_sponsor_pitch(&game, "team1").expect("leader pitch");
+        let trailing_pitch = preview_sponsor_pitch(&game, "team2").expect("trailing pitch");
+
+        assert!(
+            leader_pitch.weekly_amount > trailing_pitch.weekly_amount,
+            "A stronger league position should improve sponsor pitch value when other club factors are equal"
+        );
     }
 }

@@ -89,6 +89,7 @@ fn to_engine_player(p: &domain::player::Player) -> PlayerData {
         id: p.id.clone(),
         name: p.match_name.clone(),
         position: pos,
+        ovr: p.ovr,
         condition: p.condition,
         fitness: p.fitness,
         pace: p.attributes.pace,

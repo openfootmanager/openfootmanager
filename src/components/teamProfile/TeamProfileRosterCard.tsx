@@ -1,8 +1,8 @@
 import { countryName } from "../../lib/countries";
 import {
   calcAge,
-  calcOvr,
   formatVal,
+  getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
@@ -64,10 +64,7 @@ export default function TeamProfileRosterCard({
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {roster.map((player) => {
-                const ovr = player.ovr ?? calcOvr(
-                  player,
-                  player.natural_position || player.position,
-                );
+                const ovr = getPlayerOvr(player);
                 const age = calcAge(player.date_of_birth);
                 const contextItems = onSelectPlayer
                   ? [buildViewProfileMenuItem(t, () => onSelectPlayer(player.id))]
@@ -78,8 +75,8 @@ export default function TeamProfileRosterCard({
                     data-testid={`team-profile-roster-${player.id}`}
                     onClick={() => onSelectPlayer?.(player.id)}
                     className={`group transition-colors ${onSelectPlayer
-                        ? "hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer"
-                        : ""
+                      ? "hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer"
+                      : ""
                       }`}
                   >
                     <td className="py-3 px-5">
@@ -129,12 +126,12 @@ export default function TeamProfileRosterCard({
                     <td className="py-3 px-5">
                       <span
                         className={`font-heading font-bold text-lg tabular-nums ${isOwnTeam
-                            ? ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                            : "text-gray-400"
+                          ? ovr >= 75
+                            ? "text-primary-500"
+                            : ovr >= 55
+                              ? "text-accent-500"
+                              : "text-gray-400"
+                          : "text-gray-400"
                           }`}
                       >
                         {isOwnTeam ? ovr : "??"}

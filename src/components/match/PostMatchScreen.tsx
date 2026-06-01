@@ -91,8 +91,8 @@ export default function PostMatchScreen({
   const summaryContextLabel = isLeagueFixture
     ? roundSummary
       ? t("schedule.matchday", {
-          number: roundSummary.matchday,
-        })
+        number: roundSummary.matchday,
+      })
       : null
     : currentFixture
       ? t("match.otherMatchesToday")
@@ -161,8 +161,8 @@ export default function PostMatchScreen({
       case "Goal":
         return event.secondary_player_id
           ? `${primaryPlayer} (${t("match.assist", {
-              name: getPlayerDisplayName(event.secondary_player_id),
-            })})`
+            name: getPlayerDisplayName(event.secondary_player_id),
+          })})`
           : primaryPlayer;
       case "PenaltyGoal":
         return `${primaryPlayer} (P)`;
@@ -178,49 +178,49 @@ export default function PostMatchScreen({
   };
   const otherMatchEntries = isLeagueFixture
     ? (roundSummary?.completed_results || [])
-        .filter((result) => result.fixture_id !== currentFixture?.id)
-        .map((result) => {
-          const fixture = gameState.league?.fixtures.find(
-            (candidate) => candidate.id === result.fixture_id,
-          );
+      .filter((result) => result.fixture_id !== currentFixture?.id)
+      .map((result) => {
+        const fixture = gameState.league?.fixtures.find(
+          (candidate) => candidate.id === result.fixture_id,
+        );
 
-          if (!fixture || !fixture.result) {
-            return null;
-          }
+        if (!fixture || !fixture.result) {
+          return null;
+        }
 
-          return {
-            fixture,
-            homeTeamName: result.home_team_name,
-            awayTeamName: result.away_team_name,
-          };
-        })
-        .filter(
-          (
-            entry,
-          ): entry is {
-            fixture: FixtureData;
-            homeTeamName: string;
-            awayTeamName: string;
-          } => entry !== null,
-        )
-    : (gameState.league?.fixtures || [])
-        .filter(
-          (fixture) =>
-            fixture.id !== currentFixture?.id &&
-            fixture.status === "Completed" &&
-            fixture.result &&
-            fixture.date === currentFixture?.date &&
-            fixture.competition === currentFixture?.competition,
-        )
-        .map((fixture) => ({
+        return {
           fixture,
-          homeTeamName: getTeamNameById(fixture.home_team_id),
-          awayTeamName: getTeamNameById(fixture.away_team_id),
-        }));
+          homeTeamName: result.home_team_name,
+          awayTeamName: result.away_team_name,
+        };
+      })
+      .filter(
+        (
+          entry,
+        ): entry is {
+          fixture: FixtureData;
+          homeTeamName: string;
+          awayTeamName: string;
+        } => entry !== null,
+      )
+    : (gameState.league?.fixtures || [])
+      .filter(
+        (fixture) =>
+          fixture.id !== currentFixture?.id &&
+          fixture.status === "Completed" &&
+          fixture.result &&
+          fixture.date === currentFixture?.date &&
+          fixture.competition === currentFixture?.competition,
+      )
+      .map((fixture) => ({
+        fixture,
+        homeTeamName: getTeamNameById(fixture.home_team_id),
+        awayTeamName: getTeamNameById(fixture.away_team_id),
+      }));
   const selectedOtherFixture = selectedOtherFixtureId
     ? otherMatchEntries.find(
-        (entry) => entry.fixture.id === selectedOtherFixtureId,
-      )?.fixture || null
+      (entry) => entry.fixture.id === selectedOtherFixtureId,
+    )?.fixture || null
     : null;
   const selectedOtherFixtureReport = getFixtureReport(selectedOtherFixture);
 
@@ -293,13 +293,12 @@ export default function PostMatchScreen({
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* Result Header */}
       <header
-        className={`border-b border-gray-200 dark:border-navy-700 px-4 py-8 transition-colors duration-300 ${
-          resultType === "win"
+        className={`border-b border-gray-200 dark:border-navy-700 px-4 py-8 transition-colors duration-300 ${resultType === "win"
             ? "bg-linear-to-r from-primary-100 via-white to-primary-100 dark:from-primary-900/50 dark:via-navy-900 dark:to-primary-900/50"
             : resultType === "loss"
               ? "bg-linear-to-r from-red-100 via-white to-red-100 dark:from-red-900/30 dark:via-navy-900 dark:to-red-900/30"
               : "bg-linear-to-r from-gray-200 via-white to-gray-200 dark:from-navy-800 dark:via-navy-900 dark:to-navy-800"
-        }`}
+          }`}
       >
         <div className="max-w-5xl mx-auto text-center relative">
           <ThemeToggle className="absolute right-0 top-0" />
@@ -346,15 +345,15 @@ export default function PostMatchScreen({
               >
                 {snapshot.home_team.name.substring(0, 3).toUpperCase()}
               </div>
-                <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
-                  {snapshot.home_team.name}
-                </p>
+              <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
+                {snapshot.home_team.name}
+              </p>
             </div>
 
             <div className="flex items-center gap-5">
-                <span className="text-6xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">
-                  {snapshot.home_score}
-                </span>
+              <span className="text-6xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">
+                {snapshot.home_score}
+              </span>
               <div className="text-center">
                 <p className="text-xs font-heading uppercase tracking-widest text-accent-700 dark:text-accent-400">
                   {t("match.fullTime")}
@@ -369,9 +368,9 @@ export default function PostMatchScreen({
             </div>
 
             <div className="flex items-center gap-4">
-                <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
-                  {snapshot.away_team.name}
-                </p>
+              <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
+                {snapshot.away_team.name}
+              </p>
               <div
                 className="w-16 h-16 rounded-xl flex items-center justify-center font-heading font-bold text-lg"
                 style={{
@@ -437,19 +436,23 @@ export default function PostMatchScreen({
                 </h3>
               </div>
               <QuickStat
-                label="Possession"
+                label={t("match.possession")}
                 home={`${snapshot.home_possession_pct.toFixed(0)}%`}
                 away={`${snapshot.away_possession_pct.toFixed(0)}%`}
                 homePct={snapshot.home_possession_pct}
               />
-              <QuickStat label="Shots" home={homeShots} away={awayShots} />
               <QuickStat
-                label="Fouls"
+                label={t("match.shots")}
+                home={homeShots}
+                away={awayShots}
+              />
+              <QuickStat
+                label={t("match.fouls")}
                 home={countType(homeEvents, "Foul")}
                 away={countType(awayEvents, "Foul")}
               />
               <QuickStat
-                label="Corners"
+                label={t("match.corners")}
                 home={countType(homeEvents, "Corner")}
                 away={countType(awayEvents, "Corner")}
               />
@@ -484,7 +487,7 @@ export default function PostMatchScreen({
                           return (
                             <div
                               key={entry.fixture.id}
-                                className="rounded-lg bg-gray-100 dark:bg-navy-700/40 px-3 py-2 transition-colors duration-300"
+                              className="rounded-lg bg-gray-100 dark:bg-navy-700/40 px-3 py-2 transition-colors duration-300"
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <span className="truncate font-medium text-gray-800 dark:text-gray-200">
@@ -529,7 +532,7 @@ export default function PostMatchScreen({
                     <>
                       <div>
                         <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
-                          {t("home.leagueTable")}
+                          {t("tournaments.leagueTable")}
                         </p>
                         <div className="flex flex-col gap-1 text-xs">
                           {roundSummary.standings_delta
@@ -552,7 +555,7 @@ export default function PostMatchScreen({
 
                       <div>
                         <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
-                          {t("home.topScorers")}
+                          {t("tournaments.topScorers")}
                         </p>
                         <div className="flex flex-col gap-1 text-xs">
                           {roundSummary.top_scorer_delta.length > 0 ? (
@@ -616,11 +619,10 @@ export default function PostMatchScreen({
                           <button
                             key={opt.id}
                             onClick={() => setSelectedTalk(opt.id)}
-                            className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                              selectedTalk === opt.id
+                            className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all ${selectedTalk === opt.id
                                 ? "bg-primary-500/20 ring-2 ring-primary-500/50"
                                 : "bg-gray-100 hover:bg-gray-200 dark:bg-navy-700/50 dark:hover:bg-navy-700"
-                            }`}
+                              }`}
                           >
                             <span className="text-xl">
                               {getTalkIcon(opt.icon)}
@@ -628,11 +630,10 @@ export default function PostMatchScreen({
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <p
-                                  className={`text-sm font-heading font-bold ${
-                                    selectedTalk === opt.id
+                                  className={`text-sm font-heading font-bold ${selectedTalk === opt.id
                                       ? "text-primary-400"
                                       : "text-gray-800 dark:text-gray-200"
-                                  }`}
+                                    }`}
                                 >
                                   {opt.label}
                                 </p>
@@ -738,14 +739,14 @@ export default function PostMatchScreen({
                 (e) =>
                   e.event_type === "Goal" || e.event_type === "PenaltyGoal",
               ).length === 0 && (
-                <p className="text-xs text-gray-600 dark:text-gray-500">{t("match.noGoals")}</p>
-              )}
+                  <p className="text-xs text-gray-600 dark:text-gray-500">{t("match.noGoals")}</p>
+                )}
             </div>
 
             {/* Substitutions made */}
             {snapshot.substitutions.length > 0 && (
-                <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                  <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+              <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+                <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
                   {t("match.substitutions")}
                 </h3>
                 <div className="flex flex-col gap-2">
@@ -786,10 +787,10 @@ export default function PostMatchScreen({
                   {getTeamNameById(selectedOtherFixture.away_team_id)}
                 </p>
               </div>
-                <button
-                  onClick={() => setSelectedOtherFixtureId(null)}
-                  className="rounded-lg px-3 py-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-800 dark:hover:text-white transition-colors"
-                >
+              <button
+                onClick={() => setSelectedOtherFixtureId(null)}
+                className="rounded-lg px-3 py-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-800 dark:hover:text-white transition-colors"
+              >
                 {t("common.close")}
               </button>
             </div>
@@ -915,10 +916,10 @@ export default function PostMatchScreen({
             {isSpectator ? t("match.matchComplete") : t("match.addressPress")}
           </p>
           <div className="flex items-center gap-3">
-              <button
-                onClick={onFinish}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
-              >
+            <button
+              onClick={onFinish}
+              className="flex items-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
+            >
               {t("match.skip")}
               <ChevronRight className="w-4 h-4" />
             </button>

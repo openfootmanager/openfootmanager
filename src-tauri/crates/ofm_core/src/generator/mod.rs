@@ -171,7 +171,7 @@ pub fn generate_youth_academy_recruit_with_nationality(
     let names_def = default_names_definition();
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
     let nationality = nationality_override
-        .map(str::to_string)
+        .map(generation::canonicalize_generated_nationality)
         .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
     let youth_slots: &[usize] = match target_position.map(Position::to_group_position) {
         Some(Position::Defender) => &[8],
@@ -529,6 +529,36 @@ mod tests {
             "ENG players should be weighted: got {}/100",
             eng_count
         );
+    }
+
+    #[test]
+    fn test_pick_nationality_defaults_generated_gb_to_eng() {
+        let mut rng = rand::rng();
+        let codes = vec!["GB".to_string()];
+
+        for _ in 0..100 {
+            let nat = pick_nationality_from_def("Spain", &codes, &mut rng);
+            assert!(nat == "ES" || nat == "ENG", "unexpected nationality: {nat}");
+            assert_ne!(nat, "GB");
+        }
+    }
+
+    #[test]
+    fn test_youth_recruit_override_defaults_gb_to_eng() {
+        let team = domain::team::Team::new(
+            "team-1".to_string(),
+            "London FC".to_string(),
+            "LON".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+
+        let player = generate_youth_academy_recruit_with_nationality(&team, None, Some("GB"));
+
+        assert_eq!(player.nationality, "ENG");
+        assert_eq!(player.football_nation, "ENG");
     }
 
     #[test]

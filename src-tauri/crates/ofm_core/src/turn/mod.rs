@@ -228,7 +228,10 @@ mod tests {
 
         finish_live_match_day(&mut game);
 
-        assert_eq!(game.teams[0].finance, initial_finance - ((52_000 + 10_400) / 52));
+        assert_eq!(
+            game.teams[0].finance,
+            initial_finance - ((52_000 + 10_400) / 52)
+        );
     }
 }
 
@@ -274,6 +277,7 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
                 id: p.id.clone(),
                 name: p.match_name.clone(),
                 position: pos,
+                ovr: p.ovr,
                 condition: p.condition,
                 fitness: p.fitness,
                 pace: p.attributes.pace,
@@ -336,10 +340,6 @@ pub fn simulate_other_matches_with_capture<F>(
 ) where
     F: FnMut(StatsState),
 {
-    debug!(
-        "[turn] simulate_other_matches: date={}, skip={:?}",
-        today, skip_fixture
-    );
     let fixture_indices: Vec<usize> = game.league.as_ref().map_or(vec![], |league| {
         league
             .fixtures
@@ -368,31 +368,9 @@ where
         (f.home_team_id.clone(), f.away_team_id.clone())
     };
 
-    let home_name = game
-        .teams
-        .iter()
-        .find(|t| t.id == home_team_id)
-        .map(|t| t.name.as_str())
-        .unwrap_or("?");
-    let away_name = game
-        .teams
-        .iter()
-        .find(|t| t.id == away_team_id)
-        .map(|t| t.name.as_str())
-        .unwrap_or("?");
-    debug!(
-        "[turn] simulate_single_match: {} vs {} (fixture #{})",
-        home_name, away_name, idx
-    );
-
     let home_data = build_engine_team(game, &home_team_id);
     let away_data = build_engine_team(game, &away_team_id);
     let config = engine::MatchConfig::default();
     let report = engine::simulate(&home_data, &away_data, &config);
-
-    info!(
-        "[turn] match result: {} {} - {} {} (fixture #{})",
-        home_name, report.home_goals, report.away_goals, away_name, idx
-    );
     apply_match_report_with_capture(game, idx, &home_team_id, &away_team_id, &report, on_capture);
 }

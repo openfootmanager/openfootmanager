@@ -18,7 +18,25 @@ fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 fn result_lines(results: &[(String, u8, String, u8)]) -> Vec<String> {
     results
         .iter()
-        .map(|(home, hg, away, ag)| format!("  {} {} - {} {}", home, hg, ag, away))
+        .map(|(home, hg, away, ag)| {
+            let home_goals = hg.to_string();
+            let away_goals = ag.to_string();
+            let mut line = String::with_capacity(
+                home.len() + away.len() + home_goals.len() + away_goals.len() + 7,
+            );
+            line.push(' ');
+            line.push(' ');
+            line.push_str(home);
+            line.push(' ');
+            line.push_str(&home_goals);
+            line.push(' ');
+            line.push('-');
+            line.push(' ');
+            line.push_str(&away_goals);
+            line.push(' ');
+            line.push_str(away);
+            line
+        })
         .collect()
 }
 
@@ -61,7 +79,11 @@ fn biggest_winner_name(results: &[(String, u8, String, u8)]) -> String {
 
 fn goal_difference_text(goal_difference: i16) -> String {
     if goal_difference >= 0 {
-        format!("+{}", goal_difference)
+        let goal_difference_text = goal_difference.to_string();
+        let mut text = String::with_capacity(goal_difference_text.len() + 1);
+        text.push('+');
+        text.push_str(&goal_difference_text);
+        text
     } else {
         goal_difference.to_string()
     }
@@ -72,13 +94,35 @@ fn standings_lines(top_teams: &[(String, u32, i16)]) -> Vec<String> {
         .iter()
         .enumerate()
         .map(|(idx, (name, points, goal_difference))| {
-            format!(
-                "  {}. {} — {} pts (GD: {})",
-                idx + 1,
-                name,
-                points,
-                goal_difference_text(*goal_difference)
-            )
+            let rank = (idx + 1).to_string();
+            let points_text = points.to_string();
+            let goal_difference_text = goal_difference_text(*goal_difference);
+            let mut line = String::with_capacity(
+                rank.len() + name.len() + points_text.len() + goal_difference_text.len() + 15,
+            );
+            line.push(' ');
+            line.push(' ');
+            line.push_str(&rank);
+            line.push('.');
+            line.push(' ');
+            line.push_str(name);
+            line.push(' ');
+            line.push('—');
+            line.push(' ');
+            line.push_str(&points_text);
+            line.push(' ');
+            line.push('p');
+            line.push('t');
+            line.push('s');
+            line.push(' ');
+            line.push('(');
+            line.push('G');
+            line.push('D');
+            line.push(':');
+            line.push(' ');
+            line.push_str(&goal_difference_text);
+            line.push(')');
+            line
         })
         .collect()
 }
@@ -130,55 +174,24 @@ pub fn league_roundup_article(
     date: &str,
 ) -> NewsArticle {
     let mut rng = rand::rng();
-    let results_text = result_lines(results);
     let results_data = roundup_results_data(results);
     let biggest_winner = biggest_winner_name(results);
 
-    let mut body = format!(
-        "Matchday {} is in the books. Here are the full results:\n",
-        matchday
-    );
-    for line in &results_text {
-        body.push_str(&format!("\n{}", line));
-    }
-
     let total_goals: u8 = results.iter().map(|(_, hg, _, ag)| hg + ag).sum();
-    body.push_str(&format!(
-        "\n\n{} goals scored across {} matches. ",
-        total_goals,
-        results.len()
-    ));
-
-    if !biggest_winner.is_empty() {
-        body.push_str(&format!(
-            "{} recorded the biggest win of the day.",
-            biggest_winner
-        ));
-    }
-
-    let headlines = [
-        format!(
-            "Matchday {} Round-Up: {} Goals in Action-Packed Day",
-            matchday, total_goals
-        ),
-        format!("Premier Division Matchday {}: All the Results", matchday),
-        format!("Goals Galore in Matchday {} Action", matchday),
-    ];
 
     let source_keys = [
         "be.source.leagueWire",
         "be.source.footballHerald",
         "be.source.sportsGazette",
     ];
-    let sources = ["League Wire", "The Football Herald", "Sports Gazette"];
-    let src_idx = rng.random_range(0..sources.len());
-    let headline_idx = rng.random_range(0..headlines.len());
+    let src_idx = rng.random_range(0..source_keys.len());
+    let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
         format!("roundup_md{}", matchday),
-        headlines[headline_idx].clone(),
-        body,
-        sources[src_idx].to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::LeagueRoundup,
     )
@@ -190,7 +203,7 @@ pub fn league_roundup_article(
             ("matchday", &matchday.to_string()),
             ("totalGoals", &total_goals.to_string()),
             ("matchCount", &results.len().to_string()),
-            ("results", &results_text.join("\n")),
+            ("results", &result_lines(results).join("\n")),
             ("resultsData", &results_data),
             ("biggestWinner", &biggest_winner),
         ]),
@@ -209,38 +222,21 @@ pub fn standings_update_article(
         .first()
         .map(|(n, _, _)| n.as_str())
         .unwrap_or("Unknown");
-    let mut body = format!(
-        "After Matchday {}, {} sit at the top of the Premier Division table.\n\nStandings:",
-        matchday, leader
-    );
-
-    let standings_text = standings_lines(top_teams);
     let standings_data = standings_data(top_teams);
-
-    for line in &standings_text {
-        body.push_str(&format!("\n{}", line));
-    }
-
-    let headlines = [
-        format!("{} Lead the Way After Matchday {}", leader, matchday),
-        format!("Premier Division Table: {} on Top", leader),
-        format!("Standings Update — Matchday {}", matchday),
-    ];
 
     let source_keys = [
         "be.source.leagueWire",
         "be.source.footballHerald",
         "be.source.leagueChronicle",
     ];
-    let sources = ["League Wire", "The Football Herald", "League Chronicle"];
-    let src_idx = rng.random_range(0..sources.len());
-    let headline_idx = rng.random_range(0..headlines.len());
+    let src_idx = rng.random_range(0..source_keys.len());
+    let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
         format!("standings_md{}", matchday),
-        headlines[headline_idx].clone(),
-        body,
-        sources[src_idx].to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::StandingsUpdate,
     )
@@ -251,7 +247,7 @@ pub fn standings_update_article(
         params(&[
             ("matchday", &matchday.to_string()),
             ("leader", leader),
-            ("standings", &standings_text.join("\n")),
+            ("standings", &standings_lines(top_teams).join("\n")),
             ("standingsData", &standings_data),
         ]),
     )
@@ -279,37 +275,13 @@ pub fn season_preview_article(team_names: &[String], date: &str) -> NewsArticle 
     let mut rng = rand::rng();
 
     let (favourite, dark_horse) = preview_contenders(team_names, &mut rng);
-
-    let body = format!(
-        "The Premier Division is set to kick off with {} teams vying for the title.\n\n\
-        Pre-season predictions have {} as the early favourites, but {} could be the dark horse \
-        to watch this campaign.\n\n\
-        With new managers taking the reins at some clubs, this season promises to be one of the \
-        most competitive in recent memory. Every point will matter as the race for the title \
-        heats up.\n\n\
-        Teams: {}",
-        team_names.len(),
-        favourite,
-        dark_horse,
-        team_names.join(", ")
-    );
-
-    let headlines = [
-        format!(
-            "Season Preview: {} Teams Battle for Glory",
-            team_names.len()
-        ),
-        "Premier Division Season Set to Begin".to_string(),
-        format!("Can {} Claim the Title? Season Preview", favourite),
-    ];
-
-    let headline_idx = rng.random_range(0..headlines.len());
+    let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
         "season_preview".to_string(),
-        headlines[headline_idx].clone(),
-        body,
-        "The Football Herald".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::SeasonPreview,
     )
@@ -335,12 +307,9 @@ pub fn managerial_appointment_article(
 ) -> NewsArticle {
     NewsArticle::new(
         format!("managerial_appointment_{}_{}", team_id, date),
-        format!("{} appoint {}", team_name, manager_name),
-        format!(
-            "{} have appointed {} as their new manager after moving quickly to fill the vacancy at the club.",
-            team_name, manager_name
-        ),
-        "League Wire".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::ManagerialChange,
     )
@@ -349,18 +318,17 @@ pub fn managerial_appointment_article(
         "be.news.managerialAppointment.headline",
         "be.news.managerialAppointment.body",
         "be.source.leagueWire",
-        params(&[("team", team_name), ("manager", manager_name), ("managerId", manager_id)]),
+        params(&[
+            ("team", team_name),
+            ("manager", manager_name),
+            ("managerId", manager_id),
+        ]),
     )
 }
 
 fn format_transfer_fee(fee: u64) -> String {
-    if fee >= 1_000_000 {
-        format!("€{:.1}M", fee as f64 / 1_000_000.0)
-    } else if fee >= 1_000 {
-        format!("€{}K", fee / 1_000)
-    } else {
-        format!("€{}", fee)
-    }
+    crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
+    .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee))
 }
 
 pub fn transfer_roundup_article(
@@ -396,12 +364,6 @@ pub fn transfer_roundup_article(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let headline = format!("Transfer Roundup — Week of {}", week_start);
-    let body = format!(
-        "The transfer market stayed busy this week. {} completed deal(s) stood out across the division.\n\n{}",
-        transfers.len(),
-        deals
-    );
 
     let mut team_ids = Vec::new();
     let mut player_ids = Vec::new();
@@ -419,9 +381,9 @@ pub fn transfer_roundup_article(
 
     NewsArticle::new(
         id.to_string(),
-        headline,
-        body,
-        "Transfer Intelligence".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::TransferRoundup,
     )
@@ -451,6 +413,7 @@ pub fn season_awards_article(
 ) -> Option<NewsArticle> {
     let golden_boot = awards.golden_boot.first();
     let poty = awards.player_of_year.first();
+    let manager = awards.manager_of_season.first();
     if golden_boot.is_none() && poty.is_none() {
         return None;
     }
@@ -467,37 +430,17 @@ pub fn season_awards_article(
         i18n_params.insert("potyTeam".to_string(), p.team_name.clone());
         i18n_params.insert("potyRating".to_string(), format!("{:.1}", p.value));
     }
+    if let Some(manager) = manager {
+        i18n_params.insert("managerWinner".to_string(), manager.manager_name.clone());
+        i18n_params.insert("managerTeam".to_string(), manager.team_name.clone());
+        i18n_params.insert("managerWinRate".to_string(), format!("{:.0}", manager.win_rate));
+    }
 
-    let (body, body_key) = match (golden_boot, poty) {
-        (Some(gb), Some(p)) => (
-            format!(
-                "Season {} concluded with {} ({}) lifting the Golden Boot with {} goals. \
-                 Player of the Year went to {} ({}) with an average rating of {:.1}.",
-                season,
-                gb.player_name,
-                gb.team_name,
-                gb.value as u32,
-                p.player_name,
-                p.team_name,
-                p.value,
-            ),
-            "be.news.seasonAwards.bodyBoth",
-        ),
-        (Some(gb), None) => (
-            format!(
-                "Season {} closed with {} ({}) crowned top scorer with {} goals.",
-                season, gb.player_name, gb.team_name, gb.value as u32,
-            ),
-            "be.news.seasonAwards.bodyGoldenBootOnly",
-        ),
-        (None, Some(p)) => (
-            format!(
-                "Season {} ended with {} ({}) named Player of the Year, posting an average rating of {:.1}.",
-                season, p.player_name, p.team_name, p.value,
-            ),
-            "be.news.seasonAwards.bodyPotyOnly",
-        ),
-        (None, None) => unreachable!("guarded above"),
+    let body_key = match (golden_boot, poty) {
+        (Some(_), Some(_)) => "be.news.seasonAwards.bodyBoth",
+        (Some(_), None) => "be.news.seasonAwards.bodyGoldenBootOnly",
+        (None, Some(_)) => "be.news.seasonAwards.bodyPotyOnly",
+        (None, None) => unreachable!(),
     };
 
     let mut player_ids = Vec::new();
@@ -510,13 +453,18 @@ pub fn season_awards_article(
             team_ids.push(entry.team_id.clone());
         }
     }
+    if let Some(manager) = manager {
+        if !manager.team_id.is_empty() && !team_ids.contains(&manager.team_id) {
+            team_ids.push(manager.team_id.clone());
+        }
+    }
 
     Some(
         NewsArticle::new(
             format!("season_awards_{}", season),
-            format!("Season {} Awards", season),
-            body,
-            "The Football Herald".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
             date.to_string(),
             NewsCategory::Editorial,
         )
@@ -542,22 +490,13 @@ pub fn major_transfer_article(
     fee: u64,
     date: &str,
 ) -> NewsArticle {
-    let fee_display = if fee >= 1_000_000 {
-        format!("€{:.1}M", fee as f64 / 1_000_000.0)
-    } else if fee >= 1_000 {
-        format!("€{}K", fee / 1_000)
-    } else {
-        format!("€{}", fee)
-    };
+    let fee_display = format_transfer_fee(fee);
 
     NewsArticle::new(
         id.to_string(),
-        format!("{} Completes Move to {}", player_name, to_team_name),
-        format!(
-            "{} have completed the signing of {} from {} for {}.",
-            to_team_name, player_name, from_team_name, fee_display
-        ),
-        "League Chronicle".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::TransferRumour,
     )
@@ -585,30 +524,17 @@ pub fn weekly_digest_article(
     storyline_count: usize,
     date: &str,
 ) -> NewsArticle {
-    let headline = format!("Weekly Digest — Week of {}", week_start);
-    let (body, body_key) = if top_scorer.is_empty() {
-        (
-            format!(
-                "The latest weekly digest is here. {} lead the table, and {} storyline(s) are shaping the division this week.",
-                leader, storyline_count
-            ),
-            "be.news.weeklyDigest.bodyNoTopScorer",
-        )
+    let body_key = if top_scorer.is_empty() {
+        "be.news.weeklyDigest.bodyNoTopScorer"
     } else {
-        (
-            format!(
-                "The latest weekly digest is here. {} lead the table, while {} heads the scoring charts with {} goal(s). {} storyline(s) are shaping the division this week.",
-                leader, top_scorer, top_scorer_goals, storyline_count
-            ),
-            "be.news.weeklyDigest.bodyWithTopScorer",
-        )
+        "be.news.weeklyDigest.bodyWithTopScorer"
     };
 
     NewsArticle::new(
         id.to_string(),
-        headline,
-        body,
-        "League Chronicle".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::Editorial,
     )
@@ -633,7 +559,6 @@ pub fn preseason_digest_article(
     unbeaten_teams: &[String],
     date: &str,
 ) -> NewsArticle {
-    let results_text = result_lines(results);
     let results_data = roundup_results_data(results);
     let total_goals: u32 = results
         .iter()
@@ -642,32 +567,17 @@ pub fn preseason_digest_article(
     let unbeaten_line = preseason_unbeaten_line(unbeaten_teams);
     let unbeaten_teams_data = preseason_unbeaten_data(unbeaten_teams);
 
-    let (mut body, body_key) = if results.is_empty() {
-        (
-            "The latest preseason digest is here. Training camps, selection decisions, and transfer business continue across the division as clubs prepare for opening day.".to_string(),
-            "be.news.preseasonDigest.bodyNoResults",
-        )
+    let body_key = if results.is_empty() {
+        "be.news.preseasonDigest.bodyNoResults"
     } else {
-        (
-            format!(
-                "The latest preseason digest is here. {} friendly result(s) were played across the division this week, producing {} goal(s).\n\nResults:\n{}",
-                results.len(),
-                total_goals,
-                results_text.join("\n")
-            ),
-            "be.news.preseasonDigest.bodyWithResults",
-        )
+        "be.news.preseasonDigest.bodyWithResults"
     };
-
-    if !unbeaten_line.is_empty() {
-        body.push_str(&unbeaten_line);
-    }
 
     NewsArticle::new(
         id.to_string(),
-        format!("Preseason Digest — Week of {}", week_start),
-        body,
-        "League Chronicle".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::Editorial,
     )
@@ -679,7 +589,7 @@ pub fn preseason_digest_article(
             ("weekStart", week_start),
             ("resultCount", &results.len().to_string()),
             ("totalGoals", &total_goals.to_string()),
-            ("results", &results_text.join("\n")),
+            ("results", &result_lines(results).join("\n")),
             ("resultsData", &results_data),
             ("unbeatenLine", &unbeaten_line),
             ("unbeatenTeamsData", &unbeaten_teams_data),
@@ -698,15 +608,9 @@ pub fn title_race_storyline_article(
 ) -> NewsArticle {
     NewsArticle::new(
         id.to_string(),
-        format!(
-            "Title Race Tightens — {} Lead {} by {} Point(s)",
-            leader, challenger, gap
-        ),
-        format!(
-            "{} remain in front, but {} are only {} point(s) behind as the title race takes shape.",
-            leader, challenger, gap
-        ),
-        "League Chronicle".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::Editorial,
     )
@@ -735,12 +639,9 @@ pub fn unbeaten_streak_storyline_article(
 ) -> NewsArticle {
     NewsArticle::new(
         id.to_string(),
-        format!("{} Extend Unbeaten Run to {}", team, run_length),
-        format!(
-            "{} have gone {} match(es) without defeat and are building real momentum.",
-            team, run_length
-        ),
-        "League Chronicle".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::Editorial,
     )
@@ -757,7 +658,7 @@ pub fn unbeaten_streak_storyline_article(
 ///
 /// Unlike `major_transfer_article` (which reports a completed move), this function
 /// produces gossip-style speculation. The article is attributed to a tabloid-leaning
-/// source and uses hedged language ("according to sources", "understood to be", etc.).
+/// source and uses intentionally hedged language.
 pub fn transfer_rumour_gossip_article(
     id: &str,
     player_id: &str,
@@ -767,58 +668,21 @@ pub fn transfer_rumour_gossip_article(
     date: &str,
 ) -> NewsArticle {
     let mut rng = rand::rng();
-
-    let headlines = [
-        format!("{} Attracting Interest from Several Clubs", player_name),
-        format!("Clubs Circle as {}'s Future Remains Uncertain", player_name),
-        format!(
-            "{} Linked with Move Away from {}",
-            player_name, from_team_name
-        ),
-    ];
-    let headline_idx = rng.random_range(0..headlines.len());
-    let headline = headlines[headline_idx].clone();
-
-    let bodies = [
-        format!(
-            "Sources close to the situation suggest that {} could be on the move, with multiple \
-            clubs reportedly monitoring the {} player. {} have not commented publicly, but \
-            the speculation is unlikely to die down soon.",
-            player_name, from_team_name, from_team_name
-        ),
-        format!(
-            "{} is understood to have attracted attention from clubs across the division. \
-            The {} star has been one of the standout performers this season, and it is \
-            believed that offers could materialise before the window closes.",
-            player_name, from_team_name
-        ),
-        format!(
-            "Transfer whispers are growing louder around {}, with the {} player \
-            said to be weighing their options. Agent talks are rumoured to have taken place, \
-            though nothing has been confirmed.",
-            player_name, from_team_name
-        ),
-    ];
-    let body_idx = rng.random_range(0..bodies.len());
-    let body = bodies[body_idx].clone();
+    let headline_idx = rng.random_range(0..3);
+    let body_idx = rng.random_range(0..3);
 
     let source_keys = [
         "be.source.transferIntelligence",
         "be.source.sportsGazette",
         "be.source.footballHerald",
     ];
-    let sources = [
-        "Transfer Intelligence",
-        "Sports Gazette",
-        "The Football Herald",
-    ];
-    let src_idx = rng.random_range(0..sources.len());
+    let src_idx = rng.random_range(0..source_keys.len());
 
     NewsArticle::new(
         id.to_string(),
-        headline,
-        body,
-        sources[src_idx].to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::TransferRumour,
     )
@@ -850,53 +714,24 @@ pub fn injury_news_article(
     // headline2 (contains duration) is only picked for long injuries so the locale
     // template can use {{weeksOut}} without needing a conditional.
     let duration_suffix = if is_short { "Days" } else { "Weeks" };
-    let duration_display = if is_short {
-        format!("{} day(s)", days_out)
-    } else {
-        format!("~{} week(s)", weeks)
-    };
 
     let headline_count = if is_short { 2 } else { 3 };
     let headline_idx = rng.random_range(0..headline_count);
 
-    let headlines = [
-        format!("{} Injury Blow for {}", player_name, team_name),
-        format!("{} Set for Spell on the Sidelines", player_name),
-        format!(
-            "{} — {} Sweating on Key Player",
-            duration_display, team_name
-        ),
-    ];
-
     let body_idx = rng.random_range(0..2_usize);
-    let bodies = [
-        format!(
-            "{} have confirmed that {} has picked up an injury and is expected to be \
-            sidelined for {}. The club will assess the situation before providing \
-            a further update.",
-            team_name, player_name, duration_display
-        ),
-        format!(
-            "{} suffered a setback in training, with the {} player ruled out for \
-            {}. The absence will be a significant blow as the season reaches a \
-            critical stage.",
-            player_name, team_name, duration_display
-        ),
-    ];
 
     let source_keys = [
         "be.source.leagueWire",
         "be.source.footballHerald",
         "be.source.matchDayPress",
     ];
-    let sources = ["League Wire", "The Football Herald", "Match Day Press"];
-    let src_idx = rng.random_range(0..sources.len());
+    let src_idx = rng.random_range(0..source_keys.len());
 
     NewsArticle::new(
         id.to_string(),
-        headlines[headline_idx].clone(),
-        bodies[body_idx].clone(),
-        sources[src_idx].to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
         NewsCategory::InjuryNews,
     )
@@ -932,6 +767,7 @@ mod tests {
             clean_sheet_king: vec![],
             most_appearances: vec![],
             young_player: vec![],
+            manager_of_season: vec![],
         }
     }
 
@@ -951,34 +787,6 @@ mod tests {
         }
     }
 
-    fn assert_valid_roundup_source_pair(source: &str, source_key: &str) {
-        let valid = [
-            ("League Wire", "be.source.leagueWire"),
-            ("The Football Herald", "be.source.footballHerald"),
-            ("Sports Gazette", "be.source.sportsGazette"),
-        ];
-
-        assert!(
-            valid
-                .iter()
-                .any(|pair| pair.0 == source && pair.1 == source_key)
-        );
-    }
-
-    fn assert_valid_standings_source_pair(source: &str, source_key: &str) {
-        let valid = [
-            ("League Wire", "be.source.leagueWire"),
-            ("The Football Herald", "be.source.footballHerald"),
-            ("League Chronicle", "be.source.leagueChronicle"),
-        ];
-
-        assert!(
-            valid
-                .iter()
-                .any(|pair| pair.0 == source && pair.1 == source_key)
-        );
-    }
-
     #[test]
     fn league_roundup_article_includes_results_totals_and_biggest_winner() {
         let results = vec![
@@ -990,15 +798,9 @@ mod tests {
 
         assert_eq!(article.id, "roundup_md4");
         assert_eq!(article.category, NewsCategory::LeagueRoundup);
-        assert!(article.body.contains("Matchday 4 is in the books."));
-        assert!(article.body.contains("Alpha FC 3 - 0 Beta FC"));
-        assert!(article.body.contains("Gamma FC 1 - 1 Delta FC"));
-        assert!(article.body.contains("5 goals scored across 2 matches."));
-        assert!(
-            article
-                .body
-                .contains("Alpha FC recorded the biggest win of the day.")
-        );
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert!(
             [
                 "be.news.roundup.headline0",
@@ -1008,7 +810,14 @@ mod tests {
             .contains(&article.headline_key.as_deref().unwrap())
         );
         assert_eq!(article.body_key.as_deref(), Some("be.news.roundup.body"));
-        assert_valid_roundup_source_pair(&article.source, article.source_key.as_deref().unwrap());
+        assert!(
+            [
+                "be.source.leagueWire",
+                "be.source.footballHerald",
+                "be.source.sportsGazette"
+            ]
+            .contains(&article.source_key.as_deref().unwrap())
+        );
         assert_eq!(article.i18n_params.get("matchday"), Some(&"4".to_string()));
         assert_eq!(
             article.i18n_params.get("totalGoals"),
@@ -1042,7 +851,7 @@ mod tests {
 
         let article = league_roundup_article(5, &results, "2025-08-19");
 
-        assert!(!article.body.contains("recorded the biggest win of the day"));
+        assert_eq!(article.body, "");
         assert_eq!(
             article.i18n_params.get("biggestWinner"),
             Some(&String::new())
@@ -1061,14 +870,9 @@ mod tests {
 
         assert_eq!(article.id, "standings_md4");
         assert_eq!(article.category, NewsCategory::StandingsUpdate);
-        assert!(
-            article
-                .body
-                .contains("After Matchday 4, Alpha FC sit at the top")
-        );
-        assert!(article.body.contains("1. Alpha FC — 12 pts (GD: +5)"));
-        assert!(article.body.contains("2. Beta FC — 10 pts (GD: +0)"));
-        assert!(article.body.contains("3. Gamma FC — 9 pts (GD: -3)"));
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert!(
             [
                 "be.news.standings.headline0",
@@ -1078,7 +882,14 @@ mod tests {
             .contains(&article.headline_key.as_deref().unwrap())
         );
         assert_eq!(article.body_key.as_deref(), Some("be.news.standings.body"));
-        assert_valid_standings_source_pair(&article.source, article.source_key.as_deref().unwrap());
+        assert!(
+            [
+                "be.source.leagueWire",
+                "be.source.footballHerald",
+                "be.source.leagueChronicle"
+            ]
+            .contains(&article.source_key.as_deref().unwrap())
+        );
         assert_eq!(article.i18n_params.get("matchday"), Some(&"4".to_string()));
         assert_eq!(
             article.i18n_params.get("leader"),
@@ -1098,11 +909,7 @@ mod tests {
     fn standings_update_article_handles_empty_table_with_unknown_leader() {
         let article = standings_update_article(1, &[], "2025-08-01");
 
-        assert!(
-            article
-                .body
-                .contains("After Matchday 1, Unknown sit at the top")
-        );
+        assert_eq!(article.body, "");
         assert_eq!(
             article.i18n_params.get("leader"),
             Some(&"Unknown".to_string())
@@ -1126,7 +933,9 @@ mod tests {
 
         assert_eq!(article.id, "season_preview");
         assert_eq!(article.category, NewsCategory::SeasonPreview);
-        assert_eq!(article.source, "The Football Herald");
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert_eq!(
             article.source_key.as_deref(),
             Some("be.source.footballHerald")
@@ -1143,8 +952,6 @@ mod tests {
             article.body_key.as_deref(),
             Some("be.news.seasonPreview.body")
         );
-        assert!(article.body.contains("3 teams vying for the title"));
-        assert!(article.body.contains("Teams: Alpha FC, Beta FC, Gamma FC"));
         assert_eq!(article.i18n_params.get("teamCount"), Some(&"3".to_string()));
         assert_eq!(
             article.i18n_params.get("teamList"),
@@ -1164,8 +971,7 @@ mod tests {
 
         let article = season_preview_article(&teams, "2025-08-01");
 
-        assert!(article.body.contains("1 teams vying for the title"));
-        assert!(article.body.contains("Teams: Solo FC"));
+        assert_eq!(article.body, "");
         assert_eq!(article.i18n_params.get("teamCount"), Some(&"1".to_string()));
         assert_eq!(
             article.i18n_params.get("favourite"),
@@ -1207,17 +1013,24 @@ mod tests {
         assert_eq!(article.id, "season_awards_3");
         assert_eq!(article.category, NewsCategory::Editorial);
         assert_eq!(article.date, "2026-05-20");
-        assert!(
-            article.body.contains("Star Striker"),
-            "body should reference the Golden Boot winner's name"
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
+        assert_eq!(
+            article.body_key.as_deref(),
+            Some("be.news.seasonAwards.bodyGoldenBootOnly")
         );
-        assert!(
-            article.body.contains("Test FC"),
-            "body should reference the Golden Boot winner's club"
+        assert_eq!(
+            article.i18n_params.get("goldenBootWinner"),
+            Some(&"Star Striker".to_string())
         );
-        assert!(
-            article.body.contains("22"),
-            "body should reference the goal tally"
+        assert_eq!(
+            article.i18n_params.get("goldenBootTeam"),
+            Some(&"Test FC".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("goldenBootGoals"),
+            Some(&"22".to_string())
         );
         assert!(article.player_ids.contains(&"p1".to_string()));
         assert!(article.team_ids.contains(&"team1".to_string()));
@@ -1231,8 +1044,19 @@ mod tests {
         let article = season_awards_article(&awards, 2, "2026-05-20")
             .expect("expected an awards article when POTY has a winner");
 
-        assert!(article.body.contains("Magnifique"));
-        assert!(article.body.contains("Rival FC"));
+        assert_eq!(article.body, "");
+        assert_eq!(
+            article.body_key.as_deref(),
+            Some("be.news.seasonAwards.bodyPotyOnly")
+        );
+        assert_eq!(
+            article.i18n_params.get("potyWinner"),
+            Some(&"Magnifique".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("potyTeam"),
+            Some(&"Rival FC".to_string())
+        );
         assert!(article.player_ids.contains(&"p2".to_string()));
         assert!(article.team_ids.contains(&"team2".to_string()));
     }
@@ -1245,8 +1069,19 @@ mod tests {
 
         let article = season_awards_article(&awards, 5, "2026-05-20").unwrap();
 
-        assert!(article.body.contains("Striker"));
-        assert!(article.body.contains("Maestro"));
+        assert_eq!(article.body, "");
+        assert_eq!(
+            article.body_key.as_deref(),
+            Some("be.news.seasonAwards.bodyBoth")
+        );
+        assert_eq!(
+            article.i18n_params.get("goldenBootWinner"),
+            Some(&"Striker".to_string())
+        );
+        assert_eq!(
+            article.i18n_params.get("potyWinner"),
+            Some(&"Maestro".to_string())
+        );
         assert!(article.player_ids.contains(&"p1".to_string()));
         assert!(article.player_ids.contains(&"p2".to_string()));
         assert!(article.team_ids.contains(&"team1".to_string()));
@@ -1341,6 +1176,9 @@ mod tests {
         assert_eq!(article.category, NewsCategory::TransferRumour);
         assert_eq!(article.team_ids, vec!["team-1".to_string()]);
         assert_eq!(article.player_ids, vec!["player-1".to_string()]);
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert!(
             article
                 .headline_key
@@ -1355,14 +1193,14 @@ mod tests {
                 .unwrap()
                 .starts_with("be.news.transferRumour.body")
         );
-        let valid_sources = [
-            ("Transfer Intelligence", "be.source.transferIntelligence"),
-            ("Sports Gazette", "be.source.sportsGazette"),
-            ("The Football Herald", "be.source.footballHerald"),
-        ];
-        assert!(valid_sources.iter().any(
-            |(src, key)| article.source == *src && article.source_key.as_deref() == Some(*key)
-        ));
+        assert!(
+            [
+                "be.source.transferIntelligence",
+                "be.source.sportsGazette",
+                "be.source.footballHerald"
+            ]
+            .contains(&article.source_key.as_deref().unwrap())
+        );
         assert_eq!(
             article.i18n_params.get("player").map(|s| s.as_str()),
             Some("Adam Smith")
@@ -1403,17 +1241,9 @@ mod tests {
         );
 
         assert_eq!(article.category, NewsCategory::TransferRoundup);
-        assert!(article.headline.contains("Transfer Roundup"));
-        assert!(
-            article
-                .body
-                .contains("Adam Smith: Alpha FC -> Beta FC (€1.8M)")
-        );
-        assert!(
-            article
-                .body
-                .contains("Bruno Costa: Gamma FC -> Delta FC (€850K)")
-        );
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert_eq!(
             article.headline_key.as_deref(),
             Some("be.news.transferRoundup.headline")
@@ -1478,6 +1308,9 @@ mod tests {
         assert_eq!(article.category, NewsCategory::InjuryNews);
         assert_eq!(article.team_ids, vec!["team-2".to_string()]);
         assert_eq!(article.player_ids, vec!["player-2".to_string()]);
+        assert_eq!(article.headline, "");
+        assert_eq!(article.body, "");
+        assert_eq!(article.source, "");
         assert!(
             article
                 .headline_key
@@ -1491,6 +1324,14 @@ mod tests {
                 .as_deref()
                 .unwrap()
                 .starts_with("be.news.injuryNews.body")
+        );
+        assert!(
+            [
+                "be.source.leagueWire",
+                "be.source.footballHerald",
+                "be.source.matchDayPress"
+            ]
+            .contains(&article.source_key.as_deref().unwrap())
         );
         assert_eq!(
             article.i18n_params.get("player").map(|s| s.as_str()),

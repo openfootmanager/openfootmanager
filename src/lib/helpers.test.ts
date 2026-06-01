@@ -12,11 +12,11 @@ import {
   formatDate,
   formatDateFull,
   formatDateShort,
-  calcOvr,
   calcAge,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,
+  getPlayerOvr,
   positionBadgeVariant,
 } from "./helpers";
 import type { TeamData, FixtureData, PlayerData } from "../store/gameStore";
@@ -75,6 +75,7 @@ const makePlayer = (overrides: Partial<PlayerData> = {}): PlayerData => ({
   morale: 80,
   injury: null,
   team_id: "team_1",
+  retired: false,
   contract_end: "2028-06-30",
   wage: 10000,
   market_value: 5000000,
@@ -103,15 +104,28 @@ const makeFixture = (overrides: Partial<FixtureData> = {}): FixtureData => ({
 });
 
 const originalSettings = useSettingsStore.getState().settings;
+const originalCurrency = useSettingsStore.getState().currency;
+const originalSupportedCurrencies = useSettingsStore.getState().supportedCurrencies;
+const SUPPORTED_CURRENCIES = {
+  EUR: { code: "EUR", symbol: "€", exchange_rate: 1 },
+  GBP: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+  USD: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+} as const;
 
 beforeEach(() => {
   useSettingsStore.setState({
     settings: { ...originalSettings, currency: "EUR", language: "en" },
+    currency: SUPPORTED_CURRENCIES.EUR,
+    supportedCurrencies: SUPPORTED_CURRENCIES,
   });
 });
 
 afterEach(() => {
-  useSettingsStore.setState({ settings: originalSettings });
+  useSettingsStore.setState({
+    settings: originalSettings,
+    currency: originalCurrency,
+    supportedCurrencies: originalSupportedCurrencies,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -165,6 +179,25 @@ describe("findNextFixture", () => {
   it("returns undefined for non-matching team", () => {
     const fixtures = [makeFixture({ home_team_id: "other", away_team_id: "other2" })];
     expect(findNextFixture(fixtures, "team_1")).toBeUndefined();
+  });
+
+  it("returns the earliest scheduled fixture by date instead of array order", () => {
+    const fixtures = [
+      makeFixture({
+        id: "f2",
+        date: "2026-07-24",
+        home_team_id: "team_2",
+        away_team_id: "team_1",
+      }),
+      makeFixture({
+        id: "f1",
+        date: "2026-07-17",
+        home_team_id: "team_3",
+        away_team_id: "team_1",
+      }),
+    ];
+
+    expect(findNextFixture(fixtures, "team_1")?.id).toBe("f1");
   });
 });
 
@@ -302,27 +335,13 @@ describe("getLocale", () => {
   });
 });
 
-describe("calcOvr", () => {
-  it("calculates positional overall from the player's natural role", () => {
-    const player = makePlayer({
-      position: "CentralMidfielder",
-      natural_position: "CentralMidfielder",
-    });
-
-    expect(calcOvr(player)).toBe(68);
+describe("getPlayerOvr", () => {
+  it("returns the backend ovr when present", () => {
+    expect(getPlayerOvr(makePlayer({ ovr: 68 }))).toBe(68);
   });
 
-  it("rounds positional overall to the nearest integer", () => {
-    const player = makePlayer({
-      position: "CentralMidfielder",
-      natural_position: "CentralMidfielder",
-      attributes: {
-        ...makePlayer().attributes,
-        passing: 73,
-      },
-    });
-
-    expect(calcOvr(player)).toBe(69);
+  it("falls back to 0 when backend ovr is missing", () => {
+    expect(getPlayerOvr(makePlayer({ ovr: undefined }))).toBe(0);
   });
 });
 
@@ -366,10 +385,11 @@ describe("formatVal", () => {
   it("uses the selected settings currency", () => {
     useSettingsStore.setState({
       settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+      currency: SUPPORTED_CURRENCIES.GBP,
     });
 
-    expect(formatVal(5000000)).toBe("£5.0M");
-    expect(formatVal(500)).toBe("£500");
+    expect(formatVal(5000000)).toBe("£4.3M");
+    expect(formatVal(500)).toBe("£430");
   });
 });
 
@@ -377,10 +397,11 @@ describe("formatExactMoney", () => {
   it("formats exact amounts using the selected settings currency", () => {
     useSettingsStore.setState({
       settings: { ...useSettingsStore.getState().settings, currency: "USD" },
+      currency: SUPPORTED_CURRENCIES.USD,
     });
 
-    expect(formatExactMoney(125000)).toBe("$125,000");
-    expect(formatExactMoney(-30000)).toBe("-$30,000");
+    expect(formatExactMoney(125000)).toBe("$135,000");
+    expect(formatExactMoney(-30000)).toBe("-$32,400");
   });
 });
 

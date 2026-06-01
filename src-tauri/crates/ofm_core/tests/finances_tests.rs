@@ -303,7 +303,12 @@ fn request_sponsor_pitch_creates_pending_offer_for_over_budget_team() {
         .expect("sponsor offer message");
     assert!(message.id.starts_with("sponsor_"));
     assert!(message.actions.iter().any(|action| !action.resolved));
-    assert!(message.subject.contains(&result.sponsor_name));
+    assert_eq!(message.subject_key.as_deref(), Some("be.msg.sponsor.subject"));
+    assert_eq!(message.body_key.as_deref(), Some("be.msg.sponsor.body"));
+    assert_eq!(message.sender_key.as_deref(), Some("be.sender.commercialDirector"));
+    assert!(message.subject.is_empty());
+    assert!(message.body.is_empty());
+    assert!(message.sender.is_empty());
 }
 
 #[test]
@@ -362,6 +367,9 @@ fn request_marketing_campaign_generates_cash_for_pressured_club() {
     assert_eq!(message.subject_key.as_deref(), Some("be.msg.marketingCampaign.subject"));
     assert_eq!(message.body_key.as_deref(), Some("be.msg.marketingCampaign.body"));
     assert_eq!(message.sender_key.as_deref(), Some("be.sender.commercialDirector"));
+    assert!(message.subject.is_empty());
+    assert!(message.body.is_empty());
+    assert!(message.sender.is_empty());
 }
 
 #[test]
@@ -647,11 +655,21 @@ fn critical_warning_when_in_debt() {
         1,
         "Should send critical warning when in debt"
     );
-    assert!(
-        critical_msgs[0].subject.contains("URGENT") || critical_msgs[0].subject.contains("Debt"),
-        "Should be urgent, got: {}",
-        critical_msgs[0].subject
+    assert_eq!(
+        critical_msgs[0].subject_key.as_deref(),
+        Some("be.msg.financeCritical.subject")
     );
+    assert_eq!(
+        critical_msgs[0].body_key.as_deref(),
+        Some("be.msg.financeCritical.body")
+    );
+    assert_eq!(
+        critical_msgs[0].sender_key.as_deref(),
+        Some("be.sender.boardOfDirectors")
+    );
+    assert!(critical_msgs[0].subject.is_empty());
+    assert!(critical_msgs[0].body.is_empty());
+    assert!(critical_msgs[0].sender.is_empty());
 }
 
 #[test]
@@ -787,6 +805,7 @@ fn home_match_generates_income() {
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
     game.league = Some(league);
 
@@ -834,6 +853,7 @@ fn away_match_no_income() {
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
+        transfer_rumours: vec![],
     };
     game.league = Some(league);
 

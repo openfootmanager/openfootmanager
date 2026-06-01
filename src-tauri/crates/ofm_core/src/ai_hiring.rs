@@ -1,9 +1,12 @@
 use crate::game::Game;
+use chrono::NaiveDate;
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
 const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
 const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
+const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
+const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
 
 fn manager_seed_staff<'a>(staff: &'a [Staff], team_id: &str) -> Option<&'a Staff> {
     staff
@@ -85,6 +88,58 @@ fn ai_manager_satisfaction(form: &[String]) -> u8 {
     }
 
     satisfaction.clamp(0, 100) as u8
+}
+
+fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
+    let Some(user_team_id) = game.manager.team_id.as_deref() else {
+        return 0;
+    };
+    let Some(league) = &game.league else {
+        return 0;
+    };
+
+    let current_date = game.clock.current_date.date_naive();
+
+    let recent_loss = league.fixtures.iter().any(|fixture| {
+        if !fixture.counts_for_league_standings() || fixture.status != domain::league::FixtureStatus::Completed {
+            return false;
+        }
+
+        let involves_user_and_team = (fixture.home_team_id == team_id && fixture.away_team_id == user_team_id)
+            || (fixture.home_team_id == user_team_id && fixture.away_team_id == team_id);
+        if !involves_user_and_team {
+            return false;
+        }
+
+        let Some(result) = fixture.result.as_ref() else {
+            return false;
+        };
+
+        let fixture_date = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok();
+        let within_lookback = fixture_date
+            .map(|date| {
+                let days_ago = (current_date - date).num_days();
+                (0..=USER_RIVALRY_LOOKBACK_DAYS).contains(&days_ago)
+            })
+            .unwrap_or(false);
+        if !within_lookback {
+            return false;
+        }
+
+        let team_lost = if fixture.home_team_id == team_id {
+            result.home_goals < result.away_goals
+        } else {
+            result.away_goals < result.home_goals
+        };
+
+        team_lost
+    });
+
+    if recent_loss {
+        USER_RIVALRY_SATISFACTION_PENALTY
+    } else {
+        0
+    }
 }
 
 fn team_has_manager_history(game: &Game, team_id: &str) -> bool {
@@ -210,19 +265,23 @@ pub fn update_ai_manager_satisfaction(game: &mut Game) {
         game.manager_id.clone()
     };
 
-    for manager in game.managers.iter_mut() {
-        if manager.id == user_manager_id {
+    for index in 0..game.managers.len() {
+        if game.managers[index].id == user_manager_id {
             continue;
         }
 
-        let Some(team_id) = manager.team_id.clone() else {
+        let Some(team_id) = game.managers[index].team_id.clone() else {
             continue;
         };
         let Some(team) = game.teams.iter().find(|team| team.id == team_id) else {
             continue;
         };
 
-        manager.satisfaction = ai_manager_satisfaction(&team.form);
+        let base_satisfaction = i32::from(ai_manager_satisfaction(&team.form));
+        let adjusted_satisfaction =
+            (base_satisfaction - recent_loss_to_user_penalty(game, &team_id)).clamp(0, 100) as u8;
+
+        game.managers[index].satisfaction = adjusted_satisfaction;
     }
 }
 
@@ -232,6 +291,7 @@ mod tests {
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
+    use domain::league::{Fixture, FixtureStatus, League, MatchResult};
     use domain::manager::Manager;
     use domain::message::{ActionType, InboxMessage, MessageAction, MessageContext};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -354,6 +414,66 @@ mod tests {
         assert!(
             rival_manager.satisfaction <= 10,
             "Four straight defeats should push an AI manager into the firing zone"
+        );
+    }
+
+    #[test]
+    fn update_ai_manager_satisfaction_penalizes_recent_loss_to_user_more_heavily() {
+        let mut baseline_game = make_game();
+        seed_ai_managers(&mut baseline_game);
+        baseline_game
+            .teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap()
+            .form = vec!["W".to_string(), "L".to_string()];
+
+        let mut rivalry_game = baseline_game.clone();
+        let league = League {
+            id: "league-1".to_string(),
+            name: "Test League".to_string(),
+            season: 1,
+            standings: vec![],
+            transfer_log: vec![],
+            transfer_rumours: vec![],
+            fixtures: vec![Fixture {
+                id: "fixture-user-rival".to_string(),
+                matchday: 1,
+                date: "2026-07-01".to_string(),
+                home_team_id: "team2".to_string(),
+                away_team_id: "team1".to_string(),
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 0,
+                    away_goals: 1,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                }),
+                ..Fixture::default()
+            }],
+        };
+        rivalry_game.league = Some(league);
+
+        update_ai_manager_satisfaction(&mut baseline_game);
+        update_ai_manager_satisfaction(&mut rivalry_game);
+
+        let baseline = baseline_game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .unwrap()
+            .satisfaction;
+        let rivalry = rivalry_game
+            .managers
+            .iter()
+            .find(|manager| manager.team_id.as_deref() == Some("team2"))
+            .unwrap()
+            .satisfaction;
+
+        assert!(
+            rivalry < baseline,
+            "A recent defeat to the user should hit AI manager satisfaction harder than the same form alone"
         );
     }
 

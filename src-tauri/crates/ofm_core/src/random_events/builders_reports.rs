@@ -2,6 +2,16 @@ use super::{action, params};
 use domain::message::*;
 use rand::RngExt;
 
+fn option(id: &str, label_key: &str, description_key: &str) -> ActionOption {
+    ActionOption {
+        id: id.to_string(),
+        label: String::new(),
+        description: String::new(),
+        label_key: Some(label_key.to_string()),
+        description_key: Some(description_key.to_string()),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Periodic / condition-triggered message builders
 // ---------------------------------------------------------------------------
@@ -24,34 +34,11 @@ pub(super) fn mood_report_message(
         "common.moods.poor"
     };
 
-    let body = format!(
-        "Here's your weekly dressing room report:\n\n\
-        • Overall mood: {} (avg morale: {:.0})\n\
-        • Players in high spirits (80+): {}\n\
-        • Players with low morale (<40): {}\n\
-        • Total squad: {}\n\n\
-        {}",
-        mood,
-        avg_morale,
-        high_count,
-        low_count,
-        total,
-        if low_count >= 3 {
-            "Several players are unhappy. You should address individual concerns before it spreads."
-        } else if avg_morale >= 75.0 {
-            "The dressing room is buzzing. Keep up the good work!"
-        } else if avg_morale < 45.0 {
-            "Morale is worryingly low. Consider positive team talks and results to turn things around."
-        } else {
-            "Morale is stable. A few good results would really lift the mood."
-        }
-    );
-
     InboxMessage::new(
         msg_id.to_string(),
-        format!("Dressing Room Report — Mood: {}", mood),
-        body,
-        "Assistant Manager".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::PlayerMorale)
@@ -60,10 +47,10 @@ pub(super) fn mood_report_message(
     } else {
         MessagePriority::Low
     })
-    .with_sender_role("Assistant Manager")
+    .with_sender_role("")
     .with_action(action(
         "ack",
-        "Thanks",
+        "",
         "be.msg.event.ack",
         ActionType::Acknowledge,
     ))
@@ -80,68 +67,39 @@ pub(super) fn mood_report_message(
 
 pub(super) fn board_confidence_message(msg_id: &str, date: &str) -> InboxMessage {
     let mut rng = rand::rng();
-    let variations = [
-        "The board has called an urgent meeting. Three consecutive defeats have raised serious concerns about the team's direction.\n\n\
-        \"We need to see improvement quickly. The fans are restless and results must change.\"\n\n\
-        How do you respond?",
-        "After a string of poor results, the chairman has summoned you for a difficult conversation.\n\n\
-        \"We backed you with resources and time. The results simply aren't good enough. What's your plan?\"\n\n\
-        Choose your response carefully.",
-    ];
-    let idx = rng.random_range(0..variations.len());
+    let idx = rng.random_range(0..2);
 
     InboxMessage::new(
         msg_id.to_string(),
-        "Board Meeting — Results Under Scrutiny".to_string(),
-        variations[idx].to_string(),
-        "Board of Directors".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::BoardDirective)
     .with_priority(MessagePriority::Urgent)
-    .with_sender_role("Chairman")
+    .with_sender_role("")
     .with_action(action(
         "respond",
-        "Respond",
+        "",
         "be.msg.event.respond",
         ActionType::ChooseOption {
             options: vec![
-                ActionOption {
-                    id: "reassure_board".to_string(),
-                    label: "Reassure them with a plan".to_string(),
-                    description:
-                        "Present a clear strategy for turning things around. Buys you time."
-                            .to_string(),
-                    label_key: Some(
-                        "be.msg.boardConfidence.options.reassureBoard.label".to_string(),
-                    ),
-                    description_key: Some(
-                        "be.msg.boardConfidence.options.reassureBoard.description".to_string(),
-                    ),
-                },
-                ActionOption {
-                    id: "accept_pressure".to_string(),
-                    label: "Accept responsibility".to_string(),
-                    description: "Own the poor results. The board respects honesty.".to_string(),
-                    label_key: Some(
-                        "be.msg.boardConfidence.options.acceptPressure.label".to_string(),
-                    ),
-                    description_key: Some(
-                        "be.msg.boardConfidence.options.acceptPressure.description".to_string(),
-                    ),
-                },
-                ActionOption {
-                    id: "blame_circumstances".to_string(),
-                    label: "Point to injuries and bad luck".to_string(),
-                    description: "Deflect blame to external factors. May or may not convince them."
-                        .to_string(),
-                    label_key: Some(
-                        "be.msg.boardConfidence.options.blameCircumstances.label".to_string(),
-                    ),
-                    description_key: Some(
-                        "be.msg.boardConfidence.options.blameCircumstances.description".to_string(),
-                    ),
-                },
+                option(
+                    "reassure_board",
+                    "be.msg.boardConfidence.options.reassureBoard.label",
+                    "be.msg.boardConfidence.options.reassureBoard.description",
+                ),
+                option(
+                    "accept_pressure",
+                    "be.msg.boardConfidence.options.acceptPressure.label",
+                    "be.msg.boardConfidence.options.acceptPressure.description",
+                ),
+                option(
+                    "blame_circumstances",
+                    "be.msg.boardConfidence.options.blameCircumstances.label",
+                    "be.msg.boardConfidence.options.blameCircumstances.description",
+                ),
             ],
         },
     ))
@@ -154,74 +112,37 @@ pub(super) fn board_confidence_message(msg_id: &str, date: &str) -> InboxMessage
 }
 
 pub(super) fn fan_petition_message(msg_id: &str, team_name: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let petitions = [
-        (
-            "Fan Petition — More Attacking Football",
-            format!(
-                "A group of {} supporters has organized a petition calling for more attacking football.\n\n\
-                \"We pay good money to watch exciting football. We want to see the team go forward and entertain us!\"\n\n\
-                Over 500 signatures so far. How do you respond?",
-                team_name
-            ),
-        ),
-        (
-            "Fan Petition — Give Youth a Chance",
-            format!(
-                "Supporters of {} have started a campaign urging you to give more opportunities to young players from the academy.\n\n\
-                \"The future of our club depends on developing homegrown talent. Stop overlooking the kids!\"\n\n\
-                It's getting traction on social media. What's your response?",
-                team_name
-            ),
-        ),
-        (
-            "Fan Open Letter — Transparency",
-            format!(
-                "An open letter from the {} Supporters Trust has been published, asking for more transparency from the management.\n\n\
-                \"We want to understand the club's vision. Where are we heading? What's the long-term plan?\"\n\n\
-                The local press is covering it. How do you handle this?",
-                team_name
-            ),
-        ),
-    ];
-    let idx = rng.random_range(0..petitions.len());
-    let (subject, body) = &petitions[idx];
+    let idx = rand::rng().random_range(0..3);
 
     InboxMessage::new(
         msg_id.to_string(),
-        subject.to_string(),
-        body.clone(),
-        "Community Manager".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Media)
     .with_priority(MessagePriority::Normal)
-    .with_sender_role("Community Manager")
+    .with_sender_role("")
     .with_action(action(
-        "respond", "Respond", "be.msg.event.respond",
+        "respond", "", "be.msg.event.respond",
         ActionType::ChooseOption {
             options: vec![
-                ActionOption {
-                    id: "listen_fans".to_string(),
-                    label: "Engage with the fans".to_string(),
-                    description: "Meet with fan representatives and listen to their concerns. Good for morale.".to_string(),
-                    label_key: Some("be.msg.fanPetition.options.listenFans.label".to_string()),
-                    description_key: Some("be.msg.fanPetition.options.listenFans.description".to_string()),
-                },
-                ActionOption {
-                    id: "ignore_fans".to_string(),
-                    label: "Focus on football".to_string(),
-                    description: "Politely decline — football decisions stay in the dressing room.".to_string(),
-                    label_key: Some("be.msg.fanPetition.options.ignoreFans.label".to_string()),
-                    description_key: Some("be.msg.fanPetition.options.ignoreFans.description".to_string()),
-                },
-                ActionOption {
-                    id: "address_publicly".to_string(),
-                    label: "Make a public statement".to_string(),
-                    description: "Address the petition in a press conference. Transparent and proactive.".to_string(),
-                    label_key: Some("be.msg.fanPetition.options.addressPublicly.label".to_string()),
-                    description_key: Some("be.msg.fanPetition.options.addressPublicly.description".to_string()),
-                },
+                option(
+                    "listen_fans",
+                    "be.msg.fanPetition.options.listenFans.label",
+                    "be.msg.fanPetition.options.listenFans.description",
+                ),
+                option(
+                    "ignore_fans",
+                    "be.msg.fanPetition.options.ignoreFans.label",
+                    "be.msg.fanPetition.options.ignoreFans.description",
+                ),
+                option(
+                    "address_publicly",
+                    "be.msg.fanPetition.options.addressPublicly.label",
+                    "be.msg.fanPetition.options.addressPublicly.description",
+                ),
             ],
         },
     ))
@@ -240,73 +161,39 @@ pub(super) fn rival_interest_message(
     rival_name: &str,
     date: &str,
 ) -> InboxMessage {
-    let mut rng = rand::rng();
-    let variations = [
-        format!(
-            "We've received word that {} have been making enquiries about {}.\n\n\
-            Their scouts were spotted at our last few matches, and our sources suggest \
-            they may approach with a formal offer soon.\n\n\
-            How would you like us to respond if they make contact?",
-            rival_name, player_name
-        ),
-        format!(
-            "The press are reporting that {} is a target for {}.\n\n\
-            According to sources, the player has attracted attention after their recent performances. \
-            No formal bid yet, but it's only a matter of time.\n\n\
-            What's your stance?",
-            player_name, rival_name
-        ),
-    ];
-    let idx = rng.random_range(0..variations.len());
+    let idx = rand::rng().random_range(0..2);
 
     InboxMessage::new(
         msg_id.to_string(),
-        format!(
-            "Transfer Rumour — {} linked with {}",
-            player_name, rival_name
-        ),
-        variations[idx].clone(),
-        "Director of Football".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
         date.to_string(),
     )
     .with_category(MessageCategory::Transfer)
     .with_priority(MessagePriority::Normal)
-    .with_sender_role("Director of Football")
+    .with_sender_role("")
     .with_action(action(
         "respond",
-        "Respond",
+        "",
         "be.msg.event.respond",
         ActionType::ChooseOption {
             options: vec![
-                ActionOption {
-                    id: "not_for_sale".to_string(),
-                    label: "Not for sale".to_string(),
-                    description: "Make it clear the player is going nowhere. Boosts their morale."
-                        .to_string(),
-                    label_key: Some("be.msg.rivalInterest.options.notForSale.label".to_string()),
-                    description_key: Some(
-                        "be.msg.rivalInterest.options.notForSale.description".to_string(),
-                    ),
-                },
-                ActionOption {
-                    id: "open_to_offers".to_string(),
-                    label: "Open to offers".to_string(),
-                    description: "Signal willingness to negotiate. Player may become unsettled."
-                        .to_string(),
-                    label_key: Some("be.msg.rivalInterest.options.openToOffers.label".to_string()),
-                    description_key: Some(
-                        "be.msg.rivalInterest.options.openToOffers.description".to_string(),
-                    ),
-                },
-                ActionOption {
-                    id: "no_comment".to_string(),
-                    label: "No comment".to_string(),
-                    description: "Stay quiet and let things play out. Neutral stance.".to_string(),
-                    label_key: Some("be.msg.rivalInterest.options.noComment.label".to_string()),
-                    description_key: Some(
-                        "be.msg.rivalInterest.options.noComment.description".to_string(),
-                    ),
-                },
+                option(
+                    "not_for_sale",
+                    "be.msg.rivalInterest.options.notForSale.label",
+                    "be.msg.rivalInterest.options.notForSale.description",
+                ),
+                option(
+                    "open_to_offers",
+                    "be.msg.rivalInterest.options.openToOffers.label",
+                    "be.msg.rivalInterest.options.openToOffers.description",
+                ),
+                option(
+                    "no_comment",
+                    "be.msg.rivalInterest.options.noComment.label",
+                    "be.msg.rivalInterest.options.noComment.description",
+                ),
             ],
         },
     ))
@@ -320,4 +207,47 @@ pub(super) fn rival_interest_message(
         params(&[("player", player_name), ("rival", rival_name)]),
     )
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{board_confidence_message, mood_report_message};
+    use domain::message::ActionType;
+
+    #[test]
+    fn mood_report_message_uses_i18n_keys_without_raw_fallbacks() {
+        let message = mood_report_message("mood_1", 61.0, 2, 4, 22, "2026-07-01");
+
+        assert_eq!(message.subject_key.as_deref(), Some("be.msg.moodReport.subject"));
+        assert_eq!(message.body_key.as_deref(), Some("be.msg.moodReport.body"));
+        assert_eq!(message.sender_key.as_deref(), Some("be.sender.assistantManager"));
+        assert_eq!(message.sender_role_key.as_deref(), Some("be.role.assistantManager"));
+        assert!(message.subject.is_empty());
+        assert!(message.body.is_empty());
+        assert!(message.sender.is_empty());
+        assert_eq!(message.actions[0].label_key.as_deref(), Some("be.msg.event.ack"));
+        assert!(message.actions[0].label.is_empty());
+    }
+
+    #[test]
+    fn board_confidence_message_uses_keyed_options_without_raw_fallbacks() {
+        let message = board_confidence_message("board_1", "2026-07-01");
+
+        assert_eq!(message.subject_key.as_deref(), Some("be.msg.boardConfidence.subject"));
+        assert!(matches!(
+            message.body_key.as_deref(),
+            Some("be.msg.boardConfidence.body0") | Some("be.msg.boardConfidence.body1")
+        ));
+        assert_eq!(message.sender_key.as_deref(), Some("be.sender.boardOfDirectors"));
+        assert_eq!(message.sender_role_key.as_deref(), Some("be.role.chairman"));
+        assert!(message.subject.is_empty());
+        assert!(message.body.is_empty());
+        assert!(message.sender.is_empty());
+        assert_eq!(message.actions[0].label_key.as_deref(), Some("be.msg.event.respond"));
+        assert!(message.actions[0].label.is_empty());
+        assert!(matches!(
+            message.actions[0].action_type,
+            ActionType::ChooseOption { .. }
+        ));
+    }
 }

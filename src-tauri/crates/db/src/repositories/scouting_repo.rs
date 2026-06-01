@@ -1,6 +1,9 @@
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Mirrors ofm_core::game::ScoutingAssignment but avoids coupling db to ofm_core.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoutingAssignmentRow {
@@ -27,7 +30,7 @@ pub fn upsert_scouting(conn: &Connection, sa: &ScoutingAssignmentRow) -> Result<
          VALUES (?1, ?2, ?3, ?4)",
         params![sa.id, sa.scout_id, sa.player_id, sa.days_remaining],
     )
-    .map_err(|e| format!("Failed to upsert scouting assignment: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -37,7 +40,7 @@ pub fn upsert_scouting_list(
     assignments: &[ScoutingAssignmentRow],
 ) -> Result<(), String> {
     conn.execute("DELETE FROM scouting_assignments", [])
-        .map_err(|e| format!("Failed to clear scouting assignments: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     for sa in assignments {
         upsert_scouting(conn, sa)?;
     }
@@ -48,7 +51,7 @@ pub fn upsert_scouting_list(
 pub fn load_all_scouting(conn: &Connection) -> Result<Vec<ScoutingAssignmentRow>, String> {
     let mut stmt = conn
         .prepare("SELECT id, scout_id, player_id, days_remaining FROM scouting_assignments")
-        .map_err(|e| format!("Failed to prepare scouting query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -59,11 +62,11 @@ pub fn load_all_scouting(conn: &Connection) -> Result<Vec<ScoutingAssignmentRow>
                 days_remaining: row.get(3)?,
             })
         })
-        .map_err(|e| format!("Failed to query scouting: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut assignments = Vec::new();
     for row in rows {
-        assignments.push(row.map_err(|e| format!("Failed to read scouting: {}", e))?);
+        assignments.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(assignments)
 }
@@ -84,7 +87,7 @@ pub fn upsert_youth_scouting(
             assignment.days_remaining,
         ],
     )
-    .map_err(|e| format!("Failed to upsert youth scouting assignment: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -93,7 +96,7 @@ pub fn upsert_youth_scouting_list(
     assignments: &[YouthScoutingAssignmentRow],
 ) -> Result<(), String> {
     conn.execute("DELETE FROM youth_scouting_assignments", [])
-        .map_err(|e| format!("Failed to clear youth scouting assignments: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     for assignment in assignments {
         upsert_youth_scouting(conn, assignment)?;
     }
@@ -107,7 +110,7 @@ pub fn load_all_youth_scouting(
         .prepare(
             "SELECT id, scout_id, region, objective, target_position, days_remaining FROM youth_scouting_assignments",
         )
-        .map_err(|e| format!("Failed to prepare youth scouting query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -120,11 +123,11 @@ pub fn load_all_youth_scouting(
                 days_remaining: row.get(5)?,
             })
         })
-        .map_err(|e| format!("Failed to query youth scouting: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut assignments = Vec::new();
     for row in rows {
-        assignments.push(row.map_err(|e| format!("Failed to read youth scouting: {}", e))?);
+        assignments.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(assignments)
 }
@@ -133,6 +136,7 @@ pub fn load_all_youth_scouting(
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -212,5 +216,55 @@ mod tests {
         assert_eq!(loaded[0].objective, "Balanced");
         assert_eq!(loaded[0].target_position.as_deref(), Some("Defender"));
         assert_eq!(loaded[0].days_remaining, 5);
+    }
+
+    #[test]
+    fn test_upsert_scouting_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let assignments = vec![ScoutingAssignmentRow {
+            id: "sa-001".to_string(),
+            scout_id: "scout-001".to_string(),
+            player_id: "p-001".to_string(),
+            days_remaining: 7,
+        }];
+
+        let result = upsert_scouting_list(&conn, &assignments);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_scouting_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_scouting(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
+    }
+
+    #[test]
+    fn test_upsert_youth_scouting_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let assignments = vec![YouthScoutingAssignmentRow {
+            id: "ysa-001".to_string(),
+            scout_id: "scout-001".to_string(),
+            region: "Domestic".to_string(),
+            objective: "Balanced".to_string(),
+            target_position: Some("Defender".to_string()),
+            days_remaining: 5,
+        }];
+
+        let result = upsert_youth_scouting_list(&conn, &assignments);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_youth_scouting_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_youth_scouting(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

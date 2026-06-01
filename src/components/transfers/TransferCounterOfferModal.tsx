@@ -5,7 +5,12 @@ import type {
   TeamData,
   TransferOfferData,
 } from "../../store/gameStore";
-import { formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import {
+  formatExactMoney,
+  formatVal,
+  getTeamName,
+  positionBadgeVariant,
+} from "../../lib/helpers";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
@@ -13,6 +18,7 @@ import NegotiationFeedbackPanel, {
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
+import { parseTransferFeeInput } from "./TransfersTab.helpers";
 
 interface TransferCounterTarget {
   player: PlayerData;
@@ -49,6 +55,7 @@ export default function TransferCounterOfferModal({
   onClose,
 }: TransferCounterOfferModalProps) {
   const { t } = useTranslation();
+  const parsedCounterAmount = parseTransferFeeInput(counterAmount);
 
   return (
     <div
@@ -94,13 +101,18 @@ export default function TransferCounterOfferModal({
         </label>
         <input
           id="counter-offer-amount"
-          type="number"
-          step="0.1"
-          min="0"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={counterAmount}
           onChange={(event) => onCounterAmountChange(event.target.value)}
           className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
         />
+        {parsedCounterAmount !== null ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {formatExactMoney(parsedCounterAmount)}
+          </p>
+        ) : null}
         <NegotiationFeedbackPanel
           feedback={counterFeedback}
           titleKey="transfers.negotiationPulse"

@@ -8,6 +8,29 @@ use rand::RngExt;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+const ERR_SCOUT_NOT_FOUND: &str = "be.error.scouting.scoutNotFound";
+const ERR_STAFF_MEMBER_NOT_SCOUT: &str = "be.error.scouting.staffMemberNotScout";
+const ERR_SCOUT_NOT_IN_TEAM: &str = "be.error.scouting.scoutNotInTeam";
+const ERR_CANNOT_SCOUT_OWN_PLAYER: &str = "be.error.scouting.cannotScoutOwnPlayer";
+const ERR_PLAYER_ALREADY_SCOUTED: &str = "be.error.scouting.playerAlreadyScouted";
+const ERR_YOUTH_SEARCH_ALREADY_ACTIVE: &str = "be.error.scouting.youthSearchAlreadyActive";
+const ERR_YOUTH_ASSIGNMENT_NOT_FOUND: &str = "be.error.scouting.youthAssignmentNotFound";
+const ERR_SCOUT_ALREADY_ASSIGNED_TO_SEARCH: &str = "be.error.scouting.scoutAlreadyAssignedToSearch";
+
+fn scouting_error_with_params(key: &str, params: &[(&str, String)]) -> String {
+    if params.is_empty() {
+        return key.to_string();
+    }
+
+    let query = params
+        .iter()
+        .map(|(name, value)| format!("{}={}", name, value))
+        .collect::<Vec<_>>()
+        .join("&");
+
+    format!("{}?{}", key, query)
+}
+
 fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs
         .iter()
@@ -37,18 +60,22 @@ fn resolve_user_scout<'a>(
     game: &'a Game,
     scout_id: &str,
 ) -> Result<&'a domain::staff::Staff, String> {
-    let user_team_id = game.manager.team_id.as_ref().ok_or("No team")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .as_ref()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let scout = game
         .staff
         .iter()
         .find(|staff_member| staff_member.id == scout_id)
-        .ok_or("Scout not found")?;
+        .ok_or(ERR_SCOUT_NOT_FOUND)?;
     if scout.role != StaffRole::Scout {
-        return Err("Staff member is not a scout".to_string());
+        return Err(ERR_STAFF_MEMBER_NOT_SCOUT.to_string());
     }
     if scout.team_id.as_ref() != Some(user_team_id) {
-        return Err("Scout does not belong to your team".to_string());
+        return Err(ERR_SCOUT_NOT_IN_TEAM.to_string());
     }
 
     Ok(scout)
@@ -96,7 +123,11 @@ fn assignment_days_for_youth_scouting(
 
 /// Send a scout to evaluate a player. Returns an error string if invalid.
 pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<(), String> {
-    let user_team_id = game.manager.team_id.as_ref().ok_or("No team")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .as_ref()
+        .ok_or("be.error.noTeamAssigned")?;
     let scout = resolve_user_scout(game, scout_id)?;
 
     // Validate player exists and is not on user's team
@@ -104,18 +135,21 @@ pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<()
         .players
         .iter()
         .find(|p| p.id == player_id)
-        .ok_or("Player not found")?;
+        .ok_or("be.error.playerNotFound")?;
     if player.team_id.as_deref() == Some(user_team_id.as_str()) {
-        return Err("Cannot scout your own players".to_string());
+        return Err(ERR_CANNOT_SCOUT_OWN_PLAYER.to_string());
     }
 
     // Check scout capacity across both player and youth scouting.
     let max_slots = scout_max_assignments(scout.attributes.judging_ability);
     let current_count = scout_assignment_count(game, scout_id);
     if current_count >= max_slots {
-        return Err(format!(
-            "Scout is already assigned to another scouting task ({}/{} assignments).",
-            current_count, max_slots
+        return Err(scouting_error_with_params(
+            "be.error.scouting.scoutAssignmentFull",
+            &[
+                ("currentCount", current_count.to_string()),
+                ("maxSlots", max_slots.to_string()),
+            ],
         ));
     }
 
@@ -125,7 +159,7 @@ pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<()
         .iter()
         .any(|a| a.player_id == player_id)
     {
-        return Err("This player is already being scouted".to_string());
+        return Err(ERR_PLAYER_ALREADY_SCOUTED.to_string());
     }
 
     // Create assignment (2-5 days depending on scout quality)
@@ -152,9 +186,12 @@ pub fn start_youth_scouting(
     let max_slots = scout_max_assignments(scout.attributes.judging_ability);
     let current_count = scout_assignment_count(game, scout_id);
     if current_count >= max_slots {
-        return Err(format!(
-            "Scout is already assigned to another scouting task ({}/{} assignments).",
-            current_count, max_slots
+        return Err(scouting_error_with_params(
+            "be.error.scouting.scoutAssignmentFull",
+            &[
+                ("currentCount", current_count.to_string()),
+                ("maxSlots", max_slots.to_string()),
+            ],
         ));
     }
 
@@ -164,7 +201,7 @@ pub fn start_youth_scouting(
             && assignment.objective == objective
             && assignment.target_position == target_position
     }) {
-        return Err("A matching youth recruitment search is already active".to_string());
+        return Err(ERR_YOUTH_SEARCH_ALREADY_ACTIVE.to_string());
     }
 
     let days =
@@ -188,7 +225,7 @@ pub fn cancel_youth_scouting(game: &mut Game, assignment_id: &str) -> Result<(),
         .retain(|assignment| assignment.id != assignment_id);
 
     if game.youth_scouting_assignments.len() == original_len {
-        return Err("Youth recruitment assignment not found".to_string());
+        return Err(ERR_YOUTH_ASSIGNMENT_NOT_FOUND.to_string());
     }
 
     Ok(())
@@ -203,21 +240,24 @@ pub fn reassign_youth_scouting(
         .youth_scouting_assignments
         .iter()
         .position(|assignment| assignment.id == assignment_id)
-        .ok_or("Youth recruitment assignment not found")?;
+        .ok_or(ERR_YOUTH_ASSIGNMENT_NOT_FOUND)?;
     let current_scout_id = game.youth_scouting_assignments[assignment_index]
         .scout_id
         .clone();
     if current_scout_id == scout_id {
-        return Err("Scout is already assigned to this search".to_string());
+        return Err(ERR_SCOUT_ALREADY_ASSIGNED_TO_SEARCH.to_string());
     }
 
     let scout = resolve_user_scout(game, scout_id)?;
     let max_slots = scout_max_assignments(scout.attributes.judging_ability);
     let current_count = scout_assignment_count(game, scout_id);
     if current_count >= max_slots {
-        return Err(format!(
-            "Scout is already assigned to another scouting task ({}/{} assignments).",
-            current_count, max_slots
+        return Err(scouting_error_with_params(
+            "be.error.scouting.scoutAssignmentFull",
+            &[
+                ("currentCount", current_count.to_string()),
+                ("maxSlots", max_slots.to_string()),
+            ],
         ));
     }
 
@@ -358,35 +398,15 @@ fn build_youth_recruitment_report(
     date: &str,
 ) -> InboxMessage {
     let target_position = target_position.map(|position| position.to_group_position());
-    let body = match target_position.as_ref() {
-        Some(target_position) => format!(
-            "{} has returned {} youth prospects for {} after a {} {} search focused on {}.",
-            scout_name,
-            prospects.len(),
-            team_name,
-            region_label(region),
-            objective_label(objective),
-            format!("{:?}", target_position).to_lowercase(),
-        ),
-        None => format!(
-            "{} has returned {} youth prospects for {} after a {} {} search.",
-            scout_name,
-            prospects.len(),
-            team_name,
-            region_label(region),
-            objective_label(objective),
-        ),
-    };
-
     let message = InboxMessage::new(
         format!("youth-scout-{}", assignment_id),
-        "Youth prospect found".to_string(),
-        body,
+        String::new(),
+        String::new(),
         scout_name.to_string(),
         date.to_string(),
     )
     .with_category(MessageCategory::ScoutReport)
-    .with_sender_role("Scout");
+    .with_sender_role("");
 
     let message = prospects.iter().fold(message, |message, prospect| {
         message.with_action(MessageAction {
@@ -400,56 +420,69 @@ fn build_youth_recruitment_report(
         })
     });
 
-    message.with_context(MessageContext {
+    let message = message.with_context(MessageContext {
         team_id: Some(team_id.to_string()),
-        youth_target_position: target_position.map(|position| format!("{:?}", position)),
+        youth_target_position: target_position
+            .as_ref()
+            .map(|position| format!("{:?}", position)),
         youth_search_region: Some(format!("{:?}", region)),
         youth_search_objective: Some(format!("{:?}", objective)),
         youth_prospects: Some(prospects.to_vec()),
         ..MessageContext::default()
-    })
+    });
+
+    let mut i18n_params = params(&[
+        ("scout", scout_name),
+        ("count", &prospects.len().to_string()),
+        ("team", team_name),
+        ("regionLabel", region_i18n_key(region)),
+        ("objectiveLabel", objective_i18n_key(objective)),
+    ]);
+    let body_key = if let Some(target_position) = target_position.as_ref() {
+        i18n_params.insert(
+            "targetLabel".to_string(),
+            youth_target_position_i18n_key(target_position).to_string(),
+        );
+        "be.msg.youthRecruitmentReport.bodyTargeted"
+    } else {
+        "be.msg.youthRecruitmentReport.bodyAny"
+    };
+
+    let mut message = message.with_i18n(
+        "be.msg.youthRecruitmentReport.subject",
+        body_key,
+        i18n_params,
+    );
+    message.sender_role_key = Some("be.role.scout".to_string());
+    message
 }
 
 fn youth_prospect_options() -> Vec<ActionOption> {
     vec![
         ActionOption {
             id: "sign".to_string(),
-            label: "Sign to academy".to_string(),
-            description: "Add this player directly to your youth academy now.".to_string(),
-            label_key: None,
-            description_key: None,
+            label: String::new(),
+            description: String::new(),
+            label_key: Some("be.msg.youthRecruitment.option.sign.label".to_string()),
+            description_key: Some("be.msg.youthRecruitment.option.sign.description".to_string()),
         },
         ActionOption {
             id: "shortlist".to_string(),
-            label: "Shortlist".to_string(),
-            description: "Keep this player for a later decision without committing now."
-                .to_string(),
-            label_key: None,
-            description_key: None,
+            label: String::new(),
+            description: String::new(),
+            label_key: Some("be.msg.youthRecruitment.option.shortlist.label".to_string()),
+            description_key: Some(
+                "be.msg.youthRecruitment.option.shortlist.description".to_string(),
+            ),
         },
         ActionOption {
             id: "discard".to_string(),
-            label: "Discard".to_string(),
-            description: "Remove this prospect from the report.".to_string(),
-            label_key: None,
-            description_key: None,
+            label: String::new(),
+            description: String::new(),
+            label_key: Some("be.msg.youthRecruitment.option.discard.label".to_string()),
+            description_key: Some("be.msg.youthRecruitment.option.discard.description".to_string()),
         },
     ]
-}
-
-fn region_label(region: YouthScoutingRegion) -> &'static str {
-    match region {
-        YouthScoutingRegion::Domestic => "domestic",
-        YouthScoutingRegion::International => "international",
-    }
-}
-
-fn objective_label(objective: YouthScoutingObjective) -> &'static str {
-    match objective {
-        YouthScoutingObjective::Balanced => "balanced",
-        YouthScoutingObjective::HighPotential => "high-potential",
-        YouthScoutingObjective::ReadySoon => "ready-now",
-    }
 }
 
 fn prospect_score(player: &Player, objective: YouthScoutingObjective) -> (u8, u8) {
@@ -505,6 +538,8 @@ fn generate_youth_recruitment_candidates(
 
 pub struct YouthRecruitmentEffect {
     pub message: String,
+    pub i18n_key: String,
+    pub i18n_params: HashMap<String, String>,
 }
 
 pub fn apply_youth_recruitment_response(
@@ -541,10 +576,16 @@ pub fn apply_youth_recruitment_response(
             message.actions.remove(action_index);
 
             Some(YouthRecruitmentEffect {
-                message: format!("{} removed from the youth report.", prospect.full_name),
+                message: String::new(),
+                i18n_key: "be.msg.youthRecruitment.effect.discard".to_string(),
+                i18n_params: params(&[("player", &prospect.full_name)]),
             })
         }
         "sign" => {
+            if game.players.iter().any(|player| player.id == prospect.id) {
+                return None;
+            }
+
             let mut signed_player = prospect;
             signed_player.team_id = game.manager.team_id.clone();
             signed_player.squad_role = SquadRole::Youth;
@@ -554,13 +595,23 @@ pub fn apply_youth_recruitment_response(
 
             let message = &mut game.messages[message_index];
             message.context.player_id = Some(player_id);
-            message.context.youth_prospects = None;
-            for action in &mut message.actions {
+            if let Some(prospects) = message.context.youth_prospects.as_mut() {
+                if let Some(updated_prospect) = prospects
+                    .iter_mut()
+                    .find(|candidate| candidate.id == prospect_id)
+                {
+                    updated_prospect.team_id = game.manager.team_id.clone();
+                    updated_prospect.squad_role = SquadRole::Youth;
+                }
+            }
+            if let Some(action) = message.actions.get_mut(action_index) {
                 action.resolved = true;
             }
 
             Some(YouthRecruitmentEffect {
-                message: format!("{} joined your youth academy.", player_name),
+                message: String::new(),
+                i18n_key: "be.msg.youthRecruitment.effect.sign".to_string(),
+                i18n_params: params(&[("player", &player_name)]),
             })
         }
         "shortlist" => {
@@ -585,16 +636,13 @@ pub fn apply_youth_recruitment_response(
             game.messages.push(
                 InboxMessage::new(
                     format!("youth-shortlist-{}", prospect.id),
-                    "Youth prospect shortlisted".to_string(),
-                    format!(
-                        "{} has been kept on your shortlist for a later academy decision.",
-                        prospect_name
-                    ),
+                    String::new(),
+                    String::new(),
                     sender,
                     date,
                 )
                 .with_category(MessageCategory::ScoutReport)
-                .with_sender_role("Scout")
+                .with_sender_role("")
                 .with_action(MessageAction {
                     id: format!("prospect:{}", prospect.id),
                     label: prospect.full_name.clone(),
@@ -611,20 +659,55 @@ pub fn apply_youth_recruitment_response(
                     youth_search_objective,
                     youth_prospects: Some(vec![prospect]),
                     ..MessageContext::default()
-                }),
+                })
+                .with_i18n(
+                    "be.msg.youthRecruitmentShortlist.subject",
+                    "be.msg.youthRecruitmentShortlist.body",
+                    params(&[("player", &prospect_name)]),
+                ),
             );
 
-            let message = &mut game.messages[message_index];
-            message.context.youth_prospects = None;
-            for action in &mut message.actions {
-                action.resolved = true;
+            if let Some(shortlist_message) = game.messages.last_mut() {
+                shortlist_message.sender_role_key = Some("be.role.scout".to_string());
             }
 
+            let message = &mut game.messages[message_index];
+            if let Some(remaining) = message.context.youth_prospects.as_mut() {
+                remaining.remove(prospect_index);
+            }
+            message.actions.remove(action_index);
+
             Some(YouthRecruitmentEffect {
-                message: format!("{} added to your youth shortlist.", prospect_name),
+                message: String::new(),
+                i18n_key: "be.msg.youthRecruitment.effect.shortlist".to_string(),
+                i18n_params: params(&[("player", &prospect_name)]),
             })
         }
         _ => None,
+    }
+}
+
+fn region_i18n_key(region: YouthScoutingRegion) -> &'static str {
+    match region {
+        YouthScoutingRegion::Domestic => "scouting.regionDomestic",
+        YouthScoutingRegion::International => "scouting.regionInternational",
+    }
+}
+
+fn objective_i18n_key(objective: YouthScoutingObjective) -> &'static str {
+    match objective {
+        YouthScoutingObjective::Balanced => "scouting.objectiveBalanced",
+        YouthScoutingObjective::HighPotential => "scouting.objectiveHighPotential",
+        YouthScoutingObjective::ReadySoon => "scouting.objectiveReadySoon",
+    }
+}
+
+fn youth_target_position_i18n_key(position: &Position) -> &'static str {
+    match position {
+        Position::Defender => "common.positions.Defender",
+        Position::Midfielder => "common.positions.Midfielder",
+        Position::Forward => "common.positions.Forward",
+        _ => "scouting.youthAnyPosition",
     }
 }
 
@@ -802,18 +885,12 @@ fn build_scout_report(
         confidence_key: confidence_key.to_string(),
     };
 
-    // Fallback body text (used when i18n key is not found)
-    let body = format!(
-        "Scout report on {} completed by {}.",
-        player_name, scout_name
-    );
-
     let msg_id = format!("scout_report_{}", assignment_id);
 
     InboxMessage::new(
         msg_id,
-        format!("Scout Report — {}", player_name),
-        body,
+        String::new(),
+        String::new(),
         scout_name.to_string(),
         date.to_string(),
     )
@@ -840,4 +917,89 @@ fn build_scout_report(
         p
     })
     .with_sender_i18n("be.sender.scout", "be.role.scout")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_scout_report;
+    use domain::message::{ActionType, MessageCategory, MessagePriority};
+    use domain::player::PlayerAttributes;
+
+    fn sample_attrs() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 70,
+            stamina: 68,
+            strength: 66,
+            agility: 69,
+            passing: 72,
+            shooting: 64,
+            tackling: 58,
+            dribbling: 71,
+            defending: 57,
+            positioning: 65,
+            vision: 70,
+            decisions: 67,
+            composure: 68,
+            aggression: 52,
+            teamwork: 73,
+            leadership: 48,
+            handling: 18,
+            reflexes: 20,
+            aerial: 55,
+        }
+    }
+
+    #[test]
+    fn build_scout_report_uses_i18n_keys_without_raw_fallbacks() {
+        let message = build_scout_report(
+            "assignment-1",
+            "Alex Scout",
+            "player-1",
+            "Jamie Prospect",
+            "ENG",
+            "2004-03-12",
+            "Midfielder",
+            &sample_attrs(),
+            74,
+            89,
+            67,
+            79,
+            85,
+            83,
+            Some("London FC"),
+            "2026-08-01",
+        );
+
+        assert_eq!(message.subject, "");
+        assert_eq!(message.body, "");
+        assert_eq!(message.sender, "Alex Scout");
+        assert_eq!(message.sender_role, "Scout");
+        assert_eq!(message.category, MessageCategory::ScoutReport);
+        assert_eq!(message.priority, MessagePriority::Normal);
+        assert_eq!(
+            message.subject_key.as_deref(),
+            Some("be.msg.scoutReport.subject")
+        );
+        assert_eq!(message.body_key.as_deref(), Some("be.msg.scoutReport.body"));
+        assert_eq!(message.sender_key.as_deref(), Some("be.sender.scout"));
+        assert_eq!(message.sender_role_key.as_deref(), Some("be.role.scout"));
+        assert_eq!(
+            message.i18n_params.get("player"),
+            Some(&"Jamie Prospect".to_string())
+        );
+        assert_eq!(
+            message.i18n_params.get("scout"),
+            Some(&"Alex Scout".to_string())
+        );
+        assert!(
+            matches!(message.actions.as_slice(), [action] if matches!(action.action_type, ActionType::Acknowledge))
+        );
+        let report = message
+            .context
+            .scout_report
+            .expect("scout report context should be attached");
+        assert_eq!(report.player_id, "player-1");
+        assert_eq!(report.player_name, "Jamie Prospect");
+        assert_eq!(report.team_name.as_deref(), Some("London FC"));
+    }
 }

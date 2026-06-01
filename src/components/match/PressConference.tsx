@@ -27,6 +27,8 @@ interface PressResponse {
   id: string;
   tone: string;
   text: string;
+  textKey: string;
+  textParams?: Record<string, string>;
 }
 
 interface AnswerPayload {
@@ -34,6 +36,8 @@ interface AnswerPayload {
   response_id: string;
   response_tone: string;
   response_text: string;
+  response_text_key: string;
+  response_text_params?: Record<string, string>;
   question_text: string;
   player_id?: string;
 }
@@ -48,10 +52,19 @@ function response(
   key: string,
   params?: Record<string, string | number>,
 ): PressResponse {
+  const textKey = `${key}.text`;
+  const textParams = params
+    ? Object.fromEntries(
+      Object.entries(params).map(([paramKey, value]) => [paramKey, String(value)]),
+    )
+    : undefined;
+
   return {
     id,
     tone: t(`${key}.tone`, params),
-    text: t(`${key}.text`, params),
+    text: t(textKey, params),
+    textKey,
+    textParams,
   };
 }
 
@@ -277,6 +290,8 @@ export default function PressConference({
             response_id: rid || "",
             response_tone: resp?.tone || "",
             response_text: resp?.text || "",
+            response_text_key: resp?.textKey || "",
+            response_text_params: resp?.textParams,
             question_text: q.question,
             player_id: (q as PlayerFocusQuestion).playerId || "",
           };

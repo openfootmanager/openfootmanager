@@ -1,6 +1,9 @@
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Mirrors ofm_core::game::BoardObjective but avoids coupling db to ofm_core.
 /// Conversion happens in the save_manager layer.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +28,7 @@ pub fn upsert_objective(conn: &Connection, obj: &BoardObjectiveRow) -> Result<()
             obj.met as i32
         ],
     )
-    .map_err(|e| format!("Failed to upsert objective: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -36,7 +39,7 @@ pub fn upsert_objectives(
 ) -> Result<(), String> {
     // Clear existing then re-insert for clean state
     conn.execute("DELETE FROM board_objectives", [])
-        .map_err(|e| format!("Failed to clear objectives: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     for obj in objectives {
         upsert_objective(conn, obj)?;
     }
@@ -47,7 +50,7 @@ pub fn upsert_objectives(
 pub fn load_all_objectives(conn: &Connection) -> Result<Vec<BoardObjectiveRow>, String> {
     let mut stmt = conn
         .prepare("SELECT id, description, target, objective_type, met FROM board_objectives")
-        .map_err(|e| format!("Failed to prepare objectives query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], |row| {
@@ -60,11 +63,11 @@ pub fn load_all_objectives(conn: &Connection) -> Result<Vec<BoardObjectiveRow>, 
                 met: met_int != 0,
             })
         })
-        .map_err(|e| format!("Failed to query objectives: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut objectives = Vec::new();
     for row in rows {
-        objectives.push(row.map_err(|e| format!("Failed to read objective: {}", e))?);
+        objectives.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(objectives)
 }
@@ -73,6 +76,7 @@ pub fn load_all_objectives(conn: &Connection) -> Result<Vec<BoardObjectiveRow>, 
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -137,5 +141,30 @@ mod tests {
         let db = test_db();
         let loaded = load_all_objectives(db.conn()).unwrap();
         assert!(loaded.is_empty());
+    }
+
+    #[test]
+    fn test_upsert_objectives_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let objectives = vec![BoardObjectiveRow {
+            id: "obj-001".to_string(),
+            description: "Finish top 4".to_string(),
+            target: 4,
+            objective_type: "LeaguePosition".to_string(),
+            met: false,
+        }];
+
+        let result = upsert_objectives(&conn, &objectives);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_objectives_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_objectives(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

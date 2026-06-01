@@ -1,4 +1,4 @@
-import { calcOvr, findNextFixture } from "../../lib/helpers";
+import { findNextFixture, getPlayerOvr } from "../../lib/helpers";
 import { hasCompetitiveStandings } from "../../lib/seasonContext";
 import type {
   FixtureData,
@@ -70,8 +70,8 @@ function getStandingPosition(
     return (
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
-        rightEntry.goals_against -
-        (leftEntry.goals_for - leftEntry.goals_against)
+      rightEntry.goals_against -
+      (leftEntry.goals_for - leftEntry.goals_against)
     );
   });
   const standingIndex = sortedStandings.findIndex(
@@ -149,19 +149,19 @@ export function getHomeRosterOverview(
   const avgCondition =
     roster.length > 0
       ? Math.round(
-          roster.reduce((total, player) => total + player.condition, 0) /
-            roster.length,
-        )
+        roster.reduce((total, player) => total + player.condition, 0) /
+        roster.length,
+      )
       : 0;
   const avgOvr =
     roster.length > 0
       ? Math.round(
-          roster.reduce(
-            (total, player) =>
-              total + (player.ovr ?? calcOvr(player, player.natural_position || player.position)),
-            0,
-          ) / roster.length,
-        )
+        roster.reduce(
+          (total, player) =>
+            total + getPlayerOvr(player),
+          0,
+        ) / roster.length,
+      )
       : 0;
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const unavailablePlayers = roster
@@ -169,7 +169,7 @@ export function getHomeRosterOverview(
     .sort((leftPlayer, rightPlayer) => {
       return (
         (rightPlayer.injury?.days_remaining ?? 0) -
-          (leftPlayer.injury?.days_remaining ?? 0) ||
+        (leftPlayer.injury?.days_remaining ?? 0) ||
         leftPlayer.full_name.localeCompare(rightPlayer.full_name)
       );
     });

@@ -11,6 +11,16 @@ use uuid::Uuid;
 
 const TRANSFER_NEGOTIATION_STALE_DAYS: i64 = 14;
 const MAX_COMPLETED_AI_TRANSFERS_PER_DAY: usize = 2;
+const AWARD_LEADERBOARD_INTEREST_BONUS: i32 = 25;
+const ERR_TRANSFER_WINDOW_CLOSED: &str = "be.error.transfers.transferWindowClosed";
+const ERR_CANNOT_BID_ON_OWN_PLAYER: &str = "be.error.transfers.cannotBidOnOwnPlayer";
+const ERR_PLAYER_HAS_NO_TEAM: &str = "be.error.transfers.playerHasNoTeam";
+const ERR_INSUFFICIENT_FUNDS: &str = "be.error.transfers.insufficientFunds";
+const ERR_TRANSFER_BUDGET_TOO_LOW: &str = "be.error.transfers.transferBudgetTooLow";
+const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.playerNotOwnedByUser";
+const ERR_OFFER_NOT_PENDING: &str = "be.error.transfers.offerNotPending";
+const ERR_COUNTER_OFFER_MUST_EXCEED_CURRENT: &str =
+    "be.error.transfers.counterOfferMustExceedCurrentOffer";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -208,6 +218,21 @@ fn incoming_interest_score(current_date: NaiveDate, player: &domain::player::Pla
     score
 }
 
+fn award_leaderboard_player_ids(game: &Game) -> HashSet<String> {
+    let awards = crate::season_awards::compute_season_awards(game);
+
+    awards
+        .golden_boot
+        .iter()
+        .chain(awards.assist_king.iter())
+        .chain(awards.player_of_year.iter())
+        .chain(awards.clean_sheet_king.iter())
+        .chain(awards.most_appearances.iter())
+        .chain(awards.young_player.iter())
+        .map(|entry| entry.player_id.clone())
+        .collect()
+}
+
 fn suggested_incoming_fee(current_date: NaiveDate, player: &domain::player::Player) -> u64 {
     let mut multiplier: f64 = if player.transfer_listed { 0.9 } else { 1.0 };
 
@@ -349,6 +374,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
 
     let current_date = game.clock.current_date.date_naive();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let award_leaderboards = award_leaderboard_player_ids(game);
 
     let buyer_ids: Vec<String> = game
         .teams
@@ -384,7 +410,10 @@ pub fn evaluate_transfer_market(game: &mut Game) {
                 continue;
             }
 
-            let score = incoming_interest_score(current_date, player);
+            let mut score = incoming_interest_score(current_date, player);
+            if award_leaderboards.contains(&player.id) {
+                score += AWARD_LEADERBOARD_INTEREST_BONUS;
+            }
             if score < 35 {
                 continue;
             }
@@ -520,23 +549,23 @@ pub fn project_transfer_bid_financial_impact(
         .manager
         .team_id
         .clone()
-        .ok_or_else(|| "No user team".to_string())?;
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
 
     let player = game
         .players
         .iter()
         .find(|player| player.id == player_id)
-        .ok_or_else(|| "Player not found".to_string())?;
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
 
     if player.team_id.as_deref() == Some(user_team_id.as_str()) {
-        return Err("Cannot bid on your own player".to_string());
+        return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.to_string());
     }
 
     let team = game
         .teams
         .iter()
         .find(|team| team.id == user_team_id)
-        .ok_or_else(|| "User team not found".to_string())?;
+        .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
 
     let annual_wage_bill_before = calc_annual_wages(game, &team.id);
     let annual_wage_bill_after = annual_wage_bill_before + player.wage as i64;
@@ -573,42 +602,46 @@ pub fn make_transfer_bid(
     expire_stale_transfer_offers(game);
 
     if !transfer_window_is_open(game) {
-        return Err("Transfer window is closed".into());
+        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
     }
 
-    let user_team_id = game.manager.team_id.clone().ok_or("No user team")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let player = game
         .players
         .iter()
         .find(|p| p.id == player_id)
-        .ok_or("Player not found")?;
+        .ok_or("be.error.playerNotFound")?;
 
     if player.team_id.as_deref() == Some(&user_team_id) {
-        return Err("Cannot bid on your own player".into());
+        return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    let owner_team_id = player.team_id.clone().ok_or("Player has no team")?;
+    let owner_team_id = player.team_id.clone().ok_or(ERR_PLAYER_HAS_NO_TEAM)?;
 
     let my_team = game
         .teams
         .iter()
         .find(|t| t.id == user_team_id)
-        .ok_or("User team not found")?;
+        .ok_or("be.error.managedTeamNotFound")?;
 
     if (my_team.finance as u64) < fee {
-        return Err("Insufficient funds".into());
+        return Err(ERR_INSUFFICIENT_FUNDS.into());
     }
 
     if my_team.transfer_budget < fee as i64 {
-        return Err("Transfer budget too low".into());
+        return Err(ERR_TRANSFER_BUDGET_TOO_LOW.into());
     }
 
     let owner_team = game
         .teams
         .iter()
         .find(|t| t.id == owner_team_id)
-        .ok_or("Owner team not found")?;
+        .ok_or("be.error.teamNotFound")?;
 
     let buyer_team = my_team;
 
@@ -771,22 +804,26 @@ pub fn respond_to_offer(
     expire_stale_transfer_offers(game);
 
     if accept && !transfer_window_is_open(game) {
-        return Err("Transfer window is closed".into());
+        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
     }
 
-    let user_team_id = game.manager.team_id.clone().ok_or("No user team")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let player = game
         .players
         .iter()
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
-        .ok_or("Player not found or not yours")?;
+        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
     let offer = player
         .transfer_offers
         .iter()
         .find(|o| o.id == offer_id && o.status == TransferOfferStatus::Pending)
-        .ok_or("Offer not found or not pending")?;
+        .ok_or(ERR_OFFER_NOT_PENDING)?;
 
     let from_team_id = offer.from_team_id.clone();
     let fee = offer.fee;
@@ -795,12 +832,12 @@ pub fn respond_to_offer(
         .teams
         .iter()
         .find(|team| team.id == user_team_id)
-        .ok_or("User team not found")?;
+        .ok_or("be.error.managedTeamNotFound")?;
     let buyer_team = game
         .teams
         .iter()
         .find(|team| team.id == from_team_id)
-        .ok_or("Buying team not found")?;
+        .ok_or("be.error.teamNotFound")?;
     let openness_score = player_move_openness_score(current_date, player, owner_team, buyer_team);
 
     // Update offer status
@@ -836,32 +873,36 @@ pub fn counter_offer(
     expire_stale_transfer_offers(game);
 
     if !transfer_window_is_open(game) {
-        return Err("Transfer window is closed".into());
+        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
     }
 
-    let user_team_id = game.manager.team_id.clone().ok_or("No user team")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let player = game
         .players
         .iter()
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
-        .ok_or("Player not found or not yours")?;
+        .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
     let offer = player
         .transfer_offers
         .iter()
         .find(|offer| offer.id == offer_id && offer.status == TransferOfferStatus::Pending)
-        .ok_or("Offer not found or not pending")?;
+        .ok_or(ERR_OFFER_NOT_PENDING)?;
 
     if requested_fee <= offer.fee {
-        return Err("Counter offer must exceed current offer".into());
+        return Err(ERR_COUNTER_OFFER_MUST_EXCEED_CURRENT.into());
     }
 
     let buyer_team = game
         .teams
         .iter()
         .find(|team| team.id == offer.from_team_id)
-        .ok_or("Buying team not found")?;
+        .ok_or("be.error.teamNotFound")?;
 
     let buyer_team_id = buyer_team.id.clone();
     let current_date = game.clock.current_date.date_naive();
@@ -1027,7 +1068,7 @@ fn execute_transfer(
         .iter()
         .find(|player| player.id == player_id)
         .cloned()
-        .ok_or("Player not found")?;
+        .ok_or("be.error.playerNotFound")?;
     let from_team_name = game
         .teams
         .iter()
@@ -1122,4 +1163,126 @@ fn execute_transfer(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::evaluate_transfer_market;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position, TransferOfferStatus};
+    use domain::season::TransferWindowStatus;
+    use domain::team::Team;
+
+    fn make_team(id: &str, name: &str, reputation: u32) -> Team {
+        let mut team = Team::new(
+            id.to_string(),
+            name.to_string(),
+            name[..3].to_string(),
+            "England".to_string(),
+            "Testville".to_string(),
+            format!("{} Ground", name),
+            25_000,
+        );
+        team.reputation = reputation;
+        team.finance = 5_000_000;
+        team.transfer_budget = 5_000_000;
+        team.wage_budget = 2_000_000;
+        team
+    }
+
+    fn sample_attributes() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 68,
+            stamina: 66,
+            strength: 64,
+            agility: 67,
+            passing: 65,
+            shooting: 72,
+            tackling: 38,
+            dribbling: 69,
+            defending: 35,
+            positioning: 66,
+            vision: 63,
+            decisions: 61,
+            composure: 62,
+            aggression: 48,
+            teamwork: 58,
+            leadership: 44,
+            handling: 12,
+            reflexes: 14,
+            aerial: 40,
+        }
+    }
+
+    fn make_game() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 1, 12, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Boss".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team1".to_string());
+
+        let mut player = Player::new(
+            "player-award".to_string(),
+            "Golden".to_string(),
+            "Golden Boot".to_string(),
+            "1998-04-01".to_string(),
+            "England".to_string(),
+            Position::Forward,
+            sample_attributes(),
+        );
+        player.team_id = Some("team1".to_string());
+        player.market_value = 600_000;
+        player.wage = 18_000;
+        player.morale = 58;
+        player.contract_end = Some("2027-06-30".to_string());
+        player.stats.appearances = 6;
+        player.stats.goals = 19;
+
+        let mut game = Game::new(
+            clock,
+            manager,
+            vec![
+                make_team("team1", "Alpha FC", 620),
+                make_team("team2", "Beta FC", 690),
+            ],
+            vec![player],
+            vec![],
+            vec![],
+        );
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        game
+    }
+
+    #[test]
+    fn evaluate_transfer_market_targets_award_leaderboard_user_player() {
+        let mut game = make_game();
+
+        evaluate_transfer_market(&mut game);
+
+        let player = game
+            .players
+            .iter()
+            .find(|player| player.id == "player-award")
+            .expect("award leaderboard player should exist");
+
+        assert!(
+            player.transfer_offers.iter().any(|offer| {
+                offer.from_team_id == "team2" && offer.status == TransferOfferStatus::Pending
+            }),
+            "Award-leaderboard players should attract AI bids even when their base transfer-interest score is otherwise too low"
+        );
+        assert!(
+            game.messages.iter().any(|message| {
+                message.context.player_id.as_deref() == Some("player-award")
+            }),
+            "The incoming bid should surface through the usual inbox flow"
+        );
+    }
 }

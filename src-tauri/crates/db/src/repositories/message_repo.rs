@@ -1,12 +1,15 @@
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Insert or replace a message row.
 pub fn upsert_message(conn: &Connection, msg: &InboxMessage) -> Result<(), String> {
     let actions_json =
-        serde_json::to_string(&msg.actions).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&msg.actions).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let context_json =
-        serde_json::to_string(&msg.context).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&msg.context).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     // Pack all i18n fields into a single JSON object
     let i18n = serde_json::json!({
@@ -16,7 +19,8 @@ pub fn upsert_message(conn: &Connection, msg: &InboxMessage) -> Result<(), Strin
         "sender_role_key": msg.sender_role_key,
         "i18n_params": msg.i18n_params,
     });
-    let i18n_json = serde_json::to_string(&i18n).map_err(|e| format!("JSON error: {}", e))?;
+    let i18n_json =
+        serde_json::to_string(&i18n).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     let category_str = format!("{:?}", msg.category);
     let priority_str = format!("{:?}", msg.priority);
@@ -40,7 +44,7 @@ pub fn upsert_message(conn: &Connection, msg: &InboxMessage) -> Result<(), Strin
             i18n_json,
         ],
     )
-    .map_err(|e| format!("Failed to upsert message: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -87,15 +91,15 @@ pub fn load_all_messages(conn: &Connection) -> Result<Vec<InboxMessage>, String>
             "SELECT id, subject, body, sender, sender_role, date, read, category, priority, actions, context, i18n
              FROM messages ORDER BY date DESC",
         )
-        .map_err(|e| format!("Failed to prepare messages query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], row_to_message)
-        .map_err(|e| format!("Failed to query messages: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut messages = Vec::new();
     for row in rows {
-        messages.push(row.map_err(|e| format!("Failed to read message: {}", e))?);
+        messages.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(messages)
 }
@@ -223,5 +227,24 @@ mod tests {
             all[0].i18n_params.get("team").map(|s| s.as_str()),
             Some("London FC")
         );
+    }
+
+    #[test]
+    fn test_upsert_message_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let message = sample_message("msg-001");
+
+        let result = upsert_message(&conn, &message);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_messages_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_messages(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 }

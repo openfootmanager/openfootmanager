@@ -4,6 +4,13 @@ use std::path::{Path, PathBuf};
 
 use crate::migrations::{MIGRATION_COUNT, all_migrations};
 
+const GAME_DATABASE_OPEN_FAILED: &str = "be.error.gameDatabase.openFailed";
+const GAME_DATABASE_MIGRATION_FAILED: &str = "be.error.gameDatabase.migrationFailed";
+const GAME_DATABASE_SCHEMA_VERSION_READ_FAILED: &str =
+    "be.error.gameDatabase.schemaVersionReadFailed";
+const GAME_DATABASE_CURRENT_VERSION_READ_FAILED: &str =
+    "be.error.gameDatabase.currentVersionReadFailed";
+
 /// Represents an open per-save game database with migrations applied.
 pub struct GameDatabase {
     conn: Connection,
@@ -16,13 +23,13 @@ impl GameDatabase {
         debug!("[game_db] opening database at {:?}", path);
         let mut conn = Connection::open(path).map_err(|e| {
             error!("[game_db] failed to open database at {:?}: {}", path, e);
-            format!("Failed to open database: {}", e)
+            GAME_DATABASE_OPEN_FAILED.to_string()
         })?;
 
         let migrations = all_migrations();
         migrations.to_latest(&mut conn).map_err(|e| {
             error!("[game_db] migration failed for {:?}: {}", path, e);
-            format!("Database migration failed: {}", e)
+            GAME_DATABASE_MIGRATION_FAILED.to_string()
         })?;
 
         info!("[game_db] database ready at {:?}", path);
@@ -37,13 +44,13 @@ impl GameDatabase {
         debug!("[game_db] opening in-memory database");
         let mut conn = Connection::open_in_memory().map_err(|e| {
             error!("[game_db] failed to open in-memory database: {}", e);
-            format!("Failed to open in-memory database: {}", e)
+            GAME_DATABASE_OPEN_FAILED.to_string()
         })?;
 
         let migrations = all_migrations();
         migrations.to_latest(&mut conn).map_err(|e| {
             error!("[game_db] migration failed for in-memory db: {}", e);
-            format!("Database migration failed: {}", e)
+            GAME_DATABASE_MIGRATION_FAILED.to_string()
         })?;
 
         Ok(Self { conn, path: None })
@@ -63,7 +70,7 @@ impl GameDatabase {
     pub fn schema_version(&self) -> Result<i64, String> {
         self.conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
-            .map_err(|e| format!("Failed to read schema version: {}", e))
+            .map_err(|_| GAME_DATABASE_SCHEMA_VERSION_READ_FAILED.to_string())
     }
 
     /// Validate that the database has the expected schema version.
@@ -72,7 +79,7 @@ impl GameDatabase {
         let migrations = all_migrations();
         let current: usize = migrations
             .current_version(&self.conn)
-            .map_err(|e| format!("Failed to get current version: {}", e))?
+            .map_err(|_| GAME_DATABASE_CURRENT_VERSION_READ_FAILED.to_string())?
             .into();
         // We expect the version to equal the number of migrations (1 for V1)
         let expected = MIGRATION_COUNT;
@@ -155,5 +162,17 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM teams", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_open_directory_path_returns_backend_key() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let result = GameDatabase::open(dir.path());
+
+        match result {
+            Err(error) => assert_eq!(error, GAME_DATABASE_OPEN_FAILED),
+            Ok(_) => panic!("expected directory open to fail"),
+        }
     }
 }

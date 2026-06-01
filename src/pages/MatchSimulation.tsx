@@ -164,7 +164,7 @@ export default function MatchSimulation() {
     return () => {
       isCancelled = true;
     };
-  }, [matchMode, navigate, routeState?.fixtureIndex]);
+  }, [matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
 
   // Skip pre-match for spectators
   useEffect(() => {
@@ -277,12 +277,13 @@ export default function MatchSimulation() {
   // Render the current stage
   switch (stage) {
     case "prematch":
+      if (!userSide) return null;
       return (
         <PreMatchSetup
           snapshot={snapshot}
           gameState={gameState}
           currentFixture={currentFixture}
-          userSide={userSide || "Home"}
+          userSide={userSide}
           onStart={handleStartMatch}
           onUpdateSnapshot={handleSnapshotUpdate}
         />
@@ -306,11 +307,12 @@ export default function MatchSimulation() {
       );
 
     case "halftime":
+      if (!userSide) return null;
       return (
         <HalfTimeBreak
           snapshot={snapshot}
           gameState={gameState}
-          userSide={userSide || "Home"}
+          userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
           onResume={handleResumeFromHalfTime}
@@ -334,11 +336,12 @@ export default function MatchSimulation() {
       );
 
     case "press":
+      if (!userSide) return null;
       return (
         <PressConference
           snapshot={snapshot}
           gameState={gameState}
-          userSide={userSide || "Home"}
+          userSide={userSide}
           onFinish={handleFinishMatch}
           onGameUpdate={setGameState}
         />

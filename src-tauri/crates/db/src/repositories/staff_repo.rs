@@ -1,10 +1,13 @@
 use domain::staff::{CoachingSpecialization, Staff, StaffAttributes, StaffRole};
 use rusqlite::{Connection, params};
 
+const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
+const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
+
 /// Insert or replace a staff row.
 pub fn upsert_staff(conn: &Connection, s: &Staff) -> Result<(), String> {
     let attrs_json =
-        serde_json::to_string(&s.attributes).map_err(|e| format!("JSON error: {}", e))?;
+        serde_json::to_string(&s.attributes).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let role_str = format!("{:?}", s.role);
     let spec_str = s.specialization.as_ref().map(|sp| format!("{:?}", sp));
 
@@ -29,7 +32,7 @@ pub fn upsert_staff(conn: &Connection, s: &Staff) -> Result<(), String> {
             s.contract_end,
         ],
     )
-    .map_err(|e| format!("Failed to upsert staff: {}", e))?;
+    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     Ok(())
 }
 
@@ -72,15 +75,15 @@ pub fn load_all_staff(conn: &Connection) -> Result<Vec<Staff>, String> {
                     attributes, team_id, specialization, wage, contract_end
              FROM staff",
         )
-        .map_err(|e| format!("Failed to prepare staff query: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
         .query_map([], row_to_staff)
-        .map_err(|e| format!("Failed to query staff: {}", e))?;
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut staff = Vec::new();
     for row in rows {
-        staff.push(row.map_err(|e| format!("Failed to read staff row: {}", e))?);
+        staff.push(row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?);
     }
     Ok(staff)
 }
@@ -116,6 +119,7 @@ fn row_to_staff(row: &rusqlite::Row) -> rusqlite::Result<Staff> {
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
+    use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
         GameDatabase::open_in_memory().unwrap()
@@ -173,6 +177,25 @@ mod tests {
         upsert_staff_list(db.conn(), &list).unwrap();
         let all = load_all_staff(db.conn()).unwrap();
         assert_eq!(all.len(), 4);
+    }
+
+    #[test]
+    fn test_upsert_staff_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+        let staff = sample_staff("staff-001", StaffRole::Coach);
+
+        let result = upsert_staff(&conn, &staff);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_WRITE_ERROR);
+    }
+
+    #[test]
+    fn test_load_staff_returns_backend_key_when_schema_is_missing() {
+        let conn = Connection::open_in_memory().unwrap();
+
+        let result = load_all_staff(&conn);
+
+        assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
     }
 
     #[test]

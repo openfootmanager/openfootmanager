@@ -121,6 +121,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     morale: 80,
     injury: null,
     team_id: "team-1",
+    retired: false,
     contract_end: null,
     wage: 0,
     market_value: 0,
@@ -317,18 +318,21 @@ describe("HomeTab.helpers", function (): void {
         full_name: "Hot Player",
         morale: 90,
         condition: 88,
+        ovr: 72,
       }),
       createPlayer({
         id: "player-cold",
         full_name: "Cold Player",
         morale: 35,
         condition: 32,
+        ovr: 58,
       }),
       createPlayer({
         id: "player-injured",
         full_name: "Injured Player",
         morale: 75,
         condition: 64,
+        ovr: 64,
         injury: {
           name: "Hamstring",
           days_remaining: 14,
@@ -339,7 +343,7 @@ describe("HomeTab.helpers", function (): void {
     const result = getHomeRosterOverview(roster);
 
     expect(result.avgCondition).toBe(61);
-    expect(result.avgOvr).toBeGreaterThan(0);
+    expect(result.avgOvr).toBe(65);
     expect(result.exhaustedCount).toBe(1);
     expect(result.unavailablePlayers.map((player) => player.id)).toEqual([
       "player-injured",

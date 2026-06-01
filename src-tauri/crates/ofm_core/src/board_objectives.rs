@@ -73,15 +73,9 @@ fn build_objectives_message(
 
     InboxMessage::new(
         board_message_id(season),
-        format!("Season {} — Board Objectives", season),
-        format!(
-            "The board has set the following objectives for this season:\n\n1. Finish in the top {}\n2. Win at least {} matches\n3. Score at least {} goals\n4. Keep wage spending at or below {}% of the budget\n\nMeeting these targets will improve the board's confidence in your management. Failure to meet expectations may result in reduced budgets or further consequences.",
-            targets.expected_pos,
-            targets.win_target,
-            targets.goals_target,
-            targets.finance_target,
-        ),
-        "Board of Directors".to_string(),
+        "be.msg.boardObjectives.subject".to_string(),
+        "be.msg.boardObjectives.body".to_string(),
+        "be.sender.boardOfDirectors".to_string(),
         today,
     )
     .with_category(MessageCategory::BoardDirective)

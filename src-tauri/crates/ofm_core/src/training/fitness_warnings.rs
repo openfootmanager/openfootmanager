@@ -56,11 +56,6 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
             && matches!(s.role, domain::staff::StaffRole::Physio)
     });
 
-    let sender = if has_physio {
-        "Head Physio"
-    } else {
-        "Assistant Manager"
-    };
     let sender_name = if has_physio {
         game.staff
             .iter()
@@ -69,7 +64,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
                     && matches!(s.role, domain::staff::StaffRole::Physio)
             })
             .map(|s| format!("{} {}", s.first_name, s.last_name))
-            .unwrap_or_else(|| "Medical Staff".to_string())
+            .unwrap_or_default()
     } else {
         game.staff
             .iter()
@@ -78,7 +73,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
                     && matches!(s.role, domain::staff::StaffRole::AssistantManager)
             })
             .map(|s| format!("{} {}", s.first_name, s.last_name))
-            .unwrap_or_else(|| "Assistant Manager".to_string())
+            .unwrap_or_default()
     };
 
     use domain::message::*;
@@ -92,54 +87,19 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
             .map(|p| format!("{} ({}%)", p.match_name, p.condition))
             .collect();
 
-        let schedule_advice = match schedule {
-            TrainingSchedule::Intense => {
-                "I strongly recommend switching to a Balanced or Light training schedule immediately. \
-                The Intense schedule is running the squad into the ground."
-            }
-            TrainingSchedule::Balanced => {
-                "Consider switching to a Light schedule or setting the focus to Recovery \
-                until fitness levels improve."
-            }
-            TrainingSchedule::Light => {
-                "Even on the Light schedule, the squad is struggling. Please set the training focus \
-                to Recovery — the lads need proper rest."
-            }
-        };
-
-        let intensity_advice = match intensity {
-            TrainingIntensity::High => {
-                " Also, reducing training intensity from High would help significantly."
-            }
-            TrainingIntensity::Medium => "",
-            TrainingIntensity::Low => "",
-        };
-
-        let body = format!(
-            "Boss, we have a serious fitness crisis. {} players are in critical condition and at risk of injury:\n\n\
-            {}\n\n\
-            Average squad fitness is at {:.0}%. {}{}\n\n\
-            If we push them further without rest, injuries are inevitable.",
-            critical_count,
-            exhausted_names.join("\n"),
-            avg_condition,
-            schedule_advice,
-            intensity_advice,
-        );
-
         let mut msg = InboxMessage::new(
             msg_id,
-            "URGENT: Squad Fitness Crisis".to_string(),
-            body,
+            String::new(),
+            String::new(),
             sender_name,
             date,
         )
         .with_category(MessageCategory::Training)
         .with_priority(MessagePriority::Urgent)
-        .with_sender_role(sender)
+        .with_sender_role("")
         .with_action(MessageAction {
             id: "go_training".to_string(),
-            label: "Adjust Training".to_string(),
+            label: String::new(),
             action_type: ActionType::NavigateTo {
                 route: "/dashboard?tab=Training".to_string(),
             },
@@ -192,38 +152,19 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
 
     // Warning: average condition below 50 or many exhausted players
     if avg_condition < 50.0 || exhausted_count >= 4 {
-        let schedule_advice = match schedule {
-            TrainingSchedule::Intense => {
-                "Switching to a Balanced schedule would give the squad more recovery time."
-            }
-            TrainingSchedule::Balanced => {
-                "A Light schedule for a few days could help the squad bounce back."
-            }
-            TrainingSchedule::Light => {
-                "Setting the training focus to Recovery would maximise fitness gains."
-            }
-        };
-
-        let body = format!(
-            "Boss, the squad is looking tired. Average fitness is {:.0}% and {} players are below 40% condition.\n\n\
-            {}\n\n\
-            We should consider giving the lads some rest before the next match.",
-            avg_condition, exhausted_count, schedule_advice,
-        );
-
         let mut msg = InboxMessage::new(
             msg_id,
-            "Squad Fitness Warning".to_string(),
-            body,
+            String::new(),
+            String::new(),
             sender_name,
             date,
         )
         .with_category(MessageCategory::Training)
         .with_priority(MessagePriority::High)
-        .with_sender_role(sender)
+        .with_sender_role("")
         .with_action(MessageAction {
             id: "go_training".to_string(),
-            label: "Adjust Training".to_string(),
+            label: String::new(),
             action_type: ActionType::NavigateTo {
                 route: "/dashboard?tab=Training".to_string(),
             },

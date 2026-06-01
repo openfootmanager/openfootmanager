@@ -1,3 +1,5 @@
+import { useSettingsStore } from "../store/settingsStore";
+
 const LANG_LOCALE: Record<string, string> = {
     en: "en-US",
     es: "es-ES",
@@ -5,6 +7,7 @@ const LANG_LOCALE: Record<string, string> = {
     fr: "fr-FR",
     de: "de-DE",
     it: "it-IT",
+    zh: "zh-CN",
 };
 
 export function getLocale(lang?: string): string {
@@ -31,7 +34,8 @@ export function formatMatchDate(dateStr: string, locale?: string): string {
     if (!date) {
         return dateStr;
     }
-    return date.toLocaleDateString(getLocale(locale), {
+    const resolvedLocale = locale ?? useSettingsStore.getState().settings.language;
+    return date.toLocaleDateString(getLocale(resolvedLocale), {
         weekday: "short",
         month: "short",
         day: "numeric",

@@ -324,6 +324,7 @@ mod tests {
                 domain::league::StandingEntry::new("team2".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         });
         game
     }
@@ -796,6 +797,7 @@ mod tests {
                 domain::league::StandingEntry::new("team4".to_string()),
             ],
             transfer_log: vec![],
+            transfer_rumours: vec![],
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

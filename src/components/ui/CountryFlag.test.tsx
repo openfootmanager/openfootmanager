@@ -16,9 +16,17 @@ describe("CountryFlag", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders a text badge fallback for football nation codes without SVG assets", () => {
-    render(<CountryFlag code="ENG" locale="en" />);
+  it("renders an SVG flag for UK home nations", () => {
+    const { container } = render(<CountryFlag code="ENG" locale="en" />);
 
-    expect(screen.getByRole("img", { name: "England" })).toHaveTextContent("ENG");
+    expect(screen.getByRole("img", { name: "England" })).toBeInTheDocument();
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders an SVG flag when given a recognised country name", () => {
+    const { container } = render(<CountryFlag code="Spain" locale="en" />);
+
+    expect(screen.getByRole("img", { name: "Spain" })).toBeInTheDocument();
+    expect(container.querySelector("svg")).not.toBeNull();
   });
 });

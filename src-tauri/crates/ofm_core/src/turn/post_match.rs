@@ -8,7 +8,6 @@ use domain::player::{
     PlayerIssue, PlayerIssueCategory, PlayerPromiseKind, Position as DomainPosition,
 };
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
-use log::debug;
 
 fn compact_team_stats(stats: &engine::TeamStats, possession_pct: u8) -> CompactTeamMatchStats {
     CompactTeamMatchStats {
@@ -89,10 +88,6 @@ pub fn apply_match_report_with_capture<F>(
 ) where
     F: FnMut(StatsState),
 {
-    debug!(
-        "[turn] apply_match_report: fixture #{}, score {} - {}",
-        fixture_index, report.home_goals, report.away_goals
-    );
     // Convert engine GoalDetails → domain GoalEvents
     let home_scorers: Vec<GoalEvent> = report
         .goals

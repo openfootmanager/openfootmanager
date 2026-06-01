@@ -78,6 +78,166 @@ describe("useGameStore", () => {
       expect(useGameStore.getState().gameState).toBe(gs);
     });
 
+    it("prefers football_nation over raw nationality when hydrating entities", () => {
+      const gs = makeGameState({
+        manager: {
+          ...makeGameState().manager,
+          nationality: "GB",
+          football_nation: "ENG",
+        },
+        players: [
+          {
+            id: "p1",
+            match_name: "A. Allen",
+            full_name: "Adam Allen",
+            date_of_birth: "2008-01-01",
+            nationality: "GB",
+            football_nation: "ENG",
+            position: "Goalkeeper",
+            natural_position: "Goalkeeper",
+            alternate_positions: [],
+            training_focus: null,
+            attributes: {
+              pace: 50,
+              stamina: 50,
+              strength: 50,
+              agility: 50,
+              passing: 50,
+              shooting: 50,
+              tackling: 50,
+              dribbling: 50,
+              defending: 50,
+              positioning: 50,
+              vision: 50,
+              decisions: 50,
+              composure: 50,
+              aggression: 50,
+              teamwork: 50,
+              leadership: 50,
+              handling: 50,
+              reflexes: 50,
+              aerial: 50,
+            },
+            condition: 100,
+            morale: 100,
+            injury: null,
+            team_id: "team1",
+            retired: false,
+            contract_end: null,
+            wage: 0,
+            market_value: 0,
+            stats: {
+              appearances: 0,
+              goals: 0,
+              assists: 0,
+              clean_sheets: 0,
+              yellow_cards: 0,
+              red_cards: 0,
+              avg_rating: 0,
+              minutes_played: 0,
+            },
+            career: [],
+            transfer_listed: false,
+            loan_listed: false,
+            transfer_offers: [],
+            traits: [],
+          },
+        ],
+        staff: [
+          {
+            id: "s1",
+            first_name: "Sam",
+            last_name: "Coach",
+            date_of_birth: "1980-01-01",
+            nationality: "British",
+            football_nation: "ENG",
+            role: "Coach",
+            attributes: {
+              coaching: 70,
+              judging_ability: 70,
+              judging_potential: 70,
+              physiotherapy: 30,
+            },
+            team_id: "team1",
+            specialization: null,
+            wage: 0,
+            contract_end: null,
+          },
+        ],
+      });
+
+      useGameStore.getState().setGameState(gs);
+
+      const hydrated = useGameStore.getState().gameState;
+      expect(hydrated).not.toBe(gs);
+      expect(hydrated?.manager.nationality).toBe("ENG");
+      expect(hydrated?.players[0].nationality).toBe("ENG");
+      expect(hydrated?.staff[0].nationality).toBe("ENG");
+    });
+
+    it("hydrates manager directories consistently and preserves transfer logs", () => {
+      type ExtendedGameState = GameStateData & {
+        managers: Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          date_of_birth: string;
+          nationality: string;
+          football_nation?: string;
+          reputation: number;
+          satisfaction: number;
+          fan_approval: number;
+          team_id: string | null;
+          career_stats: GameStateData["manager"]["career_stats"];
+          career_history: GameStateData["manager"]["career_history"];
+        }>;
+        league: NonNullable<GameStateData["league"]> & {
+          transfer_log: Array<{
+            date: string;
+            from_team_id: string;
+            to_team_id: string;
+            player_id: string;
+            fee: number;
+          }>;
+        };
+      };
+
+      const gs = {
+        ...makeGameState(),
+        managers: [
+          {
+            ...makeGameState().manager,
+            id: "mgr-ai-1",
+            nationality: "GB",
+            football_nation: "ENG",
+            team_id: "team2",
+          },
+        ],
+        league: {
+          id: "league-1",
+          name: "Premier Division",
+          season: 2026,
+          fixtures: [],
+          standings: [],
+          transfer_log: [
+            {
+              date: "2026-08-02",
+              from_team_id: "team2",
+              to_team_id: "team3",
+              player_id: "p9",
+              fee: 1200000,
+            },
+          ],
+        },
+      } as ExtendedGameState;
+
+      useGameStore.getState().setGameState(gs);
+
+      const hydrated = useGameStore.getState().gameState as ExtendedGameState | null;
+      expect(hydrated?.managers[0].nationality).toBe("ENG");
+      expect(hydrated?.league.transfer_log).toEqual(gs.league.transfer_log);
+    });
+
     it("marks state as dirty", () => {
       useGameStore.getState().setGameState(makeGameState());
       expect(useGameStore.getState().isDirty).toBe(true);

@@ -84,6 +84,8 @@ vi.mock("react-i18next", () => ({
         return `${params?.amount}/wk at risk`;
       if (key === "finances.noContractRisks")
         return "No imminent contract risks";
+      if (key === "finances.selectRiskPlayer")
+        return `Select ${params?.player}`;
       if (key === "common.renewContract") return "Renew Contract";
       if (key === "finances.facilityTraining") return "Training Facility";
       if (key === "finances.facilityMedical") return "Medical Facility";
@@ -128,7 +130,7 @@ vi.mock("react-i18next", () => ({
 const mockedInvoke = vi.mocked(invoke);
 
 function pendingPromise<T>(): Promise<T> {
-  return new Promise(() => {});
+  return new Promise(() => { });
 }
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -212,6 +214,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     morale: 80,
     injury: null,
     team_id: "team-1",
+    retired: false,
     contract_end: null,
     wage: 1000,
     market_value: 200000,
@@ -611,7 +614,9 @@ describe("FinancesTab facilities", () => {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     expect(
       screen.getByText(
-        "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
+        (_, node) =>
+          node?.textContent ===
+          "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
       ),
     ).toBeInTheDocument();
   });
@@ -681,7 +686,9 @@ describe("FinancesTab facilities", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
+        (_, node) =>
+          node?.textContent ===
+          "Campaign netted €112,500 after €37,500 in spend (€150,000 gross). Cooldown: 28 days",
       ),
     ).toBeInTheDocument();
   });

@@ -16,6 +16,7 @@ fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
         id: id.to_string(),
         name: name.to_string(),
         position: pos,
+        ovr: skill,
         condition: 90,
         fitness: 75,
         pace: skill,
@@ -458,7 +459,10 @@ fn max_substitutions_enforced() {
             player_off_id: snap.home_team.players[1].id.clone(),
             player_on_id: bench[0].id.clone(),
         });
-        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "be.error.liveMatch.maxSubstitutionsReached"
+        );
     }
 }
 
@@ -476,7 +480,7 @@ fn substitution_invalid_player_off_fails() {
         player_off_id: "nonexistent".to_string(),
         player_on_id,
     });
-    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "be.error.liveMatch.playerNotOnPitch");
 }
 
 #[test]
@@ -965,7 +969,10 @@ fn pre_match_swap_fails_after_kickoff() {
         player_off_id: starter_id,
         player_on_id: bench_id,
     });
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.liveMatch.preMatchSwapTooLate"
+    );
 }
 
 #[test]
@@ -978,7 +985,10 @@ fn pre_match_swap_invalid_player_fails() {
         player_off_id: "nonexistent".to_string(),
         player_on_id: bench_id,
     });
-    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.liveMatch.playerNotInStartingXi"
+    );
 }
 
 #[test]
@@ -992,7 +1002,7 @@ fn pre_match_swap_invalid_bench_player_fails() {
         player_off_id: starter_id,
         player_on_id: "nonexistent_bench".to_string(),
     });
-    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "be.error.liveMatch.playerNotOnBench");
 }
 
 // ===========================================================================
@@ -1213,6 +1223,7 @@ fn make_player_with_traits(
         id: id.to_string(),
         name: name.to_string(),
         position: pos,
+        ovr: skill,
         condition: 90,
         fitness: 75,
         pace: skill,
@@ -1512,7 +1523,7 @@ fn substitution_invalid_bench_player_fails() {
         player_off_id: off_id,
         player_on_id: "nonexistent_bench".to_string(),
     });
-    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "be.error.liveMatch.playerNotOnBench");
 }
 
 // ===========================================================================
@@ -1544,9 +1555,10 @@ fn cannot_substitute_red_carded_player() {
         result.is_err(),
         "Should not be able to substitute a red-carded player"
     );
-    assert!(
-        result.unwrap_err().contains("sent-off"),
-        "Error message should mention sent-off"
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.liveMatch.cannotSubstituteSentOffPlayer",
+        "Red-carded substitution should use the sent-off i18n key"
     );
 }
 
@@ -1585,9 +1597,10 @@ fn cannot_bring_back_already_substituted_off_player() {
         result.is_err(),
         "Should not be able to bring back a player who was already substituted off"
     );
-    assert!(
-        result.unwrap_err().contains("already been substituted off"),
-        "Error message should mention already substituted off"
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.liveMatch.playerAlreadySubstitutedOff",
+        "Substituted-off player should use the re-entry guard i18n key"
     );
 }
 

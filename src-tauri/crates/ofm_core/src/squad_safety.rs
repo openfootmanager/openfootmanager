@@ -4,6 +4,11 @@ use domain::player::{ContractExitIntent, Player, Position};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+const NO_TEAM_ASSIGNED_ERROR: &str = "be.error.noTeamAssigned";
+const PLAYER_NOT_FOUND_ERROR: &str = "be.error.playerNotFound";
+const PLAYER_NOT_IN_CLUB_ERROR: &str = "be.error.playerNotInClub";
+const TEAM_NOT_FOUND_ERROR: &str = "be.error.teamNotFound";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SquadSafetyIssue {
@@ -43,15 +48,15 @@ pub fn project_user_team_release_safety(
         .manager
         .team_id
         .as_deref()
-        .ok_or("No team assigned".to_string())?;
+        .ok_or(NO_TEAM_ASSIGNED_ERROR.to_string())?;
     let player = game
         .players
         .iter()
         .find(|candidate| candidate.id == player_id)
-        .ok_or("Player not found".to_string())?;
+        .ok_or(PLAYER_NOT_FOUND_ERROR.to_string())?;
 
     if player.team_id.as_deref() != Some(team_id) {
-        return Err("Player does not belong to your club".to_string());
+        return Err(PLAYER_NOT_IN_CLUB_ERROR.to_string());
     }
 
     let excluded_player_ids = HashSet::from([player_id.to_string()]);
@@ -99,7 +104,7 @@ pub fn evaluate_team_squad_safety(
         .teams
         .iter()
         .find(|candidate| candidate.id == team_id)
-        .ok_or("Team not found".to_string())?;
+        .ok_or(TEAM_NOT_FOUND_ERROR.to_string())?;
     let roster: Vec<&Player> = game
         .players
         .iter()
@@ -179,4 +184,83 @@ fn has_let_expire_intent(player: &Player) -> bool {
         .as_ref()
         .and_then(|state| state.exit_intent.as_ref())
         .is_some_and(|intent| matches!(intent, ContractExitIntent::LetExpire { .. }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::player::PlayerAttributes;
+    use domain::team::Team;
+
+    fn default_attrs() -> PlayerAttributes {
+        PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 30,
+            reflexes: 30,
+            aerial: 60,
+        }
+    }
+
+    fn make_game() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 11, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "mgr1".to_string(),
+            "Alex".to_string(),
+            "Boss".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team-1".to_string());
+
+        let mut team = Team::new(
+            "team-1".to_string(),
+            "Old FC".to_string(),
+            "OLD".to_string(),
+            "England".to_string(),
+            "Oldville".to_string(),
+            "Old Ground".to_string(),
+            20_000,
+        );
+        team.manager_id = Some("mgr1".to_string());
+
+        let mut player = Player::new(
+            "player-1".to_string(),
+            "J. Smith".to_string(),
+            "John Smith".to_string(),
+            "2000-01-01".to_string(),
+            "England".to_string(),
+            Position::Forward,
+            default_attrs(),
+        );
+        player.team_id = Some("team-2".to_string());
+
+        Game::new(clock, manager, vec![team], vec![player], vec![], vec![])
+    }
+
+    #[test]
+    fn project_user_team_release_safety_returns_backend_key_for_other_club_player() {
+        let game = make_game();
+
+        let result = project_user_team_release_safety(&game, "player-1");
+
+        assert_eq!(result.unwrap_err(), PLAYER_NOT_IN_CLUB_ERROR);
+    }
 }

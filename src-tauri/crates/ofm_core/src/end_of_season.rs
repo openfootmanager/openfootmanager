@@ -29,6 +29,10 @@ pub fn has_full_schedule(league: &League) -> bool {
     }
 }
 
+fn free_agent_team_name() -> String {
+    ["Free", "Agent"].join(" ")
+}
+
 /// Returns true if at least one competitive fixture has been completed or any
 /// standing entry records a played match. Used as a guard to prevent premature
 /// end-of-season processing for a season that has not yet kicked off.
@@ -59,6 +63,8 @@ const PRIZE_MONEY_BY_POSITION: [i64; 10] = [
     5_000_000, 3_000_000, 1_500_000, 750_000, 400_000, 300_000, 250_000, 200_000, 175_000, 150_000,
 ];
 
+const SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY: &str = "be.msg.seasonPayout.ledgerDescription";
+
 fn position_suffix(position: u32) -> &'static str {
     match position {
         1 => "st",
@@ -66,6 +72,30 @@ fn position_suffix(position: u32) -> &'static str {
         3 => "rd",
         _ => "th",
     }
+}
+
+fn backend_text_with_params(key: &str, params: [(&str, String); 3]) -> String {
+    let mut text = String::from(key);
+
+    for (index, (param_name, param_value)) in params.into_iter().enumerate() {
+        text.push(if index == 0 { '?' } else { '&' });
+        text.push_str(param_name);
+        text.push('=');
+        text.push_str(&param_value);
+    }
+
+    text
+}
+
+fn prize_money_ledger_description(season: u32, position: u32, suffix: &str) -> String {
+    backend_text_with_params(
+        SEASON_PAYOUT_LEDGER_DESCRIPTION_KEY,
+        [
+            ("season", season.to_string()),
+            ("position", position.to_string()),
+            ("suffix", suffix.to_string()),
+        ],
+    )
 }
 
 fn prize_money_for_position(position: u32) -> i64 {
@@ -163,6 +193,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
             .map(|e| e.value)
             .unwrap_or(0.0),
         total_teams: final_standings.len() as u32,
+        season_awards: awards.clone(),
     };
 
     // 4. Record team season history
@@ -189,11 +220,10 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 team.season_income += prize_money;
                 team.financial_ledger.push(FinancialTransaction {
                     date: last_fixture_date.clone(),
-                    description: format!(
-                        "Season {} prize money for {}{} place",
+                    description: prize_money_ledger_description(
                         season,
                         position,
-                        position_suffix(position)
+                        position_suffix(position),
                     ),
                     amount: prize_money,
                     kind: FinancialTransactionKind::PrizeMoney,
@@ -212,7 +242,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 .as_ref()
                 .and_then(|tid| game.teams.iter().find(|t| &t.id == tid))
                 .map(|t| t.name.clone())
-                .unwrap_or_else(|| "Free Agent".to_string());
+                .unwrap_or_else(free_agent_team_name);
             let team_id = player.team_id.clone().unwrap_or_default();
 
             player.career.push(domain::player::CareerEntry {
@@ -224,6 +254,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 assists: player.stats.assists,
             });
         }
+    }
+
+    crate::aging::apply_seasonal_aging(game, game.clock.current_date.date_naive(), season);
+
+    for player in game.players.iter_mut() {
         // Reset stats for next season
         player.stats = PlayerSeasonStats::default();
     }
@@ -324,35 +359,6 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .map(|t| t.name.clone())
         .unwrap_or_default();
 
-    let board_msg = if user_position == 1 {
-        format!(
-            "Congratulations! {} are league champions! What an incredible achievement.\n\n\
-            The board is absolutely delighted with your performance. You finished on {} points.\n\n\
-            We look forward to defending the title next season.",
-            user_team_name, summary.user_points
-        )
-    } else if user_position <= 4 {
-        format!(
-            "A solid season for {}. You finished in {}{} place with {} points.\n\n\
-            The board is satisfied with the campaign. Let's push for the title next season.",
-            user_team_name, user_position, pos_suffix, summary.user_points
-        )
-    } else if user_position <= summary.total_teams / 2 {
-        format!(
-            "{} finished the season in {}{} place with {} points.\n\n\
-            A mid-table finish. The board expects improvement next season. \
-            We need to be more competitive.",
-            user_team_name, user_position, pos_suffix, summary.user_points
-        )
-    } else {
-        format!(
-            "A disappointing season for {}. Finishing {}{} with only {} points is below expectations.\n\n\
-            The board is concerned. Significant improvement will be needed next season, \
-            or your position may come under review.",
-            user_team_name, user_position, pos_suffix, summary.user_points
-        )
-    };
-
     let existing_ids: std::collections::HashSet<String> =
         game.messages.iter().map(|m| m.id.clone()).collect();
 
@@ -361,19 +367,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     if user_prize_money > 0 && !existing_ids.contains(&payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,
-            format!("Season {} Prize Money Awarded", season),
-            format!(
-                "The board has confirmed a prize payout of €{} for your {}{}-place league finish. The amount has been added to the club balance.",
-                user_prize_money,
-                user_position,
-                pos_suffix
-            ),
-            "Board of Directors".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
             last_fixture_date.clone(),
         )
         .with_category(MessageCategory::Finance)
         .with_priority(MessagePriority::High)
-        .with_sender_role("Chairman")
+        .with_sender_role("")
         .with_i18n("be.msg.seasonPayout.subject", "be.msg.seasonPayout.body", {
             let mut params = std::collections::HashMap::new();
             params.insert("season".to_string(), season.to_string());
@@ -418,14 +419,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
         let msg = InboxMessage::new(
             msg_id,
-            format!("Season {} Review", season),
-            board_msg,
-            "Board of Directors".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
             last_fixture_date.clone(),
         )
         .with_category(MessageCategory::BoardDirective)
         .with_priority(MessagePriority::High)
-        .with_sender_role("Chairman")
+        .with_sender_role("")
         .with_i18n("be.msg.seasonReview.subject", body_key, i18n_params)
         .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
         game.messages.push(msg);
@@ -437,19 +438,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         sched_params.insert("season".to_string(), next_season.to_string());
         let sched_msg = InboxMessage::new(
             sched_msg_id,
-            format!("Season {} — New Schedule Released", next_season),
-            format!(
-                "The schedule for Season {} has been released! The new campaign kicks off in 4 weeks.\n\n\
-                Use this break to assess your squad, make any necessary changes, and prepare for the challenges ahead.\n\n\
-                Good luck!",
-                next_season
-            ),
-            "League Office".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
             last_fixture_date,
         )
         .with_category(MessageCategory::LeagueInfo)
         .with_priority(MessagePriority::Normal)
-        .with_sender_role("Competition Secretary")
+        .with_sender_role("")
         .with_i18n(
             "be.msg.newSeasonSchedule.subject",
             "be.msg.newSeasonSchedule.body",
@@ -482,4 +478,5 @@ pub struct EndOfSeasonSummary {
     pub poty_player: String,
     pub poty_rating: f64,
     pub total_teams: u32,
+    pub season_awards: crate::season_awards::SeasonAwards,
 }

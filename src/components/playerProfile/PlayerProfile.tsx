@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { calcOvr, formatExactMoney, getContractRiskLevel } from "../../lib/helpers";
+import { formatExactMoney, getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
 import { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { resolveBackendText } from "../../utils/backendI18n";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   clearContractExitIntent,
   previewContractTermination,
@@ -81,9 +82,6 @@ export default function PlayerProfile({
   const primaryPosition = player.natural_position || player.position;
   const footednessLabel = t(
     `common.footedness.${player.footedness || "Right"}`,
-    {
-      defaultValue: player.footedness || "Right",
-    },
   );
   const weakFootValue = player.weak_foot ?? 2;
 
@@ -127,9 +125,7 @@ export default function PlayerProfile({
     useState(false);
   const [hasConsumedInitialTerminationIntent, setHasConsumedInitialTerminationIntent] =
     useState(false);
-  const ovr = player.ovr && player.ovr > 0
-    ? player.ovr
-    : calcOvr(player, primaryPosition);
+  const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const teamName = getPlayerTeamName(
     gameState.teams,
@@ -632,7 +628,7 @@ export default function PlayerProfile({
               onGameUpdate(updated);
               setScoutStatus("sent");
             } catch (err) {
-              setScoutError(String(err));
+              setScoutError(resolveTranslatedErrorMessage(err, t));
               setScoutStatus("error");
             }
           })();

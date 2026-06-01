@@ -10,10 +10,11 @@ use ofm_core::clock::GameClock;
 use ofm_core::contracts::{
     DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision, RenewalOffer,
     clear_contract_exit_intent, delegate_renewals, evaluate_renewal_offer, has_let_expire_intent,
-    preview_contract_termination, propose_renewal, set_contract_exit_intent,
-    terminate_contract_now,
+    offer_free_agent_contract, preview_contract_termination, project_free_agent_contract_impact,
+    propose_renewal, set_contract_exit_intent, terminate_contract_now,
 };
 use ofm_core::game::Game;
+use domain::season::TransferWindowStatus;
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -154,6 +155,25 @@ fn make_squad_game() -> Game {
     game
 }
 
+fn make_free_agent() -> Player {
+    let mut player = make_player();
+    player.id = "free-agent-1".to_string();
+    player.match_name = "F. Agent".to_string();
+    player.full_name = "Free Agent".to_string();
+    player.team_id = None;
+    player.contract_end = None;
+    player.wage = 0;
+    player.market_value = 600_000;
+    player
+}
+
+fn make_free_agent_game() -> Game {
+    let mut game = make_game();
+    game.players = vec![make_free_agent()];
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    game
+}
+
 #[test]
 fn accepted_offer_updates_wage_and_term_correctly() {
     let mut game = make_game();
@@ -225,17 +245,57 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     assert_eq!(player.team_id, None);
     assert_eq!(player.contract_end, None);
     assert_eq!(player.wage, 0);
-    assert!(!game.teams[0].starting_xi_ids.contains(&"player-1".to_string()));
+    assert!(
+        !game.teams[0]
+            .starting_xi_ids
+            .contains(&"player-1".to_string())
+    );
     assert_eq!(game.teams[0].finance, original_finance - 132_000);
     assert_eq!(game.teams[0].season_expenses, 132_000);
+    assert_eq!(
+        game.teams[0].financial_ledger.last().unwrap().description,
+        "be.msg.contractTerminated.ledgerDescription?player=player-1"
+    );
     assert_eq!(
         game.teams[0].financial_ledger.last().unwrap().kind,
         FinancialTransactionKind::ContractTermination
     );
-    assert!(
-        game.messages
-            .iter()
-            .any(|message| message.id == "contract_terminated_player-1")
+    let message = game
+        .messages
+        .iter()
+        .find(|message| message.id == "contract_terminated_player-1")
+        .expect("termination should create an inbox message");
+    assert_eq!(
+        message.subject_key.as_deref(),
+        Some("be.msg.contractTerminated.subject")
+    );
+    assert_eq!(
+        message.body_key.as_deref(),
+        Some("be.msg.contractTerminated.body")
+    );
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.assistantManager")
+    );
+    assert_eq!(
+        message.sender_role_key.as_deref(),
+        Some("be.role.assistantManager")
+    );
+    assert!(message.subject.is_empty());
+    assert!(message.body.is_empty());
+    assert!(message.sender.is_empty());
+    assert!(message.sender_role.is_empty());
+    assert_eq!(
+        message.i18n_params.get("player"),
+        Some(&"player-1".to_string())
+    );
+    assert_eq!(
+        message.i18n_params.get("team"),
+        Some(&"Alpha FC".to_string())
+    );
+    assert_eq!(
+        message.i18n_params.get("severance"),
+        Some(&"132000".to_string())
     );
 }
 
@@ -246,7 +306,10 @@ fn terminate_contract_now_blocks_when_goalkeeper_would_be_lost() {
 
     let error = terminate_contract_now(&mut game, "gk-1").expect_err("termination should fail");
 
-    assert!(error.contains("unable to field"));
+    assert_eq!(
+        error,
+        "be.error.contracts.terminationWouldLeaveMatchdaySquadShort"
+    );
     let player = game.players.iter().find(|p| p.id == "gk-1").unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert_eq!(game.teams[0].finance, original_finance);
@@ -331,6 +394,128 @@ fn high_value_star_expects_more_than_fringe_player() {
         RenewalDecision::CounterOffer
     ));
     assert!(star_outcome.suggested_wage > fringe_outcome.suggested_wage);
+}
+
+#[test]
+fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    )
+    .expect("free-agent offer should resolve");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Accepted));
+    let player = game.players.iter().find(|player| player.id == "free-agent-1").unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(player.wage, 4_000);
+    assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
+    let message = game
+        .messages
+        .iter()
+        .find(|message| message.id == "free_agent_signed_free-agent-1")
+        .expect("free-agent signing should create an inbox message");
+    assert_eq!(
+        message.subject_key.as_deref(),
+        Some("be.msg.freeAgentSigned.subject")
+    );
+    assert_eq!(
+        message.body_key.as_deref(),
+        Some("be.msg.freeAgentSigned.body")
+    );
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.assistantManager")
+    );
+    assert_eq!(
+        message.sender_role_key.as_deref(),
+        Some("be.role.assistantManager")
+    );
+    assert!(message.subject.is_empty());
+    assert!(message.body.is_empty());
+    assert!(message.sender.is_empty());
+    assert!(message.sender_role.is_empty());
+    assert_eq!(
+        message.i18n_params.get("player"),
+        Some(&"Free Agent".to_string())
+    );
+    assert_eq!(message.i18n_params.get("team"), Some(&"Alpha FC".to_string()));
+    assert_eq!(message.i18n_params.get("years"), Some(&"3".to_string()));
+}
+
+#[test]
+fn free_agent_offer_returns_counter_when_terms_are_close_but_short() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 3_000,
+            contract_years: 2,
+        },
+    )
+    .expect("free-agent offer should resolve");
+
+    assert!(matches!(outcome.decision, RenewalDecision::CounterOffer));
+    assert_eq!(outcome.suggested_wage, Some(4_000));
+    assert_eq!(outcome.suggested_years, Some(3));
+    assert_eq!(game.players[0].team_id, None);
+}
+
+#[test]
+fn free_agent_offer_rejects_lowball_terms() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 1_000,
+            contract_years: 1,
+        },
+    )
+    .expect("free-agent offer should resolve");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(game.players[0].team_id, None);
+    assert_eq!(game.players[0].wage, 0);
+}
+
+#[test]
+fn free_agent_offer_rejects_contracts_longer_than_five_years() {
+    let mut game = make_free_agent_game();
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 6,
+        },
+    )
+    .expect("free-agent offer should resolve");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(game.players[0].team_id, None);
+    assert_eq!(game.players[0].contract_end, None);
+}
+
+#[test]
+fn free_agent_projection_uses_manager_team_wage_context() {
+    let game = make_free_agent_game();
+
+    let projection =
+        project_free_agent_contract_impact(&game, "free-agent-1", 4_000).expect("projection");
+
+    assert_eq!(projection.current_annual_wage_bill, 0);
+    assert_eq!(projection.projected_annual_wage_bill, 4_000);
+    assert!(projection.policy_allows);
 }
 
 #[test]
@@ -534,6 +719,10 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
         report_message.sender_key.as_deref(),
         Some("be.sender.assistantManager")
     );
+    assert!(report_message.subject.is_empty());
+    assert!(report_message.body.is_empty());
+    assert!(report_message.sender.is_empty());
+    assert!(report_message.sender_role.is_empty());
     let structured_report = report_message
         .context
         .delegated_renewal_report
@@ -542,6 +731,10 @@ fn assistant_can_complete_routine_delegate_renewal_even_when_manager_trust_is_lo
     assert_eq!(structured_report.success_count, 1);
     assert_eq!(structured_report.cases.len(), 1);
     assert_eq!(structured_report.cases[0].status, "successful");
+    assert_eq!(
+        structured_report.cases[0].note_key.as_deref(),
+        Some("be.msg.delegatedRenewals.notes.completed")
+    );
 }
 
 #[test]
@@ -559,7 +752,7 @@ fn renewal_is_blocked_when_offer_pushes_healthy_club_far_over_soft_cap() {
     )
     .expect_err("renewal should be blocked by wage policy");
 
-    assert!(err.contains("board wage policy"));
+    assert_eq!(err, "be.error.contracts.boardWagePolicy?budget=200000");
 }
 
 #[test]
@@ -603,5 +796,5 @@ fn renewal_blocks_large_worsening_for_legacy_over_budget_saves() {
     )
     .expect_err("large worsening should still be blocked");
 
-    assert!(err.contains("board wage policy"));
+    assert_eq!(err, "be.error.contracts.boardWagePolicy?budget=50000");
 }

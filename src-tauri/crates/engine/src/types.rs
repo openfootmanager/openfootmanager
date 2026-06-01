@@ -35,6 +35,8 @@ pub struct PlayerData {
     pub id: String,
     pub name: String,
     pub position: Position,
+    #[serde(default)]
+    pub ovr: u8,
     pub condition: u8, // 0-100
     /// Long-term physical shape (0-100). Multiplies stamina depletion rate in-match.
     #[serde(default = "default_fitness")]

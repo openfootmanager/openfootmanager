@@ -1,14 +1,73 @@
-use super::format_money;
 use crate::game::Game;
 use domain::team::{Sponsorship, SponsorshipBonusCriterion};
 use rand::RngExt;
+use std::collections::HashMap;
+
+pub struct RandomEventResponseEffect {
+    pub message: String,
+    pub i18n_key: String,
+    pub i18n_params: HashMap<String, String>,
+}
+
+fn response_effect(
+    i18n_key: &str,
+    i18n_params: HashMap<String, String>,
+) -> RandomEventResponseEffect {
+    RandomEventResponseEffect {
+        message: String::new(),
+        i18n_key: i18n_key.to_string(),
+        i18n_params,
+    }
+}
 
 fn parse_amount_param(value: &str) -> Option<u64> {
-    let digits: String = value.chars().filter(|ch| ch.is_ascii_digit()).collect();
+    let trimmed = value.trim();
+
+    if let Ok(raw_amount) = trimmed.parse::<u64>() {
+        return Some(raw_amount);
+    }
+
+    let upper = trimmed.to_ascii_uppercase();
+    let compact_multiplier = if upper.ends_with('M') {
+        Some(1_000_000_f64)
+    } else if upper.ends_with('K') {
+        Some(1_000_f64)
+    } else {
+        None
+    };
+
+    if let Some(multiplier) = compact_multiplier {
+        let numeric_portion: String = upper
+            .chars()
+            .filter(|ch| ch.is_ascii_digit() || *ch == '.' || *ch == ',')
+            .collect();
+        let normalized = numeric_portion.replace(',', "");
+        if let Ok(parsed) = normalized.parse::<f64>() {
+            return Some((parsed * multiplier).round() as u64);
+        }
+    }
+
+    let digits: String = trimmed.chars().filter(|ch| ch.is_ascii_digit()).collect();
     if digits.is_empty() {
         None
     } else {
         digits.parse::<u64>().ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_amount_param;
+
+    #[test]
+    fn parse_amount_param_keeps_compact_suffix_support() {
+        assert_eq!(parse_amount_param("75K"), Some(75_000));
+        assert_eq!(parse_amount_param("1.5M"), Some(1_500_000));
+    }
+
+    #[test]
+    fn parse_amount_param_treats_commas_as_separators_for_compact_values() {
+        assert_eq!(parse_amount_param("1,200K"), Some(1_200_000));
     }
 }
 
@@ -18,7 +77,7 @@ pub fn apply_event_response(
     message_id: &str,
     _action_id: &str,
     option_id: &str,
-) -> Option<String> {
+) -> Option<RandomEventResponseEffect> {
     if message_id.starts_with("sponsor_") {
         let user_team_id = game.manager.team_id.clone()?;
         match option_id {
@@ -54,9 +113,9 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some(format!(
-                    "Sponsorship deal signed! You will receive €{}/week for 12 weeks.",
-                    format_money(amount)
+                Some(response_effect(
+                    "be.msg.sponsor.effects.accepted",
+                    HashMap::from([("amount".to_string(), amount.to_string())]),
                 ))
             }
             "decline" => {
@@ -65,7 +124,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("Sponsorship declined.".to_string())
+                Some(response_effect(
+                    "be.msg.sponsor.effects.declined",
+                    HashMap::new(),
+                ))
             }
             _ => None,
         }
@@ -77,7 +139,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("You reassured the board. They'll give you more time — for now.".to_string())
+                Some(response_effect(
+                    "be.msg.boardConfidence.effects.reassureBoard",
+                    HashMap::new(),
+                ))
             }
             "accept_pressure" => {
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -85,10 +150,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some(
-                    "You acknowledged the pressure. The board appreciates your honesty."
-                        .to_string(),
-                )
+                Some(response_effect(
+                    "be.msg.boardConfidence.effects.acceptPressure",
+                    HashMap::new(),
+                ))
             }
             "blame_circumstances" => {
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -96,10 +161,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some(
-                    "The board isn't entirely convinced by excuses, but they'll wait and see."
-                        .to_string(),
-                )
+                Some(response_effect(
+                    "be.msg.boardConfidence.effects.blameCircumstances",
+                    HashMap::new(),
+                ))
             }
             _ => None,
         }
@@ -119,7 +184,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("You engaged with the fans. Squad morale improved slightly.".to_string())
+                Some(response_effect(
+                    "be.msg.fanPetition.effects.listenFans",
+                    HashMap::new(),
+                ))
             }
             "ignore_fans" => {
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -127,10 +195,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some(
-                    "You decided to focus on football matters. The fans are a little disappointed."
-                        .to_string(),
-                )
+                Some(response_effect(
+                    "be.msg.fanPetition.effects.ignoreFans",
+                    HashMap::new(),
+                ))
             }
             "address_publicly" => {
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -138,7 +206,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("Your public address was well received. Fan confidence is up.".to_string())
+                Some(response_effect(
+                    "be.msg.fanPetition.effects.addressPublicly",
+                    HashMap::new(),
+                ))
             }
             _ => None,
         }
@@ -162,10 +233,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some(
-                    "You made it clear the player is not for sale. They're feeling valued."
-                        .to_string(),
-                )
+                Some(response_effect(
+                    "be.msg.rivalInterest.effects.notForSale",
+                    HashMap::new(),
+                ))
             }
             "open_to_offers" => {
                 // Player morale drop — they feel uncertain
@@ -180,7 +251,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("You indicated you'd listen to offers. The player is unsettled.".to_string())
+                Some(response_effect(
+                    "be.msg.rivalInterest.effects.openToOffers",
+                    HashMap::new(),
+                ))
             }
             "no_comment" => {
                 if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
@@ -188,7 +262,10 @@ pub fn apply_event_response(
                         a.resolved = true;
                     }
                 }
-                Some("No comment. The rumour mill continues...".to_string())
+                Some(response_effect(
+                    "be.msg.rivalInterest.effects.noComment",
+                    HashMap::new(),
+                ))
             }
             _ => None,
         }

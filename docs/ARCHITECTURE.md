@@ -131,6 +131,7 @@ Save/load functionality:
 - **`save_manager.rs`** — Save slot orchestration, load/save flows, and round-trip tests
 - **`game_persistence.rs`** — `Game` serialization/deserialization between runtime state and storage records
 - **`repositories/`** — SQLite repositories for saves, metadata, news, and related persistence records
+- Persistence policy: repository queries use static SQL with bound parameters for runtime values, and save writes are committed transactionally to avoid partial persistence.
 
 ---
 

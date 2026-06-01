@@ -18,10 +18,14 @@ describe("resolveCountryFlagCode", () => {
     expect(resolveCountryFlagCode("GB")).toBe("GB");
     expect(resolveCountryFlagCode("br")).toBe("BR");
     expect(resolveCountryFlagCode("IE")).toBe("IE");
+    expect(resolveCountryFlagCode("ENG")).toBe("GB-ENG");
+    expect(resolveCountryFlagCode("SCO")).toBe("GB-SCT");
+    expect(resolveCountryFlagCode("WAL")).toBe("GB-WLS");
+    expect(resolveCountryFlagCode("NIR")).toBe("GB-NIR");
   });
 
   it("normalises demonym values before resolving", () => {
-    expect(resolveCountryFlagCode("English")).toBeNull();
+    expect(resolveCountryFlagCode("English")).toBe("GB-ENG");
     expect(resolveCountryFlagCode("Brazilian")).toBe("BR");
     expect(resolveCountryFlagCode("Irish")).toBe("IE");
   });
@@ -54,8 +58,20 @@ describe("countryName", () => {
     const nameIt = countryName("DE", "it");
     expect(nameIt).toBe("Germania");
 
+    const nameRu = countryName("DE", "ru");
+    expect(nameRu).toBe("Германия");
+
+    const nameZh = countryName("DE", "zh-CN");
+    expect(nameZh).toBe("德国");
+
     const englandEs = countryName("ENG", "es");
     expect(englandEs).toBe("Inglaterra");
+
+    const englandRu = countryName("ENG", "ru");
+    expect(englandRu).toBe("Англия");
+
+    const englandZh = countryName("ENG", "zh-CN");
+    expect(englandZh).toBe("英格兰");
   });
 
   it("falls back to English for unknown locale", () => {
@@ -159,6 +175,13 @@ describe("normaliseNationality", () => {
     expect(normaliseNationality("Brazilian")).toBe("BR");
     expect(normaliseNationality("German")).toBe("DE");
     expect(normaliseNationality("French")).toBe("FR");
+  });
+
+  it("converts recognised country names to alpha-2 codes", () => {
+    expect(normaliseNationality("Spain")).toBe("ES");
+    expect(normaliseNationality("Germany")).toBe("DE");
+    expect(normaliseNationality("Italy")).toBe("IT");
+    expect(normaliseNationality("Netherlands")).toBe("NL");
   });
 
   it("returns the original value for unknown demonyms", () => {

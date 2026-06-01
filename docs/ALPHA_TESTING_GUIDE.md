@@ -125,7 +125,7 @@ Examples:
 
 The easiest way to submit feedback is through our **GitHub issue templates**. Just pick the right one and fill it in.
 
-If you want to chat with the team or other players, you can also join the Discord server: https://discord.gg/4ppEDH68
+If you want to chat with the team or other players, you can also join the Discord server: https://discord.gg/2CXaesaukT
 
 - [**Bug Report (English)**](https://github.com/openfootmanager/openfootmanager/issues/new?template=bug_report.yml) — Something crashed, broke, or behaved incorrectly
 - [**Feedback / Suggestion (English)**](https://github.com/openfootmanager/openfootmanager/issues/new?template=feedback.yml) — Usability issues, balance concerns, or ideas

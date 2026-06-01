@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
-import { GameStateData } from "../store/gameStore";
+import { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import { useGameStore } from "../store/gameStore";
 import { Card, CardBody } from "./ui";
-import { Trophy, Award, Star, ArrowRight, Crown } from "lucide-react";
+import AwardsCeremonyScreen from "./season/AwardsCeremonyScreen";
+import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 
 interface EndOfSeasonSummary {
   season: number;
@@ -23,6 +24,7 @@ interface EndOfSeasonSummary {
   poty_player: string;
   poty_rating: number;
   total_teams: number;
+  season_awards: SeasonAwardsData;
 }
 
 interface EndOfSeasonScreenProps {
@@ -35,7 +37,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<EndOfSeasonSummary | null>(null);
-  const [step, setStep] = useState<"review" | "done">("review");
+  const [step, setStep] = useState<"review" | "ceremony" | "done">("review");
 
   const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
@@ -67,7 +69,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
       }
       setSummary(result.summary);
       onGameUpdate(result.game);
-      setStep("done");
+      setStep("ceremony");
     } catch (err) {
       console.error("Failed to advance season:", err);
     } finally {
@@ -197,6 +199,16 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
         </>
       )}
 
+      {step === "ceremony" && summary && (
+        <AwardsCeremonyScreen
+          season={summary.season}
+          leagueName={summary.league_name}
+          gameState={gameState}
+          awards={summary.season_awards}
+          onContinue={() => setStep("done")}
+        />
+      )}
+
       {step === "done" && summary && (
         <div className="text-center">
           <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mb-4 shadow-lg shadow-primary-500/30">
@@ -208,36 +220,6 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
           <p className="text-gray-500 dark:text-gray-400 mb-8">
             {t('endOfSeason.newScheduleReleased')}
           </p>
-
-          {/* Season summary awards */}
-          {(summary.golden_boot_player || summary.poty_player) && (
-            <div className="flex gap-4 justify-center mb-8 flex-wrap">
-              {summary.golden_boot_player && (
-                <Card className="w-64">
-                  <CardBody>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Award className="w-4 h-4 text-accent-500" />
-                      <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-400">{t('endOfSeason.goldenBoot')}</span>
-                    </div>
-                    <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200">{summary.golden_boot_player}</p>
-                    <p className="text-xs text-gray-500">{t('endOfSeason.nGoals', { count: summary.golden_boot_goals })}</p>
-                  </CardBody>
-                </Card>
-              )}
-              {summary.poty_player && (
-                <Card className="w-64">
-                  <CardBody>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Star className="w-4 h-4 text-purple-500" />
-                      <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-400">{t('endOfSeason.playerOfYear')}</span>
-                    </div>
-                    <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-200">{summary.poty_player}</p>
-                    <p className="text-xs text-gray-500">{t('endOfSeason.avgRating', { rating: summary.poty_rating.toFixed(2) })}</p>
-                  </CardBody>
-                </Card>
-              )}
-            </div>
-          )}
 
           <button
             onClick={() => {

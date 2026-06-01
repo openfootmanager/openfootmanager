@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { getPositionOvr, parseFormationNeeds, condColor, statColor, starterOvrColor, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import { parseFormationNeeds, condColor, statColor, starterOvrColor, starterBadgeStyle, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
 import PreMatchLineup from "./PreMatchLineup";
 import type { EnginePlayerData, EngineTeamData } from "./types";
 
@@ -42,6 +42,7 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
   id: "p1",
   name: "Test Player",
   position: "Midfielder",
+  ovr: 70,
   condition: 100,
   pace: 70, stamina: 70, strength: 70, agility: 70,
   passing: 70, shooting: 70, tackling: 70, dribbling: 70,
@@ -50,38 +51,6 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
   leadership: 50, handling: 70, reflexes: 70, aerial: 70,
   traits: [],
   ...overrides,
-});
-
-// ---------------------------------------------------------------------------
-// getPositionOvr
-// ---------------------------------------------------------------------------
-
-describe("getPositionOvr", () => {
-  it("calculates Goalkeeper OVR from handling, reflexes, aerial, positioning, composure", () => {
-    const gk = makePlayer({ position: "Goalkeeper", handling: 80, reflexes: 80, aerial: 60, positioning: 70, composure: 60 });
-    // (80*2 + 80*2 + 60 + 70 + 60) / 7 = 510/7 ≈ 73
-    expect(getPositionOvr(gk)).toBe(Math.round((80 * 2 + 80 * 2 + 60 + 70 + 60) / 7));
-  });
-
-  it("calculates Defender OVR from defending, tackling, strength, positioning, aerial", () => {
-    const def = makePlayer({ position: "Defender", defending: 80, tackling: 75, strength: 70, positioning: 65, aerial: 60 });
-    expect(getPositionOvr(def)).toBe(Math.round((80 * 2 + 75 * 2 + 70 + 65 + 60) / 7));
-  });
-
-  it("calculates Midfielder OVR from passing, vision, decisions, stamina, dribbling, teamwork", () => {
-    const mid = makePlayer({ position: "Midfielder", passing: 80, vision: 75, decisions: 70, stamina: 65, dribbling: 60, teamwork: 55 });
-    expect(getPositionOvr(mid)).toBe(Math.round((80 * 2 + 75 + 70 + 65 + 60 + 55) / 7));
-  });
-
-  it("calculates Forward OVR from shooting, pace, dribbling, composure, strength, positioning", () => {
-    const fwd = makePlayer({ position: "Forward", shooting: 85, pace: 80, dribbling: 75, composure: 70, strength: 65, positioning: 60 });
-    expect(getPositionOvr(fwd)).toBe(Math.round((85 * 2 + 80 + 75 + 70 + 65 + 60) / 7));
-  });
-
-  it("returns 50 for unknown positions", () => {
-    const unknown = makePlayer({ position: "Sweeper" });
-    expect(getPositionOvr(unknown)).toBe(50);
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -155,6 +124,38 @@ describe("starterOvrColor", () => {
     expect(starterOvrColor(72)).toBe("text-primary-600 dark:text-primary-400");
     expect(starterOvrColor(58)).toBe("text-gray-700 dark:text-gray-300");
     expect(starterOvrColor(44)).toBe("text-red-600 dark:text-red-400");
+  });
+});
+
+describe("starterBadgeStyle", () => {
+  it("keeps dark team colors as the badge accent", () => {
+    expect(starterBadgeStyle("#008866")).toEqual({
+      backgroundColor: "#00886630",
+      color: "#008866",
+      borderColor: "#00886655",
+      borderWidth: 1,
+      borderStyle: "solid",
+    });
+  });
+
+  it("normalizes 3-digit hex colors before applying alpha variants", () => {
+    expect(starterBadgeStyle("#123")).toEqual({
+      backgroundColor: "#11223330",
+      color: "#112233",
+      borderColor: "#11223355",
+      borderWidth: 1,
+      borderStyle: "solid",
+    });
+  });
+
+  it("falls back to a readable neutral badge for very light team colors", () => {
+    expect(starterBadgeStyle("#ffffff")).toEqual({
+      backgroundColor: "#f8fafc",
+      color: "#334155",
+      borderColor: "#cbd5e1",
+      borderWidth: 1,
+      borderStyle: "solid",
+    });
   });
 });
 

@@ -3,7 +3,7 @@ mod message_builders;
 mod responses;
 
 pub(crate) use message_builders::sponsor_offer_message;
-pub use responses::apply_event_response;
+pub use responses::{RandomEventResponseEffect, apply_event_response};
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
 use crate::game::Game;
@@ -17,6 +17,37 @@ fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
+}
+
+fn fallback_club_name() -> &'static str {
+    concat!("Your", " ", "Club")
+}
+
+fn sponsor_offer_name(index: usize) -> String {
+    const SPONSORS: [(&str, &str); 8] = [
+        ("GreenTech", "Industries"),
+        ("Nova", "Sports"),
+        ("Titan", "Energy"),
+        ("BlueWave", "Solutions"),
+        ("Summit", "Capital"),
+        ("Apex", "Motors"),
+        ("FreshBrew", concat!("Co", ".")),
+        ("CityLink", "Telecom"),
+    ];
+    let (prefix, suffix) = SPONSORS[index % SPONSORS.len()];
+    [prefix, suffix].join(" ")
+}
+
+fn rival_interest_name(index: usize) -> String {
+    const RIVALS: [(&str, &str); 5] = [
+        ("FC", "Rival"),
+        ("Sporting", "Ambition"),
+        ("United", "Prestige"),
+        ("Real", "Progress"),
+        ("Bayern", "Elite"),
+    ];
+    let (prefix, suffix) = RIVALS[index % RIVALS.len()];
+    [prefix, suffix].join(" ")
 }
 
 /// Injury probability multiplier based on fitness. Less fit players are more
@@ -69,22 +100,12 @@ pub fn check_random_events(game: &mut Game) {
                 .iter()
                 .find(|t| t.id == user_team_id)
                 .map(|t| t.name.as_str())
-                .unwrap_or("Your Club");
+                .unwrap_or(fallback_club_name());
             let amount = rng.random_range(5..=30) * 10_000; // 50k - 300k
-            let sponsor_names = [
-                "GreenTech Industries",
-                "Nova Sports",
-                "Titan Energy",
-                "BlueWave Solutions",
-                "Summit Capital",
-                "Apex Motors",
-                "FreshBrew Co.",
-                "CityLink Telecom",
-            ];
-            let sponsor = sponsor_names[rng.random_range(0..sponsor_names.len())];
+            let sponsor = sponsor_offer_name(rng.random_range(0..8));
 
             new_messages.push(message_builders::sponsor_offer_message(
-                &msg_id, team_name, sponsor, amount, &today,
+                &msg_id, team_name, &sponsor, amount, &today,
             ));
         }
     }
@@ -153,8 +174,7 @@ pub fn check_random_events(game: &mut Game) {
                         // Generate a public news article for notable players
                         if is_notable {
                             let news_id = format!("injury_news_{}_{}", pid, today);
-                            let actual_team_id =
-                                player_team_id.as_deref().unwrap_or(&user_team_id);
+                            let actual_team_id = player_team_id.as_deref().unwrap_or(&user_team_id);
                             let team_name = game
                                 .teams
                                 .iter()
@@ -189,7 +209,7 @@ pub fn check_random_events(game: &mut Game) {
                 .iter()
                 .find(|t| t.id == user_team_id)
                 .map(|t| t.name.as_str())
-                .unwrap_or("Your Club");
+                .unwrap_or(fallback_club_name());
 
             // Pick a random player for the story
             let team_players: Vec<&domain::player::Player> = game
@@ -277,7 +297,7 @@ pub fn check_random_events(game: &mut Game) {
                 .iter()
                 .find(|t| t.id == user_team_id)
                 .map(|t| t.name.as_str())
-                .unwrap_or("Your Club");
+                .unwrap_or(fallback_club_name());
             new_messages.push(message_builders::community_event_message(
                 &msg_id, team_name, &today,
             ));
@@ -366,7 +386,7 @@ pub fn check_random_events(game: &mut Game) {
                 .iter()
                 .find(|t| t.id == user_team_id)
                 .map(|t| t.name.as_str())
-                .unwrap_or("Your Club");
+                .unwrap_or(fallback_club_name());
             new_messages.push(builders_reports::fan_petition_message(
                 &msg_id, team_name, &today,
             ));
@@ -386,19 +406,12 @@ pub fn check_random_events(game: &mut Game) {
             if !eligible.is_empty() {
                 let player = choose_rival_interest_target(&eligible, current_date, &mut rng)
                     .unwrap_or(eligible[rng.random_range(0..eligible.len())]);
-                let rival_names = [
-                    "FC Rival",
-                    "Sporting Ambition",
-                    "United Prestige",
-                    "Real Progress",
-                    "Bayern Elite",
-                ];
-                let rival = rival_names[rng.random_range(0..rival_names.len())];
+                let rival = rival_interest_name(rng.random_range(0..5));
                 new_messages.push(builders_reports::rival_interest_message(
                     &msg_id,
                     &player.id,
                     &player.match_name,
-                    rival,
+                    &rival,
                     &today,
                 ));
             }
@@ -456,14 +469,4 @@ fn choose_rival_interest_target<'a, R: rand::Rng + ?Sized>(
     }
 
     eligible.last().copied()
-}
-
-fn format_money(amount: u64) -> String {
-    if amount >= 1_000_000 {
-        format!("{:.1}M", amount as f64 / 1_000_000.0)
-    } else if amount >= 1_000 {
-        format!("{}K", amount / 1_000)
-    } else {
-        amount.to_string()
-    }
 }
