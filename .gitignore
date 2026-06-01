@@ -36,3 +36,4 @@ coverage/
 # Local Vitest reporter output
 vitest-mainmenu.jsonexported_world.json
 test-world.json
+exported_world.json
