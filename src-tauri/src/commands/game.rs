@@ -678,7 +678,7 @@ pub fn bootstrap_game_for_mcp(
     state_manager: &StateManager,
     save_manager_state: &crate::SaveManagerState,
     world_path: &str,
-    team_id: &str,
+    team_id: Option<&str>,
     manager_first_name: &str,
     manager_last_name: &str,
     manager_nationality: &str,
@@ -756,8 +756,13 @@ pub fn bootstrap_game_for_mcp(
         ofm_core::season_context::refresh_game_context(&mut game);
         current_stats_state
     } else {
+        // Manager has no team — need an explicit team_id to assign one
+        let tid = team_id.ok_or(
+            "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\""
+                .to_string(),
+        )?;
         let start_phase = start_phase_for_game(&game);
-        bootstrap_team_selection(&mut game, team_id, start_phase, current_stats_state)?
+        bootstrap_team_selection(&mut game, tid, start_phase, current_stats_state)?
     };
 
     info!(

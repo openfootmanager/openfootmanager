@@ -102,7 +102,7 @@ pub fn run() {
                 {
                     return Err(Box::new(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
-                        "--mcp-mode competition requires --mcp-auto-start (world.json,team_id)",
+                        "--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])",
                     )) as Box<dyn std::error::Error + Send + Sync>);
                 }
 
@@ -121,7 +121,7 @@ pub fn run() {
                 // --mcp-auto-start: bootstrap game
                 if let Some(ref auto_start) = mcp_config.auto_start {
                     log::info!(
-                        "[mcp] Auto-starting: world={}, team={}",
+                        "[mcp] Auto-starting: world={}, team={:?}",
                         auto_start.world_path, auto_start.team_id
                     );
 
@@ -138,7 +138,7 @@ pub fn run() {
                         &sm,
                         &save_mgr,
                         &auto_start.world_path,
-                        &auto_start.team_id,
+                        auto_start.team_id.as_deref(),
                         &mgr_name,
                         &"Manager", // last name
                         &mgr_nat,

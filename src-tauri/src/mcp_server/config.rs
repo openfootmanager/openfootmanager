@@ -36,7 +36,10 @@ pub struct McpConfig {
 #[derive(Debug, Clone)]
 pub struct AutoStartConfig {
     pub world_path: String,
-    pub team_id: String,
+    /// Team ID to manage. Required for RosterBaseline worlds or when the
+    /// exported world's user manager has no team. Optional for HistoricalSnapshot
+    /// worlds where the manager already has a team assigned.
+    pub team_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,12 +115,10 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
                 i += 1;
                 if i < args.len() {
                     let parts: Vec<&str> = args[i].splitn(2, ',').collect();
-                    if parts.len() == 2 {
-                        auto_start = Some(AutoStartConfig {
-                            world_path: parts[0].to_string(),
-                            team_id: parts[1].to_string(),
-                        });
-                    }
+                    auto_start = Some(AutoStartConfig {
+                        world_path: parts[0].to_string(),
+                        team_id: parts.get(1).map(|s| s.to_string()),
+                    });
                 }
             }
             "--no-gui" => {
@@ -231,7 +232,7 @@ mod tests {
         assert_eq!(config.disabled_tools, vec!["club_upgrade_facility"]);
         let auto_start = config.auto_start.expect("auto_start");
         assert_eq!(auto_start.world_path, "world.json");
-        assert_eq!(auto_start.team_id, "team_abc123");
+        assert_eq!(auto_start.team_id, Some("team_abc123".to_string()));
         assert!(config.no_gui);
         assert_eq!(config.min_tick_delay_ms, 100);
         assert_eq!(config.auto_save_interval_days, 14);
@@ -288,12 +289,10 @@ mod tests {
                     i += 1;
                     if i < args.len() {
                         let parts: Vec<&str> = args[i].splitn(2, ',').collect();
-                        if parts.len() == 2 {
-                            auto_start = Some(AutoStartConfig {
-                                world_path: parts[0].to_string(),
-                                team_id: parts[1].to_string(),
-                            });
-                        }
+                        auto_start = Some(AutoStartConfig {
+                            world_path: parts[0].to_string(),
+                            team_id: parts.get(1).map(|s| s.to_string()),
+                        });
                     }
                 }
                 "--no-gui" => {
