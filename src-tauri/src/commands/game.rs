@@ -684,44 +684,86 @@ pub fn bootstrap_game_for_mcp(
     manager_nationality: &str,
 ) -> Result<String, String> {
     // Step 1: Load world data
-    let world = load_world_data_from_path(world_path)?;
+    let mut world = load_world_data_from_path(world_path)?;
 
-    // Step 2: Create a manager (DOB set to make age ~45)
-    let startup_options = normalize_startup_options(None)?;
-    let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    let reference_date = clock.current_date.date_naive();
-    let dob = reference_date - chrono::Duration::days(45 * 365);
-    let dob_str = dob.format("%Y-%m-%d").to_string();
+    // Step 2: Find the existing user manager in the world data.
+    // HistoricalSnapshot exports include the user manager (id "mgr_user") already
+    // assigned to their team. Reusing it preserves the team assignment, career
+    // history, and all manager state — no takeover/hiring logic needed.
+    // If not found (e.g. RosterBaseline world), fall back to creating a fresh one.
+    let manager = if let Some(idx) = world
+        .managers
+        .iter()
+        .position(|m| m.id == "mgr_user")
+    {
+        let mut existing = world.managers.remove(idx);
+        info!(
+            "[mcp-bootstrap] Reusing existing manager {} {} (team_id={:?})",
+            existing.first_name, existing.last_name, existing.team_id
+        );
+        // Apply CLI overrides for name/nationality if provided
+        if manager_first_name != "Agent" {
+            existing.first_name = manager_first_name.to_string();
+        }
+        if manager_last_name != "Manager" {
+            existing.last_name = manager_last_name.to_string();
+        }
+        if manager_nationality != "England" {
+            existing.nationality = manager_nationality.to_string();
+        }
+        existing
+    } else {
+        // No existing user manager — create a fresh one (DOB set to make age ~45)
+        let startup_options = normalize_startup_options(None)?;
+        let reference_date = game_clock_for_world(&startup_options, &world.metadata)?
+            .current_date
+            .date_naive();
+        let dob = reference_date - chrono::Duration::days(45 * 365);
+        let dob_str = dob.format("%Y-%m-%d").to_string();
 
-    let manager = Manager::new(
-        "mgr_user".to_string(),
-        manager_first_name.to_string(),
-        manager_last_name.to_string(),
-        dob_str,
-        manager_nationality.to_string(),
-    );
-
-    info!(
-        "[mcp-bootstrap] Created manager {} {}",
-        manager.first_name, manager.last_name
-    );
+        let fresh = Manager::new(
+            "mgr_user".to_string(),
+            manager_first_name.to_string(),
+            manager_last_name.to_string(),
+            dob_str,
+            manager_nationality.to_string(),
+        );
+        info!(
+            "[mcp-bootstrap] Created fresh manager {} {}",
+            fresh.first_name, fresh.last_name
+        );
+        fresh
+    };
 
     // Step 3: Build game from world data
+    let startup_options = normalize_startup_options(None)?;
+    let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let (mut game, current_stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
 
     info!(
-        "[mcp-bootstrap] Built game: {} teams, {} players",
+        "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
         game.teams.len(),
-        game.players.len()
+        game.players.len(),
+        game.manager.team_id,
     );
 
-    // Step 4: Select team
-    let start_phase = start_phase_for_game(&game);
-    let stats_state =
-        bootstrap_team_selection(&mut game, team_id, start_phase, current_stats_state)?;
+    // Step 4: If the manager already has a team assigned (reused from world data),
+    // we don't need the takeover logic. Just refresh context and proceed.
+    // Otherwise, run the normal team selection bootstrap.
+    let stats_state = if game.manager.team_id.is_some() {
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        ofm_core::season_context::refresh_game_context(&mut game);
+        current_stats_state
+    } else {
+        let start_phase = start_phase_for_game(&game);
+        bootstrap_team_selection(&mut game, team_id, start_phase, current_stats_state)?
+    };
 
-    info!("[mcp-bootstrap] Selected team: {}", team_id);
+    info!(
+        "[mcp-bootstrap] Manager assigned to team_id={:?}",
+        game.manager.team_id
+    );
 
     // Step 5: Create initial save
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
