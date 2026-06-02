@@ -2679,7 +2679,12 @@
     "rejected": "Your application was unsuccessful.",
     "noJobs": "No positions currently available.",
     "leaguePosition": "Last Season: {{position}}",
-    "refresh": "Check for new positions"
+    "refresh": "Check for new positions",
+    "sameTeam": "You are already managing that club.",
+    "notBetterClub": "You can only apply for clubs that are a step up from your current one.",
+    "switchConfirmTitle": "Leave your current club?",
+    "switchConfirmBody": "Accepting this opportunity will end your tenure at {{currentClub}} and move you to {{newClub}}.",
+    "switchConfirmAccept": "Accept new role"
   },
   "awardsCeremony": {
     "title": "Awards Ceremony",

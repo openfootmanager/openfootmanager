@@ -56,6 +56,22 @@ pub struct ManagerCareerEntry {
     pub best_league_position: Option<u32>,
 }
 
+impl ManagerCareerEntry {
+    pub fn open(team_id: String, team_name: String, start_date: String) -> Self {
+        Self {
+            team_id,
+            team_name,
+            start_date,
+            end_date: None,
+            matches: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            best_league_position: None,
+        }
+    }
+}
+
 impl Manager {
     pub fn new(
         id: String,

@@ -61,17 +61,11 @@ fn create_seeded_manager(
     manager.satisfaction = BASE_AI_MANAGER_SATISFACTION as u8;
     manager.fan_approval = 50;
     manager.hire(team.id.clone());
-    manager.career_history.push(ManagerCareerEntry {
-        team_id: team.id.clone(),
-        team_name: team.name.clone(),
-        start_date: game.clock.current_date.format("%Y-%m-%d").to_string(),
-        end_date: None,
-        matches: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        best_league_position: None,
-    });
+    manager.career_history.push(ManagerCareerEntry::open(
+        team.id.clone(),
+        team.name.clone(),
+        game.clock.current_date.format("%Y-%m-%d").to_string(),
+    ));
     Some(manager)
 }
 

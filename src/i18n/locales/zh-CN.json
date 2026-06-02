@@ -2680,7 +2680,12 @@
     "rejected": "您的申请未通过。",
     "noJobs": "目前没有空缺职位。",
     "leaguePosition": "上赛季排名：{{position}}",
-    "refresh": "查看新职位"
+    "refresh": "查看新职位",
+    "sameTeam": "您已经是该俱乐部的主教练。",
+    "notBetterClub": "您只能申请比当前俱乐部级别更高的俱乐部。",
+    "switchConfirmTitle": "离开当前俱乐部？",
+    "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
+    "switchConfirmAccept": "接受新职位"
   },
   "awardsCeremony": {
     "title": "颁奖典礼",

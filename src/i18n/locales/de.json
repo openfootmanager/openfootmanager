@@ -2683,7 +2683,12 @@
     "rejected": "Ihre Bewerbung war leider nicht erfolgreich.",
     "noJobs": "Derzeit keine Stellen verfügbar.",
     "leaguePosition": "Letzte Saison: {{position}}",
-    "refresh": "Nach neuen Stellen suchen"
+    "refresh": "Nach neuen Stellen suchen",
+    "sameTeam": "Sie sind bereits Trainer dieses Vereins.",
+    "notBetterClub": "Sie können sich nur bei Vereinen bewerben, die einen Aufstieg gegenüber Ihrem aktuellen Verein darstellen.",
+    "switchConfirmTitle": "Aktuellen Verein verlassen?",
+    "switchConfirmBody": "Wenn Sie diese Gelegenheit annehmen, beenden Sie Ihre Amtszeit bei {{currentClub}} und wechseln zu {{newClub}}.",
+    "switchConfirmAccept": "Neue Position annehmen"
   },
   "awardsCeremony": {
     "title": "Preisverleihung",
