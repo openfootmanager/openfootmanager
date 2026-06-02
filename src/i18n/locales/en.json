@@ -19,7 +19,18 @@
     "noResults": "No results",
     "importedDescription": "Imported world database",
     "invalidWorldDb": "Invalid world database file: {{error}}",
-    "failedStartGame": "Failed to start game: {{error}}"
+    "failedStartGame": "Failed to start game: {{error}}",
+    "openDiscord": "Open Discord community",
+    "openGithub": "Open GitHub repository"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Save Profile",
+      "body": "You've made changes to {{name}}'s profile. What would you like to do?",
+      "update": "Update \"{{name}}\"",
+      "saveNew": "Save as New Profile",
+      "skip": "Continue without saving"
+    }
   },
   "createManager": {
     "title": "Create Manager",
@@ -1234,7 +1245,8 @@
       "de": "German",
       "it": "Italian",
       "ptBR": "Portuguese (Brazil)",
-      "zhCN": "Simplified Chinese"
+      "zhCN": "Simplified Chinese",
+      "ru": "Russian"
     },
     "gameplay": "Gameplay",
     "defaultMatchMode": "Default Match Mode",
@@ -1765,6 +1777,11 @@
         "parseFailed": "Settings data is invalid.",
         "saveFailed": "Failed to save settings.",
         "invalidCurrency": "Selected currency is not supported."
+      },
+      "profiles": {
+        "loadFailed": "Failed to load manager profiles.",
+        "saveFailed": "Failed to save manager profile.",
+        "pathFailed": "Could not resolve the profiles storage path."
       },
       "teamNotFound": "Team not found",
       "jobOffer": {
@@ -2664,7 +2681,12 @@
     "rejected": "Your application was unsuccessful.",
     "noJobs": "No positions currently available.",
     "leaguePosition": "Last Season: {{position}}",
-    "refresh": "Check for new positions"
+    "refresh": "Check for new positions",
+    "sameTeam": "You are already managing that club.",
+    "notBetterClub": "You can only apply for clubs that are a step up from your current one.",
+    "switchConfirmTitle": "Leave your current club?",
+    "switchConfirmBody": "Accepting this opportunity will end your tenure at {{currentClub}} and move you to {{newClub}}.",
+    "switchConfirmAccept": "Accept new role"
   },
   "awardsCeremony": {
     "title": "Awards Ceremony",

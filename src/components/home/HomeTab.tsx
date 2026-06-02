@@ -238,26 +238,35 @@ export default function HomeTab({
         )}
 
       {myTeam ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Next Match Card */}
-          <Card accent="primary" className="md:col-span-2">
-            <CardHeader>{t("home.nextMatch")}</CardHeader>
-            <CardBody>
-              <NextMatchDisplay gameState={gameState} />
-            </CardBody>
-          </Card>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Next Match Card */}
+            <Card accent="primary" className="md:col-span-2">
+              <CardHeader>{t("home.nextMatch")}</CardHeader>
+              <CardBody>
+                <NextMatchDisplay gameState={gameState} />
+              </CardBody>
+            </Card>
 
-          {/* League Position */}
-          <HomeLeaguePositionCard
-            isPreseason={isPreseason}
-            phase={seasonContext.phase}
-            seasonStartLabel={seasonStartLabel}
-            myStanding={myStanding}
-            myStandingData={myStandingData}
-            teamForm={myTeam?.form ?? []}
-            onNavigate={onNavigate}
-          />
-        </div>
+            {/* League Position */}
+            <HomeLeaguePositionCard
+              isPreseason={isPreseason}
+              phase={seasonContext.phase}
+              seasonStartLabel={seasonStartLabel}
+              myStanding={myStanding}
+              myStandingData={myStandingData}
+              teamForm={myTeam?.form ?? []}
+              onNavigate={onNavigate}
+            />
+          </div>
+          {onGameUpdate && (
+            <JobOpportunitiesCard
+              gameState={gameState}
+              onGameUpdate={onGameUpdate}
+              hideWhenEmpty
+            />
+          )}
+        </>
       ) : (
         <>
           <HomeLeaguePositionCard

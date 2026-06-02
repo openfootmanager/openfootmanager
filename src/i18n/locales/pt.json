@@ -19,7 +19,18 @@
     "noResults": "Sem resultados",
     "importedDescription": "Base de dados de mundo importada",
     "invalidWorldDb": "Ficheiro de base de dados de mundo inválido: {{error}}",
-    "failedStartGame": "Falha ao iniciar o jogo: {{error}}"
+    "failedStartGame": "Falha ao iniciar o jogo: {{error}}",
+    "openDiscord": "Abrir comunidade Discord",
+    "openGithub": "Abrir repositório GitHub"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Guardar Perfil",
+      "body": "Fizeste alterações ao perfil de {{name}}. O que queres fazer?",
+      "update": "Atualizar \"{{name}}\"",
+      "saveNew": "Guardar como Novo Perfil",
+      "skip": "Continuar sem guardar"
+    }
   },
   "createManager": {
     "title": "Criar Treinador",
@@ -1234,7 +1245,8 @@
       "de": "Alemão",
       "it": "Italiano",
       "ptBR": "Português (Brasil)",
-      "zhCN": "Chinês simplificado"
+      "zhCN": "Chinês simplificado",
+      "ru": "Russo"
     },
     "gameplay": "Jogabilidade",
     "defaultMatchMode": "Modo de Jogo Padrão",
@@ -1818,6 +1830,11 @@
         "parseFailed": "Os dados das definições são inválidos.",
         "saveFailed": "Não foi possível guardar as definições.",
         "invalidCurrency": "A moeda selecionada não é suportada."
+      },
+      "profiles": {
+        "loadFailed": "Não foi possível carregar os perfis de treinador.",
+        "saveFailed": "Não foi possível guardar o perfil de treinador.",
+        "pathFailed": "Não foi possível resolver o caminho de armazenamento dos perfis."
       },
       "finance": {
         "boardSupportUnavailable": "O apoio de emergência da direção só está disponível quando a tesouraria está sob pressão.",
@@ -2668,7 +2685,12 @@
     "rejected": "Sua candidatura não foi bem-sucedida.",
     "noJobs": "Nenhuma posição disponível no momento.",
     "leaguePosition": "Última temporada: {{position}}",
-    "refresh": "Verificar novas vagas"
+    "refresh": "Verificar novas vagas",
+    "sameTeam": "Já és o treinador desse clube.",
+    "notBetterClub": "Só te podes candidatar a clubes que representem uma progressão face ao teu clube atual.",
+    "switchConfirmTitle": "Deixar o teu clube atual?",
+    "switchConfirmBody": "Aceitar esta oportunidade encerrará a tua passagem pelo {{currentClub}} e levar-te-á ao {{newClub}}.",
+    "switchConfirmAccept": "Aceitar novo cargo"
   },
   "awardsCeremony": {
     "title": "Cerimonia de Premios",

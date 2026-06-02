@@ -1,6 +1,7 @@
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -14,6 +15,7 @@ import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
 import type { GameStateData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
+import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 import { Badge, Button, Card, CardBody, CountryFlag, ProgressBar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import InboxDelegatedRenewalReport from "./InboxDelegatedRenewalReport";
@@ -25,6 +27,13 @@ import {
   isPlayerEventMessage,
   renderMessageBodyLine,
 } from "./inboxHelpers";
+
+interface PendingSwitch {
+  messageId: string;
+  actionId: string;
+  optionId: string;
+  newClubName: string;
+}
 
 interface InboxMessageDetailPaneProps {
   effectFeedback: string | null;
@@ -48,7 +57,52 @@ export default function InboxMessageDetailPane({
   onScoutPlayerClick,
 }: InboxMessageDetailPaneProps): JSX.Element {
   const { t } = useTranslation();
-  const hasYouthProspects = Boolean(selectedMessage?.context?.youth_prospects?.length);
+  const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(
+    null,
+  );
+
+  // Drop any in-flight switch-confirm when the selected message changes —
+  // otherwise the modal can survive selection changes and confirm an action
+  // captured against a now-unrelated message.
+  useEffect(() => {
+    setPendingSwitch(null);
+  }, [selectedMessage?.id]);
+
+  const currentClubName = getTeamName(
+    gameState.teams,
+    gameState.manager?.team_id ?? null,
+  );
+
+  const hasYouthProspects = Boolean(
+    selectedMessage?.context?.youth_prospects?.length,
+  );
+
+  const handleOptionClick = (
+    messageId: string,
+    actionId: string,
+    optionId: string,
+  ) => {
+    const offerTeamId = selectedMessage?.context?.team_id ?? null;
+    const currentTeamId = gameState.manager?.team_id ?? null;
+    const isSwitch =
+      messageId.startsWith("job_offer_") &&
+      optionId === "accept" &&
+      !!currentTeamId &&
+      !!selectedMessage &&
+      // Skip the "leave your current club?" modal when the offer points at
+      // the manager's own current club — the backend treats that as a no-op
+      // and the warning would otherwise misleadingly suggest a real switch.
+      offerTeamId !== currentTeamId;
+    if (!isSwitch) {
+      onAction(messageId, actionId, optionId);
+      return;
+    }
+    const newClubName = getTeamName(
+      gameState.teams,
+      selectedMessage.context?.team_id ?? null,
+    );
+    setPendingSwitch({ messageId, actionId, optionId, newClubName });
+  };
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
 
   if (!selectedMessage) {
@@ -410,7 +464,11 @@ export default function InboxMessageDetailPane({
                         <button
                           key={option.id}
                           onClick={() =>
-                            onAction(selectedMessage.id, action.id, option.id)
+                            handleOptionClick(
+                              selectedMessage.id,
+                              action.id,
+                              option.id,
+                            )
                           }
                           className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-navy-600 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-500/5 transition-all group"
                         >
@@ -441,6 +499,18 @@ export default function InboxMessageDetailPane({
           ) : null}
         </div>
       </div>
+      <SwitchClubConfirmModal
+        open={pendingSwitch !== null}
+        currentClubName={currentClubName}
+        newClubName={pendingSwitch?.newClubName ?? ""}
+        onCancel={() => setPendingSwitch(null)}
+        onConfirm={() => {
+          if (!pendingSwitch) return;
+          const { messageId, actionId, optionId } = pendingSwitch;
+          setPendingSwitch(null);
+          onAction(messageId, actionId, optionId);
+        }}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
@@ -9,6 +10,7 @@ import type {
   CareerStartPhase,
   CreateManagerFormData,
 } from "../components/menu/CreateManagerForm";
+import type { ManagerProfile } from "../components/menu/types";
 import type { WorldDatabaseInfo } from "../components/menu/WorldSelect";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
@@ -19,8 +21,30 @@ import {
   Power,
 } from "lucide-react";
 
+const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
+const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
+
+function DiscordIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.075.075 0 0 0-.079.038c-.21.375-.444.864-.608 1.249a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037 19.736 19.736 0 0 0-4.885 1.515.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029ZM8.02 15.331c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.974 0c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z" />
+    </svg>
+  );
+}
+
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.085 3.292 9.387 7.86 10.91.575.107.785-.25.785-.555 0-.275-.01-1-.015-1.965-3.2.695-3.875-1.54-3.875-1.54-.525-1.33-1.28-1.685-1.28-1.685-1.045-.715.08-.7.08-.7 1.155.08 1.765 1.185 1.765 1.185 1.025 1.755 2.69 1.25 3.345.955.1-.745.4-1.25.725-1.54-2.555-.29-5.245-1.275-5.245-5.685 0-1.255.45-2.28 1.18-3.085-.12-.29-.515-1.46.11-3.05 0 0 .965-.31 3.165 1.18a10.95 10.95 0 0 1 2.88-.39c.98.005 1.965.135 2.885.39 2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.235 2.76.115 3.05.735.805 1.18 1.83 1.18 3.085 0 4.42-2.695 5.39-5.265 5.675.41.355.78 1.055.78 2.125 0 1.535-.015 2.77-.015 3.15 0 .305.205.665.79.55C20.215 21.385 23.5 17.085 23.5 12 23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  );
+}
+
 const CreateManagerForm = lazy(
   () => import("../components/menu/CreateManagerForm"),
+);
+const ProfileSaveConfirm = lazy(
+  () => import("../components/menu/ProfileSaveConfirm"),
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
@@ -29,6 +53,7 @@ interface SaveEntry {
   id: string;
   name: string;
   manager_name: string;
+  team_name: string;
   db_filename: string;
   checksum: string;
   created_at: string;
@@ -268,11 +293,15 @@ export default function MainMenu() {
   const [menuState, setMenuState] = useState<
     "main" | "create" | "world" | "load"
   >("main");
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
   const [loadingSaveId, setLoadingSaveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+
+  const [profiles, setProfiles] = useState<ManagerProfile[]>([]);
+  const [loadedProfile, setLoadedProfile] = useState<ManagerProfile | null>(null);
 
   const [formData, setFormData] = useState<CreateManagerFormData>({
     firstName: "",
@@ -300,6 +329,12 @@ export default function MainMenu() {
       String(historyDepthYears),
     );
   }, [historyDepthYears]);
+
+  useEffect(() => {
+    invoke<ManagerProfile[]>("get_manager_profiles")
+      .then((p) => setProfiles(p ?? []))
+      .catch((error) => console.error("Failed to load manager profiles:", error));
+  }, []);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
@@ -389,8 +424,12 @@ export default function MainMenu() {
       deferFocusToNextPaint(() => focusFirstCreateManagerError(validation.errors));
       return;
     }
-    setMenuState("world");
-    loadWorldDatabases();
+    if (loadedProfile && formDiffersFromProfile(formData, loadedProfile)) {
+      setShowProfileConfirm(true);
+      return;
+    }
+    void autoSaveProfile();
+    proceedToWorldSelect();
   };
 
   const loadWorldDatabases = async () => {
@@ -428,6 +467,7 @@ export default function MainMenu() {
       try {
         const json = reader.result as string;
         const parsed = JSON.parse(json);
+        const path = await invoke<string>("write_temp_database", { json });
         const info: WorldDatabaseInfo = {
           id: `file:${file.name}`,
           name: parsed.name || file.name.replace(".json", ""),
@@ -444,10 +484,8 @@ export default function MainMenu() {
               ? parsed.metadata.snapshot_date
               : null,
           source: "imported",
-          path: "", // will use the parsed data directly
+          path,
         };
-        // Store the raw JSON in sessionStorage so we can write it to a temp path
-        sessionStorage.setItem("imported_world_json", json);
         setWorldDatabases((prev) => {
           const filtered = prev.filter((d) => d.source !== "imported");
           return [...filtered, info];
@@ -479,16 +517,11 @@ export default function MainMenu() {
       let worldSource: string | undefined = selectedWorldId;
       if (selectedWorldId === "random") {
         worldSource = undefined;
-      } else if (
-        selectedWorldId.startsWith("file:") &&
-        sessionStorage.getItem("imported_world_json")
-      ) {
-        // For imported files, write to a temp location first
-        const json = sessionStorage.getItem("imported_world_json")!;
-        const path = await invoke<string>("write_temp_database", {
-          json,
-        });
-        worldSource = `file:${path}`;
+      } else {
+        const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
+        if (selectedDb?.path) {
+          worldSource = `file:${selectedDb.path}`;
+        }
       }
 
       const game = await invoke<GameStateData>("start_new_game", {
@@ -499,7 +532,6 @@ export default function MainMenu() {
         startupOptions,
         worldSource,
       });
-      sessionStorage.removeItem("imported_world_json");
       setGameState(game);
       navigate("/select-team");
     } catch (error) {
@@ -546,6 +578,93 @@ export default function MainMenu() {
       setConfirmDeleteId(null);
     } catch (error) {
       console.error("Failed to delete save:", error);
+    }
+  };
+
+  const handleSelectProfile = (profile: ManagerProfile) => {
+    setFormData((prev) => ({
+      ...prev,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      dob: profile.date_of_birth,
+      nationality: profile.nationality,
+    }));
+    setFormErrors({});
+    setLoadedProfile(profile);
+    void invoke("touch_manager_profile", { id: profile.id });
+  };
+
+  const formDiffersFromProfile = (form: CreateManagerFormData, profile: ManagerProfile) =>
+    form.firstName !== profile.first_name ||
+    form.lastName !== profile.last_name ||
+    form.dob !== profile.date_of_birth ||
+    form.nationality !== profile.nationality;
+
+  const proceedToWorldSelect = () => {
+    setShowProfileConfirm(false);
+    setMenuState("world");
+    loadWorldDatabases();
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!loadedProfile) return;
+    try {
+      const updated = await invoke<ManagerProfile | null>("update_manager_profile", {
+        id: loadedProfile.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+      });
+      if (updated) {
+        setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setLoadedProfile(updated);
+      }
+    } catch (error) {
+      console.error("Failed to update manager profile:", error);
+    }
+    proceedToWorldSelect();
+  };
+
+  const handleSaveAsNewProfile = () => {
+    void autoSaveProfile(true);
+    setLoadedProfile(null);
+    proceedToWorldSelect();
+  };
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await invoke<boolean>("delete_manager_profile", { id });
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      if (loadedProfile?.id === id) setLoadedProfile(null);
+    } catch (error) {
+      console.error("Failed to delete manager profile:", error);
+    }
+  };
+
+  const autoSaveProfile = async (forceNew = false) => {
+    try {
+      const saved = await invoke<ManagerProfile>("save_manager_profile", {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dob: formData.dob,
+        nationality: formData.nationality,
+        force: forceNew || undefined,
+      });
+      setProfiles((prev) => {
+        const exists = prev.some((p) => p.id === saved.id);
+        const next =
+          !forceNew && exists
+            ? prev.map((p) => (p.id === saved.id ? saved : p))
+            : [...prev, saved];
+        return next.sort((a, b) => {
+          const aDate = a.last_used_at ?? a.created_at;
+          const bDate = b.last_used_at ?? b.created_at;
+          return bDate.localeCompare(aDate);
+        });
+      });
+    } catch (error) {
+      console.error("Failed to auto-save manager profile:", error);
     }
   };
 
@@ -651,13 +770,31 @@ export default function MainMenu() {
                 formData={formData}
                 formErrors={formErrors}
                 dobError={dobDisplayedError}
+                profiles={profiles}
+                selectedProfileId={loadedProfile?.id}
                 onChange={updateFormField}
                 onClearError={clearFormError}
                 onClose={() => {
                   setMenuState("main");
                   setFormErrors({});
+                  setLoadedProfile(null);
                 }}
+                onSelectProfile={handleSelectProfile}
+                onDeleteProfile={handleDeleteProfile}
                 onSubmit={handleGoToWorldSelect}
+              />
+            </Suspense>
+          )}
+
+          {/* Profile save confirmation modal */}
+          {showProfileConfirm && loadedProfile && (
+            <Suspense fallback={null}>
+              <ProfileSaveConfirm
+                loadedProfile={loadedProfile}
+                onUpdate={() => { void handleUpdateProfile(); }}
+                onSaveNew={() => { void handleSaveAsNewProfile(); }}
+                onSkip={proceedToWorldSelect}
+                onClose={() => setShowProfileConfirm(false)}
               />
             </Suspense>
           )}
@@ -698,7 +835,30 @@ export default function MainMenu() {
               />
             </Suspense>
           )}
+
         </div>
+      </div>
+
+      {/* Community links */}
+      <div className="absolute bottom-3 left-4 flex items-center gap-1">
+        <button
+          type="button"
+          aria-label={t("menu.openDiscord")}
+          title={t("menu.openDiscord")}
+          onClick={() => { void openUrl(DISCORD_INVITE_URL); }}
+          className="p-1.5 rounded-lg text-gray-400 dark:text-gray-600 hover:text-[#5865F2] dark:hover:text-[#7289DA] hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+        >
+          <DiscordIcon className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("menu.openGithub")}
+          title={t("menu.openGithub")}
+          onClick={() => { void openUrl(GITHUB_REPO_URL); }}
+          className="p-1.5 rounded-lg text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors"
+        >
+          <GithubIcon className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Version */}

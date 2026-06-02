@@ -19,7 +19,18 @@
     "noResults": "Nessun risultato",
     "importedDescription": "Database del mondo importato",
     "invalidWorldDb": "File di database del mondo non valido: {{error}}",
-    "failedStartGame": "Impossibile avviare il gioco: {{error}}"
+    "failedStartGame": "Impossibile avviare il gioco: {{error}}",
+    "openDiscord": "Apri la comunità Discord",
+    "openGithub": "Apri il repository GitHub"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Salva profilo",
+      "body": "Hai modificato il profilo di {{name}}. Cosa vuoi fare?",
+      "update": "Aggiorna \"{{name}}\"",
+      "saveNew": "Salva come nuovo profilo",
+      "skip": "Continua senza salvare"
+    }
   },
   "createManager": {
     "title": "Crea allenatore",
@@ -1253,7 +1264,8 @@
       "de": "Tedesco",
       "it": "Italiano",
       "ptBR": "Portoghese (Brasile)",
-      "zhCN": "Cinese semplificato"
+      "zhCN": "Cinese semplificato",
+      "ru": "Russo"
     },
     "gameplay": "Gameplay",
     "defaultMatchMode": "Modalità partita predefinita",
@@ -1818,6 +1830,11 @@
         "parseFailed": "I dati delle impostazioni non sono validi.",
         "saveFailed": "Impossibile salvare le impostazioni.",
         "invalidCurrency": "La valuta selezionata non è supportata."
+      },
+      "profiles": {
+        "loadFailed": "Impossibile caricare i profili dell'allenatore.",
+        "saveFailed": "Impossibile salvare il profilo dell'allenatore.",
+        "pathFailed": "Impossibile determinare il percorso di archiviazione dei profili."
       },
       "finance": {
         "boardSupportUnavailable": "Il supporto d'emergenza del consiglio è disponibile solo quando la liquidità è sotto pressione.",
@@ -2668,7 +2685,12 @@
     "rejected": "La tua candidatura non è andata a buon fine.",
     "noJobs": "Nessuna posizione disponibile al momento.",
     "leaguePosition": "Ultima stagione: {{position}}",
-    "refresh": "Cerca nuove posizioni"
+    "refresh": "Cerca nuove posizioni",
+    "sameTeam": "Sei già l'allenatore di quel club.",
+    "notBetterClub": "Puoi candidarti solo per club che rappresentano un passo avanti rispetto al tuo attuale.",
+    "switchConfirmTitle": "Lasciare il tuo club attuale?",
+    "switchConfirmBody": "Accettare questa opportunità terminerà il tuo incarico al {{currentClub}} e ti porterà al {{newClub}}.",
+    "switchConfirmAccept": "Accetta il nuovo ruolo"
   },
   "awardsCeremony": {
     "title": "Cerimonia dei Premi",

@@ -15,6 +15,8 @@ import {
 } from "../../services/contractService";
 import DashboardModalFrame from "../dashboard/DashboardModalFrame";
 import { Button } from "../ui";
+import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
+import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import {
   buildPlayerAdvancedStats,
   getPlayerAge,
@@ -84,10 +86,6 @@ export default function PlayerProfile({
     `common.footedness.${player.footedness || "Right"}`,
   );
   const weakFootValue = player.weak_foot ?? 2;
-
-  if (!player) {
-    return null;
-  }
 
   const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>(
     "idle",
@@ -186,6 +184,24 @@ export default function PlayerProfile({
   const advancedStats = advancedStatsOverride ?? fallbackAdvancedStats;
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
+  const isFreeAgent = player.team_id === null && !player.retired;
+
+  const {
+    freeAgentTarget,
+    contractWage,
+    setContractWage,
+    contractLength,
+    setContractLength,
+    contractFeedback,
+    contractProjection,
+    contractSubmitting,
+    contractSubmitDisabled,
+    contractStatusMessage,
+    contractStatusClassName,
+    openFreeAgentContract,
+    closeFreeAgentContract,
+    submitFreeAgentContract,
+  } = useFreeAgentContractFlow({ gameState, onGameUpdate });
 
   function openRenewalModal(): void {
     setRenewalWage(String(player.wage));
@@ -657,12 +673,14 @@ export default function PlayerProfile({
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
           isOwnClub={isOwnClub}
+          isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
           actionSubmitting={contractActionSubmitting}
           onOpenRenewal={openRenewalModal}
           onMarkLetExpire={() => void handleMarkLetExpire()}
           onClearLetExpire={() => void handleClearLetExpire()}
           onOpenTermination={() => void openTerminationModal()}
+          onOpenFreeAgentContract={() => openFreeAgentContract(player)}
           t={t}
         />
 
@@ -689,6 +707,25 @@ export default function PlayerProfile({
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>
+
+      {freeAgentTarget && (
+        <FreeAgentContractModal
+          player={freeAgentTarget}
+          teams={gameState.teams}
+          wage={contractWage}
+          onWageChange={setContractWage}
+          contractLength={contractLength}
+          onContractLengthChange={setContractLength}
+          projection={contractProjection}
+          feedback={contractFeedback}
+          statusMessage={contractStatusMessage(t)}
+          statusClassName={contractStatusClassName}
+          submitting={contractSubmitting}
+          submitDisabled={contractSubmitDisabled}
+          onSubmit={submitFreeAgentContract}
+          onClose={closeFreeAgentContract}
+        />
+      )}
 
       <PlayerProfileRenewalModal
         show={showRenewalModal}

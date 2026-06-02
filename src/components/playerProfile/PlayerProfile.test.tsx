@@ -126,6 +126,10 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.scoutingInProgress") return "Scouting in progress";
       if (key === "scouting.scoutBtn") return "Scout";
       if (key === "finances.wagePerWeek") return "Wage/wk";
+      if (key === "transfers.offerContract") return "Offer Contract";
+      if (key === "transfers.close") return "Close";
+      if (key === "transfers.submitting") return "Submitting...";
+      if (key === "transfers.playerValue") return `Value: ${params?.value}`;
       return key;
     },
     i18n: { language: "en" },
@@ -1015,6 +1019,148 @@ describe("PlayerProfile contract surfaces", () => {
         playerId: "player-1",
       });
       expect(screen.getByText("No Contract")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("PlayerProfile free agent signing", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+    vi.mocked(invoke).mockImplementation(async (command: string) =>
+      defaultInvokeResponse(command),
+    );
+  });
+
+  it("shows Offer Contract button for a free agent player", () => {
+    const freeAgent = createPlayer({
+      team_id: null,
+      contract_end: null,
+      wage: 0,
+    });
+    const gameState = createGameState(freeAgent);
+
+    render(
+      <PlayerProfile
+        player={freeAgent}
+        gameState={gameState}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Offer Contract" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show Offer Contract for a retired free agent", () => {
+    const retired = createPlayer({
+      team_id: null,
+      contract_end: null,
+      wage: 0,
+      retired: true,
+    });
+    const gameState = createGameState(retired);
+
+    render(
+      <PlayerProfile
+        player={retired}
+        gameState={gameState}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Offer Contract" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the contract modal when Offer Contract is clicked", async () => {
+    const freeAgent = createPlayer({
+      team_id: null,
+      contract_end: null,
+      wage: 0,
+      market_value: 600_000,
+    });
+    const gameState = createGameState(freeAgent);
+
+    render(
+      <PlayerProfile
+        player={freeAgent}
+        gameState={gameState}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Offer Contract" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: "Offer Contract" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("submits offer_free_agent_contract and updates game state on acceptance", async () => {
+    const freeAgent = createPlayer({
+      team_id: null,
+      contract_end: null,
+      wage: 0,
+      market_value: 600_000,
+    });
+    const signedPlayer = createPlayer({
+      team_id: "team-1",
+      contract_end: "2029-08-01",
+      wage: 4_000,
+    });
+    const onGameUpdate = vi.fn();
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "offer_free_agent_contract") {
+        return {
+          outcome: "accepted",
+          game: createGameState(signedPlayer),
+          suggested_wage: null,
+          suggested_years: null,
+          session_status: "agreed",
+          is_terminal: true,
+          cooled_off: false,
+          feedback: null,
+        };
+      }
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={freeAgent}
+        gameState={createGameState(freeAgent)}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Offer Contract" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Offer Contract" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit Offer" }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("offer_free_agent_contract", {
+        playerId: "player-1",
+        weeklyWage: 3000,
+        contractYears: 3,
+      });
+      expect(onGameUpdate).toHaveBeenCalled();
     });
   });
 });

@@ -11,6 +11,7 @@ import fr from "../i18n/locales/fr.json";
 import itLocale from "../i18n/locales/it.json";
 import ptBR from "../i18n/locales/pt-BR.json";
 import pt from "../i18n/locales/pt.json";
+import ru from "../i18n/locales/ru.json";
 import zhCN from "../i18n/locales/zh-CN.json";
 
 const LOCALES: Record<string, LocaleTree> = {
@@ -21,6 +22,7 @@ const LOCALES: Record<string, LocaleTree> = {
   it: itLocale,
   pt,
   "pt-BR": ptBR,
+  ru,
   "zh-CN": zhCN,
 };
 
@@ -163,5 +165,9 @@ describe("backend i18n locale coverage", () => {
 
   it("keeps zh-CN aligned with the English translation key set", () => {
     expect(collectMissingKeys(en, zhCN)).toEqual([]);
+  });
+
+  it("keeps ru aligned with the English translation key set", () => {
+    expect(collectMissingKeys(en, ru)).toEqual([]);
   });
 });

@@ -159,7 +159,12 @@ pub fn run() {
             save_settings,
             clear_all_saves,
             get_available_jobs,
-            apply_for_job
+            apply_for_job,
+            get_manager_profiles,
+            save_manager_profile,
+            update_manager_profile,
+            delete_manager_profile,
+            touch_manager_profile
         ])
         .run(tauri::generate_context!());
 

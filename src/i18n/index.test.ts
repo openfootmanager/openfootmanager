@@ -12,6 +12,7 @@ describe("resolveSupportedLanguage", () => {
 
   it("keeps existing exact and base language matching behavior", () => {
     expect(resolveSupportedLanguage("PT-BR")).toBe("pt-BR");
+    expect(resolveSupportedLanguage("ru-RU")).toBe("ru");
     expect(resolveSupportedLanguage("es-419")).toBe("es");
     expect(resolveSupportedLanguage("en-US")).toBe("en");
   });
@@ -38,9 +39,9 @@ describe("i18n lazy loading", () => {
   it("loads a locale bundle on demand when the app language changes", async () => {
     await i18nReady;
 
-    await changeAppLanguage("pt-BR");
+    await changeAppLanguage("ru-RU");
 
-    expect(i18n.language).toBe("pt-BR");
-    expect(i18n.hasResourceBundle("pt-BR", "translation")).toBe(true);
+    expect(i18n.language).toBe("ru");
+    expect(i18n.hasResourceBundle("ru", "translation")).toBe(true);
   });
 });

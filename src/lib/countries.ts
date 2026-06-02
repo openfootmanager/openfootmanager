@@ -12,9 +12,10 @@ import ptLocale from "i18n-iso-countries/langs/pt.json";
 import frLocale from "i18n-iso-countries/langs/fr.json";
 import deLocale from "i18n-iso-countries/langs/de.json";
 import itLocale from "i18n-iso-countries/langs/it.json";
+import ruLocale from "i18n-iso-countries/langs/ru.json";
 import zhLocale from "i18n-iso-countries/langs/zh.json";
 
-const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "zh"] as const;
+const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh"] as const;
 
 type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 
@@ -25,6 +26,7 @@ const REGISTERED_LOCALES = [
   frLocale,
   deLocale,
   itLocale,
+  ruLocale,
   zhLocale,
 ];
 
@@ -50,6 +52,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       fr: "Angleterre",
       de: "England",
       it: "Inghilterra",
+      ru: "Англия",
       zh: "英格兰",
     },
     aliases: ["english", "england"],
@@ -65,6 +68,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       fr: "Écosse",
       de: "Schottland",
       it: "Scozia",
+      ru: "Шотландия",
       zh: "苏格兰",
     },
     aliases: ["scottish", "scotland"],
@@ -80,6 +84,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       fr: "Pays de Galles",
       de: "Wales",
       it: "Galles",
+      ru: "Уэльс",
       zh: "威尔士",
     },
     aliases: ["welsh", "wales"],
@@ -95,6 +100,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       fr: "Irlande du Nord",
       de: "Nordirland",
       it: "Irlanda del Nord",
+      ru: "Северная Ирландия",
       zh: "北爱尔兰",
     },
     aliases: ["northern irish", "northern ireland"],
@@ -110,6 +116,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       fr: "République d'Irlande",
       de: "Republik Irland",
       it: "Repubblica d'Irlanda",
+      ru: "Республика Ирландия",
       zh: "爱尔兰共和国",
     },
     aliases: ["irish", "republic of ireland", "ireland"],

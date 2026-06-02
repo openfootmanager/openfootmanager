@@ -8,6 +8,7 @@ import {
     TrendingUp,
     Trash2,
     TimerOff,
+    UserPlus,
 } from "lucide-react";
 import {
     formatDate,
@@ -35,12 +36,14 @@ interface PlayerProfileContractCardProps {
     contractRiskLevel: "critical" | "warning" | "stable";
     contractRiskLabel: string;
     isOwnClub: boolean;
+    isFreeAgent?: boolean;
     hasLetExpireIntent: boolean;
     actionSubmitting: boolean;
     onOpenRenewal: () => void;
     onMarkLetExpire: () => void;
     onClearLetExpire: () => void;
     onOpenTermination: () => void;
+    onOpenFreeAgentContract?: () => void;
     t: TranslateFn;
 }
 
@@ -57,12 +60,14 @@ export default function PlayerProfileContractCard({
     contractRiskLevel,
     contractRiskLabel,
     isOwnClub,
+    isFreeAgent,
     hasLetExpireIntent,
     actionSubmitting,
     onOpenRenewal,
     onMarkLetExpire,
     onClearLetExpire,
     onOpenTermination,
+    onOpenFreeAgentContract,
     t,
 }: PlayerProfileContractCardProps) {
     return (
@@ -160,6 +165,17 @@ export default function PlayerProfileContractCard({
                             onClick={onOpenTermination}
                         >
                             {t("playerProfile.terminateContract")}
+                        </Button>
+                    </div>
+                ) : isFreeAgent && onOpenFreeAgentContract ? (
+                    <div className="flex flex-wrap gap-2 pt-3">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            icon={<UserPlus />}
+                            onClick={onOpenFreeAgentContract}
+                        >
+                            {t("transfers.offerContract")}
                         </Button>
                     </div>
                 ) : null}

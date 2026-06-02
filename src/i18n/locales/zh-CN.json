@@ -19,7 +19,18 @@
     "noResults": "无结果",
     "importedDescription": "已导入的世界数据库",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
-    "failedStartGame": "启动游戏失败：{{error}}"
+    "failedStartGame": "启动游戏失败：{{error}}",
+    "openDiscord": "打开 Discord 社区",
+    "openGithub": "打开 GitHub 仓库"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "保存档案",
+      "body": "您已修改 {{name}} 的档案。您想做什么？",
+      "update": "更新「{{name}}」",
+      "saveNew": "保存为新档案",
+      "skip": "不保存继续"
+    }
   },
   "createManager": {
     "title": "创建经理",
@@ -1234,7 +1245,8 @@
       "de": "德语",
       "it": "意大利语",
       "ptBR": "巴西葡萄牙语",
-      "zhCN": "简体中文"
+      "zhCN": "简体中文",
+      "ru": "俄语"
     },
     "gameplay": "玩法",
     "defaultMatchMode": "默认比赛模式",
@@ -1818,6 +1830,11 @@
         "parseFailed": "设置数据无效。",
         "saveFailed": "保存设置失败。",
         "invalidCurrency": "所选货币不受支持。"
+      },
+      "profiles": {
+        "loadFailed": "无法加载经理档案。",
+        "saveFailed": "无法保存经理档案。",
+        "pathFailed": "无法解析档案存储路径。"
       },
       "finance": {
         "boardSupportUnavailable": "只有当现金储备承压时，董事会紧急支持才可用。",
@@ -2665,7 +2682,12 @@
     "rejected": "您的申请未通过。",
     "noJobs": "目前没有空缺职位。",
     "leaguePosition": "上赛季排名：{{position}}",
-    "refresh": "查看新职位"
+    "refresh": "查看新职位",
+    "sameTeam": "您已经是该俱乐部的主教练。",
+    "notBetterClub": "您只能申请比当前俱乐部级别更高的俱乐部。",
+    "switchConfirmTitle": "离开当前俱乐部？",
+    "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
+    "switchConfirmAccept": "接受新职位"
   },
   "awardsCeremony": {
     "title": "颁奖典礼",

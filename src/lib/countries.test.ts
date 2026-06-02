@@ -58,11 +58,17 @@ describe("countryName", () => {
     const nameIt = countryName("DE", "it");
     expect(nameIt).toBe("Germania");
 
+    const nameRu = countryName("DE", "ru");
+    expect(nameRu).toBe("Германия");
+
     const nameZh = countryName("DE", "zh-CN");
     expect(nameZh).toBe("德国");
 
     const englandEs = countryName("ENG", "es");
     expect(englandEs).toBe("Inglaterra");
+
+    const englandRu = countryName("ENG", "ru");
+    expect(englandRu).toBe("Англия");
 
     const englandZh = countryName("ENG", "zh-CN");
     expect(englandZh).toBe("英格兰");

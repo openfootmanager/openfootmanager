@@ -9,6 +9,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "fr", labelKey: "settings.languages.fr" },
   { code: "de", labelKey: "settings.languages.de" },
   { code: "it", labelKey: "settings.languages.it" },
+  { code: "ru", labelKey: "settings.languages.ru" },
   { code: "pt-BR", labelKey: "settings.languages.ptBR" },
   { code: "zh-CN", labelKey: "settings.languages.zhCN" },
 ] as const;
