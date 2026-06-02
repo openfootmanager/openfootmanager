@@ -488,6 +488,44 @@ fn free_agent_offer_rejects_lowball_terms() {
 }
 
 #[test]
+fn free_agent_can_be_signed_when_transfer_window_is_closed() {
+    let mut game = make_free_agent_game();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    )
+    .expect("free agents should be signable outside the transfer window");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Accepted));
+    assert_eq!(game.players[0].team_id.as_deref(), Some("team-1"));
+}
+
+#[test]
+fn free_agent_can_be_signed_on_deadline_day() {
+    let mut game = make_free_agent_game();
+    game.season_context.transfer_window.status = TransferWindowStatus::DeadlineDay;
+
+    let outcome = offer_free_agent_contract(
+        &mut game,
+        "free-agent-1",
+        RenewalOffer {
+            weekly_wage: 4_000,
+            contract_years: 3,
+        },
+    )
+    .expect("free agents should be signable on deadline day");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Accepted));
+    assert_eq!(game.players[0].team_id.as_deref(), Some("team-1"));
+}
+
+#[test]
 fn free_agent_offer_rejects_contracts_longer_than_five_years() {
     let mut game = make_free_agent_game();
 
