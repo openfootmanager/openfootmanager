@@ -7,6 +7,7 @@
 [![Rust](https://shields.io/badge/-Rust-FF4500?style=flat&logo=rust)](https://www.rust-lang.org/)
 [![Tauri](https://shields.io/badge/-Tauri-2E8B57?style=flat&logo=tauri)](https://tauri.app/)
 [![React](https://shields.io/badge/-React-1434A4?style=flat&logo=react)](https://react.dev/)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/openfootmanager/openfootmanager?utm_source=oss&utm_medium=github&utm_campaign=openfootmanager%2Fopenfootmanager&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/openfootmanager/openfootmanager/graphs/commit-activity)
 [![Last commit](https://img.shields.io/github/last-commit/openfootmanager/openfootmanager)](https://github.com/openfootmanager/openfootmanager/commits/develop)
 
