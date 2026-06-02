@@ -32,28 +32,59 @@ vi.mock("../store/gameStore", () => ({
   useGameStore: () => gameStoreState,
 }));
 
+vi.mock("../store/settingsStore", () => ({
+  useSettingsStore: () => ({ settings: { match_speed: "normal" } }),
+}));
+
 vi.mock("../components/match/PreMatchSetup", () => ({
-  default: ({ snapshot }: { snapshot: { home_team: { name: string } } }) => (
-    <div data-testid="prematch">{snapshot.home_team.name}</div>
+  default: ({
+    snapshot,
+    onStart,
+  }: {
+    snapshot: { home_team: { name: string } };
+    onStart?: () => void;
+  }) => (
+    <div data-testid="prematch">
+      {snapshot.home_team.name}
+      <button data-testid="prematch-start" onClick={onStart} />
+    </div>
   ),
 }));
 
 vi.mock("../components/match/MatchLive", () => ({
   default: ({
     snapshot,
+    speed,
+    onSpeedChange,
+    onHalfTime,
     onFullTime,
   }: {
     snapshot: { home_team: { name: string } };
+    speed?: string;
+    onSpeedChange?: (next: string) => void;
+    onHalfTime?: () => void;
     onFullTime?: () => void;
   }) => (
-    <button data-testid="match-live" onClick={onFullTime}>
-      {snapshot.home_team.name}
-    </button>
+    <div>
+      <button data-testid="match-live" onClick={onFullTime}>
+        {snapshot.home_team.name}
+      </button>
+      <span data-testid="match-live-speed">{speed}</span>
+      <button
+        data-testid="match-live-set-fast"
+        onClick={() => onSpeedChange?.("fast")}
+      />
+      <button data-testid="match-live-halftime" onClick={onHalfTime} />
+    </div>
   ),
 }));
 
 vi.mock("../components/match/HalfTimeBreak", () => ({
-  default: () => <div data-testid="halftime" />,
+  default: ({ onResume }: { onResume?: () => void }) => (
+    <div data-testid="halftime">
+      <button data-testid="halftime-resume" onClick={onResume} />
+    </div>
+  ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
@@ -387,6 +418,41 @@ describe("MatchSimulation", function (): void {
     await waitFor(function (): void {
       expect(navigateMock).toHaveBeenCalledWith("/dashboard");
     });
+  });
+
+  it("keeps the chosen match speed when resuming from halftime", async function (): Promise<void> {
+    mockedInvoke.mockResolvedValue(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    // Pre-match, then kick off into the first half.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    // First half starts at the settings default speed.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("match-live-speed")).toHaveTextContent("normal");
+
+    // User speeds the match up.
+    fireEvent.click(screen.getByTestId("match-live-set-fast"));
+    expect(screen.getByTestId("match-live-speed")).toHaveTextContent("fast");
+
+    // Go to halftime, then resume into the second half.
+    fireEvent.click(screen.getByTestId("match-live-halftime"));
+    await waitFor(function (): void {
+      expect(screen.getByTestId("halftime")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("halftime-resume"));
+
+    // Second half must keep the user's chosen speed, not reset to the default.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("match-live-speed")).toHaveTextContent("fast");
   });
 
   it("finalizes the match on full time and passes the round summary into postmatch", async function (): Promise<void> {

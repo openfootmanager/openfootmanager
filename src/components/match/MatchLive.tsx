@@ -5,7 +5,6 @@ import { GameStateData } from "../../store/gameStore";
 import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
 import { getEventDisplay, getPlayerName, phaseLabel } from "./helpers";
 import { Badge } from "../ui";
-import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
@@ -24,6 +23,10 @@ interface MatchLiveProps {
   userSide: "Home" | "Away" | null;
   isSpectator: boolean;
   importantEvents: MatchEvent[];
+  // Chosen sim speed, owned by the parent so it persists across the halftime
+  // remount (issue #106). onSpeedChange reports user-selected speeds back up.
+  speed: SimSpeed;
+  onSpeedChange: (next: SimSpeed) => void;
   onSnapshotUpdate: (snap: MatchSnapshot) => void;
   onImportantEvent: (evt: MatchEvent) => void;
   onHalfTime: () => void;
@@ -32,12 +35,11 @@ interface MatchLiveProps {
 
 export default function MatchLive({
   snapshot, gameState, userSide, isSpectator,
-  importantEvents, onSnapshotUpdate, onImportantEvent,
+  importantEvents, speed: initialSpeed, onSpeedChange,
+  onSnapshotUpdate, onImportantEvent,
   onHalfTime, onFullTime,
 }: MatchLiveProps) {
   const { t } = useTranslation();
-  const { settings } = useSettingsStore();
-  const initialSpeed: SimSpeed = (settings.match_speed === "slow" || settings.match_speed === "fast") ? settings.match_speed : "normal";
   const [speed, setSpeed] = useState<SimSpeed>(initialSpeed);
   const [activePanel, setActivePanel] = useState<ActivePanel>("events");
   const [isRunning, setIsRunning] = useState(true);
@@ -305,7 +307,14 @@ export default function MatchLive({
               ]).map(s => (
                 <button
                   key={s.id}
-                  onClick={() => { setSpeed(s.id); setIsRunning(s.id !== "paused"); }}
+                  onClick={() => {
+                    setSpeed(s.id);
+                    setIsRunning(s.id !== "paused");
+                    // Persist the chosen rate in the parent so it survives the
+                    // halftime remount. A manual pause stays local so resuming
+                    // keeps the last real speed (issue #106).
+                    if (s.id !== "paused") onSpeedChange(s.id);
+                  }}
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${speed === s.id ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                     }`}
                 >

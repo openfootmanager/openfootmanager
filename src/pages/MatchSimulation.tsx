@@ -3,11 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
+import { useSettingsStore } from "../store/settingsStore";
 import {
   MatchSnapshot,
   MatchEvent,
   MatchDayStage,
   RoundSummary,
+  SimSpeed,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
 import PreMatchSetup from "../components/match/PreMatchSetup";
@@ -38,10 +40,19 @@ export default function MatchSimulation() {
   const routeState = (location.state as MatchRouteState | null) ?? null;
   const matchMode = routeState?.mode || "live";
   const { gameState, setGameState } = useGameStore();
+  const { settings } = useSettingsStore();
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(
     routeState?.snapshot ?? null,
   );
   const [stage, setStage] = useState<MatchDayStage>("prematch");
+  // The chosen match speed lives here so it survives the MatchLive remount that
+  // happens across the halftime break (issue #106). MatchLive reports user speed
+  // changes back up, but keeps its own auto-pause local.
+  const [matchSpeed, setMatchSpeed] = useState<SimSpeed>(
+    settings.match_speed === "slow" || settings.match_speed === "fast"
+      ? settings.match_speed
+      : "normal",
+  );
   const [importantEvents, setImportantEvents] = useState<MatchEvent[]>([]);
   const [userSide, setUserSide] = useState<"Home" | "Away" | null>(null);
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
@@ -299,6 +310,8 @@ export default function MatchSimulation() {
           userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
+          speed={matchSpeed}
+          onSpeedChange={setMatchSpeed}
           onSnapshotUpdate={handleSnapshotUpdate}
           onImportantEvent={handleImportantEvent}
           onHalfTime={handleHalfTime}
