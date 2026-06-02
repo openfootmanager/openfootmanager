@@ -19,7 +19,9 @@
     "noResults": "Ничего не найдено",
     "importedDescription": "Импортированная база мира",
     "invalidWorldDb": "Недопустимый файл базы мира: {{error}}",
-    "failedStartGame": "Не удалось начать игру: {{error}}"
+    "failedStartGame": "Не удалось начать игру: {{error}}",
+    "openDiscord": "Открыть сообщество в Discord",
+    "openGithub": "Открыть репозиторий на GitHub"
   },
   "managerProfiles": {
     "saveConfirm": {

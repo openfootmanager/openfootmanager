@@ -19,7 +19,9 @@
     "noResults": "无结果",
     "importedDescription": "已导入的世界数据库",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
-    "failedStartGame": "启动游戏失败：{{error}}"
+    "failedStartGame": "启动游戏失败：{{error}}",
+    "openDiscord": "打开 Discord 社区",
+    "openGithub": "打开 GitHub 仓库"
   },
   "managerProfiles": {
     "saveConfirm": {

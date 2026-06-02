@@ -19,7 +19,9 @@
     "noResults": "Nessun risultato",
     "importedDescription": "Database del mondo importato",
     "invalidWorldDb": "File di database del mondo non valido: {{error}}",
-    "failedStartGame": "Impossibile avviare il gioco: {{error}}"
+    "failedStartGame": "Impossibile avviare il gioco: {{error}}",
+    "openDiscord": "Apri la comunità Discord",
+    "openGithub": "Apri il repository GitHub"
   },
   "managerProfiles": {
     "saveConfirm": {
