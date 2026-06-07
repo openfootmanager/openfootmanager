@@ -228,7 +228,7 @@ pub fn evaluate_renewal_offer(
     let expected_years = expected_contract_years(player, current_date);
     let minimum_wage = minimum_acceptable_wage(player.wage);
 
-    if offer.contract_years == 0 {
+    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
         let feedback = build_renewal_feedback(
             player,
             current_date,
@@ -359,6 +359,29 @@ pub fn propose_renewal(
 
     if game.players[player_index].team_id.as_deref() != Some(team.id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
+    }
+
+    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
+        let current_date = game.clock.current_date.date_naive();
+        let round = next_renewal_round(&game.players[player_index], None);
+        let expected_wage = expected_wage(&game.players[player_index], &team, current_date);
+        return Ok(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Stalled,
+            false,
+            false,
+            Some(build_renewal_feedback(
+                &game.players[player_index],
+                current_date,
+                RenewalDecision::Rejected,
+                RenewalSessionStatus::Stalled,
+                round,
+                expected_wage,
+                false,
+            )),
+        ));
     }
 
     let current_date = game.clock.current_date.date_naive();
