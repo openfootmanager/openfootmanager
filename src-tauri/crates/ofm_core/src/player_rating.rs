@@ -50,6 +50,9 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     player.traits = traits;
 }
 
+/// Returns `true` when a player qualifies as a wonderkid: they are at or below
+/// `WONDERKID_MAX_AGE`, have at least `WONDERKID_MIN_POTENTIAL`, and their
+/// remaining growth (`potential - ovr`) meets `WONDERKID_MIN_GROWTH_ROOM`.
 pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
     age <= WONDERKID_MAX_AGE
         && potential >= WONDERKID_MIN_POTENTIAL

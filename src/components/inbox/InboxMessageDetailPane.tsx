@@ -76,9 +76,10 @@ export default function InboxMessageDetailPane({
   const hasYouthProspects = Boolean(
     selectedMessage?.context?.youth_prospects?.length,
   );
-  const linkedPlayer = selectedMessage?.context?.player_id
+  const playerId = selectedMessage?.context?.player_id;
+  const linkedPlayer = playerId
     ? gameState.players.find(
-      (player) => player.id === selectedMessage.context?.player_id,
+      (player) => player.id === playerId,
     ) ?? null
     : null;
 
