@@ -185,11 +185,12 @@ export default function PlayerProfile({
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
-  const hasAssistantManager = gameState.staff.some(
-    (staff) =>
-      staff.team_id === gameState.manager.team_id &&
-      staff.role === "AssistantManager",
-  );
+  const managerTeamId = gameState.manager.team_id;
+  const hasAssistantManager = managerTeamId
+    ? gameState.staff.some(
+      (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
+    )
+    : false;
 
   const {
     freeAgentTarget,
