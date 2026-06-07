@@ -547,4 +547,5 @@ export interface GameStateData {
   youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;
+  available_staff_market_last_activity_date?: string | null;
 }

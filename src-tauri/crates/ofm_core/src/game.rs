@@ -90,6 +90,8 @@ pub struct Game {
     #[serde(default)]
     pub days_since_last_job_offer: Option<u32>,
     #[serde(default)]
+    pub available_staff_market_last_activity_date: Option<String>,
+    #[serde(default)]
     pub vacant_team_days: HashMap<String, u32>,
     #[serde(default)]
     pub world_history: WorldHistoryArchive,
@@ -122,6 +124,7 @@ impl Game {
             board_objectives: vec![],
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,
+            available_staff_market_last_activity_date: None,
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
         };

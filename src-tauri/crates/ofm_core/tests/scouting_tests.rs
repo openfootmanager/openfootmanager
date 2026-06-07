@@ -152,7 +152,10 @@ fn send_scout_rejects_own_player() {
     let mut game = make_game();
     let result = send_scout(&mut game, "scout1", "p1");
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "be.error.scouting.cannotScoutOwnPlayer");
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.scouting.cannotScoutOwnPlayer"
+    );
 }
 
 #[test]
@@ -168,7 +171,10 @@ fn send_scout_rejects_duplicate_assignment() {
     send_scout(&mut game, "scout1", "p2").unwrap();
     game.staff.push(make_scout("scout2", "team1", 70, 70));
     let result = send_scout(&mut game, "scout2", "p2");
-    assert_eq!(result.unwrap_err(), "be.error.scouting.playerAlreadyScouted");
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.scouting.playerAlreadyScouted"
+    );
 }
 
 #[test]
@@ -269,7 +275,10 @@ fn start_youth_scouting_rejects_duplicate_search_profile() {
         Some(Position::Defender),
     );
 
-    assert_eq!(result.unwrap_err(), "be.error.scouting.youthSearchAlreadyActive");
+    assert_eq!(
+        result.unwrap_err(),
+        "be.error.scouting.youthSearchAlreadyActive"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -486,14 +495,9 @@ fn youth_recruitment_response_shortlists_selected_prospect() {
         effect.i18n_key,
         "be.msg.youthRecruitment.effect.shortlist".to_string()
     );
-    assert!(
-        game.messages
-            .iter()
-            .any(|candidate| {
-                candidate.subject_key.as_deref()
-                    == Some("be.msg.youthRecruitmentShortlist.subject")
-            })
-    );
+    assert!(game.messages.iter().any(|candidate| {
+        candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentShortlist.subject")
+    }));
     let updated_message = game
         .messages
         .iter()

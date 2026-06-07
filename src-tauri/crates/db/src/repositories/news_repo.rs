@@ -6,12 +6,10 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 
 /// Insert or replace a news article row.
 pub fn upsert_news(conn: &Connection, article: &NewsArticle) -> Result<(), String> {
-    let team_ids_json =
-        serde_json::to_string(&article.team_ids)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let player_ids_json =
-        serde_json::to_string(&article.player_ids)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let team_ids_json = serde_json::to_string(&article.team_ids)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let player_ids_json = serde_json::to_string(&article.player_ids)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let match_score_json = article
         .match_score
         .as_ref()

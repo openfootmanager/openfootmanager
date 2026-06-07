@@ -125,7 +125,9 @@ pub(super) fn fan_petition_message(msg_id: &str, team_name: &str, date: &str) ->
     .with_priority(MessagePriority::Normal)
     .with_sender_role("")
     .with_action(action(
-        "respond", "", "be.msg.event.respond",
+        "respond",
+        "",
+        "be.msg.event.respond",
         ActionType::ChooseOption {
             options: vec![
                 option(
@@ -218,14 +220,26 @@ mod tests {
     fn mood_report_message_uses_i18n_keys_without_raw_fallbacks() {
         let message = mood_report_message("mood_1", 61.0, 2, 4, 22, "2026-07-01");
 
-        assert_eq!(message.subject_key.as_deref(), Some("be.msg.moodReport.subject"));
+        assert_eq!(
+            message.subject_key.as_deref(),
+            Some("be.msg.moodReport.subject")
+        );
         assert_eq!(message.body_key.as_deref(), Some("be.msg.moodReport.body"));
-        assert_eq!(message.sender_key.as_deref(), Some("be.sender.assistantManager"));
-        assert_eq!(message.sender_role_key.as_deref(), Some("be.role.assistantManager"));
+        assert_eq!(
+            message.sender_key.as_deref(),
+            Some("be.sender.assistantManager")
+        );
+        assert_eq!(
+            message.sender_role_key.as_deref(),
+            Some("be.role.assistantManager")
+        );
         assert!(message.subject.is_empty());
         assert!(message.body.is_empty());
         assert!(message.sender.is_empty());
-        assert_eq!(message.actions[0].label_key.as_deref(), Some("be.msg.event.ack"));
+        assert_eq!(
+            message.actions[0].label_key.as_deref(),
+            Some("be.msg.event.ack")
+        );
         assert!(message.actions[0].label.is_empty());
     }
 
@@ -233,17 +247,26 @@ mod tests {
     fn board_confidence_message_uses_keyed_options_without_raw_fallbacks() {
         let message = board_confidence_message("board_1", "2026-07-01");
 
-        assert_eq!(message.subject_key.as_deref(), Some("be.msg.boardConfidence.subject"));
+        assert_eq!(
+            message.subject_key.as_deref(),
+            Some("be.msg.boardConfidence.subject")
+        );
         assert!(matches!(
             message.body_key.as_deref(),
             Some("be.msg.boardConfidence.body0") | Some("be.msg.boardConfidence.body1")
         ));
-        assert_eq!(message.sender_key.as_deref(), Some("be.sender.boardOfDirectors"));
+        assert_eq!(
+            message.sender_key.as_deref(),
+            Some("be.sender.boardOfDirectors")
+        );
         assert_eq!(message.sender_role_key.as_deref(), Some("be.role.chairman"));
         assert!(message.subject.is_empty());
         assert!(message.body.is_empty());
         assert!(message.sender.is_empty());
-        assert_eq!(message.actions[0].label_key.as_deref(), Some("be.msg.event.respond"));
+        assert_eq!(
+            message.actions[0].label_key.as_deref(),
+            Some("be.msg.event.respond")
+        );
         assert!(message.actions[0].label.is_empty());
         assert!(matches!(
             message.actions[0].action_type,

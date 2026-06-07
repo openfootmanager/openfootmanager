@@ -9,28 +9,22 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 
 /// Insert or replace a team row.
 pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
-    let starting_xi_json =
-        serde_json::to_string(&t.starting_xi_ids)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let form_json = serde_json::to_string(&t.form)
+    let starting_xi_json = serde_json::to_string(&t.starting_xi_ids)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let form_json =
+        serde_json::to_string(&t.form).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let history_json =
         serde_json::to_string(&t.history).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let training_groups_json =
-        serde_json::to_string(&t.training_groups)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let match_roles_json =
-        serde_json::to_string(&t.match_roles)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let financial_ledger_json =
-        serde_json::to_string(&t.financial_ledger)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let sponsorship_json =
-        serde_json::to_string(&t.sponsorship)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let facilities_json =
-        serde_json::to_string(&t.facilities)
-            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let training_groups_json = serde_json::to_string(&t.training_groups)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let match_roles_json = serde_json::to_string(&t.match_roles)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let financial_ledger_json = serde_json::to_string(&t.financial_ledger)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let sponsorship_json = serde_json::to_string(&t.sponsorship)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let facilities_json = serde_json::to_string(&t.facilities)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
     let training_focus_str = format!("{:?}", t.training_focus);
     let training_intensity_str = format!("{:?}", t.training_intensity);

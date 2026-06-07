@@ -87,58 +87,52 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
             .map(|p| format!("{} ({}%)", p.match_name, p.condition))
             .collect();
 
-        let mut msg = InboxMessage::new(
-            msg_id,
-            String::new(),
-            String::new(),
-            sender_name,
-            date,
-        )
-        .with_category(MessageCategory::Training)
-        .with_priority(MessagePriority::Urgent)
-        .with_sender_role("")
-        .with_action(MessageAction {
-            id: "go_training".to_string(),
-            label: String::new(),
-            action_type: ActionType::NavigateTo {
-                route: "/dashboard?tab=Training".to_string(),
-            },
-            resolved: false,
-            label_key: Some("be.msg.fitness.actionAdjust".to_string()),
-        })
-        .with_context(MessageContext {
-            team_id: Some(user_team_id),
-            ..Default::default()
-        })
-        .with_i18n(
-            "be.msg.fitness.critical.subject",
-            &format!(
-                "be.msg.fitness.critical.body.{}",
-                match schedule {
-                    TrainingSchedule::Intense => "intense",
-                    TrainingSchedule::Balanced => "balanced",
-                    TrainingSchedule::Light => "light",
-                }
-            ),
-            {
-                let mut p = HashMap::new();
-                p.insert("criticalCount".to_string(), critical_count.to_string());
-                p.insert("players".to_string(), exhausted_names.join("\n"));
-                p.insert("avgCondition".to_string(), format!("{:.0}", avg_condition));
-                let sched_key = match schedule {
-                    TrainingSchedule::Intense => "intense",
-                    TrainingSchedule::Balanced => "balanced",
-                    TrainingSchedule::Light => "light",
-                };
-                p.insert("schedule".to_string(), sched_key.to_string());
-                let int_key = match intensity {
-                    TrainingIntensity::High => "high",
-                    _ => "",
-                };
-                p.insert("intensity".to_string(), int_key.to_string());
-                p
-            },
-        );
+        let mut msg = InboxMessage::new(msg_id, String::new(), String::new(), sender_name, date)
+            .with_category(MessageCategory::Training)
+            .with_priority(MessagePriority::Urgent)
+            .with_sender_role("")
+            .with_action(MessageAction {
+                id: "go_training".to_string(),
+                label: String::new(),
+                action_type: ActionType::NavigateTo {
+                    route: "/dashboard?tab=Training".to_string(),
+                },
+                resolved: false,
+                label_key: Some("be.msg.fitness.actionAdjust".to_string()),
+            })
+            .with_context(MessageContext {
+                team_id: Some(user_team_id),
+                ..Default::default()
+            })
+            .with_i18n(
+                "be.msg.fitness.critical.subject",
+                &format!(
+                    "be.msg.fitness.critical.body.{}",
+                    match schedule {
+                        TrainingSchedule::Intense => "intense",
+                        TrainingSchedule::Balanced => "balanced",
+                        TrainingSchedule::Light => "light",
+                    }
+                ),
+                {
+                    let mut p = HashMap::new();
+                    p.insert("criticalCount".to_string(), critical_count.to_string());
+                    p.insert("players".to_string(), exhausted_names.join("\n"));
+                    p.insert("avgCondition".to_string(), format!("{:.0}", avg_condition));
+                    let sched_key = match schedule {
+                        TrainingSchedule::Intense => "intense",
+                        TrainingSchedule::Balanced => "balanced",
+                        TrainingSchedule::Light => "light",
+                    };
+                    p.insert("schedule".to_string(), sched_key.to_string());
+                    let int_key = match intensity {
+                        TrainingIntensity::High => "high",
+                        _ => "",
+                    };
+                    p.insert("intensity".to_string(), int_key.to_string());
+                    p
+                },
+            );
 
         if has_physio {
             msg = msg.with_sender_i18n("be.sender.headPhysio", "be.role.headPhysio");
@@ -152,52 +146,46 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
 
     // Warning: average condition below 50 or many exhausted players
     if avg_condition < 50.0 || exhausted_count >= 4 {
-        let mut msg = InboxMessage::new(
-            msg_id,
-            String::new(),
-            String::new(),
-            sender_name,
-            date,
-        )
-        .with_category(MessageCategory::Training)
-        .with_priority(MessagePriority::High)
-        .with_sender_role("")
-        .with_action(MessageAction {
-            id: "go_training".to_string(),
-            label: String::new(),
-            action_type: ActionType::NavigateTo {
-                route: "/dashboard?tab=Training".to_string(),
-            },
-            resolved: false,
-            label_key: Some("be.msg.fitness.actionAdjust".to_string()),
-        })
-        .with_context(MessageContext {
-            team_id: Some(user_team_id),
-            ..Default::default()
-        })
-        .with_i18n(
-            "be.msg.fitness.warning.subject",
-            &format!(
-                "be.msg.fitness.warning.body.{}",
-                match schedule {
-                    TrainingSchedule::Intense => "intense",
-                    TrainingSchedule::Balanced => "balanced",
-                    TrainingSchedule::Light => "light",
-                }
-            ),
-            {
-                let mut p = HashMap::new();
-                p.insert("avgCondition".to_string(), format!("{:.0}", avg_condition));
-                p.insert("exhaustedCount".to_string(), exhausted_count.to_string());
-                let sched_key = match schedule {
-                    TrainingSchedule::Intense => "intense",
-                    TrainingSchedule::Balanced => "balanced",
-                    TrainingSchedule::Light => "light",
-                };
-                p.insert("schedule".to_string(), sched_key.to_string());
-                p
-            },
-        );
+        let mut msg = InboxMessage::new(msg_id, String::new(), String::new(), sender_name, date)
+            .with_category(MessageCategory::Training)
+            .with_priority(MessagePriority::High)
+            .with_sender_role("")
+            .with_action(MessageAction {
+                id: "go_training".to_string(),
+                label: String::new(),
+                action_type: ActionType::NavigateTo {
+                    route: "/dashboard?tab=Training".to_string(),
+                },
+                resolved: false,
+                label_key: Some("be.msg.fitness.actionAdjust".to_string()),
+            })
+            .with_context(MessageContext {
+                team_id: Some(user_team_id),
+                ..Default::default()
+            })
+            .with_i18n(
+                "be.msg.fitness.warning.subject",
+                &format!(
+                    "be.msg.fitness.warning.body.{}",
+                    match schedule {
+                        TrainingSchedule::Intense => "intense",
+                        TrainingSchedule::Balanced => "balanced",
+                        TrainingSchedule::Light => "light",
+                    }
+                ),
+                {
+                    let mut p = HashMap::new();
+                    p.insert("avgCondition".to_string(), format!("{:.0}", avg_condition));
+                    p.insert("exhaustedCount".to_string(), exhausted_count.to_string());
+                    let sched_key = match schedule {
+                        TrainingSchedule::Intense => "intense",
+                        TrainingSchedule::Balanced => "balanced",
+                        TrainingSchedule::Light => "light",
+                    };
+                    p.insert("schedule".to_string(), sched_key.to_string());
+                    p
+                },
+            );
 
         if has_physio {
             msg = msg.with_sender_i18n("be.sender.headPhysio", "be.role.headPhysio");

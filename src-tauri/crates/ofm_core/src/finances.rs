@@ -1176,7 +1176,10 @@ mod tests {
         let mut game = Game::new(
             clock,
             manager,
-            vec![make_team("team1", "Alpha FC"), make_team("team2", "Beta FC")],
+            vec![
+                make_team("team1", "Alpha FC"),
+                make_team("team2", "Beta FC"),
+            ],
             vec![],
             vec![],
             vec![],

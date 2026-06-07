@@ -3,7 +3,12 @@ import { useState } from "react";
 import { beforeEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  PlayerData,
+  StaffData,
+  TeamData,
+} from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
 
 function hasWeeklyWage(text: string, amount: number): boolean {
@@ -85,6 +90,10 @@ vi.mock("react-i18next", () => ({
         return "Delegate to Assistant";
       if (key === "playerProfile.renewalDelegateMissingReport")
         return "Assistant report did not include this player.";
+      if (key === "be.error.contracts.noAssistantManagerAssigned")
+        return "Hire an assistant manager before delegating contract talks.";
+      if (key === "be.error.contracts.playerHasNoActiveContract")
+        return "This player does not have an active contract.";
       if (key === "playerProfile.renewalConversationTitle")
         return "Negotiation pulse";
       if (key === "playerProfile.renewalProjectionTitle")
@@ -247,7 +256,29 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
-function createGameState(player: PlayerData): GameStateData {
+function createStaff(overrides: Partial<StaffData> = {}): StaffData {
+  return {
+    id: "staff-1",
+    first_name: "Alex",
+    last_name: "Assistant",
+    date_of_birth: "1980-01-01",
+    nationality: "GB",
+    role: "AssistantManager" as const,
+    attributes: {
+      coaching: 70,
+      judging_ability: 60,
+      judging_potential: 60,
+      physiotherapy: 20,
+    },
+    team_id: "team-1",
+    specialization: "General",
+    wage: 1200,
+    contract_end: "2027-06-30",
+    ...overrides,
+  };
+}
+
+function createGameState(player: PlayerData, staff = []): GameStateData {
   return {
     clock: {
       current_date: "2026-08-01T00:00:00Z",
@@ -275,7 +306,7 @@ function createGameState(player: PlayerData): GameStateData {
     },
     teams: [createTeam()],
     players: [player],
-    staff: [],
+    staff,
     messages: [],
     news: [],
     league: {
@@ -848,7 +879,15 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    render(
+      <PlayerProfile
+        player={createPlayer()}
+        gameState={createGameState(createPlayer(), [createStaff()])}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.click(
@@ -886,7 +925,15 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<RenewalHarness />);
+    render(
+      <PlayerProfile
+        player={createPlayer()}
+        gameState={createGameState(createPlayer(), [createStaff()])}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
     fireEvent.click(
@@ -896,6 +943,49 @@ describe("PlayerProfile contract surfaces", () => {
     await waitFor(() => {
       expect(
         screen.getByText("Assistant report did not include this player."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("disables renewal delegation when no assistant manager is assigned", () => {
+    render(<RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+
+    expect(
+      screen.getByRole("button", { name: "Delegate to Assistant" }),
+    ).toBeDisabled();
+  });
+
+  it("localizes the no-assistant delegation error if the command still fails", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "delegate_renewals") {
+        throw "be.error.contracts.noAssistantManagerAssigned";
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={createPlayer()}
+        gameState={createGameState(createPlayer(), [createStaff()])}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delegate to Assistant" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Hire an assistant manager before delegating contract talks.",
+        ),
       ).toBeInTheDocument();
     });
   });
@@ -951,6 +1041,26 @@ describe("PlayerProfile contract surfaces", () => {
         playerId: "player-1",
       });
       expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
+    });
+  });
+
+  it("localizes contract action failures instead of showing raw backend keys", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "set_contract_exit_intent") {
+        throw "be.error.contracts.playerHasNoActiveContract";
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(<RenewalHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("This player does not have an active contract."),
+      ).toBeInTheDocument();
     });
   });
 

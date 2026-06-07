@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 26;
+pub const MIGRATION_COUNT: usize = 27;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -59,6 +59,8 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v025_player_retired.sql")),
         // V26: Persist world-history archives for rivalries and historical season awards
         M::up(include_str!("sql/v026_world_history_archive.sql")),
+        // V27: Persist available staff market activity for monthly rotation
+        M::up(include_str!("sql/v027_available_staff_market_activity.sql")),
     ])
 }
 
@@ -145,6 +147,10 @@ mod tests {
         assert!(
             game_meta_columns.contains(&"world_history_json".to_string()),
             "missing game_meta.world_history_json"
+        );
+        assert!(
+            game_meta_columns.contains(&"available_staff_market_last_activity_date".to_string()),
+            "missing game_meta.available_staff_market_last_activity_date"
         );
     }
 

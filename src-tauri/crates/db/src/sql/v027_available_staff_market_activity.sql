@@ -1,0 +1,1 @@
+ALTER TABLE game_meta ADD COLUMN available_staff_market_last_activity_date TEXT;

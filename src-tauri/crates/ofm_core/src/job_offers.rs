@@ -110,13 +110,11 @@ pub fn hire_manager(game: &mut Game, team_id: &str, date: &str) -> Result<String
         team.manager_id = Some(manager_id.clone());
     }
 
-    game.manager
-        .career_history
-        .push(ManagerCareerEntry::open(
-            team_id.to_string(),
-            team_name.clone(),
-            date.to_string(),
-        ));
+    game.manager.career_history.push(ManagerCareerEntry::open(
+        team_id.to_string(),
+        team_name.clone(),
+        date.to_string(),
+    ));
 
     // Reset satisfaction to neutral
     game.manager.satisfaction = 50;
@@ -214,13 +212,11 @@ pub fn switch_manager_team(
         .iter()
         .any(|e| e.end_date.is_none());
     if !has_open_entry {
-        game.manager
-            .career_history
-            .push(ManagerCareerEntry::open(
-                previous_team_id.clone(),
-                previous_team_name.clone(),
-                date.to_string(),
-            ));
+        game.manager.career_history.push(ManagerCareerEntry::open(
+            previous_team_id.clone(),
+            previous_team_name.clone(),
+            date.to_string(),
+        ));
     }
 
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == previous_team_id) {
