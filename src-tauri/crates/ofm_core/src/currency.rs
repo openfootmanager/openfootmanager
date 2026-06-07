@@ -55,11 +55,7 @@ pub fn convert_amount(amount: i64, code: &str) -> Option<i64> {
 
 fn convert_unsigned_amount(amount: u64, code: &str) -> Option<u64> {
     let rate = currency_definition(code)?.exchange_rate;
-    Some(
-        ((amount as f64) * rate)
-            .round()
-            .clamp(0.0, u64::MAX as f64) as u64,
-    )
+    Some(((amount as f64) * rate).round().clamp(0.0, u64::MAX as f64) as u64)
 }
 
 pub fn format_compact_number(amount: u64, code: &str) -> Option<String> {
@@ -93,8 +89,7 @@ pub fn default_currency_symbol() -> &'static str {
 mod tests {
     use super::{
         DEFAULT_CURRENCY_CODE, convert_amount, currency_definition, default_currency_symbol,
-        format_compact_money, format_compact_number, normalize_currency_code,
-        supported_currencies,
+        format_compact_money, format_compact_number, normalize_currency_code, supported_currencies,
     };
 
     #[test]
@@ -132,7 +127,10 @@ mod tests {
     #[test]
     fn formats_compact_amounts_after_conversion() {
         assert_eq!(format_compact_number(999, "GBP"), Some("859".to_string()));
-        assert_eq!(format_compact_money(125_000, "GBP"), Some("£107K".to_string()));
+        assert_eq!(
+            format_compact_money(125_000, "GBP"),
+            Some("£107K".to_string())
+        );
         assert_eq!(
             format_compact_money(5_000_000, "GBP"),
             Some("£4.3M".to_string())

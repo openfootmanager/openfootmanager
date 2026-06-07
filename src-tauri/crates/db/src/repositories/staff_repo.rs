@@ -6,8 +6,8 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 
 /// Insert or replace a staff row.
 pub fn upsert_staff(conn: &Connection, s: &Staff) -> Result<(), String> {
-    let attrs_json =
-        serde_json::to_string(&s.attributes).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let attrs_json = serde_json::to_string(&s.attributes)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let role_str = format!("{:?}", s.role);
     let spec_str = s.specialization.as_ref().map(|sp| format!("{:?}", sp));
 

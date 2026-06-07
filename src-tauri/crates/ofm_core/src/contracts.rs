@@ -1,11 +1,12 @@
 use crate::contract_wage_policy::{
-    project_contract_offer_financial_impact, project_renewal_financial_impact as project_renewal_financial_impact_service,
+    project_contract_offer_financial_impact,
+    project_renewal_financial_impact as project_renewal_financial_impact_service,
     renewal_wage_policy_allows, renewal_wage_policy_error_message,
 };
 use crate::delegated_renewals::delegate_renewals as delegate_renewals_service;
 use crate::game::Game;
-use crate::squad_safety::{SquadSafetyReport, project_user_team_release_safety};
-use chrono::{Datelike, Months, NaiveDate};
+use crate::squad_safety::{project_user_team_release_safety, SquadSafetyReport};
+use chrono::{Datelike, Days, Months, NaiveDate};
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::{
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 const RENEWAL_SESSION_STALE_DAYS: i64 = 14;
+const INSULTING_RENEWAL_BLOCK_DAYS: u64 = 30;
 const MAX_CONTRACT_YEARS: u32 = 5;
 const MARKET_VALUE_TO_WAGE_RATIO: u64 = 200;
 const MINIMUM_DEFAULT_WAGE: u64 = 500;
@@ -226,7 +228,49 @@ pub fn evaluate_renewal_offer(
     let expected_years = expected_contract_years(player, current_date);
     let minimum_wage = minimum_acceptable_wage(player.wage);
 
-    if offer.weekly_wage < minimum_wage || offer.contract_years == 0 {
+    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
+        let feedback = build_renewal_feedback(
+            player,
+            current_date,
+            RenewalDecision::Rejected,
+            RenewalSessionStatus::Stalled,
+            round,
+            expected_wage,
+            false,
+        );
+        return renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Stalled,
+            false,
+            false,
+            Some(feedback),
+        );
+    }
+
+    if is_insulting_wage_offer(player.wage, expected_wage, offer.weekly_wage) {
+        let feedback = build_renewal_feedback(
+            player,
+            current_date,
+            RenewalDecision::Rejected,
+            RenewalSessionStatus::Blocked,
+            round,
+            expected_wage,
+            false,
+        );
+        return renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Blocked,
+            true,
+            false,
+            Some(feedback),
+        );
+    }
+
+    if offer.weekly_wage < minimum_wage {
         let feedback = build_renewal_feedback(
             player,
             current_date,
@@ -317,6 +361,29 @@ pub fn propose_renewal(
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
+    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
+        let current_date = game.clock.current_date.date_naive();
+        let round = next_renewal_round(&game.players[player_index], None);
+        let expected_wage = expected_wage(&game.players[player_index], &team, current_date);
+        return Ok(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Stalled,
+            false,
+            false,
+            Some(build_renewal_feedback(
+                &game.players[player_index],
+                current_date,
+                RenewalDecision::Rejected,
+                RenewalSessionStatus::Stalled,
+                round,
+                expected_wage,
+                false,
+            )),
+        ));
+    }
+
     let current_date = game.clock.current_date.date_naive();
     let cooled_off = cool_stale_renewal_session(&mut game.players[player_index], current_date);
     let today = current_date.format("%Y-%m-%d").to_string();
@@ -372,11 +439,12 @@ pub fn propose_renewal(
     let mut outcome =
         evaluate_renewal_offer(&game.players[player_index], &team, current_date, &offer);
     outcome.cooled_off = cooled_off;
-    let relationship_blocked = should_manual_renewal_fail_on_relationship(
-        &game.players[player_index],
-        expected_wage,
-        offer.weekly_wage,
-    );
+    let relationship_blocked = outcome.session_status != RenewalSessionStatus::Blocked
+        && should_manual_renewal_fail_on_relationship(
+            &game.players[player_index],
+            expected_wage,
+            offer.weekly_wage,
+        );
 
     if relationship_blocked {
         outcome = renewal_outcome(
@@ -455,10 +523,17 @@ pub fn propose_renewal(
     match outcome.decision {
         RenewalDecision::Rejected => {
             state.status = outcome.session_status.clone();
-            state.last_outcome = Some(RenewalSessionOutcome::RejectedByPlayer);
+            if outcome.session_status == RenewalSessionStatus::Blocked {
+                state.manager_blocked_until = renewal_blocked_until(current_date);
+                state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
+            } else {
+                state.manager_blocked_until = None;
+                state.last_outcome = Some(RenewalSessionOutcome::RejectedByPlayer);
+            }
         }
         RenewalDecision::CounterOffer => {
             state.status = RenewalSessionStatus::Open;
+            state.manager_blocked_until = None;
             state.last_outcome = Some(RenewalSessionOutcome::Stalled);
         }
         RenewalDecision::Accepted => {}
@@ -513,12 +588,62 @@ pub fn offer_free_agent_contract(
     let round = next_renewal_round(&game.players[player_index], Some(today.as_str()));
     let expected_wage = expected_wage(&game.players[player_index], &team, current_date);
     let expected_years = expected_contract_years(&game.players[player_index], current_date);
-    let minimum_wage = minimum_acceptable_wage(reference_player_wage(&game.players[player_index]));
+    let reference_wage = reference_player_wage(&game.players[player_index]);
+    let minimum_wage = minimum_acceptable_wage(reference_wage);
 
-    if offer.weekly_wage < minimum_wage
-        || offer.contract_years == 0
-        || offer.contract_years > MAX_CONTRACT_YEARS
-    {
+    if offer.contract_years == 0 || offer.contract_years > MAX_CONTRACT_YEARS {
+        return Ok(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Stalled,
+            false,
+            cooled_off,
+            Some(build_renewal_feedback(
+                &game.players[player_index],
+                current_date,
+                RenewalDecision::Rejected,
+                RenewalSessionStatus::Stalled,
+                round,
+                expected_wage,
+                false,
+            )),
+        ));
+    }
+
+    if is_insulting_wage_offer(reference_wage, expected_wage, offer.weekly_wage) {
+        let blocked_until = renewal_blocked_until(current_date);
+        let player = &mut game.players[player_index];
+        let state = player
+            .morale_core
+            .renewal_state
+            .get_or_insert_with(ContractRenewalState::default);
+        state.last_attempt_date = Some(today.clone());
+        state.conversation_round = round;
+        state.status = RenewalSessionStatus::Blocked;
+        state.manager_blocked_until = blocked_until;
+        state.last_outcome = Some(RenewalSessionOutcome::BlockedByManager);
+
+        return Ok(renewal_outcome(
+            RenewalDecision::Rejected,
+            None,
+            None,
+            RenewalSessionStatus::Blocked,
+            true,
+            cooled_off,
+            Some(build_renewal_feedback(
+                player,
+                current_date,
+                RenewalDecision::Rejected,
+                RenewalSessionStatus::Blocked,
+                round,
+                expected_wage,
+                false,
+            )),
+        ));
+    }
+
+    if offer.weekly_wage < minimum_wage {
         return Ok(renewal_outcome(
             RenewalDecision::Rejected,
             None,
@@ -555,7 +680,11 @@ pub fn offer_free_agent_contract(
         player.loan_listed = false;
         player.transfer_offers.clear();
         if matches!(
-            player.morale_core.unresolved_issue.as_ref().map(|issue| &issue.category),
+            player
+                .morale_core
+                .unresolved_issue
+                .as_ref()
+                .map(|issue| &issue.category),
             Some(domain::player::PlayerIssueCategory::Contract)
         ) {
             player.morale_core.unresolved_issue = None;
@@ -599,6 +728,7 @@ pub fn offer_free_agent_contract(
     state.last_attempt_date = Some(today);
     state.conversation_round = round;
     state.status = RenewalSessionStatus::Open;
+    state.manager_blocked_until = None;
     state.last_outcome = Some(RenewalSessionOutcome::Stalled);
 
     Ok(renewal_outcome(
@@ -903,8 +1033,7 @@ fn reference_player_wage(player: &Player) -> u32 {
         return player.wage;
     }
 
-    let derived_wage =
-        (player.market_value / MARKET_VALUE_TO_WAGE_RATIO).max(MINIMUM_DEFAULT_WAGE);
+    let derived_wage = (player.market_value / MARKET_VALUE_TO_WAGE_RATIO).max(MINIMUM_DEFAULT_WAGE);
 
     round_up_to_nearest_thousand(derived_wage.min(u32::MAX as u64) as u32)
 }
@@ -941,6 +1070,19 @@ pub(crate) fn expected_contract_years(player: &Player, current_date: NaiveDate) 
 
 fn minimum_acceptable_wage(current_wage: u32) -> u32 {
     ((current_wage as f32) * 0.85).floor() as u32
+}
+
+fn is_insulting_wage_offer(reference_wage: u32, expected_wage: u32, offered_wage: u32) -> bool {
+    let anchor_wage = reference_wage.max(expected_wage);
+    let insulting_floor = ((anchor_wage as f32) * 0.65).floor() as u32;
+
+    offered_wage < insulting_floor
+}
+
+fn renewal_blocked_until(current_date: NaiveDate) -> Option<String> {
+    current_date
+        .checked_add_days(Days::new(INSULTING_RENEWAL_BLOCK_DAYS))
+        .map(|date| date.format("%Y-%m-%d").to_string())
 }
 
 fn next_renewal_round(player: &Player, today: Option<&str>) -> u8 {

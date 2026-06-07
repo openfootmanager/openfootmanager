@@ -14,7 +14,9 @@ pub struct FinishLiveMatchResponse {
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
     info!("[cmd] finish_live_match");
-    let session = state.take_live_match().ok_or("be.error.noActiveLiveMatch")?;
+    let session = state
+        .take_live_match()
+        .ok_or("be.error.noActiveLiveMatch")?;
 
     let fixture_index = session.fixture_index;
     let round_matchday = session.round_matchday;

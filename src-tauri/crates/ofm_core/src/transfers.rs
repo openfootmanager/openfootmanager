@@ -1279,9 +1279,9 @@ mod tests {
             "Award-leaderboard players should attract AI bids even when their base transfer-interest score is otherwise too low"
         );
         assert!(
-            game.messages.iter().any(|message| {
-                message.context.player_id.as_deref() == Some("player-award")
-            }),
+            game.messages
+                .iter()
+                .any(|message| { message.context.player_id.as_deref() == Some("player-award") }),
             "The incoming bid should surface through the usual inbox flow"
         );
     }

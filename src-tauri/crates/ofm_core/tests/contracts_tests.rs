@@ -4,6 +4,7 @@ use domain::player::{
     ContractExitIntent, ContractRenewalState, Player, PlayerAttributes, Position,
     RenewalSessionStatus,
 };
+use domain::season::TransferWindowStatus;
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
@@ -14,7 +15,6 @@ use ofm_core::contracts::{
     propose_renewal, set_contract_exit_intent, terminate_contract_now,
 };
 use ofm_core::game::Game;
-use domain::season::TransferWindowStatus;
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -325,7 +325,7 @@ fn rejected_offer_leaves_state_unchanged() {
         &mut game,
         "player-1",
         RenewalOffer {
-            weekly_wage: 7_000,
+            weekly_wage: 9_500,
             contract_years: 1,
         },
     )
@@ -334,6 +334,40 @@ fn rejected_offer_leaves_state_unchanged() {
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(game.players[0].wage, original_wage);
     assert_eq!(game.players[0].contract_end, original_end);
+}
+
+#[test]
+fn insulting_offer_blocks_further_renewal_talks_temporarily() {
+    let mut game = make_game();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 7_000,
+            contract_years: 1,
+        },
+    )
+    .expect("renewal should return a decision");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
+    assert!(outcome.is_terminal);
+
+    let renewal_state = game.players[0]
+        .morale_core
+        .renewal_state
+        .as_ref()
+        .expect("renewal state should be stored");
+    assert_eq!(renewal_state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(
+        renewal_state.last_outcome,
+        Some(domain::player::RenewalSessionOutcome::BlockedByManager)
+    );
+    assert_eq!(
+        renewal_state.manager_blocked_until.as_deref(),
+        Some("2026-08-31")
+    );
 }
 
 #[test]
@@ -356,6 +390,26 @@ fn counter_offer_returns_understandable_feedback() {
     let feedback = outcome.feedback.expect("feedback should be present");
     assert_eq!(feedback.round, 1);
     assert!(feedback.tension > 0);
+}
+
+#[test]
+fn renewal_offer_rejects_contracts_longer_than_five_years() {
+    let mut game = make_game();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 6,
+        },
+    )
+    .expect("renewal should return a rejection");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(outcome.session_status, RenewalSessionStatus::Stalled);
+    assert!(!outcome.is_terminal);
+    assert_eq!(game.players[0].contract_end.as_deref(), Some("2026-10-15"));
 }
 
 #[test]
@@ -411,7 +465,11 @@ fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
     .expect("free-agent offer should resolve");
 
     assert!(matches!(outcome.decision, RenewalDecision::Accepted));
-    let player = game.players.iter().find(|player| player.id == "free-agent-1").unwrap();
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "free-agent-1")
+        .unwrap();
     assert_eq!(player.team_id.as_deref(), Some("team-1"));
     assert_eq!(player.wage, 4_000);
     assert_eq!(player.contract_end.as_deref(), Some("2029-08-01"));
@@ -444,7 +502,10 @@ fn free_agent_offer_accepts_and_assigns_player_to_manager_team() {
         message.i18n_params.get("player"),
         Some(&"Free Agent".to_string())
     );
-    assert_eq!(message.i18n_params.get("team"), Some(&"Alpha FC".to_string()));
+    assert_eq!(
+        message.i18n_params.get("team"),
+        Some(&"Alpha FC".to_string())
+    );
     assert_eq!(message.i18n_params.get("years"), Some(&"3".to_string()));
 }
 
@@ -483,8 +544,20 @@ fn free_agent_offer_rejects_lowball_terms() {
     .expect("free-agent offer should resolve");
 
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(outcome.session_status, RenewalSessionStatus::Blocked);
+    assert!(outcome.is_terminal);
     assert_eq!(game.players[0].team_id, None);
     assert_eq!(game.players[0].wage, 0);
+    let renewal_state = game.players[0]
+        .morale_core
+        .renewal_state
+        .as_ref()
+        .expect("free agent should remember the lowball");
+    assert_eq!(renewal_state.status, RenewalSessionStatus::Blocked);
+    assert_eq!(
+        renewal_state.manager_blocked_until.as_deref(),
+        Some("2026-08-31")
+    );
 }
 
 #[test]

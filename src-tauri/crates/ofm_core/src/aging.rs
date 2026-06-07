@@ -151,7 +151,9 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_seasonal_aging, player_age_on, should_retire, technical_growth, veteran_pace_loss};
+    use super::{
+        apply_seasonal_aging, player_age_on, should_retire, technical_growth, veteran_pace_loss,
+    };
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{NaiveDate, TimeZone, Utc};

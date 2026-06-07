@@ -21,6 +21,24 @@ const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
 const OPENING_SHORT_CONTRACT_END: &str = "2027-06-30";
 const OPENING_YOUTH_ACADEMY_SIZE: usize = 3;
 const OPENING_YOUTH_MAX_AGE: i32 = 21;
+const AVAILABLE_STAFF_MARKET_ROTATION_DAYS: i64 = 30;
+
+fn standard_available_staff_roles() -> [StaffRole; 12] {
+    [
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::AssistantManager,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::Coach,
+        StaffRole::Physio,
+        StaffRole::Scout,
+        StaffRole::AssistantManager,
+    ]
+}
 
 fn target_wage_usage_percent(reputation: u32) -> i64 {
     if reputation >= 750 {
@@ -201,6 +219,144 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player]) {
         .max(weekly_wage_spend.saturating_mul(MIN_OPENING_RUNWAY_WEEKS));
 }
 
+fn team_staff_seed_nationality(team: &Team) -> &str {
+    if team.football_nation.is_empty() {
+        team.country.as_str()
+    } else {
+        team.football_nation.as_str()
+    }
+}
+
+fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String>) {
+    let names_def = default_names_definition();
+    let country_codes = names_def.pools.keys().cloned().collect();
+    (names_def, country_codes)
+}
+
+fn generate_missing_team_staff(world: &mut WorldData) -> bool {
+    let mut rng = rand::rng();
+    let (names_def, country_codes) = create_staff_generator_context();
+    let mut generated_staff = Vec::new();
+    let roles = [
+        StaffRole::AssistantManager,
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+    ];
+
+    for team in &world.teams {
+        for role in &roles {
+            let has_role = world.staff.iter().any(|staff_member| {
+                staff_member.team_id.as_deref() == Some(team.id.as_str())
+                    && &staff_member.role == role
+            });
+            if has_role {
+                continue;
+            }
+
+            let nationality = pick_nationality_from_def(
+                team_staff_seed_nationality(team),
+                &country_codes,
+                &mut rng,
+            );
+            generated_staff.push(generate_random_staff_from_def(
+                &team.id,
+                role.clone(),
+                &nationality,
+                &names_def,
+                &mut rng,
+            ));
+        }
+    }
+
+    let changed = !generated_staff.is_empty();
+    world.staff.extend(generated_staff);
+    changed
+}
+
+fn generate_standard_available_staff_for_teams(teams: &[Team]) -> Vec<Staff> {
+    let mut rng = rand::rng();
+    let (names_def, country_codes) = create_staff_generator_context();
+    let fallback_seed = teams
+        .first()
+        .map(team_staff_seed_nationality)
+        .unwrap_or("England");
+
+    standard_available_staff_roles()
+        .into_iter()
+        .map(|role| {
+            let nationality = if country_codes.is_empty() {
+                generation::canonicalize_generated_nationality(fallback_seed)
+            } else {
+                let seed_country = teams
+                    .get(rng.random_range(0..teams.len().max(1)))
+                    .map(team_staff_seed_nationality)
+                    .unwrap_or(fallback_seed);
+                pick_nationality_from_def(seed_country, &country_codes, &mut rng)
+            };
+            generate_random_staff_unattached_from_def(role, &nationality, &names_def, &mut rng)
+        })
+        .collect()
+}
+
+fn available_staff_count(staff: &[Staff]) -> usize {
+    staff
+        .iter()
+        .filter(|staff_member| staff_member.team_id.is_none())
+        .count()
+}
+
+fn replace_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team]) {
+    staff.retain(|staff_member| staff_member.team_id.is_some());
+    staff.extend(generate_standard_available_staff_for_teams(teams));
+}
+
+pub fn replenish_available_staff_market(staff: &mut Vec<Staff>, teams: &[Team]) -> bool {
+    if available_staff_count(staff) > 0 {
+        return false;
+    }
+
+    replace_available_staff_market(staff, teams);
+    true
+}
+
+pub fn normalize_imported_world_for_career_start(world: &mut WorldData) {
+    generate_missing_team_staff(world);
+    let _ = replenish_available_staff_market(&mut world.staff, &world.teams);
+}
+
+pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
+    use chrono::NaiveDate;
+
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let available_count = available_staff_count(&game.staff);
+
+    if available_count == 0 {
+        replace_available_staff_market(&mut game.staff, &game.teams);
+        game.available_staff_market_last_activity_date = Some(today);
+        return true;
+    }
+
+    let Some(last_activity) = game.available_staff_market_last_activity_date.as_deref() else {
+        game.available_staff_market_last_activity_date = Some(today);
+        return true;
+    };
+
+    let Ok(last_activity_date) = NaiveDate::parse_from_str(last_activity, "%Y-%m-%d") else {
+        game.available_staff_market_last_activity_date = Some(today);
+        return true;
+    };
+
+    let current_date = game.clock.current_date.date_naive();
+    if (current_date - last_activity_date).num_days() < AVAILABLE_STAFF_MARKET_ROTATION_DAYS {
+        return false;
+    }
+
+    replace_available_staff_market(&mut game.staff, &game.teams);
+    game.available_staff_market_last_activity_date = Some(today);
+    true
+}
+
 // ---------------------------------------------------------------------------
 // World generation
 // ---------------------------------------------------------------------------
@@ -325,23 +481,9 @@ pub fn generate_world(
     }
 
     // Generate free-agent staff
-    let free_roles = [
-        StaffRole::Coach,
-        StaffRole::Scout,
-        StaffRole::Physio,
-        StaffRole::Coach,
-        StaffRole::AssistantManager,
-        StaffRole::Scout,
-        StaffRole::Physio,
-        StaffRole::Coach,
-        StaffRole::Coach,
-        StaffRole::Physio,
-        StaffRole::Scout,
-        StaffRole::AssistantManager,
-    ];
-    for role in &free_roles {
+    for role in standard_available_staff_roles() {
         let nat = &country_codes[rng.random_range(0..country_codes.len())];
-        let s = generate_random_staff_unattached_from_def(role.clone(), nat, &names_def, &mut rng);
+        let s = generate_random_staff_unattached_from_def(role, nat, &names_def, &mut rng);
         staff.push(s);
     }
 
@@ -358,7 +500,12 @@ pub fn generate_world(
 mod tests {
     use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
     use super::*;
+    use crate::clock::GameClock;
+    use crate::game::Game;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
     use domain::player::{Position, SquadRole};
+    use domain::staff::{Staff, StaffAttributes, StaffRole};
 
     #[test]
     fn test_generate_world_team_count() {
@@ -636,5 +783,295 @@ mod tests {
                 "pool {code} should have last names"
             );
         }
+    }
+
+    fn make_import_team(id: &str, name: &str) -> Team {
+        let mut team = Team::new(
+            id.to_string(),
+            name.to_string(),
+            name[..3].to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            format!("{name} Ground"),
+            25_000,
+        );
+        team.football_nation = "ENG".to_string();
+        team
+    }
+
+    fn make_import_player(
+        team_id: &str,
+        id: &str,
+        position: Position,
+        date_of_birth: &str,
+    ) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            format!("{id} M"),
+            format!("{id} Player"),
+            date_of_birth.to_string(),
+            "ENG".to_string(),
+            position,
+            domain::player::PlayerAttributes {
+                pace: 62,
+                stamina: 62,
+                strength: 62,
+                agility: 62,
+                passing: 62,
+                shooting: 62,
+                tackling: 62,
+                dribbling: 62,
+                defending: 62,
+                positioning: 62,
+                vision: 62,
+                decisions: 62,
+                composure: 62,
+                aggression: 50,
+                teamwork: 62,
+                leadership: 50,
+                handling: 20,
+                reflexes: 20,
+                aerial: 62,
+            },
+        );
+        player.team_id = Some(team_id.to_string());
+        player.ovr = 62;
+        player.potential = 68;
+        player
+    }
+
+    fn make_import_staff(id: &str, team_id: Option<&str>, role: StaffRole) -> Staff {
+        let mut staff = Staff::new(
+            id.to_string(),
+            "Pat".to_string(),
+            "Staff".to_string(),
+            "1980-01-01".to_string(),
+            role,
+            StaffAttributes {
+                coaching: 60,
+                judging_ability: 60,
+                judging_potential: 60,
+                physiotherapy: 60,
+            },
+        );
+        staff.nationality = "ENG".to_string();
+        staff.team_id = team_id.map(str::to_string);
+        staff
+    }
+
+    fn make_roster_baseline_world_without_staff() -> WorldData {
+        let teams = vec![
+            make_import_team("team-1", "Alpha FC"),
+            make_import_team("team-2", "Beta FC"),
+        ];
+        let mut players = Vec::new();
+        for team in &teams {
+            players.push(make_import_player(
+                &team.id,
+                &format!("{}-gk", team.id),
+                Position::Goalkeeper,
+                "1998-01-01",
+            ));
+            players.push(make_import_player(
+                &team.id,
+                &format!("{}-d1", team.id),
+                Position::Defender,
+                "2008-01-01",
+            ));
+            players.push(make_import_player(
+                &team.id,
+                &format!("{}-m1", team.id),
+                Position::Midfielder,
+                "2007-01-01",
+            ));
+            players.push(make_import_player(
+                &team.id,
+                &format!("{}-f1", team.id),
+                Position::Forward,
+                "2006-01-01",
+            ));
+            for index in 0..8 {
+                players.push(make_import_player(
+                    &team.id,
+                    &format!("{}-senior-{index}", team.id),
+                    Position::Defender,
+                    "1997-01-01",
+                ));
+            }
+        }
+
+        WorldData {
+            name: "Imported Baseline".to_string(),
+            description: "Missing staff import".to_string(),
+            teams,
+            players,
+            staff: vec![],
+            managers: vec![],
+            league: None,
+            news: vec![],
+            stats: domain::stats::StatsState::default(),
+            world_history: domain::world_history::WorldHistoryArchive::default(),
+            metadata: WorldDataMetadata::default(),
+        }
+    }
+
+    fn make_staff_market_game(available_staff: Vec<Staff>) -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Boss".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        Game::new(
+            clock,
+            manager,
+            vec![make_import_team("team-1", "Alpha FC")],
+            vec![],
+            available_staff,
+            vec![],
+        )
+    }
+
+    #[test]
+    fn normalize_imported_world_backfills_missing_team_staff_and_available_pool() {
+        let mut world = make_roster_baseline_world_without_staff();
+
+        normalize_imported_world_for_career_start(&mut world);
+
+        for team in &world.teams {
+            for role in [
+                StaffRole::AssistantManager,
+                StaffRole::Coach,
+                StaffRole::Scout,
+                StaffRole::Physio,
+            ] {
+                let count = world
+                    .staff
+                    .iter()
+                    .filter(|staff_member| {
+                        staff_member.team_id.as_deref() == Some(team.id.as_str())
+                            && staff_member.role == role
+                    })
+                    .count();
+                assert_eq!(count, 1, "{} should have exactly one {:?}", team.name, role);
+            }
+        }
+        assert_eq!(
+            world
+                .staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+    }
+
+    #[test]
+    fn normalize_imported_world_preserves_existing_staff_and_available_pool() {
+        let mut world = make_roster_baseline_world_without_staff();
+        world.staff = vec![
+            make_import_staff(
+                "assistant-existing",
+                Some("team-1"),
+                StaffRole::AssistantManager,
+            ),
+            make_import_staff("free-existing", None, StaffRole::Scout),
+        ];
+
+        normalize_imported_world_for_career_start(&mut world);
+
+        assert!(
+            world
+                .staff
+                .iter()
+                .any(|staff_member| staff_member.id == "assistant-existing")
+        );
+        assert!(
+            world
+                .staff
+                .iter()
+                .any(|staff_member| staff_member.id == "free-existing")
+        );
+        assert_eq!(
+            world
+                .staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn process_available_staff_market_does_not_rotate_before_thirty_days() {
+        let initial_staff = vec![make_import_staff("free-1", None, StaffRole::Coach)];
+        let mut game = make_staff_market_game(initial_staff);
+        game.available_staff_market_last_activity_date = Some("2026-07-03".to_string());
+
+        let changed = process_available_staff_market(&mut game);
+
+        assert!(!changed);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .map(|staff_member| staff_member.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["free-1"]
+        );
+        assert_eq!(
+            game.available_staff_market_last_activity_date.as_deref(),
+            Some("2026-07-03")
+        );
+    }
+
+    #[test]
+    fn process_available_staff_market_rotates_after_thirty_days() {
+        let initial_staff = vec![make_import_staff("free-1", None, StaffRole::Coach)];
+        let mut game = make_staff_market_game(initial_staff);
+        game.available_staff_market_last_activity_date = Some("2026-07-02".to_string());
+
+        let changed = process_available_staff_market(&mut game);
+
+        assert!(changed);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+        assert!(
+            !game
+                .staff
+                .iter()
+                .any(|staff_member| staff_member.id == "free-1")
+        );
+        assert_eq!(
+            game.available_staff_market_last_activity_date.as_deref(),
+            Some("2026-08-01")
+        );
+    }
+
+    #[test]
+    fn process_available_staff_market_replenishes_when_empty() {
+        let mut game = make_staff_market_game(vec![]);
+
+        let changed = process_available_staff_market(&mut game);
+
+        assert!(changed);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+        assert_eq!(
+            game.available_staff_market_last_activity_date.as_deref(),
+            Some("2026-08-01")
+        );
     }
 }

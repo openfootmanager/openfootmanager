@@ -7,9 +7,7 @@ const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
 
 fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> String {
     let param_value = param_value.to_string();
-    let mut message = String::with_capacity(
-        key.len() + param_name.len() + param_value.len() + 2,
-    );
+    let mut message = String::with_capacity(key.len() + param_name.len() + param_value.len() + 2);
     message.push_str(key);
     message.push('?');
     message.push_str(param_name);
@@ -237,7 +235,10 @@ mod tests {
         assert!(world.league.is_none());
         assert!(world.news.is_empty());
         assert!(world.stats.player_matches.is_empty());
-        assert_eq!(world.metadata.kind, crate::generator::WorldDataKind::RosterBaseline);
+        assert_eq!(
+            world.metadata.kind,
+            crate::generator::WorldDataKind::RosterBaseline
+        );
     }
 
     #[test]
@@ -383,7 +384,10 @@ mod tests {
 
         assert_eq!(world.managers.len(), 1);
         assert_eq!(world.managers[0].football_nation, "ENG");
-        assert_eq!(world.league.as_ref().map(|league| league.season), Some(2024));
+        assert_eq!(
+            world.league.as_ref().map(|league| league.season),
+            Some(2024)
+        );
         assert_eq!(world.news.len(), 1);
         assert_eq!(world.world_history.rivalries.len(), 1);
         assert_eq!(
@@ -432,7 +436,10 @@ mod tests {
 
         assert_eq!(reparsed.managers.len(), 1);
         assert_eq!(reparsed.managers[0].football_nation, "ENG");
-        assert_eq!(reparsed.league.as_ref().map(|league| league.season), Some(2028));
+        assert_eq!(
+            reparsed.league.as_ref().map(|league| league.season),
+            Some(2028)
+        );
         assert_eq!(reparsed.news.len(), 1);
         assert_eq!(reparsed.world_history.rivalries.len(), 1);
         assert_eq!(

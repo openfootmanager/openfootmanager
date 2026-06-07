@@ -185,6 +185,12 @@ export default function PlayerProfile({
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
+  const managerTeamId = gameState.manager.team_id;
+  const hasAssistantManager = managerTeamId
+    ? gameState.staff.some(
+      (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
+    )
+    : false;
 
   const {
     freeAgentTarget,
@@ -435,7 +441,7 @@ export default function PlayerProfile({
       }
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(String(error));
+      setRenewalError(resolveTranslatedErrorMessage(error, t));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);
@@ -444,6 +450,18 @@ export default function PlayerProfile({
 
   async function handleDelegateRenewal(): Promise<void> {
     if (renewalSubmitting) {
+      return;
+    }
+
+    if (!hasAssistantManager) {
+      setRenewalStatus("error");
+      setRenewalError(
+        resolveTranslatedErrorMessage(
+          "be.error.contracts.noAssistantManagerAssigned",
+          t,
+        ),
+      );
+      setRenewalCooledOff(false);
       return;
     }
 
@@ -514,7 +532,7 @@ export default function PlayerProfile({
       );
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(String(error));
+      setRenewalError(resolveTranslatedErrorMessage(error, t));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);
@@ -536,7 +554,7 @@ export default function PlayerProfile({
       );
       onGameUpdate?.(result.game);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -554,7 +572,7 @@ export default function PlayerProfile({
       const result = await clearContractExitIntent(player.id);
       onGameUpdate?.(result.game);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -574,7 +592,7 @@ export default function PlayerProfile({
       const result = await previewContractTermination(player.id);
       setTerminationPreview(result.preview);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -594,7 +612,7 @@ export default function PlayerProfile({
       setShowTerminationModal(false);
       setTerminationPreview(null);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -742,8 +760,8 @@ export default function PlayerProfile({
         renewalStatusClassName={renewalStatusClassName}
         renewalCooledOff={renewalCooledOff}
         renewalFeedback={renewalFeedback}
-        renewalSubmitting={renewalSubmitting}
         renewalSubmitDisabled={renewalSubmitDisabled}
+        delegateRenewalDisabled={!hasAssistantManager || renewalSubmitting}
         onWageChange={setRenewalWage}
         onLengthChange={setRenewalLength}
         onClose={closeRenewalModal}
