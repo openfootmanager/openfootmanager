@@ -252,9 +252,7 @@ export function getTraitMeta(
   return {
     ...meta,
     label: trait,
-    description: meta.requirements
-      .map((requirement) => formatRequirement(requirement, translate))
-      .join(", "),
+    description: buildTraitTooltip(trait, translate),
   };
 }
 
