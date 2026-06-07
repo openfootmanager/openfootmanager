@@ -27,7 +27,6 @@ interface PlayerProfileRenewalModalProps {
   renewalStatusClassName: string;
   renewalCooledOff: boolean;
   renewalFeedback: NegotiationFeedbackData | null;
-  renewalSubmitting: boolean;
   renewalSubmitDisabled: boolean;
   delegateRenewalDisabled: boolean;
   onWageChange: (value: string) => void;
@@ -52,7 +51,6 @@ export default function PlayerProfileRenewalModal({
   renewalStatusClassName,
   renewalCooledOff,
   renewalFeedback,
-  renewalSubmitting,
   renewalSubmitDisabled,
   delegateRenewalDisabled,
   onWageChange,

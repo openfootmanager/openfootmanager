@@ -760,7 +760,6 @@ export default function PlayerProfile({
         renewalStatusClassName={renewalStatusClassName}
         renewalCooledOff={renewalCooledOff}
         renewalFeedback={renewalFeedback}
-        renewalSubmitting={renewalSubmitting}
         renewalSubmitDisabled={renewalSubmitDisabled}
         delegateRenewalDisabled={!hasAssistantManager || renewalSubmitting}
         onWageChange={setRenewalWage}
