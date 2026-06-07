@@ -393,6 +393,26 @@ fn counter_offer_returns_understandable_feedback() {
 }
 
 #[test]
+fn renewal_offer_rejects_contracts_longer_than_five_years() {
+    let mut game = make_game();
+
+    let outcome = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 6,
+        },
+    )
+    .expect("renewal should return a rejection");
+
+    assert!(matches!(outcome.decision, RenewalDecision::Rejected));
+    assert_eq!(outcome.session_status, RenewalSessionStatus::Stalled);
+    assert!(!outcome.is_terminal);
+    assert_eq!(game.players[0].contract_end.as_deref(), Some("2026-10-15"));
+}
+
+#[test]
 fn high_value_star_expects_more_than_fringe_player() {
     let current_date = Utc
         .with_ymd_and_hms(2026, 8, 1, 12, 0, 0)
