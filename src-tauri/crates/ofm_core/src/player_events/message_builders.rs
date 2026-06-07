@@ -289,26 +289,23 @@ pub(crate) fn takeover_contract_review_message(
             route: "/dashboard?tab=Squad".to_string(),
         },
     ))
-    .with_action(action(
-        "ack",
-        "be.msg.event.ack",
-        ActionType::Acknowledge,
-    ))
+    .with_action(action("ack", "be.msg.event.ack", ActionType::Acknowledge))
     .with_context(MessageContext::default())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        low_morale_message, takeover_contract_review_message,
-    };
+    use super::{low_morale_message, takeover_contract_review_message};
     use domain::message::ActionType;
 
     #[test]
     fn low_morale_message_uses_i18n_keys_without_raw_fallbacks() {
         let message = low_morale_message("morale_1", "player-1", "Alex Star", 31, "2026-07-01");
 
-        assert_eq!(message.subject_key.as_deref(), Some("be.msg.moraleCrisis.subject"));
+        assert_eq!(
+            message.subject_key.as_deref(),
+            Some("be.msg.moraleCrisis.subject")
+        );
         assert!(matches!(
             message.body_key.as_deref(),
             Some("be.msg.moraleCrisis.body0") | Some("be.msg.moraleCrisis.body1")
@@ -318,7 +315,10 @@ mod tests {
         assert!(message.subject.is_empty());
         assert!(message.body.is_empty());
         assert!(message.sender.is_empty());
-        assert_eq!(message.actions[0].label_key.as_deref(), Some("be.msg.playerEvent.respond"));
+        assert_eq!(
+            message.actions[0].label_key.as_deref(),
+            Some("be.msg.playerEvent.respond")
+        );
         assert!(message.actions[0].label.is_empty());
         assert!(matches!(
             message.actions[0].action_type,

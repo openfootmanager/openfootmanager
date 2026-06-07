@@ -101,11 +101,14 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
     let current_date = game.clock.current_date.date_naive();
 
     let recent_loss = league.fixtures.iter().any(|fixture| {
-        if !fixture.counts_for_league_standings() || fixture.status != domain::league::FixtureStatus::Completed {
+        if !fixture.counts_for_league_standings()
+            || fixture.status != domain::league::FixtureStatus::Completed
+        {
             return false;
         }
 
-        let involves_user_and_team = (fixture.home_team_id == team_id && fixture.away_team_id == user_team_id)
+        let involves_user_and_team = (fixture.home_team_id == team_id
+            && fixture.away_team_id == user_team_id)
             || (fixture.home_team_id == user_team_id && fixture.away_team_id == team_id);
         if !involves_user_and_team {
             return false;

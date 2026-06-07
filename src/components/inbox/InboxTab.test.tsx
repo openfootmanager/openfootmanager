@@ -762,6 +762,80 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
+  it("opens the linked player profile from a message context button", function (): void {
+    const onNavigate = vi.fn();
+    const gameState = createGameState([
+      createMessage({
+        id: "injury-player-1",
+        category: "Injury",
+        read: true,
+        context: {
+          team_id: "t1",
+          player_id: "player-1",
+          fixture_id: null,
+          match_result: null,
+        },
+      }),
+    ]);
+    gameState.players = [
+      createProspect({ id: "player-1", full_name: "Rui Prospect" }),
+    ];
+
+    renderInboxTab({
+      gameState,
+      initialMessageId: "injury-player-1",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "View profile: Rui Prospect" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+      messageId: "player-1",
+    });
+  });
+
+  it("opens the referenced player profile from delegated renewal reports", function (): void {
+    const onNavigate = vi.fn();
+
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "delegated_renewals_linked_2025-01-01_0",
+          read: true,
+          category: "Contract",
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            match_result: null,
+            delegated_renewal_report: {
+              success_count: 1,
+              failure_count: 0,
+              stalled_count: 0,
+              cases: [
+                {
+                  player_id: "p1",
+                  player_name: "Alex Done",
+                  status: "successful",
+                  agreed_wage: 24000,
+                  agreed_years: 3,
+                },
+              ],
+            },
+          },
+        }),
+      ]),
+      initialMessageId: "delegated_renewals_linked_2025-01-01_0",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+      messageId: "p1",
+    });
+  });
+
   function jobOfferAcceptDeclineAction(targetTeamId: string): MessageAction {
     return {
       id: `respond_${targetTeamId}`,

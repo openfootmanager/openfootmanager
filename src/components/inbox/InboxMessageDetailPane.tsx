@@ -76,6 +76,12 @@ export default function InboxMessageDetailPane({
   const hasYouthProspects = Boolean(
     selectedMessage?.context?.youth_prospects?.length,
   );
+  const playerId = selectedMessage?.context?.player_id;
+  const linkedPlayer = playerId
+    ? gameState.players.find(
+      (player) => player.id === playerId,
+    ) ?? null
+    : null;
 
   const handleOptionClick = (
     messageId: string,
@@ -185,7 +191,23 @@ export default function InboxMessageDetailPane({
             .split("\n")
             .map((line, index) => renderMessageBodyLine(line, index))}
 
-          <InboxDelegatedRenewalReport message={selectedMessage} />
+          {linkedPlayer ? (
+            <div className="mt-4 flex">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onScoutPlayerClick(linkedPlayer.id)}
+              >
+                {t("squad.viewProfile")}: {linkedPlayer.full_name}
+              </Button>
+            </div>
+          ) : null}
+
+          <InboxDelegatedRenewalReport
+            message={selectedMessage}
+            onPlayerClick={onScoutPlayerClick}
+          />
 
           {selectedMessage.context?.scout_report ? (
             <ScoutPlayerCard

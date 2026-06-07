@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 import { formatExactMoney } from "../../lib/helpers";
 import type { MessageData } from "../../store/gameStore";
@@ -7,11 +8,14 @@ import { renderMessageBodyLine } from "./inboxHelpers";
 
 interface InboxDelegatedRenewalReportProps {
   message: MessageData;
+  onPlayerClick?: (playerId: string) => void;
 }
 
 export default function InboxDelegatedRenewalReport({
   message,
+  onPlayerClick,
 }: InboxDelegatedRenewalReportProps): JSX.Element | null {
+  const { t } = useTranslation();
   const report = message.context?.delegated_renewal_report;
 
   const formatMoneyParam = (value?: string | number | null): string => {
@@ -56,7 +60,7 @@ export default function InboxDelegatedRenewalReport({
               : renewalCase.status === "stalled"
                 ? resolveBackendText(
                   "be.msg.delegatedRenewals.case.stalled",
-                  `Still difficult: ${renewalCase.player_name} — ${detail}`,
+                  `Still difficult: ${renewalCase.player_name} - ${detail}`,
                   {
                     player: renewalCase.player_name,
                     detail,
@@ -64,14 +68,32 @@ export default function InboxDelegatedRenewalReport({
                 )
                 : resolveBackendText(
                   "be.msg.delegatedRenewals.case.failed",
-                  `Failed: ${renewalCase.player_name} — ${detail}`,
+                  `Failed: ${renewalCase.player_name} - ${detail}`,
                   {
                     player: renewalCase.player_name,
                     detail,
                   },
                 );
 
-          return renderMessageBodyLine(`• ${line}`, index);
+          return (
+            <div
+              key={`${renewalCase.player_id}-${index}`}
+              className="flex flex-wrap items-start justify-between gap-2"
+            >
+              <div className="min-w-0 flex-1">
+                {renderMessageBodyLine(line, index)}
+              </div>
+              {onPlayerClick ? (
+                <button
+                  type="button"
+                  className="text-xs font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
+                  onClick={() => onPlayerClick(renewalCase.player_id)}
+                >
+                  {t("squad.viewProfile")}
+                </button>
+              ) : null}
+            </div>
+          );
         })}
       </div>
     </div>

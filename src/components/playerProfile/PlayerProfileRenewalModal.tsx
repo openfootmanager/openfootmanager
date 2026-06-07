@@ -29,6 +29,7 @@ interface PlayerProfileRenewalModalProps {
   renewalFeedback: NegotiationFeedbackData | null;
   renewalSubmitting: boolean;
   renewalSubmitDisabled: boolean;
+  delegateRenewalDisabled: boolean;
   onWageChange: (value: string) => void;
   onLengthChange: (value: string) => void;
   onClose: () => void;
@@ -53,6 +54,7 @@ export default function PlayerProfileRenewalModal({
   renewalFeedback,
   renewalSubmitting,
   renewalSubmitDisabled,
+  delegateRenewalDisabled,
   onWageChange,
   onLengthChange,
   onClose,
@@ -217,7 +219,7 @@ export default function PlayerProfileRenewalModal({
               <Button
                 variant="outline"
                 onClick={onDelegate}
-                disabled={renewalSubmitting}
+                disabled={delegateRenewalDisabled}
               >
                 {t("playerProfile.delegateRenewal")}
               </Button>
