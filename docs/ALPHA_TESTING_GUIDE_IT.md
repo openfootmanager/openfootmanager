@@ -171,4 +171,4 @@ Grazie per far parte di tutto questo. Costruiamo insieme qualcosa di grande.
 
 ---
 
-Versione alpha 0.2.0
+Versione alpha 0.2.1
