@@ -81,7 +81,7 @@ export default function InboxDelegatedRenewalReport({
               className="flex flex-wrap items-start justify-between gap-2"
             >
               <div className="min-w-0 flex-1">
-                {renderMessageBodyLine(line, index)}
+                {renderMessageBodyLine(`• ${line}`, index)}
               </div>
               {onPlayerClick ? (
                 <button

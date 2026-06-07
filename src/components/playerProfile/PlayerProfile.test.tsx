@@ -278,7 +278,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-function createGameState(player: PlayerData, staff = []): GameStateData {
+function createGameState(player: PlayerData, staff: StaffData[] = []): GameStateData {
   return {
     clock: {
       current_date: "2026-08-01T00:00:00Z",
