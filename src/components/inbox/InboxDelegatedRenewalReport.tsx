@@ -84,13 +84,22 @@ export default function InboxDelegatedRenewalReport({
                 {renderMessageBodyLine(`• ${line}`, index)}
               </div>
               {onPlayerClick ? (
-                <button
-                  type="button"
-                  className="text-xs font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
-                  onClick={() => onPlayerClick(renewalCase.player_id)}
-                >
-                  {t("squad.viewProfile")}
-                </button>
+                <>
+                  <span
+                    id={`delegated-renewal-profile-${renewalCase.player_id}`}
+                    className="sr-only"
+                  >
+                    {renewalCase.player_name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-describedby={`delegated-renewal-profile-${renewalCase.player_id}`}
+                    className="text-xs font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
+                    onClick={() => onPlayerClick(renewalCase.player_id)}
+                  >
+                    {t("squad.viewProfile")}
+                  </button>
+                </>
               ) : null}
             </div>
           );
