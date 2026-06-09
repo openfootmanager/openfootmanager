@@ -272,6 +272,9 @@ To run 8 agents competing in parallel:
 
 for i in $(seq 1 8); do
   PORT=$((3000 + i))
+  SAVEDIR="/tmp/ofm-agent-$i"
+  mkdir -p "$SAVEDIR"
+  export TAURI_SAVE_DIR="$SAVEDIR"
 
   openfootmanager \
     --mcp-port $PORT \
@@ -283,18 +286,13 @@ for i in $(seq 1 8); do
     --min-tick-delay-ms 100 \
     &
 
-  echo "Agent $i → port $PORT"
+  echo "Agent $i → port $PORT, saves in $SAVEDIR"
 done
 ```
 
 Each instance gets its own port (3001–3008) and its own game state. Agents diverge only through their decisions.
 
-**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). For true per-instance isolation, you must either:
-
-1. Set `TAURI_SAVE_DIR` to a distinct path per instance, **or**
-2. Build with distinct app identifiers
-
-The simplest approach is to add `export TAURI_SAVE_DIR="$SAVEDIR"` inside the loop before launching each instance.
+**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). The script above achieves per-instance isolation by setting `TAURI_SAVE_DIR` to a unique directory for each agent. Alternatively, you can build with distinct app identifiers.
 
 ---
 
