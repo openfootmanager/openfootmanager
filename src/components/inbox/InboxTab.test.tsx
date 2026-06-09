@@ -762,6 +762,299 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
+  it("opens the linked player profile from a message context button", function (): void {
+    const onNavigate = vi.fn();
+    const gameState = createGameState([
+      createMessage({
+        id: "injury-player-1",
+        category: "Injury",
+        read: true,
+        context: {
+          team_id: "t1",
+          player_id: "player-1",
+          fixture_id: null,
+          match_result: null,
+        },
+      }),
+    ]);
+    gameState.players = [
+      createProspect({ id: "player-1", full_name: "Rui Prospect" }),
+    ];
+
+    renderInboxTab({
+      gameState,
+      initialMessageId: "injury-player-1",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "View profile: Rui Prospect" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+      messageId: "player-1",
+    });
+  });
+
+  it("opens the referenced player profile from delegated renewal reports", function (): void {
+    const onNavigate = vi.fn();
+
+    renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "delegated_renewals_linked_2025-01-01_0",
+          read: true,
+          category: "Contract",
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            match_result: null,
+            delegated_renewal_report: {
+              success_count: 1,
+              failure_count: 0,
+              stalled_count: 0,
+              cases: [
+                {
+                  player_id: "p1",
+                  player_name: "Alex Done",
+                  status: "successful",
+                  agreed_wage: 24000,
+                  agreed_years: 3,
+                },
+              ],
+            },
+          },
+        }),
+      ]),
+      initialMessageId: "delegated_renewals_linked_2025-01-01_0",
+      onNavigate,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
+      messageId: "p1",
+    });
+  });
+
+  function jobOfferAcceptDeclineAction(targetTeamId: string): MessageAction {
+    return {
+      id: `respond_${targetTeamId}`,
+      label: "Respond",
+      action_type: {
+        ChooseOption: {
+          options: [
+            {
+              id: "accept",
+              label: "Accept the position",
+              description: "Take the job",
+            },
+            {
+              id: "decline",
+              label: "Decline the offer",
+              description: "Stay where you are",
+            },
+          ],
+        },
+      },
+      resolved: false,
+    };
+  }
+
+  function gameStateWithCurrentClub(
+    messages: MessageData[],
+    teamId: string | null,
+    teamName = "Old FC",
+  ): GameStateData {
+    const state = createGameState(messages);
+    state.manager.team_id = teamId;
+    if (teamId) {
+      (state.teams as unknown as Array<{ id: string; name: string }>).push({
+        id: teamId,
+        name: teamName,
+      });
+    }
+    return state;
+  }
+
+  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", function (): void {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1", "Old FC"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+
+    expect(screen.getByTestId("switch-club-confirm-modal")).toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "resolve_message_action",
+      expect.anything(),
+    );
+  });
+
+  it("does not invoke the action when the switch-club dialog is cancelled", function (): void {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "resolve_message_action",
+      expect.anything(),
+    );
+  });
+
+  it("invokes the action with optionId=accept when the switch-club dialog is confirmed", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "team2", "New FC"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+    fireEvent.click(screen.getByTestId("switch-club-confirm"));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "accept",
+      });
+    });
+  });
+
+  it("does not show the switch-club dialog when an employed manager declines a job offer", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "t1"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], "t1"),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Decline the offer"));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "decline",
+      });
+    });
+  });
+
+  it("does not show the switch-club dialog when an unemployed manager accepts a job offer", async function (): Promise<void> {
+    const action = jobOfferAcceptDeclineAction("team2");
+    const message = createMessage({
+      id: "job_offer_team2_2025-01-01",
+      category: "JobOffer",
+      read: true,
+      actions: [action],
+      context: {
+        team_id: "team2",
+        player_id: null,
+        fixture_id: null,
+        match_result: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      game: gameStateWithCurrentClub([], "team2", "New FC"),
+      effect: null,
+      effect_i18n_key: null,
+      effect_i18n_params: null,
+    });
+
+    renderInboxTab({
+      gameState: gameStateWithCurrentClub([message], null),
+      initialMessageId: "job_offer_team2_2025-01-01",
+    });
+
+    fireEvent.click(screen.getByText("Accept the position"));
+
+    expect(
+      screen.queryByTestId("switch-club-confirm-modal"),
+    ).not.toBeInTheDocument();
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        messageId: "job_offer_team2_2025-01-01",
+        actionId: "respond_team2",
+        optionId: "accept",
+      });
+    });
+  });
+
   it("formats delegated renewal money values only once in dot-separated locales", async function (): Promise<void> {
     const previousLanguage = i18n.language;
     const previousSettings = useSettingsStore.getState().settings;

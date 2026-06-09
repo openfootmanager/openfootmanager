@@ -21,6 +21,15 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+const openUrlMock = vi.fn();
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: (...args: unknown[]) => openUrlMock(...args),
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn())),
+}));
+
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
 }));
@@ -237,6 +246,7 @@ describe("MainMenu", () => {
     setGameActiveMock.mockReset();
     setGameStateMock.mockReset();
     alertMock.mockReset();
+    openUrlMock.mockReset();
     localStorage.clear();
     latestDatePickerOnChange = null;
     translationState.language = "en";
@@ -690,6 +700,26 @@ describe("MainMenu", () => {
       expect(screen.getByText("set-history-depth-24:12")).toBeInTheDocument();
     });
     expect(localStorage.getItem("ofm-generated-history-depth-years")).toBe("12");
+  });
+
+  it("opens the Discord invite in the system browser when the Discord link is clicked", async () => {
+    render(<MainMenu />);
+
+    const discordButton = await screen.findByRole("button", { name: "menu.openDiscord" });
+    fireEvent.click(discordButton);
+
+    expect(openUrlMock).toHaveBeenCalledTimes(1);
+    expect(openUrlMock).toHaveBeenCalledWith("https://discord.gg/2CXaesaukT");
+  });
+
+  it("opens the GitHub repository in the system browser when the GitHub link is clicked", async () => {
+    render(<MainMenu />);
+
+    const githubButton = await screen.findByRole("button", { name: "menu.openGithub" });
+    fireEvent.click(githubButton);
+
+    expect(openUrlMock).toHaveBeenCalledTimes(1);
+    expect(openUrlMock).toHaveBeenCalledWith("https://github.com/openfootmanager/openfootmanager");
   });
 
   describe("profile confirm modal", () => {

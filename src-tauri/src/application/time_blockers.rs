@@ -1,6 +1,6 @@
 use log::info;
 
-use ofm_core::contracts::contract_warning_stage;
+use ofm_core::contracts::{contract_warning_stage, has_let_expire_intent};
 use ofm_core::game::Game;
 use ofm_core::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use ofm_core::squad_safety::{project_user_team_planned_exit_safety, user_team_squad_safety};
@@ -204,7 +204,10 @@ fn planned_contract_exit_crisis_blocker(game: &Game) -> Option<serde_json::Value
         names.sort();
         let listed_names = names.into_iter().take(3).collect::<Vec<_>>().join(", ");
         let healthy_players = planned_exit_report.squad_safety.healthy_players.to_string();
-        let healthy_goalkeepers = planned_exit_report.squad_safety.healthy_goalkeepers.to_string();
+        let healthy_goalkeepers = planned_exit_report
+            .squad_safety
+            .healthy_goalkeepers
+            .to_string();
         build_blocker(
             "planned_contract_exit_crisis",
             "warn",
@@ -267,7 +270,8 @@ fn key_contract_risk_blocker(
         .into_iter()
         .take(3)
         .filter(|player| {
-            contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
+            !has_let_expire_intent(player)
+                && contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
         })
         .map(|player| player.match_name.as_str())
         .collect();
@@ -295,7 +299,8 @@ fn contract_wage_risk_blocker(
         .iter()
         .copied()
         .filter(|player| {
-            contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
+            !has_let_expire_intent(player)
+                && contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
         })
         .map(|player| player.wage)
         .sum();

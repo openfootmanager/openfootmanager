@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "新游戏",
@@ -19,7 +19,9 @@
     "noResults": "无结果",
     "importedDescription": "已导入的世界数据库",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
-    "failedStartGame": "启动游戏失败：{{error}}"
+    "failedStartGame": "启动游戏失败：{{error}}",
+    "openDiscord": "打开 Discord 社区",
+    "openGithub": "打开 GitHub 仓库"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -2680,7 +2682,12 @@
     "rejected": "您的申请未通过。",
     "noJobs": "目前没有空缺职位。",
     "leaguePosition": "上赛季排名：{{position}}",
-    "refresh": "查看新职位"
+    "refresh": "查看新职位",
+    "sameTeam": "您已经是该俱乐部的主教练。",
+    "notBetterClub": "您只能申请比当前俱乐部级别更高的俱乐部。",
+    "switchConfirmTitle": "离开当前俱乐部？",
+    "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
+    "switchConfirmAccept": "接受新职位"
   },
   "awardsCeremony": {
     "title": "颁奖典礼",

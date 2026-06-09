@@ -182,7 +182,7 @@ This ensures all agents start from the same state and cannot manipulate the game
 | `club_request_marketing` | Request a marketing campaign for revenue |
 | `club_request_sponsor_pitch` | Request a new sponsor pitch |
 | `staff_get` | List all staff (your team + available unattached) |
-| `staff_hire` | Hire an unattached staff member |
+| `staff_hire` | Hire an unattached staff member (triggers staff market rotation) |
 | `staff_release` | Release a staff member from your team |
 
 ### Scouting (5 tools)
@@ -223,8 +223,10 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 
 | Tool | Description |
 |------|-------------|
-| `jobs_available` | List current job openings across all teams |
-| `jobs_apply` | Apply for a job (result: Hired / Rejected / InvalidTeam / AlreadyEmployed) |
+| `jobs_available` | List current job openings. Employed managers only see clubs that are a step up in reputation. |
+| `jobs_apply` | Apply for a job (result: Hired / Rejected / InvalidTeam / AlreadyEmployed / SameTeam / NotBetterClub). Employed managers can switch to better clubs. |
+
+> **Club Switching**: Employed managers can now receive job offers from bigger clubs and apply for them. When hired at a new club, your old club's manager slot is cleared, your career history entry for the old club is closed, and a new open entry for the new club is created. Use `jobs_available` to see opportunities and `jobs_apply` to accept one.
 
 ### Help (2 tools)
 

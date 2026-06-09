@@ -84,7 +84,11 @@ pub fn skip_to_match_day(state: State<'_, Arc<StateManager>>) -> Result<serde_js
 
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
-    let user_team_id = game.manager.team_id.clone().ok_or("be.error.noTeamAssigned")?;
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
     info!(
         "[cmd] skip_to_match_day: start_date={}, user_team_id={}",
         game.clock.current_date.format("%Y-%m-%d"),
@@ -674,6 +678,64 @@ mod tests {
                 .and_then(Value::as_str),
             Some("60000")
         );
+    }
+
+    #[test]
+    fn let_expire_intent_suppresses_contract_pressure_blockers() {
+        let mut game = make_game(12);
+        game.teams[0].wage_budget = 50_000;
+
+        let first_key_player = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == "p10")
+            .unwrap();
+        first_key_player.contract_end = Some("2025-08-01".to_string());
+        first_key_player.wage = 35_000;
+        first_key_player.attributes.pace = 92;
+        first_key_player.attributes.shooting = 94;
+        first_key_player.attributes.dribbling = 90;
+        first_key_player.morale_core.renewal_state = Some(ContractRenewalState {
+            status: RenewalSessionStatus::Blocked,
+            manager_blocked_until: None,
+            last_attempt_date: Some("2025-06-15".to_string()),
+            last_assistant_attempt_date: None,
+            last_outcome: None,
+            conversation_round: 0,
+            exit_intent: Some(ContractExitIntent::LetExpire {
+                set_on: "2025-06-15".to_string(),
+                reason: Some("test".to_string()),
+            }),
+        });
+
+        let second_key_player = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == "p11")
+            .unwrap();
+        second_key_player.contract_end = Some("2025-09-01".to_string());
+        second_key_player.wage = 25_000;
+        second_key_player.attributes.pace = 90;
+        second_key_player.attributes.shooting = 91;
+        second_key_player.attributes.dribbling = 89;
+        second_key_player.morale_core.renewal_state = Some(ContractRenewalState {
+            status: RenewalSessionStatus::Blocked,
+            manager_blocked_until: None,
+            last_attempt_date: Some("2025-06-15".to_string()),
+            last_assistant_attempt_date: None,
+            last_outcome: None,
+            conversation_round: 0,
+            exit_intent: Some(ContractExitIntent::LetExpire {
+                set_on: "2025-06-15".to_string(),
+                reason: Some("test".to_string()),
+            }),
+        });
+
+        let blockers = compute_blocking_actions(&game);
+
+        assert!(blocker_by_id(&blockers, "key_contract_risk").is_none());
+        assert!(blocker_by_id(&blockers, "contract_wage_risk").is_none());
+        assert!(blocker_by_id(&blockers, "planned_contract_exit_crisis").is_some());
     }
 
     fn make_round_summary_game() -> Game {

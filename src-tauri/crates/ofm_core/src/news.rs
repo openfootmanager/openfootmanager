@@ -328,7 +328,7 @@ pub fn managerial_appointment_article(
 
 fn format_transfer_fee(fee: u64) -> String {
     crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
-    .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee))
+        .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee))
 }
 
 pub fn transfer_roundup_article(
@@ -433,7 +433,10 @@ pub fn season_awards_article(
     if let Some(manager) = manager {
         i18n_params.insert("managerWinner".to_string(), manager.manager_name.clone());
         i18n_params.insert("managerTeam".to_string(), manager.team_name.clone());
-        i18n_params.insert("managerWinRate".to_string(), format!("{:.0}", manager.win_rate));
+        i18n_params.insert(
+            "managerWinRate".to_string(),
+            format!("{:.0}", manager.win_rate),
+        );
     }
 
     let body_key = match (golden_boot, poty) {

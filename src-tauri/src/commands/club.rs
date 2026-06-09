@@ -189,7 +189,8 @@ mod tests {
         let mut game = make_game();
         game.teams[0].finance = 40_000;
         game.teams[0].wage_budget = 1_000_000;
-        game.players.push(make_player("player-1", "team-1", 260_000));
+        game.players
+            .push(make_player("player-1", "team-1", 260_000));
         state.set_game(game);
 
         let error = upgrade_facility_internal(&state, "Medical").expect_err("should fail");

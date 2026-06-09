@@ -6,10 +6,10 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 
 /// Insert or replace a message row.
 pub fn upsert_message(conn: &Connection, msg: &InboxMessage) -> Result<(), String> {
-    let actions_json =
-        serde_json::to_string(&msg.actions).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let context_json =
-        serde_json::to_string(&msg.context).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let actions_json = serde_json::to_string(&msg.actions)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let context_json = serde_json::to_string(&msg.context)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     // Pack all i18n fields into a single JSON object
     let i18n = serde_json::json!({

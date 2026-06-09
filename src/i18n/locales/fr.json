@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Nouvelle Partie",
@@ -19,7 +19,9 @@
     "noResults": "Aucun résultat",
     "importedDescription": "Base de données de monde importée",
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
-    "failedStartGame": "Échec du démarrage du jeu : {{error}}"
+    "failedStartGame": "Échec du démarrage du jeu : {{error}}",
+    "openDiscord": "Ouvrir la communauté Discord",
+    "openGithub": "Ouvrir le dépôt GitHub"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -2683,7 +2685,12 @@
     "rejected": "Votre candidature n'a pas été retenue.",
     "noJobs": "Aucun poste disponible actuellement.",
     "leaguePosition": "Dernière saison : {{position}}",
-    "refresh": "Vérifier les nouvelles offres"
+    "refresh": "Vérifier les nouvelles offres",
+    "sameTeam": "Vous êtes déjà l'entraîneur de ce club.",
+    "notBetterClub": "Vous ne pouvez postuler qu'à des clubs représentant une progression par rapport à votre club actuel.",
+    "switchConfirmTitle": "Quitter votre club actuel ?",
+    "switchConfirmBody": "Accepter cette opportunité mettra fin à votre mandat à {{currentClub}} et vous fera rejoindre {{newClub}}.",
+    "switchConfirmAccept": "Accepter le nouveau poste"
   },
   "awardsCeremony": {
     "title": "Ceremonie des Recompenses",

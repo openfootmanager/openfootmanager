@@ -1,6 +1,12 @@
 use domain::player::{Footedness, Player, PlayerTrait, Position};
 use rand::RngExt;
 
+const WONDERKID_MAX_AGE: u32 = 20;
+const WONDERKID_MIN_POTENTIAL: u8 = 90;
+const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
+// Wonderkid rebalance for v0.2.1: tightened from age <= 21, potential >= 85,
+// and growth room >= 10 to reduce how often the tag appears in playtesting.
+
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
         .into_iter()
@@ -13,8 +19,8 @@ pub fn formation_slots(formation: &str) -> Vec<Position> {
 /// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
 /// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
 ///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
-/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied if
-///   the player is young with elite potential and a meaningful gap to current OVR.
+/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied only
+///   after the v0.2.1 rebalance for age <= 20, potential >= 90, and growth room >= 14.
 ///
 /// Pass `current_year` for accurate age calculation (use the game clock year).
 pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
@@ -35,8 +41,7 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     let mut traits = domain::player::compute_traits(&player.attributes, &player.natural_position);
 
     // 4. Award Wonderkid trait: young player whose ceiling far exceeds current ability
-    let growth_room = potential.saturating_sub(ovr);
-    if age <= 21 && potential >= 85 && growth_room >= 10 {
+    if qualifies_for_wonderkid(age, potential, ovr) {
         if !traits.contains(&PlayerTrait::Wonderkid) {
             traits.push(PlayerTrait::Wonderkid);
         }
@@ -45,6 +50,16 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     player.ovr = ovr;
     player.potential = potential;
     player.traits = traits;
+}
+
+/// Returns `true` when a player qualifies as a wonderkid: they are at or below
+/// `WONDERKID_MAX_AGE`, have at least `WONDERKID_MIN_POTENTIAL`, and their
+/// remaining growth (`potential - ovr`) meets `WONDERKID_MIN_GROWTH_ROOM`,
+/// reducing the number of qualifying players after playtesting.
+pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
+    age <= WONDERKID_MAX_AGE
+        && potential >= WONDERKID_MIN_POTENTIAL
+        && potential.saturating_sub(ovr) >= WONDERKID_MIN_GROWTH_ROOM
 }
 
 /// Generate a potential rating for a newly-created player based on current OVR and age.

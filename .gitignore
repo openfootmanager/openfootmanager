@@ -34,6 +34,8 @@ coverage/
 .claude/settings.local.json
 
 # Local Vitest reporter output
-vitest-mainmenu.jsonexported_world.json
-test-world.json
+vitest-*.json
+
+# World JSON exports (large files, generated locally)
 exported_world.json
+test-world.json

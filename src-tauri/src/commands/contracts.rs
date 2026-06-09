@@ -392,7 +392,8 @@ mod tests {
         clear_contract_exit_intent_internal, delegate_renewals_internal,
         offer_free_agent_contract_internal, preview_contract_termination_internal,
         preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal, set_contract_exit_intent_internal, terminate_contract_now_internal,
+        propose_renewal_internal, set_contract_exit_intent_internal,
+        terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -773,7 +774,10 @@ mod tests {
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
-        assert_eq!(response.game.players[0].contract_end.as_deref(), Some("2029-08-01"));
+        assert_eq!(
+            response.game.players[0].contract_end.as_deref(),
+            Some("2029-08-01")
+        );
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.players[0].team_id.as_deref(), Some("team-1"));
@@ -784,9 +788,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_free_agent_game());
 
-        let response =
-            preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
-                .expect("response");
+        let response = preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
+            .expect("response");
 
         assert_eq!(response.projection.current_annual_wage_bill, 0);
         assert_eq!(response.projection.projected_annual_wage_bill, 4_000);
@@ -817,8 +820,14 @@ mod tests {
 
     #[test]
     fn serialize_session_status_uses_frontend_casing() {
-        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Idle), "idle");
-        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Open), "open");
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Idle),
+            "idle"
+        );
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Open),
+            "open"
+        );
         assert_eq!(
             super::serialize_session_status(RenewalSessionStatus::Agreed),
             "agreed"

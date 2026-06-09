@@ -22,22 +22,29 @@ pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game,
         .clone()
         .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let staff = game
-        .staff
-        .iter_mut()
-        .find(|s| s.id == staff_id)
-        .ok_or("be.error.staffMemberNotFound".to_string())?;
+    let staff_wage = {
+        let staff = game
+            .staff
+            .iter_mut()
+            .find(|s| s.id == staff_id)
+            .ok_or("be.error.staffMemberNotFound".to_string())?;
 
-    if staff.team_id.is_some() {
-        return Err("be.error.staffMemberAlreadyEmployed".to_string());
-    }
+        if staff.team_id.is_some() {
+            return Err("be.error.staffMemberAlreadyEmployed".to_string());
+        }
 
-    staff.team_id = Some(team_id.clone());
+        staff.team_id = Some(team_id.clone());
+        staff.wage
+    };
 
     // Deduct wage from team budget
     if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.season_expenses += staff.wage as i64;
+        team.season_expenses += staff_wage as i64;
     }
+
+    game.available_staff_market_last_activity_date =
+        Some(game.clock.current_date.format("%Y-%m-%d").to_string());
+    ofm_core::generator::process_available_staff_market(&mut game);
 
     state.set_game(game.clone());
     Ok(game)
@@ -150,9 +157,21 @@ mod tests {
             .iter()
             .find(|team| team.id == "team-1")
             .unwrap();
+        let available_staff = response
+            .staff
+            .iter()
+            .filter(|staff| staff.team_id.is_none())
+            .count();
 
         assert_eq!(staff.team_id.as_deref(), Some("team-1"));
         assert_eq!(team.season_expenses, 12_000);
+        assert_eq!(available_staff, 12);
+        assert_eq!(
+            response
+                .available_staff_market_last_activity_date
+                .as_deref(),
+            Some("2026-08-01")
+        );
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_staff = stored_game
@@ -167,6 +186,12 @@ mod tests {
             .expect("stored team should exist");
         assert_eq!(stored_staff.team_id.as_deref(), Some("team-1"));
         assert_eq!(stored_team.season_expenses, 12_000);
+        assert_eq!(
+            stored_game
+                .available_staff_market_last_activity_date
+                .as_deref(),
+            Some("2026-08-01")
+        );
     }
 
     #[test]

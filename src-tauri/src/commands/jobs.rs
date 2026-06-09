@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use log::info;
-use ofm_core::job_offers::{self, JobApplicationResult, JobOpportunity};
+use ofm_core::job_offers::{self, JobOpportunity};
 use ofm_core::state::StateManager;
 use tauri::State;
 
@@ -27,12 +27,7 @@ pub fn apply_for_job(
     state.set_game(game.clone());
 
     Ok(serde_json::json!({
-        "result": match result {
-            JobApplicationResult::Hired => "hired",
-            JobApplicationResult::Rejected => "rejected",
-            JobApplicationResult::InvalidTeam => "invalid_team",
-            JobApplicationResult::AlreadyEmployed => "already_employed",
-        },
+        "result": result,
         "game": game,
     }))
 }

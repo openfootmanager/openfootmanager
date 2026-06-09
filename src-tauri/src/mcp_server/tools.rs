@@ -1483,7 +1483,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         let ctx = context.clone();
         if !disabled.contains(&"jobs_available".to_string()) {
             router.add_route(ToolRoute::new_dyn(
-                simple_tool("jobs_available", "List available job openings"),
+                simple_tool("jobs_available", "List available job openings. Employed managers see only clubs that are a step up in reputation."),
                 move |_tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
@@ -1509,7 +1509,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 "required": ["team_id"]
             }).as_object().unwrap().clone());
             router.add_route(ToolRoute::new_dyn(
-                Tool::new("jobs_apply", "Apply for a job", schema),
+                Tool::new("jobs_apply", "Apply for a job. Employed managers can only apply to better clubs; applying to your own team or a worse club returns an error.", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {

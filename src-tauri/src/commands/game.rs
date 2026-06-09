@@ -240,6 +240,15 @@ fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    if game
+        .staff
+        .iter()
+        .any(|staff_member| staff_member.team_id.is_none())
+    {
+        game.available_staff_market_last_activity_date =
+            Some(game.clock.current_date.format("%Y-%m-%d").to_string());
+    }
+    ofm_core::generator::repair_opening_youth_academies(&mut game);
 
     match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
@@ -505,8 +514,11 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let world = load_world_data(world_source.as_deref())?;
+    let mut world = load_world_data(world_source.as_deref())?;
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
+    if matches!(world_source.as_deref(), Some(source) if source != "random") {
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+    }
     let reference_date = clock.current_date.date_naive();
     let age = age_on_date(birth_date, reference_date);
     if age < 30 {
@@ -794,8 +806,7 @@ mod tests {
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         preseason_league_year, preseason_season_start, require_active_stats_state,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
-        DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
-        MAX_GENERATED_HISTORY_DEPTH_YEARS,
+        DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
     use db::save_manager::SaveManager;
     use domain::{
@@ -996,6 +1007,91 @@ mod tests {
                 yellow_cards: 1,
                 red_cards: 0,
             }],
+        }
+    }
+
+    fn make_imported_baseline_world_without_staff() -> WorldData {
+        let teams = vec![
+            domain::team::Team::new(
+                "team1".to_string(),
+                "Alpha FC".to_string(),
+                "AFC".to_string(),
+                "England".to_string(),
+                "London".to_string(),
+                "Alpha Park".to_string(),
+                20_000,
+            ),
+            domain::team::Team::new(
+                "team2".to_string(),
+                "Beta FC".to_string(),
+                "BFC".to_string(),
+                "England".to_string(),
+                "Manchester".to_string(),
+                "Beta Park".to_string(),
+                22_000,
+            ),
+        ];
+
+        let mut players = Vec::new();
+        for team in &teams {
+            let make_player =
+                |id: String, position: domain::player::Position, date_of_birth: &str| {
+                    let mut player = domain::player::Player::new(
+                        id.clone(),
+                        format!("{id} Match"),
+                        format!("{id} Full"),
+                        date_of_birth.to_string(),
+                        "England".to_string(),
+                        position,
+                        default_player_attributes(),
+                    );
+                    player.team_id = Some(team.id.clone());
+                    player.ovr = 62;
+                    player.potential = 68;
+                    player
+                };
+
+            players.push(make_player(
+                format!("{}-gk", team.id),
+                domain::player::Position::Goalkeeper,
+                "1998-01-01",
+            ));
+            players.push(make_player(
+                format!("{}-def-youth", team.id),
+                domain::player::Position::Defender,
+                "2008-01-01",
+            ));
+            players.push(make_player(
+                format!("{}-mid-youth", team.id),
+                domain::player::Position::Midfielder,
+                "2007-01-01",
+            ));
+            players.push(make_player(
+                format!("{}-fwd-youth", team.id),
+                domain::player::Position::Forward,
+                "2006-01-01",
+            ));
+            for index in 0..8 {
+                players.push(make_player(
+                    format!("{}-senior-{index}", team.id),
+                    domain::player::Position::Defender,
+                    "1997-01-01",
+                ));
+            }
+        }
+
+        WorldData {
+            name: "Imported Baseline".to_string(),
+            description: "No staff import".to_string(),
+            teams,
+            players,
+            staff: vec![],
+            managers: vec![],
+            league: None,
+            news: vec![],
+            stats: domain::stats::StatsState::default(),
+            world_history: WorldHistoryArchive::default(),
+            metadata: WorldDataMetadata::default(),
         }
     }
 
@@ -1547,6 +1643,152 @@ mod tests {
             .managers
             .iter()
             .any(|manager| manager.id == "mgr-incumbent"));
+    }
+
+    #[test]
+    fn imported_roster_baseline_bootstrap_backfills_staff_market_and_opening_youth() {
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_imported_baseline_world_without_staff();
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let (game, stats_state) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        assert!(stats_state.team_matches.is_empty());
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+        for team_id in ["team1", "team2"] {
+            for role in [
+                domain::staff::StaffRole::AssistantManager,
+                domain::staff::StaffRole::Coach,
+                domain::staff::StaffRole::Scout,
+                domain::staff::StaffRole::Physio,
+            ] {
+                let count = game
+                    .staff
+                    .iter()
+                    .filter(|staff_member| {
+                        staff_member.team_id.as_deref() == Some(team_id)
+                            && staff_member.role == role
+                    })
+                    .count();
+                assert_eq!(count, 1);
+            }
+            let youth_count = game
+                .players
+                .iter()
+                .filter(|player| {
+                    player.team_id.as_deref() == Some(team_id)
+                        && player.squad_role == domain::player::SquadRole::Youth
+                })
+                .count();
+            assert_eq!(youth_count, 3);
+        }
+        assert_eq!(
+            game.available_staff_market_last_activity_date.as_deref(),
+            Some("2032-07-01")
+        );
+    }
+
+    #[test]
+    fn imported_roster_baseline_bootstrap_allows_ai_manager_seeding_without_imported_staff() {
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_imported_baseline_world_without_staff();
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+        let (mut game, stats_state) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state).unwrap();
+
+        assert_eq!(
+            game.teams
+                .iter()
+                .find(|team| team.id == "team1")
+                .and_then(|team| team.manager_id.as_deref()),
+            Some("mgr-user")
+        );
+        assert!(game
+            .teams
+            .iter()
+            .filter(|team| team.id != "team1")
+            .all(|team| team.manager_id.is_some()));
+    }
+
+    #[test]
+    fn imported_historical_snapshot_preserves_state_while_backfilling_staff() {
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::MidSeason,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_historical_snapshot_world();
+        world.staff.clear();
+        let original_news_len = world.news.len();
+        let original_season = world.league.as_ref().map(|league| league.season);
+        let original_awards = world.world_history.season_awards.len();
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let (game, stats_state) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        assert_eq!(
+            game.league.as_ref().map(|league| league.season),
+            original_season
+        );
+        assert_eq!(game.news.len(), original_news_len);
+        assert_eq!(game.world_history.season_awards.len(), original_awards);
+        assert_eq!(stats_state.team_matches.len(), 1);
+        assert_eq!(
+            game.staff
+                .iter()
+                .filter(|staff_member| staff_member.team_id.is_none())
+                .count(),
+            12
+        );
+        for team_id in ["team1", "team2"] {
+            let has_assistant = game.staff.iter().any(|staff_member| {
+                staff_member.team_id.as_deref() == Some(team_id)
+                    && staff_member.role == domain::staff::StaffRole::AssistantManager
+            });
+            assert!(has_assistant);
+        }
     }
 
     #[test]

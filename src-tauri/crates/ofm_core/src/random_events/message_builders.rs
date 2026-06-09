@@ -24,7 +24,9 @@ pub(crate) fn sponsor_offer_message(
     .with_priority(MessagePriority::Normal)
     .with_sender_role("")
     .with_action(action(
-        "respond", "", "be.msg.event.respond",
+        "respond",
+        "",
+        "be.msg.event.respond",
         ActionType::ChooseOption {
             options: vec![
                 ActionOption {
@@ -47,7 +49,11 @@ pub(crate) fn sponsor_offer_message(
     .with_i18n(
         "be.msg.sponsor.subject",
         "be.msg.sponsor.body",
-        params(&[("sponsor", sponsor), ("team", team_name), ("amount", &amount.to_string())]),
+        params(&[
+            ("sponsor", sponsor),
+            ("team", team_name),
+            ("amount", &amount.to_string()),
+        ]),
     )
     .with_sender_i18n("be.sender.commercialDirector", "be.role.commercialDirector")
 }
@@ -158,7 +164,12 @@ pub(super) fn international_callup_message(
     .with_category(MessageCategory::LeagueInfo)
     .with_priority(MessagePriority::Normal)
     .with_sender_role("")
-    .with_action(action("ack", "", "be.msg.event.ack", ActionType::Acknowledge))
+    .with_action(action(
+        "ack",
+        "",
+        "be.msg.event.ack",
+        ActionType::Acknowledge,
+    ))
     .with_i18n(
         "be.msg.intlCallup.subject",
         "be.msg.intlCallup.body",

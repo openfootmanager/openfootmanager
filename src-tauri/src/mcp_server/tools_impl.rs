@@ -2405,6 +2405,8 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<String, Strin
         ofm_core::job_offers::JobApplicationResult::Rejected => "❌ Rejected. The team chose another candidate.",
         ofm_core::job_offers::JobApplicationResult::InvalidTeam => "⚠️ Invalid team — no opening available.",
         ofm_core::job_offers::JobApplicationResult::AlreadyEmployed => "⚠️ You already have a team. Resign first.",
+        ofm_core::job_offers::JobApplicationResult::SameTeam => "⚠️ You are already managing this team.",
+        ofm_core::job_offers::JobApplicationResult::NotBetterClub => "⚠️ This club is not a step up from your current position. Only better clubs will consider an employed manager.",
     };
 
     Ok(format!("## Job Application Result\n\n{}", result_text))

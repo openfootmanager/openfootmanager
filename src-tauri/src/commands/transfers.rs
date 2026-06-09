@@ -11,8 +11,7 @@ use ofm_core::transfers::{
     TransferBidFinancialProjection, TransferNegotiationDecision, TransferNegotiationOutcome,
 };
 
-const INVALID_YOUTH_SCOUTING_REGION_ERROR: &str =
-    "be.error.transfers.invalidYouthScoutingRegion";
+const INVALID_YOUTH_SCOUTING_REGION_ERROR: &str = "be.error.transfers.invalidYouthScoutingRegion";
 const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingObjective";
 const INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR: &str =
@@ -259,7 +258,10 @@ pub fn cancel_youth_scouting(
     state: State<'_, Arc<StateManager>>,
     assignment_id: String,
 ) -> Result<Game, String> {
-    info!("[cmd] cancel_youth_scouting: assignment_id={}", assignment_id);
+    info!(
+        "[cmd] cancel_youth_scouting: assignment_id={}",
+        assignment_id
+    );
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
