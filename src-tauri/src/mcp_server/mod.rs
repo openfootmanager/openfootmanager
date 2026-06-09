@@ -65,12 +65,12 @@ pub async fn start_mcp_server(
         }))
         .into_make_service();
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
+    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
         .await
-        .map_err(|e| format!("Failed to bind MCP server to port {}: {}", port, e))?;
+        .map_err(|e| format!("Failed to bind MCP server to 127.0.0.1:{}: {}", port, e))?;
 
     log::info!(
-        "[mcp] MCP SSE server listening on 0.0.0.0:{}",
+        "[mcp] MCP SSE server listening on 127.0.0.1:{}",
         port
     );
 

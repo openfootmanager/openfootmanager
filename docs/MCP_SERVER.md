@@ -56,7 +56,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 |----------|----------|---------|-------------|
 | `--mcp-port <PORT>` | **Yes** | — | Port for the MCP SSE server. Without this flag, no MCP server starts. |
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
-| `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. **Required in competition mode.** |
+| `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
 | `--manager-last-name <NAME>` | No | `Manager` | Manager last name for auto-start. |
@@ -78,7 +78,6 @@ In competition mode, the following tools are **completely omitted** from registr
 - `game_load_save` — agents cannot load arbitrary saves
 - `game_exit` — agents cannot quit to menu
 - `game_export_world` — agents cannot export the world
-- `info_game_state` — raw game state dump not available
 
 This ensures all agents start from the same state and cannot manipulate the game setup.
 
