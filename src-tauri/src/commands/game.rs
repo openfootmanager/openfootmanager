@@ -443,7 +443,36 @@ fn ensure_multi_competition_foundations(game: &mut Game) {
             .map(|competition| competition.id.clone())
             .collect();
     }
+    ensure_international_windows(game);
     game.sync_legacy_league();
+}
+
+/// Schedule national-team friendlies on international windows and keep club
+/// fixtures off those dates, so call-ups never clash with club matches.
+/// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
+/// left untouched, and shifting already-clear club fixtures is a no-op.
+fn ensure_international_windows(game: &mut Game) {
+    let window_dates =
+        ofm_core::national_team::international_window_dates(preseason_season_start(&game.clock));
+    if window_dates.is_empty() {
+        return;
+    }
+
+    let needs_fixtures = game
+        .national_teams
+        .iter()
+        .all(|team| team.fixtures.is_empty());
+    if needs_fixtures {
+        ofm_core::national_team::schedule_national_team_friendlies(
+            &mut game.national_teams,
+            &window_dates,
+            &mut rand::rng(),
+        );
+    }
+
+    for competition in &mut game.competitions {
+        ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+    }
 }
 
 fn resolve_simulation_scope(

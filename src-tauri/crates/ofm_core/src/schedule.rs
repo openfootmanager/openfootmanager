@@ -284,6 +284,31 @@ pub fn generate_preseason_friendlies(
     fixtures
 }
 
+/// Push any fixture that lands on a reserved date (e.g. an international
+/// window) forward to the next free day, so club matches never clash with
+/// national-team call-ups. Order is preserved.
+pub fn shift_fixtures_off_reserved_dates(league: &mut League, reserved_dates: &[String]) {
+    if reserved_dates.is_empty() {
+        return;
+    }
+    let reserved: std::collections::HashSet<&str> =
+        reserved_dates.iter().map(|date| date.as_str()).collect();
+
+    for fixture in &mut league.fixtures {
+        let Some(mut date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok()
+        else {
+            continue;
+        };
+        while reserved.contains(date.format("%Y-%m-%d").to_string().as_str()) {
+            match date.succ_opt() {
+                Some(next) => date = next,
+                None => break,
+            }
+        }
+        fixture.date = date.format("%Y-%m-%d").to_string();
+    }
+}
+
 pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture>) {
     league.fixtures.append(&mut additional_fixtures);
     league.fixtures.sort_by(|left, right| {
@@ -298,6 +323,41 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn shift_fixtures_off_reserved_dates_moves_clashing_matches_forward() {
+        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Test League", 2026, &teams, start);
+
+        // Force a clash, then reserve that exact day.
+        league.fixtures[0].date = "2026-09-09".to_string();
+        let reserved = vec!["2026-09-09".to_string()];
+
+        shift_fixtures_off_reserved_dates(&mut league, &reserved);
+
+        assert!(
+            league.fixtures.iter().all(|f| f.date != "2026-09-09"),
+            "no fixture should remain on a reserved date"
+        );
+        assert_eq!(
+            league.fixtures[0].date, "2026-09-10",
+            "clashing fixture should move to the next free day"
+        );
+    }
+
+    #[test]
+    fn shift_fixtures_off_reserved_dates_is_noop_without_reservations() {
+        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Test League", 2026, &teams, start);
+        let before: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
+
+        shift_fixtures_off_reserved_dates(&mut league, &[]);
+
+        let after: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
+        assert_eq!(before, after);
+    }
 
     #[test]
     fn test_generate_league_8_teams() {

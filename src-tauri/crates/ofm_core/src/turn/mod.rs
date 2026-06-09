@@ -121,6 +121,10 @@ where
         training::check_squad_fitness_warnings(game);
     }
 
+    // National-team friendlies on international windows. Self-filters by date,
+    // so this is a no-op outside window days.
+    crate::national_team::process_national_team_fixtures_due(game, &today, &mut rand::rng());
+
     crate::contracts::process_contract_expiries(game);
 
     // Weekly financial processing (wages, matchday income, warnings)

@@ -211,6 +211,46 @@ fn make_game_with_match() -> Game {
     game
 }
 
+#[test]
+fn process_day_simulates_due_national_team_fixture() {
+    use domain::national_team::NationalTeam;
+
+    // No club match today (the helper shifts the club fixture to 2025-06-16).
+    let mut game = make_game_without_match_today();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let home_squad: Vec<String> = vec!["t1_fwd0".into(), "t1_mid0".into(), "t1_def0".into()];
+    let away_squad: Vec<String> = vec!["t2_fwd0".into(), "t2_mid0".into()];
+
+    let mut home = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
+    home.squad_player_ids = home_squad;
+    home.fixtures.push(Fixture {
+        id: "ntf-x".into(),
+        competition_id: "international-friendlies".into(),
+        matchday: 1,
+        date: today,
+        home_team_id: "nt-eng".into(),
+        away_team_id: "nt-bra".into(),
+        competition: FixtureCompetition::InternationalNation,
+        status: FixtureStatus::Scheduled,
+        result: None,
+        ..Default::default()
+    });
+    let mut away = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
+    away.squad_player_ids = away_squad;
+    game.national_teams = vec![home, away];
+
+    turn::process_day(&mut game);
+
+    let fixture = &game.national_teams[0].fixtures[0];
+    assert_eq!(
+        fixture.status,
+        FixtureStatus::Completed,
+        "process_day should simulate a national-team fixture due today"
+    );
+    assert!(fixture.result.is_some());
+}
+
 fn make_game_without_match_today() -> Game {
     let mut game = make_game_with_match();
     if let Some(league) = &mut game.league {

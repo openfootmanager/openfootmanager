@@ -658,24 +658,9 @@ fn deplete_match_stamina(game: &mut Game, team_id: &str, report: &engine::MatchR
                 .get(&player.id)
                 .map(|ps| ps.minutes_played)
                 .unwrap_or(0);
-            if minutes == 0 {
-                continue; // Did not play, no depletion
-            }
-            let minutes_factor = minutes as f64 / 90.0;
-            let stamina_factor = player.attributes.stamina as f64 / 100.0;
-            let base_depletion = 40.0 * (1.0 - stamina_factor * 0.4);
-            let depletion = (base_depletion * minutes_factor) as u8;
-            player.condition = player.condition.saturating_sub(depletion);
-
-            // Regular match play improves fitness for players with significant time.
-            // 60+ minutes builds sharpness; probabilistic to keep changes gradual.
-            if minutes >= 60 {
-                use rand::RngExt;
-                let mut rng = rand::rng();
-                if rng.random_bool(0.3) && player.fitness < 100 {
-                    player.fitness = player.fitness.saturating_add(1);
-                }
-            }
+            // Shared with national-team friendlies so call-ups wear players
+            // identically to club fixtures.
+            crate::player_wear::apply_match_wear(player, minutes, &mut rand::rng());
         }
     }
 }
