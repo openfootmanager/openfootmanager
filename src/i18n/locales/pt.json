@@ -1725,6 +1725,233 @@
       "FreeKick": "Livre",
       "Foul": "Falta",
       "PenaltyAwarded": "Penálti Assinalado"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "GOOOL!",
+        "lines": {
+          "0": "{{player}} faz golo para o {{team}}!",
+          "1": "{{player}} marca! Que finalização!",
+          "2": "{{player}} marca para o {{team}}!"
+        },
+        "opener": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} abre o marcador para o {{team}}!",
+            "1": "O {{team}} sai na frente — {{player}} marca!"
+          }
+        },
+        "equaliser": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} empata para o {{team}}! O jogo continua!",
+            "1": "O {{team}} restabelece a igualdade — {{player}} com o empate!"
+          }
+        },
+        "extends": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} aumenta a vantagem do {{team}}!",
+            "1": "{{player}} volta a marcar — o {{team}} a fugir!"
+          }
+        },
+        "consolation": {
+          "headline": "GOLO",
+          "lines": {
+            "0": "{{player}} reduz para o {{team}}.",
+            "1": "Um golo de honra para o {{team}} com {{player}} a marcar."
+          }
+        },
+        "brace": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} marca mais um — bis!",
+            "1": "Dois golos para {{player}}!"
+          }
+        },
+        "hattrick": {
+          "headline": "HAT-TRICK!",
+          "lines": {
+            "0": "{{player}} completa o hat-trick! Grande festa!",
+            "1": "Três golos de {{player}} — que tarde extraordinária!"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "GRANDE PENALIDADE — GOLO!",
+        "lines": {
+          "0": "{{player}} bate o guarda-redes da marca dos onze metros! O {{team}} marca.",
+          "1": "Sangue frio de {{player}} — grande penalidade convertida para o {{team}}!"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "GRANDE PENALIDADE FALHADA!",
+        "lines": {
+          "0": "{{player}} falha da marca dos onze metros! Que alívio para o {{opponent}}!",
+          "1": "Defendida! {{player}} vai ter pesadelos com este penálti."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "PENÁLTI!",
+        "lines": {
+          "0": "O árbitro aponta para a marca dos onze metros — penálti para o {{team}}!",
+          "1": "É penálti para o {{team}}! Momento decisivo."
+        }
+      },
+      "ShotSaved": {
+        "headline": "GRANDE DEFESA!",
+        "lines": {
+          "0": "{{player}} obriga o guarda-redes a uma defesa.",
+          "1": "O guarda-redes nega o golo a {{player}}!"
+        },
+        "routine": {
+          "headline": "DEFESA",
+          "lines": {
+            "0": "Uma paragem tranquila perante o remate de {{player}}.",
+            "1": "Direto para o guarda-redes o remate de {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "BOA DEFESA!",
+          "lines": {
+            "0": "O guarda-redes tem de estar atento para travar {{player}}!",
+            "1": "Mãos firmes para negar o golo a {{player}}!"
+          }
+        },
+        "worldClass": {
+          "headline": "QUE DEFESA!",
+          "lines": {
+            "0": "Incrível! O guarda-redes consegue travar o remate de {{player}} de forma milagrosa!",
+            "1": "Defesa de classe mundial para negar um golo a {{player}}!"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "QUE PERTO!",
+        "lines": {
+          "0": "{{player}} manda ao lado por pouco para o {{team}}.",
+          "1": "Tão perto! {{player}} não consegue acertar na baliza."
+        },
+        "speculative": {
+          "headline": "FORA",
+          "lines": {
+            "0": "{{player}} tenta de longe mas está muito longe da baliza.",
+            "1": "Muito ambicioso de {{player}} — passou longe."
+          }
+        },
+        "decent": {
+          "headline": "PERTO!",
+          "lines": {
+            "0": "O remate de {{player}} passa rente ao poste.",
+            "1": "Não faltou muito a {{player}}!"
+          }
+        },
+        "bigChance": {
+          "headline": "COMO É QUE FALHOU?!",
+          "lines": {
+            "0": "{{player}} tinha mesmo de marcar ali — saiu ao lado de forma agónica!",
+            "1": "Uma oportunidade enorme desperdiçada pelo {{team}}! {{player}} não vai acreditar."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "BLOQUEADO!",
+        "lines": {
+          "0": "O remate de {{player}} é bloqueado por um defesa corajoso.",
+          "1": "Corpos no caminho! {{player}} é travado."
+        },
+        "bigChance": {
+          "headline": "GRANDE BLOQUEIO!",
+          "lines": {
+            "0": "Um bloqueio crucial impede {{player}} de marcar em excelente posição!",
+            "1": "Defesa de última hora para negar o golo a {{player}}!"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FALTA",
+        "lines": {
+          "0": "{{player}} faz falta sobre {{victim}}. Livre para o {{opponent}}.",
+          "1": "{{player}} oferece um livre direto contra {{victim}}."
+        },
+        "hard": {
+          "headline": "É FALTA",
+          "lines": {
+            "0": "{{player}} entra forte em {{victim}}! Falta para o {{opponent}}.",
+            "1": "Uma entrada dura de {{player}} sobre {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "IMPRUDENTE!",
+          "lines": {
+            "0": "{{player}} atira-se sobre {{victim}} — isso é perigoso!",
+            "1": "Falta violenta de {{player}} sobre {{victim}}! O árbitro não vai gostar."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "CARTÃO AMARELO",
+        "lines": {
+          "0": "{{player}} vê o amarelo pelo {{team}}.",
+          "1": "Cartão amarelo para {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "CARTÃO VERMELHO!",
+        "lines": {
+          "0": "{{player}} é expulso! O {{team}} fica com dez!",
+          "1": "Vermelho direto para {{player}}! Desastre para o {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "SEGUNDO AMARELO — EXPULSO!",
+        "lines": {
+          "0": "{{player}} vê o segundo amarelo e é expulso!",
+          "1": "Dois amarelos e fora — {{player}} deixa o {{team}} reduzido."
+        }
+      },
+      "Injury": {
+        "headline": "LESÃO",
+        "lines": {
+          "0": "{{player}} está no chão e precisa de assistência.",
+          "1": "Preocupação no {{team}}: {{player}} cai lesionado."
+        }
+      },
+      "Substitution": {
+        "headline": "SUBSTITUIÇÃO",
+        "lines": {
+          "0": "O {{team}} faz uma substituição: {{player}} entra, {{victim}} sai.",
+          "1": "{{player}} substitui {{victim}} no {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "PONTAPÉ INICIAL",
+        "lines": {
+          "0": "O jogo já começou!",
+          "1": "Está em andamento!"
+        }
+      },
+      "HalfTime": {
+        "headline": "INTERVALO",
+        "lines": {
+          "0": "O árbitro apita para o intervalo.",
+          "1": "É o fim da primeira parte."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "SEGUNDA PARTE",
+        "lines": {
+          "0": "Estamos de volta para a segunda parte.",
+          "1": "Começa a segunda parte!"
+        }
+      },
+      "FullTime": {
+        "headline": "TEMPO FINAL",
+        "lines": {
+          "0": "É isso — tempo final!",
+          "1": "O árbitro encerra o encontro."
+        }
+      }
     }
   },
   "endOfSeason": {

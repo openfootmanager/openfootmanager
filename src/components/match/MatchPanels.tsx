@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
 import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
+import { getCommentary } from "./commentary";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
@@ -26,6 +27,7 @@ export function EventFeed({
         events.map((evt, i) => {
           const display = getEventDisplay(evt);
           const isHome = evt.side === "Home";
+          const commentary = getCommentary(evt, snapshot, t);
           return (
             <div
               key={i}
@@ -36,29 +38,56 @@ export function EventFeed({
               </span>
               <span className="text-lg flex-shrink-0">{display.icon}</span>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`font-heading font-bold text-xs uppercase tracking-wider ${isHome ? "text-primary-400" : "text-indigo-400"}`}
-                  >
-                    {isHome ? snapshot.home_team.name : snapshot.away_team.name}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {getEventTypeLabel(evt.event_type, t)}
-                  </span>
-                </div>
-                {evt.player_id && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                    {getPlayerName(snapshot, evt.player_id)}
-                    {evt.secondary_player_id && (
-                      <span className="text-gray-500 dark:text-gray-400 font-normal">
-                        {evt.event_type === "Goal"
-                          ? ` (${t("match.assist", { name: getPlayerName(snapshot, evt.secondary_player_id) })})`
-                          : evt.event_type === "Substitution"
-                            ? ` ${t("match.subFor", { name: getPlayerName(snapshot, evt.secondary_player_id) })}`
-                            : ""}
+                {commentary ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-heading font-bold text-xs uppercase tracking-wider ${isHome ? "text-primary-400" : "text-indigo-400"}`}
+                      >
+                        {commentary.headline}
                       </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {isHome ? snapshot.home_team.name : snapshot.away_team.name}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {commentary.line}
+                    </p>
+                    {evt.event_type === "Goal" && evt.secondary_player_id && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {t("match.assist", {
+                          name: getPlayerName(snapshot, evt.secondary_player_id),
+                        })}
+                      </p>
                     )}
-                  </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-heading font-bold text-xs uppercase tracking-wider ${isHome ? "text-primary-400" : "text-indigo-400"}`}
+                      >
+                        {isHome ? snapshot.home_team.name : snapshot.away_team.name}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {getEventTypeLabel(evt.event_type, t)}
+                      </span>
+                    </div>
+                    {evt.player_id && (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                        {getPlayerName(snapshot, evt.player_id)}
+                        {evt.secondary_player_id && (
+                          <span className="text-gray-500 dark:text-gray-400 font-normal">
+                            {evt.event_type === "Goal"
+                              ? ` (${t("match.assist", { name: getPlayerName(snapshot, evt.secondary_player_id) })})`
+                              : evt.event_type === "Substitution"
+                                ? ` ${t("match.subFor", { name: getPlayerName(snapshot, evt.secondary_player_id) })}`
+                                : ""}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>

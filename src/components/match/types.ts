@@ -2,6 +2,18 @@
 
 import type { TFunction } from "i18next";
 
+export type DangerBand = "Speculative" | "Decent" | "BigChance";
+export type SaveQuality = "Routine" | "Strong" | "WorldClass";
+export type FoulSeverity = "Soft" | "Hard" | "Reckless";
+export type GoalContext = "Opener" | "Equaliser" | "Extends" | "Consolation";
+
+// Serde externally-tagged representation of the Rust EventDetail enum.
+export type EventDetail =
+  | { Shot: { danger: DangerBand } }
+  | { Save: { quality: SaveQuality } }
+  | { Foul: { severity: FoulSeverity } }
+  | { Goal: { context: GoalContext } };
+
 export interface MatchEvent {
   minute: number;
   event_type: string;
@@ -9,6 +21,7 @@ export interface MatchEvent {
   zone: string;
   player_id: string | null;
   secondary_player_id: string | null;
+  detail?: EventDetail | null;
 }
 
 export interface EnginePlayerData {

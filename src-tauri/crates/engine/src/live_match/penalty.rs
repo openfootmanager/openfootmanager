@@ -140,6 +140,10 @@ impl LiveMatchState {
         let zone = Zone::attacking_box(att_side);
 
         if rng.random_range(0.0..1.0f64) < conversion {
+            // PenaltyGoal intentionally carries no EventDetail::Goal context: penalty
+            // commentary uses its own base key (match.commentary.PenaltyGoal) with no
+            // opener/equaliser/... sub-variants. Brace/hat-trick is still detected on
+            // the frontend via goal tally, which counts PenaltyGoal events.
             let evt = MatchEvent::new(minute, EventType::PenaltyGoal, att_side, zone)
                 .with_player(&taker.id);
             self.events.push(evt.clone());

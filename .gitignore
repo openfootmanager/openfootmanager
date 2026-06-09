@@ -35,5 +35,3 @@ coverage/
 
 # Local Vitest reporter output
 vitest-*.json
-# Superpowers brainstorm working files (not the docs/ specs)
-/.superpowers/
