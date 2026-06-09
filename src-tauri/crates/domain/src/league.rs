@@ -50,6 +50,9 @@ pub struct KnockoutRoundState {
     pub id: String,
     pub name: String,
     pub fixture_ids: Vec<String>,
+    /// Teams that advance from this round without playing (byes), used when the
+    /// entrant count is not a power of two.
+    pub bye_team_ids: Vec<String>,
     pub completed: bool,
 }
 

@@ -340,6 +340,45 @@ fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
         .collect()
 }
 
+/// Pick continental-cup entrants: the strongest clubs by reputation from each
+/// region, capped so the bracket stays manageable. Entrants are returned
+/// strongest-first so the top seeds receive any knockout byes.
+fn select_continental_entrants(
+    teams: &[domain::team::Team],
+    per_region: usize,
+    max_entrants: usize,
+) -> Vec<String> {
+    use std::collections::BTreeMap;
+
+    let reputation_then_id = |left: &&domain::team::Team, right: &&domain::team::Team| {
+        right
+            .reputation
+            .cmp(&left.reputation)
+            .then_with(|| left.id.cmp(&right.id))
+    };
+
+    let mut teams_by_region: BTreeMap<String, Vec<&domain::team::Team>> = BTreeMap::new();
+    for team in teams {
+        teams_by_region
+            .entry(infer_team_region_id(team))
+            .or_default()
+            .push(team);
+    }
+
+    let mut entrants: Vec<&domain::team::Team> = Vec::new();
+    for regional_teams in teams_by_region.values_mut() {
+        regional_teams.sort_by(reputation_then_id);
+        entrants.extend(regional_teams.iter().take(per_region).copied());
+    }
+
+    entrants.sort_by(reputation_then_id);
+    entrants
+        .into_iter()
+        .take(max_entrants)
+        .map(|team| team.id.clone())
+        .collect()
+}
+
 fn build_foundation_competitions(game: &Game) -> Vec<League> {
     use std::collections::BTreeMap;
 
@@ -374,27 +413,26 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         priority += 1;
         competitions.push(league);
 
-        if team_ids.len().is_power_of_two() {
-            let mut cup = ofm_core::schedule::generate_knockout_cup(
-                &format!("{country} Cup"),
-                season,
-                &team_ids,
-                season_start + Duration::days(35),
-                CompetitionType::Cup,
-                CompetitionScope::Domestic,
-            );
-            cup.region_id = Some(region_id.clone());
-            cup.country_id = Some(country.clone());
-            cup.required_region_ids = vec![region_id];
-            cup.priority = priority;
-            priority += 1;
-            competitions.push(cup);
-        }
+        // Knockout cups handle any entrant count via byes, so every league with
+        // at least two clubs also gets a domestic cup.
+        let mut cup = ofm_core::schedule::generate_knockout_cup(
+            &format!("{country} Cup"),
+            season,
+            &team_ids,
+            season_start + Duration::days(35),
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        cup.region_id = Some(region_id.clone());
+        cup.country_id = Some(country.clone());
+        cup.required_region_ids = vec![region_id];
+        cup.priority = priority;
+        priority += 1;
+        competitions.push(cup);
     }
 
-    let all_team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
-    if all_team_ids.len() >= 8 {
-        let continental_team_ids = all_team_ids[..8].to_vec();
+    let continental_team_ids = select_continental_entrants(&game.teams, 2, 16);
+    if continental_team_ids.len() >= 4 {
         let mut feeder_regions: Vec<String> = game
             .teams
             .iter()
@@ -978,7 +1016,7 @@ mod tests {
         build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         preseason_league_year, preseason_season_start, require_active_stats_state,
-        resolve_simulation_scope,
+        resolve_simulation_scope, select_continental_entrants,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
         MAX_GENERATED_HISTORY_DEPTH_YEARS,
@@ -1120,6 +1158,69 @@ mod tests {
         }
 
         Game::new(clock, manager, teams, players, staff, vec![])
+    }
+
+    #[test]
+    fn select_continental_entrants_takes_top_clubs_per_region_by_reputation() {
+        let make = |id: &str, nation: &str, reputation: u32| {
+            let mut team = domain::team::Team::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                "Country".to_string(),
+                "City".to_string(),
+                "Stadium".to_string(),
+                10_000,
+            );
+            team.football_nation = nation.to_string();
+            team.reputation = reputation;
+            team
+        };
+        let teams = vec![
+            make("eng-a", "GB", 900),
+            make("eng-b", "GB", 800),
+            make("eng-c", "GB", 700), // third in Europe -> excluded by per_region
+            make("bra-a", "BR", 850),
+            make("bra-b", "BR", 600),
+        ];
+
+        let entrants = select_continental_entrants(&teams, 2, 16);
+
+        // Top two per region, ordered strongest-first across regions.
+        assert_eq!(
+            entrants,
+            vec![
+                "eng-a".to_string(),
+                "bra-a".to_string(),
+                "eng-b".to_string(),
+                "bra-b".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn select_continental_entrants_caps_the_field() {
+        let teams: Vec<domain::team::Team> = (0..10)
+            .map(|index| {
+                let mut team = domain::team::Team::new(
+                    format!("eng-{index}"),
+                    format!("Club {index}"),
+                    format!("C{index}"),
+                    "Country".to_string(),
+                    "City".to_string(),
+                    "Stadium".to_string(),
+                    10_000,
+                );
+                team.football_nation = "GB".to_string();
+                team.reputation = 1000 - index as u32;
+                team
+            })
+            .collect();
+
+        let entrants = select_continental_entrants(&teams, 8, 4);
+
+        assert_eq!(entrants.len(), 4);
+        assert_eq!(entrants[0], "eng-0", "strongest club is seeded first");
     }
 
     #[test]

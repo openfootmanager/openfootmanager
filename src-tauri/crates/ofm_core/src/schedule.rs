@@ -140,8 +140,15 @@ fn seed_knockout_round(
         8 => "Quarterfinal".to_string(),
         size => format!("Round of {size}"),
     };
+
+    // When the entrant count is not a power of two, the strongest seeds (which
+    // the caller passes first) receive a bye into the next round so the bracket
+    // converges to a power of two.
+    let byes = team_ids.len().next_power_of_two() - team_ids.len();
+    let (bye_teams, playing_teams) = team_ids.split_at(byes);
+
     let mut round_fixture_ids = Vec::new();
-    for (pair_index, pair) in team_ids.chunks(2).enumerate() {
+    for (pair_index, pair) in playing_teams.chunks(2).enumerate() {
         if pair.len() < 2 {
             continue;
         }
@@ -165,6 +172,7 @@ fn seed_knockout_round(
         id: format!("{}-round-{}", cup.id, round_index),
         name: round_name,
         fixture_ids: round_fixture_ids,
+        bye_team_ids: bye_teams.to_vec(),
         completed: false,
     });
 }
@@ -187,7 +195,8 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
     }
 
     next_round.completed = true;
-    let winners: Vec<String> = round_fixtures
+    let round_fixture_ids = next_round.fixture_ids.clone();
+    let mut advancing: Vec<String> = round_fixtures
         .iter()
         .filter_map(|fixture| {
             let result = fixture.result.as_ref()?;
@@ -198,8 +207,10 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
             }
         })
         .collect();
+    // Teams that received a bye this round join the winners in the next round.
+    advancing.extend(next_round.bye_team_ids.iter().cloned());
 
-    if winners.len() >= 2 {
+    if advancing.len() >= 2 {
         let last_round_date = round_fixtures
             .iter()
             .map(|fixture| fixture.date.as_str())
@@ -214,10 +225,10 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
         let fixture_competition = cup
             .fixtures
             .iter()
-            .find(|fixture| next_round.fixture_ids.contains(&fixture.id))
+            .find(|fixture| round_fixture_ids.contains(&fixture.id))
             .map(|fixture| fixture.competition.clone())
             .unwrap_or(FixtureCompetition::Cup);
-        seed_knockout_round(cup, &winners, round_start, fixture_competition);
+        seed_knockout_round(cup, &advancing, round_start, fixture_competition);
     }
 }
 
@@ -357,6 +368,79 @@ mod tests {
 
         let after: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
         assert_eq!(before, after);
+    }
+
+    fn resolve_scheduled_fixtures(cup: &mut League) {
+        for fixture in cup.fixtures.iter_mut() {
+            if fixture.status == FixtureStatus::Scheduled {
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn knockout_cup_seeds_byes_for_non_power_of_two_entrants() {
+        let teams: Vec<String> = (0..6).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+
+        // 6 entrants -> next power of two is 8 -> 2 byes and 2 first-round ties.
+        let round_one = &cup.knockout_rounds[0];
+        assert_eq!(round_one.name, "Round of 6");
+        assert_eq!(round_one.fixture_ids.len(), 2);
+        assert_eq!(
+            round_one.bye_team_ids,
+            vec!["team_0".to_string(), "team_1".to_string()],
+            "the first seeds receive the byes"
+        );
+    }
+
+    #[test]
+    fn knockout_cup_with_byes_progresses_to_a_single_champion() {
+        let teams: Vec<String> = (0..6).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+
+        // Resolve each round and advance until the bracket is exhausted.
+        for _ in 0..5 {
+            resolve_scheduled_fixtures(&mut cup);
+            advance_knockout_competition_round(&mut cup);
+        }
+
+        let names: Vec<&str> = cup
+            .knockout_rounds
+            .iter()
+            .map(|round| round.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["Round of 6", "Semifinal", "Final"]);
+        assert!(
+            cup.knockout_rounds.iter().all(|round| round.completed),
+            "every round should be completed"
+        );
+
+        let final_round = cup.knockout_rounds.last().unwrap();
+        assert_eq!(final_round.fixture_ids.len(), 1);
     }
 
     #[test]

@@ -454,6 +454,7 @@ export interface LeagueData {
     id: string;
     name: string;
     fixture_ids: string[];
+    bye_team_ids?: string[];
     completed: boolean;
   }[];
   transfer_log?: CompletedTransferData[];
