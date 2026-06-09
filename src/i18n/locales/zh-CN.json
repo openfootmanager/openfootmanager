@@ -255,7 +255,55 @@
     "repStrong": "强队",
     "repAverage": "中游",
     "repDeveloping": "发展中",
-    "failedToSelectTeam": "选择球队失败：{{error}}"
+    "failedToSelectTeam": "选择球队失败：{{error}}",
+    "homeRegion": "所属地区",
+    "homeCountry": "所属国家",
+    "simulatedRegions": "已模拟地区",
+    "simulatedCompetitions": "已模拟赛事",
+    "homeBadge": "所属",
+    "yourClub": "你的俱乐部",
+    "yourClubBadge": "你的俱乐部",
+    "requiresRegions": "需要 {{regions}}",
+    "selectedClub": "已选俱乐部",
+    "formation": "阵型",
+    "overall": "综合实力",
+    "likelyXi": "预计首发",
+    "competitions": "赛事",
+    "keyPlayers": "关键球员",
+    "activeCompetitions": "激活赛事",
+    "clubCompetitionsAlwaysSimulated": "你的俱乐部所参加的赛事始终会被模拟，即使你关闭了其他地区或赛事。",
+    "selectClubPrompt": "选择一家俱乐部以查看它的阵容和参赛赛事。",
+    "playersCount": "{{count}} 名球员",
+    "scopeSummary": "将加载 {{regionsCount}} 个模拟地区和 {{competitionsCount}} 项模拟赛事。",
+    "regionLabels": {
+      "north-america": "北美洲",
+      "central-america": "中美洲",
+      "south-america": "南美洲",
+      "europe": "欧洲",
+      "asia": "亚洲",
+      "oceania": "大洋洲"
+    },
+    "scopes": {
+      "Domestic": "国内",
+      "Regional": "地区",
+      "Continental": "洲际",
+      "International": "国际"
+    },
+    "kinds": {
+      "League": "联赛",
+      "Cup": "杯赛",
+      "ContinentalClub": "洲际俱乐部赛事",
+      "InternationalClub": "国际俱乐部赛事",
+      "InternationalNation": "国际国家队赛事",
+      "FriendlyCup": "友谊杯"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "你的可玩地区会始终保持激活。",
+      "regionRequiredByCompetition": "{{competition}} 属于 {{club}} 的赛程，因此 {{region}} 必须保持激活。",
+      "regionRemovedDisablesCompetitions": "{{region}} 已从模拟范围中移除，因此依赖它的赛事也一并关闭。",
+      "clubCompetitionLocked": "{{competition}} 已在 {{club}} 的赛程中，因此始终会被模拟。",
+      "autoEnabledRegions": "{{competition}} 需要 {{regions}}，因此这些地区已自动启用。"
+    }
   },
   "youthAcademy": {
     "title": "青训营",
@@ -1007,6 +1055,7 @@
   "schedule": {
     "noSchedule": "暂无联赛赛程。",
     "noLeague": "暂无联赛赛程。",
+    "standingsUnavailable": "这项赛事暂无积分榜。",
     "fixtures": "赛程",
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",

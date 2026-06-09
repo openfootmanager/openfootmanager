@@ -8,6 +8,30 @@ const WORLD_SERIALIZE_FAILED_ERROR: &str = "be.error.worldSerializeFailed";
 const RANDOM_WORLD_NAME_KEY: &str = "be.msg.world.randomName";
 const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
 
+fn infer_region_id(country_code: &str) -> &'static str {
+    match country_code {
+        "BR" | "AR" | "UY" | "CL" | "CO" | "PE" | "EC" | "VE" | "PY" | "BO" => {
+            "south-america"
+        }
+        "US" | "CA" | "MX" => "north-america",
+        "CR" | "PA" | "HN" | "GT" | "SV" | "NI" => "central-america",
+        "AU" | "NZ" => "oceania",
+        "JP" | "KR" | "CN" | "SA" | "QA" => "asia",
+        _ => "europe",
+    }
+}
+
+fn region_name(region_id: &str) -> &'static str {
+    match region_id {
+        "north-america" => "North America",
+        "central-america" => "Central America",
+        "south-america" => "South America",
+        "asia" => "Asia",
+        "oceania" => "Oceania",
+        _ => "Europe",
+    }
+}
+
 fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> String {
     let param_value = param_value.to_string();
     let mut message = String::with_capacity(
@@ -22,23 +46,34 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> S
 }
 
 fn infer_world_regions(teams: &[domain::team::Team]) -> Vec<WorldRegionDefinition> {
-    let mut country_codes: Vec<String> = teams
-        .iter()
-        .map(|team| team.football_nation.clone())
-        .filter(|code| !code.is_empty())
-        .collect();
-    country_codes.sort();
-    country_codes.dedup();
+    use std::collections::BTreeMap;
 
-    if country_codes.is_empty() {
-        return Vec::new();
+    let mut countries_by_region: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for team in teams {
+        let country_code = if !team.football_nation.is_empty() {
+            team.football_nation.clone()
+        } else {
+            team.country.clone()
+        };
+        let region_id = infer_region_id(&country_code).to_string();
+        countries_by_region
+            .entry(region_id)
+            .or_default()
+            .push(country_code);
     }
 
-    vec![WorldRegionDefinition {
-        id: "europe".to_string(),
-        name: "Europe".to_string(),
-        country_codes,
-    }]
+    countries_by_region
+        .into_iter()
+        .map(|(region_id, mut country_codes)| {
+            country_codes.sort();
+            country_codes.dedup();
+            WorldRegionDefinition {
+                name: region_name(&region_id).to_string(),
+                id: region_id,
+                country_codes,
+            }
+        })
+        .collect()
 }
 
 fn normalize_world(mut world: WorldData) -> WorldData {

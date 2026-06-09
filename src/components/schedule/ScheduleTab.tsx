@@ -313,7 +313,7 @@ export default function ScheduleTab({
             {standings.length === 0 ? (
               <CardBody>
                 <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Standings are not available for this competition.
+                  {t("schedule.standingsUnavailable")}
                 </p>
               </CardBody>
             ) : (

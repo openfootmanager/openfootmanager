@@ -52,6 +52,8 @@ pub fn replace_competitions(conn: &Connection, competitions: &[CompetitionState]
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
     for competition in competitions {
+        let required_region_ids_json = serde_json::to_string(&competition.required_region_ids)
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
         let participant_ids_json = serde_json::to_string(&competition.participant_ids)
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
         let rules_json = serde_json::to_string(&competition.rules)
@@ -68,8 +70,8 @@ pub fn replace_competitions(conn: &Connection, competitions: &[CompetitionState]
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
         conn.execute(
-            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, participant_ids_json, rules_json, fixtures_json, standings_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 competition.id,
                 competition.name,
@@ -78,6 +80,7 @@ pub fn replace_competitions(conn: &Connection, competitions: &[CompetitionState]
                 competition.season,
                 competition.region_id,
                 competition.country_id,
+                required_region_ids_json,
                 participant_ids_json,
                 rules_json,
                 fixtures_json,
@@ -96,7 +99,7 @@ pub fn replace_competitions(conn: &Connection, competitions: &[CompetitionState]
 
 pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, String> {
     let mut stmt = match conn.prepare(
-        "SELECT id, name, kind, scope, season, region_id, country_id, participant_ids_json, rules_json, fixtures_json, standings_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority
+        "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority
          FROM competitions
          ORDER BY priority ASC, season DESC, name ASC",
     ) {
@@ -106,13 +109,14 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
 
     let rows = stmt
         .query_map([], |row| {
-            let participant_ids_json: String = row.get(7)?;
-            let rules_json: String = row.get(8)?;
-            let fixtures_json: String = row.get(9)?;
-            let standings_json: String = row.get(10)?;
-            let knockout_rounds_json: String = row.get(11)?;
-            let transfer_log_json: String = row.get(12)?;
-            let transfer_rumours_json: String = row.get(13)?;
+            let required_region_ids_json: String = row.get(7)?;
+            let participant_ids_json: String = row.get(8)?;
+            let rules_json: String = row.get(9)?;
+            let fixtures_json: String = row.get(10)?;
+            let standings_json: String = row.get(11)?;
+            let knockout_rounds_json: String = row.get(12)?;
+            let transfer_log_json: String = row.get(13)?;
+            let transfer_rumours_json: String = row.get(14)?;
 
             Ok(CompetitionState {
                 id: row.get(0)?,
@@ -122,6 +126,8 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                 season: row.get(4)?,
                 region_id: row.get(5)?,
                 country_id: row.get(6)?,
+                required_region_ids: serde_json::from_str(&required_region_ids_json)
+                    .unwrap_or_default(),
                 participant_ids: serde_json::from_str(&participant_ids_json).unwrap_or_default(),
                 rules: serde_json::from_str::<CompetitionRules>(&rules_json).unwrap_or_default(),
                 fixtures: serde_json::from_str::<Vec<Fixture>>(&fixtures_json).unwrap_or_default(),
@@ -133,7 +139,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                 .unwrap_or_default(),
                 transfer_log: serde_json::from_str(&transfer_log_json).unwrap_or_default(),
                 transfer_rumours: serde_json::from_str(&transfer_rumours_json).unwrap_or_default(),
-                priority: row.get::<_, i64>(14).unwrap_or_default() as u32,
+                priority: row.get::<_, i64>(15).unwrap_or_default() as u32,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

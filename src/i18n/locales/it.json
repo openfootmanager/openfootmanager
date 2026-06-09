@@ -274,7 +274,55 @@
     "repStrong": "Forte",
     "repAverage": "Media",
     "repDeveloping": "In crescita",
-    "failedToSelectTeam": "Selezione della squadra non riuscita: {{error}}"
+    "failedToSelectTeam": "Selezione della squadra non riuscita: {{error}}",
+    "homeRegion": "Regione di origine",
+    "homeCountry": "Paese di origine",
+    "simulatedRegions": "Regioni simulate",
+    "simulatedCompetitions": "Competizioni simulate",
+    "homeBadge": "Origine",
+    "yourClub": "il tuo club",
+    "yourClubBadge": "Il tuo club",
+    "requiresRegions": "Richiede {{regions}}",
+    "selectedClub": "Club selezionato",
+    "formation": "Formazione",
+    "overall": "Valutazione generale",
+    "likelyXi": "Probabile XI",
+    "competitions": "Competizioni",
+    "keyPlayers": "Giocatori chiave",
+    "activeCompetitions": "Competizioni attive",
+    "clubCompetitionsAlwaysSimulated": "Le competizioni del tuo club vengono sempre simulate, anche se disattivi altre regioni o tornei.",
+    "selectClubPrompt": "Seleziona un club per vedere rosa e competizioni.",
+    "playersCount": "{{count}} giocatori",
+    "scopeSummary": "Verranno caricate {{regionsCount}} regioni simulate e {{competitionsCount}} competizioni simulate.",
+    "regionLabels": {
+      "north-america": "Nord America",
+      "central-america": "America Centrale",
+      "south-america": "Sud America",
+      "europe": "Europa",
+      "asia": "Asia",
+      "oceania": "Oceania"
+    },
+    "scopes": {
+      "Domestic": "Nazionale",
+      "Regional": "Regionale",
+      "Continental": "Continentale",
+      "International": "Internazionale"
+    },
+    "kinds": {
+      "League": "Lega",
+      "Cup": "Coppa",
+      "ContinentalClub": "Competizione continentale per club",
+      "InternationalClub": "Competizione internazionale per club",
+      "InternationalNation": "Competizione internazionale per nazionali",
+      "FriendlyCup": "Coppa amichevole"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "La tua regione giocabile resta sempre attiva.",
+      "regionRequiredByCompetition": "{{competition}} fa parte del calendario di {{club}}, quindi {{region}} deve restare attiva.",
+      "regionRemovedDisablesCompetitions": "{{region}} è stata rimossa dall'ambito di simulazione, quindi anche le competizioni dipendenti sono state disattivate.",
+      "clubCompetitionLocked": "{{competition}} è nel calendario di {{club}} e verrà sempre simulata.",
+      "autoEnabledRegions": "{{competition}} richiede {{regions}}, quindi quelle regioni sono state attivate automaticamente."
+    }
   },
   "youthAcademy": {
     "title": "Settore giovanile",
@@ -1026,6 +1074,7 @@
   "schedule": {
     "noSchedule": "Nessun calendario di campionato disponibile.",
     "noLeague": "Nessun calendario di campionato disponibile.",
+    "standingsUnavailable": "La classifica non è disponibile per questa competizione.",
     "fixtures": "Partite",
     "standings": "Classifica",
     "matchday": "Giornata {{number}}",

@@ -255,7 +255,55 @@
     "repStrong": "Сильный",
     "repAverage": "Средний",
     "repDeveloping": "Развивающийся",
-    "failedToSelectTeam": "Не удалось выбрать команду: {{error}}."
+    "failedToSelectTeam": "Не удалось выбрать команду: {{error}}.",
+    "homeRegion": "Домашний регион",
+    "homeCountry": "Домашняя страна",
+    "simulatedRegions": "Симулируемые регионы",
+    "simulatedCompetitions": "Симулируемые турниры",
+    "homeBadge": "Дом",
+    "yourClub": "вашего клуба",
+    "yourClubBadge": "Ваш клуб",
+    "requiresRegions": "Требуются регионы: {{regions}}",
+    "selectedClub": "Выбранный клуб",
+    "formation": "Схема",
+    "overall": "Общий уровень",
+    "likelyXi": "Вероятный стартовый состав",
+    "competitions": "Турниры",
+    "keyPlayers": "Ключевые игроки",
+    "activeCompetitions": "Активные турниры",
+    "clubCompetitionsAlwaysSimulated": "Турниры вашего клуба всегда симулируются, даже если отключены другие регионы или соревнования.",
+    "selectClubPrompt": "Выберите клуб, чтобы посмотреть состав и турниры.",
+    "playersCount": "{{count}} игроков",
+    "scopeSummary": "Будут загружены {{regionsCount}} симулируемых регионов и {{competitionsCount}} симулируемых турниров.",
+    "regionLabels": {
+      "north-america": "Северная Америка",
+      "central-america": "Центральная Америка",
+      "south-america": "Южная Америка",
+      "europe": "Европа",
+      "asia": "Азия",
+      "oceania": "Океания"
+    },
+    "scopes": {
+      "Domestic": "Внутренний",
+      "Regional": "Региональный",
+      "Continental": "Континентальный",
+      "International": "Международный"
+    },
+    "kinds": {
+      "League": "Лига",
+      "Cup": "Кубок",
+      "ContinentalClub": "Континентальный клубный турнир",
+      "InternationalClub": "Международный клубный турнир",
+      "InternationalNation": "Международный турнир сборных",
+      "FriendlyCup": "Товарищеский кубок"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "Ваш игровой регион всегда остаётся активным.",
+      "regionRequiredByCompetition": "{{competition}} входит в календарь {{club}}, поэтому регион {{region}} должен оставаться активным.",
+      "regionRemovedDisablesCompetitions": "Регион {{region}} был убран из области симуляции, поэтому зависимые турниры тоже были отключены.",
+      "clubCompetitionLocked": "{{competition}} есть в календаре {{club}} и всегда будет симулироваться.",
+      "autoEnabledRegions": "Для {{competition}} нужны регионы {{regions}}, поэтому они были включены автоматически."
+    }
   },
   "youthAcademy": {
     "title": "Молодёжная академия",
@@ -1007,6 +1055,7 @@
   "schedule": {
     "noSchedule": "Расписание лиги пока недоступно.",
     "noLeague": "Расписание лиги пока недоступно.",
+    "standingsUnavailable": "Турнирная таблица недоступна для этого турнира.",
     "fixtures": "Матчи",
     "standings": "Таблица",
     "matchday": "Тур {{number}}",

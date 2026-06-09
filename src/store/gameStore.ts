@@ -85,6 +85,7 @@ export type {
   FixtureData,
   StandingData,
   LeagueData,
+  WorldRegionData,
   SeasonPhase,
   TransferWindowStatus,
   TransferWindowContextData,

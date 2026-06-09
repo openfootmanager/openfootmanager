@@ -6,6 +6,7 @@ CREATE TABLE competitions (
     season INTEGER NOT NULL,
     region_id TEXT,
     country_id TEXT,
+    required_region_ids_json TEXT NOT NULL DEFAULT '[]',
     participant_ids_json TEXT NOT NULL DEFAULT '[]',
     rules_json TEXT NOT NULL DEFAULT '{}',
     fixtures_json TEXT NOT NULL DEFAULT '[]',

@@ -442,6 +442,7 @@ export interface LeagueData {
   season: number;
   region_id?: string | null;
   country_id?: string | null;
+  required_region_ids?: string[];
   participant_ids?: string[];
   rules?: {
     format: "LeagueTable" | "Knockout" | "GroupAndKnockout";

@@ -279,9 +279,32 @@ fn infer_region_id(country_code: &str) -> String {
         }
         "US" | "CA" | "MX" => "north-america".to_string(),
         "CR" | "PA" | "HN" | "GT" | "SV" | "NI" => "central-america".to_string(),
-        "JP" | "KR" | "CN" | "AU" | "NZ" | "SA" | "QA" => "asia-oceania".to_string(),
+        "AU" | "NZ" => "oceania".to_string(),
+        "JP" | "KR" | "CN" | "SA" | "QA" => "asia".to_string(),
         _ => "europe".to_string(),
     }
+}
+
+fn infer_team_region_id(team: &domain::team::Team) -> String {
+    if !team.football_nation.is_empty() {
+        return infer_region_id(&team.football_nation);
+    }
+    infer_region_id(&team.country)
+}
+
+fn competition_required_region_ids(competition: &League) -> Vec<String> {
+    let mut region_ids = competition.required_region_ids.clone();
+    if matches!(
+        competition.scope,
+        CompetitionScope::Domestic | CompetitionScope::Regional
+    ) {
+        if let Some(region_id) = &competition.region_id {
+            region_ids.push(region_id.clone());
+        }
+    }
+    region_ids.sort();
+    region_ids.dedup();
+    region_ids
 }
 
 fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
@@ -337,14 +360,16 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         if team_ids.len() < 2 {
             continue;
         }
+        let region_id = infer_region_id(&country);
         let mut league = ofm_core::schedule::generate_league(
             &format!("{country} League"),
             season,
             &team_ids,
             season_start,
         );
-        league.region_id = Some(infer_region_id(&country));
+        league.region_id = Some(region_id.clone());
         league.country_id = Some(country.clone());
+        league.required_region_ids = vec![region_id.clone()];
         league.priority = priority;
         priority += 1;
         competitions.push(league);
@@ -358,8 +383,9 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
                 CompetitionType::Cup,
                 CompetitionScope::Domestic,
             );
-            cup.region_id = Some(infer_region_id(&country));
+            cup.region_id = Some(region_id.clone());
             cup.country_id = Some(country.clone());
+            cup.required_region_ids = vec![region_id];
             cup.priority = priority;
             priority += 1;
             competitions.push(cup);
@@ -368,15 +394,25 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
 
     let all_team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
     if all_team_ids.len() >= 8 {
+        let continental_team_ids = all_team_ids[..8].to_vec();
+        let mut feeder_regions: Vec<String> = game
+            .teams
+            .iter()
+            .filter(|team| continental_team_ids.contains(&team.id))
+            .map(infer_team_region_id)
+            .collect();
+        feeder_regions.sort();
+        feeder_regions.dedup();
         let mut continental = ofm_core::schedule::generate_knockout_cup(
             "Continental Champions Cup",
             season,
-            &all_team_ids[..8].to_vec(),
+            &continental_team_ids,
             season_start + Duration::days(70),
             CompetitionType::ContinentalClub,
             CompetitionScope::Continental,
         );
-        continental.region_id = Some("intercontinental".to_string());
+        continental.region_id = None;
+        continental.required_region_ids = feeder_regions;
         continental.priority = priority;
         competitions.push(continental);
     }
@@ -408,6 +444,81 @@ fn ensure_multi_competition_foundations(game: &mut Game) {
             .collect();
     }
     game.sync_legacy_league();
+}
+
+fn resolve_simulation_scope(
+    game: &Game,
+    team_id: &str,
+    requested_region_ids: Option<Vec<String>>,
+    requested_competition_ids: Option<Vec<String>>,
+) -> Result<(Vec<String>, Vec<String>), String> {
+    use std::collections::BTreeSet;
+
+    let managed_team = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .ok_or("be.error.teamNotFound".to_string())?;
+
+    let mut active_region_ids: BTreeSet<String> = requested_region_ids
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    active_region_ids.insert(infer_team_region_id(managed_team));
+
+    let mut active_competition_ids: BTreeSet<String> = requested_competition_ids
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|competition_id| {
+            game.competitions
+                .iter()
+                .any(|competition| competition.id == *competition_id)
+        })
+        .collect();
+
+    for competition in game.competitions.iter().filter(|competition| {
+        competition
+            .participant_ids
+            .iter()
+            .any(|participant_id| participant_id == team_id)
+    }) {
+        active_competition_ids.insert(competition.id.clone());
+    }
+
+    if active_competition_ids.is_empty() {
+        for competition in &game.competitions {
+            let required_regions = competition_required_region_ids(competition);
+            if required_regions.is_empty()
+                || required_regions
+                    .iter()
+                    .all(|region_id| active_region_ids.contains(region_id))
+            {
+                active_competition_ids.insert(competition.id.clone());
+            }
+        }
+    }
+
+    for competition in game.competitions.iter().filter(|competition| {
+        active_competition_ids.contains(&competition.id)
+    }) {
+        for region_id in competition_required_region_ids(competition) {
+            active_region_ids.insert(region_id);
+        }
+    }
+
+    let mut resolved_region_ids: Vec<String> = active_region_ids.into_iter().collect();
+    resolved_region_ids.sort();
+
+    let mut resolved_competition_ids: Vec<String> = active_competition_ids.into_iter().collect();
+    resolved_competition_ids.sort_by_key(|competition_id| {
+        game.competitions
+            .iter()
+            .find(|competition| competition.id == *competition_id)
+            .map(|competition| competition.priority)
+            .unwrap_or(u32::MAX)
+    });
+
+    Ok((resolved_region_ids, resolved_competition_ids))
 }
 
 fn has_existing_world_context(game: &Game, stats_state: &StatsState) -> bool {
@@ -714,13 +825,15 @@ pub async fn select_team(
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
         .unwrap_or_default();
-    if let Some(active_region_ids) = active_region_ids {
-        game.active_region_ids = active_region_ids;
-    }
-    if let Some(active_competition_ids) = active_competition_ids {
-        game.active_competition_ids = active_competition_ids;
-    }
     ensure_multi_competition_foundations(&mut game);
+    let (resolved_region_ids, resolved_competition_ids) = resolve_simulation_scope(
+        &game,
+        &team_id,
+        active_region_ids,
+        active_competition_ids,
+    )?;
+    game.active_region_ids = resolved_region_ids;
+    game.active_competition_ids = resolved_competition_ids;
 
     let start_phase = start_phase_for_game(&game);
     let stats_state =
@@ -836,13 +949,14 @@ mod tests {
         build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         preseason_league_year, preseason_season_start, require_active_stats_state,
+        resolve_simulation_scope,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
         MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
     use db::save_manager::SaveManager;
     use domain::{
-        league::{FixtureCompetition, League},
+        league::{CompetitionScope, FixtureCompetition, League},
         news::{NewsArticle, NewsCategory},
         stats::{PlayerMatchStatsRecord, TeamMatchStatsRecord},
         world_history::{HistoricalSeasonAwardsRecord, WorldHistoryArchive},
@@ -977,6 +1091,76 @@ mod tests {
         }
 
         Game::new(clock, manager, teams, players, staff, vec![])
+    }
+
+    #[test]
+    fn resolve_simulation_scope_auto_enables_required_regions_and_team_competitions() {
+        let mut game = make_bootstrap_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+        game.teams[1].football_nation = "GB".to_string();
+
+        let mut domestic = League::new(
+            "domestic-1".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        domestic.region_id = Some("south-america".to_string());
+        domestic.required_region_ids = vec!["south-america".to_string()];
+        domestic.priority = 0;
+
+        let mut continental = League::new(
+            "continental-1".to_string(),
+            "Continental Champions Cup".to_string(),
+            2032,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        continental.scope = CompetitionScope::Continental;
+        continental.required_region_ids =
+            vec!["south-america".to_string(), "europe".to_string()];
+        continental.priority = 1;
+
+        game.competitions = vec![domestic.clone(), continental.clone()];
+
+        let (active_regions, active_competitions) = resolve_simulation_scope(
+            &game,
+            "team1",
+            Some(vec!["south-america".to_string()]),
+            Some(vec![continental.id.clone()]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            active_regions,
+            vec!["europe".to_string(), "south-america".to_string()]
+        );
+        assert_eq!(
+            active_competitions,
+            vec![domestic.id.clone(), continental.id.clone()]
+        );
+    }
+
+    #[test]
+    fn resolve_simulation_scope_defaults_to_team_region_when_no_scope_is_provided() {
+        let mut game = make_bootstrap_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+
+        let mut domestic = League::new(
+            "domestic-1".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        domestic.region_id = Some("south-america".to_string());
+        domestic.required_region_ids = vec!["south-america".to_string()];
+        domestic.priority = 0;
+        game.competitions = vec![domestic.clone()];
+
+        let (active_regions, active_competitions) =
+            resolve_simulation_scope(&game, "team1", None, None).unwrap();
+
+        assert_eq!(active_regions, vec!["south-america".to_string()]);
+        assert_eq!(active_competitions, vec![domestic.id.clone()]);
     }
 
     #[test]
