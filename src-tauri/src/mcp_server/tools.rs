@@ -507,7 +507,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let fee = extract_u64_param(&tool_context.arguments, "fee").unwrap_or(0);
+                        let fee = match require_u64_param(&tool_context.arguments, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_make_bid(ctx, pid, fee) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -536,7 +536,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let fee = extract_u64_param(&tool_context.arguments, "fee").unwrap_or(0);
+                        let fee = match require_u64_param(&tool_context.arguments, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_preview_bid(ctx, pid, fee) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -566,8 +566,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let oid = extract_string_param(&tool_context.arguments, "offer_id").unwrap_or_default();
-                        let accept = extract_bool_param(&tool_context.arguments, "accept").unwrap_or(false);
+                        let oid = match require_string_param(&tool_context.arguments, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let accept = match require_bool_param(&tool_context.arguments, "accept") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_respond_to_offer(ctx, pid, oid, accept) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -597,8 +597,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let oid = extract_string_param(&tool_context.arguments, "offer_id").unwrap_or_default();
-                        let fee = extract_u64_param(&tool_context.arguments, "requested_fee").unwrap_or(0);
+                        let oid = match require_string_param(&tool_context.arguments, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let fee = match require_u64_param(&tool_context.arguments, "requested_fee") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_counter_offer(ctx, pid, oid, fee) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -628,8 +628,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
-                        let years = extract_u32_param(&tool_context.arguments, "contract_years").unwrap_or(1);
+                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let years = match require_u32_param(&tool_context.arguments, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_propose_renewal(ctx, pid, wage, years) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -659,8 +659,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pids = extract_string_array_param(&tool_context.arguments, "player_ids");
-                        let max_pct = extract_u32_param(&tool_context.arguments, "max_wage_increase_pct").unwrap_or(20);
-                        let max_years = extract_u32_param(&tool_context.arguments, "max_contract_years").unwrap_or(3);
+                        let max_pct = match require_u32_param(&tool_context.arguments, "max_wage_increase_pct") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let max_years = match require_u32_param(&tool_context.arguments, "max_contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_delegate_renewals(ctx, pids, max_pct, max_years) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -689,7 +689,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
+                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_preview_renewal(ctx, pid, wage) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1062,8 +1062,8 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
-                        let years = extract_u32_param(&tool_context.arguments, "contract_years").unwrap_or(1);
+                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let years = match require_u32_param(&tool_context.arguments, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_free_agent_offer(ctx, pid, wage, years) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1092,7 +1092,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
+                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_free_agent_preview(ctx, pid, wage) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1632,24 +1632,16 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         }
     }
 
-    // game_export_world
+    // game_export_world — export path is server-controlled for security
     {
         let ctx = context.clone();
         if !disabled.contains(&"game_export_world".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "export_path": { "type": "string", "description": "Directory to export world JSON" }
-                },
-                "required": ["export_path"]
-            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
-                Tool::new("game_export_world", "Export world to JSON file", schema),
-                move |tool_context| {
+                Tool::new("game_export_world", "Export world to JSON (saved in app data directory with auto-generated filename)", empty_input_schema()),
+                move |_tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let path = extract_string_param(&tool_context.arguments, "export_path").unwrap_or_default();
-                        match tools_impl::game_export_world(ctx, path) {
+                        match tools_impl::game_export_world_safe(ctx) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
                         }
@@ -1694,4 +1686,31 @@ fn extract_u32_param(args: &Option<serde_json::Map<String, serde_json::Value>>, 
 
 fn extract_bool_param(args: &Option<serde_json::Map<String, serde_json::Value>>, key: &str) -> Option<bool> {
     args.as_ref()?.get(key).and_then(|v| v.as_bool())
+}
+
+/// Extract a required u64 parameter. Returns an error result if missing.
+fn require_u64_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<u64, CallToolResult> {
+    extract_u64_param(args, key)
+        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+}
+
+/// Extract a required u32 parameter. Returns an error result if missing or out of range.
+fn require_u32_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<u32, CallToolResult> {
+    extract_u32_param(args, key)
+        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+}
+
+/// Extract a required bool parameter. Returns an error result if missing.
+fn require_bool_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<bool, CallToolResult> {
+    extract_bool_param(args, key)
+        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
 }

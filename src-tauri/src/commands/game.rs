@@ -698,6 +698,9 @@ pub fn bootstrap_game_for_mcp(
     // Step 1: Load world data
     let mut world = load_world_data_from_path(world_path)?;
 
+    // Normalize imported world for career start (same as start_new_game does for non-random imports)
+    ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+
     // Step 2: Find the existing user manager in the world data.
     // HistoricalSnapshot exports include the user manager (id "mgr_user") already
     // assigned to their team. Reusing it preserves the team assignment, career

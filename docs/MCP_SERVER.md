@@ -217,7 +217,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 
 | Tool | Description |
 |------|-------------|
-| `game_export_world` | Export the world data to a JSON file directory |
+| `game_export_world` | Export the world data to JSON (saved in app data directory with auto-generated filename) |
 
 ### Jobs (2 tools)
 

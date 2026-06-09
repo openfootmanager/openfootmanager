@@ -342,13 +342,14 @@ export default function MainMenu() {
     invoke<GameStateData>("get_active_game")
       .then((state) => {
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
       })
       .catch(() => {
         // No active game — stay on menu
       });
-  }, [setGameActive, navigate]);
+  }, [setGameState, setGameActive, navigate]);
 
   // Listen for game loaded by MCP auto-start (event may arrive after mount)
   useEffect(() => {
@@ -356,6 +357,7 @@ export default function MainMenu() {
       try {
         const state = await invoke<GameStateData>("get_active_game");
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
       } catch {
@@ -365,7 +367,7 @@ export default function MainMenu() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [setGameActive, navigate]);
+  }, [setGameState, setGameActive, navigate]);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);

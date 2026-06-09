@@ -95,20 +95,17 @@ pub fn request_board_support_internal(
 ) -> Result<BoardSupportCommandResponse, String> {
     info!("[cmd] request_board_support");
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    state.update_game(|game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-
-    let result = ofm_core::finances::request_board_support(&mut game, &team_id)?;
-
-    state.set_game(game.clone());
-    Ok(BoardSupportCommandResponse { game, result })
+        let result = ofm_core::finances::request_board_support(game, &team_id)?;
+        Ok(BoardSupportCommandResponse { game: game.clone(), result })
+    })
+    .ok_or("be.error.noActiveGameSession".to_string())?
 }
 
 pub fn request_sponsor_pitch_internal(
@@ -116,20 +113,17 @@ pub fn request_sponsor_pitch_internal(
 ) -> Result<SponsorPitchCommandResponse, String> {
     info!("[cmd] request_sponsor_pitch");
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    state.update_game(|game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-
-    let result = ofm_core::finances::request_sponsor_pitch(&mut game, &team_id)?;
-
-    state.set_game(game.clone());
-    Ok(SponsorPitchCommandResponse { game, result })
+        let result = ofm_core::finances::request_sponsor_pitch(game, &team_id)?;
+        Ok(SponsorPitchCommandResponse { game: game.clone(), result })
+    })
+    .ok_or("be.error.noActiveGameSession".to_string())?
 }
 
 pub fn request_marketing_campaign_internal(
@@ -137,20 +131,17 @@ pub fn request_marketing_campaign_internal(
 ) -> Result<MarketingCampaignCommandResponse, String> {
     info!("[cmd] request_marketing_campaign");
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    state.update_game(|game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-
-    let result = ofm_core::finances::request_marketing_campaign(&mut game, &team_id)?;
-
-    state.set_game(game.clone());
-    Ok(MarketingCampaignCommandResponse { game, result })
+        let result = ofm_core::finances::request_marketing_campaign(game, &team_id)?;
+        Ok(MarketingCampaignCommandResponse { game: game.clone(), result })
+    })
+    .ok_or("be.error.noActiveGameSession".to_string())?
 }
 
 #[cfg(test)]

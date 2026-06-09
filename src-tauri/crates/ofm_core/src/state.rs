@@ -73,6 +73,16 @@ impl StateManager {
         with_option(&self.active_game, f)
     }
 
+    /// Atomically read-modify-write the active game. The closure receives a mutable reference
+    /// to the Game while the Mutex is held, preventing lost-update races between GUI and MCP.
+    pub fn update_game<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Game) -> R,
+    {
+        let mut guard = self.active_game.lock().unwrap();
+        guard.as_mut().map(f)
+    }
+
     pub fn clear_game(&self) {
         clear_option(&self.active_game);
         clear_option(&self.active_stats);

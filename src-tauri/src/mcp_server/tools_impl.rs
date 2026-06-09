@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use chrono::Datelike;
 use ofm_core::state::StateManager;
+use tauri::Manager as TauriManager;
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::formatting::translate_error;
@@ -2526,4 +2527,28 @@ pub fn game_export_world(ctx: Arc<McpContext>, export_path: String) -> Result<St
     .map_err(|e| translate_error(&e))?;
 
     Ok(format!("## World Exported\n\nWritten to: {}", export_path))
+}
+
+/// Safe export that writes to the app-controlled data directory.
+/// The filename is auto-generated from the current date.
+pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<String, String> {
+    let app_data_dir = ctx.app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|_| "Could not resolve app data directory".to_string())?;
+
+    let date = ctx.state_manager
+        .get_game(|g| g.clock.current_date.format("%Y%m%d").to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let filename = format!("world_export_{}.json", date);
+    let export_path = app_data_dir.join(&filename);
+
+    crate::commands::world::export_world_database_internal(
+        &ctx.state_manager,
+        &export_path,
+    )
+    .map_err(|e| translate_error(&e))?;
+
+    Ok(format!("## World Exported\n\nWritten to: {}", export_path.display()))
 }
