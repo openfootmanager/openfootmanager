@@ -1059,7 +1059,9 @@
     "fixtures": "Fixtures",
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
-    "season": "Season {{number}}"
+    "season": "Season {{number}}",
+    "international": "International",
+    "internationalDuty": "On International Duty"
   },
   "players": {
     "searchPlaceholder": "Search by name or nationality...",

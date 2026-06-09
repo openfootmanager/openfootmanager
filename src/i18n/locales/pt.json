@@ -1059,7 +1059,9 @@
     "fixtures": "Jogos",
     "standings": "Classificação",
     "matchday": "Jornada {{number}}",
-    "season": "Temporada {{number}}"
+    "season": "Temporada {{number}}",
+    "international": "Internacional",
+    "internationalDuty": "Ao serviço da seleção"
   },
   "players": {
     "searchPlaceholder": "Procurar por nome ou nacionalidade...",

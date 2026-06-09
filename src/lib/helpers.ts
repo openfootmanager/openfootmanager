@@ -20,6 +20,12 @@ export {
   isSeasonComplete,
 } from "./fixtures";
 export {
+  getNationalTeamFixtures,
+  getNationalTeamName,
+  getUserCalledUpPlayers,
+} from "./nationalTeams";
+export type { CalledUpPlayer } from "./nationalTeams";
+export {
   formatDate,
   formatDateFull,
   formatDateShort,

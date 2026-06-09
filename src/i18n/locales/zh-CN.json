@@ -1059,7 +1059,9 @@
     "fixtures": "赛程",
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",
-    "season": "第 {{number}} 赛季"
+    "season": "第 {{number}} 赛季",
+    "international": "国际",
+    "internationalDuty": "国家队征召"
   },
   "players": {
     "searchPlaceholder": "按姓名或国籍搜索...",

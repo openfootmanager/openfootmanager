@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { FixtureData, GameStateData, TeamData } from "../../store/gameStore";
@@ -29,6 +29,8 @@ vi.mock("react-i18next", () => ({
       if (key === "common.pts") return "Pts";
       if (key === "schedule.season") return `Season ${params?.number}`;
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
+      if (key === "schedule.international") return "International";
+      if (key === "schedule.internationalDuty") return "On International Duty";
       return key;
     },
     i18n: {
@@ -182,5 +184,62 @@ describe("ScheduleTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("hides the international toggle when there are no national-team fixtures", () => {
+    render(<ScheduleTab gameState={createGameState(true)} onSelectTeam={vi.fn()} />);
+
+    expect(
+      screen.queryByRole("button", { name: /International/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows national-team fixtures and call-ups in the international view", () => {
+    const state = createGameState(true);
+    state.players = [
+      { id: "p1", match_name: "Called Up", team_id: "team-1" } as GameStateData["players"][number],
+    ];
+    state.national_teams = [
+      {
+        id: "nt-eng",
+        name: "England",
+        football_nation: "ENG",
+        squad_player_ids: [],
+        reputation: 500,
+        fixtures: [
+          {
+            id: "ntf-1",
+            competition_id: "international-friendlies",
+            matchday: 1,
+            date: "2026-09-09",
+            home_team_id: "nt-eng",
+            away_team_id: "nt-bra",
+            competition: "InternationalNation",
+            status: "Completed",
+            result: { home_goals: 2, away_goals: 1, home_scorers: [], away_scorers: [] },
+          },
+        ],
+      },
+      {
+        id: "nt-bra",
+        name: "Brazil",
+        football_nation: "BRA",
+        squad_player_ids: ["p1"],
+        reputation: 500,
+        fixtures: [],
+      },
+    ];
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /International/i }));
+
+    const fixtureRow = screen.getByTestId("schedule-international-ntf-1");
+    expect(within(fixtureRow).getByText("England")).toBeInTheDocument();
+    expect(within(fixtureRow).getByText("Brazil")).toBeInTheDocument();
+    // p1 plays for Brazil (an away nation) so they are on international duty.
+    const callup = screen.getByTestId("schedule-callup-p1");
+    expect(within(callup).getByText("Called Up")).toBeInTheDocument();
+    expect(within(callup).getByText("Brazil")).toBeInTheDocument();
   });
 });

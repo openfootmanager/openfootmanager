@@ -1059,7 +1059,9 @@
     "fixtures": "Матчи",
     "standings": "Таблица",
     "matchday": "Тур {{number}}",
-    "season": "Сезон {{number}}"
+    "season": "Сезон {{number}}",
+    "international": "Сборные",
+    "internationalDuty": "В сборной"
   },
   "players": {
     "searchPlaceholder": "Поиск по имени или гражданству...",

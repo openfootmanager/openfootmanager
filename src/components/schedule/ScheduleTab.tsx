@@ -4,6 +4,7 @@ import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { Badge, Card, CardBody } from "../ui";
 import {
   Calendar as CalendarIcon,
+  Globe,
   TableProperties,
   Trophy,
 } from "lucide-react";
@@ -11,7 +12,10 @@ import {
   formatMatchDate,
   getActiveCompetitions,
   getAllFixturesAcrossCompetitions,
+  getNationalTeamFixtures,
+  getNationalTeamName,
   getTeamName,
+  getUserCalledUpPlayers,
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { useTranslation } from "react-i18next";
@@ -39,9 +43,14 @@ export default function ScheduleTab({
   onSelectTeam,
 }: ScheduleTabProps) {
   const { t } = useTranslation();
-  const [view, setView] = useState<"fixtures" | "standings">("fixtures");
+  const [view, setView] = useState<"fixtures" | "standings" | "international">(
+    "fixtures",
+  );
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
   const userTeamId = gameState.manager.team_id;
+  const nationalFixtures = getNationalTeamFixtures(gameState);
+  const hasInternational = nationalFixtures.length > 0;
+  const calledUpPlayers = getUserCalledUpPlayers(gameState);
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
   const activeCompetitions = getActiveCompetitions(gameState);
@@ -141,6 +150,15 @@ export default function ScheduleTab({
     );
   });
 
+  const internationalByDate = new Map<string, FixtureData[]>();
+  [...nationalFixtures]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+    .forEach((fixture) => {
+      const list = internationalByDate.get(fixture.date) ?? [];
+      list.push(fixture);
+      internationalByDate.set(fixture.date, list);
+    });
+
   return (
     <div className="max-w-6xl mx-auto">
       {isPreseason && (
@@ -190,6 +208,19 @@ export default function ScheduleTab({
           <TableProperties className="mr-1.5 inline h-4 w-4 -mt-0.5" />{" "}
           {t("schedule.standings")}
         </button>
+        {hasInternational && (
+          <button
+            onClick={() => setView("international")}
+            className={`rounded-lg px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider transition-all ${
+              view === "international"
+                ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
+                : "border border-gray-200 bg-white text-gray-500 hover:text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            <Globe className="mr-1.5 inline h-4 w-4 -mt-0.5" />{" "}
+            {t("schedule.international")}
+          </button>
+        )}
         {activeCompetitions.length > 1 && (
           <select
             value={selectedCompetition?.id ?? ""}
@@ -273,6 +304,83 @@ export default function ScheduleTab({
                           </span>
                         </div>
                       </ContextMenu>
+                    );
+                  })}
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {view === "international" && (
+        <div className="flex flex-col gap-4">
+          {calledUpPlayers.length > 0 && (
+            <Card accent="accent">
+              <div className="rounded-t-xl border-b border-gray-100 bg-gray-50 px-5 py-3 dark:border-navy-600 dark:bg-navy-800">
+                <h4 className="flex items-center gap-2 font-heading text-sm font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                  <Globe className="h-4 w-4 text-accent-500" />
+                  {t("schedule.internationalDuty")}
+                </h4>
+              </div>
+              <CardBody className="p-0">
+                <div className="divide-y divide-gray-100 dark:divide-navy-600">
+                  {calledUpPlayers.map(
+                    ({ player, nationalTeamId, nationalTeamName }) => (
+                      <div
+                        key={`${player.id}-${nationalTeamId}`}
+                        className="flex items-center justify-between px-5 py-2.5"
+                        data-testid={`schedule-callup-${player.id}`}
+                      >
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          {player.match_name}
+                        </span>
+                        <Badge variant="neutral" size="sm">
+                          {nationalTeamName}
+                        </Badge>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {Array.from(internationalByDate.entries()).map(([date, fixtures]) => (
+            <Card key={date}>
+              <div className="rounded-t-xl border-b border-gray-100 bg-gray-50 px-5 py-3 dark:border-navy-600 dark:bg-navy-800">
+                <h4 className="font-heading text-sm font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                  {t("schedule.international")} - {formatMatchDate(date)}
+                </h4>
+              </div>
+              <CardBody className="p-0">
+                <div className="divide-y divide-gray-100 dark:divide-navy-600">
+                  {fixtures.map((fixture) => {
+                    const completed = fixture.status === "Completed";
+                    return (
+                      <div
+                        key={fixture.id}
+                        className="flex items-center px-5 py-3"
+                        data-testid={`schedule-international-${fixture.id}`}
+                      >
+                        <span className="flex-1 text-right text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          {getNationalTeamName(gameState, fixture.home_team_id)}
+                        </span>
+                        <div className="mx-3 w-24 text-center">
+                          {completed && fixture.result ? (
+                            <span className="font-heading text-lg font-bold text-gray-800 dark:text-gray-100">
+                              {fixture.result.home_goals} - {fixture.result.away_goals}
+                            </span>
+                          ) : (
+                            <Badge variant="neutral" size="sm">
+                              vs
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="flex-1 text-left text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          {getNationalTeamName(gameState, fixture.away_team_id)}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
