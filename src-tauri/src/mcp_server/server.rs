@@ -27,15 +27,15 @@ impl OfmMcpHandler {
         save_manager_state: Arc<crate::SaveManagerState>,
         app_handle: tauri::AppHandle,
     ) -> Self {
+        // Build tool router, respecting disabled tools from config
+        let disabled = Self::collect_disabled_tools(&config);
         let context = Arc::new(McpContext {
             state_manager,
             save_manager_state,
             app_handle,
-            config: config.clone(),
+            config,
         });
 
-        // Build tool router, respecting disabled tools from config
-        let disabled = Self::collect_disabled_tools(&config);
         let tool_router = crate::mcp_server::tools::build_tool_router(&context, &disabled);
 
         Self {

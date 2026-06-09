@@ -25,8 +25,12 @@ pub async fn start_mcp_server(
     save_manager_state: Arc<SaveManagerState>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
+    // Extract values needed for server setup before moving config into the handler
+    let port = config.port;
+    let allowed_hosts = config.allowed_hosts.clone();
+
     let mcp_handler = server::OfmMcpHandler::new(
-        config.clone(),
+        config,
         state_manager,
         save_manager_state,
         app_handle,
@@ -43,7 +47,7 @@ pub async fn start_mcp_server(
             .with_sse_retry(Some(std::time::Duration::from_secs(3)))
             .with_stateful_mode(true)
             .with_json_response(false)
-            .with_allowed_hosts(config.allowed_hosts.clone());
+            .with_allowed_hosts(allowed_hosts);
 
     let service = rmcp::transport::streamable_http_server::StreamableHttpService::new(
         service_factory,
@@ -61,16 +65,25 @@ pub async fn start_mcp_server(
         }))
         .into_make_service();
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port))
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
-        .map_err(|e| format!("Failed to bind MCP server to port {}: {}", config.port, e))?;
+        .map_err(|e| format!("Failed to bind MCP server to port {}: {}", port, e))?;
 
     log::info!(
         "[mcp] MCP SSE server listening on 0.0.0.0:{}",
-        config.port
+        port
     );
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| format!("MCP server error: {}", e))
+}
+
+/// Wait for a shutdown signal (Ctrl-C or process termination).
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install Ctrl-C handler");
+    log::info!("[mcp] Shutdown signal received, stopping MCP server");
 }

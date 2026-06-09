@@ -129,6 +129,10 @@ pub fn run() {
                         .as_deref()
                         .unwrap_or("Agent")
                         .to_string();
+                    let mgr_last = mcp_config.manager_last_name
+                        .as_deref()
+                        .unwrap_or("Manager")
+                        .to_string();
                     let mgr_nat = mcp_config.manager_nationality
                         .as_deref()
                         .unwrap_or("England")
@@ -140,7 +144,7 @@ pub fn run() {
                         &auto_start.world_path,
                         auto_start.team_id.as_deref(),
                         &mgr_name,
-                        &"Manager", // last name
+                        &mgr_last,
                         &mgr_nat,
                     ) {
                         Ok(save_id) => {
@@ -173,7 +177,7 @@ pub fn run() {
                     }
                 });
 
-                log::info!("[mcp] MCP server will start on port {}", mcp_port);
+                log::info!("[mcp] Starting MCP server on port {}", mcp_port);
             }
 
             Ok(())

@@ -23,8 +23,11 @@ pub struct McpConfig {
     /// Auto-save every N in-game days (0 = disabled).
     pub auto_save_interval_days: u32,
 
-    /// Manager name for auto-start (default: "Agent N").
+    /// Manager first name for auto-start (default: "Agent").
     pub manager_name: Option<String>,
+
+    /// Manager last name for auto-start (default: "Manager").
+    pub manager_last_name: Option<String>,
 
     /// Manager nationality for auto-start (default: team's country).
     pub manager_nationality: Option<String>,
@@ -86,6 +89,7 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
     let mut min_tick_delay_ms: u64 = 0;
     let mut auto_save_interval_days: u32 = 7;
     let mut manager_name: Option<String> = None;
+    let mut manager_last_name: Option<String> = None;
     let mut manager_nationality: Option<String> = None;
 
     let mut i = 1;
@@ -127,19 +131,31 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
             "--min-tick-delay-ms" => {
                 i += 1;
                 if i < args.len() {
-                    min_tick_delay_ms = args[i].parse().unwrap_or(0);
+                    match args[i].parse() {
+                        Ok(val) => min_tick_delay_ms = val,
+                        Err(_) => eprintln!("[mcp-config] Invalid --min-tick-delay-ms '{}', using default 0", args[i]),
+                    }
                 }
             }
             "--auto-save-interval-days" => {
                 i += 1;
                 if i < args.len() {
-                    auto_save_interval_days = args[i].parse().unwrap_or(7);
+                    match args[i].parse() {
+                        Ok(val) => auto_save_interval_days = val,
+                        Err(_) => eprintln!("[mcp-config] Invalid --auto-save-interval-days '{}', using default 7", args[i]),
+                    }
                 }
             }
             "--manager-name" => {
                 i += 1;
                 if i < args.len() {
                     manager_name = Some(args[i].clone());
+                }
+            }
+            "--manager-last-name" => {
+                i += 1;
+                if i < args.len() {
+                    manager_last_name = Some(args[i].clone());
                 }
             }
             "--manager-nationality" => {
@@ -162,6 +178,7 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
         min_tick_delay_ms,
         auto_save_interval_days,
         manager_name,
+        manager_last_name,
         manager_nationality,
         allowed_hosts: vec![
             "localhost".into(),
@@ -178,7 +195,6 @@ mod tests {
     #[test]
     fn parse_mcp_config_no_args() {
         // No --mcp-port means no MCP server
-        std::env::set_var("OFM_TEST_ARGS", "");
         assert!(parse_mcp_config_from_test_args(&[]).is_none());
     }
 
@@ -257,6 +273,8 @@ mod tests {
         let mut min_tick_delay_ms: u64 = 0;
         let mut auto_save_interval_days: u32 = 7;
         let mut manager_name: Option<String> = None;
+        let mut manager_last_name: Option<String> = None;
+        let mut manager_nationality: Option<String> = None;
         let mut manager_nationality: Option<String> = None;
 
         let mut i = 0;
@@ -316,6 +334,12 @@ mod tests {
                         manager_name = Some(args[i].to_string());
                     }
                 }
+                "--manager-last-name" => {
+                    i += 1;
+                    if i < args.len() {
+                        manager_last_name = Some(args[i].to_string());
+                    }
+                }
                 "--manager-nationality" => {
                     i += 1;
                     if i < args.len() {
@@ -336,6 +360,7 @@ mod tests {
             min_tick_delay_ms,
             auto_save_interval_days,
             manager_name,
+            manager_last_name,
             manager_nationality,
             allowed_hosts: vec![
                 "localhost".into(),

@@ -52,7 +52,7 @@ optional = true
 
 [dependencies.tokio]
 version = "1"
-features = ["net", "rt-multi-thread", "macros"]
+features = ["net", "rt-multi-thread", "macros", "signal"]
 optional = true
 
 [dependencies.tokio-util]

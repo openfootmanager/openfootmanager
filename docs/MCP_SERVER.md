@@ -40,7 +40,7 @@ The MCP server starts on port 3001. Your AI agent connects via SSE and can immed
 
 Agents connect using the MCP SSE protocol at:
 
-```
+```text
 http://localhost:3001/mcp
 ```
 
@@ -59,6 +59,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. **Required in competition mode.** |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
+| `--manager-last-name <NAME>` | No | `Manager` | Manager last name for auto-start. |
 | `--manager-nationality <NAT>` | No | `England` | Manager nationality for auto-start. |
 | `--auto-save-interval-days <N>` | No | `7` | Auto-save every N in-game days. `0` disables. |
 | `--min-tick-delay-ms <MS>` | No | `0` | Minimum delay between `time_advance` completions. Prevents agents from advancing too fast for the GUI to follow. |
@@ -245,7 +246,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 
 ## Typical Agent Workflow
 
-```
+```text
 1.  info_game_summary          → "Where am I? What day is it?"
 2.  info_standings             → "What's my league position?"
 3.  info_match_preview         → "Who am I playing next?"
@@ -272,9 +273,6 @@ To run 8 agents competing in parallel:
 
 for i in $(seq 1 8); do
   PORT=$((3000 + i))
-  SAVEDIR="/tmp/ofm-agent-$i"
-
-  mkdir -p "$SAVEDIR"
 
   openfootmanager \
     --mcp-port $PORT \
@@ -286,7 +284,7 @@ for i in $(seq 1 8); do
     --min-tick-delay-ms 100 \
     &
 
-  echo "Agent $i → port $PORT, saves in $SAVEDIR"
+  echo "Agent $i → port $PORT"
 done
 ```
 
@@ -348,7 +346,7 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────┐
 │                Tauri App (one process)            │
 │                                                   │
@@ -411,23 +409,28 @@ Automatically saves the game every N in-game days (default: 7). Uses a simple co
 ## Troubleshooting
 
 ### MCP server doesn't start
+
 - Ensure `--mcp-port` is specified (this is the trigger that starts the MCP server)
 - Ensure the binary was built with `--features mcp`
 
 ### Connection refused
+
 - Check the port isn't already in use: `lsof -i :3001`
-- Verify the server logged: `[mcp] MCP server will start on port 3001`
+- Verify the server logged: `[mcp] Starting MCP server on port 3001`
 
 ### Agent can't see tools
+
 - Check `--mcp-mode` — competition mode hides certain tools
 - Use `help_list_categories` and `help_find_tool` to discover what's available
 - Use `--mcp-disable-tools` only if you need additional restrictions beyond the mode
 
 ### Agent gets "no active game session" errors
+
 - Ensure `--mcp-auto-start` was provided (or manually call `game_new` + `game_select_team` in sandbox mode)
 - Check that the world JSON path is correct and readable
 
 ### GUI doesn't update when agent acts
+
 - This is expected in `--no-gui` mode (window is hidden)
 - With GUI visible, the frontend listens for `game-state-changed` events and auto-refreshes
 - If the GUI seems stuck, click any tab to force a state fetch
@@ -436,7 +439,7 @@ Automatically saves the game every N in-game days (default: 7). Uses a simple co
 
 ## File Structure
 
-```
+```text
 src-tauri/src/mcp_server/
 ├── mod.rs           # axum SSE server startup
 ├── config.rs        # CLI argument parsing

@@ -19,7 +19,7 @@ fn empty_input_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
             "required": []
         })
         .as_object()
-        .unwrap()
+        .expect("JSON schema is always an object")
         .clone(),
     )
 }
@@ -44,7 +44,7 @@ fn param_schema(param_name: &str, description: &str) -> Arc<serde_json::Map<Stri
             "required": [param_name]
         })
         .as_object()
-        .unwrap()
+        .expect("JSON schema is always an object")
         .clone(),
     )
 }
@@ -127,7 +127,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::info_player_profile(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -146,7 +146,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let msg_id = extract_string_param(&tool_context.arguments, "message_id").unwrap_or_default();
+                        let msg_id = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::inbox_mark_read(ctx, msg_id) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -165,7 +165,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let msg_id = extract_string_param(&tool_context.arguments, "message_id").unwrap_or_default();
+                        let msg_id = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::inbox_delete(ctx, msg_id) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -188,13 +188,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "formation": { "type": "string", "description": "Formation string (e.g. 4-4-2, 4-3-3, 3-5-2)" }
                 },
                 "required": ["formation"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("squad_set_formation", "Change formation (also reassigns outfield positions by defending ability)", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let formation = extract_string_param(&tool_context.arguments, "formation").unwrap_or_default();
+                        let formation = match require_string_param(&tool_context.arguments, "formation") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::squad_set_formation(ctx, formation) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -219,7 +219,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     }
                 },
                 "required": ["player_ids"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("squad_set_starting_xi", "Set starting eleven by player IDs", schema),
                 move |tool_context| {
@@ -250,7 +250,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     }
                 },
                 "required": ["play_style"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("squad_set_play_style", "Change play style", schema),
                 move |tool_context| {
@@ -280,7 +280,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "free_kick_taker": { "type": "string", "description": "Player ID for free kick taker" },
                     "corner_taker": { "type": "string", "description": "Player ID for corner taker" }
                 }
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("squad_set_match_roles", "Set captain and set-piece takers by player ID", schema),
                 move |tool_context| {
@@ -317,13 +317,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "squad_role": { "type": "string", "enum": ["Senior", "Youth"], "description": "Squad role" }
                 },
                 "required": ["player_id", "squad_role"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("squad_set_player_role", "Set player squad role (Senior/Youth)", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let role = extract_string_param(&tool_context.arguments, "squad_role").unwrap_or_default();
                         match tools_impl::squad_set_player_role(ctx, pid, role) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -346,7 +346,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "intensity": { "type": "string", "enum": ["Low", "Medium", "High"], "description": "Training intensity" }
                 },
                 "required": ["focus", "intensity"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("training_set_focus_intensity", "Set team training focus and intensity", schema),
                 move |tool_context| {
@@ -374,7 +374,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "schedule": { "type": "string", "enum": ["Intense", "Balanced", "Light"], "description": "Weekly training schedule" }
                 },
                 "required": ["schedule"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("training_set_schedule", "Set weekly training schedule (Intense/Balanced/Light)", schema),
                 move |tool_context| {
@@ -401,7 +401,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "groups_json": { "type": "string", "description": "JSON array of TrainingGroup objects" }
                 },
                 "required": ["groups_json"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("training_set_groups", "Set training groups with per-group focus overrides", schema),
                 move |tool_context| {
@@ -429,13 +429,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "focus": { "type": "string", "description": "Individual training focus (omit to clear)" }
                 },
                 "required": ["player_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("training_set_player_focus", "Set individual player training focus", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let focus = extract_string_param(&tool_context.arguments, "focus");
                         match tools_impl::training_set_player_focus(ctx, pid, focus) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -458,7 +458,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_toggle_listed(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -478,7 +478,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::transfer_toggle_loan(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -500,13 +500,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "fee": { "type": "integer", "description": "Transfer fee amount" }
                 },
                 "required": ["player_id", "fee"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_make_bid", "Make a transfer bid; includes negotiation feedback", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let fee = extract_u64_param(&tool_context.arguments, "fee").unwrap_or(0);
                         match tools_impl::transfer_make_bid(ctx, pid, fee) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -529,13 +529,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "fee": { "type": "integer", "description": "Proposed transfer fee" }
                 },
                 "required": ["player_id", "fee"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_preview_bid", "Preview financial impact of a transfer bid", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let fee = extract_u64_param(&tool_context.arguments, "fee").unwrap_or(0);
                         match tools_impl::transfer_preview_bid(ctx, pid, fee) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -559,13 +559,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "accept": { "type": "boolean", "description": "True to accept, false to reject" }
                 },
                 "required": ["player_id", "offer_id", "accept"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_respond_to_offer", "Accept/reject an incoming offer", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let oid = extract_string_param(&tool_context.arguments, "offer_id").unwrap_or_default();
                         let accept = extract_bool_param(&tool_context.arguments, "accept").unwrap_or(false);
                         match tools_impl::transfer_respond_to_offer(ctx, pid, oid, accept) {
@@ -590,13 +590,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "requested_fee": { "type": "integer", "description": "Counter-offer fee amount" }
                 },
                 "required": ["player_id", "offer_id", "requested_fee"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_counter_offer", "Counter an incoming transfer offer", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let oid = extract_string_param(&tool_context.arguments, "offer_id").unwrap_or_default();
                         let fee = extract_u64_param(&tool_context.arguments, "requested_fee").unwrap_or(0);
                         match tools_impl::transfer_counter_offer(ctx, pid, oid, fee) {
@@ -621,13 +621,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "contract_years": { "type": "integer", "description": "Proposed contract length in years" }
                 },
                 "required": ["player_id", "weekly_wage", "contract_years"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("contract_propose_renewal", "Propose contract renewal; includes negotiation feedback", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
                         let years = extract_u32_param(&tool_context.arguments, "contract_years").unwrap_or(1);
                         match tools_impl::contract_propose_renewal(ctx, pid, wage, years) {
@@ -652,7 +652,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "max_contract_years": { "type": "integer", "description": "Max contract years" }
                 },
                 "required": ["max_wage_increase_pct", "max_contract_years"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("contract_delegate_renewals", "Delegate contract renewals to assistant", schema),
                 move |tool_context| {
@@ -682,13 +682,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "weekly_wage": { "type": "integer", "description": "Proposed weekly wage" }
                 },
                 "required": ["player_id", "weekly_wage"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("contract_preview_renewal", "Preview renewal financial impact", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
                         match tools_impl::contract_preview_renewal(ctx, pid, wage) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -711,13 +711,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "reason": { "type": "string", "description": "Optional reason for exit intent" }
                 },
                 "required": ["player_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("contract_set_exit_intent", "Mark contract to let expire", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let reason = extract_string_param(&tool_context.arguments, "reason");
                         match tools_impl::contract_set_exit_intent(ctx, pid, reason) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -738,7 +738,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_clear_exit_intent(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -758,7 +758,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_preview_termination(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -778,7 +778,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::contract_terminate(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -799,7 +799,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "category": { "type": "string", "description": "Filter by message category" },
                     "unread_only": { "type": "boolean", "description": "Show only unread messages" }
                 }
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("inbox_get_messages", "Get messages (filterable by category, read status)", schema),
                 move |tool_context| {
@@ -829,14 +829,14 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "option_id": { "type": "string", "description": "Option ID (if action has choices)" }
                 },
                 "required": ["message_id", "action_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("inbox_resolve_action", "Resolve a message action (job offers, events, etc.)", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let mid = extract_string_param(&tool_context.arguments, "message_id").unwrap_or_default();
-                        let aid = extract_string_param(&tool_context.arguments, "action_id").unwrap_or_default();
+                        let mid = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
+                        let aid = match require_string_param(&tool_context.arguments, "action_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let oid = extract_string_param(&tool_context.arguments, "option_id");
                         match tools_impl::inbox_resolve_action(ctx, mid, aid, oid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -858,7 +858,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "facility": { "type": "string", "description": "Facility name to upgrade" }
                 },
                 "required": ["facility"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("club_upgrade_facility", "Upgrade a facility level", schema),
                 move |tool_context| {
@@ -885,13 +885,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "staff_id": { "type": "string", "description": "Staff member entity ID" }
                 },
                 "required": ["staff_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("staff_hire", "Hire an unattached staff member", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let sid = extract_string_param(&tool_context.arguments, "staff_id").unwrap_or_default();
+                        let sid = match require_string_param(&tool_context.arguments, "staff_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::staff_hire(ctx, sid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -912,13 +912,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "staff_id": { "type": "string", "description": "Staff member entity ID" }
                 },
                 "required": ["staff_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("staff_release", "Release a staff member", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let sid = extract_string_param(&tool_context.arguments, "staff_id").unwrap_or_default();
+                        let sid = match require_string_param(&tool_context.arguments, "staff_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::staff_release(ctx, sid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -942,7 +942,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "query": { "type": "string", "description": "Search keyword" }
                 },
                 "required": ["query"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("help_find_tool", "Search tools by keyword or description", schema),
                 move |tool_context| {
@@ -1024,7 +1024,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "max_price": { "type": "integer", "description": "Max annual cost estimate" },
                     "listed_only": { "type": "boolean", "description": "Only show transfer/loan listed players" }
                 }
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_market_browse", "Browse transfer/loan market with optional filters", schema),
                 move |tool_context| {
@@ -1055,13 +1055,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "contract_years": { "type": "integer", "description": "Contract length in years" }
                 },
                 "required": ["player_id", "weekly_wage", "contract_years"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_free_agent_offer", "Offer contract to a free agent", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
                         let years = extract_u32_param(&tool_context.arguments, "contract_years").unwrap_or(1);
                         match tools_impl::transfer_free_agent_offer(ctx, pid, wage, years) {
@@ -1085,13 +1085,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "weekly_wage": { "type": "integer", "description": "Proposed weekly wage" }
                 },
                 "required": ["player_id", "weekly_wage"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("transfer_free_agent_preview", "Preview free agent contract financial impact", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let wage = extract_u32_param(&tool_context.arguments, "weekly_wage").unwrap_or(0);
                         match tools_impl::transfer_free_agent_preview(ctx, pid, wage) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -1112,7 +1112,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::info_player_stats(ctx, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1134,13 +1134,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "limit": { "type": "integer", "description": "Max matches to return" }
                 },
                 "required": ["player_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("info_player_match_history", "Match-by-match stats for a player", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let limit = extract_u64_param(&tool_context.arguments, "limit").map(|n| n as usize);
                         match tools_impl::info_player_match_history(ctx, pid, limit) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -1162,13 +1162,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "team_id": { "type": "string", "description": "Team entity ID" }
                 },
                 "required": ["team_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("info_team_profile", "Detailed team view (squad, form, finances)", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::info_team_profile(ctx, tid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1189,13 +1189,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "team_id": { "type": "string", "description": "Team entity ID" }
                 },
                 "required": ["team_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("info_team_stats", "Season stats for a team", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::info_team_stats(ctx, tid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1217,13 +1217,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "limit": { "type": "integer", "description": "Max matches to return" }
                 },
                 "required": ["team_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("info_team_match_history", "Match-by-match stats for a team", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let limit = extract_u64_param(&tool_context.arguments, "limit").map(|n| n as usize);
                         match tools_impl::info_team_match_history(ctx, tid, limit) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -1244,7 +1244,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                 "properties": {
                     "team_id": { "type": "string", "description": "Team entity ID (omit for own team)" }
                 }
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("info_finance_snapshot", "Detailed financial snapshot", schema),
                 move |tool_context| {
@@ -1331,14 +1331,14 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "player_id": { "type": "string", "description": "Player ID to scout" }
                 },
                 "required": ["scout_id", "player_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("scout_send", "Send scout to report on a player", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
                         let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
-                        let pid = extract_string_param(&tool_context.arguments, "player_id").unwrap_or_default();
+                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::scout_send(ctx, sid, pid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1381,7 +1381,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "target_position": { "type": "string", "description": "Target position (GK, DF, MF, FW)" }
                 },
                 "required": ["scout_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("scout_youth_start", "Start youth scouting assignment", schema),
                 move |tool_context| {
@@ -1411,13 +1411,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "assignment_id": { "type": "string", "description": "Youth scouting assignment ID" }
                 },
                 "required": ["assignment_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("scout_youth_cancel", "Cancel youth scouting", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let aid = extract_string_param(&tool_context.arguments, "assignment_id").unwrap_or_default();
+                        let aid = match require_string_param(&tool_context.arguments, "assignment_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::scout_youth_cancel(ctx, aid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1439,13 +1439,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "scout_id": { "type": "string", "description": "New staff member ID" }
                 },
                 "required": ["assignment_id", "scout_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("scout_youth_reassign", "Reassign youth scouting parameters", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let aid = extract_string_param(&tool_context.arguments, "assignment_id").unwrap_or_default();
+                        let aid = match require_string_param(&tool_context.arguments, "assignment_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
                         match tools_impl::scout_youth_reassign(ctx, aid, sid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
@@ -1507,13 +1507,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "team_id": { "type": "string", "description": "Team ID to apply for" }
                 },
                 "required": ["team_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("jobs_apply", "Apply for a job. Employed managers can only apply to better clubs; applying to your own team or a worse club returns an error.", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::jobs_apply(ctx, tid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1539,7 +1539,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "world_source": { "type": "string", "description": "World JSON path (omit for random)" }
                 },
                 "required": ["first_name", "last_name", "nationality"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("game_new", "Create manager + generate/load world", schema),
                 move |tool_context| {
@@ -1569,13 +1569,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "team_id": { "type": "string", "description": "Team ID to manage" }
                 },
                 "required": ["team_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("game_select_team", "Pick a team to manage", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id").unwrap_or_default();
+                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::game_select_team(ctx, tid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1596,13 +1596,13 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "save_id": { "type": "string", "description": "Save ID to load" }
                 },
                 "required": ["save_id"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("game_load_save", "Load an existing save", schema),
                 move |tool_context| {
                     let ctx = ctx.clone();
                     Box::pin(async move {
-                        let sid = extract_string_param(&tool_context.arguments, "save_id").unwrap_or_default();
+                        let sid = match require_string_param(&tool_context.arguments, "save_id") { Ok(v) => v, Err(e) => return Ok(e) };
                         match tools_impl::game_load_save(ctx, sid) {
                             Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
                             Err(e) => Ok(error_result(&translate_error(&e))),
@@ -1642,7 +1642,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
                     "export_path": { "type": "string", "description": "Directory to export world JSON" }
                 },
                 "required": ["export_path"]
-            }).as_object().unwrap().clone());
+            }).as_object().expect("JSON schema is always an object").clone());
             router.add_route(ToolRoute::new_dyn(
                 Tool::new("game_export_world", "Export world to JSON file", schema),
                 move |tool_context| {
@@ -1668,6 +1668,16 @@ fn extract_string_param(args: &Option<serde_json::Map<String, serde_json::Value>
     args.as_ref()?.get(key).and_then(|v| v.as_str()).map(|s| s.to_string())
 }
 
+/// Extract a required string parameter. Returns an error result if missing or empty.
+fn require_string_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<String, CallToolResult> {
+    extract_string_param(args, key)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+}
+
 fn extract_string_array_param(args: &Option<serde_json::Map<String, serde_json::Value>>, key: &str) -> Option<Vec<String>> {
     args.as_ref()?.get(key).and_then(|v| v.as_array()).map(|arr| {
         arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
@@ -1679,7 +1689,7 @@ fn extract_u64_param(args: &Option<serde_json::Map<String, serde_json::Value>>, 
 }
 
 fn extract_u32_param(args: &Option<serde_json::Map<String, serde_json::Value>>, key: &str) -> Option<u32> {
-    args.as_ref()?.get(key).and_then(|v| v.as_u64()).map(|n| n as u32)
+    args.as_ref()?.get(key).and_then(|v| v.as_u64()).and_then(|n| u32::try_from(n).ok())
 }
 
 fn extract_bool_param(args: &Option<serde_json::Map<String, serde_json::Value>>, key: &str) -> Option<bool> {
