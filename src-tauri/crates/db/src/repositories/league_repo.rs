@@ -185,6 +185,7 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
             let result_json: Option<String> = row.get(7)?;
             Ok(Fixture {
                 id: row.get(0)?,
+                competition_id: league_id.clone(),
                 matchday: row.get(1)?,
                 date: row.get(2)?,
                 home_team_id: row.get(3)?,
@@ -286,6 +287,7 @@ pub fn load_league(conn: &Connection) -> Result<Option<League>, String> {
         standings,
         transfer_log,
         transfer_rumours,
+        ..League::default()
     }))
 }
 

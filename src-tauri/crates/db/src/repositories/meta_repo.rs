@@ -18,6 +18,20 @@ pub struct GameMeta {
     pub vacant_team_days_json: String,
     #[serde(default = "default_world_history_json")]
     pub world_history_json: String,
+    #[serde(default = "default_save_format_version")]
+    pub save_format_version: u32,
+    #[serde(default = "default_world_format_version")]
+    pub world_format_version: u32,
+    #[serde(default)]
+    pub app_version: String,
+    #[serde(default)]
+    pub source_world_id: String,
+    #[serde(default)]
+    pub source_world_kind: String,
+    #[serde(default = "default_active_ids_json")]
+    pub active_region_ids_json: String,
+    #[serde(default = "default_active_ids_json")]
+    pub active_competition_ids_json: String,
 }
 
 fn default_vacant_team_days_json() -> String {
@@ -28,11 +42,23 @@ fn default_world_history_json() -> String {
     "{}".to_string()
 }
 
+fn default_save_format_version() -> u32 {
+    2
+}
+
+fn default_world_format_version() -> u32 {
+    2
+}
+
+fn default_active_ids_json() -> String {
+    "[]".to_string()
+}
+
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             meta.save_id,
             meta.save_name,
@@ -43,6 +69,13 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.last_played_at,
             meta.vacant_team_days_json,
             meta.world_history_json,
+            meta.save_format_version,
+            meta.world_format_version,
+            meta.app_version,
+            meta.source_world_id,
+            meta.source_world_kind,
+            meta.active_region_ids_json,
+            meta.active_competition_ids_json,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -53,7 +86,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -70,6 +103,15 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 last_played_at: row.get(6)?,
                 vacant_team_days_json: row.get(7)?,
                 world_history_json: row.get(8)?,
+                save_format_version: row.get(9).unwrap_or(default_save_format_version()),
+                world_format_version: row.get(10).unwrap_or(default_world_format_version()),
+                app_version: row.get(11).unwrap_or_default(),
+                source_world_id: row.get(12).unwrap_or_default(),
+                source_world_kind: row.get(13).unwrap_or_default(),
+                active_region_ids_json: row.get(14).unwrap_or_else(|_| default_active_ids_json()),
+                active_competition_ids_json: row
+                    .get(15)
+                    .unwrap_or_else(|_| default_active_ids_json()),
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

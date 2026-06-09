@@ -2,6 +2,7 @@ use crate::clock::GameClock;
 use domain::league::League;
 use domain::manager::Manager;
 use domain::message::InboxMessage;
+use domain::national_team::NationalTeam;
 use domain::news::NewsArticle;
 use domain::player::{Player, Position};
 use domain::season::SeasonContext;
@@ -78,6 +79,15 @@ pub struct Game {
     pub messages: Vec<InboxMessage>,
     #[serde(default)]
     pub news: Vec<NewsArticle>,
+    #[serde(default)]
+    pub competitions: Vec<League>,
+    #[serde(default)]
+    pub national_teams: Vec<NationalTeam>,
+    #[serde(default)]
+    pub active_region_ids: Vec<String>,
+    #[serde(default)]
+    pub active_competition_ids: Vec<String>,
+    #[serde(default)]
     pub league: Option<League>,
     #[serde(default)]
     pub scouting_assignments: Vec<ScoutingAssignment>,
@@ -116,6 +126,10 @@ impl Game {
             staff,
             messages,
             news: vec![],
+            competitions: vec![],
+            national_teams: vec![],
+            active_region_ids: vec![],
+            active_competition_ids: vec![],
             league: None,
             scouting_assignments: vec![],
             youth_scouting_assignments: vec![],
@@ -125,6 +139,7 @@ impl Game {
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
         };
+        game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
         crate::season_context::refresh_game_context(&mut game);
         game
@@ -141,5 +156,39 @@ impl Game {
         } else {
             self.managers.push(self.manager.clone());
         }
+    }
+
+    pub fn promote_legacy_league(&mut self) {
+        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+            self.competitions.push(league);
+        }
+        self.sync_legacy_league();
+    }
+
+    pub fn sync_legacy_league(&mut self) {
+        self.league = self.competitions.first().cloned();
+    }
+
+    pub fn primary_competition(&self) -> Option<&League> {
+        self.competitions.first().or(self.league.as_ref())
+    }
+
+    pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
+        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+            self.competitions.push(league);
+        }
+        self.competitions.first_mut()
+    }
+
+    pub fn competition_by_id(&self, competition_id: &str) -> Option<&League> {
+        self.competitions
+            .iter()
+            .find(|competition| competition.id == competition_id)
+    }
+
+    pub fn competition_by_id_mut(&mut self, competition_id: &str) -> Option<&mut League> {
+        self.competitions
+            .iter_mut()
+            .find(|competition| competition.id == competition_id)
     }
 }

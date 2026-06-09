@@ -143,6 +143,7 @@ pub fn apply_match_report_with_capture<F>(
         }
 
         fixture.result = Some(result);
+        crate::schedule::advance_knockout_competition_round(league);
     }
 
     on_capture(build_stats_state_capture(

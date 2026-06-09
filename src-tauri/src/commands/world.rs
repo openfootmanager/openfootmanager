@@ -46,20 +46,30 @@ fn export_world_database_internal(
         players: game.players.clone(),
         staff: game.staff.clone(),
         managers,
+        competitions: game.competitions.clone(),
+        national_teams: game.national_teams.clone(),
+        regions: Vec::new(),
+        default_active_regions: game.active_region_ids.clone(),
+        default_active_competitions: game.active_competition_ids.clone(),
         league: game.league.clone(),
         news: game.news.clone(),
         stats,
         world_history: game.world_history.clone(),
         metadata: ofm_core::generator::WorldDataMetadata {
+            format_version: 2,
+            world_id: format!(
+                "world-export-{}-{}",
+                game.manager.id,
+                game.clock.current_date.timestamp()
+            ),
             kind: ofm_core::generator::WorldDataKind::HistoricalSnapshot,
             base_year: Some(game.clock.start_date.year()),
             snapshot_date: Some(game.clock.current_date.to_rfc3339()),
         },
     };
 
-    let json = ofm_core::generator::export_world_to_json(&world)?;
-    std::fs::write(export_path, json).map_err(|_| "be.error.worldWriteFileFailed".to_string())?;
-    Ok(export_path.to_string_lossy().to_string())
+    ofm_core::generator::export_world_package(&world, export_path)
+        .map_err(|_| "be.error.worldWriteFileFailed".to_string())
 }
 
 fn write_database_json_to_dir(db_dir: &std::path::Path, json: &str) -> Result<String, String> {
@@ -157,7 +167,7 @@ mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
-    use ofm_core::generator::{WorldData, WorldDataKind};
+    use ofm_core::generator::{load_world_from_path, WorldData, WorldDataKind, WorldManifestV2};
     use ofm_core::state::StateManager;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -281,10 +291,11 @@ mod tests {
 
         let written_path = export_world_database_internal(&state, &export_path).unwrap();
         let json = fs::read_to_string(&written_path).unwrap();
-        let world: WorldData = serde_json::from_str(&json).unwrap();
+        let manifest: WorldManifestV2 = serde_json::from_str(&json).unwrap();
+        let world = load_world_from_path(Path::new(&written_path)).unwrap();
         let raw_json: serde_json::Value = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(world.name, EXPORTED_WORLD_NAME_KEY);
+        assert_eq!(manifest.name, EXPORTED_WORLD_NAME_KEY);
         assert_eq!(
             world.description,
             "be.msg.world.exportedDescription?teamCount=1"
@@ -297,8 +308,10 @@ mod tests {
         assert_eq!(world.news.len(), 1);
         assert_eq!(world.world_history.rivalries.len(), 1);
         assert_eq!(world.metadata.kind, WorldDataKind::HistoricalSnapshot);
-        assert!(raw_json.get("stats").is_some());
-        assert!(raw_json.get("world_history").is_some());
+        assert_eq!(manifest.format_version, 2);
+        assert!(!manifest.world_id.is_empty());
+        assert!(raw_json.get("shards").is_some());
+        assert!(raw_json.get("compatibility").is_some());
     }
 
     #[test]

@@ -462,6 +462,7 @@ pub fn generate_past_world_history(game: &mut Game, start_year: i32, history_dep
             standings: standings.clone(),
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
+            ..League::default()
         });
 
         let awards = crate::season_awards::compute_season_awards(game);

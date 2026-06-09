@@ -1,17 +1,104 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionType {
+    #[default]
+    League,
+    Cup,
+    ContinentalClub,
+    InternationalClub,
+    InternationalNation,
+    FriendlyCup,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionScope {
+    #[default]
+    Domestic,
+    Regional,
+    Continental,
+    International,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionFormat {
+    #[default]
+    LeagueTable,
+    Knockout,
+    GroupAndKnockout,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct CompetitionRules {
+    pub format: CompetitionFormat,
+    pub counts_in_season_flow: bool,
+}
+
+impl Default for CompetitionRules {
+    fn default() -> Self {
+        Self {
+            format: CompetitionFormat::LeagueTable,
+            counts_in_season_flow: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct KnockoutRoundState {
+    pub id: String,
+    pub name: String,
+    pub fixture_ids: Vec<String>,
+    pub completed: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct League {
     pub id: String,
     pub name: String,
+    pub kind: CompetitionType,
+    pub scope: CompetitionScope,
     pub season: u32,
+    pub region_id: Option<String>,
+    pub country_id: Option<String>,
+    pub participant_ids: Vec<String>,
+    pub rules: CompetitionRules,
     pub fixtures: Vec<Fixture>,
     pub standings: Vec<StandingEntry>,
+    pub knockout_rounds: Vec<KnockoutRoundState>,
     #[serde(default)]
     pub transfer_log: Vec<CompletedTransfer>,
     #[serde(default)]
     pub transfer_rumours: Vec<TransferRumour>,
+    #[serde(default)]
+    pub priority: u32,
 }
+
+impl Default for League {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            kind: CompetitionType::League,
+            scope: CompetitionScope::Domestic,
+            season: 0,
+            region_id: None,
+            country_id: None,
+            participant_ids: Vec::new(),
+            rules: CompetitionRules::default(),
+            fixtures: Vec::new(),
+            standings: Vec::new(),
+            knockout_rounds: Vec::new(),
+            transfer_log: Vec::new(),
+            transfer_rumours: Vec::new(),
+            priority: 0,
+        }
+    }
+}
+
+pub type CompetitionState = League;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompletedTransfer {
@@ -36,7 +123,12 @@ pub struct TransferRumour {
 pub enum FixtureCompetition {
     #[default]
     League,
+    Cup,
+    ContinentalClub,
+    InternationalClub,
+    InternationalNation,
     Friendly,
+    FriendlyCup,
     PreseasonTournament,
 }
 
@@ -44,6 +136,7 @@ pub enum FixtureCompetition {
 #[serde(default)]
 pub struct Fixture {
     pub id: String,
+    pub competition_id: String,
     pub matchday: u32,
     pub date: String, // ISO 8601 date
     pub home_team_id: String,
@@ -159,7 +252,12 @@ impl Fixture {
         matches!(
             self.competition,
             FixtureCompetition::League
+                | FixtureCompetition::Cup
+                | FixtureCompetition::ContinentalClub
+                | FixtureCompetition::InternationalClub
+                | FixtureCompetition::InternationalNation
                 | FixtureCompetition::Friendly
+                | FixtureCompetition::FriendlyCup
                 | FixtureCompetition::PreseasonTournament
         )
     }
@@ -175,15 +273,22 @@ impl League {
         Self {
             id,
             name,
+            kind: CompetitionType::League,
+            scope: CompetitionScope::Domestic,
             season,
+            region_id: None,
+            country_id: None,
+            participant_ids: team_ids.to_vec(),
+            rules: CompetitionRules::default(),
             fixtures: Vec::new(),
             standings,
+            knockout_rounds: Vec::new(),
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
+            priority: 0,
         }
     }
 
-    /// Sort standings by points, then goal difference, then goals scored
     pub fn sorted_standings(&self) -> Vec<StandingEntry> {
         let mut sorted = self.standings.clone();
         sorted.sort_by(|a, b| {
@@ -200,6 +305,7 @@ impl Default for Fixture {
     fn default() -> Self {
         Self {
             id: String::new(),
+            competition_id: String::new(),
             matchday: 0,
             date: String::new(),
             home_team_id: String::new(),

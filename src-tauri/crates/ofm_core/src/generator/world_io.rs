@@ -1,4 +1,7 @@
-use super::definitions::{WorldData, WorldDatabaseInfo};
+use super::definitions::{
+    WorldData, WorldDatabaseInfo, WorldManifestV2, WorldRegionDefinition, WorldShardRefs,
+};
+use std::path::{Path, PathBuf};
 
 const WORLD_PARSE_FAILED_ERROR: &str = "be.error.worldParseFailed";
 const WORLD_SERIALIZE_FAILED_ERROR: &str = "be.error.worldSerializeFailed";
@@ -18,6 +21,66 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> S
     message
 }
 
+fn infer_world_regions(teams: &[domain::team::Team]) -> Vec<WorldRegionDefinition> {
+    let mut country_codes: Vec<String> = teams
+        .iter()
+        .map(|team| team.football_nation.clone())
+        .filter(|code| !code.is_empty())
+        .collect();
+    country_codes.sort();
+    country_codes.dedup();
+
+    if country_codes.is_empty() {
+        return Vec::new();
+    }
+
+    vec![WorldRegionDefinition {
+        id: "europe".to_string(),
+        name: "Europe".to_string(),
+        country_codes,
+    }]
+}
+
+fn normalize_world(mut world: WorldData) -> WorldData {
+    crate::football_identity::upgrade_world_football_identities(
+        &mut world.teams,
+        &mut world.players,
+        &mut world.staff,
+    );
+    crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
+    if world.competitions.is_empty() && let Some(league) = world.league.clone() {
+        world.competitions.push(league);
+    }
+    if world.metadata.world_id.is_empty() {
+        world.metadata.world_id = uuid::Uuid::new_v4().to_string();
+    }
+    if world.regions.is_empty() {
+        world.regions = infer_world_regions(&world.teams);
+    }
+    if world.default_active_regions.is_empty() {
+        world.default_active_regions = world
+            .regions
+            .iter()
+            .map(|region| region.id.clone())
+            .collect();
+    }
+    if world.default_active_competitions.is_empty() {
+        world.default_active_competitions = world
+            .competitions
+            .iter()
+            .map(|competition| competition.id.clone())
+            .collect();
+    }
+    world.league = world.competitions.first().cloned().or(world.league);
+    world
+}
+
+fn manifest_shard_path(base: &Path, shard_ref: &str) -> PathBuf {
+    base.parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(shard_ref)
+}
+
 /// Generate a random world and wrap it in a `WorldData`.
 /// If `data_dir` is provided, tries to load definition files from that directory.
 pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
@@ -28,7 +91,7 @@ pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
         &mut staff,
     );
 
-    WorldData {
+    normalize_world(WorldData {
         name: RANDOM_WORLD_NAME_KEY.to_string(),
         description: backend_text_with_param(
             RANDOM_WORLD_DESCRIPTION_KEY,
@@ -39,40 +102,140 @@ pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
         players,
         staff,
         managers: vec![],
+        competitions: vec![],
+        national_teams: vec![],
+        regions: vec![],
+        default_active_regions: vec![],
+        default_active_competitions: vec![],
         league: None,
         news: vec![],
         stats: domain::stats::StatsState::default(),
         world_history: domain::world_history::WorldHistoryArchive::default(),
         metadata: super::definitions::WorldDataMetadata::default(),
-    }
+    })
 }
 
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
-    let mut world: WorldData =
+    let world: WorldData =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
-    crate::football_identity::upgrade_world_football_identities(
-        &mut world.teams,
-        &mut world.players,
-        &mut world.staff,
-    );
-    crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
-    Ok(world)
+    Ok(normalize_world(world))
 }
 
 /// Serialise a `WorldData` to a pretty-printed JSON string.
 pub fn export_world_to_json(world: &WorldData) -> Result<String, String> {
-    let mut normalized = world.clone();
-    crate::football_identity::upgrade_world_football_identities(
-        &mut normalized.teams,
-        &mut normalized.players,
-        &mut normalized.staff,
-    );
-    crate::football_identity::upgrade_world_manager_identities(
-        &normalized.teams,
-        &mut normalized.managers,
-    );
+    let normalized = normalize_world(world.clone());
     serde_json::to_string_pretty(&normalized).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())
+}
+
+fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Result<WorldData, String> {
+    fn read_json_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
+        let json =
+            std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+        serde_json::from_str(&json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())
+    }
+
+    let teams = read_json_file(&manifest_shard_path(path, &manifest.shards.teams))?;
+    let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
+    let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
+    let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
+    let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
+    let national_teams =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
+    let news = read_json_file(&manifest_shard_path(path, &manifest.shards.news))?;
+    let stats = read_json_file(&manifest_shard_path(path, &manifest.shards.stats))?;
+    let world_history =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.world_history))?;
+
+    Ok(normalize_world(WorldData {
+        name: manifest.name,
+        description: manifest.description,
+        teams,
+        players,
+        staff,
+        managers,
+        competitions,
+        national_teams,
+        regions: manifest.regions,
+        default_active_regions: manifest.default_active_regions,
+        default_active_competitions: manifest.default_active_competitions,
+        league: None,
+        news,
+        stats,
+        world_history,
+        metadata: manifest.compatibility.unwrap_or_else(|| super::definitions::WorldDataMetadata {
+            format_version: manifest.format_version,
+            world_id: manifest.world_id,
+            ..Default::default()
+        }),
+    }))
+}
+
+pub fn load_world_from_path(path: &Path) -> Result<WorldData, String> {
+    let json = std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    if let Ok(manifest) = serde_json::from_str::<WorldManifestV2>(&json)
+        && manifest.format_version >= 2
+        && !manifest.shards.teams.is_empty()
+    {
+        return load_world_from_manifest_path(path, manifest);
+    }
+    load_world_from_json(&json)
+}
+
+pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<String, String> {
+    fn write_json(path: &Path, value: &impl serde::Serialize) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(value)
+            .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+        std::fs::write(path, json).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())
+    }
+
+    let normalized = normalize_world(world.clone());
+    let stem = manifest_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("world");
+    let shard_dir = manifest_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(format!("{stem}.shards"));
+    std::fs::create_dir_all(&shard_dir).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+
+    write_json(&shard_dir.join("teams.json"), &normalized.teams)?;
+    write_json(&shard_dir.join("players.json"), &normalized.players)?;
+    write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
+    write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
+    write_json(&shard_dir.join("competitions.json"), &normalized.competitions)?;
+    write_json(&shard_dir.join("national_teams.json"), &normalized.national_teams)?;
+    write_json(&shard_dir.join("news.json"), &normalized.news)?;
+    write_json(&shard_dir.join("stats.json"), &normalized.stats)?;
+    write_json(&shard_dir.join("world_history.json"), &normalized.world_history)?;
+
+    let manifest = WorldManifestV2 {
+        format_version: 2,
+        world_id: normalized.metadata.world_id.clone(),
+        name: normalized.name.clone(),
+        description: normalized.description.clone(),
+        regions: normalized.regions.clone(),
+        default_active_regions: normalized.default_active_regions.clone(),
+        default_active_competitions: normalized.default_active_competitions.clone(),
+        shards: WorldShardRefs {
+            teams: format!("{stem}.shards/teams.json"),
+            players: format!("{stem}.shards/players.json"),
+            staff: format!("{stem}.shards/staff.json"),
+            managers: format!("{stem}.shards/managers.json"),
+            competitions: format!("{stem}.shards/competitions.json"),
+            national_teams: format!("{stem}.shards/national_teams.json"),
+            news: format!("{stem}.shards/news.json"),
+            stats: format!("{stem}.shards/stats.json"),
+            world_history: format!("{stem}.shards/world_history.json"),
+        },
+        compatibility: Some(super::definitions::WorldDataMetadata {
+            format_version: 2,
+            ..normalized.metadata.clone()
+        }),
+    };
+    write_json(manifest_path, &manifest)?;
+    Ok(manifest_path.to_string_lossy().to_string())
 }
 
 /// Scan a directory for `.json` world database files and return their metadata.
@@ -86,11 +249,7 @@ pub fn scan_world_databases(dir: &std::path::Path) -> Vec<WorldDatabaseInfo> {
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
             continue;
         }
-        let Ok(contents) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        // Parse just enough to get metadata — try full parse
-        if let Ok(world) = load_world_from_json(&contents) {
+        if let Ok(world) = load_world_from_path(&path) {
             let file_stem = path
                 .file_stem()
                 .unwrap_or_default()

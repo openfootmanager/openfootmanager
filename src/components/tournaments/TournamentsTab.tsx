@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  getActiveCompetitions,
   getCompetitiveFixtures,
   getTeamName,
   formatMatchDate,
@@ -45,13 +46,14 @@ export default function TournamentsTab({
   onSelectPlayer,
 }: TournamentsTabProps) {
   const { t } = useTranslation();
-  const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
+  const activeCompetitions = getActiveCompetitions(gameState);
   const [view, setView] = useState<
     "overview" | "fixtures" | "standings" | "awards"
   >("overview");
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
   const [awardsBySeason, setAwardsBySeason] = useState<
     Record<number, SeasonAwardsData>
   >({});
@@ -59,8 +61,34 @@ export default function TournamentsTab({
     "idle" | "loading" | "error"
   >("idle");
   const [awardsRetryCount, setAwardsRetryCount] = useState(0);
+  const userCompetitions = activeCompetitions.filter((competition) =>
+    competition.participant_ids?.includes(userTeamId ?? ""),
+  );
+  const league =
+    activeCompetitions.find((competition) => competition.id === selectedCompetitionId) ??
+    userCompetitions[0] ??
+    activeCompetitions[0] ??
+    gameState.league;
   const currentSeason = league?.season ?? 0;
   const awards = awardsBySeason[currentSeason] ?? null;
+
+  useEffect(() => {
+    if (activeCompetitions.length === 0) {
+      if (selectedCompetitionId !== null) {
+        setSelectedCompetitionId(null);
+      }
+      return;
+    }
+
+    const hasSelection = activeCompetitions.some(
+      (competition) => competition.id === selectedCompetitionId,
+    );
+    if (hasSelection) {
+      return;
+    }
+
+    setSelectedCompetitionId(userCompetitions[0]?.id ?? activeCompetitions[0].id);
+  }, [activeCompetitions, selectedCompetitionId, userCompetitions]);
 
   useEffect(() => {
     if (view !== "awards" || awards) {
@@ -214,7 +242,7 @@ export default function TournamentsTab({
       {/* League header */}
       <Card accent="primary" className="mb-5">
         <div className="bg-gradient-to-r from-navy-700 to-navy-800 p-6 rounded-t-xl">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="w-14 h-14 rounded-xl bg-accent-500/20 flex items-center justify-center">
               <Trophy className="w-7 h-7 text-accent-400" />
             </div>
@@ -227,6 +255,23 @@ export default function TournamentsTab({
                 {t("tournaments.nTeams", { count: league.standings.length })}
               </p>
             </div>
+            {activeCompetitions.length > 1 && (
+              <select
+                value={league.id}
+                onChange={(event) => setSelectedCompetitionId(event.target.value)}
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none"
+              >
+                {activeCompetitions.map((competition) => (
+                  <option
+                    key={competition.id}
+                    value={competition.id}
+                    className="text-gray-900"
+                  >
+                    {competition.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="hidden md:flex gap-4">
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
                 <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">

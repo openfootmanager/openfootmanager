@@ -357,11 +357,20 @@ export interface ManagerData {
 
 export interface FixtureData {
   id: string;
+  competition_id?: string;
   matchday: number;
   date: string;
   home_team_id: string;
   away_team_id: string;
-  competition: "League" | "Friendly" | "PreseasonTournament";
+  competition:
+  | "League"
+  | "Cup"
+  | "ContinentalClub"
+  | "InternationalClub"
+  | "InternationalNation"
+  | "Friendly"
+  | "FriendlyCup"
+  | "PreseasonTournament";
   status: "Scheduled" | "InProgress" | "Completed";
   result: null | {
     home_goals: number;
@@ -428,11 +437,44 @@ export interface TransferRumourData {
 export interface LeagueData {
   id: string;
   name: string;
+  kind?: string;
+  scope?: string;
   season: number;
+  region_id?: string | null;
+  country_id?: string | null;
+  participant_ids?: string[];
+  rules?: {
+    format: "LeagueTable" | "Knockout" | "GroupAndKnockout";
+    counts_in_season_flow: boolean;
+  };
   fixtures: FixtureData[];
   standings: StandingData[];
+  knockout_rounds?: {
+    id: string;
+    name: string;
+    fixture_ids: string[];
+    completed: boolean;
+  }[];
   transfer_log?: CompletedTransferData[];
   transfer_rumours?: TransferRumourData[];
+  priority?: number;
+}
+
+export interface NationalTeamData {
+  id: string;
+  name: string;
+  football_nation: string;
+  region_id?: string | null;
+  squad_player_ids: string[];
+  manager_name?: string | null;
+  reputation: number;
+  fixtures: FixtureData[];
+}
+
+export interface WorldRegionData {
+  id: string;
+  name: string;
+  country_codes: string[];
 }
 
 export type SeasonPhase = "Preseason" | "InSeason" | "PostSeason";
@@ -542,6 +584,11 @@ export interface GameStateData {
   staff: StaffData[];
   messages: MessageData[];
   news: NewsArticle[];
+  competitions?: LeagueData[];
+  national_teams?: NationalTeamData[];
+  active_region_ids?: string[];
+  active_competition_ids?: string[];
+  regions?: WorldRegionData[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments?: YouthScoutingAssignment[];

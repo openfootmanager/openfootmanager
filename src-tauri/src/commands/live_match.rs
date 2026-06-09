@@ -399,6 +399,7 @@ mod tests {
             fixtures: vec![
                 Fixture {
                     id: "fix1".to_string(),
+                    competition_id: "league1".to_string(),
                     matchday: 1,
                     date: "2025-06-15".to_string(),
                     home_team_id: "team1".to_string(),
@@ -409,6 +410,7 @@ mod tests {
                 },
                 Fixture {
                     id: "fix2".to_string(),
+                    competition_id: "league1".to_string(),
                     matchday: 1,
                     date: "2025-06-15".to_string(),
                     home_team_id: "team3".to_string(),
@@ -426,6 +428,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..League::default()
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

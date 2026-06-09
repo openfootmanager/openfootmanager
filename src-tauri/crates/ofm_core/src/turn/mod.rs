@@ -36,6 +36,67 @@ fn progress_injury_recovery(game: &mut Game) {
     }
 }
 
+fn competition_is_active(game: &Game, competition: &domain::league::League) -> bool {
+    let competition_selected = game.active_competition_ids.is_empty()
+        || game.active_competition_ids.contains(&competition.id);
+    let region_selected = game.active_region_ids.is_empty()
+        || competition
+            .region_id
+            .as_ref()
+            .is_none_or(|region_id| game.active_region_ids.contains(region_id));
+    competition_selected && region_selected
+}
+
+fn competition_indices_due_today(game: &Game, today: &str) -> Vec<usize> {
+    if !game.competitions.is_empty() {
+        return game
+            .competitions
+            .iter()
+            .enumerate()
+            .filter(|(_, competition)| competition_is_active(game, competition))
+            .filter(|(_, competition)| {
+                competition.fixtures.iter().any(|fixture| {
+                    fixture.date == today && fixture.status == FixtureStatus::Scheduled
+                })
+            })
+            .map(|(index, _)| index)
+            .collect();
+    }
+
+    if game.league.as_ref().is_some_and(|league| {
+        league
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
+    }) {
+        vec![0]
+    } else {
+        Vec::new()
+    }
+}
+
+fn simulate_competition_day_with_capture<F>(
+    game: &mut Game,
+    competition_index: usize,
+    today: &str,
+    on_capture: &mut F,
+) where
+    F: FnMut(StatsState),
+{
+    if competition_index >= game.competitions.len() {
+        simulate_matchday_with_capture(game, today, on_capture);
+        return;
+    }
+
+    let competition = game.competitions[competition_index].clone();
+    game.league = Some(competition);
+    simulate_matchday_with_capture(game, today, on_capture);
+    if let Some(updated_competition) = game.league.take() {
+        game.competitions[competition_index] = updated_competition;
+    }
+    game.sync_legacy_league();
+}
+
 /// Process a single day advance.
 pub fn process_day(game: &mut Game) {
     process_day_with_capture(game, &mut |_| {});
@@ -46,17 +107,14 @@ where
     F: FnMut(StatsState),
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-    let has_match_today = game.league.as_ref().is_some_and(|league| {
-        league
-            .fixtures
-            .iter()
-            .any(|f| f.date == today && f.status == FixtureStatus::Scheduled)
-    });
+    let due_competitions = competition_indices_due_today(game, &today);
+    let has_match_today = !due_competitions.is_empty();
 
     if has_match_today {
         info!("[turn] process_day {}: matchday", today);
-        simulate_matchday_with_capture(game, &today, on_capture);
+        for competition_index in due_competitions {
+            simulate_competition_day_with_capture(game, competition_index, &today, on_capture);
+        }
     } else {
         let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
         training::process_training(game, weekday_num);
@@ -119,6 +177,7 @@ pub fn finish_live_match_day(game: &mut Game) {
     crate::job_offers::check_job_offers(game);
 
     game.clock.advance_days(1);
+    game.sync_legacy_league();
     crate::season_context::refresh_game_context(game);
 }
 

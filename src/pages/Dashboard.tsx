@@ -41,6 +41,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
+  getPrimaryCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -183,7 +184,9 @@ export default function Dashboard(): JSX.Element {
     }
   }, [isUnemployed, profileNavigation.activeTab]);
 
-  const seasonComplete = isLeagueSeasonComplete(gameState?.league);
+  const seasonComplete = isLeagueSeasonComplete(
+    gameState ? getPrimaryCompetition(gameState) : null,
+  );
 
   // Advance-time hook
   const {

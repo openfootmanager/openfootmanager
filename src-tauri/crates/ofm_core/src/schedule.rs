@@ -1,5 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
+use domain::league::{
+    CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, KnockoutRoundState, League,
+};
 use uuid::Uuid;
 
 /// Generate a full double round-robin schedule (home & away) for the given teams.
@@ -15,7 +18,7 @@ pub fn generate_league(
     assert!(n >= 2);
 
     let league_id = Uuid::new_v4().to_string();
-    let mut league = League::new(league_id, name.to_string(), season, team_ids);
+    let mut league = League::new(league_id.clone(), name.to_string(), season, team_ids);
 
     // For round-robin with n teams (n must be even; if odd, add a "bye" — we assume even here)
     // Number of rounds in a single round-robin = n - 1
@@ -39,6 +42,7 @@ pub fn generate_league(
 
             let fixture = Fixture {
                 id: Uuid::new_v4().to_string(),
+                competition_id: league_id.clone(),
                 matchday,
                 date: date_str.clone(),
                 home_team_id: team_ids[home_idx].clone(),
@@ -70,6 +74,7 @@ pub fn generate_league(
 
             let fixture = Fixture {
                 id: Uuid::new_v4().to_string(),
+                competition_id: league_id.clone(),
                 matchday,
                 date: date_str.clone(),
                 home_team_id: team_ids[home_idx].clone(),
@@ -88,6 +93,132 @@ pub fn generate_league(
     }
 
     league
+}
+
+pub fn generate_knockout_cup(
+    name: &str,
+    season: u32,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    kind: CompetitionType,
+    scope: CompetitionScope,
+) -> League {
+    let competition_id = Uuid::new_v4().to_string();
+    let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
+    cup.kind = kind.clone();
+    cup.scope = scope;
+    cup.rules = CompetitionRules {
+        format: CompetitionFormat::Knockout,
+        counts_in_season_flow: true,
+    };
+    cup.standings.clear();
+    seed_knockout_round(
+        &mut cup,
+        team_ids,
+        start_date,
+        match kind {
+            CompetitionType::ContinentalClub => FixtureCompetition::ContinentalClub,
+            CompetitionType::InternationalClub => FixtureCompetition::InternationalClub,
+            CompetitionType::InternationalNation => FixtureCompetition::InternationalNation,
+            CompetitionType::FriendlyCup => FixtureCompetition::FriendlyCup,
+            _ => FixtureCompetition::Cup,
+        },
+    );
+    cup
+}
+
+fn seed_knockout_round(
+    cup: &mut League,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+) {
+    let round_index = cup.knockout_rounds.len() as u32 + 1;
+    let round_name = match team_ids.len() {
+        2 => "Final".to_string(),
+        4 => "Semifinal".to_string(),
+        8 => "Quarterfinal".to_string(),
+        size => format!("Round of {size}"),
+    };
+    let mut round_fixture_ids = Vec::new();
+    for (pair_index, pair) in team_ids.chunks(2).enumerate() {
+        if pair.len() < 2 {
+            continue;
+        }
+        let fixture_id = Uuid::new_v4().to_string();
+        round_fixture_ids.push(fixture_id.clone());
+        cup.fixtures.push(Fixture {
+            id: fixture_id,
+            competition_id: cup.id.clone(),
+            matchday: round_index,
+            date: (start_date + Duration::days(pair_index as i64))
+                .format("%Y-%m-%d")
+                .to_string(),
+            home_team_id: pair[0].clone(),
+            away_team_id: pair[1].clone(),
+            competition: fixture_competition.clone(),
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+    }
+    cup.knockout_rounds.push(KnockoutRoundState {
+        id: format!("{}-round-{}", cup.id, round_index),
+        name: round_name,
+        fixture_ids: round_fixture_ids,
+        completed: false,
+    });
+}
+
+pub fn advance_knockout_competition_round(cup: &mut League) {
+    if cup.rules.format != CompetitionFormat::Knockout {
+        return;
+    }
+
+    let Some(next_round) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
+        return;
+    };
+    let round_fixtures: Vec<_> = next_round
+        .fixture_ids
+        .iter()
+        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
+        .collect();
+    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none()) {
+        return;
+    }
+
+    next_round.completed = true;
+    let winners: Vec<String> = round_fixtures
+        .iter()
+        .filter_map(|fixture| {
+            let result = fixture.result.as_ref()?;
+            if result.home_goals >= result.away_goals {
+                Some(fixture.home_team_id.clone())
+            } else {
+                Some(fixture.away_team_id.clone())
+            }
+        })
+        .collect();
+
+    if winners.len() >= 2 {
+        let last_round_date = round_fixtures
+            .iter()
+            .map(|fixture| fixture.date.as_str())
+            .max()
+            .unwrap_or("2026-01-01");
+        let round_start = chrono::NaiveDate::parse_from_str(last_round_date, "%Y-%m-%d")
+            .ok()
+            .and_then(|date| date.and_hms_opt(0, 0, 0))
+            .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+            .unwrap_or_else(Utc::now)
+            + Duration::days(14);
+        let fixture_competition = cup
+            .fixtures
+            .iter()
+            .find(|fixture| next_round.fixture_ids.contains(&fixture.id))
+            .map(|fixture| fixture.competition.clone())
+            .unwrap_or(FixtureCompetition::Cup);
+        seed_knockout_round(cup, &winners, round_start, fixture_competition);
+    }
 }
 
 pub fn generate_preseason_friendlies(
@@ -135,6 +266,7 @@ pub fn generate_preseason_friendlies(
 
             fixtures.push(Fixture {
                 id: Uuid::new_v4().to_string(),
+                competition_id: String::new(),
                 matchday: 0,
                 date: date.clone(),
                 home_team_id: team_ids[home_idx].clone(),

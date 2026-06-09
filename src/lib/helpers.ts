@@ -10,8 +10,11 @@ export {
 export {
   expectedFixtureCount,
   findNextFixture,
+  getActiveCompetitions,
+  getAllFixturesAcrossCompetitions,
   getCompetitiveFixtures,
   getFixtureDisplayLabel,
+  getPrimaryCompetition,
   hasFullLeagueSchedule,
   isCompetitiveFixture,
   isSeasonComplete,
