@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import { Card, CardBody, Badge, Select, CountryFlag } from "../ui";
+import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
 import {
   Search,
@@ -463,9 +463,12 @@ export default function PlayersListTab({
                           </Badge>
                         </td>
                         <td className="py-2.5 px-4">
-                          <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                            {player.full_name}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <PlayerAvatar player={player} />
+                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                              {player.full_name}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                           {age}

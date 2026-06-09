@@ -35,3 +35,6 @@ coverage/
 
 # Local Vitest reporter output
 vitest-*.json
+
+# Personal-use imported world assets/data
+/public/assets/worlds/

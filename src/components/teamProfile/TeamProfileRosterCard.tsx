@@ -8,7 +8,7 @@ import {
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
-import { Badge, Card, CardBody, CardHeader, CountryFlag, ProgressBar } from "../ui";
+import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar, ProgressBar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
 
@@ -92,9 +92,12 @@ export default function TeamProfileRosterCard({
                       </Badge>
                     </td>
                     <td className="py-3 px-5">
-                      <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                        {player.full_name}
-                      </span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <PlayerAvatar player={player} />
+                        <span className="block truncate font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                          {player.full_name}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-3 px-5 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                       {age}

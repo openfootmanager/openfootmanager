@@ -8,6 +8,7 @@ import {
   ProgressBar,
   CountryFlag,
   Button,
+  PlayerAvatar,
 } from "../ui";
 import { calcAge, positionBadgeVariant } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isYouthAcademyPlayer } from "../../lib/playerSquad";
@@ -292,19 +293,22 @@ export default function YouthAcademyTab({
                     key={player.id}
                     className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800/60 px-4 py-3"
                   >
-                    <div className="min-w-0">
-                      <button
-                        onClick={() => onSelectPlayer?.(player.id)}
-                        className="text-left font-heading font-bold text-sm text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors truncate block"
-                      >
-                        {player.full_name}
-                      </button>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {translatePositionAbbreviation(
-                          t,
-                          player.natural_position || player.position,
-                        )} · {t("youthAcademy.age")} {player.age}
-                      </p>
+                    <div className="min-w-0 flex items-center gap-3">
+                      <PlayerAvatar player={player} />
+                      <div className="min-w-0">
+                        <button
+                          onClick={() => onSelectPlayer?.(player.id)}
+                          className="text-left font-heading font-bold text-sm text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors truncate block"
+                        >
+                          {player.full_name}
+                        </button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {translatePositionAbbreviation(
+                            t,
+                            player.natural_position || player.position,
+                          )} · {t("youthAcademy.age")} {player.age}
+                        </p>
+                      </div>
                     </div>
 
                     <Button
@@ -439,19 +443,22 @@ export default function YouthAcademyTab({
                         className="hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer transition-colors"
                       >
                         <td className="py-2.5 px-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                              {player.full_name}
-                            </p>
-                            <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
-                              <CountryFlag
-                                code={player.nationality}
-                                locale={i18n.language}
-                                className="text-xs leading-none"
-                              />
-                              <span>
-                                {countryName(player.nationality, i18n.language)}
-                              </span>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <PlayerAvatar player={player} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                {player.full_name}
+                              </p>
+                              <div className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
+                                <CountryFlag
+                                  code={player.nationality}
+                                  locale={i18n.language}
+                                  className="text-xs leading-none"
+                                />
+                                <span>
+                                  {countryName(player.nationality, i18n.language)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </td>

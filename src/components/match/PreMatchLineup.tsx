@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
-import { Badge } from "../ui";
+import { makeTeamFallback } from "./helpers";
+import { Badge, TeamLogo } from "../ui";
+import type { TeamData } from "../../store/gameStore";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -143,6 +145,7 @@ interface PreMatchLineupProps {
   userTeam: MatchSnapshot["home_team"];
   userBench: EnginePlayerData[];
   oppTeam: MatchSnapshot["home_team"];
+  oppFullTeam?: TeamData;
   userColor: string;
   homeTeamColor: string;
   awayTeamColor: string;
@@ -159,6 +162,7 @@ export default function PreMatchLineup({
   userTeam,
   userBench,
   oppTeam,
+  oppFullTeam,
   userColor,
   homeTeamColor,
   awayTeamColor,
@@ -458,16 +462,16 @@ export default function PreMatchLineup({
               {t("match.opponent")}
             </h3>
             <div className="flex items-center gap-3 mb-2">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
+              <TeamLogo
+                team={oppFullTeam ?? makeTeamFallback(oppTeam.name)}
+                className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
+                imageClassName="h-8 w-8 object-contain drop-shadow"
                 style={{
                   backgroundColor:
                     (userSide === "Home" ? awayTeamColor : homeTeamColor) +
                     "30",
                 }}
-              >
-                {oppTeam.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
               <div>
                 <p className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
                   {oppTeam.name}

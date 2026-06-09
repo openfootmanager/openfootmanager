@@ -44,6 +44,8 @@ pub struct Team {
     // Club info
     pub founded_year: u32,
     pub colors: TeamColors,
+    #[serde(default)]
+    pub media: TeamMedia,
 
     // Training groups: allow per-group focus overrides for subsets of players
     #[serde(default)]
@@ -143,6 +145,12 @@ pub struct TrainingGroup {
 pub struct TeamColors {
     pub primary: String,
     pub secondary: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TeamMedia {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -281,6 +289,7 @@ impl Team {
                 primary: "#10b981".to_string(),
                 secondary: "#ffffff".to_string(),
             },
+            media: TeamMedia::default(),
             starting_xi_ids: Vec::new(),
             match_roles: MatchRoles::default(),
             form: Vec::new(),
