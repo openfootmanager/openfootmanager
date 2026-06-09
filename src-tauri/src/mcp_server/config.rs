@@ -274,7 +274,6 @@ mod tests {
         let mut manager_name: Option<String> = None;
         let mut manager_last_name: Option<String> = None;
         let mut manager_nationality: Option<String> = None;
-        let mut manager_nationality: Option<String> = None;
 
         let mut i = 0;
         while i < args.len() {
