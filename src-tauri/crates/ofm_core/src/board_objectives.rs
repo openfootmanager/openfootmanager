@@ -506,6 +506,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -522,6 +523,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -589,6 +591,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -605,6 +608,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -677,6 +681,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -693,6 +698,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -740,6 +746,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             }
         };
         league.standings = vec![

@@ -458,6 +458,7 @@ mod tests {
                 }),
                 ..Fixture::default()
             }],
+            ..Default::default()
         };
         rivalry_game.league = Some(league);
 

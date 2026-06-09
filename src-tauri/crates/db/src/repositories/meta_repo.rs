@@ -145,6 +145,13 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         };
 
         upsert_meta(db.conn(), &meta).unwrap();
@@ -177,6 +184,13 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         };
         upsert_meta(db.conn(), &meta1).unwrap();
 
@@ -190,6 +204,13 @@ mod tests {
             last_played_at: "2026-03-06T10:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: r#"{"rivalries":[{"team_a_id":"team-1","team_b_id":"team-2","intensity":80}],"season_awards":[]}"#.to_string(),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         };
         upsert_meta(db.conn(), &meta2).unwrap();
 
@@ -212,6 +233,13 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         };
 
         let result = upsert_meta(&conn, &meta);

@@ -746,6 +746,7 @@ mod tests {
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
+                ..Default::default()
             }],
             standings: vec![
                 StandingEntry::new("team-001".to_string()),
@@ -753,6 +754,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..Default::default()
         };
 
         let mut game = Game::new(

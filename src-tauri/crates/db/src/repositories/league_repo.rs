@@ -381,6 +381,7 @@ mod tests {
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
+                ..Default::default()
             },
             Fixture {
                 id: "fix-002".to_string(),
@@ -400,6 +401,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         league.transfer_log = vec![CompletedTransfer {
@@ -542,6 +544,7 @@ mod tests {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }];
         upsert_league(db.conn(), &league).unwrap();
 
@@ -569,6 +572,7 @@ mod tests {
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
+                ..Default::default()
             }],
             standings: vec![
                 StandingEntry::new("team-001".to_string()),
@@ -576,6 +580,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..Default::default()
         };
 
         upsert_league(db.conn(), &replacement).unwrap();
@@ -626,6 +631,7 @@ mod tests {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }];
 
         assert_eq!(

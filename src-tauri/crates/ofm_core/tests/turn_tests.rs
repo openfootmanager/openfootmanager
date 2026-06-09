@@ -195,6 +195,7 @@ fn make_game_with_match() -> Game {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }],
         standings: vec![
             StandingEntry::new("team1".to_string()),
@@ -202,6 +203,7 @@ fn make_game_with_match() -> Game {
         ],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);
@@ -1534,6 +1536,7 @@ fn make_round_summary_game() -> Game {
                     }],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "fix2".to_string(),
@@ -1559,6 +1562,7 @@ fn make_round_summary_game() -> Game {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ],
         standings: vec![
@@ -1569,6 +1573,7 @@ fn make_round_summary_game() -> Game {
         ],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(

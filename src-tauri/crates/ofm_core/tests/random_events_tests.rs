@@ -104,10 +104,12 @@ fn make_game_with_league() -> Game {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
     game
 }
@@ -292,6 +294,7 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -308,6 +311,7 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f3".to_string(),
@@ -324,11 +328,13 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ],
         standings: vec![],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
 
     check_random_events(&mut game);
@@ -376,6 +382,7 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -392,6 +399,7 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f3".to_string(),
@@ -408,11 +416,13 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ],
         standings: vec![],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
 
     check_random_events(&mut game);
@@ -447,10 +457,12 @@ fn check_random_events_international_callup_with_upcoming_match() {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }],
         standings: vec![],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
 
     // Run many times to trigger the 5% chance

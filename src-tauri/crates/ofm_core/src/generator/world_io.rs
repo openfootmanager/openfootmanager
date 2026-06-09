@@ -619,6 +619,7 @@ mod tests {
             kind: crate::generator::WorldDataKind::HistoricalSnapshot,
             base_year: Some(2028),
             snapshot_date: Some("2028-08-15T00:00:00Z".to_string()),
+            ..Default::default()
         };
 
         let json = export_world_to_json(&world).unwrap();

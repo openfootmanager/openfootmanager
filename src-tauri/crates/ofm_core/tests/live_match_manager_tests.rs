@@ -143,6 +143,7 @@ fn make_game_with_fixture() -> Game {
         competition: FixtureCompetition::League,
         status: FixtureStatus::Scheduled,
         result: None,
+        ..Default::default()
     };
 
     let league = League {
@@ -156,6 +157,7 @@ fn make_game_with_fixture() -> Game {
         ],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);

@@ -802,10 +802,12 @@ fn home_match_generates_income() {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
     game.league = Some(league);
 
@@ -850,10 +852,12 @@ fn away_match_no_income() {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         }],
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
     game.league = Some(league);
 

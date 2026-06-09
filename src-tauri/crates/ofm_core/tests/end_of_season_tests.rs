@@ -78,6 +78,7 @@ fn make_completed_fixture(id: &str, home: &str, away: &str, hg: u8, ag: u8) -> F
             away_scorers: vec![],
             report: None,
         }),
+        ..Default::default()
     }
 }
 
@@ -163,6 +164,7 @@ fn make_completed_season_game() -> Game {
         standings,
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(
@@ -244,6 +246,7 @@ fn season_not_complete_with_truncated_completed_fixture_list() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -260,6 +263,7 @@ fn season_not_complete_with_truncated_completed_fixture_list() {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
     }

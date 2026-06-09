@@ -354,6 +354,13 @@ mod tests {
             last_played_at: "2026-07-01T00:00:00+00:00".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         }
     }
 
