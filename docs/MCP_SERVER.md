@@ -289,7 +289,12 @@ done
 
 Each instance gets its own port (3001–3008) and its own game state. Agents diverge only through their decisions.
 
-**Note on save isolation**: Each Tauri process uses its own `app_data_dir/saves/` directory for its SQLite databases. If you need separate save directories per instance, set the `TAURI_SAVE_DIR` or configure distinct app identifiers before building. The simplest approach is to run each instance with a separate working directory or use environment variables that Tauri respects for data paths.
+**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). For true per-instance isolation, you must either:
+
+1. Set `TAURI_SAVE_DIR` to a distinct path per instance, **or**
+2. Build with distinct app identifiers
+
+The simplest approach is to add `export TAURI_SAVE_DIR="$SAVEDIR"` inside the loop before launching each instance.
 
 ---
 
