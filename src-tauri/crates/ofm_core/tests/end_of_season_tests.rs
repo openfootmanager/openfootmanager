@@ -179,6 +179,67 @@ fn make_completed_season_game() -> Game {
     game
 }
 
+#[test]
+fn process_end_of_season_promotes_and_relegates_between_divisions() {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+
+    let div1 = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![
+            make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+            make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+        ],
+        standings: vec![
+            make_standing("team1", 2, 0, 0, 3, 0), // champion
+            make_standing("team2", 0, 0, 2, 0, 3), // relegated
+        ],
+        ..Default::default()
+    };
+    let div2 = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0), // promoted
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    game.league = Some(div1.clone());
+    game.competitions = vec![div1, div2];
+
+    process_end_of_season(&mut game);
+
+    let new_div1 = game.competitions.iter().find(|c| c.id == "eng-1").unwrap();
+    let new_div2 = game.competitions.iter().find(|c| c.id == "eng-2").unwrap();
+
+    // Two-club divisions -> one up / one down: team2 relegated, team3 promoted.
+    assert!(new_div1.participant_ids.contains(&"team3".to_string()));
+    assert!(!new_div1.participant_ids.contains(&"team2".to_string()));
+    assert!(new_div2.participant_ids.contains(&"team2".to_string()));
+    assert!(!new_div2.participant_ids.contains(&"team3".to_string()));
+
+    // Fixtures regenerated for the new season.
+    assert_eq!(new_div1.season, 2);
+    assert!(
+        new_div1
+            .fixtures
+            .iter()
+            .any(|f| f.status == FixtureStatus::Scheduled)
+    );
+}
+
 // ---------------------------------------------------------------------------
 // is_season_complete
 // ---------------------------------------------------------------------------

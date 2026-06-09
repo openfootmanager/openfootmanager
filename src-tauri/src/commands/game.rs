@@ -379,6 +379,36 @@ fn select_continental_entrants(
         .collect()
 }
 
+/// Minimum clubs per division. A country needs at least two divisions' worth of
+/// clubs before it splits into a promotion/relegation pyramid.
+const MIN_DIVISION_SIZE: usize = 4;
+
+/// Split a country's clubs (passed strongest-first) into one or two divisions.
+/// A second tier is only created when there are enough clubs for both divisions
+/// to be viable; otherwise the country runs a single league.
+fn split_into_divisions(sorted_team_ids: &[String], min_division_size: usize) -> Vec<Vec<String>> {
+    if sorted_team_ids.len() < min_division_size * 2 {
+        return vec![sorted_team_ids.to_vec()];
+    }
+    let bottom_size = sorted_team_ids.len() / 2;
+    let split = sorted_team_ids.len() - bottom_size;
+    vec![
+        sorted_team_ids[..split].to_vec(),
+        sorted_team_ids[split..].to_vec(),
+    ]
+}
+
+/// Name a division within a country's pyramid.
+fn division_name(country: &str, tier: usize, division_count: usize) -> String {
+    if division_count <= 1 {
+        format!("{country} League")
+    } else if tier == 0 {
+        format!("{country} First Division")
+    } else {
+        format!("{country} Second Division")
+    }
+}
+
 fn build_foundation_competitions(game: &Game) -> Vec<League> {
     use std::collections::BTreeMap;
 
@@ -394,27 +424,47 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
             .push(team.id.clone());
     }
 
+    let reputation: std::collections::HashMap<&str, u32> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.as_str(), team.reputation))
+        .collect();
+
     let mut priority = 0u32;
-    for (country, team_ids) in teams_by_country {
+    for (country, mut team_ids) in teams_by_country {
         if team_ids.len() < 2 {
             continue;
         }
+        // Strongest first so divisions are seeded by quality and cup byes go to
+        // the best clubs.
+        team_ids.sort_by(|left, right| {
+            reputation
+                .get(right.as_str())
+                .cmp(&reputation.get(left.as_str()))
+                .then_with(|| left.cmp(right))
+        });
         let region_id = infer_region_id(&country);
-        let mut league = ofm_core::schedule::generate_league(
-            &format!("{country} League"),
-            season,
-            &team_ids,
-            season_start,
-        );
-        league.region_id = Some(region_id.clone());
-        league.country_id = Some(country.clone());
-        league.required_region_ids = vec![region_id.clone()];
-        league.priority = priority;
-        priority += 1;
-        competitions.push(league);
 
-        // Knockout cups handle any entrant count via byes, so every league with
-        // at least two clubs also gets a domestic cup.
+        // One or two divisions depending on how many clubs the country has.
+        let divisions = split_into_divisions(&team_ids, MIN_DIVISION_SIZE);
+        let division_count = divisions.len();
+        for (tier, division_ids) in divisions.iter().enumerate() {
+            let mut league = ofm_core::schedule::generate_league(
+                &division_name(&country, tier, division_count),
+                season,
+                division_ids,
+                season_start,
+            );
+            league.region_id = Some(region_id.clone());
+            league.country_id = Some(country.clone());
+            league.required_region_ids = vec![region_id.clone()];
+            league.priority = priority;
+            priority += 1;
+            competitions.push(league);
+        }
+
+        // National cup contested by every club in the country (byes handle any
+        // entrant count).
         let mut cup = ofm_core::schedule::generate_knockout_cup(
             &format!("{country} Cup"),
             season,
@@ -1016,7 +1066,7 @@ mod tests {
         build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         preseason_league_year, preseason_season_start, require_active_stats_state,
-        resolve_simulation_scope, select_continental_entrants,
+        resolve_simulation_scope, select_continental_entrants, split_into_divisions,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
         MAX_GENERATED_HISTORY_DEPTH_YEARS,
@@ -1196,6 +1246,30 @@ mod tests {
                 "bra-b".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn split_into_divisions_creates_two_tiers_when_clubs_allow() {
+        let clubs: Vec<String> = (0..9).map(|i| format!("club-{i}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 4);
+
+        assert_eq!(divisions.len(), 2);
+        // Strongest half on top (top gets the extra when the count is odd).
+        assert_eq!(divisions[0].len(), 5);
+        assert_eq!(divisions[1].len(), 4);
+        assert_eq!(divisions[0][0], "club-0");
+        assert_eq!(divisions[1][0], "club-5");
+    }
+
+    #[test]
+    fn split_into_divisions_keeps_a_single_tier_for_small_countries() {
+        let clubs: Vec<String> = (0..7).map(|i| format!("club-{i}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 4);
+
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 7);
     }
 
     #[test]

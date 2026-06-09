@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use domain::league::{
     CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, Fixture,
-    FixtureCompetition, FixtureStatus, KnockoutRoundState, League,
+    FixtureCompetition, FixtureStatus, KnockoutRoundState, League, StandingEntry,
 };
 use uuid::Uuid;
 
@@ -18,81 +18,122 @@ pub fn generate_league(
     assert!(n >= 2);
 
     let league_id = Uuid::new_v4().to_string();
-    let mut league = League::new(league_id.clone(), name.to_string(), season, team_ids);
+    let mut league = League::new(league_id, name.to_string(), season, team_ids);
+    append_round_robin_fixtures(&mut league, team_ids, start_date);
+    league
+}
 
-    // For round-robin with n teams (n must be even; if odd, add a "bye" — we assume even here)
-    // Number of rounds in a single round-robin = n - 1
-    // Each round has n / 2 matches
+/// Append a full double round-robin (home & away) for `team_ids` to `league`,
+/// spacing matchdays 7 days apart from `start_date`. Fixtures are tagged with
+/// the league's id. Uses a rotation-based algorithm for balanced scheduling.
+fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
+    let n = team_ids.len();
+    let competition_id = league.id.clone();
     let rounds = n - 1;
     let half = n / 2;
-
-    // Build a mutable list of team indices (fix index 0, rotate the rest)
-    let mut indices: Vec<usize> = (0..n).collect();
-
     let mut matchday: u32 = 1;
 
     // First leg (home)
+    let mut indices: Vec<usize> = (0..n).collect();
     for _round in 0..rounds {
-        let round_date = start_date + Duration::days((matchday as i64 - 1) * 7);
-        let date_str = round_date.format("%Y-%m-%d").to_string();
-
+        let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
+            .format("%Y-%m-%d")
+            .to_string();
         for i in 0..half {
-            let home_idx = indices[i];
-            let away_idx = indices[n - 1 - i];
-
-            let fixture = Fixture {
+            league.fixtures.push(Fixture {
                 id: Uuid::new_v4().to_string(),
-                competition_id: league_id.clone(),
+                competition_id: competition_id.clone(),
                 matchday,
                 date: date_str.clone(),
-                home_team_id: team_ids[home_idx].clone(),
-                away_team_id: team_ids[away_idx].clone(),
+                home_team_id: team_ids[indices[i]].clone(),
+                away_team_id: team_ids[indices[n - 1 - i]].clone(),
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
-            };
-            league.fixtures.push(fixture);
+            });
         }
-
         matchday += 1;
-
-        // Rotate: keep index 0 fixed, rotate the rest
         let last = indices.pop().unwrap();
         indices.insert(1, last);
     }
 
     // Second leg (reverse home/away)
     let mut indices2: Vec<usize> = (0..n).collect();
-
     for _round in 0..rounds {
-        let round_date = start_date + Duration::days((matchday as i64 - 1) * 7);
-        let date_str = round_date.format("%Y-%m-%d").to_string();
-
+        let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
+            .format("%Y-%m-%d")
+            .to_string();
         for i in 0..half {
-            let home_idx = indices2[n - 1 - i]; // Reversed
-            let away_idx = indices2[i];
-
-            let fixture = Fixture {
+            league.fixtures.push(Fixture {
                 id: Uuid::new_v4().to_string(),
-                competition_id: league_id.clone(),
+                competition_id: competition_id.clone(),
                 matchday,
                 date: date_str.clone(),
-                home_team_id: team_ids[home_idx].clone(),
-                away_team_id: team_ids[away_idx].clone(),
+                home_team_id: team_ids[indices2[n - 1 - i]].clone(),
+                away_team_id: team_ids[indices2[i]].clone(),
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
-            };
-            league.fixtures.push(fixture);
+            });
         }
-
         matchday += 1;
-
         let last = indices2.pop().unwrap();
         indices2.insert(1, last);
     }
+}
 
-    league
+/// Reset a league for a new season in place, preserving its identity, name, and
+/// participants but clearing results and regenerating standings and fixtures.
+/// Participants are taken from `participant_ids`, falling back to the previous
+/// standings for legacy leagues that never recorded a participant list.
+pub fn regenerate_league_for_season(
+    league: &mut League,
+    season: u32,
+    start_date: DateTime<Utc>,
+) {
+    let team_ids: Vec<String> = if !league.participant_ids.is_empty() {
+        league.participant_ids.clone()
+    } else {
+        league.standings.iter().map(|s| s.team_id.clone()).collect()
+    };
+
+    league.participant_ids = team_ids.clone();
+    league.season = season;
+    league.fixtures.clear();
+    league.standings = team_ids
+        .iter()
+        .map(|id| StandingEntry::new(id.clone()))
+        .collect();
+
+    if team_ids.len() >= 2 {
+        append_round_robin_fixtures(league, &team_ids, start_date);
+    }
+}
+
+/// Reset a knockout competition for a new season in place, preserving identity
+/// and participants but clearing previous fixtures, standings, and rounds.
+pub fn regenerate_knockout_for_season(
+    cup: &mut League,
+    season: u32,
+    start_date: DateTime<Utc>,
+) {
+    cup.season = season;
+    cup.fixtures.clear();
+    cup.standings.clear();
+    cup.knockout_rounds.clear();
+
+    let team_ids = cup.participant_ids.clone();
+    if team_ids.len() < 2 {
+        return;
+    }
+    let fixture_competition = match cup.kind {
+        CompetitionType::ContinentalClub => FixtureCompetition::ContinentalClub,
+        CompetitionType::InternationalClub => FixtureCompetition::InternationalClub,
+        CompetitionType::InternationalNation => FixtureCompetition::InternationalNation,
+        CompetitionType::FriendlyCup => FixtureCompetition::FriendlyCup,
+        _ => FixtureCompetition::Cup,
+    };
+    seed_knockout_round(cup, &team_ids, start_date, fixture_competition);
 }
 
 pub fn generate_knockout_cup(
@@ -441,6 +482,69 @@ mod tests {
 
         let final_round = cup.knockout_rounds.last().unwrap();
         assert_eq!(final_round.fixture_ids.len(), 1);
+    }
+
+    #[test]
+    fn regenerate_league_for_season_rebuilds_fresh_fixtures_and_standings() {
+        let teams: Vec<String> = (0..4).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Top Flight", 2026, &teams, start);
+        league.fixtures[0].status = FixtureStatus::Completed;
+        league.standings[0].points = 9;
+
+        let next_start = Utc.with_ymd_and_hms(2027, 8, 1, 0, 0, 0).unwrap();
+        regenerate_league_for_season(&mut league, 2027, next_start);
+
+        assert_eq!(league.season, 2027);
+        assert_eq!(league.fixtures.len(), 12); // 4 teams, double round robin
+        assert!(
+            league
+                .fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Scheduled && f.result.is_none())
+        );
+        assert_eq!(league.standings.len(), 4);
+        assert!(league.standings.iter().all(|s| s.points == 0 && s.played == 0));
+        assert_eq!(league.participant_ids.len(), 4);
+    }
+
+    #[test]
+    fn regenerate_league_for_season_falls_back_to_standings_without_participants() {
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = League::new("l1".to_string(), "Legacy".to_string(), 2026, &[]);
+        league.participant_ids.clear();
+        league.standings = vec![
+            StandingEntry::new("a".to_string()),
+            StandingEntry::new("b".to_string()),
+        ];
+
+        regenerate_league_for_season(&mut league, 2027, start);
+
+        assert_eq!(league.participant_ids, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(league.fixtures.len(), 2);
+    }
+
+    #[test]
+    fn regenerate_knockout_for_season_reseeds_first_round() {
+        let teams: Vec<String> = (0..4).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        cup.fixtures[0].status = FixtureStatus::Completed;
+
+        let next_start = Utc.with_ymd_and_hms(2027, 9, 1, 0, 0, 0).unwrap();
+        regenerate_knockout_for_season(&mut cup, 2027, next_start);
+
+        assert_eq!(cup.season, 2027);
+        assert_eq!(cup.knockout_rounds.len(), 1);
+        assert_eq!(cup.fixtures.len(), 2);
+        assert!(cup.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
     }
 
     #[test]

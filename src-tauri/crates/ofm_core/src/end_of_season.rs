@@ -1,8 +1,8 @@
 use crate::game::Game;
-use crate::schedule::{append_fixtures, generate_league, generate_preseason_friendlies};
+use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_season_awards;
-use chrono::Duration;
-use domain::league::{FixtureStatus, League};
+use chrono::{DateTime, Duration, Utc};
+use domain::league::{CompetitionFormat, FixtureStatus, League};
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
@@ -111,6 +111,79 @@ fn prize_money_for_position(position: u32) -> i64 {
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
 /// Returns a summary struct for the frontend to display.
+/// Apply promotion/relegation within each domestic pyramid. A pyramid is the
+/// set of league-table competitions sharing a country, ordered by `priority`
+/// (lowest priority = highest division).
+fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
+    use std::collections::BTreeMap;
+
+    let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (index, competition) in competitions.iter().enumerate() {
+        if competition.rules.format != CompetitionFormat::LeagueTable {
+            continue;
+        }
+        if let Some(country) = &competition.country_id {
+            tiers_by_country
+                .entry(country.clone())
+                .or_default()
+                .push(index);
+        }
+    }
+
+    for mut indices in tiers_by_country.into_values() {
+        if indices.len() < 2 {
+            continue;
+        }
+        indices.sort_by_key(|&index| competitions[index].priority);
+
+        let mut divisions: Vec<League> =
+            indices.iter().map(|&index| competitions[index].clone()).collect();
+        crate::promotion::apply_promotion_relegation(&mut divisions);
+
+        for (slot, &index) in indices.iter().enumerate() {
+            competitions[index].participant_ids = divisions[slot].participant_ids.clone();
+        }
+    }
+}
+
+/// Roll every competition over to the next season: apply promotion/relegation
+/// to domestic pyramids, regenerate fixtures and standings in place (preserving
+/// each competition's identity), and keep the legacy `league` slot in sync.
+fn regenerate_competitions_for_new_season(
+    game: &mut Game,
+    next_season: u32,
+    next_start: DateTime<Utc>,
+) {
+    // Fall back to the legacy single league when no competition list exists yet.
+    if game.competitions.is_empty() {
+        if let Some(league) = game.league.clone() {
+            game.competitions.push(league);
+        }
+    }
+    if game.competitions.is_empty() {
+        return;
+    }
+
+    apply_pyramid_promotion_relegation(&mut game.competitions);
+
+    for competition in game.competitions.iter_mut() {
+        if competition.rules.format == CompetitionFormat::LeagueTable {
+            crate::schedule::regenerate_league_for_season(competition, next_season, next_start);
+        } else {
+            crate::schedule::regenerate_knockout_for_season(competition, next_season, next_start);
+        }
+    }
+
+    // Preseason friendlies for the primary competition (mirrors prior behaviour).
+    if let Some(primary) = game.competitions.first_mut() {
+        let friendlies =
+            generate_preseason_friendlies(&primary.participant_ids.clone(), next_start, 4);
+        append_fixtures(primary, friendlies);
+    }
+
+    game.sync_legacy_league();
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let league = match &game.league {
         Some(l) => l,
@@ -332,15 +405,12 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         game.news.push(article);
     }
 
-    // 7. Generate next season schedule
+    // 7. Roll every competition over to the next season, applying domestic
+    //    promotion/relegation, and keep the legacy `league` slot in sync.
     let next_season = season + 1;
-    let team_ids: Vec<String> = game.teams.iter().map(|t| t.id.clone()).collect();
-    // Start date: roughly a year after current start, or a few weeks from now
-    let next_start = game.clock.current_date + Duration::days(28); // 4 weeks break
-    let mut new_league = generate_league(&league_name, next_season, &team_ids, next_start);
-    let friendlies = generate_preseason_friendlies(&team_ids, next_start, 4);
-    append_fixtures(&mut new_league, friendlies);
-    game.league = Some(new_league);
+    // Start date: a few weeks after the current date (preseason break).
+    let next_start = game.clock.current_date + Duration::days(28);
+    regenerate_competitions_for_new_season(game, next_season, next_start);
 
     let preview_date = game.clock.current_date.to_rfc3339();
     let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();
