@@ -293,6 +293,52 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
 }
 
 #[test]
+fn season_not_complete_while_another_division_is_unfinished() {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+
+    // div1 (the primary) is fully played; div2 still has a scheduled fixture.
+    let div1 = game.league.clone().unwrap();
+    let mut div2 = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![
+            make_completed_fixture("d2f1", "team3", "team4", 3, 0),
+            make_completed_fixture("d2f2", "team4", "team3", 0, 1),
+        ],
+        standings: vec![
+            make_standing("team3", 2, 0, 0, 4, 0),
+            make_standing("team4", 0, 0, 2, 0, 4),
+        ],
+        ..Default::default()
+    };
+    div2.fixtures[1].status = FixtureStatus::Scheduled;
+    div2.fixtures[1].result = None;
+    game.competitions = vec![div1, div2];
+
+    assert!(
+        !is_season_complete(&game),
+        "season must wait for every division, not just the primary league"
+    );
+
+    // Finish the second division and the season completes.
+    game.competitions[1].fixtures[1].status = FixtureStatus::Completed;
+    game.competitions[1].fixtures[1].result = Some(MatchResult {
+        home_goals: 0,
+        away_goals: 1,
+        home_scorers: vec![],
+        away_scorers: vec![],
+        report: None,
+    });
+    assert!(is_season_complete(&game));
+}
+
+#[test]
 fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));

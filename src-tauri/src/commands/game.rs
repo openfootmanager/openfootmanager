@@ -387,11 +387,17 @@ const MIN_DIVISION_SIZE: usize = 4;
 /// A second tier is only created when there are enough clubs for both divisions
 /// to be viable; otherwise the country runs a single league.
 fn split_into_divisions(sorted_team_ids: &[String], min_division_size: usize) -> Vec<Vec<String>> {
-    if sorted_team_ids.len() < min_division_size * 2 {
+    let total = sorted_team_ids.len();
+    if total < min_division_size * 2 {
         return vec![sorted_team_ids.to_vec()];
     }
-    let bottom_size = sorted_team_ids.len() / 2;
-    let split = sorted_team_ids.len() - bottom_size;
+    let mut bottom_size = total / 2;
+    // Round-robin schedules require even-sized divisions; with an even total,
+    // nudge the split so both tiers stay even (an odd total is odd either way).
+    if total % 2 == 0 && bottom_size % 2 == 1 {
+        bottom_size -= 1;
+    }
+    let split = total - bottom_size;
     vec![
         sorted_team_ids[..split].to_vec(),
         sorted_team_ids[split..].to_vec(),
@@ -1260,6 +1266,19 @@ mod tests {
         assert_eq!(divisions[1].len(), 4);
         assert_eq!(divisions[0][0], "club-0");
         assert_eq!(divisions[1][0], "club-5");
+    }
+
+    #[test]
+    fn split_into_divisions_keeps_even_tiers_for_even_totals() {
+        // A naive halving of 10 clubs would give 5+5 — odd divisions cannot
+        // play a full round robin, so the split must stay even.
+        let clubs: Vec<String> = (0..10).map(|i| format!("club-{i}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 4);
+
+        assert_eq!(divisions.len(), 2);
+        assert_eq!(divisions[0].len(), 6);
+        assert_eq!(divisions[1].len(), 4);
     }
 
     #[test]

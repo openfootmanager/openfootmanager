@@ -54,9 +54,19 @@ pub fn is_league_complete(league: &League) -> bool {
             .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
-/// Check if the season is complete (all fixtures played).
+/// Check if the season is complete: every league division has played out its
+/// full schedule. Rolling over while any league is mid-season would wipe its
+/// remaining fixtures, so the trigger waits for all of them.
 pub fn is_season_complete(game: &Game) -> bool {
-    game.league.as_ref().is_some_and(is_league_complete)
+    let leagues: Vec<&League> = if game.competitions.is_empty() {
+        game.league.iter().collect()
+    } else {
+        game.competitions
+            .iter()
+            .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+            .collect()
+    };
+    !leagues.is_empty() && leagues.into_iter().all(is_league_complete)
 }
 
 const PRIZE_MONEY_BY_POSITION: [i64; 10] = [
