@@ -181,7 +181,31 @@ fn regenerate_competitions_for_new_season(
         append_fixtures(primary, friendlies);
     }
 
+    regenerate_international_windows(game, next_start);
     game.sync_legacy_league();
+}
+
+/// Reschedule national-team friendlies for the new season and keep club fixtures
+/// off the international window dates. National teams keep their squads but get a
+/// fresh fixture list (last season's matches are cleared).
+fn regenerate_international_windows(game: &mut Game, next_start: DateTime<Utc>) {
+    let window_dates = crate::national_team::international_window_dates(next_start);
+    if window_dates.is_empty() {
+        return;
+    }
+
+    for national_team in game.national_teams.iter_mut() {
+        national_team.fixtures.clear();
+    }
+    crate::national_team::schedule_national_team_friendlies(
+        &mut game.national_teams,
+        &window_dates,
+        &mut rand::rng(),
+    );
+
+    for competition in game.competitions.iter_mut() {
+        crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+    }
 }
 
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {

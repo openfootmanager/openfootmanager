@@ -180,6 +180,52 @@ fn make_completed_season_game() -> Game {
 }
 
 #[test]
+fn process_end_of_season_reschedules_national_team_windows() {
+    use domain::national_team::NationalTeam;
+
+    let mut game = make_completed_season_game();
+
+    let mut nt_a = NationalTeam::new("nt-a".into(), "A".into(), "AAA".into(), None);
+    nt_a.squad_player_ids = vec!["p1".into()];
+    nt_a.fixtures.push(Fixture {
+        id: "old-friendly".into(),
+        competition_id: "international-friendlies".into(),
+        matchday: 1,
+        date: "2026-09-09".into(),
+        home_team_id: "nt-a".into(),
+        away_team_id: "nt-b".into(),
+        competition: FixtureCompetition::InternationalNation,
+        status: FixtureStatus::Completed,
+        result: None,
+    });
+    let mut nt_b = NationalTeam::new("nt-b".into(), "B".into(), "BBB".into(), None);
+    nt_b.squad_player_ids = vec!["p2".into()];
+    game.national_teams = vec![nt_a, nt_b];
+
+    process_end_of_season(&mut game);
+
+    let fixtures: Vec<&Fixture> = game
+        .national_teams
+        .iter()
+        .flat_map(|team| team.fixtures.iter())
+        .collect();
+
+    assert!(!fixtures.is_empty(), "new national-team fixtures scheduled");
+    assert!(
+        !fixtures.iter().any(|f| f.id == "old-friendly"),
+        "last season's national-team fixtures are cleared"
+    );
+    assert!(
+        fixtures
+            .iter()
+            .all(|f| f.status == FixtureStatus::Scheduled),
+        "rescheduled friendlies start the new season unplayed"
+    );
+    // Windows for the new season fall after the rollover date.
+    assert!(fixtures.iter().all(|f| f.date.as_str() > "2026-06-01"));
+}
+
+#[test]
 fn process_end_of_season_promotes_and_relegates_between_divisions() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));
