@@ -293,6 +293,69 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
 }
 
 #[test]
+fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+    // The user manages the second-division champion, not a primary-league club.
+    game.manager.team_id = Some("team3".to_string());
+
+    let div1 = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![
+            make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+            make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+        ],
+        standings: vec![
+            make_standing("team1", 2, 0, 0, 3, 0),
+            make_standing("team2", 0, 0, 2, 0, 3),
+        ],
+        ..Default::default()
+    };
+    let div2 = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    game.league = Some(div1.clone());
+    game.competitions = vec![div1, div2];
+
+    let summary = process_end_of_season(&mut game);
+
+    assert_eq!(summary.league_name, "ENG Second Division");
+    assert_eq!(summary.user_position, 1);
+    assert_eq!(summary.champion_id, "team3");
+    assert_eq!(summary.total_teams, 2);
+    assert_eq!(
+        game.manager.career_stats.trophies, 1,
+        "winning your division counts as a trophy"
+    );
+
+    // The payout message matches the tier-scaled ledger (half the top-flight
+    // champion's 5,000,000).
+    let payout = game
+        .messages
+        .iter()
+        .find(|m| m.id == "season_payout_1")
+        .expect("payout message for the user's division");
+    assert_eq!(payout.i18n_params.get("amount"), Some(&"2500000".to_string()));
+}
+
+#[test]
 fn process_end_of_season_promotes_and_relegates_between_divisions() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));

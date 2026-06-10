@@ -251,8 +251,32 @@ fn regenerate_international_windows(game: &mut Game, next_start: DateTime<Utc>) 
     }
 }
 
+/// The league-table competition the user's club contests. Falls back to the
+/// primary competition when the user has no club in any division (e.g. an
+/// unemployed manager) or for legacy single-league saves.
+fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
+    game.competitions
+        .iter()
+        .find(|competition| {
+            competition.rules.format == CompetitionFormat::LeagueTable
+                && (competition
+                    .participant_ids
+                    .iter()
+                    .any(|id| id == user_team_id)
+                    || competition
+                        .standings
+                        .iter()
+                        .any(|standing| standing.team_id == user_team_id))
+        })
+        .or(game.league.as_ref())
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
-    let league = match &game.league {
+    // The summary, board review, and manager career must reflect the division
+    // the user's club actually contests — not whichever competition happens to
+    // be first in the list.
+    let user_team_id = game.manager.team_id.clone().unwrap_or_default();
+    let league = match user_division(game, &user_team_id) {
         Some(l) => l,
         None => return EndOfSeasonSummary::default(),
     };
@@ -278,7 +302,6 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let awards = compute_season_awards(game);
 
     // 3. Build summary
-    let user_team_id = game.manager.team_id.clone().unwrap_or_default();
     let user_position = final_standings
         .iter()
         .position(|s| s.team_id == user_team_id)
