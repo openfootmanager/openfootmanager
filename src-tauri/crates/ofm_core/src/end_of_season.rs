@@ -2,7 +2,7 @@ use crate::game::Game;
 use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_season_awards;
 use chrono::{DateTime, Duration, Utc};
-use domain::league::{CompetitionFormat, FixtureStatus, League};
+use domain::league::{CompetitionFormat, FixtureStatus, League, StandingEntry};
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
@@ -107,6 +107,49 @@ fn prize_money_for_position(position: u32) -> i64 {
         .get(position.saturating_sub(1) as usize)
         .copied()
         .unwrap_or(150_000)
+}
+
+/// Prize money for a finishing position, halved for each tier below the top
+/// flight (tier 0 = top division).
+fn division_prize_money(position: u32, tier: u32) -> i64 {
+    prize_money_for_position(position) >> tier
+}
+
+/// Final standings and pyramid tier for every league-table competition, falling
+/// back to the legacy single league. Tier is the rank by `priority` among the
+/// leagues sharing a country; standalone leagues are tier 0.
+fn division_standings_with_tiers(game: &Game) -> Vec<(Vec<StandingEntry>, u32)> {
+    use std::collections::BTreeMap;
+
+    let leagues: Vec<&League> = if game.competitions.is_empty() {
+        game.league.iter().collect()
+    } else {
+        game.competitions
+            .iter()
+            .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+            .collect()
+    };
+
+    let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
+    let mut standalone: Vec<&League> = Vec::new();
+    for league in leagues {
+        match league.country_id.as_deref() {
+            Some(country) => by_country.entry(country).or_default().push(league),
+            None => standalone.push(league),
+        }
+    }
+
+    let mut divisions: Vec<(Vec<StandingEntry>, u32)> = Vec::new();
+    for mut group in by_country.into_values() {
+        group.sort_by_key(|league| league.priority);
+        for (tier, league) in group.into_iter().enumerate() {
+            divisions.push((league.sorted_standings(), tier as u32));
+        }
+    }
+    for league in standalone {
+        divisions.push((league.sorted_standings(), 0));
+    }
+    divisions
 }
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
@@ -293,43 +336,53 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         season_awards: awards.clone(),
     };
 
-    // 4. Record team season history
-    for (idx, standing) in final_standings.iter().enumerate() {
-        if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
-            let position = (idx + 1) as u32;
-            let prize_money = prize_money_for_position(position);
+    // 4. Record team season history, pay prize money, and update reputation for
+    //    every league division — not just the user's competition — so the whole
+    //    pyramid crowns champions and keeps records.
+    let divisions = division_standings_with_tiers(game);
+    let user_division_tier = divisions
+        .iter()
+        .find(|(standings, _)| standings.iter().any(|s| s.team_id == user_team_id))
+        .map(|(_, tier)| *tier)
+        .unwrap_or(0);
+    for (division_standings, tier) in divisions {
+        for (idx, standing) in division_standings.iter().enumerate() {
+            if let Some(team) = game.teams.iter_mut().find(|t| t.id == standing.team_id) {
+                let position = (idx + 1) as u32;
+                let prize_money = division_prize_money(position, tier);
 
-            team.history.push(TeamSeasonRecord {
-                season,
-                league_position: position,
-                played: standing.played,
-                won: standing.won,
-                drawn: standing.drawn,
-                lost: standing.lost,
-                goals_for: standing.goals_for,
-                goals_against: standing.goals_against,
-            });
-            // Reset form
-            team.form.clear();
-
-            if prize_money > 0 {
-                team.finance += prize_money;
-                team.season_income += prize_money;
-                team.financial_ledger.push(FinancialTransaction {
-                    date: last_fixture_date.clone(),
-                    description: prize_money_ledger_description(
-                        season,
-                        position,
-                        position_suffix(position),
-                    ),
-                    amount: prize_money,
-                    kind: FinancialTransactionKind::PrizeMoney,
+                team.history.push(TeamSeasonRecord {
+                    season,
+                    league_position: position,
+                    played: standing.played,
+                    won: standing.won,
+                    drawn: standing.drawn,
+                    lost: standing.lost,
+                    goals_for: standing.goals_for,
+                    goals_against: standing.goals_against,
                 });
+                // Reset form
+                team.form.clear();
+
+                if prize_money > 0 {
+                    team.finance += prize_money;
+                    team.season_income += prize_money;
+                    team.financial_ledger.push(FinancialTransaction {
+                        date: last_fixture_date.clone(),
+                        description: prize_money_ledger_description(
+                            season,
+                            position,
+                            position_suffix(position),
+                        ),
+                        amount: prize_money,
+                        kind: FinancialTransactionKind::PrizeMoney,
+                    });
+                }
             }
         }
-    }
 
-    crate::reputation::update_team_reputation(game, &final_standings);
+        crate::reputation::update_team_reputation(game, &division_standings);
+    }
 
     // 5. Record player career entries and reset stats
     for player in game.players.iter_mut() {
@@ -457,7 +510,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         game.messages.iter().map(|m| m.id.clone()).collect();
 
     let payout_msg_id = format!("season_payout_{}", season);
-    let user_prize_money = prize_money_for_position(user_position);
+    let user_prize_money = division_prize_money(user_position, user_division_tier);
     if user_prize_money > 0 && !existing_ids.contains(&payout_msg_id) {
         let payout_message = InboxMessage::new(
             payout_msg_id,

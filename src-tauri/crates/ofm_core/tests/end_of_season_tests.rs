@@ -226,6 +226,73 @@ fn process_end_of_season_reschedules_national_team_windows() {
 }
 
 #[test]
+fn process_end_of_season_records_history_and_prizes_for_every_division() {
+    fn prize_money_total(team: &domain::team::Team) -> i64 {
+        team.financial_ledger
+            .iter()
+            .filter(|t| matches!(t.kind, domain::team::FinancialTransactionKind::PrizeMoney))
+            .map(|t| t.amount)
+            .sum()
+    }
+
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+    let team3_initial_reputation = game.teams.iter().find(|t| t.id == "team3").unwrap().reputation;
+
+    let div1 = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![
+            make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+            make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+        ],
+        standings: vec![
+            make_standing("team1", 2, 0, 0, 3, 0),
+            make_standing("team2", 0, 0, 2, 0, 3),
+        ],
+        ..Default::default()
+    };
+    let div2 = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    game.league = Some(div1.clone());
+    game.competitions = vec![div1, div2];
+
+    process_end_of_season(&mut game);
+
+    let team1 = game.teams.iter().find(|t| t.id == "team1").unwrap();
+    let team3 = game.teams.iter().find(|t| t.id == "team3").unwrap();
+
+    // Both divisions record season history with within-division positions.
+    let team3_record = team3.history.last().expect("second-division history recorded");
+    assert_eq!(team3_record.league_position, 1);
+    assert_eq!(team3_record.season, 1);
+
+    // The second-division champion earns half the top-flight champion's prize.
+    assert!(prize_money_total(team1) > 0);
+    assert_eq!(prize_money_total(team3) * 2, prize_money_total(team1));
+
+    // Winning its division improves the club's reputation.
+    assert!(team3.reputation > team3_initial_reputation);
+}
+
+#[test]
 fn process_end_of_season_promotes_and_relegates_between_divisions() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));
