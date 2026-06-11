@@ -187,7 +187,7 @@ pub fn generate_youth_academy_recruit_with_nationality(
 
     let mut rng = rand::rng();
     let names_def = default_names_definition();
-    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+    let country_codes = sorted_country_codes(&names_def);
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
         .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
@@ -227,9 +227,21 @@ fn team_staff_seed_nationality(team: &Team) -> &str {
     }
 }
 
+/// Country codes from the name pools in a stable, sorted order.
+///
+/// `pools` is a `HashMap`, and Rust randomizes key-iteration order per
+/// instance. Generation indexes into these codes with the RNG, so without a
+/// stable order the same seed produces different worlds. Sorting is what makes
+/// seeded world generation actually reproducible.
+fn sorted_country_codes(names_def: &definitions::NamesDefinition) -> Vec<String> {
+    let mut codes: Vec<String> = names_def.pools.keys().cloned().collect();
+    codes.sort();
+    codes
+}
+
 fn create_staff_generator_context() -> (definitions::NamesDefinition, Vec<String>) {
     let names_def = default_names_definition();
-    let country_codes = names_def.pools.keys().cloned().collect();
+    let country_codes = sorted_country_codes(&names_def);
     (names_def, country_codes)
 }
 
@@ -363,11 +375,29 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
 
 /// Generate a random world (raw tuple — used by `generate_world_data`).
 /// Loads definition files from `data_dir` if provided; falls back to hardcoded defaults.
+/// Generate a world using entropy-seeded randomness (production default).
+/// Every call produces a different world — this is what "New Game" uses.
 pub fn generate_world(
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
+    generate_world_with_rng(rand::rng(), data_dir)
+}
+
+/// Generate a world deterministically from `seed`. The same seed always
+/// produces an identical world. Intended for reproducible tests/scenarios.
+pub fn generate_world_seeded(
+    seed: u64,
+    data_dir: Option<&std::path::Path>,
+) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
+    use rand::SeedableRng;
+    generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(seed), data_dir)
+}
+
+fn generate_world_with_rng(
+    mut rng: impl rand::Rng,
+    data_dir: Option<&std::path::Path>,
+) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     info!("[generator] generate_world: data_dir={:?}", data_dir);
-    let mut rng = rand::rng();
     let mut teams_out = Vec::new();
     let mut players = Vec::new();
     let mut staff = Vec::new();
@@ -398,7 +428,7 @@ pub fn generate_world(
         })
         .unwrap_or_else(default_teams_definition);
 
-    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+    let country_codes = sorted_country_codes(&names_def);
 
     for tdef in &teams_def.teams {
         let team_id = Uuid::new_v4().to_string();
