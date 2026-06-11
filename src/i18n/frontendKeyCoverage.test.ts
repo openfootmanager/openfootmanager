@@ -1,42 +1,41 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { hasLocaleKey } from "./i18nTestHelpers";
 import en from "./locales/en.json";
 
-const SRC_DIR = path.resolve(process.cwd(), "src");
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
-const IGNORE_RE =
-  /(?:\.test\.|[\\/]i18n[\\/]locales[\\/]|node_modules|dist|src-tauri[\\/]target)/;
+const sourceModules = import.meta.glob("../**/*.ts", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as Record<string, string>;
 
-function walkSourceFiles(dir: string, collected: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = path.join(dir, entry.name);
-    if (IGNORE_RE.test(fullPath)) {
-      continue;
-    }
+const sourceTsxModules = import.meta.glob("../**/*.tsx", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as Record<string, string>;
 
-    if (entry.isDirectory()) {
-      walkSourceFiles(fullPath, collected);
-      continue;
-    }
+const SOURCE_MODULES = {
+  ...sourceModules,
+  ...sourceTsxModules,
+};
 
-    if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) {
-      collected.push(fullPath);
-    }
-  }
-
-  return collected;
+function isIgnoredModule(modulePath: string): boolean {
+  return (
+    modulePath.includes("/i18n/locales/") ||
+    modulePath.endsWith(".test.ts") ||
+    modulePath.endsWith(".test.tsx")
+  );
 }
 
-function collectLiteralTranslationKeys(filePath: string): string[] {
-  const sourceText = fs.readFileSync(filePath, "utf8");
-  const scriptKind = filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+function collectLiteralTranslationKeys(
+  modulePath: string,
+  sourceText: string,
+): string[] {
+  const scriptKind = modulePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sourceFile = ts.createSourceFile(
-    filePath,
+    modulePath,
     sourceText,
     ts.ScriptTarget.Latest,
     true,
@@ -66,11 +65,12 @@ function collectLiteralTranslationKeys(filePath: string): string[] {
 
 describe("frontend translation coverage", () => {
   it("keeps literal translation key references aligned with the English locale", () => {
-    const missingReferences = walkSourceFiles(SRC_DIR)
-      .flatMap((filePath) => {
-        const relativePath = path.relative(SRC_DIR, filePath);
+    const missingReferences = Object.entries(SOURCE_MODULES)
+      .filter(([modulePath]) => !isIgnoredModule(modulePath))
+      .flatMap(([modulePath, sourceText]) => {
+        const relativePath = modulePath.replace(/^\.\.\//, "");
 
-        return collectLiteralTranslationKeys(filePath)
+        return collectLiteralTranslationKeys(modulePath, sourceText)
           .filter((key) => !hasLocaleKey(en, key))
           .map((key) => `${relativePath}: ${key}`);
       })
