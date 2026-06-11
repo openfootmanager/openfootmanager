@@ -378,6 +378,29 @@ fn promoted_user_receives_a_promotion_message() {
 }
 
 #[test]
+fn season_awards_are_scoped_to_the_users_division() {
+    let mut game = make_two_division_game("team1");
+    // A second-division striker outscores everyone in the user's division.
+    let mut lower_star = make_player("p3", "Lower Star", "team3", Position::Forward);
+    lower_star.stats = PlayerSeasonStats {
+        appearances: 20,
+        goals: 30,
+        avg_rating: 8.0,
+        minutes_played: 1800,
+        ..PlayerSeasonStats::default()
+    };
+    game.players.push(lower_star);
+
+    let summary = process_end_of_season(&mut game);
+
+    assert_eq!(
+        summary.golden_boot_player, "Star",
+        "the golden boot belongs to the user's division, not the whole world"
+    );
+    assert_eq!(summary.golden_boot_goals, 20);
+}
+
+#[test]
 fn user_staying_in_their_division_gets_no_movement_message() {
     let mut game = make_two_division_game("team1");
 

@@ -1,6 +1,6 @@
 use crate::game::Game;
 use crate::schedule::{append_fixtures, generate_preseason_friendlies};
-use crate::season_awards::compute_season_awards;
+use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Duration, Utc};
 use domain::league::{CompetitionFormat, FixtureStatus, League, StandingEntry};
 use domain::message::*;
@@ -264,7 +264,7 @@ fn regenerate_international_windows(game: &mut Game, next_start: DateTime<Utc>) 
 /// The league-table competition the user's club contests. Falls back to the
 /// primary competition when the user has no club in any division (e.g. an
 /// unemployed manager) or for legacy single-league saves.
-fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
+pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
     game.competitions
         .iter()
         .find(|competition| {
@@ -359,8 +359,8 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 1. Compute final standings
     let final_standings = league.sorted_standings();
 
-    // 2. Compute awards before resetting stats
-    let awards = compute_season_awards(game);
+    // 2. Compute the user's division's awards before resetting stats
+    let awards = compute_division_season_awards(game, league);
 
     // 3. Build summary
     let user_position = final_standings

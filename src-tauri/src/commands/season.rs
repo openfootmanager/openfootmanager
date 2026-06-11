@@ -52,5 +52,14 @@ pub fn get_season_awards(
     let game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    Ok(ofm_core::season_awards::compute_season_awards(&game))
+    // The awards screen shows the race within the user's own division.
+    let user_team_id = game.manager.team_id.clone().unwrap_or_default();
+    Ok(
+        match ofm_core::end_of_season::user_division(&game, &user_team_id) {
+            Some(division) => {
+                ofm_core::season_awards::compute_division_season_awards(&game, division)
+            }
+            None => ofm_core::season_awards::compute_season_awards(&game),
+        },
+    )
 }
