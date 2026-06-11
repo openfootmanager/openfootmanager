@@ -8,7 +8,9 @@ use domain::player::PlayerSeasonStats;
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 pub fn expected_fixture_count(team_count: usize) -> Option<usize> {
-    if team_count >= 2 && team_count % 2 == 0 {
+    if team_count >= 2 {
+        // Double round robin: every club plays every other home and away.
+        // Odd-sized leagues reach the same total via byes.
         Some(team_count * (team_count - 1))
     } else {
         None

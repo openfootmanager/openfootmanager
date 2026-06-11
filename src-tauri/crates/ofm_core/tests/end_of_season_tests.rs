@@ -6,7 +6,7 @@ use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
-use ofm_core::end_of_season::{is_season_complete, process_end_of_season};
+use ofm_core::end_of_season::{expected_fixture_count, is_season_complete, process_end_of_season};
 use ofm_core::game::{BoardObjective, Game, ObjectiveType};
 
 // ---------------------------------------------------------------------------
@@ -588,6 +588,15 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
 // ---------------------------------------------------------------------------
 // is_season_complete
 // ---------------------------------------------------------------------------
+
+#[test]
+fn expected_fixture_count_covers_odd_team_counts() {
+    // Double round robin always needs n * (n - 1) fixtures; odd leagues play
+    // it out with byes.
+    assert_eq!(expected_fixture_count(4), Some(12));
+    assert_eq!(expected_fixture_count(5), Some(20));
+    assert_eq!(expected_fixture_count(1), None);
+}
 
 #[test]
 fn season_complete_when_all_fixtures_completed() {

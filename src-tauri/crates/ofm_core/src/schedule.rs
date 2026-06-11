@@ -25,60 +25,50 @@ pub fn generate_league(
 
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
 /// spacing matchdays 7 days apart from `start_date`. Fixtures are tagged with
-/// the league's id. Uses a rotation-based algorithm for balanced scheduling.
+/// the league's id. Uses the circle method; an odd club count plays against a
+/// phantom slot, giving each club one bye per leg.
 fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
     let n = team_ids.len();
+    if n < 2 {
+        return;
+    }
+    let slots = if n % 2 == 0 { n } else { n + 1 };
+    let rounds = slots - 1;
+    let half = slots / 2;
     let competition_id = league.id.clone();
-    let rounds = n - 1;
-    let half = n / 2;
     let mut matchday: u32 = 1;
 
-    // First leg (home)
-    let mut indices: Vec<usize> = (0..n).collect();
-    for _round in 0..rounds {
-        let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
-            .format("%Y-%m-%d")
-            .to_string();
-        for i in 0..half {
-            league.fixtures.push(Fixture {
-                id: Uuid::new_v4().to_string(),
-                competition_id: competition_id.clone(),
-                matchday,
-                date: date_str.clone(),
-                home_team_id: team_ids[indices[i]].clone(),
-                away_team_id: team_ids[indices[n - 1 - i]].clone(),
-                competition: FixtureCompetition::League,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            });
+    // Two legs; the second reverses home and away.
+    for leg in 0..2 {
+        let mut indices: Vec<usize> = (0..slots).collect();
+        for _round in 0..rounds {
+            let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
+                .format("%Y-%m-%d")
+                .to_string();
+            for i in 0..half {
+                let (mut home, mut away) = (indices[i], indices[slots - 1 - i]);
+                if leg == 1 {
+                    std::mem::swap(&mut home, &mut away);
+                }
+                if home >= n || away >= n {
+                    continue; // Paired with the phantom slot: a bye.
+                }
+                league.fixtures.push(Fixture {
+                    id: Uuid::new_v4().to_string(),
+                    competition_id: competition_id.clone(),
+                    matchday,
+                    date: date_str.clone(),
+                    home_team_id: team_ids[home].clone(),
+                    away_team_id: team_ids[away].clone(),
+                    competition: FixtureCompetition::League,
+                    status: FixtureStatus::Scheduled,
+                    result: None,
+                });
+            }
+            matchday += 1;
+            let last = indices.pop().unwrap();
+            indices.insert(1, last);
         }
-        matchday += 1;
-        let last = indices.pop().unwrap();
-        indices.insert(1, last);
-    }
-
-    // Second leg (reverse home/away)
-    let mut indices2: Vec<usize> = (0..n).collect();
-    for _round in 0..rounds {
-        let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
-            .format("%Y-%m-%d")
-            .to_string();
-        for i in 0..half {
-            league.fixtures.push(Fixture {
-                id: Uuid::new_v4().to_string(),
-                competition_id: competition_id.clone(),
-                matchday,
-                date: date_str.clone(),
-                home_team_id: team_ids[indices2[n - 1 - i]].clone(),
-                away_team_id: team_ids[indices2[i]].clone(),
-                competition: FixtureCompetition::League,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            });
-        }
-        matchday += 1;
-        let last = indices2.pop().unwrap();
-        indices2.insert(1, last);
     }
 }
 
@@ -545,6 +535,52 @@ mod tests {
         assert_eq!(cup.knockout_rounds.len(), 1);
         assert_eq!(cup.fixtures.len(), 2);
         assert!(cup.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
+    }
+
+    #[test]
+    fn generate_league_with_odd_team_count_gives_everyone_a_full_schedule() {
+        let teams: Vec<String> = (0..5).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let league = generate_league("Odd League", 2026, &teams, start);
+
+        // 5 teams, double round robin: 5 * 4 = 20 fixtures over 10 rounds
+        // (each round one club has a bye).
+        assert_eq!(league.fixtures.len(), 20);
+        let max_matchday = league.fixtures.iter().map(|f| f.matchday).max().unwrap();
+        assert_eq!(max_matchday, 10);
+
+        for team in &teams {
+            let appearances = league
+                .fixtures
+                .iter()
+                .filter(|f| &f.home_team_id == team || &f.away_team_id == team)
+                .count();
+            assert_eq!(appearances, 8, "{team} must play every rival twice");
+        }
+
+        // No club plays twice on the same matchday.
+        for matchday in 1..=max_matchday {
+            let mut seen = std::collections::HashSet::new();
+            for fixture in league.fixtures.iter().filter(|f| f.matchday == matchday) {
+                assert!(seen.insert(fixture.home_team_id.clone()));
+                assert!(seen.insert(fixture.away_team_id.clone()));
+            }
+        }
+
+        // Every pairing occurs exactly once per leg (home and away).
+        for left in &teams {
+            for right in &teams {
+                if left == right {
+                    continue;
+                }
+                let count = league
+                    .fixtures
+                    .iter()
+                    .filter(|f| &f.home_team_id == left && &f.away_team_id == right)
+                    .count();
+                assert_eq!(count, 1, "{left} must host {right} exactly once");
+            }
+        }
     }
 
     #[test]

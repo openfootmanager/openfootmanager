@@ -55,7 +55,8 @@ export function findNextFixture(
 }
 
 export function expectedFixtureCount(teamCount: number): number | null {
-    if (teamCount >= 2 && teamCount % 2 === 0) {
+    if (teamCount >= 2) {
+        // Double round robin; odd-sized leagues reach the same total via byes.
         return teamCount * (teamCount - 1);
     }
 
