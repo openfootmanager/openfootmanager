@@ -1124,6 +1124,16 @@
     "topScorers": "Marcatori",
     "loadingAwards": "Caricamento premi...",
     "awardsTab": "Premi",
+    "bracket": "Tabellone",
+    "bye": "Bye",
+    "roundComplete": "Completato",
+    "roundInProgress": "In corso",
+    "rounds": {
+      "final": "Finale",
+      "semifinal": "Semifinale",
+      "quarterfinal": "Quarti di finale",
+      "roundOf": "Turno dei {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Scarpa d'Oro",
       "goldenBootSubtitle": "Migliori marcatori",

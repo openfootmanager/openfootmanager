@@ -1105,6 +1105,16 @@
     "topScorers": "Meilleurs Buteurs",
     "loadingAwards": "Chargement des récompenses...",
     "awardsTab": "Récompenses",
+    "bracket": "Tableau",
+    "bye": "Exempt",
+    "roundComplete": "Terminé",
+    "roundInProgress": "En cours",
+    "rounds": {
+      "final": "Finale",
+      "semifinal": "Demi-finale",
+      "quarterfinal": "Quart de finale",
+      "roundOf": "{{size}}es de finale"
+    },
     "awards": {
       "goldenBootTitle": "Soulier d'or",
       "goldenBootSubtitle": "Meilleurs buteurs",

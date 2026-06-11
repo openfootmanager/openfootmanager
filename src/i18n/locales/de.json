@@ -1105,6 +1105,16 @@
     "topScorers": "Torjäger",
     "loadingAwards": "Auszeichnungen werden geladen...",
     "awardsTab": "Auszeichnungen",
+    "bracket": "Turnierbaum",
+    "bye": "Freilos",
+    "roundComplete": "Abgeschlossen",
+    "roundInProgress": "Läuft",
+    "rounds": {
+      "final": "Finale",
+      "semifinal": "Halbfinale",
+      "quarterfinal": "Viertelfinale",
+      "roundOf": "Runde der letzten {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Goldener Schuh",
       "goldenBootSubtitle": "Top-Torjäger",

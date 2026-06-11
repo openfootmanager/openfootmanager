@@ -1105,6 +1105,16 @@
     "topScorers": "Top Scorers",
     "loadingAwards": "Loading awards...",
     "awardsTab": "Awards",
+    "bracket": "Bracket",
+    "bye": "Bye",
+    "roundComplete": "Complete",
+    "roundInProgress": "In progress",
+    "rounds": {
+      "final": "Final",
+      "semifinal": "Semifinal",
+      "quarterfinal": "Quarterfinal",
+      "roundOf": "Round of {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Golden Boot",
       "goldenBootSubtitle": "Top Scorers",

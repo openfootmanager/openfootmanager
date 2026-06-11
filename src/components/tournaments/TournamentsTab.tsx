@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ReactNode } from "react";
+import type { TFunction } from "i18next";
 import {
   FixtureData,
   GameStateData,
+  LeagueData,
   SeasonAwardEntryData,
   SeasonAwardsData,
   SeasonManagerAwardEntryData,
@@ -16,6 +18,7 @@ import {
   TableProperties,
   Award,
   Briefcase,
+  GitBranch,
   Star,
   Shield,
   Users,
@@ -24,6 +27,7 @@ import {
 import {
   getActiveCompetitions,
   getCompetitiveFixtures,
+  getPromotionRelegationZones,
   getTeamName,
   formatMatchDate,
 } from "../../lib/helpers";
@@ -38,6 +42,23 @@ interface TournamentsTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
   onSelectPlayer?: (id: string) => void;
+}
+
+function isKnockoutCompetition(competition: LeagueData): boolean {
+  return (
+    (competition.rules != null && competition.rules.format !== "LeagueTable") ||
+    (competition.knockout_rounds?.length ?? 0) > 0
+  );
+}
+
+/** Round names arrive as backend data ("Final", "Round of 16"); localize the known shapes. */
+function localizedRoundName(t: TFunction, name: string): string {
+  if (name === "Final") return t("tournaments.rounds.final");
+  if (name === "Semifinal") return t("tournaments.rounds.semifinal");
+  if (name === "Quarterfinal") return t("tournaments.rounds.quarterfinal");
+  const roundOf = name.match(/^Round of (\d+)$/);
+  if (roundOf) return t("tournaments.rounds.roundOf", { size: roundOf[1] });
+  return name;
 }
 
 export default function TournamentsTab({
@@ -139,6 +160,13 @@ export default function TournamentsTab({
       b.goals_for - a.goals_for,
   );
 
+  const isKnockout = isKnockoutCompetition(league);
+  const knockoutRounds = league.knockout_rounds ?? [];
+  const zones = isKnockout
+    ? { promotionSlots: 0, relegationSlots: 0 }
+    : getPromotionRelegationZones(gameState, league);
+  const participantCount = league.participant_ids?.length ?? league.standings.length;
+
   const competitiveFixtures = getCompetitiveFixtures(league.fixtures);
 
   const matchdays = new Map<number, FixtureData[]>();
@@ -213,6 +241,44 @@ export default function TournamentsTab({
     return items;
   };
 
+  const renderFixtureRow = (f: FixtureData, testId: string) => {
+    const isUserMatch =
+      f.home_team_id === userTeamId || f.away_team_id === userTeamId;
+    const completed = f.status === "Completed";
+    return (
+      <ContextMenu items={buildFixtureMenuItems(f)} key={f.id}>
+        <div
+          className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
+          data-testid={testId}
+        >
+          <span
+            onClick={() => onSelectTeam(f.home_team_id)}
+            className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+          >
+            {getTeamName(gameState.teams, f.home_team_id)}
+          </span>
+          <div className="w-24 text-center mx-3">
+            {completed && f.result ? (
+              <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
+                {f.result.home_goals} - {f.result.away_goals}
+              </span>
+            ) : (
+              <Badge variant="neutral" size="sm">
+                vs
+              </Badge>
+            )}
+          </div>
+          <span
+            onClick={() => onSelectTeam(f.away_team_id)}
+            className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+          >
+            {getTeamName(gameState.teams, f.away_team_id)}
+          </span>
+        </div>
+      </ContextMenu>
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {isPreseason && (
@@ -252,7 +318,7 @@ export default function TournamentsTab({
               </h2>
               <p className="text-gray-400 text-sm mt-0.5">
                 {t("schedule.season", { number: league.season })} —{" "}
-                {t("tournaments.nTeams", { count: league.standings.length })}
+                {t("tournaments.nTeams", { count: participantCount })}
               </p>
             </div>
             {activeCompetitions.length > 1 && (
@@ -319,10 +385,17 @@ export default function TournamentsTab({
                 {t("tournaments.overview")}
               </>
             ) : v === "standings" ? (
-              <>
-                <TableProperties className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                {t("schedule.standings")}
-              </>
+              isKnockout ? (
+                <>
+                  <GitBranch className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  {t("tournaments.bracket")}
+                </>
+              ) : (
+                <>
+                  <TableProperties className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  {t("schedule.standings")}
+                </>
+              )
             ) : v === "awards" ? (
               <>
                 <Award className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -341,11 +414,32 @@ export default function TournamentsTab({
       {/* Overview */}
       {view === "overview" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Mini standings */}
+          {/* Mini standings / bracket progress */}
           <Card className="lg:col-span-2">
-            <CardHeader>{t("tournaments.leagueTable")}</CardHeader>
+            <CardHeader>
+              {isKnockout ? t("tournaments.bracket") : t("tournaments.leagueTable")}
+            </CardHeader>
             <CardBody className="p-0">
-              {isPreseason ? (
+              {isKnockout ? (
+                <div className="divide-y divide-gray-100 dark:divide-navy-600">
+                  {knockoutRounds.map((round) => (
+                    <div
+                      key={round.id}
+                      className="flex items-center justify-between px-4 py-2.5"
+                      data-testid={`tournaments-round-summary-${round.id}`}
+                    >
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        {localizedRoundName(t, round.name)}
+                      </span>
+                      <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
+                        {round.completed
+                          ? t("tournaments.roundComplete")
+                          : t("tournaments.roundInProgress")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : isPreseason ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
                   <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
                   <p className="text-sm font-heading font-bold text-gray-800 dark:text-gray-100">
@@ -486,8 +580,58 @@ export default function TournamentsTab({
         </div>
       )}
 
+      {/* Knockout bracket */}
+      {view === "standings" && isKnockout && (
+        <div className="flex flex-col gap-4">
+          {knockoutRounds.map((round) => {
+            const roundFixtures = round.fixture_ids
+              .map((fixtureId) =>
+                league.fixtures.find((fixture) => fixture.id === fixtureId),
+              )
+              .filter((fixture): fixture is FixtureData => Boolean(fixture));
+            const byeTeamIds = round.bye_team_ids ?? [];
+            return (
+              <Card key={round.id}>
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
+                  <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                    {localizedRoundName(t, round.name)}
+                  </h4>
+                  <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
+                    {round.completed
+                      ? t("tournaments.roundComplete")
+                      : t("tournaments.roundInProgress")}
+                  </Badge>
+                </div>
+                <CardBody className="p-0">
+                  <div className="divide-y divide-gray-100 dark:divide-navy-600">
+                    {roundFixtures.map((fixture) =>
+                      renderFixtureRow(fixture, `tournaments-bracket-${fixture.id}`),
+                    )}
+                    {byeTeamIds.length > 0 && (
+                      <div
+                        className="flex items-center gap-2 px-5 py-2.5 text-xs text-gray-500 dark:text-gray-400"
+                        data-testid={`tournaments-byes-${round.id}`}
+                      >
+                        <Badge variant="neutral" size="sm">
+                          {t("tournaments.bye")}
+                        </Badge>
+                        <span>
+                          {byeTeamIds
+                            .map((teamId) => getTeamName(gameState.teams, teamId))
+                            .join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       {/* Full standings */}
-      {view === "standings" &&
+      {view === "standings" && !isKnockout &&
         (isPreseason ? (
           <Card>
             <CardBody>
@@ -551,6 +695,9 @@ export default function TournamentsTab({
                   {standings.map((entry, idx) => {
                     const isUser = entry.team_id === userTeamId;
                     const gd = entry.goals_for - entry.goals_against;
+                    const inPromotionZone = idx < zones.promotionSlots;
+                    const inRelegationZone =
+                      idx >= standings.length - zones.relegationSlots;
                     return (
                       <ContextMenu
                         items={buildStandingMenuItems(entry.team_id)}
@@ -561,7 +708,22 @@ export default function TournamentsTab({
                           className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                           data-testid={`tournaments-standing-${entry.team_id}`}
                         >
-                          <td className="py-3 px-4 font-heading font-bold text-sm text-gray-400">
+                          <td
+                            className={`py-3 px-4 font-heading font-bold text-sm ${
+                              inPromotionZone
+                                ? "border-l-2 border-primary-500 text-primary-500"
+                                : inRelegationZone
+                                  ? "border-l-2 border-red-500 text-red-500"
+                                  : "text-gray-400"
+                            }`}
+                            data-testid={
+                              inPromotionZone
+                                ? `tournaments-promotion-${entry.team_id}`
+                                : inRelegationZone
+                                  ? `tournaments-relegation-${entry.team_id}`
+                                  : undefined
+                            }
+                          >
                             {idx + 1}
                           </td>
                           <td
@@ -601,6 +763,22 @@ export default function TournamentsTab({
                   })}
                 </tbody>
               </table>
+              {(zones.promotionSlots > 0 || zones.relegationSlots > 0) && (
+                <div className="flex gap-5 border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-navy-600 dark:text-gray-400">
+                  {zones.promotionSlots > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-primary-500" />
+                      {t("schedule.promotionZone")}
+                    </span>
+                  )}
+                  {zones.relegationSlots > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                      {t("schedule.relegationZone")}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         ))}
@@ -618,44 +796,9 @@ export default function TournamentsTab({
               </div>
               <CardBody className="p-0">
                 <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {fixtures.map((f) => {
-                    const isUserMatch =
-                      f.home_team_id === userTeamId ||
-                      f.away_team_id === userTeamId;
-                    const completed = f.status === "Completed";
-                    return (
-                      <ContextMenu items={buildFixtureMenuItems(f)} key={f.id}>
-                        <div
-                          className={`flex items-center px-5 py-3 transition-colors ${isUserMatch ? "bg-primary-50/50 dark:bg-primary-500/5" : ""}`}
-                          data-testid={`tournaments-fixture-${f.id}`}
-                        >
-                          <span
-                            onClick={() => onSelectTeam(f.home_team_id)}
-                            className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                          >
-                            {getTeamName(gameState.teams, f.home_team_id)}
-                          </span>
-                          <div className="w-24 text-center mx-3">
-                            {completed && f.result ? (
-                              <span className="font-heading font-bold text-lg text-gray-800 dark:text-gray-100">
-                                {f.result.home_goals} - {f.result.away_goals}
-                              </span>
-                            ) : (
-                              <Badge variant="neutral" size="sm">
-                                vs
-                              </Badge>
-                            )}
-                          </div>
-                          <span
-                            onClick={() => onSelectTeam(f.away_team_id)}
-                            className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
-                          >
-                            {getTeamName(gameState.teams, f.away_team_id)}
-                          </span>
-                        </div>
-                      </ContextMenu>
-                    );
-                  })}
+                  {fixtures.map((f) =>
+                    renderFixtureRow(f, `tournaments-fixture-${f.id}`),
+                  )}
                 </div>
               </CardBody>
             </Card>

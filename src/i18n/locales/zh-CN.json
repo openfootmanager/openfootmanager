@@ -1105,6 +1105,16 @@
     "topScorers": "射手榜",
     "loadingAwards": "正在加载奖项...",
     "awardsTab": "奖项",
+    "bracket": "对阵表",
+    "bye": "轮空",
+    "roundComplete": "已结束",
+    "roundInProgress": "进行中",
+    "rounds": {
+      "final": "决赛",
+      "semifinal": "半决赛",
+      "quarterfinal": "四分之一决赛",
+      "roundOf": "{{size}}强赛"
+    },
     "awards": {
       "goldenBootTitle": "金靴奖",
       "goldenBootSubtitle": "最佳射手",

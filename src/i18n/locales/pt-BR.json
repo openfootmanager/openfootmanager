@@ -1105,6 +1105,16 @@
     "topScorers": "Artilheiros",
     "loadingAwards": "Carregando prêmios...",
     "awardsTab": "Prêmios",
+    "bracket": "Chaveamento",
+    "bye": "Bye",
+    "roundComplete": "Concluída",
+    "roundInProgress": "Em andamento",
+    "rounds": {
+      "final": "Final",
+      "semifinal": "Semifinal",
+      "quarterfinal": "Quartas de final",
+      "roundOf": "Fase de {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Chuteira de Ouro",
       "goldenBootSubtitle": "Artilheiros",

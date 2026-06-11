@@ -1135,6 +1135,16 @@
     "topScorers": "Máximos Goleadores",
     "loadingAwards": "Cargando premios...",
     "awardsTab": "Premios",
+    "bracket": "Cuadro",
+    "bye": "Exento",
+    "roundComplete": "Completada",
+    "roundInProgress": "En curso",
+    "rounds": {
+      "final": "Final",
+      "semifinal": "Semifinal",
+      "quarterfinal": "Cuartos de final",
+      "roundOf": "Ronda de {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Bota de Oro",
       "goldenBootSubtitle": "Máximos goleadores",

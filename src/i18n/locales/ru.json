@@ -1105,6 +1105,16 @@
     "topScorers": "Бомбардиры",
     "loadingAwards": "Загрузка наград...",
     "awardsTab": "Награды",
+    "bracket": "Сетка",
+    "bye": "Без игры",
+    "roundComplete": "Завершён",
+    "roundInProgress": "Идёт",
+    "rounds": {
+      "final": "Финал",
+      "semifinal": "Полуфинал",
+      "quarterfinal": "Четвертьфинал",
+      "roundOf": "Раунд {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Золотая бутса",
       "goldenBootSubtitle": "Лучшие бомбардиры",

@@ -1105,6 +1105,16 @@
     "topScorers": "Melhores Marcadores",
     "loadingAwards": "A carregar prémios...",
     "awardsTab": "Prémios",
+    "bracket": "Quadro",
+    "bye": "Isento",
+    "roundComplete": "Concluída",
+    "roundInProgress": "Em curso",
+    "rounds": {
+      "final": "Final",
+      "semifinal": "Meia-final",
+      "quarterfinal": "Quartos de final",
+      "roundOf": "Ronda de {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Bota de Ouro",
       "goldenBootSubtitle": "Melhores marcadores",

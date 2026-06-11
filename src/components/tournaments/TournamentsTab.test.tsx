@@ -39,6 +39,16 @@ vi.mock("react-i18next", () => ({
       if (key === "common.gd") return "GD";
       if (key === "common.pts") return "Pts";
       if (key === "common.position") return "Position";
+      if (key === "tournaments.bracket") return "Bracket";
+      if (key === "tournaments.bye") return "Bye";
+      if (key === "tournaments.roundComplete") return "Complete";
+      if (key === "tournaments.roundInProgress") return "In progress";
+      if (key === "tournaments.rounds.final") return "Final";
+      if (key === "tournaments.rounds.semifinal") return "Semifinal";
+      if (key === "tournaments.rounds.quarterfinal") return "Quarterfinal";
+      if (key === "tournaments.rounds.roundOf") return `Round of ${params?.size}`;
+      if (key === "schedule.promotionZone") return "Promotion";
+      if (key === "schedule.relegationZone") return "Relegation";
       if (key.startsWith("season.phases.")) return key.replace("season.phases.", "");
       return key;
     },
@@ -274,6 +284,97 @@ describe("TournamentsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  it("renders a knockout bracket with byes when a cup is selected", () => {
+    const state = createGameState(true);
+    state.competitions = [
+      state.league!,
+      {
+        id: "cup-1",
+        name: "FA Cup",
+        season: 1,
+        rules: { format: "Knockout", counts_in_season_flow: true },
+        participant_ids: ["team-1", "team-2", "team-3"],
+        fixtures: [
+          createFixture({
+            id: "cup-f1",
+            competition: "Cup",
+            status: "Scheduled",
+            result: null,
+          }),
+        ],
+        standings: [],
+        knockout_rounds: [
+          {
+            id: "round-1",
+            name: "Semifinal",
+            fixture_ids: ["cup-f1"],
+            bye_team_ids: ["team-2"],
+            completed: false,
+          },
+        ],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "cup-1" } });
+    fireEvent.click(screen.getByRole("button", { name: /Bracket/i }));
+
+    expect(screen.getByTestId("tournaments-bracket-cup-f1")).toBeInTheDocument();
+    const byes = screen.getByTestId("tournaments-byes-round-1");
+    expect(byes).toHaveTextContent("Beta FC");
+    // The header reflects entrants, not the (empty) cup standings.
+    expect(screen.getByText(/3 teams/)).toBeInTheDocument();
+  });
+
+  it("marks the relegation zone in pyramid standings", () => {
+    const state = createGameState(true);
+    const standing = (teamId: string, points: number) => ({
+      team_id: teamId,
+      played: 2,
+      won: points / 3,
+      drawn: 0,
+      lost: 2 - points / 3,
+      goals_for: points,
+      goals_against: 2,
+      points,
+    });
+    state.competitions = [
+      {
+        id: "eng-1",
+        name: "First Division",
+        season: 1,
+        country_id: "ENG",
+        priority: 0,
+        participant_ids: ["team-1", "team-2", "team-3", "team-4"],
+        fixtures: [],
+        standings: [
+          standing("team-1", 6),
+          standing("team-2", 3),
+          standing("team-3", 3),
+          standing("team-4", 0),
+        ],
+      },
+      {
+        id: "eng-2",
+        name: "Second Division",
+        season: 1,
+        country_id: "ENG",
+        priority: 1,
+        participant_ids: ["team-5", "team-6", "team-7", "team-8"],
+        fixtures: [],
+        standings: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Standings/i }));
+
+    expect(screen.getByTestId("tournaments-relegation-team-4")).toBeInTheDocument();
+    expect(screen.queryByTestId("tournaments-relegation-team-3")).not.toBeInTheDocument();
+    expect(screen.getByText("Relegation")).toBeInTheDocument();
   });
 
   it("renders manager of the season in the awards view", async () => {
