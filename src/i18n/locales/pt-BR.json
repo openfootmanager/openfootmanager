@@ -1061,7 +1061,9 @@
     "matchday": "Rodada {{number}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
-    "internationalDuty": "A serviço da seleção"
+    "internationalDuty": "A serviço da seleção",
+    "promotionZone": "Acesso",
+    "relegationZone": "Rebaixamento"
   },
   "players": {
     "searchPlaceholder": "Buscar por nome ou nacionalidade...",
@@ -2071,6 +2073,14 @@
           "midTable": "{{team}} terminou a temporada em {{position}}º lugar com {{points}} pontos.\n\nUma campanha intermediária. A diretoria espera melhora na próxima temporada. Precisamos ser mais competitivos.",
           "lowerHalf": "Uma temporada decepcionante para {{team}}. Terminar em {{position}}º lugar com apenas {{points}} pontos está abaixo das expectativas.\n\nA diretoria está preocupada. Melhorias significativas serão necessárias na próxima temporada, ou sua posição poderá ser reavaliada."
         }
+      },
+      "promotion": {
+        "subject": "Acesso à {{division}}!",
+        "body": "Parabéns! O clube conquistou o acesso e vai disputar a {{division}} na temporada {{season}}.\n\nA diretoria está empolgada com a conquista. Vamos nos preparar para o novo nível."
+      },
+      "relegation": {
+        "subject": "Rebaixamento para a {{division}}",
+        "body": "O clube foi rebaixado e vai disputar a {{division}} na temporada {{season}}.\n\nA diretoria está profundamente decepcionada. Espera-se uma briga imediata pelo acesso."
       },
       "newSeasonSchedule": {
         "subject": "Temporada {{season}} — Nova Tabela Divulgada",

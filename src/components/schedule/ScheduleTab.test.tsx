@@ -31,6 +31,8 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
       if (key === "schedule.international") return "International";
       if (key === "schedule.internationalDuty") return "On International Duty";
+      if (key === "schedule.promotionZone") return "Promotion";
+      if (key === "schedule.relegationZone") return "Relegation";
       return key;
     },
     i18n: {
@@ -184,6 +186,57 @@ describe("ScheduleTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("marks promotion and relegation zones on pyramid standings", () => {
+    const state = createGameState(true);
+    const standing = (teamId: string, points: number) => ({
+      team_id: teamId,
+      played: 3,
+      won: points / 3,
+      drawn: 0,
+      lost: 3 - points / 3,
+      goals_for: points,
+      goals_against: 3,
+      points,
+    });
+    state.competitions = [
+      {
+        id: "eng-1",
+        name: "First Division",
+        season: 1,
+        country_id: "ENG",
+        priority: 0,
+        participant_ids: ["team-1", "team-2", "team-3", "team-4"],
+        fixtures: [],
+        standings: [
+          standing("team-1", 9),
+          standing("team-2", 6),
+          standing("team-3", 3),
+          standing("team-4", 0),
+        ],
+      },
+      {
+        id: "eng-2",
+        name: "Second Division",
+        season: 1,
+        country_id: "ENG",
+        priority: 1,
+        participant_ids: ["team-5", "team-6", "team-7", "team-8"],
+        fixtures: [],
+        standings: [],
+      },
+    ];
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Standings/i }));
+
+    // Bottom club of the top division sits in the relegation zone.
+    expect(screen.getByTestId("standings-relegation-team-4")).toBeInTheDocument();
+    expect(screen.queryByTestId("standings-relegation-team-3")).not.toBeInTheDocument();
+    // Top division has nothing to be promoted to.
+    expect(screen.queryByTestId("standings-promotion-team-1")).not.toBeInTheDocument();
+    expect(screen.getByText("Relegation")).toBeInTheDocument();
   });
 
   it("hides the international toggle when there are no national-team fixtures", () => {

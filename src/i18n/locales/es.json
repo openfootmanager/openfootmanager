@@ -1091,7 +1091,9 @@
     "matchday": "Jornada {{number}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
-    "internationalDuty": "Con la selección"
+    "internationalDuty": "Con la selección",
+    "promotionZone": "Ascenso",
+    "relegationZone": "Descenso"
   },
   "players": {
     "searchPlaceholder": "Buscar por nombre o nacionalidad...",
@@ -2101,6 +2103,14 @@
           "midTable": "{{team}} terminó la temporada en {{position}}º lugar con {{points}} puntos.\n\nUna temporada de zona media. La directiva espera mejoría la próxima temporada. Necesitamos ser más competitivos.",
           "lowerHalf": "Una temporada decepcionante para {{team}}. Terminar en {{position}}º lugar con solo {{points}} puntos está por debajo de las expectativas.\n\nLa directiva está preocupada. Se necesitarán mejoras significativas la próxima temporada, o tu puesto podría ser revisado."
         }
+      },
+      "promotion": {
+        "subject": "¡Ascenso a {{division}}!",
+        "body": "¡Enhorabuena! El club ha logrado el ascenso y jugará en {{division}} en la temporada {{season}}.\n\nLa directiva está encantada con este logro. Preparémonos para el salto de categoría."
+      },
+      "relegation": {
+        "subject": "Descenso a {{division}}",
+        "body": "El club ha descendido y jugará en {{division}} en la temporada {{season}}.\n\nLa directiva está profundamente decepcionada. Se espera que luchemos por el ascenso de inmediato."
       },
       "newSeasonSchedule": {
         "subject": "Temporada {{season}} — Nueva Programación Publicada",

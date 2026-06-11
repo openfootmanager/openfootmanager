@@ -281,6 +281,57 @@ fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
         .or(game.league.as_ref())
 }
 
+/// Send a board message when the user's club starts the new season in a
+/// different division of its pyramid (promoted when the new division ranks
+/// higher, relegated when it ranks lower).
+fn notify_user_division_change(
+    game: &mut Game,
+    division_before: Option<(String, u32)>,
+    user_team_id: &str,
+    next_season: u32,
+    date: &str,
+) {
+    let Some((old_division_id, old_priority)) = division_before else {
+        return;
+    };
+    let Some(new_division) = user_division(game, user_team_id) else {
+        return;
+    };
+    if new_division.id == old_division_id {
+        return;
+    }
+
+    let promoted = new_division.priority < old_priority;
+    let division_name = new_division.name.clone();
+    let kind = if promoted { "promotion" } else { "relegation" };
+    let msg_id = format!("{kind}_{next_season}");
+    if game.messages.iter().any(|m| m.id == msg_id) {
+        return;
+    }
+
+    let mut params = std::collections::HashMap::new();
+    params.insert("division".to_string(), division_name);
+    params.insert("season".to_string(), next_season.to_string());
+
+    let message = InboxMessage::new(
+        msg_id,
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::BoardDirective)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_i18n(
+        &format!("be.msg.{kind}.subject"),
+        &format!("be.msg.{kind}.body"),
+        params,
+    )
+    .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman");
+    game.messages.push(message);
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
@@ -520,7 +571,16 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let next_season = season + 1;
     // Start date: a few weeks after the current date (preseason break).
     let next_start = game.clock.current_date + Duration::days(28);
+    let user_division_before = user_division(game, &user_team_id)
+        .map(|division| (division.id.clone(), division.priority));
     regenerate_competitions_for_new_season(game, next_season, next_start);
+    notify_user_division_change(
+        game,
+        user_division_before,
+        &user_team_id,
+        next_season,
+        &last_fixture_date,
+    );
 
     let preview_date = game.clock.current_date.to_rfc3339();
     let team_names: Vec<String> = game.teams.iter().map(|team| team.name.clone()).collect();

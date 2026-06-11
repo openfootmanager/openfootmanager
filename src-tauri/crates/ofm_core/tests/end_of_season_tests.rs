@@ -292,6 +292,106 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
     assert!(team3.reputation > team3_initial_reputation);
 }
 
+/// Two-division game: div1 = team1 (champion), team2 (relegated);
+/// div2 = team3 (promoted), team4. The manager runs `user_team`.
+fn make_two_division_game(user_team: &str) -> Game {
+    let mut game = make_completed_season_game();
+    game.teams.push(make_team("team3", "Third FC"));
+    game.teams.push(make_team("team4", "Fourth FC"));
+    game.manager.team_id = Some(user_team.to_string());
+
+    let div1 = League {
+        id: "eng-1".to_string(),
+        name: "ENG First Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 0,
+        season: 1,
+        participant_ids: vec!["team1".to_string(), "team2".to_string()],
+        fixtures: vec![
+            make_completed_fixture("d1f1", "team1", "team2", 2, 0),
+            make_completed_fixture("d1f2", "team2", "team1", 0, 1),
+        ],
+        standings: vec![
+            make_standing("team1", 2, 0, 0, 3, 0),
+            make_standing("team2", 0, 0, 2, 0, 3),
+        ],
+        ..Default::default()
+    };
+    let div2 = League {
+        id: "eng-2".to_string(),
+        name: "ENG Second Division".to_string(),
+        country_id: Some("ENG".to_string()),
+        priority: 1,
+        season: 1,
+        participant_ids: vec!["team3".to_string(), "team4".to_string()],
+        fixtures: vec![make_completed_fixture("d2f1", "team3", "team4", 3, 0)],
+        standings: vec![
+            make_standing("team3", 1, 0, 0, 3, 0),
+            make_standing("team4", 0, 0, 1, 0, 3),
+        ],
+        ..Default::default()
+    };
+    game.league = Some(div1.clone());
+    game.competitions = vec![div1, div2];
+    game
+}
+
+#[test]
+fn relegated_user_receives_a_relegation_message() {
+    let mut game = make_two_division_game("team2");
+
+    process_end_of_season(&mut game);
+
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == "relegation_2")
+        .expect("relegated user must be told");
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.relegation.subject"));
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.relegation.body"));
+    assert_eq!(
+        msg.i18n_params.get("division"),
+        Some(&"ENG Second Division".to_string())
+    );
+    assert!(
+        !game.messages.iter().any(|m| m.id == "promotion_2"),
+        "a relegated user must not also be congratulated"
+    );
+}
+
+#[test]
+fn promoted_user_receives_a_promotion_message() {
+    let mut game = make_two_division_game("team3");
+
+    process_end_of_season(&mut game);
+
+    let msg = game
+        .messages
+        .iter()
+        .find(|m| m.id == "promotion_2")
+        .expect("promoted user must be told");
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.promotion.subject"));
+    assert_eq!(
+        msg.i18n_params.get("division"),
+        Some(&"ENG First Division".to_string())
+    );
+}
+
+#[test]
+fn user_staying_in_their_division_gets_no_movement_message() {
+    let mut game = make_two_division_game("team1");
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        !game
+            .messages
+            .iter()
+            .any(|m| m.id == "promotion_2" || m.id == "relegation_2"),
+        "the champion stays up and gets no movement message"
+    );
+}
+
 #[test]
 fn season_not_complete_while_another_division_is_unfinished() {
     let mut game = make_completed_season_game();

@@ -1061,7 +1061,9 @@
     "matchday": "Matchday {{number}}",
     "season": "Season {{number}}",
     "international": "International",
-    "internationalDuty": "On International Duty"
+    "internationalDuty": "On International Duty",
+    "promotionZone": "Promotion",
+    "relegationZone": "Relegation"
   },
   "players": {
     "searchPlaceholder": "Search by name or nationality...",
@@ -2067,6 +2069,14 @@
           "midTable": "{{team}} finished the season in {{position}}{{suffix}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
           "lowerHalf": "A disappointing season for {{team}}. Finishing {{position}}{{suffix}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
         }
+      },
+      "promotion": {
+        "subject": "Promoted to the {{division}}!",
+        "body": "Congratulations! The club has earned promotion and will play in the {{division}} in Season {{season}}.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up."
+      },
+      "relegation": {
+        "subject": "Relegated to the {{division}}",
+        "body": "The club has been relegated and will play in the {{division}} in Season {{season}}.\n\nThe board is deeply disappointed. An immediate push for promotion is expected."
       },
       "newSeasonSchedule": {
         "subject": "Season {{season}} — New Schedule Released",

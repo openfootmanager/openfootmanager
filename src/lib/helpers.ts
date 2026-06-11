@@ -24,6 +24,8 @@ export {
   getNationalTeamName,
   getUserCalledUpPlayers,
 } from "./nationalTeams";
+export { getPromotionRelegationZones } from "./pyramid";
+export type { PromotionRelegationZones } from "./pyramid";
 export type { CalledUpPlayer } from "./nationalTeams";
 export {
   formatDate,

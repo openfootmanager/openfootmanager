@@ -1061,7 +1061,9 @@
     "matchday": "第 {{number}} 轮",
     "season": "第 {{number}} 赛季",
     "international": "国际",
-    "internationalDuty": "国家队征召"
+    "internationalDuty": "国家队征召",
+    "promotionZone": "升级区",
+    "relegationZone": "降级区"
   },
   "players": {
     "searchPlaceholder": "按姓名或国籍搜索...",
@@ -2068,6 +2070,14 @@
           "midTable": "{{team}}本赛季以{{points}}积分排名第{{position}}{{suffix}}位。\n\n中游收官。董事会期望下赛季有所进步。我们需要更具竞争力。",
           "lowerHalf": "{{team}}度过了令人失望的一个赛季。仅以{{points}}积分排名第{{position}}{{suffix}}位,低于预期。\n\n董事会表示关切。下赛季需要大幅改进,否则您的职位可能受到审视。"
         }
+      },
+      "promotion": {
+        "subject": "升入{{division}}！",
+        "body": "祝贺！俱乐部成功升级，将在第 {{season}} 赛季征战{{division}}。\n\n董事会对这一成就感到非常高兴。让我们为更高水平的比赛做好准备。"
+      },
+      "relegation": {
+        "subject": "降入{{division}}",
+        "body": "俱乐部不幸降级，将在第 {{season}} 赛季征战{{division}}。\n\n董事会深感失望。球队需要立即向升级发起冲击。"
       },
       "newSeasonSchedule": {
         "subject": "{{season}}赛季——新赛程发布",

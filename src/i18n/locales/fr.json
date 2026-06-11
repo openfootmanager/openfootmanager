@@ -1061,7 +1061,9 @@
     "matchday": "Journée {{number}}",
     "season": "Saison {{number}}",
     "international": "International",
-    "internationalDuty": "En sélection nationale"
+    "internationalDuty": "En sélection nationale",
+    "promotionZone": "Montée",
+    "relegationZone": "Relégation"
   },
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
@@ -2071,6 +2073,14 @@
           "midTable": "{{team}} a terminé la saison à la {{position}}e place avec {{points}} points.\n\nUne saison de milieu de tableau. Le conseil attend des améliorations la saison prochaine. Nous devons être plus compétitifs.",
           "lowerHalf": "Une saison décevante pour {{team}}. Terminer à la {{position}}e place avec seulement {{points}} points est en dessous des attentes.\n\nLe conseil est préoccupé. Des améliorations significatives seront nécessaires la saison prochaine, sinon votre poste pourrait être remis en question."
         }
+      },
+      "promotion": {
+        "subject": "Promotion en {{division}} !",
+        "body": "Félicitations ! Le club est promu et évoluera en {{division}} pour la saison {{season}}.\n\nLe conseil d'administration est ravi de cette réussite. Préparons-nous pour l'échelon supérieur."
+      },
+      "relegation": {
+        "subject": "Relégation en {{division}}",
+        "body": "Le club est relégué et évoluera en {{division}} pour la saison {{season}}.\n\nLe conseil d'administration est profondément déçu. Une remontée immédiate est attendue."
       },
       "newSeasonSchedule": {
         "subject": "Saison {{season}} — Nouveau Calendrier Publié",

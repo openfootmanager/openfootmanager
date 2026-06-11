@@ -1061,7 +1061,9 @@
     "matchday": "Jornada {{number}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
-    "internationalDuty": "Ao serviço da seleção"
+    "internationalDuty": "Ao serviço da seleção",
+    "promotionZone": "Subida",
+    "relegationZone": "Despromoção"
   },
   "players": {
     "searchPlaceholder": "Procurar por nome ou nacionalidade...",
@@ -2071,6 +2073,14 @@
           "midTable": "{{team}} terminou a época em {{position}}º lugar com {{points}} pontos.\n\nUm resultado intermédio. A direção espera melhorias na próxima época. Precisamos de ser mais competitivos.",
           "lowerHalf": "Uma época dececionante para {{team}}. Terminar em {{position}}º lugar com apenas {{points}} pontos fica aquém das expectativas.\n\nA direção está preocupada. Serão necessárias melhorias significativas na próxima época, caso contrário a tua posição poderá ser reavaliada."
         }
+      },
+      "promotion": {
+        "subject": "Subida à {{division}}!",
+        "body": "Parabéns! O clube garantiu a subida e vai disputar a {{division}} na temporada {{season}}.\n\nA direção está entusiasmada com esta conquista. Vamos preparar-nos para o novo patamar."
+      },
+      "relegation": {
+        "subject": "Despromoção para a {{division}}",
+        "body": "O clube foi despromovido e vai disputar a {{division}} na temporada {{season}}.\n\nA direção está profundamente desiludida. Espera-se uma luta imediata pela subida."
       },
       "newSeasonSchedule": {
         "subject": "Época {{season}} — Nova Tabela Divulgada",

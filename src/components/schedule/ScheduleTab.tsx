@@ -14,6 +14,7 @@ import {
   getAllFixturesAcrossCompetitions,
   getNationalTeamFixtures,
   getNationalTeamName,
+  getPromotionRelegationZones,
   getTeamName,
   getUserCalledUpPlayers,
 } from "../../lib/helpers";
@@ -65,6 +66,9 @@ export default function ScheduleTab({
     activeCompetitions[0] ??
     null;
   const standings = sortStandings(selectedCompetition);
+  const zones = selectedCompetition
+    ? getPromotionRelegationZones(gameState, selectedCompetition)
+    : { promotionSlots: 0, relegationSlots: 0 };
   const competitionNames = new Map(
     activeCompetitions.map((competition) => [competition.id, competition.name]),
   );
@@ -465,6 +469,9 @@ export default function ScheduleTab({
                     {standings.map((entry, index) => {
                       const isUser = entry.team_id === userTeamId;
                       const gd = entry.goals_for - entry.goals_against;
+                      const inPromotionZone = index < zones.promotionSlots;
+                      const inRelegationZone =
+                        index >= standings.length - zones.relegationSlots;
                       const contextItems = [
                         buildTeamMenuItem(t("common.viewTeam"), entry.team_id),
                       ];
@@ -479,7 +486,22 @@ export default function ScheduleTab({
                             }`}
                             data-testid={`schedule-standings-row-${entry.team_id}`}
                           >
-                            <td className="px-4 py-3 font-heading text-sm font-bold text-gray-400 dark:text-gray-500">
+                            <td
+                              className={`px-4 py-3 font-heading text-sm font-bold ${
+                                inPromotionZone
+                                  ? "border-l-2 border-primary-500 text-primary-500"
+                                  : inRelegationZone
+                                    ? "border-l-2 border-red-500 text-red-500"
+                                    : "text-gray-400 dark:text-gray-500"
+                              }`}
+                              data-testid={
+                                inPromotionZone
+                                  ? `standings-promotion-${entry.team_id}`
+                                  : inRelegationZone
+                                    ? `standings-relegation-${entry.team_id}`
+                                    : undefined
+                              }
+                            >
                               {index + 1}
                             </td>
                             <td
@@ -530,6 +552,22 @@ export default function ScheduleTab({
                     })}
                   </tbody>
                 </table>
+                {(zones.promotionSlots > 0 || zones.relegationSlots > 0) && (
+                  <div className="flex gap-5 border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-navy-600 dark:text-gray-400">
+                    {zones.promotionSlots > 0 && (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-primary-500" />
+                        {t("schedule.promotionZone")}
+                      </span>
+                    )}
+                    {zones.relegationSlots > 0 && (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-red-500" />
+                        {t("schedule.relegationZone")}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </Card>

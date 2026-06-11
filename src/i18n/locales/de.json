@@ -1061,7 +1061,9 @@
     "matchday": "Spieltag {{number}}",
     "season": "Saison {{number}}",
     "international": "International",
-    "internationalDuty": "Im Länderspieleinsatz"
+    "internationalDuty": "Im Länderspieleinsatz",
+    "promotionZone": "Aufstieg",
+    "relegationZone": "Abstieg"
   },
   "players": {
     "searchPlaceholder": "Nach Name oder Nationalität suchen...",
@@ -2071,6 +2073,14 @@
           "midTable": "{{team}} hat die Saison auf dem {{position}}. Platz mit {{points}} Punkten beendet.\n\nEin mittelmäßiges Abschneiden. Der Vorstand erwartet Verbesserungen in der nächsten Saison. Wir müssen wettbewerbsfähiger werden.",
           "lowerHalf": "Eine enttäuschende Saison für {{team}}. Den {{position}}. Platz mit nur {{points}} Punkten zu belegen liegt unter den Erwartungen.\n\nDer Vorstand ist besorgt. In der nächsten Saison sind erhebliche Verbesserungen erforderlich, sonst könnte deine Position überprüft werden."
         }
+      },
+      "promotion": {
+        "subject": "Aufstieg in die {{division}}!",
+        "body": "Herzlichen Glückwunsch! Der Verein ist aufgestiegen und spielt in Saison {{season}} in der {{division}}.\n\nDer Vorstand ist begeistert von dieser Leistung. Sorgen wir dafür, dass wir für die höhere Liga bereit sind."
+      },
+      "relegation": {
+        "subject": "Abstieg in die {{division}}",
+        "body": "Der Verein ist abgestiegen und spielt in Saison {{season}} in der {{division}}.\n\nDer Vorstand ist zutiefst enttäuscht. Es wird erwartet, dass wir sofort den Wiederaufstieg anstreben."
       },
       "newSeasonSchedule": {
         "subject": "Saison {{season}} — Neuer Spielplan veröffentlicht",
