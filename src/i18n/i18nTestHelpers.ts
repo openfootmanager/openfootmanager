@@ -30,3 +30,23 @@ export function collectMissingKeys(
             : [];
     });
 }
+
+export function hasLocaleKey(locale: LocaleTree, keyPath: string): boolean {
+    const segments = keyPath.split(".");
+    let current: unknown = locale;
+
+    for (const segment of segments) {
+        if (
+            current === null ||
+            typeof current !== "object" ||
+            Array.isArray(current) ||
+            !(segment in current)
+        ) {
+            return false;
+        }
+
+        current = (current as LocaleTree)[segment];
+    }
+
+    return typeof current === "string";
+}
