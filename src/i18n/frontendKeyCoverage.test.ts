@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -8,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { hasLocaleKey } from "./i18nTestHelpers";
 import en from "./locales/en.json";
 
-const SRC_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const SRC_DIR = path.resolve(process.cwd(), "src");
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const IGNORE_RE =
   /(?:\.test\.|[\\/]i18n[\\/]locales[\\/]|node_modules|dist|src-tauri[\\/]target)/;
