@@ -85,14 +85,14 @@ This ensures all agents start from the same state and cannot manipulate the game
 
 ## Tool Reference
 
-76 tools are available across 16 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+89 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
-### Information (12 tools)
+### Information (15 tools)
 
 | Tool | Description |
 |------|-------------|
 | `info_game_summary` | High-level overview: date, league position, finances, next match, unread messages |
-| `info_game_state` | Full game state as JSON (programmatic access; disabled in competition mode) |
+| `info_game_state` | Full game state as JSON (programmatic access) |
 | `info_standings` | Full league table with goal difference |
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |

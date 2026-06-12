@@ -894,10 +894,14 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("info_finances", "Financial overview with budget breakdown", "Information"),
         ("info_news", "Recent news articles", "Information"),
         ("info_season_context", "Season phase and transfer window status", "Information"),
+        ("info_finance_snapshot", "Detailed financial snapshot", "Information"),
+        ("info_player_match_history", "Match-by-match stats for a player", "Information"),
+        ("info_team_match_history", "Match-by-match stats for a team", "Information"),
 
         // Time
         ("time_advance", "Advance one day", "Time"),
         ("time_skip_to_match_day", "Fast-forward to next match day", "Time"),
+        ("time_check_blockers", "Check if anything blocks time advancement", "Time"),
 
         // Squad
         ("squad_get", "Squad overview with starting XI and bench", "Squad"),
@@ -913,6 +917,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("training_set_focus_intensity", "Set training focus and intensity", "Training"),
         ("training_set_schedule", "Set weekly training schedule", "Training"),
         ("training_set_groups", "Set training group assignments", "Training"),
+        ("training_set_player_focus", "Set individual player training focus", "Training"),
 
         // Transfers
         ("transfer_market_browse", "Browse transfer market", "Transfers"),
@@ -932,6 +937,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ("contract_clear_exit_intent", "Clear exit intent on a player contract", "Contracts"),
         ("contract_terminate", "Terminate a player contract", "Contracts"),
         ("contract_preview_renewal", "Preview financial impact of contract renewal", "Contracts"),
+        ("contract_preview_termination", "Preview cost of terminating contract", "Contracts"),
 
         // Inbox
         ("inbox_get_messages", "Get inbox messages", "Inbox"),
@@ -944,16 +950,23 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         // Club
         ("club_upgrade_facility", "Upgrade a club facility", "Club"),
         ("club_request_board_support", "Request board support for transfer budget or wage bill", "Club"),
+        ("club_request_marketing", "Request marketing campaign", "Club"),
+        ("club_request_sponsor_pitch", "Request sponsor pitch", "Club"),
         ("staff_hire", "Hire staff member", "Club"),
         ("staff_release", "Release staff member", "Club"),
+        ("staff_get", "List all staff (your team + available)", "Club"),
 
         // Scouting
         ("scout_youth_start", "Start youth scouting assignment", "Scouting"),
         ("scout_youth_cancel", "Cancel youth scouting assignment", "Scouting"),
+        ("scout_youth_reassign", "Reassign youth scouting parameters", "Scouting"),
+        ("scout_get_reports", "Get completed scout reports", "Scouting"),
+        ("scout_send", "Send scout to report on a player", "Scouting"),
 
         // Season
         ("season_check_complete", "Check if season is complete and ready to advance", "Season"),
         ("season_advance", "Advance to next season", "Season"),
+        ("season_get_awards", "Get end-of-season awards", "Season"),
 
         // Game Lifecycle
         ("game_new", "Create a new manager and generate/load a world", "Game Lifecycle"),

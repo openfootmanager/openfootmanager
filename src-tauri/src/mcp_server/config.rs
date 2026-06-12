@@ -225,10 +225,13 @@ mod tests {
             "3001",
             "--mcp-mode",
             "competition",
+            "--mcp-auto-start",
+            "world.json",
         ])
         .expect("config");
         assert_eq!(config.mode, McpMode::Competition);
         assert!(config.disabled_tools.is_empty());
+        assert!(config.auto_start.is_some());
     }
 
     #[test]
@@ -271,6 +274,17 @@ mod tests {
         assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
         assert!(!McpMode::Competition.disabled_tools().contains(&"info_game_state"));
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "--mcp-mode competition requires --mcp-auto-start")]
+    fn competition_mode_without_auto_start_panics() {
+        parse_mcp_config_from_test_args(&[
+            "--mcp-port",
+            "3001",
+            "--mcp-mode",
+            "competition",
+        ]);
     }
 
     /// Helper for tests: parse from an explicit arg list instead of std::env::args()
@@ -369,7 +383,12 @@ mod tests {
             i += 1;
         }
 
-        port.map(|p| McpConfig {
+        port.map(|p| {
+            // Mirror production validation: competition mode requires --mcp-auto-start
+            if mode == McpMode::Competition && auto_start.is_none() {
+                panic!("--mcp-mode competition requires --mcp-auto-start");
+            }
+            McpConfig {
             port: p,
             mode,
             disabled_tools,
@@ -385,6 +404,7 @@ mod tests {
                 "127.0.0.1".into(),
                 "::1".into(),
             ],
+        }
         })
     }
 }
