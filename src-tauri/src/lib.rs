@@ -15,7 +15,6 @@ const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg(feature = "mcp")]
-use crate::mcp_server::config::McpMode;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -92,19 +91,10 @@ pub fn run() {
 
             // --- MCP server startup (feature-flagged) ---
             #[cfg(feature = "mcp")]
-            if let Some(mcp_config) = mcp_server::config::parse_mcp_config_from_args() {
+            match mcp_server::config::parse_mcp_config_from_args() {
+                Ok(Some(mcp_config)) => {
                 use tauri::Manager as TauriManager;
                 use tauri::Emitter;
-
-                // Validate competition mode requirements
-                if mcp_config.mode == McpMode::Competition
-                    && mcp_config.auto_start.is_none()
-                {
-                    return Err(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])",
-                    )) as Box<dyn std::error::Error + Send + Sync>);
-                }
 
                 let sm: Arc<StateManager> = app.state::<Arc<StateManager>>().inner().clone();
                 let save_mgr: Arc<SaveManagerState> = app.state::<Arc<SaveManagerState>>().inner().clone();
@@ -178,6 +168,17 @@ pub fn run() {
                 });
 
                 log::info!("[mcp] Starting MCP server on port {}", mcp_port);
+                }
+                Ok(None) => {
+                    // No --mcp-port, MCP server not requested
+                }
+                Err(e) => {
+                    log::error!("[mcp-config] {}", e);
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        e,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
             }
 
             Ok(())

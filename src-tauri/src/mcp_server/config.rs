@@ -77,8 +77,9 @@ impl McpMode {
 
 /// Parse MCP-related CLI arguments from the process arguments.
 ///
-/// Returns `None` if `--mcp-port` is not present (i.e. MCP server should not start).
-pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
+/// Returns `Ok(None)` if `--mcp-port` is not present (i.e. MCP server should not start).
+/// Returns `Err(msg)` if validation fails (e.g. competition mode without --mcp-auto-start).
+pub fn parse_mcp_config_from_args() -> Result<Option<McpConfig>, String> {
     let args: Vec<String> = std::env::args().collect();
     let mut port: Option<u16> = None;
     let mut mode = McpMode::Sandbox;
@@ -171,31 +172,32 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
         i += 1;
     }
 
-    port.map(|p| {
-        // Validate: competition mode requires --mcp-auto-start
-        if mode == McpMode::Competition && auto_start.is_none() {
-            log::error!("[mcp-config] --mcp-mode competition requires --mcp-auto-start");
-            std::process::exit(1);
-        }
+    let Some(p) = port else {
+        return Ok(None);
+    };
 
-        McpConfig {
-            port: p,
-            mode,
-            disabled_tools,
-            auto_start,
-            no_gui,
-            min_tick_delay_ms,
-            auto_save_interval_days,
-            manager_name,
-            manager_last_name,
-            manager_nationality,
-            allowed_hosts: vec![
-                "localhost".into(),
-                "127.0.0.1".into(),
-                "::1".into(),
-            ],
-        }
-    })
+    // Validate: competition mode requires --mcp-auto-start
+    if mode == McpMode::Competition && auto_start.is_none() {
+        return Err("--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])".to_string());
+    }
+
+    Ok(Some(McpConfig {
+        port: p,
+        mode,
+        disabled_tools,
+        auto_start,
+        no_gui,
+        min_tick_delay_ms,
+        auto_save_interval_days,
+        manager_name,
+        manager_last_name,
+        manager_nationality,
+        allowed_hosts: vec![
+            "localhost".into(),
+            "127.0.0.1".into(),
+            "::1".into(),
+        ],
+    }))
 }
 
 #[cfg(test)]
@@ -205,13 +207,13 @@ mod tests {
     #[test]
     fn parse_mcp_config_no_args() {
         // No --mcp-port means no MCP server
-        assert!(parse_mcp_config_from_test_args(&[]).is_none());
+        assert!(parse_mcp_config_from_test_args(&[]).unwrap().is_none());
     }
 
     #[test]
     fn parse_mcp_config_with_port() {
         let config =
-            parse_mcp_config_from_test_args(&["--mcp-port", "3001"]).expect("config");
+            parse_mcp_config_from_test_args(&["--mcp-port", "3001"]).unwrap().expect("config");
         assert_eq!(config.port, 3001);
         assert_eq!(config.mode, McpMode::Sandbox);
         assert!(config.disabled_tools.is_empty());
@@ -228,6 +230,7 @@ mod tests {
             "--mcp-auto-start",
             "world.json",
         ])
+        .unwrap()
         .expect("config");
         assert_eq!(config.mode, McpMode::Competition);
         assert!(config.disabled_tools.is_empty());
@@ -255,6 +258,7 @@ mod tests {
             "--manager-nationality",
             "England",
         ])
+        .unwrap()
         .expect("config");
         assert_eq!(config.port, 3001);
         assert_eq!(config.mode, McpMode::Competition);
@@ -277,18 +281,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "--mcp-mode competition requires --mcp-auto-start")]
-    fn competition_mode_without_auto_start_panics() {
-        parse_mcp_config_from_test_args(&[
+    fn competition_mode_without_auto_start_returns_err() {
+        let result = parse_mcp_config_from_test_args(&[
             "--mcp-port",
             "3001",
             "--mcp-mode",
             "competition",
         ]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("--mcp-mode competition requires --mcp-auto-start"));
     }
 
     /// Helper for tests: parse from an explicit arg list instead of std::env::args()
-    fn parse_mcp_config_from_test_args(args: &[&str]) -> Option<McpConfig> {
+    fn parse_mcp_config_from_test_args(args: &[&str]) -> Result<Option<McpConfig>, String> {
         let mut port: Option<u16> = None;
         let mut mode = McpMode::Sandbox;
         let mut disabled_tools = Vec::new();
@@ -383,12 +388,16 @@ mod tests {
             i += 1;
         }
 
-        port.map(|p| {
-            // Mirror production validation: competition mode requires --mcp-auto-start
-            if mode == McpMode::Competition && auto_start.is_none() {
-                panic!("--mcp-mode competition requires --mcp-auto-start");
-            }
-            McpConfig {
+        let Some(p) = port else {
+            return Ok(None);
+        };
+
+        // Mirror production validation: competition mode requires --mcp-auto-start
+        if mode == McpMode::Competition && auto_start.is_none() {
+            return Err("--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])".to_string());
+        }
+
+        Ok(Some(McpConfig {
             port: p,
             mode,
             disabled_tools,
@@ -404,7 +413,6 @@ mod tests {
                 "127.0.0.1".into(),
                 "::1".into(),
             ],
-        }
-        })
+        }))
     }
 }
