@@ -27,6 +27,7 @@ import {
 import {
   getActiveCompetitions,
   getCompetitiveFixtures,
+  getNationalTeamName,
   getPromotionRelegationZones,
   getTeamName,
   formatMatchDate,
@@ -219,16 +220,13 @@ export default function TournamentsTab({
       .slice(0, 10);
   })();
 
-  const buildFixtureMenuItems = (fixture: FixtureData) => [
-    {
-      ...buildViewTeamMenuItem(t, () => onSelectTeam(fixture.home_team_id)),
-      label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, fixture.home_team_id)}`,
-    },
-    {
-      ...buildViewTeamMenuItem(t, () => onSelectTeam(fixture.away_team_id)),
-      label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, fixture.away_team_id)}`,
-    },
-  ];
+  const buildFixtureMenuItems = (fixture: FixtureData) =>
+    [fixture.home_team_id, fixture.away_team_id]
+      .filter((teamId) => gameState.teams.some((team) => team.id === teamId))
+      .map((teamId) => ({
+        ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
+        label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, teamId)}`,
+      }));
 
   const buildStandingMenuItems = (teamId: string) => [
     buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
@@ -248,6 +246,10 @@ export default function TournamentsTab({
     return items;
   };
 
+  const isClubTeam = (id: string) => gameState.teams.some((team) => team.id === id);
+  const resolveTeamName = (id: string) =>
+    isClubTeam(id) ? getTeamName(gameState.teams, id) : getNationalTeamName(gameState, id);
+
   const renderGroupTable = (group: NonNullable<LeagueData["groups"]>[number]) => {
     const groupStandings = [...group.standings].sort(byTablePosition);
     return (
@@ -264,8 +266,12 @@ export default function TournamentsTab({
               return (
                 <tr
                   key={entry.team_id}
-                  onClick={() => onSelectTeam(entry.team_id)}
-                  className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                  onClick={
+                    isClubTeam(entry.team_id)
+                      ? () => onSelectTeam(entry.team_id)
+                      : undefined
+                  }
+                  className={`${isClubTeam(entry.team_id) ? "cursor-pointer" : ""} transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
                   data-testid={`tournaments-group-standing-${entry.team_id}`}
                 >
                   <td className="py-1.5 px-3 font-heading font-bold text-xs text-gray-400 w-6">
@@ -274,7 +280,7 @@ export default function TournamentsTab({
                   <td
                     className={`py-1.5 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
                   >
-                    {getTeamName(gameState.teams, entry.team_id)}
+                    {resolveTeamName(entry.team_id)}
                   </td>
                   <td className="py-1.5 px-3 text-center text-xs text-gray-600 dark:text-gray-400 tabular-nums">
                     {entry.played}
@@ -302,10 +308,14 @@ export default function TournamentsTab({
           data-testid={testId}
         >
           <span
-            onClick={() => onSelectTeam(f.home_team_id)}
-            className={`flex-1 text-right font-semibold text-sm cursor-pointer hover:underline ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+            onClick={
+              isClubTeam(f.home_team_id)
+                ? () => onSelectTeam(f.home_team_id)
+                : undefined
+            }
+            className={`flex-1 text-right font-semibold text-sm ${isClubTeam(f.home_team_id) ? "cursor-pointer hover:underline" : ""} ${f.home_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
           >
-            {getTeamName(gameState.teams, f.home_team_id)}
+            {resolveTeamName(f.home_team_id)}
           </span>
           <div className="w-24 text-center mx-3">
             {completed && f.result ? (
@@ -319,10 +329,14 @@ export default function TournamentsTab({
             )}
           </div>
           <span
-            onClick={() => onSelectTeam(f.away_team_id)}
-            className={`flex-1 text-left font-semibold text-sm cursor-pointer hover:underline ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+            onClick={
+              isClubTeam(f.away_team_id)
+                ? () => onSelectTeam(f.away_team_id)
+                : undefined
+            }
+            className={`flex-1 text-left font-semibold text-sm ${isClubTeam(f.away_team_id) ? "cursor-pointer hover:underline" : ""} ${f.away_team_id === userTeamId ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
           >
-            {getTeamName(gameState.teams, f.away_team_id)}
+            {resolveTeamName(f.away_team_id)}
           </span>
         </div>
       </ContextMenu>
@@ -681,9 +695,7 @@ export default function TournamentsTab({
                           {t("tournaments.bye")}
                         </Badge>
                         <span>
-                          {byeTeamIds
-                            .map((teamId) => getTeamName(gameState.teams, teamId))
-                            .join(", ")}
+                          {byeTeamIds.map((teamId) => resolveTeamName(teamId)).join(", ")}
                         </span>
                       </div>
                     )}

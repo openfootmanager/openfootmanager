@@ -1,5 +1,8 @@
 use chrono::{TimeZone, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+use domain::league::{
+    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus,
+    KnockoutRoundState, League, StandingEntry,
+};
 use domain::manager::Manager;
 use domain::news::NewsCategory;
 use domain::player::{
@@ -249,6 +252,69 @@ fn process_day_simulates_due_national_team_fixture() {
         "process_day should simulate a national-team fixture due today"
     );
     assert!(fixture.result.is_some());
+}
+
+#[test]
+fn process_day_routes_world_cup_fixtures_to_the_national_team_engine() {
+    use domain::national_team::NationalTeam;
+
+    let mut game = make_game_without_match_today();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
+    england.squad_player_ids = vec!["t1_fwd0".into(), "t1_mid0".into()];
+    let mut brazil = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BR".into(), None);
+    brazil.squad_player_ids = vec!["t2_fwd0".into()];
+    game.national_teams = vec![england, brazil];
+
+    let mut cup = League::new(
+        "wc".to_string(),
+        "World Cup 2026".to_string(),
+        2026,
+        &["nt-eng".to_string(), "nt-bra".to_string()],
+    );
+    cup.kind = CompetitionType::InternationalNation;
+    cup.scope = CompetitionScope::International;
+    cup.rules.format = domain::league::CompetitionFormat::Knockout;
+    cup.standings.clear();
+    cup.fixtures.push(Fixture {
+        id: "wc-final".to_string(),
+        competition_id: "wc".to_string(),
+        matchday: 1,
+        date: today,
+        home_team_id: "nt-eng".to_string(),
+        away_team_id: "nt-bra".to_string(),
+        competition: FixtureCompetition::InternationalNation,
+        status: FixtureStatus::Scheduled,
+        result: None,
+    });
+    cup.knockout_rounds.push(KnockoutRoundState {
+        id: "wc-round-1".to_string(),
+        name: "Final".to_string(),
+        fixture_ids: vec!["wc-final".to_string()],
+        ..Default::default()
+    });
+    game.competitions.push(cup);
+
+    turn::process_day(&mut game);
+
+    let cup = game.competitions.iter().find(|c| c.id == "wc").unwrap();
+    assert_eq!(
+        cup.fixtures[0].status,
+        FixtureStatus::Completed,
+        "the national-team engine must simulate the World Cup fixture"
+    );
+    assert!(cup.fixtures[0].result.is_some());
+    // The club league (no match today) is untouched by the tournament.
+    assert!(
+        game.league
+            .as_ref()
+            .unwrap()
+            .fixtures
+            .iter()
+            .all(|f| f.status == FixtureStatus::Scheduled),
+        "club fixtures must not be dragged into the national-team matchday"
+    );
 }
 
 fn make_game_without_match_today() -> Game {

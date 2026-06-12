@@ -4,11 +4,21 @@ import type {
   PlayerData,
 } from "../store/gameStore";
 
-/** All national-team fixtures across every nation (stored on the home nation). */
+/**
+ * All national-team fixtures: window friendlies (stored on the home nation)
+ * plus any national-team tournament (e.g. the World Cup), which lives as an
+ * InternationalNation competition.
+ */
 export function getNationalTeamFixtures(
-  gameState: Pick<GameStateData, "national_teams">,
+  gameState: Pick<GameStateData, "national_teams" | "competitions">,
 ): FixtureData[] {
-  return (gameState.national_teams ?? []).flatMap((team) => team.fixtures ?? []);
+  const windowFixtures = (gameState.national_teams ?? []).flatMap(
+    (team) => team.fixtures ?? [],
+  );
+  const tournamentFixtures = (gameState.competitions ?? [])
+    .filter((competition) => competition.kind === "InternationalNation")
+    .flatMap((competition) => competition.fixtures);
+  return [...windowFixtures, ...tournamentFixtures];
 }
 
 /** Display name for a national team, falling back to its id when unknown. */
@@ -34,7 +44,7 @@ export interface CalledUpPlayer {
  * away), since fixtures are only stored on the home nation.
  */
 export function getUserCalledUpPlayers(
-  gameState: Pick<GameStateData, "national_teams" | "players" | "manager">,
+  gameState: Pick<GameStateData, "national_teams" | "players" | "manager" | "competitions">,
 ): CalledUpPlayer[] {
   const userTeamId = gameState.manager.team_id;
   if (!userTeamId) {

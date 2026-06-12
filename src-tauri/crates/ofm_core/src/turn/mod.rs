@@ -53,6 +53,11 @@ fn competition_indices_due_today(game: &Game, today: &str) -> Vec<usize> {
             .competitions
             .iter()
             .enumerate()
+            // National-team tournaments are simulated by the national-team
+            // engine, never the club match engine.
+            .filter(|(_, competition)| {
+                competition.kind != domain::league::CompetitionType::InternationalNation
+            })
             .filter(|(_, competition)| competition_is_active(game, competition))
             .filter(|(_, competition)| {
                 competition.fixtures.iter().any(|fixture| {
@@ -121,9 +126,10 @@ where
         training::check_squad_fitness_warnings(game);
     }
 
-    // National-team friendlies on international windows. Self-filters by date,
-    // so this is a no-op outside window days.
+    // National-team football: window friendlies and any running World Cup.
+    // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, &today, &mut rand::rng());
+    crate::world_cup::process_world_cup_fixtures_due(game, &today, &mut rand::rng());
 
     crate::contracts::process_contract_expiries(game);
 

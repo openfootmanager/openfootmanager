@@ -36,16 +36,30 @@ fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_d
 }
 
 /// Build a full double round-robin (home & away) fixture list spacing matchdays
-/// 7 days apart from `start_date`. Uses the circle method; an odd club count
-/// plays against a phantom slot, giving each club one bye per leg.
+/// 7 days apart from `start_date`.
 pub fn build_round_robin_fixtures(
     competition_id: &str,
     team_ids: &[String],
     start_date: DateTime<Utc>,
     fixture_competition: FixtureCompetition,
 ) -> Vec<Fixture> {
+    build_round_robin_fixtures_with(competition_id, team_ids, start_date, fixture_competition, 2, 7)
+}
+
+/// Build a round-robin fixture list with a configurable number of legs (even
+/// legs reverse home and away) and days between matchdays. Uses the circle
+/// method; an odd club count plays against a phantom slot, giving each club
+/// one bye per leg.
+pub fn build_round_robin_fixtures_with(
+    competition_id: &str,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+    legs: u8,
+    matchday_gap_days: i64,
+) -> Vec<Fixture> {
     let n = team_ids.len();
-    if n < 2 {
+    if n < 2 || legs == 0 {
         return Vec::new();
     }
     let slots = if n % 2 == 0 { n } else { n + 1 };
@@ -54,16 +68,17 @@ pub fn build_round_robin_fixtures(
     let mut fixtures = Vec::new();
     let mut matchday: u32 = 1;
 
-    // Two legs; the second reverses home and away.
-    for leg in 0..2 {
+    // Even-numbered legs reverse home and away.
+    for leg in 0..legs {
         let mut indices: Vec<usize> = (0..slots).collect();
         for _round in 0..rounds {
-            let date_str = (start_date + Duration::days((matchday as i64 - 1) * 7))
-                .format("%Y-%m-%d")
-                .to_string();
+            let date_str = (start_date
+                + Duration::days((matchday as i64 - 1) * matchday_gap_days))
+            .format("%Y-%m-%d")
+            .to_string();
             for i in 0..half {
                 let (mut home, mut away) = (indices[i], indices[slots - 1 - i]);
-                if leg == 1 {
+                if leg % 2 == 1 {
                     std::mem::swap(&mut home, &mut away);
                 }
                 if home >= n || away >= n {
@@ -158,6 +173,7 @@ pub fn generate_knockout_cup(
     cup.rules = CompetitionRules {
         format: CompetitionFormat::Knockout,
         counts_in_season_flow: true,
+        ..Default::default()
     };
     cup.standings.clear();
     seed_knockout_round(
@@ -274,7 +290,7 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
             .and_then(|date| date.and_hms_opt(0, 0, 0))
             .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
             .unwrap_or_else(Utc::now)
-            + Duration::days(14);
+            + Duration::days(cup.rules.knockout_round_gap_days as i64);
         let fixture_competition = cup
             .fixtures
             .iter()

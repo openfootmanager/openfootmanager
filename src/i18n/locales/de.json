@@ -2093,6 +2093,10 @@
         "subject": "Abstieg in die {{division}}",
         "body": "Der Verein ist abgestiegen und spielt in Saison {{season}} in der {{division}}.\n\nDer Vorstand ist zutiefst enttäuscht. Es wird erwartet, dass wir sofort den Wiederaufstieg anstreben."
       },
+      "worldCupChampion": {
+        "subject": "{{nation}} gewinnt die WM {{year}}!",
+        "body": "{{nation}} hat sich bei der Weltmeisterschaft {{year}} zum Weltmeister gekrönt.\n\nEine ganze Generation von Spielern wird für diesen Triumph in Erinnerung bleiben."
+      },
       "newSeasonSchedule": {
         "subject": "Saison {{season}} — Neuer Spielplan veröffentlicht",
         "body": "Der Spielplan für Saison {{season}} wurde veröffentlicht! Die neue Kampagne beginnt in 4 Wochen.\n\nNutze diese Pause, um deinen Kader zu bewerten, notwendige Änderungen vorzunehmen und dich auf die kommenden Herausforderungen vorzubereiten.\n\nViel Erfolg!"

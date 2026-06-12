@@ -2093,6 +2093,10 @@
         "subject": "Rebaixamento para a {{division}}",
         "body": "O clube foi rebaixado e vai disputar a {{division}} na temporada {{season}}.\n\nA diretoria está profundamente decepcionada. Espera-se uma briga imediata pelo acesso."
       },
+      "worldCupChampion": {
+        "subject": "{{nation}} vence a Copa do Mundo de {{year}}!",
+        "body": "{{nation}} sagrou-se campeã do mundo na Copa do Mundo de {{year}}.\n\nUma geração de jogadores será lembrada por esse triunfo."
+      },
       "newSeasonSchedule": {
         "subject": "Temporada {{season}} — Nova Tabela Divulgada",
         "body": "A tabela da Temporada {{season}} foi divulgada! A nova campanha começa em 4 semanas.\n\nUse este intervalo para avaliar seu elenco, fazer os ajustes necessários e se preparar para os desafios que virão.\n\nBoa sorte!"

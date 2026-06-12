@@ -188,6 +188,31 @@ pub fn generate_youth_academy_recruit_with_nationality(
     player
 }
 
+/// Generate a senior free-agent player for a national squad. `squad_slot`
+/// follows the standard squad layout (GK 0-1, DEF 2-8, MID 9-15, FWD 16-21)
+/// and drives the position; the player belongs to no club and holds no
+/// contract, so clubs may sign them afterwards.
+pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Player {
+    let mut rng = rand::rng();
+    let names_def = default_names_definition();
+    let nationality = generation::canonicalize_generated_nationality(nationality);
+    // Avoid the youth-reserved slots so the player generates at a senior age.
+    let slot = match squad_slot % 22 {
+        8 => 7,
+        15 => 14,
+        21 => 20,
+        other => other,
+    };
+    let mut player =
+        generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
+    player.team_id = None;
+    player.contract_end = None;
+    player.wage = 0;
+    player.transfer_listed = false;
+    player.loan_listed = false;
+    player
+}
+
 fn normalize_generated_team(team: &mut Team, players: &mut [Player]) {
     seed_opening_youth_academy(players);
     normalize_opening_contracts(players);
@@ -359,6 +384,18 @@ mod tests {
     use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
     use super::*;
     use domain::player::{Position, SquadRole};
+
+    #[test]
+    fn generate_national_team_player_is_a_senior_free_agent() {
+        let player = generate_national_team_player("JP", 5);
+
+        assert_eq!(player.nationality, "JP");
+        assert_eq!(player.team_id, None, "national-pool players belong to no club");
+        assert_eq!(player.contract_end, None);
+        assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
+        assert!(player.ovr > 0, "derived ratings must be computed");
+        assert_eq!(player.squad_role, SquadRole::Senior);
+    }
 
     #[test]
     fn test_generate_world_team_count() {

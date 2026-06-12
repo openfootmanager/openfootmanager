@@ -33,6 +33,13 @@ pub enum CompetitionFormat {
 pub struct CompetitionRules {
     pub format: CompetitionFormat,
     pub counts_in_season_flow: bool,
+    /// Group-and-knockout only: clubs advancing from each group.
+    pub group_qualifiers_per_group: u32,
+    /// Group-and-knockout only: additional best next-placed finishers across
+    /// all groups that also advance (the 2026 World Cup's "best thirds").
+    pub group_best_third_qualifiers: u32,
+    /// Days between knockout rounds.
+    pub knockout_round_gap_days: u32,
 }
 
 impl Default for CompetitionRules {
@@ -40,6 +47,9 @@ impl Default for CompetitionRules {
         Self {
             format: CompetitionFormat::LeagueTable,
             counts_in_season_flow: true,
+            group_qualifiers_per_group: 2,
+            group_best_third_qualifiers: 0,
+            knockout_round_gap_days: 14,
         }
     }
 }

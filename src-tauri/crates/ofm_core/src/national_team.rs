@@ -113,14 +113,7 @@ pub fn process_national_team_fixtures_due(
             (fixture.home_team_id.clone(), fixture.away_team_id.clone())
         };
 
-        let home_squad = squad_ids_for(game, &home_id);
-        let away_squad = squad_ids_for(game, &away_id);
-        let home_strength = squad_strength(&home_squad, &game.players);
-        let away_strength = squad_strength(&away_squad, &game.players);
-        let (home_goals, away_goals) = simulate_scoreline(home_strength, away_strength, rng);
-
-        apply_carry_back(game, &home_squad, home_goals, away_goals, rng);
-        apply_carry_back(game, &away_squad, away_goals, home_goals, rng);
+        let (home_goals, away_goals) = play_national_match(game, &home_id, &away_id, rng);
 
         let fixture = &mut game.national_teams[team_index].fixtures[fixture_index];
         fixture.status = FixtureStatus::Completed;
@@ -134,6 +127,26 @@ pub fn process_national_team_fixtures_due(
         simulated += 1;
     }
     simulated
+}
+
+/// Play one national-team match between two squads: derive the scoreline from
+/// squad strength and apply full carry-back (fatigue, fitness, injuries,
+/// morale) to the involved club players.
+pub fn play_national_match(
+    game: &mut Game,
+    home_national_team_id: &str,
+    away_national_team_id: &str,
+    rng: &mut impl Rng,
+) -> (u8, u8) {
+    let home_squad = squad_ids_for(game, home_national_team_id);
+    let away_squad = squad_ids_for(game, away_national_team_id);
+    let home_strength = squad_strength(&home_squad, &game.players);
+    let away_strength = squad_strength(&away_squad, &game.players);
+    let (home_goals, away_goals) = simulate_scoreline(home_strength, away_strength, rng);
+
+    apply_carry_back(game, &home_squad, home_goals, away_goals, rng);
+    apply_carry_back(game, &away_squad, away_goals, home_goals, rng);
+    (home_goals, away_goals)
 }
 
 fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> {

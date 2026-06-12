@@ -2093,6 +2093,10 @@
         "subject": "Despromoção para a {{division}}",
         "body": "O clube foi despromovido e vai disputar a {{division}} na temporada {{season}}.\n\nA direção está profundamente desiludida. Espera-se uma luta imediata pela subida."
       },
+      "worldCupChampion": {
+        "subject": "{{nation}} vence o Mundial de {{year}}!",
+        "body": "{{nation}} sagrou-se campeã do mundo no Mundial de {{year}}.\n\nUma geração de jogadores será recordada por este triunfo."
+      },
       "newSeasonSchedule": {
         "subject": "Época {{season}} — Nova Tabela Divulgada",
         "body": "A tabela da Época {{season}} foi divulgada! A nova campanha começa daqui a 4 semanas.\n\nAprovita este intervalo para avaliar o teu plantel, fazer os ajustes necessários e preparares-te para os desafios que aí vêm.\n\nBoa sorte!"

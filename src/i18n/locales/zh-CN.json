@@ -2090,6 +2090,10 @@
         "subject": "降入{{division}}",
         "body": "俱乐部不幸降级，将在第 {{season}} 赛季征战{{division}}。\n\n董事会深感失望。球队需要立即向升级发起冲击。"
       },
+      "worldCupChampion": {
+        "subject": "{{nation}}夺得{{year}}年世界杯冠军！",
+        "body": "{{nation}}在{{year}}年世界杯上加冕世界冠军。\n\n这一代球员将因这一伟业被铭记。"
+      },
       "newSeasonSchedule": {
         "subject": "{{season}}赛季——新赛程发布",
         "body": "{{season}}赛季的赛程已发布!新赛季将在4周后开赛。\n\n请利用这段休整期评估阵容,进行必要的调整,为即将到来的挑战做好准备。\n\n祝您好运!"

@@ -67,6 +67,35 @@ describe("getNationalTeamFixtures", () => {
   it("returns an empty list when there are no national teams", () => {
     expect(getNationalTeamFixtures(gameState())).toEqual([]);
   });
+
+  it("includes fixtures from national-team tournaments like the World Cup", () => {
+    const state = gameState({
+      national_teams: [nationalTeam({ id: "nt-eng", fixtures: [ntFixture({ id: "friendly" })] })],
+      competitions: [
+        {
+          id: "wc-2026",
+          name: "World Cup 2026",
+          kind: "InternationalNation",
+          season: 2026,
+          fixtures: [ntFixture({ id: "wc-final" })],
+          standings: [],
+        },
+        {
+          id: "league-1",
+          name: "Club League",
+          kind: "League",
+          season: 2026,
+          fixtures: [ntFixture({ id: "club-fixture" })],
+          standings: [],
+        },
+      ],
+    } as Partial<GameStateData>);
+
+    const ids = getNationalTeamFixtures(state).map((f) => f.id);
+    expect(ids).toContain("friendly");
+    expect(ids).toContain("wc-final");
+    expect(ids).not.toContain("club-fixture");
+  });
 });
 
 describe("getNationalTeamName", () => {

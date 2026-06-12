@@ -416,6 +416,39 @@ fn user_staying_in_their_division_gets_no_movement_message() {
 }
 
 #[test]
+fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
+    // make_two_division_game's clock sits in May 2026 — a World Cup summer.
+    let mut game = make_two_division_game("team1");
+
+    process_end_of_season(&mut game);
+
+    let cup = game
+        .competitions
+        .iter()
+        .find(|c| ofm_core::world_cup::is_world_cup_competition(c))
+        .expect("a 2026 rollover stages the World Cup");
+    assert_eq!(cup.name, "World Cup 2026");
+    assert_eq!(cup.participant_ids.len(), 48, "the 2026 format fields 48 nations");
+    assert_eq!(cup.groups.len(), 12);
+    assert!(
+        !is_season_complete(&game),
+        "the freshly regenerated club season is open and the tournament never \
+         counts toward season completion"
+    );
+
+    // The next rollover (summer 2027 — not a cup year) retires the tournament
+    // instead of regenerating it, and stages no new one.
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2027, 5, 20, 12, 0, 0).unwrap());
+    process_end_of_season(&mut game);
+    assert!(
+        game.competitions
+            .iter()
+            .all(|c| !ofm_core::world_cup::is_world_cup_competition(c)),
+        "last cycle's World Cup must be retired at the next rollover"
+    );
+}
+
+#[test]
 fn season_not_complete_while_another_division_is_unfinished() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));

@@ -2110,6 +2110,10 @@
         "subject": "Retrocessione in {{division}}",
         "body": "Il club è retrocesso e giocherà in {{division}} nella stagione {{season}}.\n\nLa dirigenza è profondamente delusa. Ci si aspetta una risalita immediata."
       },
+      "worldCupChampion": {
+        "subject": "{{nation}} vince il Mondiale {{year}}!",
+        "body": "{{nation}} si è laureata campione del mondo al Mondiale {{year}}.\n\nUna generazione di giocatori sarà ricordata per questo trionfo."
+      },
       "newSeasonSchedule": {
         "subject": "Stagione {{season}} — Nuovo Calendario Pubblicato",
         "body": "Il calendario della Stagione {{season}} è stato pubblicato! La nuova campagna inizia tra 4 settimane.\n\nUsa questa pausa per valutare la tua rosa, apportare le modifiche necessarie e prepararti alle sfide che ti attendono.\n\nIn bocca al lupo!"

@@ -219,6 +219,18 @@ fn regenerate_competitions_for_new_season(
         return;
     }
 
+    // World Cups are one-shot tournaments: retire last cycle's edition instead
+    // of regenerating it, and stage a new one when the calendar says so.
+    game.competitions
+        .retain(|competition| !crate::world_cup::is_world_cup_competition(competition));
+    let remaining_ids: std::collections::HashSet<String> = game
+        .competitions
+        .iter()
+        .map(|competition| competition.id.clone())
+        .collect();
+    game.active_competition_ids
+        .retain(|competition_id| remaining_ids.contains(competition_id));
+
     apply_pyramid_promotion_relegation(&mut game.competitions);
 
     for competition in game.competitions.iter_mut() {
@@ -243,6 +255,8 @@ fn regenerate_competitions_for_new_season(
     }
 
     regenerate_international_windows(game, next_start);
+    // In World Cup summers the tournament fills the break before `next_start`.
+    crate::world_cup::schedule_world_cup_if_due(game, game.clock.current_date + Duration::days(2));
     game.sync_legacy_league();
 }
 

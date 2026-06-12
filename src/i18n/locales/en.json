@@ -2089,6 +2089,10 @@
         "subject": "Relegated to the {{division}}",
         "body": "The club has been relegated and will play in the {{division}} in Season {{season}}.\n\nThe board is deeply disappointed. An immediate push for promotion is expected."
       },
+      "worldCupChampion": {
+        "subject": "{{nation}} win the {{year}} World Cup!",
+        "body": "{{nation}} have been crowned world champions at the {{year}} World Cup.\n\nA generation of players will be remembered for this triumph."
+      },
       "newSeasonSchedule": {
         "subject": "Season {{season}} — New Schedule Released",
         "body": "The schedule for Season {{season}} has been released! The new campaign kicks off in 4 weeks.\n\nUse this break to assess your squad, make any necessary changes, and prepare for the challenges ahead.\n\nGood luck!"

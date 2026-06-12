@@ -388,6 +388,87 @@ describe("TournamentsTab", () => {
     expect(screen.getAllByTestId("tournaments-group-cl-1-group-A").length).toBeGreaterThan(0);
   });
 
+  it("renders nation names for a World Cup instead of Unknown", () => {
+    const state = createGameState(true);
+    state.national_teams = [
+      {
+        id: "nt-bra",
+        name: "Brazil",
+        football_nation: "BR",
+        squad_player_ids: [],
+        reputation: 500,
+        fixtures: [],
+      },
+      {
+        id: "nt-fra",
+        name: "France",
+        football_nation: "FR",
+        squad_player_ids: [],
+        reputation: 500,
+        fixtures: [],
+      },
+    ];
+    state.competitions = [
+      state.league!,
+      {
+        id: "wc-2026",
+        name: "World Cup 2026",
+        season: 2026,
+        kind: "InternationalNation",
+        rules: { format: "GroupAndKnockout", counts_in_season_flow: true },
+        participant_ids: ["nt-bra", "nt-fra"],
+        fixtures: [
+          createFixture({
+            id: "wc-f1",
+            home_team_id: "nt-bra",
+            away_team_id: "nt-fra",
+            competition: "InternationalNation",
+            status: "Scheduled",
+            result: null,
+          }),
+        ],
+        standings: [],
+        groups: [
+          {
+            id: "wc-group-A",
+            name: "A",
+            team_ids: ["nt-bra", "nt-fra"],
+            standings: [
+              {
+                team_id: "nt-bra",
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                points: 0,
+              },
+              {
+                team_id: "nt-fra",
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                points: 0,
+              },
+            ],
+          },
+        ],
+        knockout_rounds: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "wc-2026" } });
+
+    expect(screen.getByText("Brazil")).toBeInTheDocument();
+    expect(screen.getByText("France")).toBeInTheDocument();
+    expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
+  });
+
   it("marks the relegation zone in pyramid standings", () => {
     const state = createGameState(true);
     const standing = (teamId: string, points: number) => ({

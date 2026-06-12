@@ -11,8 +11,34 @@ use uuid::Uuid;
 /// Clubs per group; the last groups may run one short when the entrant count
 /// doesn't divide evenly.
 const GROUP_SIZE: usize = 4;
-/// Clubs advancing from each group into the knockout rounds.
-const QUALIFIERS_PER_GROUP: usize = 2;
+
+/// Shape of a group stage at creation time.
+#[derive(Debug, Clone)]
+pub struct GroupStageConfig {
+    /// Round-robin legs within each group (2 = home and away).
+    pub legs: u8,
+    /// Days between group matchdays.
+    pub matchday_gap_days: i64,
+    /// Teams advancing from each group.
+    pub qualifiers_per_group: u32,
+    /// Additional best next-placed finishers across all groups that advance
+    /// (the 2026 World Cup's "best thirds").
+    pub best_third_qualifiers: u32,
+    /// Days between knockout rounds once the bracket starts.
+    pub knockout_round_gap_days: u32,
+}
+
+impl Default for GroupStageConfig {
+    fn default() -> Self {
+        Self {
+            legs: 2,
+            matchday_gap_days: 7,
+            qualifiers_per_group: 2,
+            best_third_qualifiers: 0,
+            knockout_round_gap_days: 14,
+        }
+    }
+}
 
 fn fixture_competition_for(kind: &CompetitionType) -> FixtureCompetition {
     match kind {
@@ -57,9 +83,8 @@ fn seed_groups(competition_id: &str, team_ids: &[String]) -> Vec<GroupState> {
     groups
 }
 
-/// Generate a group-and-knockout competition: snake-seeded groups playing a
-/// double round robin; the knockout bracket is seeded later, once every group
-/// fixture has been played.
+/// Generate a group-and-knockout competition with the default club shape:
+/// double round-robin groups, top two advancing.
 pub fn generate_group_knockout_cup(
     name: &str,
     season: u32,
@@ -68,6 +93,29 @@ pub fn generate_group_knockout_cup(
     kind: CompetitionType,
     scope: CompetitionScope,
 ) -> League {
+    generate_group_knockout_cup_with(
+        name,
+        season,
+        team_ids,
+        start_date,
+        kind,
+        scope,
+        &GroupStageConfig::default(),
+    )
+}
+
+/// Generate a group-and-knockout competition: snake-seeded groups playing a
+/// round robin shaped by `config`; the knockout bracket is seeded later, once
+/// every group fixture has been played.
+pub fn generate_group_knockout_cup_with(
+    name: &str,
+    season: u32,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    kind: CompetitionType,
+    scope: CompetitionScope,
+    config: &GroupStageConfig,
+) -> League {
     let competition_id = Uuid::new_v4().to_string();
     let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
     cup.kind = kind.clone();
@@ -75,17 +123,22 @@ pub fn generate_group_knockout_cup(
     cup.rules = CompetitionRules {
         format: CompetitionFormat::GroupAndKnockout,
         counts_in_season_flow: true,
+        group_qualifiers_per_group: config.qualifiers_per_group,
+        group_best_third_qualifiers: config.best_third_qualifiers,
+        knockout_round_gap_days: config.knockout_round_gap_days,
     };
     cup.standings.clear();
     cup.groups = seed_groups(&competition_id, team_ids);
 
     let fixture_competition = fixture_competition_for(&kind);
     for group in &cup.groups {
-        let fixtures = crate::schedule::build_round_robin_fixtures(
+        let fixtures = crate::schedule::build_round_robin_fixtures_with(
             &competition_id,
             &group.team_ids,
             start_date,
             fixture_competition.clone(),
+            config.legs,
+            config.matchday_gap_days,
         );
         cup.fixtures.extend(fixtures);
     }
@@ -167,27 +220,47 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         return;
     }
 
-    // Group winners (ranked among themselves), then runners-up, so the
-    // strongest group performances receive any knockout byes.
-    let mut qualifiers_by_rank: Vec<Vec<StandingEntry>> = vec![Vec::new(); QUALIFIERS_PER_GROUP];
+    // Group winners (ranked among themselves), then runners-up, and so on, so
+    // the strongest group performances receive any knockout byes. The next
+    // placed finishers across all groups can also qualify ("best thirds").
+    let per_group = (league.rules.group_qualifiers_per_group.max(1)) as usize;
+    let best_remainders = league.rules.group_best_third_qualifiers as usize;
+
+    let mut qualifiers_by_rank: Vec<Vec<StandingEntry>> = vec![Vec::new(); per_group];
+    let mut remainder_pool: Vec<StandingEntry> = Vec::new();
     for group in &league.groups {
         for (rank, entry) in sorted_group_standings(group)
             .into_iter()
-            .take(QUALIFIERS_PER_GROUP)
+            .take(per_group + 1)
             .enumerate()
         {
-            qualifiers_by_rank[rank].push(entry);
+            if rank < per_group {
+                qualifiers_by_rank[rank].push(entry);
+            } else {
+                remainder_pool.push(entry);
+            }
         }
     }
+
+    let rank_order = |a: &StandingEntry, b: &StandingEntry| {
+        b.points
+            .cmp(&a.points)
+            .then(b.goal_difference().cmp(&a.goal_difference()))
+            .then(b.goals_for.cmp(&a.goals_for))
+    };
     let mut qualifiers: Vec<String> = Vec::new();
     for mut rank_entries in qualifiers_by_rank {
-        rank_entries.sort_by(|a, b| {
-            b.points
-                .cmp(&a.points)
-                .then(b.goal_difference().cmp(&a.goal_difference()))
-                .then(b.goals_for.cmp(&a.goals_for))
-        });
+        rank_entries.sort_by(rank_order);
         qualifiers.extend(rank_entries.into_iter().map(|entry| entry.team_id));
+    }
+    if best_remainders > 0 {
+        remainder_pool.sort_by(rank_order);
+        qualifiers.extend(
+            remainder_pool
+                .into_iter()
+                .take(best_remainders)
+                .map(|entry| entry.team_id),
+        );
     }
     if qualifiers.len() < 2 {
         return;
@@ -204,7 +277,7 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         .and_then(|date| date.and_hms_opt(0, 0, 0))
         .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
         .unwrap_or_else(Utc::now)
-        + Duration::days(14);
+        + Duration::days(league.rules.knockout_round_gap_days as i64);
 
     crate::schedule::seed_knockout_round(
         league,
@@ -365,6 +438,59 @@ mod tests {
             .filter(|id| cup.groups[1].team_ids.iter().any(|t| t == *id))
             .count();
         assert_eq!((from_a, from_b), (2, 2));
+    }
+
+    #[test]
+    fn single_leg_groups_with_best_thirds_qualify_a_2026_style_field() {
+        // 12 entrants -> 3 single-leg groups; top 2 per group plus the 2 best
+        // third-placed teams -> 8 knockout qualifiers (a scaled 2026 format).
+        let mut cup = generate_group_knockout_cup_with(
+            "World Cup",
+            2026,
+            &clubs(12),
+            start(),
+            CompetitionType::InternationalNation,
+            CompetitionScope::International,
+            &GroupStageConfig {
+                legs: 1,
+                matchday_gap_days: 3,
+                qualifiers_per_group: 2,
+                best_third_qualifiers: 2,
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(cup.groups.len(), 3);
+        // 4-club single round robin = 6 fixtures per group.
+        assert_eq!(cup.fixtures.len(), 18);
+        let max_matchday = cup.fixtures.iter().map(|f| f.matchday).max().unwrap();
+        assert_eq!(max_matchday, 3, "single leg plays three group matchdays");
+
+        for index in 0..cup.fixtures.len() {
+            if cup.fixtures[index].status == FixtureStatus::Scheduled {
+                complete_fixture(&mut cup, index, 1, 0);
+            }
+        }
+
+        let round = &cup.knockout_rounds[0];
+        assert_eq!(round.name, "Quarterfinal");
+        assert_eq!(round.fixture_ids.len(), 4, "8 qualifiers pair into 4 ties");
+        assert!(round.bye_team_ids.is_empty());
+
+        // Exactly two third-placed teams advanced.
+        let knockout_team_ids: Vec<String> = cup
+            .fixtures
+            .iter()
+            .filter(|f| round.fixture_ids.contains(&f.id))
+            .flat_map(|f| [f.home_team_id.clone(), f.away_team_id.clone()])
+            .collect();
+        let third_placed_qualifiers = cup
+            .groups
+            .iter()
+            .map(|group| sorted_group_standings(group)[2].team_id.clone())
+            .filter(|team_id| knockout_team_ids.contains(team_id))
+            .count();
+        assert_eq!(third_placed_qualifiers, 2);
     }
 
     #[test]
