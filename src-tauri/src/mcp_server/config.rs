@@ -70,6 +70,7 @@ impl McpMode {
                 "game_export_world",
                 "game_exit",
                 "game_load_save",
+                "info_game_state",
             ],
         }
     }
@@ -258,7 +259,7 @@ mod tests {
     #[test]
     fn competition_mode_disabled_tools() {
         assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
-        assert!(!McpMode::Competition.disabled_tools().contains(&"info_game_state"));
+        assert!(McpMode::Competition.disabled_tools().contains(&"info_game_state"));
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
     }
 

@@ -17,3 +17,4 @@ pub mod scouting;
 pub mod season;
 pub mod game;
 pub mod help;
+pub mod live_match;

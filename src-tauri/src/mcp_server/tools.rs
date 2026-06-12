@@ -759,6 +759,107 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         ));
     }
 
+    // ─── New tools: game state, saves, worlds ────────────────────────────────
+
+    // info_game_state — raw JSON game state dump (disabled in Competition mode)
+    real_tool!("info_game_state", "Full game state as JSON (useful for programmatic access; disabled in competition mode)", tools_impl::info::info_game_state);
+
+    // game_list_saves
+    real_tool!("game_list_saves", "List all saved games with manager name and date", tools_impl::game::game_list_saves);
+
+    // game_delete_save
+    id_tool!("game_delete_save", "Permanently delete a saved game", save_id_schema(), save_id, tools_impl::game::game_delete_save);
+
+    // game_list_world_databases
+    real_tool!("game_list_world_databases", "List available world databases (built-in random + user JSON files)", tools_impl::game::game_list_world_databases);
+
+    // ─── Live match tools ──────────────────────────────────────────────────────
+
+    // match_start
+    custom_tool!("match_start", "Start a live match for a fixture",
+        build_schema(&[
+            ("fixture_index", "integer", "Index of the fixture in the league fixture list"),
+            ("mode", "string", "Match mode: live, spectator, or instant"),
+            ("allows_extra_time", "boolean", "Allow extra time if draw (default: true)"),
+        ], &["fixture_index", "mode"]),
+        ctx, args, {
+            let fixture_index = match require_u32_param(args, "fixture_index") { Ok(v) => v, Err(e) => return Ok(e) };
+            let mode = match require_string_param(args, "mode") { Ok(v) => v, Err(e) => return Ok(e) };
+            let allows_extra_time = extract_bool_param(args, "allows_extra_time");
+            match tools_impl::live_match::match_start(ctx, fixture_index, mode, allows_extra_time) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // match_step
+    custom_tool!("match_step", "Advance live match by N minutes",
+        build_schema(&[("minutes", "integer", "Number of minutes to advance")], &["minutes"]),
+        ctx, args, {
+            let minutes = match require_u32_param(args, "minutes") { Ok(v) => v as u16, Err(e) => return Ok(e) };
+            match tools_impl::live_match::match_step(ctx, minutes) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // match_command
+    custom_tool!("match_command", "Apply a tactical command during a live match (substitution, formation change, etc.)",
+        build_schema(&[("command_json", "string", "Match command as JSON (see engine MatchCommand type)")], &["command_json"]),
+        ctx, args, {
+            let command_json = match require_string_param(args, "command_json") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::live_match::match_command(ctx, command_json) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // match_snapshot
+    real_tool!("match_snapshot", "Get current live match state without advancing time", tools_impl::live_match::match_snapshot);
+
+    // match_finish
+    real_tool!("match_finish", "Finish the live match, apply results, and clean up", tools_impl::live_match::match_finish);
+
+    // match_team_talk
+    custom_tool!("match_team_talk", "Apply a team talk during half-time or full-time break",
+        build_schema(&[
+            ("tone", "string", "Talk tone: calm, motivational, assertive, aggressive, praise, disappointed"),
+            ("context", "string", "Match context: winning, losing, drawing"),
+        ], &["tone", "context"]),
+        ctx, args, {
+            let tone = match require_string_param(args, "tone") { Ok(v) => v, Err(e) => return Ok(e) };
+            let context = match require_string_param(args, "context") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::live_match::match_team_talk(ctx, tone, context) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // match_press_conference
+    custom_tool!("match_press_conference", "Submit press conference answers after a match",
+        build_schema(&[
+            ("answers_json", "string", "JSON array of answer objects with question_id, response_id, response_text, and optionally player_id"),
+            ("home_team", "string", "Home team name"),
+            ("away_team", "string", "Away team name"),
+            ("home_score", "integer", "Home team score"),
+            ("away_score", "integer", "Away team score"),
+            ("user_team_name", "string", "Your team name"),
+            ("user_team_id", "string", "Your team ID"),
+        ], &["answers_json", "home_team", "away_team", "home_score", "away_score", "user_team_name", "user_team_id"]),
+        ctx, args, {
+            let answers_json = match require_string_param(args, "answers_json") { Ok(v) => v, Err(e) => return Ok(e) };
+            let home_team = match require_string_param(args, "home_team") { Ok(v) => v, Err(e) => return Ok(e) };
+            let away_team = match require_string_param(args, "away_team") { Ok(v) => v, Err(e) => return Ok(e) };
+            let home_score = match require_u32_param(args, "home_score") { Ok(v) => v, Err(e) => return Ok(e) };
+            let away_score = match require_u32_param(args, "away_score") { Ok(v) => v, Err(e) => return Ok(e) };
+            let user_team_name = match require_string_param(args, "user_team_name") { Ok(v) => v, Err(e) => return Ok(e) };
+            let user_team_id = match require_string_param(args, "user_team_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::live_match::match_press_conference(ctx, answers_json, home_team, away_team, home_score, away_score, user_team_name, user_team_id) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
     router
 }
 

@@ -5,6 +5,17 @@ use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, user_team, require_league, format_position, age_from_dob};
 use crate::mcp_server::formatting::translate_error;
 
+// ─── info_game_state ────────────────────────────────────────────────────────
+
+/// Return the full game state as JSON. This gives agents access to the raw
+/// structured data rather than formatted text. In Competition mode, this tool
+/// is disabled because it exposes detailed info about all teams/players.
+pub fn info_game_state(ctx: Arc<McpContext>) -> Result<String, String> {
+    let game = require_game(&ctx.state_manager)?;
+    serde_json::to_string_pretty(&game)
+        .map_err(|e| format!("Failed to serialize game state: {}", e))
+}
+
 // ─── info_game_summary ──────────────────────────────────────────────────────
 
 pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {

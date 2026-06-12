@@ -6,6 +6,26 @@ use crate::mcp_server::tools_impl::helpers::{require_game};
 use crate::mcp_server::formatting::translate_error;
 use tauri::Manager as TauriManager;
 
+// ─── game_list_saves ────────────────────────────────────────────────────────
+
+pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
+    let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+    let saves = sm.load_saves()?;
+
+    if saves.is_empty() {
+        return Ok("## Saves\n\nNo saves found.".to_string());
+    }
+
+    let mut lines = vec!["| ID | Manager | Last Played |".to_string(), "|---|---|---|".to_string()];
+    for save in &saves {
+        lines.push(format!("| {} | {} | {} |", save.id, save.manager_name, save.last_played_at));
+    }
+
+    Ok(format!("## Saves\n\n{}", lines.join("\n")))
+}
+
+// ─── game_delete_save ───────────────────────────────────────────────────────
+
 // ─── game_save ──────────────────────────────────────────────────────────────
 
 pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
@@ -162,4 +182,29 @@ pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<String, String> {
     .map_err(|e| translate_error(&e))?;
 
     Ok(format!("## World Exported\n\nWritten to: {}", export_path.display()))
+}
+
+// ─── game_delete_save ───────────────────────────────────────────────────────
+
+pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, String> {
+    let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+    sm.delete_save(&save_id)?;
+    Ok(format!("## Save Deleted\n\nSave {} has been permanently deleted.", save_id))
+}
+
+// ─── game_list_world_databases ──────────────────────────────────────────────
+
+pub fn game_list_world_databases(ctx: Arc<McpContext>) -> Result<String, String> {
+    let databases = crate::commands::world::list_world_databases(ctx.app_handle.clone())?;
+
+    if databases.is_empty() {
+        return Ok("## World Databases\n\nNo world databases found.".to_string());
+    }
+
+    let mut lines = vec!["| ID | Name | Teams | Players | Source |".to_string(), "|---|---|---|---|---|".to_string()];
+    for db in &databases {
+        lines.push(format!("| {} | {} | {} | {} | {} |", db.id, db.name, db.team_count, db.player_count, db.source));
+    }
+
+    Ok(format!("## World Databases\n\n{}\n\nUse `game_new` with `world_source` set to a database path to start with that world.", lines.join("\n")))
 }

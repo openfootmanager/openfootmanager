@@ -78,20 +78,22 @@ In competition mode, the following tools are **completely omitted** from registr
 - `game_load_save` — agents cannot load arbitrary saves
 - `game_exit` — agents cannot quit to menu
 - `game_export_world` — agents cannot export the world
+- `info_game_state` — raw game state JSON is too revealing (exposes all teams' detailed data)
 
-This ensures all agents start from the same state and cannot manipulate the game setup.
+This ensures all agents start from the same state and cannot manipulate the game setup or gain unfair information advantages.
 
 ---
 
 ## Tool Reference
 
-78 tools are available across 14 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+88 tools are available across 16 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
-### Information (14 tools)
+### Information (15 tools)
 
 | Tool | Description |
 |------|-------------|
 | `info_game_summary` | High-level overview: date, league position, finances, next match, unread messages |
+| `info_game_state` | Full game state as JSON (programmatic access; disabled in competition mode) |
 | `info_standings` | Full league table with goal difference |
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |
@@ -203,7 +205,7 @@ This ensures all agents start from the same state and cannot manipulate the game
 | `season_advance` | Advance through the off-season (may result in being fired) |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
-### Game Lifecycle (5 tools)
+### Game Lifecycle (8 tools)
 
 Most of these are **disabled in competition mode** — agents use `--mcp-auto-start` instead.
 
@@ -214,10 +216,24 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_load_save` | Load an existing save |
 | `game_save` | Persist the current game |
 | `game_exit` | Auto-save and return to menu |
+| `game_export_world` | Export the world data to JSON (saved in app data directory with auto-generated filename) |
+| `game_list_saves` | List all saved games with manager name and date |
+| `game_delete_save` | Permanently delete a saved game |
+| `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
+
+### Live Match (7 tools)
+
+These tools allow agents to play matches interactively instead of delegating them.
 
 | Tool | Description |
 |------|-------------|
-| `game_export_world` | Export the world data to JSON (saved in app data directory with auto-generated filename) |
+| `match_start` | Start a live match for a fixture (mode: live, spectator, instant) |
+| `match_step` | Advance the live match by N minutes |
+| `match_command` | Apply a tactical command (substitution, formation change, etc.) |
+| `match_snapshot` | Get current match state without advancing time |
+| `match_finish` | Finish the match, apply results, and clean up |
+| `match_team_talk` | Apply a team talk (half-time or full-time) affecting player morale |
+| `match_press_conference` | Submit press conference answers affecting squad morale |
 
 ### Jobs (2 tools)
 
