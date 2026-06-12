@@ -1095,6 +1095,7 @@
     "newsWillAppear": "Les actualités apparaîtront au fil de la saison.",
     "backToNews": "Retour aux Actualités",
     "nArticles": "{{count}} article(s)",
+    "allTeams": "Toutes les équipes",
     "categories": {
       "MatchReport": "Compte-Rendu",
       "LeagueRoundup": "Résumé de Journée",
