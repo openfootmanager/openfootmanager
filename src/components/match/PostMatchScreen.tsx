@@ -575,7 +575,7 @@ export default function PostMatchScreen({
                                 </div>
                               ))
                           ) : (
-                            <p className="text-gray-500 dark:text-gray-400">{t("home.noGoals")}</p>
+                            <p className="text-gray-500 dark:text-gray-400">{t("match.noGoals")}</p>
                           )}
                         </div>
                       </div>

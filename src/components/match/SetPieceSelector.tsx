@@ -241,7 +241,7 @@ export default function SetPieceSelector({
                   {getTranslatedStatLabel(s.label)}
                 </span>
               ))}
-              <span className="w-8 text-right">{t("match.fit")}</span>
+              <span className="w-8 text-right">{t("preMatch.fit")}</span>
             </div>
           )}
         </div>

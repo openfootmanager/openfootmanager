@@ -534,7 +534,7 @@ export default function TransfersTab({
                     )}
                     {isScoutingView && (
                       <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {t("common.action")}
+                        {t("scouting.action")}
                       </th>
                     )}
                   </tr>

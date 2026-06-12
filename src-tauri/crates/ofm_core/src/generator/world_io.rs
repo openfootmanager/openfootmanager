@@ -19,7 +19,21 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: usize) -> S
 /// Generate a random world and wrap it in a `WorldData`.
 /// If `data_dir` is provided, tries to load definition files from that directory.
 pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
-    let (mut teams, mut players, mut staff) = super::generate_world(data_dir);
+    world_data_from_parts(super::generate_world(data_dir))
+}
+
+/// Deterministic variant of [`generate_world_data`]: same `seed` → identical world.
+pub fn generate_world_data_seeded(seed: u64, data_dir: Option<&std::path::Path>) -> WorldData {
+    world_data_from_parts(super::generate_world_seeded(seed, data_dir))
+}
+
+fn world_data_from_parts(
+    (mut teams, mut players, mut staff): (
+        Vec<domain::team::Team>,
+        Vec<domain::player::Player>,
+        Vec<domain::staff::Staff>,
+    ),
+) -> WorldData {
     crate::football_identity::upgrade_world_football_identities(
         &mut teams,
         &mut players,
