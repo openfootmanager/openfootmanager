@@ -1,6 +1,6 @@
 //! MCP tool implementations: time
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
 use crate::mcp_server::formatting::translate_error;
@@ -101,19 +101,21 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
         }
     }
 
-    // Auto-save every N in-game days
+    // Auto-save every N in-game days (per-save tracking)
     if ctx.config.auto_save_interval_days > 0 {
         if let Some(ref game) = response.game {
             if let Some(save_id) = ctx.state_manager.get_save_id() {
-                // Simple heuristic: save if we have an active game.
-                // A more precise approach would track a day counter.
-                // For now, every call to time_advance triggers a save check.
-                // We use a static counter to approximate "every N days".
-                use std::sync::atomic::{AtomicU32, Ordering};
-                static DAYS_SINCE_SAVE: AtomicU32 = AtomicU32::new(0);
-                let days = DAYS_SINCE_SAVE.fetch_add(1, Ordering::Relaxed) + 1;
-                if days >= ctx.config.auto_save_interval_days {
-                    DAYS_SINCE_SAVE.store(0, Ordering::Relaxed);
+                use std::sync::LazyLock;
+                use std::collections::HashMap;
+                static SAVE_DAY_COUNTERS: LazyLock<Mutex<HashMap<String, u32>>> =
+                    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+                let mut counters = SAVE_DAY_COUNTERS.lock().unwrap();
+                let days = counters.entry(save_id.clone()).or_insert(0);
+                *days += 1;
+                if *days >= ctx.config.auto_save_interval_days {
+                    *days = 0;
+                    drop(counters); // release lock before save
                     let stats_state = ctx.state_manager
                         .get_stats_state(|s| s.clone())
                         .unwrap_or_default();

@@ -724,19 +724,21 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         });
 
     // game_new
-    custom_tool!("game_new", "Create manager + generate/load world",
+    custom_tool!("game_new", "Create manager + generate/load world + optionally select team",
         build_schema(&[
             ("first_name", "string", "Manager first name"),
             ("last_name", "string", "Manager last name"),
             ("nationality", "string", "Manager nationality"),
             ("world_source", "string", "World JSON path (omit for random)"),
+            ("team_id", "string", "Team to manage (required if world has no pre-assigned manager)"),
         ], &["first_name", "last_name", "nationality"]),
         ctx, args, {
             let first = match require_string_param(args, "first_name") { Ok(v) => v, Err(e) => return Ok(e) };
             let last = match require_string_param(args, "last_name") { Ok(v) => v, Err(e) => return Ok(e) };
             let nat = match require_string_param(args, "nationality") { Ok(v) => v, Err(e) => return Ok(e) };
             let world = extract_string_param(args, "world_source");
-            match tools_impl::game::game_new(ctx, first, last, nat, world) {
+            let team = extract_string_param(args, "team_id");
+            match tools_impl::game::game_new(ctx, first, last, nat, world, team) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }
@@ -835,26 +837,14 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
             }
         });
 
-    // match_press_conference
-    custom_tool!("match_press_conference", "Submit press conference answers after a match",
+    // match_press_conference — derives team/score from game state to prevent fabrication
+    custom_tool!("match_press_conference", "Submit press conference answers after a match (team and score derived from game state)",
         build_schema(&[
             ("answers_json", "string", "JSON array of answer objects with question_id, response_id, response_text, and optionally player_id"),
-            ("home_team", "string", "Home team name"),
-            ("away_team", "string", "Away team name"),
-            ("home_score", "integer", "Home team score"),
-            ("away_score", "integer", "Away team score"),
-            ("user_team_name", "string", "Your team name"),
-            ("user_team_id", "string", "Your team ID"),
-        ], &["answers_json", "home_team", "away_team", "home_score", "away_score", "user_team_name", "user_team_id"]),
+        ], &["answers_json"]),
         ctx, args, {
             let answers_json = match require_string_param(args, "answers_json") { Ok(v) => v, Err(e) => return Ok(e) };
-            let home_team = match require_string_param(args, "home_team") { Ok(v) => v, Err(e) => return Ok(e) };
-            let away_team = match require_string_param(args, "away_team") { Ok(v) => v, Err(e) => return Ok(e) };
-            let home_score = match require_u32_param(args, "home_score") { Ok(v) => v, Err(e) => return Ok(e) };
-            let away_score = match require_u32_param(args, "away_score") { Ok(v) => v, Err(e) => return Ok(e) };
-            let user_team_name = match require_string_param(args, "user_team_name") { Ok(v) => v, Err(e) => return Ok(e) };
-            let user_team_id = match require_string_param(args, "user_team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-            match tools_impl::live_match::match_press_conference(ctx, answers_json, home_team, away_team, home_score, away_score, user_team_name, user_team_id) {
+            match tools_impl::live_match::match_press_conference(ctx, answers_json) {
                 Ok(text) => Ok(text_result(text)),
                 Err(e) => Ok(err_result(&e)),
             }
@@ -879,4 +869,119 @@ fn save_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
 
 fn assignment_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
     param_schema("assignment_id", "Scouting assignment ID")
+}
+
+// ─── Tool catalog for help tools ─────────────────────────────────────────────
+// Single source of truth for tool names, descriptions, and categories.
+// Must be kept in sync with the tool registrations in build_tool_router().
+
+/// Returns the full catalog of MCP tools as (name, description, category) tuples.
+pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
+    vec![
+        // Ping
+        ("ping", "Check if the MCP server is alive", "Utility"),
+
+        // Information
+        ("info_game_summary", "High-level overview: date, league position, finances, next match, unread messages", "Information"),
+        ("info_game_state", "Full game state as JSON (programmatic access)", "Information"),
+        ("info_standings", "Full league table with goal difference", "Information"),
+        ("info_fixtures", "Upcoming fixtures and recent results for your team", "Information"),
+        ("info_match_preview", "Next opponent details, form, and standings comparison", "Information"),
+        ("info_player_profile", "Detailed player card with attributes and contract", "Information"),
+        ("info_player_stats", "Player season and career statistics", "Information"),
+        ("info_team_profile", "Detailed team view with squad summary", "Information"),
+        ("info_team_stats", "Team season statistics", "Information"),
+        ("info_finances", "Financial overview with budget breakdown", "Information"),
+        ("info_news", "Recent news articles", "Information"),
+        ("info_season_context", "Season phase and transfer window status", "Information"),
+
+        // Time
+        ("time_advance", "Advance one day", "Time"),
+        ("time_skip_to_match_day", "Fast-forward to next match day", "Time"),
+
+        // Squad
+        ("squad_get", "Squad overview with starting XI and bench", "Squad"),
+        ("squad_set_formation", "Change formation", "Squad"),
+        ("squad_set_starting_xi", "Set starting eleven", "Squad"),
+        ("squad_set_play_style", "Change play style", "Squad"),
+        ("squad_set_match_roles", "Set captain and set-piece takers", "Squad"),
+        ("squad_auto_set_pieces", "Auto-assign set-piece takers based on attributes", "Squad"),
+        ("squad_set_player_role", "Set player squad role (starter/substitute/reserve)", "Squad"),
+
+        // Training
+        ("training_get", "Training settings overview", "Training"),
+        ("training_set_focus_intensity", "Set training focus and intensity", "Training"),
+        ("training_set_schedule", "Set weekly training schedule", "Training"),
+        ("training_set_groups", "Set training group assignments", "Training"),
+
+        // Transfers
+        ("transfer_market_browse", "Browse transfer market", "Transfers"),
+        ("transfer_make_bid", "Make a transfer bid", "Transfers"),
+        ("transfer_preview_bid", "Preview financial impact of a transfer bid", "Transfers"),
+        ("transfer_respond_to_offer", "Accept or reject a transfer offer", "Transfers"),
+        ("transfer_counter_offer", "Counter a transfer offer", "Transfers"),
+        ("transfer_toggle_listed", "Toggle transfer-listed status", "Transfers"),
+        ("transfer_toggle_loan", "Toggle loan-listed status", "Transfers"),
+        ("transfer_free_agent_offer", "Sign a free agent", "Transfers"),
+        ("transfer_free_agent_preview", "Preview financial impact of signing a free agent", "Transfers"),
+
+        // Contracts
+        ("contract_propose_renewal", "Propose contract renewal", "Contracts"),
+        ("contract_delegate_renewals", "Delegate contract renewals to staff", "Contracts"),
+        ("contract_set_exit_intent", "Set exit intent on a player contract", "Contracts"),
+        ("contract_clear_exit_intent", "Clear exit intent on a player contract", "Contracts"),
+        ("contract_terminate", "Terminate a player contract", "Contracts"),
+        ("contract_preview_renewal", "Preview financial impact of contract renewal", "Contracts"),
+
+        // Inbox
+        ("inbox_get_messages", "Get inbox messages", "Inbox"),
+        ("inbox_mark_read", "Mark message as read", "Inbox"),
+        ("inbox_mark_all_read", "Mark all messages as read", "Inbox"),
+        ("inbox_delete", "Delete a message", "Inbox"),
+        ("inbox_clear_old", "Clear old messages", "Inbox"),
+        ("inbox_resolve_action", "Resolve an inbox action item", "Inbox"),
+
+        // Club
+        ("club_upgrade_facility", "Upgrade a club facility", "Club"),
+        ("club_request_board_support", "Request board support for transfer budget or wage bill", "Club"),
+        ("staff_hire", "Hire staff member", "Club"),
+        ("staff_release", "Release staff member", "Club"),
+
+        // Scouting
+        ("scout_youth_start", "Start youth scouting assignment", "Scouting"),
+        ("scout_youth_cancel", "Cancel youth scouting assignment", "Scouting"),
+
+        // Season
+        ("season_check_complete", "Check if season is complete and ready to advance", "Season"),
+        ("season_advance", "Advance to next season", "Season"),
+
+        // Game Lifecycle
+        ("game_new", "Create a new manager and generate/load a world", "Game Lifecycle"),
+        ("game_select_team", "Pick a team to manage", "Game Lifecycle"),
+        ("game_load_save", "Load an existing save", "Game Lifecycle"),
+        ("game_save", "Persist the current game", "Game Lifecycle"),
+        ("game_exit", "Auto-save and return to menu", "Game Lifecycle"),
+        ("game_export_world", "Export world data to JSON", "Game Lifecycle"),
+        ("game_list_saves", "List all saved games", "Game Lifecycle"),
+        ("game_delete_save", "Permanently delete a saved game", "Game Lifecycle"),
+        ("game_list_world_databases", "List available world databases", "Game Lifecycle"),
+        ("game_is_finished", "Check if game is finished", "Game Lifecycle"),
+
+        // Live Match
+        ("match_start", "Start a live match for a fixture", "Live Match"),
+        ("match_step", "Advance the live match by N minutes", "Live Match"),
+        ("match_command", "Apply a tactical command during a live match", "Live Match"),
+        ("match_snapshot", "Get current match state without advancing time", "Live Match"),
+        ("match_finish", "Finish the match, apply results", "Live Match"),
+        ("match_team_talk", "Apply a team talk during a match break", "Live Match"),
+        ("match_press_conference", "Submit press conference answers after a match", "Live Match"),
+
+        // Jobs
+        ("jobs_available", "List current job openings", "Jobs"),
+        ("jobs_apply", "Apply for a job", "Jobs"),
+
+        // Help
+        ("help_find_tool", "Search tools by keyword", "Help"),
+        ("help_list_categories", "List all tool categories with tool counts", "Help"),
+    ]
 }

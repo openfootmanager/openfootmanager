@@ -187,7 +187,7 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
     // Apply the auto-selected roles
     let match_roles = domain::team::MatchRoles {
         captain: result.get("captain").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        vice_captain: None,
+        vice_captain: team.match_roles.vice_captain.clone(),
         penalty_taker: result.get("penalty_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),
         free_kick_taker: result.get("free_kick_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),
         corner_taker: result.get("corner_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),

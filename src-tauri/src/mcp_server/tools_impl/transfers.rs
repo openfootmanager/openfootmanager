@@ -116,16 +116,23 @@ pub fn transfer_preview_bid(ctx: Arc<McpContext>, player_id: String, fee: u64) -
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
 
-    let _response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
+    let response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
         &ctx.state_manager,
         &player_id,
         fee,
     )
     .map_err(|e| translate_error(&e))?;
+    let p = &response.projection;
 
     Ok(format!(
-        "## Transfer Bid Preview: {} — {} 💰\n\n**Projection**: (financial details from projection)\nThis is a preview — no bid was made.",
+        "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Annual Wage Bill Before | {} |\n| Annual Wage Bill After | {} |\n| Annual Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n\nThis is a preview — no bid was made.",
         player_name, fee,
+        p.transfer_budget_before, p.transfer_budget_after,
+        p.finance_before, p.finance_after,
+        p.annual_wage_bill_before, p.annual_wage_bill_after,
+        p.annual_wage_budget, p.projected_wage_budget_usage_pct,
+        if p.exceeds_transfer_budget { "Yes" } else { "No" },
+        if p.exceeds_finance { "Yes" } else { "No" },
     ))
 }
 
@@ -275,14 +282,25 @@ pub fn transfer_free_agent_offer(ctx: Arc<McpContext>, player_id: String, weekly
 // ─── transfer_free_agent_preview ────────────────────────────────────────────
 
 pub fn transfer_free_agent_preview(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32) -> Result<String, String> {
-    let _response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
+    let response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
         &ctx.state_manager,
         &player_id,
         weekly_wage,
     )
     .map_err(|e| translate_error(&e))?;
+    let p = &response.projection;
 
-    Ok(format!("## Free Agent Preview\n\n**Wage**: {}/wk\n**Projected Impact**: (see details)\nThis is a preview — no offer was made.", weekly_wage))
+    Ok(format!(
+        "## Free Agent Preview\n\n| Field | Value |\n|-------|-------|\n| Weekly Wage Offered | {}/wk |\n| Current Annual Wage Bill | {} |\n| Projected Annual Wage Bill | {} |\n| Annual Wage Budget | {} |\n| Annual Soft Cap | {} |\n| Current Weekly Spend | {} |\n| Projected Weekly Spend | {} |\n| Cash Runway (weeks) | {} → {} |\n| Currently Over Budget | {} |\n| Policy Allows | {} |\n\nThis is a preview — no offer was made.",
+        weekly_wage,
+        p.current_annual_wage_bill, p.projected_annual_wage_bill,
+        p.annual_wage_budget, p.annual_soft_cap,
+        p.current_weekly_wage_spend, p.projected_weekly_wage_spend,
+        p.current_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
+        p.projected_cash_runway_weeks.map(|w| w.to_string()).unwrap_or_else(|| "N/A".to_string()),
+        if p.currently_over_budget { "Yes" } else { "No" },
+        if p.policy_allows { "Yes" } else { "No" },
+    ))
 }
 
 // ─── info_player_stats ──────────────────────────────────────────────────────

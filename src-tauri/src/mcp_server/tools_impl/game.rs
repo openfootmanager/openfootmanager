@@ -50,7 +50,7 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── game_new ───────────────────────────────────────────────────────────────
 
-pub fn game_new(_ctx: Arc<McpContext>, first_name: String, last_name: String, nationality: String, _world_source: Option<String>) -> Result<String, String> {
+pub fn game_new(ctx: Arc<McpContext>, first_name: String, last_name: String, nationality: String, world_source: Option<String>, team_id: Option<String>) -> Result<String, String> {
     // Validate inputs
     if first_name.trim().is_empty() || last_name.trim().is_empty() {
         return Err("be.error.createManager.nameRequired".to_string());
@@ -59,13 +59,33 @@ pub fn game_new(_ctx: Arc<McpContext>, first_name: String, last_name: String, na
         return Err("be.error.createManager.nationalityRequired".to_string());
     }
 
-    // This function is disabled in competition mode.
-    // In non-competition mode, the agent would call start_new_game + select_team.
-    // For now, return guidance.
-    Ok(format!(
-        "## Game Creation\n\nTo create a new game, use the GUI or start with `--mcp-auto-start`.\nManager: {} {}, Nationality: {}",
-        first_name, last_name, nationality
-    ))
+    // Determine world path
+    let world_path = world_source.unwrap_or_default();
+
+    // Use the MCP bootstrap path to create the game
+    let result = crate::commands::game::bootstrap_game_for_mcp(
+        &ctx.state_manager,
+        &ctx.save_manager_state,
+        &world_path,
+        team_id.as_deref(),
+        &first_name,
+        &last_name,
+        &nationality,
+    );
+
+    match result {
+        Ok(save_id) => {
+            {
+                use tauri::Emitter;
+                let _ = ctx.app_handle.emit("game-state-changed", ());
+            }
+            Ok(format!(
+                "## Game Created\n\nManager: {} {}\nNationality: {}\nSave ID: {}\n\nUse `info_game_summary` to see your current state.",
+                first_name, last_name, nationality, save_id
+            ))
+        }
+        Err(e) => Err(e),
+    }
 }
 
 // ─── game_select_team ───────────────────────────────────────────────────────
@@ -187,8 +207,21 @@ pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── game_delete_save ───────────────────────────────────────────────────────
 
 pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, String> {
+    // Prevent deleting the currently active save
+    if let Some(active_id) = ctx.state_manager.get_save_id() {
+        if active_id == save_id {
+            return Err("Cannot delete the currently active save. Use game_exit first.".to_string());
+        }
+    }
+
     let mut sm = ctx.save_manager_state.0.lock().map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
     sm.delete_save(&save_id)?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     Ok(format!("## Save Deleted\n\nSave {} has been permanently deleted.", save_id))
 }
 

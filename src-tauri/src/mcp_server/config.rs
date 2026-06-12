@@ -70,7 +70,6 @@ impl McpMode {
                 "game_export_world",
                 "game_exit",
                 "game_load_save",
-                "info_game_state",
             ],
         }
     }
@@ -98,7 +97,10 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
             "--mcp-port" => {
                 i += 1;
                 if i < args.len() {
-                    port = args[i].parse().ok();
+                    match args[i].parse() {
+                        Ok(p) => port = Some(p),
+                        Err(_) => log::warn!("[mcp-config] Invalid --mcp-port '{}', ignoring", args[i]),
+                    }
                 }
             }
             "--mcp-mode" => {
@@ -169,22 +171,30 @@ pub fn parse_mcp_config_from_args() -> Option<McpConfig> {
         i += 1;
     }
 
-    port.map(|p| McpConfig {
-        port: p,
-        mode,
-        disabled_tools,
-        auto_start,
-        no_gui,
-        min_tick_delay_ms,
-        auto_save_interval_days,
-        manager_name,
-        manager_last_name,
-        manager_nationality,
-        allowed_hosts: vec![
-            "localhost".into(),
-            "127.0.0.1".into(),
-            "::1".into(),
-        ],
+    port.map(|p| {
+        // Validate: competition mode requires --mcp-auto-start
+        if mode == McpMode::Competition && auto_start.is_none() {
+            log::error!("[mcp-config] --mcp-mode competition requires --mcp-auto-start");
+            std::process::exit(1);
+        }
+
+        McpConfig {
+            port: p,
+            mode,
+            disabled_tools,
+            auto_start,
+            no_gui,
+            min_tick_delay_ms,
+            auto_save_interval_days,
+            manager_name,
+            manager_last_name,
+            manager_nationality,
+            allowed_hosts: vec![
+                "localhost".into(),
+                "127.0.0.1".into(),
+                "::1".into(),
+            ],
+        }
     })
 }
 
@@ -259,7 +269,7 @@ mod tests {
     #[test]
     fn competition_mode_disabled_tools() {
         assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
-        assert!(McpMode::Competition.disabled_tools().contains(&"info_game_state"));
+        assert!(!McpMode::Competition.disabled_tools().contains(&"info_game_state"));
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
     }
 
@@ -282,7 +292,10 @@ mod tests {
                 "--mcp-port" => {
                     i += 1;
                     if i < args.len() {
-                        port = args[i].parse().ok();
+                        match args[i].parse() {
+                            Ok(p) => port = Some(p),
+                            Err(_) => log::warn!("[mcp-config] Invalid --mcp-port '{}', ignoring", args[i]),
+                        }
                     }
                 }
                 "--mcp-mode" => {
@@ -318,13 +331,19 @@ mod tests {
                 "--min-tick-delay-ms" => {
                     i += 1;
                     if i < args.len() {
-                        min_tick_delay_ms = args[i].parse().unwrap_or(0);
+                        min_tick_delay_ms = match args[i].parse() {
+                            Ok(val) => val,
+                            Err(_) => { log::warn!("[mcp-config] Invalid --min-tick-delay-ms '{}', using default 0", args[i]); 0 }
+                        };
                     }
                 }
                 "--auto-save-interval-days" => {
                     i += 1;
                     if i < args.len() {
-                        auto_save_interval_days = args[i].parse().unwrap_or(7);
+                        auto_save_interval_days = match args[i].parse() {
+                            Ok(val) => val,
+                            Err(_) => { log::warn!("[mcp-config] Invalid --auto-save-interval-days '{}', using default 7", args[i]); 7 }
+                        };
                     }
                 }
                 "--manager-name" => {

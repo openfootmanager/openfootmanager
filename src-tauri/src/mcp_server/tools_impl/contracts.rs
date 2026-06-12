@@ -100,6 +100,11 @@ pub fn contract_set_exit_intent(ctx: Arc<McpContext>, player_id: String, reason:
     crate::commands::contracts::set_contract_exit_intent_internal(&ctx.state_manager, &player_id, reason)
         .map_err(|e| translate_error(&e))?;
 
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     let game = require_game(&ctx.state_manager)?;
     let player_name = game.players.iter()
         .find(|p| p.id == player_id)
@@ -116,6 +121,11 @@ pub fn contract_set_exit_intent(ctx: Arc<McpContext>, player_id: String, reason:
 pub fn contract_clear_exit_intent(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
     crate::commands::contracts::clear_contract_exit_intent_internal(&ctx.state_manager, &player_id)
         .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
 
     Ok("## Exit Intent Cleared\n\nContract will proceed normally.".to_string())
 }

@@ -65,7 +65,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--min-tick-delay-ms <MS>` | No | `0` | Minimum delay between `time_advance` completions. Prevents agents from advancing too fast for the GUI to follow. |
 | `--mcp-disable-tools <LIST>` | No | — | Comma-separated tool names to disable on top of mode restrictions. |
 
-\* `--mcp-auto-start` is **required** when `--mcp-mode competition` is used. The team ID is optional — omit it if the exported world's manager already has a team assigned.
+\* `--mcp-auto-start` is **required** when `--mcp-mode competition` is used (the app will exit with an error otherwise). The team ID is optional — omit it if the exported world's manager already has a team assigned.
 
 ---
 
@@ -78,17 +78,16 @@ In competition mode, the following tools are **completely omitted** from registr
 - `game_load_save` — agents cannot load arbitrary saves
 - `game_exit` — agents cannot quit to menu
 - `game_export_world` — agents cannot export the world
-- `info_game_state` — raw game state JSON is too revealing (exposes all teams' detailed data)
 
-This ensures all agents start from the same state and cannot manipulate the game setup or gain unfair information advantages.
+This ensures all agents start from the same state and cannot manipulate the game setup.
 
 ---
 
 ## Tool Reference
 
-88 tools are available across 16 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+76 tools are available across 16 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
-### Information (15 tools)
+### Information (12 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -205,7 +204,7 @@ This ensures all agents start from the same state and cannot manipulate the game
 | `season_advance` | Advance through the off-season (may result in being fired) |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
-### Game Lifecycle (8 tools)
+### Game Lifecycle (10 tools)
 
 Most of these are **disabled in competition mode** — agents use `--mcp-auto-start` instead.
 
@@ -220,6 +219,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_list_saves` | List all saved games with manager name and date |
 | `game_delete_save` | Permanently delete a saved game |
 | `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
+| `game_is_finished` | Check if the current game/season is finished |
 
 ### Live Match (7 tools)
 
@@ -478,6 +478,7 @@ src-tauri/src/mcp_server/
 │   ├── scouting.rs  # Scout dispatch and youth scouting
 │   ├── season.rs    # Season progression, awards, and jobs
 │   ├── game.rs      # Game lifecycle (new, load, save, exit, export)
+│   ├── live_match.rs # Live match play, team talks, press conferences
 │   └── help.rs      # Tool discovery helpers
 └── formatting.rs    # Error key → human-readable translation
 ```

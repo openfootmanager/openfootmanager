@@ -58,6 +58,11 @@ pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<Strin
     crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)
         .map_err(|e| translate_error(&e))?;
 
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     Ok("Message marked as read.".to_string())
 }
 
@@ -68,6 +73,11 @@ pub fn inbox_mark_read(ctx: Arc<McpContext>, message_id: String) -> Result<Strin
 pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<String, String> {
     crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)
         .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
 
     Ok("All messages marked as read.".to_string())
 }
@@ -80,6 +90,11 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, 
     crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)
         .map_err(|e| translate_error(&e))?;
 
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     Ok("Message deleted.".to_string())
 }
 
@@ -90,6 +105,11 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<String, 
 pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<String, String> {
     crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)
         .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
 
     Ok("Old messages cleared.".to_string())
 }

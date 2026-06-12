@@ -36,6 +36,11 @@ pub fn match_start(
     )
     .map_err(|e| translate_error(&e))?;
 
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     Ok(format!(
         "## Live Match Started\n\n**Fixture Index**: {}\n**Mode**: {}\n**Minute**: {}\n**Score**: {} - {}\n\nUse `match_step` to advance, `match_command` to issue tactical commands, and `match_finish` to end.",
         fixture_index, mode, snapshot.current_minute, snapshot.home_score, snapshot.away_score
@@ -60,6 +65,11 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
     // Get the latest snapshot for score
     let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)
         .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
 
     let events_text = if lines.is_empty() {
         "No events occurred.".to_string()
@@ -90,6 +100,11 @@ pub fn match_command(
         command,
     )
     .map_err(|e| translate_error(&e))?;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
 
     Ok(format!(
         "## Command Applied\n\n**Minute**: {}\n**Score**: {} - {}",
@@ -158,6 +173,11 @@ pub fn match_team_talk(
 
     ctx.state_manager.set_game(game);
 
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
     let mut lines = Vec::new();
     for result in &results {
         let pid = result["player_id"].as_str().unwrap_or("?");
@@ -179,15 +199,11 @@ pub fn match_team_talk(
 }
 
 /// Submit press conference answers after a match.
+/// Derives team names, scores, and user team from the current game state
+/// to prevent fabrication of match results.
 pub fn match_press_conference(
     ctx: Arc<McpContext>,
     answers_json: String,
-    home_team: String,
-    away_team: String,
-    home_score: u32,
-    away_score: u32,
-    user_team_name: String,
-    user_team_id: String,
 ) -> Result<String, String> {
     #[derive(serde::Deserialize)]
     struct PressAnswer {
@@ -203,6 +219,29 @@ pub fn match_press_conference(
 
     let mut game = require_game(&ctx.state_manager)?;
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    // Derive user team and last match result from game state
+    let user_team_id = game.manager.team_id.clone()
+        .ok_or("No team assigned to manager")?;
+    let user_team_name = game.teams.iter()
+        .find(|t| t.id == user_team_id)
+        .map(|t| t.name.clone())
+        .unwrap_or_else(|| user_team_id.clone());
+
+    // Find the most recent completed fixture involving the user's team
+    let last_match = game.league.as_ref()
+        .and_then(|league| league.fixtures.iter()
+            .filter(|f| f.result.is_some() && (f.home_team_id == user_team_id || f.away_team_id == user_team_id))
+            .max_by(|a, b| a.date.cmp(&b.date)))
+        .ok_or("No completed match found for your team")?;
+
+    let (home_team_name, away_team_name) = {
+        let home = game.teams.iter().find(|t| t.id == last_match.home_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.home_team_id.clone());
+        let away = game.teams.iter().find(|t| t.id == last_match.away_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.away_team_id.clone());
+        (home, away)
+    };
+    let home_score = last_match.result.as_ref().unwrap().home_goals;
+    let away_score = last_match.result.as_ref().unwrap().away_goals;
 
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
@@ -251,7 +290,7 @@ pub fn match_press_conference(
         }
     }
 
-    let result_str = format!("{} {} - {} {}", home_team, home_score, away_score, away_team);
+    let result_str = format!("{} {} - {} {}", home_team_name, home_score, away_score, away_team_name);
     let headline_key = if quotes.is_empty() {
         "be.news.pressConference.headlinePostMatch"
     } else {
@@ -295,7 +334,7 @@ pub fn match_press_conference(
 
     let emoji = if morale_delta > 0 { "📈" } else if morale_delta < 0 { "📉" } else { "➡️" };
     Ok(format!(
-        "## Press Conference Complete\n\n{} Squad morale: {:+}",
-        emoji, morale_delta
+        "## Press Conference Complete\n\n{} Squad morale: {:+}\n**Match**: {} {} - {} {}",
+        emoji, morale_delta, home_team_name, home_score, away_score, away_team_name
     ))
 }

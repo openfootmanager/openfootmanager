@@ -131,11 +131,15 @@ fn parse_youth_objective(objective: Option<&str>) -> Result<ofm_core::game::Yout
 
 fn parse_youth_target_position(pos: Option<&str>) -> Result<Option<domain::player::Position>, String> {
     let Some(pos_str) = pos else { return Ok(None) };
-    match pos_str {
-        "GK" | "Goalkeeper" => Ok(Some(domain::player::Position::Goalkeeper)),
-        "DF" | "Defender" => Ok(Some(domain::player::Position::Defender)),
-        "MF" | "Midfielder" => Ok(Some(domain::player::Position::Midfielder)),
-        "FW" | "Forward" => Ok(Some(domain::player::Position::Forward)),
+    match pos_str.to_uppercase().as_str() {
+        // Goalkeeper
+        "GK" | "GOALKEEPER" => Ok(Some(domain::player::Position::Goalkeeper)),
+        // Defender — broad + specific codes
+        "DF" | "DEFENDER" | "CB" | "LCB" | "RCB" | "LB" | "RB" | "LWB" | "RWB" => Ok(Some(domain::player::Position::Defender)),
+        // Midfielder — broad + specific codes
+        "MF" | "MIDFIELDER" | "DM" | "CDM" | "CM" | "LCM" | "RCM" | "AM" | "CAM" | "LM" | "RM" => Ok(Some(domain::player::Position::Midfielder)),
+        // Forward — broad + specific codes
+        "FW" | "FORWARD" | "ST" | "CF" | "LS" | "RS" | "LW" | "RW" | "LF" | "RF" => Ok(Some(domain::player::Position::Forward)),
         _ => Err(format!("Unknown position: {}", pos_str)),
     }
 }

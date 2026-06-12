@@ -98,18 +98,21 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
     // Next match
     let next_match = game.league.as_ref().and_then(|league| {
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-        league.fixtures.iter().find(|f| {
-            f.date >= today
-                && f.status == domain::league::FixtureStatus::Scheduled
-                && (f.home_team_id == team_id || f.away_team_id == team_id)
-        }).map(|f| {
-            let opponent = if f.home_team_id == team_id {
-                format!("{} (H)", game.teams.iter().find(|t| t.id == f.away_team_id).map(|t| t.name.clone()).unwrap_or_default())
-            } else {
-                format!("{} (A)", game.teams.iter().find(|t| t.id == f.home_team_id).map(|t| t.name.clone()).unwrap_or_default())
-            };
-            format!("vs {} — {}", opponent, f.date)
-        })
+        league.fixtures.iter()
+            .filter(|f| {
+                f.date >= today
+                    && f.status == domain::league::FixtureStatus::Scheduled
+                    && (f.home_team_id == team_id || f.away_team_id == team_id)
+            })
+            .min_by_key(|f| f.date.clone())
+            .map(|f| {
+                let opponent = if f.home_team_id == team_id {
+                    format!("{} (H)", game.teams.iter().find(|t| t.id == f.away_team_id).map(|t| t.name.clone()).unwrap_or_default())
+                } else {
+                    format!("{} (A)", game.teams.iter().find(|t| t.id == f.home_team_id).map(|t| t.name.clone()).unwrap_or_default())
+                };
+                format!("vs {} — {}", opponent, f.date)
+            })
     });
 
     // Unread messages
@@ -534,10 +537,14 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
         }
     }
 
-    // Opponent position
-    let opp_pos = league.standings.iter()
-        .filter(|st| st.team_id == *opponent_id)
-        .position(|_| true)
+    // Opponent position (sorted standings)
+    let mut sorted_standings = league.standings.clone();
+    sorted_standings.sort_by(|a, b| {
+        b.points.cmp(&a.points)
+            .then_with(|| b.goals_for.cmp(&a.goals_for))
+    });
+    let opp_pos = sorted_standings.iter()
+        .position(|st| st.team_id == *opponent_id)
         .map(|p| p + 1)
         .unwrap_or(0);
 
