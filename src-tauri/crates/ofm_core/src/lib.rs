@@ -13,6 +13,7 @@ pub mod firing;
 pub mod football_identity;
 pub mod game;
 pub mod generator;
+pub mod group_stage;
 pub mod history_generation;
 pub mod job_offers;
 pub mod live_match_manager;

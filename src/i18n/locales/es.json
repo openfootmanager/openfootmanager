@@ -1136,6 +1136,7 @@
     "loadingAwards": "Cargando premios...",
     "awardsTab": "Premios",
     "bracket": "Cuadro",
+    "group": "Grupo {{name}}",
     "bye": "Exento",
     "roundComplete": "Completada",
     "roundInProgress": "En curso",

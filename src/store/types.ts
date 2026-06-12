@@ -450,6 +450,12 @@ export interface LeagueData {
   };
   fixtures: FixtureData[];
   standings: StandingData[];
+  groups?: {
+    id: string;
+    name: string;
+    team_ids: string[];
+    standings: StandingData[];
+  }[];
   knockout_rounds?: {
     id: string;
     name: string;

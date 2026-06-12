@@ -1106,6 +1106,7 @@
     "loadingAwards": "Auszeichnungen werden geladen...",
     "awardsTab": "Auszeichnungen",
     "bracket": "Turnierbaum",
+    "group": "Gruppe {{name}}",
     "bye": "Freilos",
     "roundComplete": "Abgeschlossen",
     "roundInProgress": "Läuft",

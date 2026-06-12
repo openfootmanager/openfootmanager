@@ -1106,6 +1106,7 @@
     "loadingAwards": "Carregando prêmios...",
     "awardsTab": "Prêmios",
     "bracket": "Chaveamento",
+    "group": "Grupo {{name}}",
     "bye": "Bye",
     "roundComplete": "Concluída",
     "roundInProgress": "Em andamento",

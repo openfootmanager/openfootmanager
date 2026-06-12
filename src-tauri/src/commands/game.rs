@@ -497,14 +497,27 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
             .collect();
         feeder_regions.sort();
         feeder_regions.dedup();
-        let mut continental = ofm_core::schedule::generate_knockout_cup(
-            "Continental Champions Cup",
-            season,
-            &continental_team_ids,
-            season_start + Duration::days(70),
-            CompetitionType::ContinentalClub,
-            CompetitionScope::Continental,
-        );
+        // With a big enough field, the continental cup opens with a group
+        // stage; smaller fields go straight to a knockout bracket.
+        let mut continental = if continental_team_ids.len() >= 8 {
+            ofm_core::group_stage::generate_group_knockout_cup(
+                "Continental Champions Cup",
+                season,
+                &continental_team_ids,
+                season_start + Duration::days(70),
+                CompetitionType::ContinentalClub,
+                CompetitionScope::Continental,
+            )
+        } else {
+            ofm_core::schedule::generate_knockout_cup(
+                "Continental Champions Cup",
+                season,
+                &continental_team_ids,
+                season_start + Duration::days(70),
+                CompetitionType::ContinentalClub,
+                CompetitionScope::Continental,
+            )
+        };
         continental.region_id = None;
         continental.required_region_ids = feeder_regions;
         continental.priority = priority;

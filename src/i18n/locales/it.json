@@ -1125,6 +1125,7 @@
     "loadingAwards": "Caricamento premi...",
     "awardsTab": "Premi",
     "bracket": "Tabellone",
+    "group": "Girone {{name}}",
     "bye": "Bye",
     "roundComplete": "Completato",
     "roundInProgress": "In corso",

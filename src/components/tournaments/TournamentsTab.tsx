@@ -51,6 +51,17 @@ function isKnockoutCompetition(competition: LeagueData): boolean {
   );
 }
 
+function byTablePosition(
+  a: { points: number; goals_for: number; goals_against: number },
+  b: { points: number; goals_for: number; goals_against: number },
+): number {
+  return (
+    b.points - a.points ||
+    b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
+    b.goals_for - a.goals_for
+  );
+}
+
 /** Round names arrive as backend data ("Final", "Round of 16"); localize the known shapes. */
 function localizedRoundName(t: TFunction, name: string): string {
   if (name === "Final") return t("tournaments.rounds.final");
@@ -153,15 +164,11 @@ export default function TournamentsTab({
     );
   }
 
-  const standings = [...league.standings].sort(
-    (a, b) =>
-      b.points - a.points ||
-      b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
-      b.goals_for - a.goals_for,
-  );
+  const standings = [...league.standings].sort(byTablePosition);
 
   const isKnockout = isKnockoutCompetition(league);
   const knockoutRounds = league.knockout_rounds ?? [];
+  const groups = league.groups ?? [];
   const zones = isKnockout
     ? { promotionSlots: 0, relegationSlots: 0 }
     : getPromotionRelegationZones(gameState, league);
@@ -239,6 +246,49 @@ export default function TournamentsTab({
     }
 
     return items;
+  };
+
+  const renderGroupTable = (group: NonNullable<LeagueData["groups"]>[number]) => {
+    const groupStandings = [...group.standings].sort(byTablePosition);
+    return (
+      <div key={group.id} data-testid={`tournaments-group-${group.id}`}>
+        <div className="px-4 py-2 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800">
+          <h5 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-300">
+            {t("tournaments.group", { name: group.name })}
+          </h5>
+        </div>
+        <table className="w-full text-left border-collapse">
+          <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
+            {groupStandings.map((entry, idx) => {
+              const isUser = entry.team_id === userTeamId;
+              return (
+                <tr
+                  key={entry.team_id}
+                  onClick={() => onSelectTeam(entry.team_id)}
+                  className={`cursor-pointer transition-colors ${isUser ? "bg-primary-50 dark:bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-navy-700/50"}`}
+                  data-testid={`tournaments-group-standing-${entry.team_id}`}
+                >
+                  <td className="py-1.5 px-3 font-heading font-bold text-xs text-gray-400 w-6">
+                    {idx + 1}
+                  </td>
+                  <td
+                    className={`py-1.5 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
+                  >
+                    {getTeamName(gameState.teams, entry.team_id)}
+                  </td>
+                  <td className="py-1.5 px-3 text-center text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                    {entry.played}
+                  </td>
+                  <td className="py-1.5 px-3 text-center font-heading font-bold text-sm text-gray-800 dark:text-gray-100 tabular-nums">
+                    {entry.points}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   const renderFixtureRow = (f: FixtureData, testId: string) => {
@@ -421,24 +471,30 @@ export default function TournamentsTab({
             </CardHeader>
             <CardBody className="p-0">
               {isKnockout ? (
-                <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {knockoutRounds.map((round) => (
-                    <div
-                      key={round.id}
-                      className="flex items-center justify-between px-4 py-2.5"
-                      data-testid={`tournaments-round-summary-${round.id}`}
-                    >
-                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                        {localizedRoundName(t, round.name)}
-                      </span>
-                      <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
-                        {round.completed
-                          ? t("tournaments.roundComplete")
-                          : t("tournaments.roundInProgress")}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                knockoutRounds.length === 0 && groups.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2">
+                    {groups.map(renderGroupTable)}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 dark:divide-navy-600">
+                    {knockoutRounds.map((round) => (
+                      <div
+                        key={round.id}
+                        className="flex items-center justify-between px-4 py-2.5"
+                        data-testid={`tournaments-round-summary-${round.id}`}
+                      >
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          {localizedRoundName(t, round.name)}
+                        </span>
+                        <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
+                          {round.completed
+                            ? t("tournaments.roundComplete")
+                            : t("tournaments.roundInProgress")}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )
               ) : isPreseason ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
                   <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
@@ -580,9 +636,18 @@ export default function TournamentsTab({
         </div>
       )}
 
-      {/* Knockout bracket */}
+      {/* Knockout bracket (with group stage when present) */}
       {view === "standings" && isKnockout && (
         <div className="flex flex-col gap-4">
+          {groups.length > 0 && (
+            <Card>
+              <CardBody className="p-0">
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                  {groups.map(renderGroupTable)}
+                </div>
+              </CardBody>
+            </Card>
+          )}
           {knockoutRounds.map((round) => {
             const roundFixtures = round.fixture_ids
               .map((fixtureId) =>

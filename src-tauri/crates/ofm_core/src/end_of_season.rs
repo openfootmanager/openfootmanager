@@ -222,10 +222,16 @@ fn regenerate_competitions_for_new_season(
     apply_pyramid_promotion_relegation(&mut game.competitions);
 
     for competition in game.competitions.iter_mut() {
-        if competition.rules.format == CompetitionFormat::LeagueTable {
-            crate::schedule::regenerate_league_for_season(competition, next_season, next_start);
-        } else {
-            crate::schedule::regenerate_knockout_for_season(competition, next_season, next_start);
+        match competition.rules.format {
+            CompetitionFormat::LeagueTable => {
+                crate::schedule::regenerate_league_for_season(competition, next_season, next_start);
+            }
+            CompetitionFormat::GroupAndKnockout => {
+                crate::group_stage::regenerate_for_season(competition, next_season, next_start);
+            }
+            CompetitionFormat::Knockout => {
+                crate::schedule::regenerate_knockout_for_season(competition, next_season, next_start);
+            }
         }
     }
 

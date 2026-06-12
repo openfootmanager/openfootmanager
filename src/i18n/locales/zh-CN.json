@@ -1106,6 +1106,7 @@
     "loadingAwards": "正在加载奖项...",
     "awardsTab": "奖项",
     "bracket": "对阵表",
+    "group": "{{name}}组",
     "bye": "轮空",
     "roundComplete": "已结束",
     "roundInProgress": "进行中",

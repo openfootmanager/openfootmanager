@@ -1106,6 +1106,7 @@
     "loadingAwards": "Loading awards...",
     "awardsTab": "Awards",
     "bracket": "Bracket",
+    "group": "Group {{name}}",
     "bye": "Bye",
     "roundComplete": "Complete",
     "roundInProgress": "In progress",

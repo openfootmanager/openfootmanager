@@ -1106,6 +1106,7 @@
     "loadingAwards": "Загрузка наград...",
     "awardsTab": "Награды",
     "bracket": "Сетка",
+    "group": "Группа {{name}}",
     "bye": "Без игры",
     "roundComplete": "Завершён",
     "roundInProgress": "Идёт",

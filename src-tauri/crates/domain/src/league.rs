@@ -44,6 +44,18 @@ impl Default for CompetitionRules {
     }
 }
 
+/// One group of a group-and-knockout competition: a mini league table whose
+/// top finishers advance to the knockout rounds.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct GroupState {
+    pub id: String,
+    /// Short label ("A", "B", …); the UI renders it as "Group A".
+    pub name: String,
+    pub team_ids: Vec<String>,
+    pub standings: Vec<StandingEntry>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default)]
 pub struct KnockoutRoundState {
@@ -72,6 +84,8 @@ pub struct League {
     pub rules: CompetitionRules,
     pub fixtures: Vec<Fixture>,
     pub standings: Vec<StandingEntry>,
+    #[serde(default)]
+    pub groups: Vec<GroupState>,
     pub knockout_rounds: Vec<KnockoutRoundState>,
     #[serde(default)]
     pub transfer_log: Vec<CompletedTransfer>,
@@ -96,6 +110,7 @@ impl Default for League {
             rules: CompetitionRules::default(),
             fixtures: Vec::new(),
             standings: Vec::new(),
+            groups: Vec::new(),
             knockout_rounds: Vec::new(),
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
@@ -289,6 +304,7 @@ impl League {
             rules: CompetitionRules::default(),
             fixtures: Vec::new(),
             standings,
+            groups: Vec::new(),
             knockout_rounds: Vec::new(),
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),

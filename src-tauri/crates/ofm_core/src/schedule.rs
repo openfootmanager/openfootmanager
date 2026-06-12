@@ -24,18 +24,34 @@ pub fn generate_league(
 }
 
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
-/// spacing matchdays 7 days apart from `start_date`. Fixtures are tagged with
-/// the league's id. Uses the circle method; an odd club count plays against a
-/// phantom slot, giving each club one bye per leg.
+/// spacing matchdays 7 days apart from `start_date`.
 fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
+    let fixtures = build_round_robin_fixtures(
+        &league.id,
+        team_ids,
+        start_date,
+        FixtureCompetition::League,
+    );
+    league.fixtures.extend(fixtures);
+}
+
+/// Build a full double round-robin (home & away) fixture list spacing matchdays
+/// 7 days apart from `start_date`. Uses the circle method; an odd club count
+/// plays against a phantom slot, giving each club one bye per leg.
+pub fn build_round_robin_fixtures(
+    competition_id: &str,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+) -> Vec<Fixture> {
     let n = team_ids.len();
     if n < 2 {
-        return;
+        return Vec::new();
     }
     let slots = if n % 2 == 0 { n } else { n + 1 };
     let rounds = slots - 1;
     let half = slots / 2;
-    let competition_id = league.id.clone();
+    let mut fixtures = Vec::new();
     let mut matchday: u32 = 1;
 
     // Two legs; the second reverses home and away.
@@ -53,14 +69,14 @@ fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_d
                 if home >= n || away >= n {
                     continue; // Paired with the phantom slot: a bye.
                 }
-                league.fixtures.push(Fixture {
+                fixtures.push(Fixture {
                     id: Uuid::new_v4().to_string(),
-                    competition_id: competition_id.clone(),
+                    competition_id: competition_id.to_string(),
                     matchday,
                     date: date_str.clone(),
                     home_team_id: team_ids[home].clone(),
                     away_team_id: team_ids[away].clone(),
-                    competition: FixtureCompetition::League,
+                    competition: fixture_competition.clone(),
                     status: FixtureStatus::Scheduled,
                     result: None,
                 });
@@ -70,6 +86,7 @@ fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_d
             indices.insert(1, last);
         }
     }
+    fixtures
 }
 
 /// Reset a league for a new season in place, preserving its identity, name, and
@@ -158,7 +175,9 @@ pub fn generate_knockout_cup(
     cup
 }
 
-fn seed_knockout_round(
+/// Seed the next knockout round of `cup` from `team_ids` (strongest first —
+/// any byes for a non-power-of-two field go to the leading seeds).
+pub fn seed_knockout_round(
     cup: &mut League,
     team_ids: &[String],
     start_date: DateTime<Utc>,
@@ -209,7 +228,10 @@ fn seed_knockout_round(
 }
 
 pub fn advance_knockout_competition_round(cup: &mut League) {
-    if cup.rules.format != CompetitionFormat::Knockout {
+    if !matches!(
+        cup.rules.format,
+        CompetitionFormat::Knockout | CompetitionFormat::GroupAndKnockout
+    ) {
         return;
     }
 
