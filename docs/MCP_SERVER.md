@@ -447,7 +447,21 @@ src-tauri/src/mcp_server/
 ├── config.rs        # CLI argument parsing
 ├── context.rs       # McpContext (shared state holder)
 ├── server.rs        # OfmMcpHandler (ServerHandler trait impl)
-├── tools.rs         # ToolRouter builder with 78 routes
-├── tools_impl.rs    # Real tool implementations
+├── tools.rs         # ToolRouter builder with macro-based registration
+├── tools_impl/      # Tool implementations by category
+│   ├── mod.rs       # Module re-exports
+│   ├── helpers.rs   # Shared helpers (require_game, user_team, etc.)
+│   ├── info.rs      # Information queries (standings, fixtures, profiles)
+│   ├── time.rs      # Time advancement (advance, skip, blockers)
+│   ├── squad.rs     # Squad management (formation, XI, roles)
+│   ├── training.rs  # Training settings and groups
+│   ├── transfers.rs # Transfer market and negotiations
+│   ├── contracts.rs # Contract renewals and termination
+│   ├── inbox.rs     # Message management and action resolution
+│   ├── club.rs      # Club facilities, staff, and board requests
+│   ├── scouting.rs  # Scout dispatch and youth scouting
+│   ├── season.rs    # Season progression, awards, and jobs
+│   ├── game.rs      # Game lifecycle (new, load, save, exit, export)
+│   └── help.rs      # Tool discovery helpers
 └── formatting.rs    # Error key → human-readable translation
 ```

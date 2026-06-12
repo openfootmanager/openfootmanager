@@ -10,6 +10,8 @@ use crate::mcp_server::tools_impl;
 /// Type alias for our tool router.
 pub type OfmToolRouter = rmcp::handler::server::tool::ToolRouter<Arc<McpContext>>;
 
+// ─── Schema helpers ─────────────────────────────────────────────────────────
+
 /// Default empty input schema for tools with no parameters.
 fn empty_input_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
     Arc::new(
@@ -22,16 +24,6 @@ fn empty_input_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
         .expect("JSON schema is always an object")
         .clone(),
     )
-}
-
-/// Schema for tools taking a single `player_id` parameter.
-fn player_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
-    param_schema("player_id", "Player entity ID")
-}
-
-/// Schema for tools taking a single `message_id` parameter.
-fn message_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
-    param_schema("message_id", "Message entity ID")
 }
 
 fn param_schema(param_name: &str, description: &str) -> Arc<serde_json::Map<String, serde_json::Value>> {
@@ -49,10 +41,44 @@ fn param_schema(param_name: &str, description: &str) -> Arc<serde_json::Map<Stri
     )
 }
 
+/// Schema for tools taking a single `player_id` parameter.
+fn player_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("player_id", "Player entity ID")
+}
+
+/// Schema for tools taking a single `message_id` parameter.
+fn message_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("message_id", "Message entity ID")
+}
+
+/// Build a JSON object schema from a list of (name, type, description, required) tuples.
+fn build_schema(
+    properties: &[(&str, &str, &str)],
+    required: &[&str],
+) -> Arc<serde_json::Map<String, serde_json::Value>> {
+    let mut props = serde_json::Map::new();
+    for (name, ty, desc) in properties {
+        props.insert(
+            name.to_string(),
+            serde_json::json!({ "type": ty, "description": desc }),
+        );
+    }
+    let mut schema = serde_json::json!({
+        "type": "object",
+        "properties": props,
+    });
+    if !required.is_empty() {
+        schema["required"] = required.iter().map(|s| serde_json::Value::String(s.to_string())).collect();
+    }
+    Arc::new(schema.as_object().expect("JSON schema is always an object").clone())
+}
+
 /// Helper to create a simple tool with no parameters.
 fn simple_tool(name: &'static str, description: &'static str) -> Tool {
     Tool::new(name, description, empty_input_schema())
 }
+
+// ─── Result helpers ─────────────────────────────────────────────────────────
 
 fn error_result(msg: &str) -> CallToolResult {
     let mut result = CallToolResult::success(vec![Content::text(msg.to_string())]);
@@ -60,1598 +86,12 @@ fn error_result(msg: &str) -> CallToolResult {
     result
 }
 
-/// Build the tool router, omitting any tools whose names appear in `disabled`.
-pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmToolRouter {
-    let mut router = OfmToolRouter::new();
-
-    // ─── Phase 1: ping ──────────────────────────────────────────────────────
-
-    if !disabled.contains(&"ping".to_string()) {
-        router.add_route(ToolRoute::new_dyn(
-            simple_tool("ping", "Check if the MCP server is alive and responding"),
-            |_context| {
-                Box::pin(async {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        "Pong! OpenFoot Manager MCP server is alive.".to_string(),
-                    )]))
-                })
-            },
-        ));
-    }
-
-    // ─── Phase 2: Information tools ─────────────────────────────────────────
-
-    macro_rules! real_tool {
-        ($name:expr, $desc:expr, $fn:path) => {
-            if !disabled.contains(&$name.to_string()) {
-                let ctx = context.clone();
-                router.add_route(ToolRoute::new_dyn(
-                    simple_tool($name, $desc),
-                    move |_context| {
-                        let ctx = ctx.clone();
-                        Box::pin(async move {
-                            match $fn(ctx) {
-                                Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                                Err(e) => Ok(error_result(&translate_error(&e))),
-                            }
-                        })
-                    },
-                ));
-            }
-        };
-    }
-
-    real_tool!("game_is_finished", "Check if the season/game is complete", tools_impl::game_is_finished);
-    real_tool!("info_game_summary", "High-level game overview: date, position, finances, next match", tools_impl::info_game_summary);
-    real_tool!("info_standings", "League table as formatted text", tools_impl::info_standings);
-    real_tool!("info_fixtures", "Upcoming/past fixtures", tools_impl::info_fixtures);
-    real_tool!("info_finances", "Financial overview + ledger", tools_impl::info_finances);
-    real_tool!("info_news", "Recent news articles", tools_impl::info_news);
-    real_tool!("info_season_context", "Season phase and transfer window status", tools_impl::info_season_context);
-    real_tool!("info_match_preview", "Preview of next match (opponent, form, squad overview)", tools_impl::info_match_preview);
-    real_tool!("training_get", "Current training settings + fitness overview", tools_impl::training_get);
-    real_tool!("squad_get", "Squad overview with player IDs, stats, and formation", tools_impl::squad_get);
-    real_tool!("inbox_mark_all_read", "Mark all messages as read", tools_impl::inbox_mark_all_read);
-    real_tool!("inbox_clear_old", "Clear old messages", tools_impl::inbox_clear_old);
-    real_tool!("staff_get", "List all staff (your team + available)", tools_impl::staff_get);
-    real_tool!("season_check_complete", "Check if season is finished", tools_impl::season_check_complete);
-    real_tool!("game_save", "Persist current game", tools_impl::game_save);
-    real_tool!("time_advance", "Advance one day (match forced to delegate mode). Includes round summary on match days", tools_impl::time_advance);
-
-    // Tools that take player_id parameter
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_player_profile".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_player_profile", "Detailed player card (attributes, stats, contract, morale)", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::info_player_profile(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"inbox_mark_read".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("inbox_mark_read", "Mark a message as read", message_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let msg_id = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::inbox_mark_read(ctx, msg_id) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"inbox_delete".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("inbox_delete", "Delete a message", message_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let msg_id = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::inbox_delete(ctx, msg_id) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // ─── Phase 3: Core Gameplay Loop ────────────────────────────────────────
-
-    // squad_set_formation
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"squad_set_formation".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "formation": { "type": "string", "description": "Formation string (e.g. 4-4-2, 4-3-3, 3-5-2)" }
-                },
-                "required": ["formation"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("squad_set_formation", "Change formation (also reassigns outfield positions by defending ability)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let formation = match require_string_param(&tool_context.arguments, "formation") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::squad_set_formation(ctx, formation) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // squad_set_starting_xi
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"squad_set_starting_xi".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_ids": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "Ordered list of 11 player IDs for the starting eleven"
-                    }
-                },
-                "required": ["player_ids"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("squad_set_starting_xi", "Set starting eleven by player IDs", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pids = extract_string_array_param(&tool_context.arguments, "player_ids").unwrap_or_default();
-                        match tools_impl::squad_set_starting_xi(ctx, pids) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // squad_set_play_style
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"squad_set_play_style".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "play_style": {
-                        "type": "string",
-                        "enum": ["Attacking", "Defensive", "Possession", "Counter", "HighPress", "Balanced"],
-                        "description": "Play style"
-                    }
-                },
-                "required": ["play_style"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("squad_set_play_style", "Change play style", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let style = extract_string_param(&tool_context.arguments, "play_style").unwrap_or_default();
-                        match tools_impl::squad_set_play_style(ctx, style) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // squad_set_match_roles
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"squad_set_match_roles".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "captain": { "type": "string", "description": "Player ID for captain" },
-                    "vice_captain": { "type": "string", "description": "Player ID for vice captain" },
-                    "penalty_taker": { "type": "string", "description": "Player ID for penalty taker" },
-                    "free_kick_taker": { "type": "string", "description": "Player ID for free kick taker" },
-                    "corner_taker": { "type": "string", "description": "Player ID for corner taker" }
-                }
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("squad_set_match_roles", "Set captain and set-piece takers by player ID", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let args = &tool_context.arguments;
-                        match tools_impl::squad_set_match_roles(
-                            ctx,
-                            extract_string_param(args, "captain"),
-                            extract_string_param(args, "vice_captain"),
-                            extract_string_param(args, "penalty_taker"),
-                            extract_string_param(args, "free_kick_taker"),
-                            extract_string_param(args, "corner_taker"),
-                        ) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    real_tool!("squad_auto_set_pieces", "Auto-assign best set-piece takers", tools_impl::squad_auto_set_pieces);
-
-    // squad_set_player_role
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"squad_set_player_role".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "squad_role": { "type": "string", "enum": ["Senior", "Youth"], "description": "Squad role" }
-                },
-                "required": ["player_id", "squad_role"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("squad_set_player_role", "Set player squad role (Senior/Youth)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let role = extract_string_param(&tool_context.arguments, "squad_role").unwrap_or_default();
-                        match tools_impl::squad_set_player_role(ctx, pid, role) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // training_set_focus_intensity
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"training_set_focus_intensity".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "focus": { "type": "string", "enum": ["Physical", "Technical", "Tactical", "Defending", "Attacking", "Recovery"], "description": "Training focus" },
-                    "intensity": { "type": "string", "enum": ["Low", "Medium", "High"], "description": "Training intensity" }
-                },
-                "required": ["focus", "intensity"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("training_set_focus_intensity", "Set team training focus and intensity", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let focus = extract_string_param(&tool_context.arguments, "focus").unwrap_or_default();
-                        let intensity = extract_string_param(&tool_context.arguments, "intensity").unwrap_or_default();
-                        match tools_impl::training_set_focus_intensity(ctx, focus, intensity) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // training_set_schedule
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"training_set_schedule".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "schedule": { "type": "string", "enum": ["Intense", "Balanced", "Light"], "description": "Weekly training schedule" }
-                },
-                "required": ["schedule"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("training_set_schedule", "Set weekly training schedule (Intense/Balanced/Light)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let schedule = extract_string_param(&tool_context.arguments, "schedule").unwrap_or_default();
-                        match tools_impl::training_set_schedule(ctx, schedule) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // training_set_groups
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"training_set_groups".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "groups_json": { "type": "string", "description": "JSON array of TrainingGroup objects" }
-                },
-                "required": ["groups_json"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("training_set_groups", "Set training groups with per-group focus overrides", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let groups_json = extract_string_param(&tool_context.arguments, "groups_json").unwrap_or_default();
-                        match tools_impl::training_set_groups(ctx, groups_json) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // training_set_player_focus
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"training_set_player_focus".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "focus": { "type": "string", "description": "Individual training focus (omit to clear)" }
-                },
-                "required": ["player_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("training_set_player_focus", "Set individual player training focus", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let focus = extract_string_param(&tool_context.arguments, "focus");
-                        match tools_impl::training_set_player_focus(ctx, pid, focus) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // ─── Phase 4: Transfers, Contracts, etc. ────────────────────────────────
-
-    // transfer_toggle_listed
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_toggle_listed".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_toggle_listed", "Toggle player transfer-listed status", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_toggle_listed(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_toggle_loan
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_toggle_loan".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_toggle_loan", "Toggle player loan-listed status", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_toggle_loan(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_make_bid
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_make_bid".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID to bid on" },
-                    "fee": { "type": "integer", "description": "Transfer fee amount" }
-                },
-                "required": ["player_id", "fee"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_make_bid", "Make a transfer bid; includes negotiation feedback", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let fee = match require_u64_param(&tool_context.arguments, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_make_bid(ctx, pid, fee) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_preview_bid
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_preview_bid".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "fee": { "type": "integer", "description": "Proposed transfer fee" }
-                },
-                "required": ["player_id", "fee"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_preview_bid", "Preview financial impact of a transfer bid", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let fee = match require_u64_param(&tool_context.arguments, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_preview_bid(ctx, pid, fee) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_respond_to_offer
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_respond_to_offer".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "offer_id": { "type": "string", "description": "Offer ID to respond to" },
-                    "accept": { "type": "boolean", "description": "True to accept, false to reject" }
-                },
-                "required": ["player_id", "offer_id", "accept"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_respond_to_offer", "Accept/reject an incoming offer", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let oid = match require_string_param(&tool_context.arguments, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let accept = match require_bool_param(&tool_context.arguments, "accept") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_respond_to_offer(ctx, pid, oid, accept) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_counter_offer
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_counter_offer".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "offer_id": { "type": "string", "description": "Offer ID to counter" },
-                    "requested_fee": { "type": "integer", "description": "Counter-offer fee amount" }
-                },
-                "required": ["player_id", "offer_id", "requested_fee"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_counter_offer", "Counter an incoming transfer offer", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let oid = match require_string_param(&tool_context.arguments, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let fee = match require_u64_param(&tool_context.arguments, "requested_fee") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_counter_offer(ctx, pid, oid, fee) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_propose_renewal
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_propose_renewal".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "weekly_wage": { "type": "integer", "description": "Proposed weekly wage" },
-                    "contract_years": { "type": "integer", "description": "Proposed contract length in years" }
-                },
-                "required": ["player_id", "weekly_wage", "contract_years"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_propose_renewal", "Propose contract renewal; includes negotiation feedback", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let years = match require_u32_param(&tool_context.arguments, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_propose_renewal(ctx, pid, wage, years) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_delegate_renewals
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_delegate_renewals".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_ids": { "type": "array", "items": { "type": "string" }, "description": "Player IDs to renew (omit for all expiring)" },
-                    "max_wage_increase_pct": { "type": "integer", "description": "Max wage increase percentage" },
-                    "max_contract_years": { "type": "integer", "description": "Max contract years" }
-                },
-                "required": ["max_wage_increase_pct", "max_contract_years"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_delegate_renewals", "Delegate contract renewals to assistant", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pids = extract_string_array_param(&tool_context.arguments, "player_ids");
-                        let max_pct = match require_u32_param(&tool_context.arguments, "max_wage_increase_pct") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let max_years = match require_u32_param(&tool_context.arguments, "max_contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_delegate_renewals(ctx, pids, max_pct, max_years) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_preview_renewal
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_preview_renewal".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "weekly_wage": { "type": "integer", "description": "Proposed weekly wage" }
-                },
-                "required": ["player_id", "weekly_wage"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_preview_renewal", "Preview renewal financial impact", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_preview_renewal(ctx, pid, wage) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_set_exit_intent
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_set_exit_intent".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "reason": { "type": "string", "description": "Optional reason for exit intent" }
-                },
-                "required": ["player_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_set_exit_intent", "Mark contract to let expire", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let reason = extract_string_param(&tool_context.arguments, "reason");
-                        match tools_impl::contract_set_exit_intent(ctx, pid, reason) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_clear_exit_intent
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_clear_exit_intent".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_clear_exit_intent", "Remove exit intent from contract", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_clear_exit_intent(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_preview_termination
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_preview_termination".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_preview_termination", "Preview cost of terminating contract", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_preview_termination(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // contract_terminate
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"contract_terminate".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("contract_terminate", "Terminate contract immediately", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::contract_terminate(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // inbox_get_messages
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"inbox_get_messages".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "category": { "type": "string", "description": "Filter by message category" },
-                    "unread_only": { "type": "boolean", "description": "Show only unread messages" }
-                }
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("inbox_get_messages", "Get messages (filterable by category, read status)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let category = extract_string_param(&tool_context.arguments, "category");
-                        let unread_only = extract_bool_param(&tool_context.arguments, "unread_only");
-                        match tools_impl::inbox_get_messages(ctx, category, unread_only) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // inbox_resolve_action
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"inbox_resolve_action".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "message_id": { "type": "string", "description": "Message ID" },
-                    "action_id": { "type": "string", "description": "Action ID within the message" },
-                    "option_id": { "type": "string", "description": "Option ID (if action has choices)" }
-                },
-                "required": ["message_id", "action_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("inbox_resolve_action", "Resolve a message action (job offers, events, etc.)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let mid = match require_string_param(&tool_context.arguments, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let aid = match require_string_param(&tool_context.arguments, "action_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let oid = extract_string_param(&tool_context.arguments, "option_id");
-                        match tools_impl::inbox_resolve_action(ctx, mid, aid, oid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // club_upgrade_facility
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"club_upgrade_facility".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "facility": { "type": "string", "description": "Facility name to upgrade" }
-                },
-                "required": ["facility"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("club_upgrade_facility", "Upgrade a facility level", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let facility = extract_string_param(&tool_context.arguments, "facility").unwrap_or_default();
-                        match tools_impl::club_upgrade_facility(ctx, facility) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // staff_hire
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"staff_hire".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "staff_id": { "type": "string", "description": "Staff member entity ID" }
-                },
-                "required": ["staff_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("staff_hire", "Hire an unattached staff member", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let sid = match require_string_param(&tool_context.arguments, "staff_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::staff_hire(ctx, sid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // staff_release
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"staff_release".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "staff_id": { "type": "string", "description": "Staff member entity ID" }
-                },
-                "required": ["staff_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("staff_release", "Release a staff member", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let sid = match require_string_param(&tool_context.arguments, "staff_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::staff_release(ctx, sid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // season_advance
-    real_tool!("season_advance", "Advance to next season (may be fired if objectives not met)", tools_impl::season_advance);
-
-    // help_find_tool
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"help_find_tool".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": { "type": "string", "description": "Search keyword" }
-                },
-                "required": ["query"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("help_find_tool", "Search tools by keyword or description", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let query = extract_string_param(&tool_context.arguments, "query").unwrap_or_default();
-                        match tools_impl::help_find_tool(ctx, query) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // help_list_categories
-    if !disabled.contains(&"help_list_categories".to_string()) {
-        router.add_route(ToolRoute::new_dyn(
-            simple_tool("help_list_categories", "List all tool categories with counts"),
-            |_tool_context| {
-                Box::pin(async move {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        tools_impl::help_list_categories(),
-                    )]))
-                })
-            },
-        ));
-    }
-
-    // ─── Newly implemented tools ───────────────────────────────────────────
-
-    // time_skip_to_match_day
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"time_skip_to_match_day".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("time_skip_to_match_day", "Fast-forward to next fixture"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::time_skip_to_match_day(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // time_check_blockers
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"time_check_blockers".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("time_check_blockers", "Check if anything blocks time advancement"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::time_check_blockers(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_market_browse
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_market_browse".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "position": { "type": "string", "description": "Filter by position (e.g. GK, CB, ST)" },
-                    "max_price": { "type": "integer", "description": "Max annual cost estimate" },
-                    "listed_only": { "type": "boolean", "description": "Only show transfer/loan listed players" }
-                }
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_market_browse", "Browse transfer/loan market with optional filters", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pos = extract_string_param(&tool_context.arguments, "position");
-                        let max_price = extract_u64_param(&tool_context.arguments, "max_price");
-                        let listed_only = extract_bool_param(&tool_context.arguments, "listed_only");
-                        match tools_impl::transfer_market_browse(ctx, pos, max_price, listed_only) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_free_agent_offer
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_free_agent_offer".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "weekly_wage": { "type": "integer", "description": "Offered weekly wage" },
-                    "contract_years": { "type": "integer", "description": "Contract length in years" }
-                },
-                "required": ["player_id", "weekly_wage", "contract_years"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_free_agent_offer", "Offer contract to a free agent", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let years = match require_u32_param(&tool_context.arguments, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_free_agent_offer(ctx, pid, wage, years) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // transfer_free_agent_preview
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"transfer_free_agent_preview".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "weekly_wage": { "type": "integer", "description": "Proposed weekly wage" }
-                },
-                "required": ["player_id", "weekly_wage"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("transfer_free_agent_preview", "Preview free agent contract financial impact", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let wage = match require_u32_param(&tool_context.arguments, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::transfer_free_agent_preview(ctx, pid, wage) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_player_stats
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_player_stats".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_player_stats", "Season + career stats for a player", player_id_schema()),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::info_player_stats(ctx, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_player_match_history
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_player_match_history".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "player_id": { "type": "string", "description": "Player entity ID" },
-                    "limit": { "type": "integer", "description": "Max matches to return" }
-                },
-                "required": ["player_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_player_match_history", "Match-by-match stats for a player", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let limit = extract_u64_param(&tool_context.arguments, "limit").map(|n| n as usize);
-                        match tools_impl::info_player_match_history(ctx, pid, limit) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_team_profile
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_team_profile".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team entity ID" }
-                },
-                "required": ["team_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_team_profile", "Detailed team view (squad, form, finances)", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::info_team_profile(ctx, tid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_team_stats
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_team_stats".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team entity ID" }
-                },
-                "required": ["team_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_team_stats", "Season stats for a team", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::info_team_stats(ctx, tid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_team_match_history
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_team_match_history".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team entity ID" },
-                    "limit": { "type": "integer", "description": "Max matches to return" }
-                },
-                "required": ["team_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_team_match_history", "Match-by-match stats for a team", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let limit = extract_u64_param(&tool_context.arguments, "limit").map(|n| n as usize);
-                        match tools_impl::info_team_match_history(ctx, tid, limit) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // info_finance_snapshot
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"info_finance_snapshot".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team entity ID (omit for own team)" }
-                }
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("info_finance_snapshot", "Detailed financial snapshot", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = extract_string_param(&tool_context.arguments, "team_id");
-                        match tools_impl::info_finance_snapshot(ctx, tid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // club_request_board_support
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"club_request_board_support".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("club_request_board_support", "Request board financial support"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::club_request_board_support(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // club_request_marketing
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"club_request_marketing".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("club_request_marketing", "Request marketing campaign"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::club_request_marketing(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // club_request_sponsor_pitch
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"club_request_sponsor_pitch".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("club_request_sponsor_pitch", "Request sponsor pitch"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::club_request_sponsor_pitch(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // ─── Scouting tools ──────────────────────────────────────────────────
-
-    // scout_send
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"scout_send".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "scout_id": { "type": "string", "description": "Staff member ID to send" },
-                    "player_id": { "type": "string", "description": "Player ID to scout" }
-                },
-                "required": ["scout_id", "player_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("scout_send", "Send scout to report on a player", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
-                        let pid = match require_string_param(&tool_context.arguments, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::scout_send(ctx, sid, pid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // scout_get_reports
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"scout_get_reports".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("scout_get_reports", "Get completed scout reports"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::scout_get_reports(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // scout_youth_start
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"scout_youth_start".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "scout_id": { "type": "string", "description": "Staff member ID" },
-                    "region": { "type": "string", "enum": ["Domestic", "International"], "description": "Scouting region" },
-                    "objective": { "type": "string", "enum": ["Balanced", "HighPotential", "ReadySoon"], "description": "Scouting objective" },
-                    "target_position": { "type": "string", "description": "Target position (GK, DF, MF, FW)" }
-                },
-                "required": ["scout_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("scout_youth_start", "Start youth scouting assignment", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
-                        let region = extract_string_param(&tool_context.arguments, "region");
-                        let objective = extract_string_param(&tool_context.arguments, "objective");
-                        let target_position = extract_string_param(&tool_context.arguments, "target_position");
-                        match tools_impl::scout_youth_start(ctx, sid, region, objective, target_position) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // scout_youth_cancel
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"scout_youth_cancel".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "assignment_id": { "type": "string", "description": "Youth scouting assignment ID" }
-                },
-                "required": ["assignment_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("scout_youth_cancel", "Cancel youth scouting", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let aid = match require_string_param(&tool_context.arguments, "assignment_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::scout_youth_cancel(ctx, aid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // scout_youth_reassign
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"scout_youth_reassign".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "assignment_id": { "type": "string", "description": "Assignment ID" },
-                    "scout_id": { "type": "string", "description": "New staff member ID" }
-                },
-                "required": ["assignment_id", "scout_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("scout_youth_reassign", "Reassign youth scouting parameters", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let aid = match require_string_param(&tool_context.arguments, "assignment_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        let sid = extract_string_param(&tool_context.arguments, "scout_id").unwrap_or_default();
-                        match tools_impl::scout_youth_reassign(ctx, aid, sid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // ─── Season/Jobs tools ───────────────────────────────────────────────
-
-    // season_get_awards
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"season_get_awards".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("season_get_awards", "Get end-of-season awards"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::season_get_awards(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // jobs_available
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"jobs_available".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("jobs_available", "List available job openings. Employed managers see only clubs that are a step up in reputation."),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::jobs_available(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // jobs_apply
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"jobs_apply".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team ID to apply for" }
-                },
-                "required": ["team_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("jobs_apply", "Apply for a job. Employed managers can only apply to better clubs; applying to your own team or a worse club returns an error.", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::jobs_apply(ctx, tid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // ─── Game lifecycle tools ─────────────────────────────────────────────
-
-    // game_new
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"game_new".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "first_name": { "type": "string", "description": "Manager first name" },
-                    "last_name": { "type": "string", "description": "Manager last name" },
-                    "nationality": { "type": "string", "description": "Manager nationality" },
-                    "world_source": { "type": "string", "description": "World JSON path (omit for random)" }
-                },
-                "required": ["first_name", "last_name", "nationality"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("game_new", "Create manager + generate/load world", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let first = extract_string_param(&tool_context.arguments, "first_name").unwrap_or_default();
-                        let last = extract_string_param(&tool_context.arguments, "last_name").unwrap_or_default();
-                        let nat = extract_string_param(&tool_context.arguments, "nationality").unwrap_or_default();
-                        let world = extract_string_param(&tool_context.arguments, "world_source");
-                        match tools_impl::game_new(ctx, first, last, nat, world) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // game_select_team
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"game_select_team".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "team_id": { "type": "string", "description": "Team ID to manage" }
-                },
-                "required": ["team_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("game_select_team", "Pick a team to manage", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let tid = match require_string_param(&tool_context.arguments, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::game_select_team(ctx, tid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // game_load_save
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"game_load_save".to_string()) {
-            let schema = Arc::new(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "save_id": { "type": "string", "description": "Save ID to load" }
-                },
-                "required": ["save_id"]
-            }).as_object().expect("JSON schema is always an object").clone());
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("game_load_save", "Load an existing save", schema),
-                move |tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        let sid = match require_string_param(&tool_context.arguments, "save_id") { Ok(v) => v, Err(e) => return Ok(e) };
-                        match tools_impl::game_load_save(ctx, sid) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // game_exit
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"game_exit".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                simple_tool("game_exit", "Save and return to menu"),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::game_exit(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    // game_export_world — export path is server-controlled for security
-    {
-        let ctx = context.clone();
-        if !disabled.contains(&"game_export_world".to_string()) {
-            router.add_route(ToolRoute::new_dyn(
-                Tool::new("game_export_world", "Export world to JSON (saved in app data directory with auto-generated filename)", empty_input_schema()),
-                move |_tool_context| {
-                    let ctx = ctx.clone();
-                    Box::pin(async move {
-                        match tools_impl::game_export_world_safe(ctx) {
-                            Ok(text) => Ok(CallToolResult::success(vec![Content::text(text)])),
-                            Err(e) => Ok(error_result(&translate_error(&e))),
-                        }
-                    })
-                },
-            ));
-        }
-    }
-
-    router
+fn text_result(text: String) -> CallToolResult {
+    CallToolResult::success(vec![Content::text(text)])
+}
+
+fn err_result(e: &str) -> CallToolResult {
+    error_result(&translate_error(e))
 }
 
 // ─── Parameter extraction helpers ───────────────────────────────────────────
@@ -1713,4 +153,629 @@ fn require_bool_param(
 ) -> Result<bool, CallToolResult> {
     extract_bool_param(args, key)
         .ok_or_else(|| error_result(&format!("Missing required parameter: {}", key)))
+}
+
+// ─── Tool router builder ────────────────────────────────────────────────────
+
+/// Build the tool router, omitting any tools whose names appear in `disabled`.
+pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmToolRouter {
+    let mut router = OfmToolRouter::new();
+
+    // ─── Macros for concise tool registration ───────────────────────────────
+    //
+    // `real_tool!`   — no-param tools: just name, desc, impl function
+    // `id_tool!`     — single required string ID param (player_id, message_id, etc.)
+    // `custom_tool!` — custom schema + custom extraction body
+
+    macro_rules! real_tool {
+        ($name:expr, $desc:expr, $fn:path) => {
+            if !disabled.contains(&$name.to_string()) {
+                let ctx = context.clone();
+                router.add_route(ToolRoute::new_dyn(
+                    simple_tool($name, $desc),
+                    move |_context| {
+                        let ctx = ctx.clone();
+                        Box::pin(async move {
+                            match $fn(ctx) {
+                                Ok(text) => Ok(text_result(text)),
+                                Err(e) => Ok(err_result(&e)),
+                            }
+                        })
+                    },
+                ));
+            }
+        };
+    }
+
+    /// Register a tool that takes a single required string parameter.
+    /// The schema key and the impl function's second parameter name must match.
+    macro_rules! id_tool {
+        ($name:expr, $desc:expr, $schema:expr, $param_key:ident, $fn:path) => {
+            if !disabled.contains(&$name.to_string()) {
+                let ctx = context.clone();
+                router.add_route(ToolRoute::new_dyn(
+                    Tool::new($name, $desc, $schema),
+                    move |tool_context| {
+                        let ctx = ctx.clone();
+                        Box::pin(async move {
+                            let $param_key = match require_string_param(&tool_context.arguments, stringify!($param_key)) {
+                                Ok(v) => v,
+                                Err(e) => return Ok(e),
+                            };
+                            match $fn(ctx, $param_key) {
+                                Ok(text) => Ok(text_result(text)),
+                                Err(e) => Ok(err_result(&e)),
+                            }
+                        })
+                    },
+                ));
+            }
+        };
+    }
+
+    /// Register a tool with a custom schema and custom param extraction body.
+    /// The `$body` closure receives `ctx: Arc<McpContext>` and `args` (the cloned tool arguments).
+    macro_rules! custom_tool {
+        ($name:expr, $desc:expr, $schema:expr, $ctx:ident, $args:ident, $body:expr) => {
+            if !disabled.contains(&$name.to_string()) {
+                let ctx_clone = context.clone();
+                router.add_route(ToolRoute::new_dyn(
+                    Tool::new($name, $desc, $schema),
+                    move |tool_context| {
+                        let $ctx = ctx_clone.clone();
+                        let $args = tool_context.arguments.clone();
+                        Box::pin(async move {
+                            let $args = &$args;
+                            $body
+                        })
+                    },
+                ));
+            }
+        };
+    }
+
+    // ─── Phase 1: ping ──────────────────────────────────────────────────────
+
+    if !disabled.contains(&"ping".to_string()) {
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("ping", "Check if the MCP server is alive and responding"),
+            |_context| {
+                Box::pin(async {
+                    Ok(text_result("Pong! OpenFoot Manager MCP server is alive.".to_string()))
+                })
+            },
+        ));
+    }
+
+    // ─── Phase 2: Information tools (no params) ─────────────────────────────
+
+    real_tool!("game_is_finished", "Check if the season/game is complete", tools_impl::info::game_is_finished);
+    real_tool!("info_game_summary", "High-level game overview: date, position, finances, next match", tools_impl::info::info_game_summary);
+    real_tool!("info_standings", "League table as formatted text", tools_impl::info::info_standings);
+    real_tool!("info_fixtures", "Upcoming/past fixtures", tools_impl::info::info_fixtures);
+    real_tool!("info_finances", "Financial overview + ledger", tools_impl::info::info_finances);
+    real_tool!("info_news", "Recent news articles", tools_impl::info::info_news);
+    real_tool!("info_season_context", "Season phase and transfer window status", tools_impl::info::info_season_context);
+    real_tool!("info_match_preview", "Preview of next match (opponent, form, squad overview)", tools_impl::info::info_match_preview);
+    real_tool!("training_get", "Current training settings + fitness overview", tools_impl::training::training_get);
+    real_tool!("squad_get", "Squad overview with player IDs, stats, and formation", tools_impl::squad::squad_get);
+    real_tool!("inbox_mark_all_read", "Mark all messages as read", tools_impl::inbox::inbox_mark_all_read);
+    real_tool!("inbox_clear_old", "Clear old messages", tools_impl::inbox::inbox_clear_old);
+    real_tool!("staff_get", "List all staff (your team + available)", tools_impl::club::staff_get);
+    real_tool!("season_check_complete", "Check if season is finished", tools_impl::season::season_check_complete);
+    real_tool!("game_save", "Persist current game", tools_impl::game::game_save);
+    real_tool!("time_advance", "Advance one day (match forced to delegate mode). Includes round summary on match days", tools_impl::time::time_advance);
+    real_tool!("squad_auto_set_pieces", "Auto-assign best set-piece takers", tools_impl::squad::squad_auto_set_pieces);
+    real_tool!("season_advance", "Advance to next season (may be fired if objectives not met)", tools_impl::season::season_advance);
+    real_tool!("time_skip_to_match_day", "Fast-forward to next fixture", tools_impl::time::time_skip_to_match_day);
+    real_tool!("time_check_blockers", "Check if anything blocks time advancement", tools_impl::time::time_check_blockers);
+    real_tool!("club_request_board_support", "Request board financial support", tools_impl::club::club_request_board_support);
+    real_tool!("club_request_marketing", "Request marketing campaign", tools_impl::club::club_request_marketing);
+    real_tool!("club_request_sponsor_pitch", "Request sponsor pitch", tools_impl::club::club_request_sponsor_pitch);
+    real_tool!("scout_get_reports", "Get completed scout reports", tools_impl::scouting::scout_get_reports);
+    real_tool!("season_get_awards", "Get end-of-season awards", tools_impl::season::season_get_awards);
+    real_tool!("jobs_available", "List available job openings. Employed managers see only clubs that are a step up in reputation.", tools_impl::season::jobs_available);
+    real_tool!("game_exit", "Save and return to menu", tools_impl::game::game_exit);
+
+    // ─── Phase 3: Single-ID-param tools ─────────────────────────────────────
+
+    id_tool!("info_player_profile", "Detailed player card (attributes, stats, contract, morale)", player_id_schema(), player_id, tools_impl::info::info_player_profile);
+    id_tool!("info_player_stats", "Season + career stats for a player", player_id_schema(), player_id, tools_impl::info::info_player_stats);
+    id_tool!("inbox_mark_read", "Mark a message as read", message_id_schema(), message_id, tools_impl::inbox::inbox_mark_read);
+    id_tool!("inbox_delete", "Delete a message", message_id_schema(), message_id, tools_impl::inbox::inbox_delete);
+    id_tool!("transfer_toggle_listed", "Toggle player transfer-listed status", player_id_schema(), player_id, tools_impl::transfers::transfer_toggle_listed);
+    id_tool!("transfer_toggle_loan", "Toggle player loan-listed status", player_id_schema(), player_id, tools_impl::transfers::transfer_toggle_loan);
+    id_tool!("contract_clear_exit_intent", "Remove exit intent from contract", player_id_schema(), player_id, tools_impl::contracts::contract_clear_exit_intent);
+    id_tool!("contract_preview_termination", "Preview cost of terminating contract", player_id_schema(), player_id, tools_impl::contracts::contract_preview_termination);
+    id_tool!("contract_terminate", "Terminate contract immediately", player_id_schema(), player_id, tools_impl::contracts::contract_terminate);
+    id_tool!("staff_hire", "Hire an unattached staff member", staff_id_schema(), staff_id, tools_impl::club::staff_hire);
+    id_tool!("staff_release", "Release a staff member", staff_id_schema(), staff_id, tools_impl::club::staff_release);
+    id_tool!("game_select_team", "Pick a team to manage", team_id_schema(), team_id, tools_impl::game::game_select_team);
+    id_tool!("game_load_save", "Load an existing save", save_id_schema(), save_id, tools_impl::game::game_load_save);
+    id_tool!("jobs_apply", "Apply for a job. Employed managers can only apply to better clubs; applying to your own team or a worse club returns an error.", team_id_schema(), team_id, tools_impl::season::jobs_apply);
+    id_tool!("scout_youth_cancel", "Cancel youth scouting", assignment_id_schema(), assignment_id, tools_impl::scouting::scout_youth_cancel);
+
+    // ─── Phase 4: Custom-schema tools ───────────────────────────────────────
+
+    // squad_set_formation
+    custom_tool!("squad_set_formation", "Change formation (also reassigns outfield positions by defending ability)",
+        build_schema(&[("formation", "string", "Formation string (e.g. 4-4-2, 4-3-3, 3-5-2)")], &["formation"]),
+        ctx, args, {
+            let formation = match require_string_param(args, "formation") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::squad::squad_set_formation(ctx, formation) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // squad_set_starting_xi
+    custom_tool!("squad_set_starting_xi", "Set starting eleven by player IDs",
+        build_schema(&[("player_ids", "array", "Ordered list of 11 player IDs for the starting eleven")], &["player_ids"]),
+        ctx, args, {
+            let pids = extract_string_array_param(args, "player_ids").unwrap_or_default();
+            match tools_impl::squad::squad_set_starting_xi(ctx, pids) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // squad_set_play_style
+    custom_tool!("squad_set_play_style", "Change play style",
+        build_schema(&[("play_style", "string", "Play style: Attacking, Defensive, Possession, Counter, HighPress, Balanced")], &["play_style"]),
+        ctx, args, {
+            let style = match require_string_param(args, "play_style") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::squad::squad_set_play_style(ctx, style) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // squad_set_match_roles
+    custom_tool!("squad_set_match_roles", "Set captain and set-piece takers by player ID",
+        build_schema(&[
+            ("captain", "string", "Player ID for captain"),
+            ("vice_captain", "string", "Player ID for vice captain"),
+            ("penalty_taker", "string", "Player ID for penalty taker"),
+            ("free_kick_taker", "string", "Player ID for free kick taker"),
+            ("corner_taker", "string", "Player ID for corner taker"),
+        ], &[]),
+        ctx, args, {
+            match tools_impl::squad::squad_set_match_roles(
+                ctx,
+                extract_string_param(args, "captain"),
+                extract_string_param(args, "vice_captain"),
+                extract_string_param(args, "penalty_taker"),
+                extract_string_param(args, "free_kick_taker"),
+                extract_string_param(args, "corner_taker"),
+            ) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // squad_set_player_role
+    custom_tool!("squad_set_player_role", "Set player squad role (Senior/Youth)",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("squad_role", "string", "Squad role: Senior or Youth")], &["player_id", "squad_role"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let role = match require_string_param(args, "squad_role") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::squad::squad_set_player_role(ctx, pid, role) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // training_set_focus_intensity
+    custom_tool!("training_set_focus_intensity", "Set team training focus and intensity",
+        build_schema(&[
+            ("focus", "string", "Training focus: Physical, Technical, Tactical, Defending, Attacking, Recovery"),
+            ("intensity", "string", "Training intensity: Low, Medium, High"),
+        ], &["focus", "intensity"]),
+        ctx, args, {
+            let focus = match require_string_param(args, "focus") { Ok(v) => v, Err(e) => return Ok(e) };
+            let intensity = match require_string_param(args, "intensity") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::training::training_set_focus_intensity(ctx, focus, intensity) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // training_set_schedule
+    custom_tool!("training_set_schedule", "Set weekly training schedule (Intense/Balanced/Light)",
+        build_schema(&[("schedule", "string", "Weekly training schedule: Intense, Balanced, Light")], &["schedule"]),
+        ctx, args, {
+            let schedule = match require_string_param(args, "schedule") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::training::training_set_schedule(ctx, schedule) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // training_set_groups
+    custom_tool!("training_set_groups", "Set training groups with per-group focus overrides",
+        build_schema(&[("groups_json", "string", "JSON array of TrainingGroup objects")], &["groups_json"]),
+        ctx, args, {
+            let groups_json = match require_string_param(args, "groups_json") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::training::training_set_groups(ctx, groups_json) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // training_set_player_focus
+    custom_tool!("training_set_player_focus", "Set individual player training focus",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("focus", "string", "Individual training focus (omit to clear)")], &["player_id"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let focus = extract_string_param(args, "focus");
+            match tools_impl::training::training_set_player_focus(ctx, pid, focus) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_make_bid
+    custom_tool!("transfer_make_bid", "Make a transfer bid; includes negotiation feedback",
+        build_schema(&[("player_id", "string", "Player entity ID to bid on"), ("fee", "integer", "Transfer fee amount")], &["player_id", "fee"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let fee = match require_u64_param(args, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_make_bid(ctx, pid, fee) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_preview_bid
+    custom_tool!("transfer_preview_bid", "Preview financial impact of a transfer bid",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("fee", "integer", "Proposed transfer fee")], &["player_id", "fee"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let fee = match require_u64_param(args, "fee") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_preview_bid(ctx, pid, fee) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_respond_to_offer
+    custom_tool!("transfer_respond_to_offer", "Accept/reject an incoming offer",
+        build_schema(&[
+            ("player_id", "string", "Player entity ID"),
+            ("offer_id", "string", "Offer ID to respond to"),
+            ("accept", "boolean", "True to accept, false to reject"),
+        ], &["player_id", "offer_id", "accept"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let oid = match require_string_param(args, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let accept = match require_bool_param(args, "accept") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_respond_to_offer(ctx, pid, oid, accept) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_counter_offer
+    custom_tool!("transfer_counter_offer", "Counter an incoming transfer offer",
+        build_schema(&[
+            ("player_id", "string", "Player entity ID"),
+            ("offer_id", "string", "Offer ID to counter"),
+            ("requested_fee", "integer", "Counter-offer fee amount"),
+        ], &["player_id", "offer_id", "requested_fee"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let oid = match require_string_param(args, "offer_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let fee = match require_u64_param(args, "requested_fee") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_counter_offer(ctx, pid, oid, fee) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_market_browse
+    custom_tool!("transfer_market_browse", "Browse transfer/loan market with optional filters",
+        build_schema(&[
+            ("position", "string", "Filter by position (e.g. GK, CB, ST)"),
+            ("max_price", "integer", "Max annual cost estimate"),
+            ("listed_only", "boolean", "Only show transfer/loan listed players"),
+        ], &[]),
+        ctx, args, {
+            let pos = extract_string_param(args, "position");
+            let max_price = extract_u64_param(args, "max_price");
+            let listed_only = extract_bool_param(args, "listed_only");
+            match tools_impl::transfers::transfer_market_browse(ctx, pos, max_price, listed_only) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_free_agent_offer
+    custom_tool!("transfer_free_agent_offer", "Offer contract to a free agent",
+        build_schema(&[
+            ("player_id", "string", "Player entity ID"),
+            ("weekly_wage", "integer", "Offered weekly wage"),
+            ("contract_years", "integer", "Contract length in years"),
+        ], &["player_id", "weekly_wage", "contract_years"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let wage = match require_u32_param(args, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+            let years = match require_u32_param(args, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_free_agent_offer(ctx, pid, wage, years) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // transfer_free_agent_preview
+    custom_tool!("transfer_free_agent_preview", "Preview free agent contract financial impact",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("weekly_wage", "integer", "Proposed weekly wage")], &["player_id", "weekly_wage"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let wage = match require_u32_param(args, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::transfers::transfer_free_agent_preview(ctx, pid, wage) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // contract_propose_renewal
+    custom_tool!("contract_propose_renewal", "Propose contract renewal; includes negotiation feedback",
+        build_schema(&[
+            ("player_id", "string", "Player entity ID"),
+            ("weekly_wage", "integer", "Proposed weekly wage"),
+            ("contract_years", "integer", "Proposed contract length in years"),
+        ], &["player_id", "weekly_wage", "contract_years"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let wage = match require_u32_param(args, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+            let years = match require_u32_param(args, "contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::contracts::contract_propose_renewal(ctx, pid, wage, years) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // contract_delegate_renewals
+    custom_tool!("contract_delegate_renewals", "Delegate contract renewals to assistant",
+        build_schema(&[
+            ("player_ids", "array", "Player IDs to renew (omit for all expiring)"),
+            ("max_wage_increase_pct", "integer", "Max wage increase percentage"),
+            ("max_contract_years", "integer", "Max contract years"),
+        ], &["max_wage_increase_pct", "max_contract_years"]),
+        ctx, args, {
+            let pids = extract_string_array_param(args, "player_ids");
+            let max_pct = match require_u32_param(args, "max_wage_increase_pct") { Ok(v) => v, Err(e) => return Ok(e) };
+            let max_years = match require_u32_param(args, "max_contract_years") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::contracts::contract_delegate_renewals(ctx, pids, max_pct, max_years) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // contract_preview_renewal
+    custom_tool!("contract_preview_renewal", "Preview renewal financial impact",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("weekly_wage", "integer", "Proposed weekly wage")], &["player_id", "weekly_wage"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let wage = match require_u32_param(args, "weekly_wage") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::contracts::contract_preview_renewal(ctx, pid, wage) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // contract_set_exit_intent
+    custom_tool!("contract_set_exit_intent", "Mark contract to let expire",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("reason", "string", "Optional reason for exit intent")], &["player_id"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let reason = extract_string_param(args, "reason");
+            match tools_impl::contracts::contract_set_exit_intent(ctx, pid, reason) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // inbox_get_messages
+    custom_tool!("inbox_get_messages", "Get messages (filterable by category, read status)",
+        build_schema(&[("category", "string", "Filter by message category"), ("unread_only", "boolean", "Show only unread messages")], &[]),
+        ctx, args, {
+            let category = extract_string_param(args, "category");
+            let unread_only = extract_bool_param(args, "unread_only");
+            match tools_impl::inbox::inbox_get_messages(ctx, category, unread_only) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // inbox_resolve_action
+    custom_tool!("inbox_resolve_action", "Resolve a message action (job offers, events, etc.)",
+        build_schema(&[
+            ("message_id", "string", "Message ID"),
+            ("action_id", "string", "Action ID within the message"),
+            ("option_id", "string", "Option ID (if action has choices)"),
+        ], &["message_id", "action_id"]),
+        ctx, args, {
+            let mid = match require_string_param(args, "message_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let aid = match require_string_param(args, "action_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let oid = extract_string_param(args, "option_id");
+            match tools_impl::inbox::inbox_resolve_action(ctx, mid, aid, oid) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // club_upgrade_facility
+    custom_tool!("club_upgrade_facility", "Upgrade a facility level",
+        build_schema(&[("facility", "string", "Facility name to upgrade")], &["facility"]),
+        ctx, args, {
+            let facility = match require_string_param(args, "facility") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::club::club_upgrade_facility(ctx, facility) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // help_find_tool
+    custom_tool!("help_find_tool", "Search tools by keyword or description",
+        build_schema(&[("query", "string", "Search keyword")], &["query"]),
+        ctx, args, {
+            let query = match require_string_param(args, "query") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::help::help_find_tool(ctx, query) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // help_list_categories
+    if !disabled.contains(&"help_list_categories".to_string()) {
+        router.add_route(ToolRoute::new_dyn(
+            simple_tool("help_list_categories", "List all tool categories with counts"),
+            |_tool_context| {
+                Box::pin(async move {
+                    Ok(text_result(tools_impl::help::help_list_categories()))
+                })
+            },
+        ));
+    }
+
+    // info_player_match_history
+    custom_tool!("info_player_match_history", "Match-by-match stats for a player",
+        build_schema(&[("player_id", "string", "Player entity ID"), ("limit", "integer", "Max matches to return")], &["player_id"]),
+        ctx, args, {
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let limit = extract_u64_param(args, "limit").map(|n| n as usize);
+            match tools_impl::info::info_player_match_history(ctx, pid, limit) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // info_team_profile
+    id_tool!("info_team_profile", "Detailed team view (squad, form, finances)", team_id_schema(), team_id, tools_impl::info::info_team_profile);
+
+    // info_team_stats
+    id_tool!("info_team_stats", "Season stats for a team", team_id_schema(), team_id, tools_impl::info::info_team_stats);
+
+    // info_team_match_history
+    custom_tool!("info_team_match_history", "Match-by-match stats for a team",
+        build_schema(&[("team_id", "string", "Team entity ID"), ("limit", "integer", "Max matches to return")], &["team_id"]),
+        ctx, args, {
+            let tid = match require_string_param(args, "team_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let limit = extract_u64_param(args, "limit").map(|n| n as usize);
+            match tools_impl::info::info_team_match_history(ctx, tid, limit) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // info_finance_snapshot
+    custom_tool!("info_finance_snapshot", "Detailed financial snapshot",
+        build_schema(&[("team_id", "string", "Team entity ID (omit for own team)")], &[]),
+        ctx, args, {
+            let tid = extract_string_param(args, "team_id");
+            match tools_impl::info::info_finance_snapshot(ctx, tid) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // scout_send
+    custom_tool!("scout_send", "Send scout to report on a player",
+        build_schema(&[("scout_id", "string", "Staff member ID to send"), ("player_id", "string", "Player ID to scout")], &["scout_id", "player_id"]),
+        ctx, args, {
+            let sid = match require_string_param(args, "scout_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let pid = match require_string_param(args, "player_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::scouting::scout_send(ctx, sid, pid) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // scout_youth_start
+    custom_tool!("scout_youth_start", "Start youth scouting assignment",
+        build_schema(&[
+            ("scout_id", "string", "Staff member ID"),
+            ("region", "string", "Scouting region: Domestic or International"),
+            ("objective", "string", "Scouting objective: Balanced, HighPotential, ReadySoon"),
+            ("target_position", "string", "Target position (GK, DF, MF, FW)"),
+        ], &["scout_id"]),
+        ctx, args, {
+            let sid = match require_string_param(args, "scout_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let region = extract_string_param(args, "region");
+            let objective = extract_string_param(args, "objective");
+            let target_position = extract_string_param(args, "target_position");
+            match tools_impl::scouting::scout_youth_start(ctx, sid, region, objective, target_position) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // scout_youth_reassign
+    custom_tool!("scout_youth_reassign", "Reassign youth scouting parameters",
+        build_schema(&[("assignment_id", "string", "Assignment ID"), ("scout_id", "string", "New staff member ID")], &["assignment_id", "scout_id"]),
+        ctx, args, {
+            let aid = match require_string_param(args, "assignment_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            let sid = match require_string_param(args, "scout_id") { Ok(v) => v, Err(e) => return Ok(e) };
+            match tools_impl::scouting::scout_youth_reassign(ctx, aid, sid) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // game_new
+    custom_tool!("game_new", "Create manager + generate/load world",
+        build_schema(&[
+            ("first_name", "string", "Manager first name"),
+            ("last_name", "string", "Manager last name"),
+            ("nationality", "string", "Manager nationality"),
+            ("world_source", "string", "World JSON path (omit for random)"),
+        ], &["first_name", "last_name", "nationality"]),
+        ctx, args, {
+            let first = match require_string_param(args, "first_name") { Ok(v) => v, Err(e) => return Ok(e) };
+            let last = match require_string_param(args, "last_name") { Ok(v) => v, Err(e) => return Ok(e) };
+            let nat = match require_string_param(args, "nationality") { Ok(v) => v, Err(e) => return Ok(e) };
+            let world = extract_string_param(args, "world_source");
+            match tools_impl::game::game_new(ctx, first, last, nat, world) {
+                Ok(text) => Ok(text_result(text)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        });
+
+    // game_export_world — export path is server-controlled for security
+    if !disabled.contains(&"game_export_world".to_string()) {
+        let ctx = context.clone();
+        router.add_route(ToolRoute::new_dyn(
+            Tool::new("game_export_world", "Export world to JSON (saved in app data directory with auto-generated filename)", empty_input_schema()),
+            move |_tool_context| {
+                let ctx = ctx.clone();
+                Box::pin(async move {
+                    match tools_impl::game::game_export_world_safe(ctx) {
+                        Ok(text) => Ok(text_result(text)),
+                        Err(e) => Ok(err_result(&e)),
+                    }
+                })
+            },
+        ));
+    }
+
+    router
+}
+
+// ─── Additional schema helpers for id_tool! ─────────────────────────────────
+
+fn staff_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("staff_id", "Staff member entity ID")
+}
+
+fn team_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("team_id", "Team entity ID")
+}
+
+fn save_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("save_id", "Save ID to load")
+}
+
+fn assignment_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
+    param_schema("assignment_id", "Scouting assignment ID")
 }
