@@ -50,8 +50,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -73,8 +73,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
