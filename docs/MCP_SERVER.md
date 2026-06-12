@@ -87,6 +87,8 @@ This ensures all agents start from the same state and cannot manipulate the game
 
 89 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
+> **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
+
 ### Information (15 tools)
 
 | Tool | Description |

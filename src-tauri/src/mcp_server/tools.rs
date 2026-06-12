@@ -156,6 +156,9 @@ fn require_bool_param(
 }
 
 // ─── Tool router builder ────────────────────────────────────────────────────
+//
+// ⚠️  When adding a new tool here, also add it to tool_catalog() below and
+//     to docs/MCP_SERVER.md. See the checklist at tool_catalog().
 
 /// Build the tool router, omitting any tools whose names appear in `disabled`.
 pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmToolRouter {
@@ -873,7 +876,17 @@ fn assignment_id_schema() -> Arc<serde_json::Map<String, serde_json::Value>> {
 
 // ─── Tool catalog for help tools ─────────────────────────────────────────────
 // Single source of truth for tool names, descriptions, and categories.
-// Must be kept in sync with the tool registrations in build_tool_router().
+//
+// ⚠️  WHEN ADDING A NEW MCP TOOL:
+//     1. Add the route registration in build_tool_router() above
+//     2. Add the (name, description, category) entry here in tool_catalog()
+//     3. Add the implementation in the appropriate tools_impl/ sub-module
+//     4. If the tool mutates state, emit "game-state-changed" via ctx.app_handle
+//     5. If it should be disabled in competition mode, add it to config.rs disabled_tools()
+//     6. Update the tool tables in docs/MCP_SERVER.md
+//
+// The catalog and the router MUST stay in sync — help_find_tool searches only
+// the catalog, so a missing entry means the tool is invisible to agents.
 
 /// Returns the full catalog of MCP tools as (name, description, category) tuples.
 pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
