@@ -76,6 +76,7 @@ export default function SquadRosterView({
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
+  const yearsSuffix = t("playerProfile.yearsSuffix");
   const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
@@ -267,8 +268,8 @@ export default function SquadRosterView({
   };
 
   const renderPreferredPositionMeta = (player: PlayerData) => (
-    <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 flex-wrap">
-      <CountryFlag code={player.nationality} className="text-sm leading-none" />
+    <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5 flex-nowrap overflow-hidden">
+      <CountryFlag code={player.nationality} className="text-sm leading-none shrink-0" />
       {getPreferredPositions(player).map((position, index) => (
         <Badge
           key={`${player.id}-${position}`}
@@ -419,10 +420,10 @@ export default function SquadRosterView({
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("finances.wagePerWeek")}
                 </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("playerProfile.yearsRemaining")}
+                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {t("common.contract")}
                 </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {t("finances.contractRisk")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -540,14 +541,12 @@ export default function SquadRosterView({
                       onClick={() => onSelectPlayer(player.id)}
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors group cursor-pointer"
                     >
-                      <td className="py-2.5 px-4">
+                      <td className="py-3 px-4 align-middle">
                         <div className="flex items-center gap-1.5">
-                          {inXI ? (
-                            <span
-                              className="w-1.5 h-1.5 rounded-full bg-primary-500"
-                              title={t("preMatch.startingXI")}
-                            />
-                          ) : null}
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${inXI ? "bg-primary-500" : "bg-amber-500"}`}
+                            title={inXI ? t("preMatch.startingXI") : t("preMatch.substitutes")}
+                          />
                           <Badge
                             variant={positionBadgeVariant(currentPos)}
                             size="sm"
@@ -556,7 +555,7 @@ export default function SquadRosterView({
                           </Badge>
                           {wrongPos ? (
                             <span
-                              className="text-amber-500"
+                              className="text-amber-500 shrink-0"
                               title={t("squad.outOfPositionTooltip")}
                             >
                               <AlertTriangle className="w-3.5 h-3.5" />
@@ -564,16 +563,17 @@ export default function SquadRosterView({
                           ) : null}
                         </div>
                       </td>
-                      <td className="py-2.5 px-4">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                      {/* max-w caps the name column so long full names truncate instead of stretching the row */}
+                      <td className="py-3 px-4 align-middle max-w-[196px]">
+                        <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate" title={player.full_name}>
                           {player.full_name}
                         </div>
                         {renderPreferredPositionMeta(player)}
                       </td>
-                      <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                      <td className="py-3 px-4 align-middle text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                         {age}
                       </td>
-                      <td className="py-2.5 px-4 w-28">
+                      <td className="py-3 px-4 align-middle w-28">
                         <ProgressBar
                           value={player.condition}
                           variant="auto"
@@ -581,43 +581,43 @@ export default function SquadRosterView({
                           showLabel
                         />
                       </td>
-                      <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+                      <td className="py-3 px-4 align-middle text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}
                       </td>
-                      <td className="py-2.5 px-4">
+                      <td className="py-3 px-4 align-middle">
                         {player.traits && player.traits.length > 0 ? (
                           <TraitList traits={player.traits} size="xs" max={2} />
                         ) : (
                           <span className="text-xs text-gray-500">—</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                      <td className="py-3 px-4 align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                         {formatVal(player.market_value)}
                       </td>
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
+                      <td className="py-3 px-4 align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                         {formatWeeklyAmount(
                           formatExactMoney(player.wage),
                           weeklySuffix,
                         )}
                       </td>
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
-                        <div className="space-y-1">
-                          <div className="font-medium text-gray-700 dark:text-gray-300">
-                            {getContractYearsRemaining(
-                              player.contract_end,
-                              gameState.clock.current_date,
-                            )}
-                          </div>
-                          <div>
-                            {player.contract_end
-                              ? t("finances.contractExpiresOn", {
-                                date: player.contract_end,
-                              })
-                              : "—"}
-                          </div>
-                        </div>
+                      <td className="py-3 px-4 align-middle text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        {player.contract_end ? (
+                          <>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {parseFloat(
+                                getContractYearsRemaining(
+                                  player.contract_end,
+                                  gameState.clock.current_date,
+                                ),
+                              )}
+                              {yearsSuffix}
+                            </span>
+                            {" · "}
+                            {player.contract_end}
+                          </>
+                        ) : "—"}
                       </td>
-                      <td className="py-2.5 px-4">
+                      <td className="py-3 px-4 align-middle">
                         <Badge
                           variant={getContractRiskBadgeVariant(
                             contractRiskLevel,
@@ -627,7 +627,7 @@ export default function SquadRosterView({
                           {contractRiskLabel}
                         </Badge>
                       </td>
-                      <td className="py-2.5 px-4">
+                      <td className="py-3 px-4 align-middle whitespace-nowrap">
                         {player.contract_end &&
                           contractRiskLevel !== "stable" ? (
                           <Button
@@ -640,7 +640,7 @@ export default function SquadRosterView({
                               });
                             }}
                           >
-                            {t("common.renewContract")}
+                            {t("common.renew")}
                           </Button>
                         ) : (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -648,7 +648,7 @@ export default function SquadRosterView({
                           </span>
                         )}
                       </td>
-                      <td className="py-2.5 px-4 text-right">
+                      <td className="py-3 px-4 align-middle text-right">
                         <span
                           className={`font-heading font-bold text-sm ${ovr >= 80
                             ? "text-primary-500"

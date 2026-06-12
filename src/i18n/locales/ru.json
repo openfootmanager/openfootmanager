@@ -355,6 +355,7 @@
     "nationality": "Национальность",
     "contract": "Контракт",
     "renewContract": "Продлить контракт",
+    "renew": "Продлить",
     "status": "Статус",
     "average": "Среднее",
     "goalsFor": "ЗМ",
@@ -1027,7 +1028,6 @@
   "players": {
     "searchPlaceholder": "Поиск по имени или гражданству...",
     "allPos": "Все поз.",
-    "allTeams": "Все команды",
     "nPlayersFound": "{{count}} игроков найдено",
     "noMatch": "Нет игроков, подходящих под фильтры.",
     "showingFirst": "Показаны первые {{shown}} из {{total}} игроков. Уточните свой поиск, чтобы увидеть больше.",
@@ -1043,7 +1043,6 @@
   "playersList": {
     "searchPlaceholder": "Поиск по имени или гражданству...",
     "allPos": "Все поз.",
-    "allTeams": "Все команды",
     "injured": "Травмирован"
   },
   "teamsList": {
@@ -1114,6 +1113,7 @@
     "noContract": "Без контракта",
     "weeklyWage": "Недельная зарплата",
     "yearsRemaining": "Осталось лет",
+    "yearsSuffix": "г",
     "contractRisk": "Риск по контракту",
     "renewalTitle": "Продление контракта",
     "renewalWage": "Предлагаемая зарплата",
@@ -1174,6 +1174,7 @@
     "recentMatchesRating": "Рейтинг",
     "vs": "против",
     "noRecentMatches": "Данных о последних матчах нет",
+    "season": "Сезон",
     "apps": "Матчи",
     "goals": "Голы",
     "assists": "Ассисты",

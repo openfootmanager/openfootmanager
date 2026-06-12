@@ -20,34 +20,38 @@ export default function PlayerProfileCareerHistoryCard({
             <CardHeader>{t("playerProfile.careerHistory")}</CardHeader>
             <CardBody>
                 {career.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                        {career.map((entry, index) => (
-                            <div
-                                key={index}
-                                className="flex items-center justify-between text-sm py-2 border-b border-gray-100 dark:border-navy-600 last:border-0"
-                            >
-                                <div>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">
+                    <table className="w-full table-fixed text-xs">
+                        <thead>
+                            <tr className="border-b border-gray-200 dark:border-navy-500 text-gray-400 dark:text-gray-500 font-heading font-bold uppercase tracking-wider">
+                                <th className="pb-2 pr-4 text-left font-bold">{t("common.team")}</th>
+                                <th className="pb-2 w-[14%] text-right font-bold">{t("playerProfile.season")}</th>
+                                <th className="pb-2 w-[14%] text-right font-bold">{t("playerProfile.apps")}</th>
+                                <th className="pb-2 w-[14%] text-right font-bold">{t("playerProfile.goals")}</th>
+                                <th className="pb-2 w-[14%] text-right font-bold">{t("playerProfile.assists")}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
+                            {career.map((entry, index) => (
+                                <tr key={index}>
+                                    <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-200 truncate">
                                         {entry.team_name}
-                                    </span>
-                                    <span className="text-gray-400 dark:text-gray-500 ml-2 text-xs">
+                                    </td>
+                                    <td className="py-2 text-right text-gray-400 dark:text-gray-500 tabular-nums">
                                         {entry.season}/{entry.season + 1}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 flex gap-3">
-                                    <span>
-                                        {t("playerProfile.nApps", { count: entry.appearances })}
-                                    </span>
-                                    <span>
-                                        {t("playerProfile.nGoals", { count: entry.goals })}
-                                    </span>
-                                    <span>
-                                        {t("playerProfile.nAssists", { count: entry.assists })}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                    </td>
+                                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                                        {entry.appearances}
+                                    </td>
+                                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                                        {entry.goals}
+                                    </td>
+                                    <td className="py-2 text-right text-gray-500 dark:text-gray-400 tabular-nums">
+                                        {entry.assists}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 ) : (
                     <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
                         {t("playerProfile.noCareer")}

@@ -374,6 +374,7 @@
     "nationality": "Nazionalità",
     "contract": "Contratto",
     "renewContract": "Rinnova contratto",
+    "renew": "Rinnova",
     "status": "Stato",
     "average": "Media",
     "goalsFor": "GF",
@@ -1046,7 +1047,6 @@
   "players": {
     "searchPlaceholder": "Cerca per nome o nazionalità...",
     "allPos": "Tutte le pos",
-    "allTeams": "Tutte le squadre",
     "nPlayersFound": "{{count}} giocatore/i trovato/i",
     "noMatch": "Nessun giocatore corrisponde ai filtri.",
     "showingFirst": "Mostrati i primi {{shown}} di {{total}} giocatori. Affina la ricerca per vederne altri.",
@@ -1062,7 +1062,6 @@
   "playersList": {
     "searchPlaceholder": "Cerca per nome o nazionalità...",
     "allPos": "Tutte le pos",
-    "allTeams": "Tutte le squadre",
     "injured": "Infortunato"
   },
   "teamsList": {
@@ -1133,6 +1132,7 @@
     "noContract": "Nessun contratto",
     "weeklyWage": "Stipendio settimanale",
     "yearsRemaining": "Anni rimanenti",
+    "yearsSuffix": "a",
     "contractRisk": "Rischio contrattuale",
     "renewalTitle": "Rinnova contratto",
     "renewalWage": "Stipendio offerto",
@@ -1193,6 +1193,7 @@
     "recentMatchesRating": "Voto",
     "vs": "vs",
     "noRecentMatches": "Nessun dato sulle partite recenti",
+    "season": "Stagione",
     "apps": "Pres",
     "goals": "Gol",
     "assists": "Assist",

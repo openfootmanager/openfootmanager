@@ -13,7 +13,7 @@ export default function PlayerProfileSeasonStatsCard({
     t,
 }: PlayerProfileSeasonStatsCardProps) {
     return (
-        <Card className="lg:col-span-2">
+        <Card>
             <CardHeader>{t("playerProfile.seasonStats")}</CardHeader>
             <CardBody>
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-3">

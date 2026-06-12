@@ -355,6 +355,7 @@
     "nationality": "Nationality",
     "contract": "Contract",
     "renewContract": "Renew Contract",
+    "renew": "Renew",
     "status": "Status",
     "average": "Average",
     "goalsFor": "GF",
@@ -1027,7 +1028,6 @@
   "players": {
     "searchPlaceholder": "Search by name or nationality...",
     "allPos": "All Pos",
-    "allTeams": "All Teams",
     "nPlayersFound": "{{count}} player(s) found",
     "noMatch": "No players match your filters.",
     "showingFirst": "Showing first {{shown}} of {{total}} players. Refine your search to see more.",
@@ -1043,7 +1043,6 @@
   "playersList": {
     "searchPlaceholder": "Search by name or nationality...",
     "allPos": "All Pos",
-    "allTeams": "All Teams",
     "injured": "Injured"
   },
   "teamsList": {
@@ -1114,6 +1113,7 @@
     "noContract": "No contract",
     "weeklyWage": "Weekly Wage",
     "yearsRemaining": "Years Remaining",
+    "yearsSuffix": "y",
     "contractRisk": "Contract Risk",
     "renewalTitle": "Renew Contract",
     "renewalWage": "Offered Wage",
@@ -1174,6 +1174,7 @@
     "recentMatchesRating": "Rating",
     "vs": "vs",
     "noRecentMatches": "No recent match data",
+    "season": "Season",
     "apps": "Apps",
     "goals": "Goals",
     "assists": "Assists",

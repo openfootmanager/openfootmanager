@@ -355,6 +355,7 @@
     "nationality": "国籍",
     "contract": "合同",
     "renewContract": "续约",
+    "renew": "续约",
     "status": "状态",
     "average": "平均",
     "goalsFor": "进球",
@@ -1027,7 +1028,6 @@
   "players": {
     "searchPlaceholder": "按姓名或国籍搜索...",
     "allPos": "所有位置",
-    "allTeams": "所有球队",
     "nPlayersFound": "找到 {{count}} 名球员",
     "noMatch": "没有球员符合您的筛选条件。",
     "showingFirst": "显示前 {{shown}} / {{total}} 名球员。请细化搜索以查看更多。",
@@ -1043,7 +1043,6 @@
   "playersList": {
     "searchPlaceholder": "按姓名或国籍搜索...",
     "allPos": "所有位置",
-    "allTeams": "所有球队",
     "injured": "受伤"
   },
   "teamsList": {
@@ -1114,6 +1113,7 @@
     "noContract": "无合同",
     "weeklyWage": "周薪",
     "yearsRemaining": "剩余年限",
+    "yearsSuffix": "年",
     "contractRisk": "合同风险",
     "renewalTitle": "续约",
     "renewalWage": "报价周薪",
@@ -1174,6 +1174,7 @@
     "recentMatchesRating": "评分",
     "vs": "对阵",
     "noRecentMatches": "暂无近期比赛数据",
+    "season": "赛季",
     "apps": "出场",
     "goals": "进球",
     "assists": "助攻",

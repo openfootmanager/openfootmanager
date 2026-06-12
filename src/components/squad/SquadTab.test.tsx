@@ -12,6 +12,9 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string | Record<string, unknown>) => {
       if (key === "common.renewContract") return "Renew Contract";
+      if (key === "common.renew") return "Renew";
+      if (key === "common.contract") return "Contract";
+      if (key === "playerProfile.yearsSuffix") return "y";
       if (key === "playerProfile.letContractExpire") return "Let Expire";
       if (key === "playerProfile.reopenContractTalks") return "Reopen Talks";
       if (key === "playerProfile.terminateContract") return "Terminate Now";
@@ -237,13 +240,11 @@ describe("SquadTab", () => {
       />,
     );
 
-    expect(screen.getByText("Years Remaining")).toBeInTheDocument();
+    expect(screen.getByText("Contract")).toBeInTheDocument();
     expect(screen.getByText("Contract Risk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Renew Contract" })[0],
-    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Renew" })[0]);
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openRenewal: true,

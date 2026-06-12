@@ -355,6 +355,7 @@
     "nationality": "Nacionalidade",
     "contract": "Contrato",
     "renewContract": "Renovar contrato",
+    "renew": "Renovar",
     "status": "Estado",
     "average": "Média",
     "goalsFor": "GM",
@@ -1027,7 +1028,6 @@
   "players": {
     "searchPlaceholder": "Procurar por nome ou nacionalidade...",
     "allPos": "Todas Pos",
-    "allTeams": "Todas as Equipas",
     "nPlayersFound": "{{count}} jogador(es) encontrado(s)",
     "noMatch": "Nenhum jogador corresponde aos filtros.",
     "showingFirst": "A mostrar os primeiros {{shown}} de {{total}} jogadores. Refina a pesquisa para ver mais.",
@@ -1043,7 +1043,6 @@
   "playersList": {
     "searchPlaceholder": "Procurar por nome ou nacionalidade...",
     "allPos": "Todas Pos",
-    "allTeams": "Todas as Equipas",
     "injured": "Lesionado"
   },
   "teamsList": {
@@ -1114,6 +1113,7 @@
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
     "yearsRemaining": "Anos restantes",
+    "yearsSuffix": "a",
     "contractRisk": "Risco contratual",
     "renewalTitle": "Renovar contrato",
     "renewalWage": "Salário oferecido",
@@ -1174,6 +1174,7 @@
     "recentMatchesRating": "Rating",
     "vs": "vs",
     "noRecentMatches": "Sem dados de jogos recentes",
+    "season": "Época",
     "apps": "Jogos",
     "goals": "Golos",
     "assists": "Assistências",

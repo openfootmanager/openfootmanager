@@ -355,6 +355,7 @@
     "nationality": "Nationalité",
     "contract": "Contrat",
     "renewContract": "Renouveler le contrat",
+    "renew": "Renouveler",
     "status": "Statut",
     "average": "Moyenne",
     "goalsFor": "BP",
@@ -1027,7 +1028,6 @@
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
     "allPos": "Toutes Pos",
-    "allTeams": "Toutes les Équipes",
     "nPlayersFound": "{{count}} joueur(s) trouvé(s)",
     "noMatch": "Aucun joueur ne correspond à vos filtres.",
     "showingFirst": "Affichage des {{shown}} premiers sur {{total}} joueurs. Affinez votre recherche.",
@@ -1043,7 +1043,6 @@
   "playersList": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
     "allPos": "Toutes Pos",
-    "allTeams": "Toutes les Équipes",
     "injured": "Blessé"
   },
   "teamsList": {
@@ -1114,6 +1113,7 @@
     "noContract": "Sans contrat",
     "weeklyWage": "Salaire Hebdomadaire",
     "yearsRemaining": "Années restantes",
+    "yearsSuffix": "a",
     "contractRisk": "Risque contractuel",
     "renewalTitle": "Renouveler le contrat",
     "renewalWage": "Salaire proposé",
@@ -1174,6 +1174,7 @@
     "recentMatchesRating": "Note",
     "vs": "vs",
     "noRecentMatches": "Aucune donnée de match récente",
+    "season": "Saison",
     "apps": "Matchs",
     "goals": "Buts",
     "assists": "Passes D.",
