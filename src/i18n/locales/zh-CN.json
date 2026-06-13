@@ -942,6 +942,8 @@
     "subtitle": "退役传奇与历届冠军",
     "legends": "退役传奇",
     "pastChampions": "历届冠军",
+    "worldCupChampions": "世界杯冠军",
+    "worldCupEdition": "{{year}}年世界杯",
     "noLegends": "暂无已记录的退役传奇。",
     "noChampions": "暂无已记录的历届冠军。",
     "appearances": "出场",
@@ -2564,6 +2566,14 @@
         "headline": "转会综述——{{weekStart}}当周",
         "body": "本周转会市场依旧活跃,联赛中共有{{transferCount}}笔已完成的交易最受关注。\n\n{{deals}}",
         "dealLine": "  {{player}}：从{{fromTeam}}转会至{{toTeam}}（{{fee}}）"
+      },
+      "worldCupKickoff": {
+        "headline": "{{year}}年世界杯拉开帷幕",
+        "body": "{{nations}}支球队齐聚{{year}}年世界杯。这个夏天，世界顶尖球员追逐足球界最高荣誉，其他一切都为之让路。"
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}}加冕世界冠军",
+        "body": "{{nation}}赢得了{{year}}年世界杯，载入足球史册。整个国家欢庆这一将被世代铭记的伟大胜利。"
       },
       "seasonAwards": {
         "headline": "第{{season}}赛季奖项",

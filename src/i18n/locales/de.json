@@ -942,6 +942,8 @@
     "subtitle": "Zurückgetretene Legenden und frühere Meister",
     "legends": "Zurückgetretene Legenden",
     "pastChampions": "Frühere Meister",
+    "worldCupChampions": "Weltmeister",
+    "worldCupEdition": "WM {{year}}",
     "noLegends": "Noch keine zurückgetretenen Legenden erfasst.",
     "noChampions": "Noch keine früheren Meister erfasst.",
     "appearances": "Einsätze",
@@ -2567,6 +2569,14 @@
         "headline": "Transferüberblick — Woche vom {{weekStart}}",
         "body": "Auf dem Transfermarkt war in dieser Woche viel los. {{transferCount}} abgeschlossene Wechsel stachen ligaweit heraus.\n\n{{deals}}",
         "dealLine": "  {{player}}: von {{fromTeam}} zu {{toTeam}} ({{fee}})"
+      },
+      "worldCupKickoff": {
+        "headline": "Die WM {{year}} beginnt",
+        "body": "{{nations}} Nationen treten bei der WM {{year}} an. In diesem Sommer steht alles still, während die Besten der Welt um die größte Trophäe des Fußballs kämpfen."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} ist Weltmeister",
+        "body": "{{nation}} hat die WM {{year}} gewonnen und sich in die Fußballgeschichte eingetragen. Eine Nation feiert einen Triumph, der über Generationen in Erinnerung bleiben wird."
       },
       "seasonAwards": {
         "headline": "Saisonpreise {{season}}",

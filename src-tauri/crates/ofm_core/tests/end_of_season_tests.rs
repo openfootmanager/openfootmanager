@@ -435,6 +435,14 @@ fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
         "the freshly regenerated club season is open and the tournament never \
          counts toward season completion"
     );
+    // Clubs play no preseason friendlies while the World Cup runs.
+    assert!(
+        game.competitions
+            .iter()
+            .flat_map(|c| c.fixtures.iter())
+            .all(|f| f.competition != FixtureCompetition::Friendly),
+        "no club friendlies may be scheduled during a World Cup summer"
+    );
 
     // The next rollover (summer 2027 — not a cup year) retires the tournament
     // instead of regenerating it, and stages no new one.
@@ -445,6 +453,14 @@ fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
             .iter()
             .all(|c| !ofm_core::world_cup::is_world_cup_competition(c)),
         "last cycle's World Cup must be retired at the next rollover"
+    );
+    // Ordinary summers bring the preseason friendlies back.
+    assert!(
+        game.competitions
+            .iter()
+            .flat_map(|c| c.fixtures.iter())
+            .any(|f| f.competition == FixtureCompetition::Friendly),
+        "non-cup summers schedule preseason friendlies as before"
     );
 }
 

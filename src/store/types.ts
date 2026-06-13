@@ -468,6 +468,12 @@ export interface LeagueData {
   priority?: number;
 }
 
+export interface WorldCupChampionData {
+  year: number;
+  nation_code: string;
+  nation_name: string;
+}
+
 export interface NationalTeamData {
   id: string;
   name: string;
@@ -594,6 +600,9 @@ export interface GameStateData {
   news: NewsArticle[];
   competitions?: LeagueData[];
   national_teams?: NationalTeamData[];
+  world_history?: {
+    world_cup_champions?: WorldCupChampionData[];
+  };
   active_region_ids?: string[];
   active_competition_ids?: string[];
   regions?: WorldRegionData[];

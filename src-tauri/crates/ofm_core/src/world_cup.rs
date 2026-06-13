@@ -11,6 +11,8 @@ use domain::league::{
 };
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::national_team::NationalTeam;
+use domain::news::{NewsArticle, NewsCategory};
+use domain::world_history::WorldCupChampionRecord;
 use rand::Rng;
 
 use crate::game::Game;
@@ -235,6 +237,30 @@ pub fn schedule_world_cup(game: &mut Game, kickoff: DateTime<Utc>, format: &Worl
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(cup_id);
     }
+
+    // The whole world hears about a World Cup, participant or not.
+    let kickoff_news_id = format!("world_cup_kickoff_{year}");
+    if !game.news.iter().any(|article| article.id == kickoff_news_id) {
+        let mut params = std::collections::HashMap::new();
+        params.insert("year".to_string(), year.to_string());
+        params.insert("nations".to_string(), field.len().to_string());
+        game.news.push(
+            NewsArticle::new(
+                kickoff_news_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                kickoff.format("%Y-%m-%d").to_string(),
+                NewsCategory::Editorial,
+            )
+            .with_i18n(
+                "be.news.worldCupKickoff.headline",
+                "be.news.worldCupKickoff.body",
+                "be.source.footballHerald",
+                params,
+            ),
+        );
+    }
 }
 
 /// Simulate every World Cup fixture due on `today` with the national-team
@@ -319,12 +345,20 @@ fn announce_champion_if_decided(game: &mut Game, competition_index: usize, today
         return;
     }
 
-    let nation = game
+    let (nation, nation_code) = game
         .national_teams
         .iter()
         .find(|team| team.id == champion_id)
-        .map(|team| team.name.clone())
-        .unwrap_or(champion_id);
+        .map(|team| (team.name.clone(), team.football_nation.clone()))
+        .unwrap_or((champion_id.clone(), String::new()));
+
+    // The game world's highest honour goes into the hall of fame.
+    game.world_history
+        .record_world_cup_champion(WorldCupChampionRecord {
+            year,
+            nation_code,
+            nation_name: nation.clone(),
+        });
 
     let mut params = std::collections::HashMap::new();
     params.insert("nation".to_string(), nation);
@@ -343,10 +377,31 @@ fn announce_champion_if_decided(game: &mut Game, competition_index: usize, today
     .with_i18n(
         "be.msg.worldCupChampion.subject",
         "be.msg.worldCupChampion.body",
-        params,
+        params.clone(),
     )
     .with_sender_i18n("be.sender.intlLiaison", "be.role.intlLiaison");
     game.messages.push(message);
+
+    // Front-page news for everyone, participant or not.
+    let news_id = format!("world_cup_champion_news_{year}");
+    if !game.news.iter().any(|article| article.id == news_id) {
+        game.news.push(
+            NewsArticle::new(
+                news_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                today.to_string(),
+                NewsCategory::Editorial,
+            )
+            .with_i18n(
+                "be.news.worldCupChampion.headline",
+                "be.news.worldCupChampion.body",
+                "be.source.footballHerald",
+                params,
+            ),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -410,6 +465,17 @@ mod tests {
                 .expect("participant national team exists");
             assert!(team.squad_player_ids.len() >= 11);
         }
+        // The whole world reads about the kickoff.
+        let kickoff_news = game
+            .news
+            .iter()
+            .find(|article| article.id == "world_cup_kickoff_2026")
+            .expect("the tournament makes front-page news");
+        assert_eq!(
+            kickoff_news.headline_key.as_deref(),
+            Some("be.news.worldCupKickoff.headline")
+        );
+        assert_eq!(kickoff_news.i18n_params.get("nations"), Some(&"16".to_string()));
     }
 
     #[test]
@@ -479,5 +545,23 @@ mod tests {
 
         // Carry-back reached the squads: tournament players show fatigue.
         assert!(game.players.iter().any(|p| p.condition < 100));
+
+        // The triumph is front-page news and enters the hall of fame.
+        let news = game
+            .news
+            .iter()
+            .find(|article| article.id == "world_cup_champion_news_2026")
+            .expect("the champion makes front-page news");
+        assert_eq!(
+            news.headline_key.as_deref(),
+            Some("be.news.worldCupChampion.headline")
+        );
+        let record = game
+            .world_history
+            .world_cup_champions
+            .first()
+            .expect("the champion is recorded for the hall of fame");
+        assert_eq!(record.year, 2026);
+        assert!(!record.nation_name.is_empty());
     }
 }

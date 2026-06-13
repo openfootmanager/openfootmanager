@@ -247,16 +247,22 @@ fn regenerate_competitions_for_new_season(
         }
     }
 
-    // Preseason friendlies for the primary competition (mirrors prior behaviour).
-    if let Some(primary) = game.competitions.first_mut() {
+    // In World Cup summers the tournament fills the break before `next_start`,
+    // so clubs skip their preseason friendlies entirely — players are away
+    // with their nations.
+    let world_cup_staged = crate::world_cup::schedule_world_cup_if_due(
+        game,
+        game.clock.current_date + Duration::days(2),
+    );
+    if !world_cup_staged
+        && let Some(primary) = game.competitions.first_mut()
+    {
         let friendlies =
             generate_preseason_friendlies(&primary.participant_ids.clone(), next_start, 4);
         append_fixtures(primary, friendlies);
     }
 
     regenerate_international_windows(game, next_start);
-    // In World Cup summers the tournament fills the break before `next_start`.
-    crate::world_cup::schedule_world_cup_if_due(game, game.clock.current_date + Duration::days(2));
     game.sync_legacy_league();
 }
 

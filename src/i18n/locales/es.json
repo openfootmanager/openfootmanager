@@ -972,6 +972,8 @@
     "subtitle": "Leyendas retiradas y campeones históricos",
     "legends": "Leyendas retiradas",
     "pastChampions": "Campeones históricos",
+    "worldCupChampions": "Campeones del mundo",
+    "worldCupEdition": "Mundial de {{year}}",
     "noLegends": "Aún no hay leyendas retiradas registradas.",
     "noChampions": "Aún no hay campeones históricos registrados.",
     "appearances": "Partidos",
@@ -2597,6 +2599,14 @@
         "headline": "Resumen de Fichajes — Semana del {{weekStart}}",
         "body": "El mercado de fichajes siguió muy activo esta semana. {{transferCount}} traspaso(s) cerrado(s) destacaron en toda la división.\n\n{{deals}}",
         "dealLine": "  {{player}}: de {{fromTeam}} a {{toTeam}} ({{fee}})"
+      },
+      "worldCupKickoff": {
+        "headline": "Comienza el Mundial de {{year}}",
+        "body": "{{nations}} selecciones se han reunido para el Mundial de {{year}}. Este verano nada más importa mientras los mejores del mundo persiguen el mayor trofeo del fútbol."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}}, campeona del mundo",
+        "body": "{{nation}} ha ganado el Mundial de {{year}} y ha escrito su nombre en la historia del fútbol. Toda una nación celebra un triunfo que se recordará durante generaciones."
       },
       "seasonAwards": {
         "headline": "Premios de la temporada {{season}}",

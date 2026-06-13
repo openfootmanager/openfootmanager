@@ -942,6 +942,8 @@
     "subtitle": "Retired legends and past champions",
     "legends": "Retired Legends",
     "pastChampions": "Past Champions",
+    "worldCupChampions": "World Cup Champions",
+    "worldCupEdition": "{{year}} World Cup",
     "noLegends": "No retired legends recorded yet.",
     "noChampions": "No past champions recorded yet.",
     "appearances": "Appearances",
@@ -2563,6 +2565,14 @@
         "headline": "Transfer Roundup — Week of {{weekStart}}",
         "body": "The transfer market stayed busy this week. {{transferCount}} completed deal(s) stood out across the division.\n\n{{deals}}",
         "dealLine": "  {{player}}: {{fromTeam}} -> {{toTeam}} ({{fee}})"
+      },
+      "worldCupKickoff": {
+        "headline": "The {{year}} World Cup Begins",
+        "body": "{{nations}} nations have gathered for the {{year}} World Cup. Football stops for nothing else this summer as the world's best chase the greatest prize in the game."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} Are World Champions",
+        "body": "{{nation}} have won the {{year}} World Cup, etching their names into football history. A nation celebrates a triumph that will be remembered for generations."
       },
       "seasonAwards": {
         "headline": "Season {{season}} Awards",

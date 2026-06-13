@@ -942,6 +942,8 @@
     "subtitle": "Légendes retraitées et anciens champions",
     "legends": "Légendes retraitées",
     "pastChampions": "Anciens champions",
+    "worldCupChampions": "Champions du monde",
+    "worldCupEdition": "Coupe du monde {{year}}",
     "noLegends": "Aucune légende retraitée enregistrée pour le moment.",
     "noChampions": "Aucun champion historique enregistré pour le moment.",
     "appearances": "Matchs",
@@ -2567,6 +2569,14 @@
         "headline": "Résumé des Transferts — Semaine du {{weekStart}}",
         "body": "Le marché des transferts est resté animé cette semaine. {{transferCount}} transfert(s) conclu(s) ont marqué la division.\n\n{{deals}}",
         "dealLine": "  {{player}} : de {{fromTeam}} à {{toTeam}} ({{fee}})"
+      },
+      "worldCupKickoff": {
+        "headline": "La Coupe du monde {{year}} commence",
+        "body": "{{nations}} nations sont réunies pour la Coupe du monde {{year}}. Cet été, plus rien ne compte tandis que les meilleurs du monde visent le plus beau trophée du football."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} championne du monde",
+        "body": "{{nation}} a remporté la Coupe du monde {{year}} et entre dans l'histoire du football. Toute une nation célèbre un triomphe dont on se souviendra pendant des générations."
       },
       "seasonAwards": {
         "headline": "Prix de la saison {{season}}",
