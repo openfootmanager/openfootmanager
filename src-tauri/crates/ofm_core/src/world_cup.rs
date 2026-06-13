@@ -7,7 +7,8 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Datelike, Utc};
 use domain::league::{
-    CompetitionScope, CompetitionType, FixtureStatus, League, MatchResult,
+    CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, FixtureStatus,
+    GroupState, League, MatchResult, StandingEntry,
 };
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::national_team::NationalTeam;
@@ -195,9 +196,21 @@ pub fn schedule_world_cup_if_due(game: &mut Game, kickoff: DateTime<Utc>) -> boo
 }
 
 /// Schedule a World Cup with an explicit format (48 by default; 32 and 16
-/// reproduce the older tournaments).
+/// reproduce the older tournaments). The field is chosen by ranking.
 pub fn schedule_world_cup(game: &mut Game, kickoff: DateTime<Utc>, format: &WorldCupFormat) {
-    let field = select_field(game, format);
+    schedule_world_cup_with_field(game, kickoff, format, None);
+}
+
+/// Schedule a World Cup, optionally with a pre-determined field (e.g. from
+/// qualifying). When `predetermined_field` is `None` the field is chosen by
+/// ranking the strongest nations.
+pub fn schedule_world_cup_with_field(
+    game: &mut Game,
+    kickoff: DateTime<Utc>,
+    format: &WorldCupFormat,
+    predetermined_field: Option<Vec<String>>,
+) {
+    let field = predetermined_field.unwrap_or_else(|| select_field(game, format));
     if field.len() < 4 {
         return;
     }
@@ -261,6 +274,300 @@ pub fn schedule_world_cup(game: &mut Game, kickoff: DateTime<Utc>, format: &Worl
             ),
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Qualifying
+// ---------------------------------------------------------------------------
+
+const QUALIFYING_COMPETITION_PREFIX: &str = "world-cup-qualifying-";
+/// Maximum nations per qualifying group; a round robin of this size fits the
+/// five international windows.
+const QUALIFYING_GROUP_SIZE: usize = 6;
+
+/// Whether a competition is a World Cup qualifying campaign.
+pub fn is_world_cup_qualifying(competition: &League) -> bool {
+    competition.id.starts_with(QUALIFYING_COMPETITION_PREFIX)
+}
+
+/// A season "leads into" a World Cup when the following summer is a cup summer.
+pub fn season_leads_into_world_cup(season_start: DateTime<Utc>) -> bool {
+    is_world_cup_summer(season_start.year() + 1)
+}
+
+fn national_team_id_for(game: &Game, code: &str) -> String {
+    game.national_teams
+        .iter()
+        .find(|team| team.football_nation == code)
+        .map(|team| team.id.clone())
+        .unwrap_or_else(|| national_team_id(code))
+}
+
+fn nation_code_of_national_team(team_id: &str) -> String {
+    team_id
+        .strip_prefix("nt-")
+        .map(|code| code.to_uppercase())
+        .unwrap_or_else(|| team_id.to_string())
+}
+
+fn region_of_code(code: &str) -> String {
+    nations::nation_by_code(code)
+        .map(|nation| nation.region_id.to_string())
+        .unwrap_or_else(|| "europe".to_string())
+}
+
+/// Candidate nations grouped by region: every world nation with players plus
+/// the catalog nations, deduped.
+fn qualifying_candidates_by_region(game: &Game) -> BTreeMap<String, Vec<String>> {
+    let pools = national_pools(game);
+    let mut codes: Vec<String> = pools.keys().cloned().collect();
+    for nation in nations::NATION_CATALOG {
+        codes.push(nation.code.to_string());
+    }
+
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut by_region: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for code in codes {
+        if !seen.insert(code.clone()) {
+            continue;
+        }
+        by_region.entry(region_of_code(&code)).or_default().push(code);
+    }
+    by_region
+}
+
+/// Allocate `field_size` World Cup berths across regions, proportional to how
+/// many nations each region has (largest-remainder method), at least one berth
+/// per region with a nation, capped at each region's nation count.
+pub fn berths_by_region(
+    field_size: usize,
+    nations_by_region: &BTreeMap<String, usize>,
+) -> BTreeMap<String, usize> {
+    let regions: Vec<(String, usize)> = nations_by_region
+        .iter()
+        .filter(|(_, count)| **count > 0)
+        .map(|(region, count)| (region.clone(), *count))
+        .collect();
+    let total: usize = regions.iter().map(|(_, count)| count).sum();
+    if total == 0 || field_size == 0 {
+        return BTreeMap::new();
+    }
+
+    let mut berths: BTreeMap<String, usize> = BTreeMap::new();
+
+    // More regions than berths: one berth each to the largest regions.
+    if field_size <= regions.len() {
+        let mut sorted = regions;
+        sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        for (region, _) in sorted.into_iter().take(field_size) {
+            berths.insert(region, 1);
+        }
+        return berths;
+    }
+
+    let mut allocated = 0usize;
+    let mut remainders: Vec<(String, f64)> = Vec::new();
+    for (region, count) in &regions {
+        let exact = field_size as f64 * *count as f64 / total as f64;
+        let base = (exact.floor() as usize).max(1).min(*count);
+        berths.insert(region.clone(), base);
+        allocated += base;
+        remainders.push((region.clone(), exact - exact.floor()));
+    }
+    remainders.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    while allocated > field_size {
+        if let Some((region, _)) = remainders
+            .iter()
+            .rev()
+            .find(|(r, _)| berths.get(r).copied().unwrap_or(0) > 1)
+        {
+            *berths.get_mut(region).unwrap() -= 1;
+            allocated -= 1;
+        } else {
+            break;
+        }
+    }
+    let mut index = 0usize;
+    let guard = remainders.len() * (field_size + 1);
+    while allocated < field_size && index < guard {
+        let (region, _) = &remainders[index % remainders.len()];
+        let cap = *nations_by_region.get(region).unwrap_or(&0);
+        if berths.get(region).copied().unwrap_or(0) < cap {
+            *berths.entry(region.clone()).or_insert(0) += 1;
+            allocated += 1;
+        }
+        index += 1;
+    }
+    berths
+}
+
+fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
+    b.points
+        .cmp(&a.points)
+        .then(b.goal_difference().cmp(&a.goal_difference()))
+        .then(b.goals_for.cmp(&a.goals_for))
+}
+
+/// Schedule World Cup qualifying for `wc_year` across the season's international
+/// windows: per-region groups playing a single round robin, one matchday per
+/// window. National squads are prepared for every candidate nation.
+pub fn schedule_world_cup_qualifying(
+    game: &mut Game,
+    wc_year: i32,
+    window_dates: &[String],
+) {
+    if window_dates.is_empty() {
+        return;
+    }
+    let candidates = qualifying_candidates_by_region(game);
+    let all_codes: Vec<String> = candidates.values().flatten().cloned().collect();
+    if all_codes.len() < 4 {
+        return;
+    }
+    prepare_national_squads(game, &all_codes);
+
+    let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
+    let mut competition = League::new(
+        competition_id.clone(),
+        format!("World Cup Qualifying {wc_year}"),
+        wc_year as u32,
+        &[],
+    );
+    competition.kind = CompetitionType::InternationalNation;
+    competition.scope = CompetitionScope::International;
+    competition.rules.format = CompetitionFormat::LeagueTable;
+    competition.standings.clear();
+    competition.priority = 9_000;
+
+    let base_date = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now);
+
+    let mut participant_ids: Vec<String> = Vec::new();
+    for (region, codes) in &candidates {
+        let group_count = codes.len().div_ceil(QUALIFYING_GROUP_SIZE).max(1);
+        let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
+        for (index, code) in codes.iter().enumerate() {
+            groups[index % group_count].push(code.clone());
+        }
+
+        for (group_index, group_codes) in groups.iter().enumerate() {
+            if group_codes.len() < 2 {
+                continue;
+            }
+            let team_ids: Vec<String> = group_codes
+                .iter()
+                .map(|code| national_team_id_for(game, code))
+                .collect();
+            participant_ids.extend(team_ids.iter().cloned());
+
+            let mut fixtures = crate::schedule::build_round_robin_fixtures_with(
+                &competition_id,
+                &team_ids,
+                base_date,
+                FixtureCompetition::InternationalNation,
+                1,
+                3,
+            );
+            // Pin each matchday onto an international window date.
+            for fixture in &mut fixtures {
+                let window = (fixture.matchday as usize - 1).min(window_dates.len() - 1);
+                fixture.date = window_dates[window].clone();
+            }
+            competition.fixtures.extend(fixtures);
+            competition.groups.push(GroupState {
+                id: format!("{competition_id}-{region}-{group_index}"),
+                name: format!("{region} {}", group_index + 1),
+                team_ids: team_ids.clone(),
+                standings: team_ids
+                    .iter()
+                    .map(|id| StandingEntry::new(id.clone()))
+                    .collect(),
+            });
+        }
+    }
+
+    if competition.groups.is_empty() {
+        return;
+    }
+    competition.participant_ids = participant_ids;
+    let competition_id = competition.id.clone();
+    game.competitions.push(competition);
+    if !game.active_competition_ids.is_empty() {
+        game.active_competition_ids.push(competition_id);
+    }
+
+    // News: the qualifying campaign gets under way.
+    let news_id = format!("world_cup_qualifying_{wc_year}");
+    if !game.news.iter().any(|article| article.id == news_id) {
+        let mut params = std::collections::HashMap::new();
+        params.insert("year".to_string(), wc_year.to_string());
+        params.insert("nations".to_string(), all_codes.len().to_string());
+        game.news.push(
+            NewsArticle::new(
+                news_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                window_dates[0].clone(),
+                NewsCategory::Editorial,
+            )
+            .with_i18n(
+                "be.news.worldCupQualifying.headline",
+                "be.news.worldCupQualifying.body",
+                "be.source.footballHerald",
+                params,
+            ),
+        );
+    }
+}
+
+/// The qualified field (nation codes) from a completed qualifying campaign:
+/// each region's berths go to its best group finishers (winners first, then
+/// runners-up, ranked across the region's groups). Returns `None` when there is
+/// no qualifying campaign to read.
+pub fn qualified_field_from_game(game: &Game, field_size: usize) -> Option<Vec<String>> {
+    let competition = game
+        .competitions
+        .iter()
+        .find(|competition| is_world_cup_qualifying(competition))?;
+
+    let mut groups_by_region: BTreeMap<String, Vec<Vec<StandingEntry>>> = BTreeMap::new();
+    let mut nations_by_region: BTreeMap<String, usize> = BTreeMap::new();
+    for group in &competition.groups {
+        let region = group
+            .team_ids
+            .first()
+            .map(|id| region_of_code(&nation_code_of_national_team(id)))
+            .unwrap_or_else(|| "europe".to_string());
+        let sorted = crate::group_stage::sorted_group_standings(group);
+        *nations_by_region.entry(region.clone()).or_insert(0) += sorted.len();
+        groups_by_region.entry(region).or_default().push(sorted);
+    }
+
+    let berths = berths_by_region(field_size, &nations_by_region);
+    let mut field: Vec<String> = Vec::new();
+    for (region, groups) in &groups_by_region {
+        let want = berths.get(region).copied().unwrap_or(0);
+        let max_rank = groups.iter().map(|group| group.len()).max().unwrap_or(0);
+        let mut qualified = 0usize;
+        'ranks: for rank in 0..max_rank {
+            let mut at_rank: Vec<&StandingEntry> =
+                groups.iter().filter_map(|group| group.get(rank)).collect();
+            at_rank.sort_by(|a, b| standing_order(a, b));
+            for entry in at_rank {
+                if qualified >= want {
+                    break 'ranks;
+                }
+                field.push(nation_code_of_national_team(&entry.team_id));
+                qualified += 1;
+            }
+        }
+    }
+    Some(field)
 }
 
 /// Simulate every World Cup fixture due on `today` with the national-team
@@ -427,6 +734,69 @@ mod tests {
             "England".to_string(),
         );
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    #[test]
+    fn berths_sum_to_the_field_and_respect_caps() {
+        let mut counts = std::collections::BTreeMap::new();
+        counts.insert("europe".to_string(), 26usize);
+        counts.insert("asia".to_string(), 10usize);
+        counts.insert("oceania".to_string(), 2usize);
+
+        let berths = berths_by_region(16, &counts);
+
+        assert_eq!(berths.values().sum::<usize>(), 16);
+        assert!((1..=2).contains(&berths["oceania"]), "small region keeps a berth but is capped");
+        assert!(berths["europe"] > berths["asia"], "berths scale with region size");
+    }
+
+    #[test]
+    fn qualifying_feeds_a_world_cup_field() {
+        use chrono::TimeZone;
+        let mut game = empty_game();
+        let windows = crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+
+        schedule_world_cup_qualifying(&mut game, 2026, &windows);
+
+        {
+            let qualifying = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_qualifying(c))
+                .expect("qualifying is scheduled");
+            assert!(!qualifying.groups.is_empty());
+            assert!(qualifying.fixtures.iter().all(|f| {
+                windows.contains(&f.date)
+                    && f.competition == FixtureCompetition::InternationalNation
+            }));
+        }
+        assert!(
+            game.news.iter().any(|a| a.id == "world_cup_qualifying_2026"),
+            "the qualifying campaign makes the news"
+        );
+
+        // Play every qualifying matchday.
+        let mut rng = StdRng::seed_from_u64(11);
+        for date in &windows {
+            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        }
+        // Group tables recorded results.
+        let played = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_qualifying(c))
+            .unwrap()
+            .groups
+            .iter()
+            .any(|g| g.standings.iter().any(|s| s.played > 0));
+        assert!(played, "qualifying group tables update as matches are played");
+
+        let field = qualified_field_from_game(&game, FORMAT_16.field).expect("a field");
+        assert_eq!(field.len(), FORMAT_16.field);
+        let distinct: std::collections::HashSet<&String> = field.iter().collect();
+        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
     }
 
     #[test]

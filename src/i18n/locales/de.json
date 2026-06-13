@@ -2598,6 +2598,10 @@
         "body": "Auf dem Transfermarkt war in dieser Woche viel los. {{transferCount}} abgeschlossene Wechsel stachen ligaweit heraus.\n\n{{deals}}",
         "dealLine": "  {{player}}: von {{fromTeam}} zu {{toTeam}} ({{fee}})"
       },
+      "worldCupQualifying": {
+        "headline": "Der Weg zur WM {{year}} beginnt",
+        "body": "{{nations}} Nationen starten ihre Qualifikation für die WM {{year}}, ausgetragen in den Länderspielfenstern dieser Saison."
+      },
       "worldCupKickoff": {
         "headline": "Die WM {{year}} beginnt",
         "body": "{{nations}} Nationen treten bei der WM {{year}} an. In diesem Sommer steht alles still, während die Besten der Welt um die größte Trophäe des Fußballs kämpfen."

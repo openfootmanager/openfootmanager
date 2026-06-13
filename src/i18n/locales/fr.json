@@ -2598,6 +2598,10 @@
         "body": "Le marché des transferts est resté animé cette semaine. {{transferCount}} transfert(s) conclu(s) ont marqué la division.\n\n{{deals}}",
         "dealLine": "  {{player}} : de {{fromTeam}} à {{toTeam}} ({{fee}})"
       },
+      "worldCupQualifying": {
+        "headline": "La route vers la Coupe du monde {{year}} commence",
+        "body": "{{nations}} nations débutent leur qualification pour la Coupe du monde {{year}}, disputée lors des fenêtres internationales cette saison."
+      },
       "worldCupKickoff": {
         "headline": "La Coupe du monde {{year}} commence",
         "body": "{{nations}} nations sont réunies pour la Coupe du monde {{year}}. Cet été, plus rien ne compte tandis que les meilleurs du monde visent le plus beau trophée du football."

@@ -145,7 +145,8 @@ pub fn generate_group_knockout_cup_with(
     cup
 }
 
-fn sorted_group_standings(group: &GroupState) -> Vec<StandingEntry> {
+/// A group's table sorted by points, goal difference, then goals for.
+pub fn sorted_group_standings(group: &GroupState) -> Vec<StandingEntry> {
     let mut sorted = group.standings.clone();
     sorted.sort_by(|a, b| {
         b.points
@@ -163,12 +164,14 @@ fn is_knockout_fixture(league: &League, fixture_id: &str) -> bool {
         .any(|round| round.fixture_ids.iter().any(|id| id == fixture_id))
 }
 
-/// Record a completed group fixture in its group's table and, once the whole
-/// group stage is played out, seed the knockout bracket with each group's top
-/// finishers (group winners first, so any byes favour them). A no-op for other
-/// competition formats and for knockout-round fixtures.
+/// Record a completed group fixture in its group's table. For a
+/// group-and-knockout competition, once the whole group stage is played out the
+/// knockout bracket is seeded with each group's top finishers (group winners
+/// first, so any byes favour them). For a plain grouped competition (e.g. World
+/// Cup qualifying) only the table is updated. A no-op for competitions without
+/// groups and for knockout-round fixtures.
 pub fn process_completed_fixture(league: &mut League, fixture_index: usize) {
-    if league.rules.format != CompetitionFormat::GroupAndKnockout || league.groups.is_empty() {
+    if league.groups.is_empty() {
         return;
     }
     let Some(fixture) = league.fixtures.get(fixture_index) else {
@@ -204,7 +207,9 @@ pub fn process_completed_fixture(league: &mut League, fixture_index: usize) {
         }
     }
 
-    maybe_seed_knockout_from_groups(league);
+    if league.rules.format == CompetitionFormat::GroupAndKnockout {
+        maybe_seed_knockout_from_groups(league);
+    }
 }
 
 fn maybe_seed_knockout_from_groups(league: &mut League) {

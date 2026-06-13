@@ -596,12 +596,26 @@ fn ensure_international_windows(game: &mut Game) {
         .national_teams
         .iter()
         .all(|team| team.fixtures.is_empty());
-    if needs_fixtures {
-        ofm_core::national_team::schedule_national_team_friendlies(
-            &mut game.national_teams,
-            &window_dates,
-            &mut rand::rng(),
-        );
+    let qualifying_running = game
+        .competitions
+        .iter()
+        .any(ofm_core::world_cup::is_world_cup_qualifying);
+    if needs_fixtures && !qualifying_running {
+        // A career starting the season before a World Cup opens with the
+        // qualifying campaign; any other season opens with friendlies.
+        if ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock)) {
+            ofm_core::world_cup::schedule_world_cup_qualifying(
+                game,
+                preseason_season_start(&game.clock).year() + 1,
+                &window_dates,
+            );
+        } else {
+            ofm_core::national_team::schedule_national_team_friendlies(
+                &mut game.national_teams,
+                &window_dates,
+                &mut rand::rng(),
+            );
+        }
     }
 
     for competition in &mut game.competitions {

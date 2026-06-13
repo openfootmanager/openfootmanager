@@ -509,6 +509,10 @@ export default function TournamentsTab({
                     ))}
                   </div>
                 )
+              ) : groups.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                  {groups.map(renderGroupTable)}
+                </div>
               ) : isPreseason ? (
                 <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
                   <Trophy className="w-8 h-8 text-gray-300 dark:text-navy-600" />
@@ -707,8 +711,19 @@ export default function TournamentsTab({
         </div>
       )}
 
+      {/* Group tables for non-knockout competitions (e.g. World Cup qualifying) */}
+      {view === "standings" && !isKnockout && groups.length > 0 && (
+        <Card>
+          <CardBody className="p-0">
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              {groups.map(renderGroupTable)}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Full standings */}
-      {view === "standings" && !isKnockout &&
+      {view === "standings" && !isKnockout && groups.length === 0 &&
         (isPreseason ? (
           <Card>
             <CardBody>

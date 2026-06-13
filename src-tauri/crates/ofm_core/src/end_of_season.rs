@@ -1,7 +1,7 @@
 use crate::game::Game;
 use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_division_season_awards;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{CompetitionFormat, FixtureStatus, League, StandingEntry};
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
@@ -219,8 +219,19 @@ fn regenerate_competitions_for_new_season(
         return;
     }
 
-    // World Cups are one-shot tournaments: retire last cycle's edition instead
-    // of regenerating it, and stage a new one when the calendar says so.
+    // Read the World Cup field from this cycle's qualifying before competitions
+    // are retired below.
+    let kickoff = game.clock.current_date + Duration::days(2);
+    let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
+    let qualified_field = if world_cup_due {
+        crate::world_cup::qualified_field_from_game(game, crate::world_cup::FORMAT_48.field)
+    } else {
+        None
+    };
+
+    // World Cups and their qualifying are one-shot competitions: retire last
+    // cycle's editions instead of regenerating them, and stage new ones when the
+    // calendar says so.
     game.competitions
         .retain(|competition| !crate::world_cup::is_world_cup_competition(competition));
     let remaining_ids: std::collections::HashSet<String> = game
@@ -247,46 +258,70 @@ fn regenerate_competitions_for_new_season(
         }
     }
 
-    // In World Cup summers the tournament fills the break before `next_start`,
-    // so clubs skip their preseason friendlies entirely — players are away
-    // with their nations.
-    let world_cup_staged = crate::world_cup::schedule_world_cup_if_due(
-        game,
-        game.clock.current_date + Duration::days(2),
-    );
-    if !world_cup_staged
-        && let Some(primary) = game.competitions.first_mut()
-    {
+    manage_international_calendar(game, next_start, kickoff, world_cup_due, qualified_field);
+    game.sync_legacy_league();
+}
+
+/// Decide what the upcoming season's international calendar looks like:
+/// - a World Cup summer stages the tournament in the break (no club friendlies);
+/// - the season before a World Cup hosts qualifying in the windows;
+/// - any other season hosts national-team friendlies in the windows.
+fn manage_international_calendar(
+    game: &mut Game,
+    next_start: DateTime<Utc>,
+    kickoff: DateTime<Utc>,
+    world_cup_due: bool,
+    qualified_field: Option<Vec<String>>,
+) {
+    if world_cup_due {
+        if !game
+            .competitions
+            .iter()
+            .any(crate::world_cup::is_world_cup_competition)
+        {
+            crate::world_cup::schedule_world_cup_with_field(
+                game,
+                kickoff,
+                &crate::world_cup::FORMAT_48,
+                qualified_field,
+            );
+        }
+        // The tournament fills the break; clear any stale window friendlies.
+        for national_team in game.national_teams.iter_mut() {
+            national_team.fixtures.clear();
+        }
+        return;
+    }
+
+    // Outside a cup summer, clubs play their preseason friendlies as usual.
+    if let Some(primary) = game.competitions.first_mut() {
         let friendlies =
             generate_preseason_friendlies(&primary.participant_ids.clone(), next_start, 4);
         append_fixtures(primary, friendlies);
     }
 
-    regenerate_international_windows(game, next_start);
-    game.sync_legacy_league();
-}
-
-/// Reschedule national-team friendlies for the new season and keep club fixtures
-/// off the international window dates. National teams keep their squads but get a
-/// fresh fixture list (last season's matches are cleared).
-fn regenerate_international_windows(game: &mut Game, next_start: DateTime<Utc>) {
     let window_dates = crate::national_team::international_window_dates(next_start);
     if window_dates.is_empty() {
         return;
     }
-
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
+    for competition in game.competitions.iter_mut() {
+        crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+    }
+
+    if crate::world_cup::season_leads_into_world_cup(next_start) {
+        // The windows host World Cup qualifying instead of friendlies.
+        crate::world_cup::schedule_world_cup_qualifying(game, next_start.year() + 1, &window_dates);
+        return;
+    }
+
     crate::national_team::schedule_national_team_friendlies(
         &mut game.national_teams,
         &window_dates,
         &mut rand::rng(),
     );
-
-    for competition in game.competitions.iter_mut() {
-        crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
-    }
 }
 
 /// The league-table competition the user's club contests. Falls back to the

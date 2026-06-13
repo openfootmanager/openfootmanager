@@ -184,6 +184,8 @@ fn process_end_of_season_reschedules_national_team_windows() {
     use domain::national_team::NationalTeam;
 
     let mut game = make_completed_season_game();
+    // A non-cup season so the windows host friendlies (not a World Cup).
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2024, 5, 20, 12, 0, 0).unwrap());
 
     let mut nt_a = NationalTeam::new("nt-a".into(), "A".into(), "AAA".into(), None);
     nt_a.squad_player_ids = vec!["p1".into()];
@@ -412,6 +414,40 @@ fn user_staying_in_their_division_gets_no_movement_message() {
             .iter()
             .any(|m| m.id == "promotion_2" || m.id == "relegation_2"),
         "the champion stays up and gets no movement message"
+    );
+}
+
+#[test]
+fn rollover_before_a_world_cup_hosts_qualifying_then_stages_the_cup_from_it() {
+    // Spring 2025 rolls into the 2025/26 season, which leads into the 2026 cup.
+    let mut game = make_two_division_game("team1");
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2025, 5, 20, 12, 0, 0).unwrap());
+
+    process_end_of_season(&mut game);
+
+    let qualifying = game
+        .competitions
+        .iter()
+        .find(|c| ofm_core::world_cup::is_world_cup_qualifying(c))
+        .expect("the pre-cup season hosts qualifying");
+    assert!(!qualifying.groups.is_empty());
+    // The tournament itself isn't staged yet.
+    assert!(
+        !game.competitions.iter().any(|c| {
+            ofm_core::world_cup::is_world_cup_competition(c)
+                && !ofm_core::world_cup::is_world_cup_qualifying(c)
+        }),
+        "the World Cup waits until the cup summer"
+    );
+    // No preseason friendlies clash with the qualifying windows.
+    let window_dates: Vec<String> = qualifying.fixtures.iter().map(|f| f.date.clone()).collect();
+    assert!(
+        game.competitions
+            .iter()
+            .filter(|c| !ofm_core::world_cup::is_world_cup_qualifying(c))
+            .flat_map(|c| c.fixtures.iter())
+            .all(|f| !window_dates.contains(&f.date)),
+        "club fixtures stay off the qualifying window dates"
     );
 }
 
