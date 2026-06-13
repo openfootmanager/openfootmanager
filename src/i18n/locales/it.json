@@ -1745,6 +1745,233 @@
       "FreeKick": "Punizione",
       "Foul": "Fallo",
       "PenaltyAwarded": "Rigore Assegnato"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "GOOOL!",
+        "lines": {
+          "0": "{{player}} trova la rete per il {{team}}!",
+          "1": "{{player}} la mette dentro! Che finalizzazione!",
+          "2": "{{player}} segna per il {{team}}!"
+        },
+        "opener": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} sblocca il risultato per il {{team}}!",
+            "1": "Il {{team}} passa in vantaggio — {{player}} colpisce!"
+          }
+        },
+        "equaliser": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} pareggia per il {{team}}! Partita riaperta!",
+            "1": "Il {{team}} torna in parità — {{player}} firma il pareggio!"
+          }
+        },
+        "extends": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} aggiunge un altro gol per il {{team}}!",
+            "1": "{{player}} segna ancora — il {{team}} si porta avanti!"
+          }
+        },
+        "consolation": {
+          "headline": "GOL",
+          "lines": {
+            "0": "{{player}} accorcia le distanze per il {{team}}.",
+            "1": "Un gol della bandiera per il {{team}} con {{player}}."
+          }
+        },
+        "brace": {
+          "headline": "GOOOL!",
+          "lines": {
+            "0": "{{player}} segna un altro gol — doppietta!",
+            "1": "Due gol per {{player}}!"
+          }
+        },
+        "hattrick": {
+          "headline": "HAT-TRICK!",
+          "lines": {
+            "0": "{{player}} completa la tripletta! Che spettacolo!",
+            "1": "Tre gol di {{player}} — che giornata memorabile!"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "RIGORE — GOL!",
+        "lines": {
+          "0": "{{player}} spiazza il portiere dal dischetto! Il {{team}} segna su rigore.",
+          "1": "Freddezza assoluta di {{player}} — rigore trasformato per il {{team}}!"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "RIGORE SBAGLIATO!",
+        "lines": {
+          "0": "{{player}} fallisce dal dischetto! Che sollievo per il {{opponent}}!",
+          "1": "Parato! {{player}} avrà degli incubi per questo rigore."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "RIGORE!",
+        "lines": {
+          "0": "L'arbitro indica il dischetto — rigore per il {{team}}!",
+          "1": "È rigore per il {{team}}! Momento decisivo."
+        }
+      },
+      "ShotSaved": {
+        "headline": "CHE PARATA!",
+        "lines": {
+          "0": "{{player}} costringe il portiere a un intervento.",
+          "1": "Il portiere nega il gol a {{player}}!"
+        },
+        "routine": {
+          "headline": "PARATA",
+          "lines": {
+            "0": "Un intervento agevole sul tiro di {{player}}.",
+            "1": "Direttamente tra le braccia del portiere, il tiro di {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "BELLA PARATA!",
+          "lines": {
+            "0": "Il portiere deve essere reattivo per fermare {{player}}!",
+            "1": "Mani sicure per negare il gol a {{player}}!"
+          }
+        },
+        "worldClass": {
+          "headline": "CHE PARATONA!",
+          "lines": {
+            "0": "Incredibile! Il portiere riesce a deviare il tiro di {{player}} in modo miracoloso!",
+            "1": "Parata di classe mondiale per negare un gol sicuro a {{player}}!"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "CHE OCCASIONE!",
+        "lines": {
+          "0": "{{player}} manda di poco fuori per il {{team}}.",
+          "1": "Così vicino! {{player}} non riesce a trovare lo specchio."
+        },
+        "speculative": {
+          "headline": "FUORI",
+          "lines": {
+            "0": "{{player}} ci prova da lontano ma va molto fuori.",
+            "1": "Troppo ambizioso da parte di {{player}} — lontano dalla porta."
+          }
+        },
+        "decent": {
+          "headline": "VICINO!",
+          "lines": {
+            "0": "Il tiro di {{player}} sfiora il palo.",
+            "1": "Non lontano per {{player}}!"
+          }
+        },
+        "bigChance": {
+          "headline": "COM'HA FATTO A SBAGLIARE?!",
+          "lines": {
+            "0": "{{player}} doveva segnare lì — incredibilmente largo!",
+            "1": "Un'occasione d'oro sprecata dal {{team}}! {{player}} non ci crede."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "BLOCCATO!",
+        "lines": {
+          "0": "Il tiro di {{player}} è bloccato da un coraggioso difensore.",
+          "1": "Corpi sulla traiettoria! {{player}} viene fermato."
+        },
+        "bigChance": {
+          "headline": "CHE BLOCCO!",
+          "lines": {
+            "0": "Un intervento decisivo ferma {{player}} da ottima posizione!",
+            "1": "Difesa in extremis per negare il gol a {{player}}!"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FALLO",
+        "lines": {
+          "0": "{{player}} commette fallo su {{victim}}. Punizione per il {{opponent}}.",
+          "1": "{{player}} regala un calcio di punizione contro {{victim}}."
+        },
+        "hard": {
+          "headline": "È FALLO",
+          "lines": {
+            "0": "{{player}} entra duro su {{victim}}! Fallo per il {{opponent}}.",
+            "1": "Un'entrata decisa di {{player}} su {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "SCONSIDERATO!",
+          "lines": {
+            "0": "{{player}} si avventa su {{victim}} — è pericoloso!",
+            "1": "Fallo brutale di {{player}} su {{victim}}! L'arbitro non lo passerà sotto silenzio."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "CARTELLINO GIALLO",
+        "lines": {
+          "0": "{{player}} viene ammonito con il {{team}}.",
+          "1": "Cartellino giallo per {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "CARTELLINO ROSSO!",
+        "lines": {
+          "0": "{{player}} è espulso! Il {{team}} rimane in dieci!",
+          "1": "Rosso diretto per {{player}}! Un disastro per il {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "SECONDO GIALLO — FUORI!",
+        "lines": {
+          "0": "{{player}} riceve il secondo giallo e viene espulso!",
+          "1": "Due gialli e via — {{player}} lascia il {{team}} in inferiorità numerica."
+        }
+      },
+      "Injury": {
+        "headline": "INFORTUNIO",
+        "lines": {
+          "0": "{{player}} è a terra e ha bisogno di cure.",
+          "1": "Preoccupazione nel {{team}}: {{player}} cade infortunato."
+        }
+      },
+      "Substitution": {
+        "headline": "SOSTITUZIONE",
+        "lines": {
+          "0": "Il {{team}} effettua un cambio: {{player}} entra, {{victim}} esce.",
+          "1": "{{player}} sostituisce {{victim}} nel {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "CALCIO D'INIZIO",
+        "lines": {
+          "0": "Si parte!",
+          "1": "La partita è cominciata!"
+        }
+      },
+      "HalfTime": {
+        "headline": "INTERVALLO",
+        "lines": {
+          "0": "L'arbitro fischia per l'intervallo.",
+          "1": "È la fine del primo tempo."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "SECONDO TEMPO",
+        "lines": {
+          "0": "Si riprende con il secondo tempo.",
+          "1": "Il secondo tempo è iniziato!"
+        }
+      },
+      "FullTime": {
+        "headline": "FISCHIO FINALE",
+        "lines": {
+          "0": "È tutto — fischio finale!",
+          "1": "L'arbitro pone fine all'incontro."
+        }
+      }
     }
   },
   "notifications": {

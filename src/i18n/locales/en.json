@@ -1726,6 +1726,233 @@
       "FreeKick": "Free Kick",
       "Foul": "Foul",
       "PenaltyAwarded": "Penalty Awarded"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "GOOAL!",
+        "lines": {
+          "0": "{{player}} finds the net for {{team}}!",
+          "1": "{{player}} buries it! What a finish!",
+          "2": "{{player}} scores for {{team}}!"
+        },
+        "opener": {
+          "headline": "GOOAL!",
+          "lines": {
+            "0": "{{player}} breaks the deadlock for {{team}}!",
+            "1": "First blood to {{team}} — {{player}} strikes!"
+          }
+        },
+        "equaliser": {
+          "headline": "GOOAL!",
+          "lines": {
+            "0": "{{player}} levels it for {{team}}! Game on!",
+            "1": "{{team}} are back on terms — {{player}} with the equaliser!"
+          }
+        },
+        "extends": {
+          "headline": "GOOAL!",
+          "lines": {
+            "0": "{{player}} adds another for {{team}}!",
+            "1": "{{player}} scores again — {{team}} pulling clear!"
+          }
+        },
+        "consolation": {
+          "headline": "GOAL",
+          "lines": {
+            "0": "{{player}} grabs one back for {{team}}.",
+            "1": "A consolation for {{team}} as {{player}} scores."
+          }
+        },
+        "brace": {
+          "headline": "GOOAL!",
+          "lines": {
+            "0": "{{player}} scores another goal — that's a brace!",
+            "1": "Two for {{player}} now!"
+          }
+        },
+        "hattrick": {
+          "headline": "HAT-TRICK!",
+          "lines": {
+            "0": "{{player}} completes the hat-trick! Take a bow!",
+            "1": "Three goals for {{player}} — what a day!"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "PENALTY — GOAL!",
+        "lines": {
+          "0": "{{player}} sends the keeper the wrong way! {{team}} score from the spot.",
+          "1": "Ice cold from {{player}} — penalty converted for {{team}}!"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "PENALTY MISSED!",
+        "lines": {
+          "0": "{{player}} fluffs it from the spot! What a let-off for {{opponent}}!",
+          "1": "Saved! {{player}} will be having nightmares about that penalty."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "PENALTY!",
+        "lines": {
+          "0": "The referee points to the spot — penalty to {{team}}!",
+          "1": "It's a penalty for {{team}}! Huge moment."
+        }
+      },
+      "ShotSaved": {
+        "headline": "GREAT SAVE!",
+        "lines": {
+          "0": "{{player}} forces a save out of the keeper.",
+          "1": "The keeper denies {{player}}!"
+        },
+        "routine": {
+          "headline": "SAVED",
+          "lines": {
+            "0": "A comfortable stop from {{player}}'s effort.",
+            "1": "Straight at the keeper from {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "GOOD SAVE!",
+          "lines": {
+            "0": "The keeper has to be alert to keep out {{player}}!",
+            "1": "Strong hands to deny {{player}}!"
+          }
+        },
+        "worldClass": {
+          "headline": "WHAT A SAVE!",
+          "lines": {
+            "0": "Incredible! The keeper somehow claws out {{player}}'s effort!",
+            "1": "World-class stop to deny {{player}} a certain goal!"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "THAT WAS CLOSE!",
+        "lines": {
+          "0": "{{player}} drags it just wide for {{team}}.",
+          "1": "So close! {{player}} can't quite find the target."
+        },
+        "speculative": {
+          "headline": "OFF TARGET",
+          "lines": {
+            "0": "{{player}} has a go from distance but it's well off.",
+            "1": "Ambitious from {{player}} — nowhere near."
+          }
+        },
+        "decent": {
+          "headline": "CLOSE!",
+          "lines": {
+            "0": "{{player}} sees the effort flash past the post.",
+            "1": "Not far away from {{player}}!"
+          }
+        },
+        "bigChance": {
+          "headline": "HOW DID THAT MISS?!",
+          "lines": {
+            "0": "{{player}} really should have scored there — agonisingly wide!",
+            "1": "A glorious chance goes begging for {{team}}! {{player}} will be kicking himself."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "BLOCKED!",
+        "lines": {
+          "0": "{{player}}'s shot is blocked by a brave defender.",
+          "1": "Bodies in the way! {{player}} is denied."
+        },
+        "bigChance": {
+          "headline": "GREAT BLOCK!",
+          "lines": {
+            "0": "A crucial block stops {{player}} from a great position!",
+            "1": "Last-ditch defending to deny {{player}}!"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FOUL",
+        "lines": {
+          "0": "{{player}} fouls {{victim}}. Free kick to {{opponent}}.",
+          "1": "{{player}} gives away a free kick against {{victim}}."
+        },
+        "hard": {
+          "headline": "IT'S A FOUL",
+          "lines": {
+            "0": "{{player}} goes hard on {{victim}}! Foul for {{opponent}}.",
+            "1": "A meaty challenge from {{player}} on {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "RECKLESS!",
+          "lines": {
+            "0": "{{player}} flies in on {{victim}} — that's a dangerous one!",
+            "1": "Crunching foul by {{player}} on {{victim}}! The ref won't like that."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "YELLOW CARD",
+        "lines": {
+          "0": "{{player}} goes into the book for {{team}}.",
+          "1": "A yellow card for {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "RED CARD!",
+        "lines": {
+          "0": "{{player}} is sent off! {{team}} down to ten!",
+          "1": "Straight red for {{player}}! Disaster for {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "SECOND YELLOW — OFF!",
+        "lines": {
+          "0": "{{player}} picks up a second yellow and is sent off!",
+          "1": "Two yellows and gone — {{player}} leaves {{team}} a man short."
+        }
+      },
+      "Injury": {
+        "headline": "INJURY",
+        "lines": {
+          "0": "{{player}} is down and needs treatment.",
+          "1": "Concern for {{team}} as {{player}} goes down injured."
+        }
+      },
+      "Substitution": {
+        "headline": "SUBSTITUTION",
+        "lines": {
+          "0": "{{team}} make a change: {{player}} on, {{victim}} off.",
+          "1": "{{player}} replaces {{victim}} for {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "KICK-OFF",
+        "lines": {
+          "0": "We're underway!",
+          "1": "The match is on!"
+        }
+      },
+      "HalfTime": {
+        "headline": "HALF TIME",
+        "lines": {
+          "0": "The referee blows for half time.",
+          "1": "That's the end of the first half."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "SECOND HALF",
+        "lines": {
+          "0": "We're back underway for the second half.",
+          "1": "Off we go again for the second half!"
+        }
+      },
+      "FullTime": {
+        "headline": "FULL TIME",
+        "lines": {
+          "0": "That's it — full time!",
+          "1": "The referee brings the match to an end."
+        }
+      }
     }
   },
   "endOfSeason": {

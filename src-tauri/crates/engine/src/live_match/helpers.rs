@@ -1,5 +1,6 @@
 use rand::{Rng, RngExt};
 
+use crate::event::{DangerBand, FoulSeverity, GoalContext, SaveQuality};
 use crate::shared::{PlayStylePhase, PlayerSnap, home_mod, play_style_modifier};
 use crate::types::{PlayerData, Position, Side, TeamData};
 
@@ -182,10 +183,208 @@ impl LiveMatchState {
         }
     }
 
+    /// Classify a goal about to be scored by `side`, using the CURRENT (pre-increment) score.
+    pub(super) fn goal_context(&self, side: Side) -> GoalContext {
+        let (own, opp) = match side {
+            Side::Home => (self.home_score, self.away_score),
+            Side::Away => (self.away_score, self.home_score),
+        };
+        let own_new = own + 1;
+        if own == 0 && opp == 0 {
+            GoalContext::Opener
+        } else if own_new == opp {
+            GoalContext::Equaliser
+        } else if own_new > opp {
+            GoalContext::Extends
+        } else {
+            GoalContext::Consolation
+        }
+    }
+
     pub(super) fn add_goal(&mut self, side: Side) {
         match side {
             Side::Home => self.home_score += 1,
             Side::Away => self.away_score += 1,
         }
+    }
+}
+
+/// Map a shooter's effective rating to a danger band for shot commentary.
+pub(super) fn danger_band(shoot_rating: f64) -> DangerBand {
+    if shoot_rating >= 68.0 {
+        DangerBand::BigChance
+    } else if shoot_rating >= 50.0 {
+        DangerBand::Decent
+    } else {
+        DangerBand::Speculative
+    }
+}
+
+/// Map a keeper's effective rating to a save-quality band.
+pub(super) fn save_quality(gk_rating: f64) -> SaveQuality {
+    if gk_rating >= 68.0 {
+        SaveQuality::WorldClass
+    } else if gk_rating >= 50.0 {
+        SaveQuality::Strong
+    } else {
+        SaveQuality::Routine
+    }
+}
+
+/// Map a fouler's aggression (0-100) to a foul-severity band.
+pub(super) fn foul_severity(aggression: u8) -> FoulSeverity {
+    if aggression >= 70 {
+        FoulSeverity::Reckless
+    } else if aggression >= 40 {
+        FoulSeverity::Hard
+    } else {
+        FoulSeverity::Soft
+    }
+}
+
+#[cfg(test)]
+mod commentary_detail_tests {
+    use super::*;
+    use crate::event::GoalContext;
+
+    #[test]
+    fn danger_band_thresholds() {
+        assert_eq!(danger_band(40.0), DangerBand::Speculative);
+        assert_eq!(danger_band(49.9), DangerBand::Speculative);
+        assert_eq!(danger_band(50.0), DangerBand::Decent);
+        assert_eq!(danger_band(55.0), DangerBand::Decent);
+        assert_eq!(danger_band(67.9), DangerBand::Decent);
+        assert_eq!(danger_band(68.0), DangerBand::BigChance);
+        assert_eq!(danger_band(75.0), DangerBand::BigChance);
+    }
+
+    #[test]
+    fn save_quality_thresholds() {
+        assert_eq!(save_quality(40.0), SaveQuality::Routine);
+        assert_eq!(save_quality(49.9), SaveQuality::Routine);
+        assert_eq!(save_quality(50.0), SaveQuality::Strong);
+        assert_eq!(save_quality(55.0), SaveQuality::Strong);
+        assert_eq!(save_quality(67.9), SaveQuality::Strong);
+        assert_eq!(save_quality(68.0), SaveQuality::WorldClass);
+        assert_eq!(save_quality(75.0), SaveQuality::WorldClass);
+    }
+
+    #[test]
+    fn foul_severity_thresholds() {
+        assert_eq!(foul_severity(20), FoulSeverity::Soft);
+        assert_eq!(foul_severity(39), FoulSeverity::Soft);
+        assert_eq!(foul_severity(40), FoulSeverity::Hard);
+        assert_eq!(foul_severity(55), FoulSeverity::Hard);
+        assert_eq!(foul_severity(69), FoulSeverity::Hard);
+        assert_eq!(foul_severity(70), FoulSeverity::Reckless);
+        assert_eq!(foul_severity(85), FoulSeverity::Reckless);
+    }
+
+    fn make_test_player(id: &str, pos: crate::types::Position) -> crate::types::PlayerData {
+        crate::types::PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position: pos,
+            ovr: 70,
+            condition: 90,
+            fitness: 75,
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+        }
+    }
+
+    fn make_test_state() -> LiveMatchState {
+        use crate::types::{MatchConfig, PlayStyle, Position, TeamData};
+        let make_team = |id: &str| TeamData {
+            id: id.to_string(),
+            name: id.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            players: vec![
+                make_test_player(&format!("{}_gk", id), Position::Goalkeeper),
+                make_test_player(&format!("{}_d1", id), Position::Defender),
+                make_test_player(&format!("{}_d2", id), Position::Defender),
+                make_test_player(&format!("{}_d3", id), Position::Defender),
+                make_test_player(&format!("{}_d4", id), Position::Defender),
+                make_test_player(&format!("{}_m1", id), Position::Midfielder),
+                make_test_player(&format!("{}_m2", id), Position::Midfielder),
+                make_test_player(&format!("{}_m3", id), Position::Midfielder),
+                make_test_player(&format!("{}_m4", id), Position::Midfielder),
+                make_test_player(&format!("{}_f1", id), Position::Forward),
+                make_test_player(&format!("{}_f2", id), Position::Forward),
+            ],
+        };
+        LiveMatchState::new(
+            make_team("home"),
+            make_team("away"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        )
+    }
+
+    #[test]
+    fn goal_context_classifies_correctly() {
+        let mut state = make_test_state();
+        // 0-0, Home about to score -> Opener
+        state.home_score = 0;
+        state.away_score = 0;
+        assert_eq!(state.goal_context(Side::Home), GoalContext::Opener);
+        // 0-1, Home about to score -> Equaliser (0+1 == 1)
+        state.home_score = 0;
+        state.away_score = 1;
+        assert_eq!(state.goal_context(Side::Home), GoalContext::Equaliser);
+        // 1-0, Home about to score -> Extends (1+1 > 0)
+        state.home_score = 1;
+        state.away_score = 0;
+        assert_eq!(state.goal_context(Side::Home), GoalContext::Extends);
+        // 0-2, Home about to score -> Consolation (0+1 < 2)
+        state.home_score = 0;
+        state.away_score = 2;
+        assert_eq!(state.goal_context(Side::Home), GoalContext::Consolation);
+        // Away-side flip: 1-0, Away about to score -> Equaliser
+        state.home_score = 1;
+        state.away_score = 0;
+        assert_eq!(state.goal_context(Side::Away), GoalContext::Equaliser);
+    }
+
+    /// Once any goal has been scored — including a penalty, which reaches the
+    /// scoreboard through `add_goal` exactly like an open-play goal — no later
+    /// goal can be an `Opener`. This pins the cross-path invariant that
+    /// `first_goal_detail_is_opener` depends on: that test deliberately skips
+    /// seeds where a `PenaltyGoal` scores first, so the penalty-before-goal
+    /// case is verified here instead.
+    #[test]
+    fn goal_after_a_prior_goal_is_never_opener() {
+        let mut state = make_test_state();
+        // Simulate a converted penalty for the home side via the real scoring API.
+        state.add_goal(Side::Home);
+        assert_eq!(state.home_score, 1);
+
+        // The scoreboard has moved, so neither side's next goal opens the scoring.
+        assert_ne!(state.goal_context(Side::Home), GoalContext::Opener);
+        assert_ne!(state.goal_context(Side::Away), GoalContext::Opener);
+        // Specifically: home extends the lead, away equalises.
+        assert_eq!(state.goal_context(Side::Home), GoalContext::Extends);
+        assert_eq!(state.goal_context(Side::Away), GoalContext::Equaliser);
     }
 }
