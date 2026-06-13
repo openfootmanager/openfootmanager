@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
 import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
-import { getEventDisplay, getPlayerName, phaseLabel } from "./helpers";
-import { Badge } from "../ui";
+import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
+import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
@@ -47,8 +47,10 @@ export default function MatchLive({
   // Track phases we've already signaled to avoid double-firing
   const signaledRef = useRef<Set<string>>(new Set());
 
-  const homeTeamColor = gameState.teams.find(t => t.id === snapshot.home_team.id)?.colors?.primary || "#10b981";
-  const awayTeamColor = gameState.teams.find(t => t.id === snapshot.away_team.id)?.colors?.primary || "#6366f1";
+  const homeFullTeam = gameState.teams.find(t => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find(t => t.id === snapshot.away_team.id);
+  const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
+  const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
   const isFinished = snapshot.phase === "Finished";
 
@@ -199,12 +201,12 @@ export default function MatchLive({
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{snapshot.home_team.formation}</p>
                 </div>
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
+                <TeamLogo
+                  team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
+                  imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{ backgroundColor: homeTeamColor + "30", borderColor: homeTeamColor, borderWidth: 2 }}
-                >
-                  {snapshot.home_team.name.substring(0, 3).toUpperCase()}
-                </div>
+                />
               </div>
 
               <div className="flex items-center gap-3">
@@ -219,12 +221,12 @@ export default function MatchLive({
               </div>
 
               <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm"
+                <TeamLogo
+                  team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
+                  imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{ backgroundColor: awayTeamColor + "30", borderColor: awayTeamColor, borderWidth: 2 }}
-                >
-                  {snapshot.away_team.name.substring(0, 3).toUpperCase()}
-                </div>
+                />
                 <div className="text-left">
                   <p className="font-heading font-bold text-sm uppercase tracking-wider text-gray-800 dark:text-gray-200">
                     {snapshot.away_team.name}

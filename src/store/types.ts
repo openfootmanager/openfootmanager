@@ -48,6 +48,12 @@ export interface TeamMatchRolesData {
   corner_taker: string | null;
 }
 
+/** Optional media paths for team branding. resolveLocalMediaPath accepts local paths only. */
+export interface TeamMediaData {
+  /** Local path to a team logo image; remote URLs and data URIs are ignored. */
+  logo?: string;
+}
+
 export interface TeamData {
   id: string;
   name: string;
@@ -71,6 +77,7 @@ export interface TeamData {
   training_schedule: string;
   founded_year: number;
   colors: TeamColors;
+  media?: TeamMediaData;
   facilities?: FacilitiesData;
   sponsorship?: SponsorshipData | null;
   starting_xi_ids: string[];
@@ -129,6 +136,12 @@ export interface PlayerMoraleCoreData {
 
 export type PlayerSquadRole = "Senior" | "Youth";
 
+/** Optional media paths for player visuals. resolveLocalMediaPath accepts local paths only. */
+export interface PlayerMediaData {
+  /** Local path to a player face image; remote URLs and data URIs are ignored. */
+  face?: string;
+}
+
 export interface PlayerData {
   id: string;
   match_name: string;
@@ -136,6 +149,7 @@ export interface PlayerData {
   date_of_birth: string;
   nationality: string;
   football_nation?: string;
+  media?: PlayerMediaData;
   position: string;
   natural_position: string;
   alternate_positions: string[];

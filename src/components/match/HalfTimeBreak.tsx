@@ -10,10 +10,10 @@ import {
   getTeamTalkOptions,
   TeamTalkTone,
 } from "./types";
-import { getEventDisplay, getPlayerName } from "./helpers";
+import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { SubPanel } from "./SubPanel";
-import { Badge, ThemeToggle } from "../ui";
+import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import {
   Play,
   RefreshCw,
@@ -68,12 +68,10 @@ export default function HalfTimeBreak({
     }[]
   >([]);
 
-  const homeTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.home_team.id)?.colors
-      ?.primary || "#10b981";
-  const awayTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.away_team.id)?.colors
-      ?.primary || "#6366f1";
+  const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
+  const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
   const userTeam =
     userSide === "Home" ? snapshot.home_team : snapshot.away_team;
@@ -171,16 +169,16 @@ export default function HalfTimeBreak({
           <ThemeToggle className="absolute right-0 top-0" />
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold"
+              <TeamLogo
+                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
+                imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
                   backgroundColor: homeTeamColor + "30",
                   borderColor: homeTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.home_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
               <p className="font-heading font-bold text-gray-800 dark:text-gray-200">
                 {snapshot.home_team.name}
               </p>
@@ -207,16 +205,16 @@ export default function HalfTimeBreak({
               <p className="font-heading font-bold text-gray-800 dark:text-gray-200">
                 {snapshot.away_team.name}
               </p>
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold"
+              <TeamLogo
+                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
+                imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
                   backgroundColor: awayTeamColor + "30",
                   borderColor: awayTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.away_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
             </div>
           </div>
 

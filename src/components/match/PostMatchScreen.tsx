@@ -10,9 +10,9 @@ import {
   RoundSummary,
   TeamTalkTone,
 } from "./types";
-import { getEventDisplay, getPlayerName } from "./helpers";
+import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
-import { Badge, ThemeToggle } from "../ui";
+import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import {
   QuickStat,
   renderScorers,
@@ -68,12 +68,10 @@ export default function PostMatchScreen({
     }[]
   >([]);
 
-  const homeTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.home_team.id)?.colors
-      ?.primary || "#10b981";
-  const awayTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.away_team.id)?.colors
-      ?.primary || "#6366f1";
+  const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
+  const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
   const userScore =
     userSide === "Home" ? snapshot.home_score : snapshot.away_score;
@@ -335,16 +333,16 @@ export default function PostMatchScreen({
           {/* Scoreboard */}
           <div className="flex items-center justify-center gap-10">
             <div className="flex items-center gap-4">
-              <div
-                className="w-16 h-16 rounded-xl flex items-center justify-center font-heading font-bold text-lg"
+              <TeamLogo
+                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                className="w-16 h-16 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
+                imageClassName="h-12 w-12 object-contain drop-shadow"
                 style={{
                   backgroundColor: homeTeamColor + "30",
                   borderColor: homeTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.home_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
               <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
                 {snapshot.home_team.name}
               </p>
@@ -371,16 +369,16 @@ export default function PostMatchScreen({
               <p className="font-heading font-bold text-lg text-gray-800 dark:text-gray-200">
                 {snapshot.away_team.name}
               </p>
-              <div
-                className="w-16 h-16 rounded-xl flex items-center justify-center font-heading font-bold text-lg"
+              <TeamLogo
+                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                className="w-16 h-16 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
+                imageClassName="h-12 w-12 object-contain drop-shadow"
                 style={{
                   backgroundColor: awayTeamColor + "30",
                   borderColor: awayTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.away_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
             </div>
           </div>
         </div>

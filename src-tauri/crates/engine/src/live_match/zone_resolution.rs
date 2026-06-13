@@ -1,10 +1,11 @@
 use rand::{Rng, RngExt};
 
-use crate::event::{EventType, MatchEvent};
+use crate::event::{EventDetail, EventType, MatchEvent};
 use crate::shared::{PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, trait_bonus};
 use crate::types::{Position, Side, Zone};
 
 use super::LiveMatchState;
+use super::helpers::{danger_band, foul_severity, save_quality};
 
 // ---------------------------------------------------------------------------
 // Action resolution
@@ -243,14 +244,19 @@ impl LiveMatchState {
         let zone = Zone::attacking_box(att_side);
 
         if rng.random_range(0.0..1.0f64) > accuracy {
+            let detail = EventDetail::Shot {
+                danger: danger_band(shoot_rating),
+            };
             if rng.random_range(0.0..1.0f64) < 0.4 {
                 let evt = MatchEvent::new(minute, EventType::ShotBlocked, att_side, zone)
-                    .with_player(&shooter.id);
+                    .with_player(&shooter.id)
+                    .with_detail(detail);
                 self.events.push(evt.clone());
                 events.push(evt);
             } else {
                 let evt = MatchEvent::new(minute, EventType::ShotOffTarget, att_side, zone)
-                    .with_player(&shooter.id);
+                    .with_player(&shooter.id)
+                    .with_detail(detail);
                 self.events.push(evt.clone());
                 events.push(evt);
             }
@@ -263,15 +269,20 @@ impl LiveMatchState {
             .clamp(0.10, 0.70);
 
         if rng.random_range(0.0..1.0f64) < conversion {
+            let context = self.goal_context(att_side);
             let evt = MatchEvent::new(minute, EventType::Goal, att_side, zone)
                 .with_player(&shooter.id)
-                .with_secondary(&assister.id);
+                .with_secondary(&assister.id)
+                .with_detail(EventDetail::Goal { context });
             self.events.push(evt.clone());
             events.push(evt);
             self.add_goal(att_side);
         } else {
             let evt = MatchEvent::new(minute, EventType::ShotSaved, att_side, zone)
-                .with_player(&shooter.id);
+                .with_player(&shooter.id)
+                .with_detail(EventDetail::Save {
+                    quality: save_quality(gk_rating),
+                });
             self.events.push(evt.clone());
             events.push(evt);
         }
@@ -306,7 +317,10 @@ impl LiveMatchState {
 
         let evt = MatchEvent::new(minute, EventType::Foul, fouling_side, zone)
             .with_player(&fouler.id)
-            .with_secondary(&fouled.id);
+            .with_secondary(&fouled.id)
+            .with_detail(EventDetail::Foul {
+                severity: foul_severity(fouler.aggression),
+            });
         self.events.push(evt.clone());
         events.push(evt);
 
@@ -379,5 +393,125 @@ impl LiveMatchState {
         }
 
         events
+    }
+}
+
+#[cfg(test)]
+mod event_detail_tests {
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    use crate::event::{EventDetail, EventType, GoalContext};
+    use crate::live_match::LiveMatchState;
+    use crate::types::{MatchConfig, PlayStyle, PlayerData, Position, TeamData};
+
+    fn make_player(id: &str, pos: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position: pos,
+            ovr: 70,
+            condition: 90,
+            fitness: 75,
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+        }
+    }
+
+    fn make_team(id: &str) -> TeamData {
+        TeamData {
+            id: id.to_string(),
+            name: id.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            players: vec![
+                make_player(&format!("{id}_gk"), Position::Goalkeeper),
+                make_player(&format!("{id}_d1"), Position::Defender),
+                make_player(&format!("{id}_d2"), Position::Defender),
+                make_player(&format!("{id}_d3"), Position::Defender),
+                make_player(&format!("{id}_d4"), Position::Defender),
+                make_player(&format!("{id}_m1"), Position::Midfielder),
+                make_player(&format!("{id}_m2"), Position::Midfielder),
+                make_player(&format!("{id}_m3"), Position::Midfielder),
+                make_player(&format!("{id}_m4"), Position::Midfielder),
+                make_player(&format!("{id}_f1"), Position::Forward),
+                make_player(&format!("{id}_f2"), Position::Forward),
+            ],
+        }
+    }
+
+    /// The first goal of any match must be classified as `Opener` because both
+    /// scores are 0 at that point.
+    #[test]
+    fn first_goal_detail_is_opener() {
+        // Try multiple seeds and validate the invariant whenever a goal appears.
+        let mut saw_any_goal = false;
+        for seed in 0u64..500 {
+            let mut state = LiveMatchState::new(
+                make_team("home"),
+                make_team("away"),
+                MatchConfig::default(),
+                vec![],
+                vec![],
+                false,
+            );
+            let mut rng = StdRng::seed_from_u64(seed);
+
+            // Step minute-by-minute until finished or the first scoring event
+            // appears. A `PenaltyGoal` can score before any open-play `Goal` and
+            // updates the score, so the first open-play goal is only guaranteed
+            // to be an `Opener` when nothing scored before it.
+            let first_scoring = loop {
+                let result = state.step_minute(&mut rng);
+                let scoring = result
+                    .events
+                    .iter()
+                    .find(|e| matches!(e.event_type, EventType::Goal | EventType::PenaltyGoal))
+                    .cloned();
+                if let Some(evt) = scoring {
+                    break Some(evt);
+                }
+                if result.is_finished {
+                    break None;
+                }
+            };
+
+            if let Some(first_evt) = first_scoring {
+                if first_evt.event_type == EventType::Goal {
+                    assert_eq!(
+                        first_evt.detail,
+                        Some(EventDetail::Goal {
+                            context: GoalContext::Opener
+                        }),
+                        "seed {seed}: first goal detail should be Opener, got {:?}",
+                        first_evt.detail
+                    );
+                    saw_any_goal = true;
+                }
+            }
+            // No goal scored in this seed — try the next one.
+        }
+        assert!(
+            saw_any_goal,
+            "No goal was scored in 500 seeds; increase seed range or check engine config"
+        );
     }
 }

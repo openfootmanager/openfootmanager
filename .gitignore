@@ -39,3 +39,6 @@ vitest-*.json
 # World JSON exports (large files, generated locally)
 exported_world.json
 test-world.json
+
+# Personal-use imported world assets/data
+/public/assets/worlds/

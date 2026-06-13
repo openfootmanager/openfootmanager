@@ -11,6 +11,8 @@ pub struct Player {
     pub football_nation: String,
     #[serde(default)]
     pub birth_country: Option<String>,
+    #[serde(default)]
+    pub media: PlayerMedia,
 
     pub position: Position,
 
@@ -82,6 +84,12 @@ pub struct Player {
     pub transfer_offers: Vec<TransferOffer>,
     #[serde(default)]
     pub morale_core: PlayerMoraleCore,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PlayerMedia {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub face: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -536,6 +544,7 @@ impl Player {
             nationality,
             football_nation,
             birth_country,
+            media: PlayerMedia::default(),
             natural_position: position.clone(),
             position,
             alternate_positions: Vec::new(),

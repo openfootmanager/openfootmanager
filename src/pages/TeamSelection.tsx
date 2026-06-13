@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData, PlayerData } from "../store/gameStore";
 import { formatVal, getPlayerOvr } from "../lib/helpers";
-import { Card, CardBody, Badge, TeamLocation, ThemeToggle } from "../components/ui";
+import { Card, CardBody, Badge, TeamLocation, ThemeToggle, TeamLogo } from "../components/ui";
 import { ArrowLeft, Users, Trophy, Landmark, ChevronRight, Star, Loader2 } from "lucide-react";
 import { resolveBackendError } from "../utils/backendI18n";
 
@@ -125,12 +125,13 @@ export default function TeamSelection() {
                     }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-heading font-bold text-lg ${isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-white/10 text-gray-300"
-                          }`}>
-                          {team.short_name}
-                        </div>
+                        <TeamLogo
+                          team={team}
+                          className={`w-12 h-12 rounded-lg flex items-center justify-center font-heading font-bold text-lg overflow-hidden ${isSelected
+                            ? "bg-white/20 text-white"
+                            : "bg-white/10 text-gray-300"
+                            }`}
+                        />
                         <div>
                           <h3 className="font-heading font-bold text-white uppercase tracking-wide text-sm">
                             {team.name}
