@@ -92,6 +92,15 @@ pub fn nation_by_code(code: &str) -> Option<&'static NationDef> {
     NATION_CATALOG.iter().find(|nation| nation.code == code)
 }
 
+/// Confederation/region id for a nation code, defaulting to Europe for nations
+/// outside the catalog. Single source of truth for region inference across the
+/// generator, competitions, and the UI.
+pub fn region_for_code(code: &str) -> &'static str {
+    nation_by_code(code)
+        .map(|nation| nation.region_id)
+        .unwrap_or("europe")
+}
+
 /// Human-readable nation name, falling back to the code for nations outside
 /// the catalog (e.g. nationalities only present in a custom world file).
 pub fn nation_display_name(code: &str) -> String {

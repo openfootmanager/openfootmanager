@@ -300,16 +300,7 @@ fn build_game_from_world_data(
 }
 
 fn infer_region_id(country_code: &str) -> String {
-    match country_code {
-        "BR" | "AR" | "UY" | "CL" | "CO" | "PE" | "EC" | "VE" | "PY" | "BO" => {
-            "south-america".to_string()
-        }
-        "US" | "CA" | "MX" => "north-america".to_string(),
-        "CR" | "PA" | "HN" | "GT" | "SV" | "NI" => "central-america".to_string(),
-        "AU" | "NZ" => "oceania".to_string(),
-        "JP" | "KR" | "CN" | "SA" | "QA" => "asia".to_string(),
-        _ => "europe".to_string(),
-    }
+    ofm_core::nations::region_for_code(country_code).to_string()
 }
 
 fn infer_team_region_id(team: &domain::team::Team) -> String {
@@ -351,9 +342,10 @@ fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
         .into_iter()
         .map(|(nation, mut players)| {
             players.sort_by(|left, right| right.ovr.cmp(&left.ovr));
+            let nation_label = ofm_core::nations::nation_display_name(&nation);
             let mut national_team = NationalTeam::new(
                 format!("nt-{}", nation.to_lowercase()),
-                format!("{} National Team", nation),
+                format!("{} National Team", nation_label),
                 nation.clone(),
                 Some(infer_region_id(&nation)),
             );
@@ -406,29 +398,28 @@ fn select_continental_entrants(
         .collect()
 }
 
-/// Minimum clubs per division. A country needs at least two divisions' worth of
-/// clubs before it splits into a promotion/relegation pyramid.
-const MIN_DIVISION_SIZE: usize = 4;
+/// Target number of clubs in a division. Countries are chunked into divisions
+/// of this size: a 40-club major becomes two 20-club tiers, a 20-club nation a
+/// single league. Smaller imported worlds run a single league per country.
+const TOP_DIVISION_SIZE: usize = 20;
 
-/// Split a country's clubs (passed strongest-first) into one or two divisions.
-/// A second tier is only created when there are enough clubs for both divisions
-/// to be viable; otherwise the country runs a single league.
-fn split_into_divisions(sorted_team_ids: &[String], min_division_size: usize) -> Vec<Vec<String>> {
-    let total = sorted_team_ids.len();
-    if total < min_division_size * 2 {
+/// Split a country's clubs (passed strongest-first) into divisions of
+/// `division_size`, strongest tier first. A trailing remainder smaller than
+/// half a division is folded up so no tier is left tiny.
+fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec<Vec<String>> {
+    let division_size = division_size.max(2);
+    if sorted_team_ids.len() <= division_size {
         return vec![sorted_team_ids.to_vec()];
     }
-    let mut bottom_size = total / 2;
-    // Round-robin schedules require even-sized divisions; with an even total,
-    // nudge the split so both tiers stay even (an odd total is odd either way).
-    if total % 2 == 0 && bottom_size % 2 == 1 {
-        bottom_size -= 1;
+    let mut divisions: Vec<Vec<String>> = sorted_team_ids
+        .chunks(division_size)
+        .map(<[String]>::to_vec)
+        .collect();
+    if divisions.len() >= 2 && divisions.last().map(Vec::len).unwrap_or(0) < division_size / 2 {
+        let tail = divisions.pop().expect("len >= 2");
+        divisions.last_mut().expect("len >= 1").extend(tail);
     }
-    let split = total - bottom_size;
-    vec![
-        sorted_team_ids[..split].to_vec(),
-        sorted_team_ids[split..].to_vec(),
-    ]
+    divisions
 }
 
 /// Name a division within a country's pyramid.
@@ -477,13 +468,15 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
                 .then_with(|| left.cmp(right))
         });
         let region_id = infer_region_id(&country);
+        // Human-readable nation name for competition titles ("ES" → "Spain").
+        let country_label = ofm_core::nations::nation_display_name(&country);
 
         // One or two divisions depending on how many clubs the country has.
-        let divisions = split_into_divisions(&team_ids, MIN_DIVISION_SIZE);
+        let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
         let division_count = divisions.len();
         for (tier, division_ids) in divisions.iter().enumerate() {
             let mut league = ofm_core::schedule::generate_league(
-                &division_name(&country, tier, division_count),
+                &division_name(&country_label, tier, division_count),
                 season,
                 division_ids,
                 season_start,
@@ -499,7 +492,7 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         // National cup contested by every club in the country (byes handle any
         // entrant count).
         let mut cup = ofm_core::schedule::generate_knockout_cup(
-            &format!("{country} Cup"),
+            &format!("{country_label} Cup"),
             season,
             &team_ids,
             season_start + Duration::days(35),
@@ -1365,40 +1358,49 @@ mod tests {
     }
 
     #[test]
-    fn split_into_divisions_creates_two_tiers_when_clubs_allow() {
-        let clubs: Vec<String> = (0..9).map(|i| format!("club-{i}")).collect();
+    fn split_into_divisions_chunks_a_major_into_two_tiers() {
+        let clubs: Vec<String> = (0..40).map(|i| format!("club-{i:02}")).collect();
 
-        let divisions = split_into_divisions(&clubs, 4);
+        let divisions = split_into_divisions(&clubs, 20);
 
         assert_eq!(divisions.len(), 2);
-        // Strongest half on top (top gets the extra when the count is odd).
-        assert_eq!(divisions[0].len(), 5);
-        assert_eq!(divisions[1].len(), 4);
-        assert_eq!(divisions[0][0], "club-0");
-        assert_eq!(divisions[1][0], "club-5");
+        assert_eq!(divisions[0].len(), 20);
+        assert_eq!(divisions[1].len(), 20);
+        // Strongest tier first; the second tier starts where the first ends.
+        assert_eq!(divisions[0][0], "club-00");
+        assert_eq!(divisions[1][0], "club-20");
     }
 
     #[test]
-    fn split_into_divisions_keeps_even_tiers_for_even_totals() {
-        // A naive halving of 10 clubs would give 5+5 — odd divisions cannot
-        // play a full round robin, so the split must stay even.
-        let clubs: Vec<String> = (0..10).map(|i| format!("club-{i}")).collect();
+    fn split_into_divisions_keeps_a_single_league_at_division_size() {
+        let clubs: Vec<String> = (0..20).map(|i| format!("club-{i:02}")).collect();
 
-        let divisions = split_into_divisions(&clubs, 4);
+        let divisions = split_into_divisions(&clubs, 20);
 
-        assert_eq!(divisions.len(), 2);
-        assert_eq!(divisions[0].len(), 6);
-        assert_eq!(divisions[1].len(), 4);
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 20);
     }
 
     #[test]
     fn split_into_divisions_keeps_a_single_tier_for_small_countries() {
         let clubs: Vec<String> = (0..7).map(|i| format!("club-{i}")).collect();
 
-        let divisions = split_into_divisions(&clubs, 4);
+        let divisions = split_into_divisions(&clubs, 20);
 
         assert_eq!(divisions.len(), 1);
         assert_eq!(divisions[0].len(), 7);
+    }
+
+    #[test]
+    fn split_into_divisions_folds_a_tiny_remainder_up() {
+        // 25 clubs → 20 + 5; the 5-club tail folds up rather than forming a
+        // tiny second division.
+        let clubs: Vec<String> = (0..25).map(|i| format!("club-{i:02}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 20);
+
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 25);
     }
 
     #[test]

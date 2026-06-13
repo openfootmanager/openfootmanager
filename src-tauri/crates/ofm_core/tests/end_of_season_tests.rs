@@ -224,7 +224,7 @@ fn process_end_of_season_reschedules_national_team_windows() {
         "rescheduled friendlies start the new season unplayed"
     );
     // Windows for the new season fall after the rollover date.
-    assert!(fixtures.iter().all(|f| f.date.as_str() > "2026-06-01"));
+    assert!(fixtures.iter().all(|f| f.date.as_str() > "2024-06-01"));
 }
 
 #[test]

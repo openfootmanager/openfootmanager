@@ -1,9 +1,11 @@
+pub mod clubs;
 pub(crate) mod data;
 pub mod competition_def;
 pub mod definitions;
 mod generation;
 pub mod world_io;
 
+pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
 pub use world_io::*;
@@ -233,8 +235,19 @@ fn normalize_generated_team(team: &mut Team, players: &mut [Player]) {
 // ---------------------------------------------------------------------------
 
 /// Generate a random world (raw tuple — used by `generate_world_data`).
-/// Loads definition files from `data_dir` if provided; falls back to hardcoded defaults.
+/// Loads definition files from `data_dir` if provided; otherwise procedurally
+/// generates the full standard world (every catalogued nation with a real
+/// league pyramid).
 pub fn generate_world(
+    data_dir: Option<&std::path::Path>,
+) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
+    generate_world_with(&clubs::WorldGenConfig::standard(), data_dir)
+}
+
+/// Generate a world from an explicit generation config. The shipped game uses
+/// [`WorldGenConfig::standard`]; tests use a smaller config for speed.
+pub fn generate_world_with(
+    config: &clubs::WorldGenConfig,
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     info!("[generator] generate_world: data_dir={:?}", data_dir);
@@ -243,7 +256,7 @@ pub fn generate_world(
     let mut players = Vec::new();
     let mut staff = Vec::new();
 
-    // Load definitions (external file → hardcoded fallback)
+    // Load name pools (external file → hardcoded fallback)
     let names_def = data_dir
         .and_then(|dir| {
             let path = dir.join("default_names.json");
@@ -256,22 +269,26 @@ pub fn generate_world(
             result
         })
         .unwrap_or_else(default_names_definition);
-    let teams_def = data_dir
+
+    // Clubs come from an external curated file when present, otherwise from the
+    // procedural generator driven by `config`.
+    let team_defs: Vec<TeamDef> = data_dir
         .and_then(|dir| {
             let path = dir.join("default_teams.json");
             let result = load_teams_definition(&path);
             if result.is_some() {
                 info!("[generator] loaded teams from {:?}", path);
             } else {
-                debug!("[generator] no teams file at {:?}, using defaults", path);
+                debug!("[generator] no teams file at {:?}, generating procedurally", path);
             }
             result
         })
-        .unwrap_or_else(default_teams_definition);
+        .map(|def| def.teams)
+        .unwrap_or_else(|| clubs::generate_club_defs(config, &mut rng));
 
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
-    for tdef in &teams_def.teams {
+    for tdef in &team_defs {
         let team_id = Uuid::new_v4().to_string();
         let short_name = if tdef.short_name.is_empty() {
             tdef.name
@@ -401,15 +418,38 @@ mod tests {
 
     #[test]
     fn test_generate_world_team_count() {
-        let (teams, players, staff) = generate_world(None);
-        assert_eq!(teams.len(), 16);
-        assert_eq!(players.len(), 16 * 22);
-        assert_eq!(staff.len(), 16 * 4 + 12);
+        let config = WorldGenConfig::compact();
+        let expected = config.total_clubs();
+        let (teams, players, staff) = generate_world_with(&config, None);
+        assert_eq!(teams.len(), expected);
+        assert_eq!(players.len(), expected * 22);
+        assert_eq!(staff.len(), expected * 4 + 12);
+    }
+
+    #[test]
+    fn standard_world_fills_every_nation_and_spans_confederations() {
+        let config = WorldGenConfig::standard();
+        let (teams, _, _) = generate_world_with(&config, None);
+        assert_eq!(teams.len(), config.total_clubs());
+
+        // Every configured nation fields at least a full division.
+        for nation in &config.nations {
+            let count = teams
+                .iter()
+                .filter(|team| team.football_nation == nation.code)
+                .count();
+            assert!(
+                count >= config.clubs_per_division,
+                "{} only generated {} clubs",
+                nation.code,
+                count
+            );
+        }
     }
 
     #[test]
     fn test_generate_world_all_players_assigned() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
         let team_ids: Vec<&str> = teams.iter().map(|t| t.id.as_str()).collect();
         for p in &players {
             assert!(p.team_id.is_some(), "Player {} has no team", p.full_name);
@@ -422,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_positions_per_team() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
         for team in &teams {
             let team_players: Vec<_> = players
                 .iter()
@@ -440,7 +480,7 @@ mod tests {
     #[test]
     fn test_generate_world_normalizes_opening_financials() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world(None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
             for team in &teams {
                 let annual_wages: i64 = players
                     .iter()
@@ -474,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_seeds_opening_youth_academies() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
 
         for team in &teams {
             let youth_players: Vec<_> = players
@@ -511,7 +551,7 @@ mod tests {
     #[test]
     fn test_generate_world_limits_immediate_contract_pressure() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world(None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
             for team in &teams {
                 let expiring_contracts = players
                     .iter()
@@ -602,7 +642,7 @@ mod tests {
 
     #[test]
     fn test_all_nationalities_use_short_uppercase_codes() {
-        let (_, players, staff) = generate_world(None);
+        let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), None);
         for p in &players {
             assert_eq!(
                 p.nationality.len() == 2 || p.nationality.len() == 3,
@@ -639,7 +679,7 @@ mod tests {
     #[test]
     fn test_world_data_wrapper() {
         let world = generate_world_data(None);
-        assert_eq!(world.teams.len(), 16);
+        assert_eq!(world.teams.len(), WorldGenConfig::standard().total_clubs());
         assert!(!world.name.is_empty());
         assert!(!world.description.is_empty());
     }
