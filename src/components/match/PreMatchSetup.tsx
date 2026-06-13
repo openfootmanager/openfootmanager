@@ -9,6 +9,8 @@ import PreMatchLineup, {
 } from "./PreMatchLineup";
 import MatchScreenLayout from "./MatchScreenLayout";
 import SetPieceSelector from "./SetPieceSelector";
+import { makeTeamFallback } from "./helpers";
+import { TeamLogo } from "../ui";
 import {
   ChevronRight,
   Shield,
@@ -63,12 +65,10 @@ export default function PreMatchSetup({
   const userSetPieces =
     userSide === "Home" ? snapshot.home_set_pieces : snapshot.away_set_pieces;
 
-  const homeTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.home_team.id)?.colors
-      ?.primary || "#10b981";
-  const awayTeamColor =
-    gameState.teams.find((t) => t.id === snapshot.away_team.id)?.colors
-      ?.primary || "#6366f1";
+  const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
+  const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
+  const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
   const userColor = userSide === "Home" ? homeTeamColor : awayTeamColor;
   const fixtureLabel = currentFixture
     ? getFixtureDisplayLabel(t, currentFixture)
@@ -226,16 +226,16 @@ export default function PreMatchSetup({
         <>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg"
+              <TeamLogo
+                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
+                imageClassName="h-11 w-11 object-contain drop-shadow"
                 style={{
                   backgroundColor: homeTeamColor + "30",
                   borderColor: homeTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.home_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
               <div>
                 <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">
                   {snapshot.home_team.name}
@@ -266,16 +266,16 @@ export default function PreMatchSetup({
                   {t(`common.playStyles.${snapshot.away_team.play_style}`, snapshot.away_team.play_style)}
                 </p>
               </div>
-              <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg"
+              <TeamLogo
+                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-lg overflow-hidden"
+                imageClassName="h-11 w-11 object-contain drop-shadow"
                 style={{
                   backgroundColor: awayTeamColor + "30",
                   borderColor: awayTeamColor,
                   borderWidth: 2,
                 }}
-              >
-                {snapshot.away_team.name.substring(0, 3).toUpperCase()}
-              </div>
+              />
             </div>
           </div>
 
@@ -366,6 +366,7 @@ export default function PreMatchSetup({
             userTeam={userTeam}
             userBench={userBench}
             oppTeam={oppTeam}
+            oppFullTeam={userSide === "Home" ? awayFullTeam : homeFullTeam}
             userColor={userColor}
             homeTeamColor={homeTeamColor}
             awayTeamColor={awayTeamColor}

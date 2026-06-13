@@ -147,6 +147,13 @@ function humanizeEventType(eventType: string): string {
 
 type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
 
+export function makeTeamFallback(teamName: string) {
+  return {
+    name: teamName,
+    short_name: teamName.substring(0, 3).toUpperCase().padEnd(3, " "),
+  };
+}
+
 export function getEventDisplay(evt: MatchEvent) {
   return EVENT_ICONS[evt.event_type] || DEFAULT_DISPLAY;
 }

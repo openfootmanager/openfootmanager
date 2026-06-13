@@ -4,7 +4,7 @@ import type {
   PlayerData,
   PlayerSelectionOptions,
 } from "../../store/gameStore";
-import { Badge, Button, Card, ProgressBar, Select, CountryFlag } from "../ui";
+import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar } from "../ui";
 import {
   AlertTriangle,
   ChevronDown,
@@ -565,10 +565,15 @@ export default function SquadRosterView({
                         </div>
                       </td>
                       <td className="py-2.5 px-4">
-                        <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                          {player.full_name}
+                        <div className="flex items-center gap-3">
+                          <PlayerAvatar player={player} />
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                              {player.full_name}
+                            </div>
+                            {renderPreferredPositionMeta(player)}
+                          </div>
                         </div>
-                        {renderPreferredPositionMeta(player)}
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                         {age}

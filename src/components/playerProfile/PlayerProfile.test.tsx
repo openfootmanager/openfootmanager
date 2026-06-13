@@ -947,14 +947,16 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
-  it("disables renewal delegation when no assistant manager is assigned", () => {
+  it("disables renewal delegation when no assistant manager is assigned", async () => {
     render(<RenewalHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
-    expect(
-      screen.getByRole("button", { name: "Delegate to Assistant" }),
-    ).toBeDisabled();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Delegate to Assistant" }),
+      ).toBeDisabled();
+    });
   });
 
   it("localizes the no-assistant delegation error if the command still fails", async () => {

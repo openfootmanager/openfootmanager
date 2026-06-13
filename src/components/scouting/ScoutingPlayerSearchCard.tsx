@@ -13,7 +13,7 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import { Badge, Card, CardBody, CardHeader, CountryFlag } from "../ui";
+import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 const POSITION_FILTERS = [
@@ -182,19 +182,24 @@ export default function ScoutingPlayerSearchCard({
                     className="border-b border-gray-50 dark:border-navy-700/50 hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors"
                   >
                     <td className="py-2 px-2">
-                      <button
-                        onClick={() => onSelectPlayer?.(player.id)}
-                        className="font-heading font-bold text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors text-left"
-                      >
-                        {player.full_name}
-                      </button>
-                      <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                        <CountryFlag
-                          code={player.nationality}
-                          locale={i18n.language}
-                          className="text-xs leading-none"
-                        />
-                        <span>{countryName(player.nationality, i18n.language)}</span>
+                      <div className="flex items-center gap-2">
+                        <PlayerAvatar player={player} className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300" />
+                        <div className="min-w-0">
+                          <button
+                            onClick={() => onSelectPlayer?.(player.id)}
+                            className="font-heading font-bold text-gray-800 dark:text-gray-100 hover:text-primary-500 transition-colors text-left"
+                          >
+                            {player.full_name}
+                          </button>
+                          <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                            <CountryFlag
+                              code={player.nationality}
+                              locale={i18n.language}
+                              className="text-xs leading-none"
+                            />
+                            <span>{countryName(player.nationality, i18n.language)}</span>
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="py-2 px-1">

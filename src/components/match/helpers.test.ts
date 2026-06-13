@@ -4,6 +4,7 @@ import {
   phaseLabel,
   getEventDisplay,
   getEventTypeLabel,
+  makeTeamFallback,
   resolveMatchFixture,
 } from "./helpers";
 import i18n, { i18nReady } from "../../i18n";
@@ -113,6 +114,22 @@ describe("getPlayerName", () => {
 
   it("returns the id when player not found", () => {
     expect(getPlayerName(snapshot, "unknown_id")).toBe("unknown_id");
+  });
+});
+
+describe("makeTeamFallback", () => {
+  it("builds a short-name fallback for teams without full team data", () => {
+    expect(makeTeamFallback("Sporting Club")).toEqual({
+      name: "Sporting Club",
+      short_name: "SPO",
+    });
+  });
+
+  it("pads very short team names to three characters", () => {
+    expect(makeTeamFallback("FC")).toEqual({
+      name: "FC",
+      short_name: "FC ",
+    });
   });
 });
 

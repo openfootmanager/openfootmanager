@@ -1,5 +1,5 @@
 import { GameStateData } from "../../store/gameStore";
-import { Card, CardBody, Badge, TeamLocation } from "../ui";
+import { Card, CardBody, Badge, TeamLocation, TeamLogo } from "../ui";
 import { Users, Trophy } from "lucide-react";
 import { formatVal, getPlayerOvr } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -51,12 +51,12 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                   className="p-5 flex items-center gap-4"
                   style={{ background: `linear-gradient(135deg, ${team.colors.primary}, ${team.colors.secondary}40)` }}
                 >
-                  <div
-                    className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-xl text-white border-2 border-white/30"
+                  <TeamLogo
+                    team={team}
+                    className="w-14 h-14 rounded-xl flex items-center justify-center font-heading font-bold text-xl text-white border-2 border-white/30 bg-white/15 overflow-hidden"
+                    imageClassName="h-12 w-12 object-contain drop-shadow"
                     style={{ backgroundColor: team.colors.primary }}
-                  >
-                    {team.short_name}
-                  </div>
+                  />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-heading font-bold text-lg text-white uppercase tracking-wide truncate drop-shadow">
                       {team.name}

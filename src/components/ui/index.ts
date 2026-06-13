@@ -7,3 +7,5 @@ export { TeamLocation } from "./TeamLocation";
 export { ThemeToggle } from "./ThemeToggle";
 export { DatePicker } from "./DatePicker";
 export { Select } from "./Select";
+export { PlayerAvatar } from "./PlayerAvatar";
+export { TeamLogo } from "./TeamLogo";

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { formatDateShort } from "../../lib/helpers";
-import { Badge, Card, CardBody, CardHeader } from "../ui";
+import { Badge, Card, CardBody, CardHeader, TeamLogo } from "../ui";
 import type { NextOpponentWidgetData } from "./HomeTab.helpers";
 
 interface HomeNextOpponentCardProps {
@@ -46,13 +46,20 @@ export default function HomeNextOpponentCard({
 
               return (
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100 truncate">
-                      {nextOpponent.opponent.name}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {fixtureLabel} - {formatDateShort(nextOpponent.fixture.date, lang)}
-                    </p>
+                  <div className="min-w-0 flex items-center gap-3">
+                    <TeamLogo
+                      team={nextOpponent.opponent}
+                      className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-xs font-heading font-bold text-gray-500 dark:text-gray-300"
+                      imageClassName="h-9 w-9 object-contain drop-shadow"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-lg font-heading font-bold text-gray-800 dark:text-gray-100 truncate">
+                        {nextOpponent.opponent.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {fixtureLabel} - {formatDateShort(nextOpponent.fixture.date, lang)}
+                      </p>
+                    </div>
                   </div>
                   <Badge
                     variant={nextOpponent.isHome ? "success" : "accent"}

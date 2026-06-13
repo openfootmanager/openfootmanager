@@ -18,7 +18,7 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import { Badge, ThemeToggle } from "../ui";
+import { Badge, PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { getPlayerBadgeVariant } from "./dashboardHelpers";
 
@@ -210,12 +210,13 @@ function renderSearchResults(props: {
                   className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
                   data-testid={`dashboard-search-team-${team.id}`}
                 >
-                  <div
-                    className="flex h-6 w-6 items-center justify-center rounded text-xs font-bold text-white"
+                  <TeamLogo
+                    team={team}
+                    className="flex h-6 w-6 items-center justify-center overflow-hidden rounded text-xs font-bold text-white"
+                    imageClassName="h-5 w-5 object-contain"
+                    fallback={<span>{team.short_name.charAt(0)}</span>}
                     style={{ backgroundColor: team.colors.primary }}
-                  >
-                    {team.short_name.charAt(0)}
-                  </div>
+                  />
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {team.name}
                   </span>
@@ -249,6 +250,10 @@ function renderSearchResults(props: {
                   className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
                   data-testid={`dashboard-search-player-${player.id}`}
                 >
+                  <PlayerAvatar
+                    player={player}
+                    className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
+                  />
                   <Badge variant={getPlayerBadgeVariant(player.position)} size="sm">
                     {translatePositionAbbreviation(t, player.position)}
                   </Badge>

@@ -12,7 +12,7 @@ import type {
 } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
-import { Badge, Card, CountryFlag } from "../ui";
+import { Badge, Card, CountryFlag, PlayerAvatar } from "../ui";
 
 type TranslateFn = (
     key: string,
@@ -64,16 +64,16 @@ export default function PlayerProfileHeroCard({
         <Card accent="primary" className="mb-5">
             <div className="bg-linear-to-r from-navy-700 to-navy-800 p-8 rounded-t-xl">
                 <div className="flex items-start gap-6">
-                    <div
-                        className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 ${ovr >= 75
+                    <PlayerAvatar
+                        player={player}
+                        className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 overflow-hidden ${ovr >= 75
                             ? "bg-primary-500/20 text-primary-400 border-primary-500/30"
                             : ovr >= 55
                                 ? "bg-accent-500/20 text-accent-400 border-accent-500/30"
                                 : "bg-gray-500/20 text-gray-400 border-gray-500/30"
                             }`}
-                    >
-                        {ovr}
-                    </div>
+                        fallback={<span>{ovr}</span>}
+                    />
                     <div className="flex-1">
                         <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide">
                             {player.full_name}
