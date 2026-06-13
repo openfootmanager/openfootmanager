@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -5,11 +6,11 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 #[tauri::command]
-pub fn hire_staff(state: State<'_, StateManager>, staff_id: String) -> Result<Game, String> {
+pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
     hire_staff_internal(&state, &staff_id)
 }
 
-fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -218,11 +219,11 @@ mod tests {
 }
 
 #[tauri::command]
-pub fn release_staff(state: State<'_, StateManager>, staff_id: String) -> Result<Game, String> {
+pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
     release_staff_internal(&state, &staff_id)
 }
 
-fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
     let mut game = state
         .get_game(|g| g.clone())

@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use chrono::Datelike;
 use log::info;
 use tauri::Manager as TauriManager;
@@ -20,7 +21,7 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: impl ToStri
     text
 }
 
-fn export_world_database_internal(
+pub fn export_world_database_internal(
     state: &StateManager,
     export_path: &std::path::Path,
 ) -> Result<String, String> {
@@ -128,7 +129,7 @@ pub fn list_world_databases(
 /// Export the current world data to a JSON file so it can be shared/reused.
 #[tauri::command]
 pub fn export_world_database(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     export_path: String,
 ) -> Result<String, String> {
     info!("[cmd] export_world_database: path={}", export_path);

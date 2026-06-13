@@ -26,6 +26,10 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: (...args: unknown[]) => openUrlMock(...args),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn())),
+}));
+
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
 }));

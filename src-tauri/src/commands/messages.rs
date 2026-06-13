@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::HashSet;
 
 use log::info;
@@ -8,13 +9,13 @@ use ofm_core::state::StateManager;
 
 #[tauri::command]
 pub fn mark_message_read(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_id: String,
 ) -> Result<Game, String> {
     mark_message_read_internal(&state, &message_id)
 }
 
-fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
+pub fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
     log::debug!("[cmd] mark_message_read: {}", message_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -29,11 +30,11 @@ fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<
 }
 
 #[tauri::command]
-pub fn delete_message(state: State<'_, StateManager>, message_id: String) -> Result<Game, String> {
+pub fn delete_message(state: State<'_, Arc<StateManager>>, message_id: String) -> Result<Game, String> {
     delete_message_internal(&state, &message_id)
 }
 
-fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
+pub fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
     log::debug!("[cmd] delete_message: {}", message_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -47,13 +48,13 @@ fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Gam
 
 #[tauri::command]
 pub fn delete_messages(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_ids: Vec<String>,
 ) -> Result<Game, String> {
     delete_messages_internal(&state, message_ids)
 }
 
-fn delete_messages_internal(
+pub fn delete_messages_internal(
     state: &StateManager,
     message_ids: Vec<String>,
 ) -> Result<Game, String> {
@@ -71,11 +72,11 @@ fn delete_messages_internal(
 }
 
 #[tauri::command]
-pub fn mark_all_messages_read(state: State<'_, StateManager>) -> Result<Game, String> {
+pub fn mark_all_messages_read(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     mark_all_messages_read_internal(&state)
 }
 
-fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String> {
+pub fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String> {
     log::debug!("[cmd] mark_all_messages_read");
     let mut game = state
         .get_game(|g| g.clone())
@@ -90,11 +91,11 @@ fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String>
 }
 
 #[tauri::command]
-pub fn clear_old_messages(state: State<'_, StateManager>) -> Result<Game, String> {
+pub fn clear_old_messages(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     clear_old_messages_internal(&state)
 }
 
-fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
+pub fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
     log::debug!("[cmd] clear_old_messages");
     let mut game = state
         .get_game(|g| g.clone())
@@ -124,7 +125,7 @@ fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
 
 #[tauri::command]
 pub fn resolve_message_action(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     message_id: String,
     action_id: String,
     option_id: Option<String>,
@@ -132,7 +133,7 @@ pub fn resolve_message_action(
     resolve_message_action_internal(&state, &message_id, &action_id, option_id.as_deref())
 }
 
-fn resolve_message_action_internal(
+pub fn resolve_message_action_internal(
     state: &StateManager,
     message_id: &str,
     action_id: &str,

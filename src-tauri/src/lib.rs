@@ -2,9 +2,12 @@ mod application;
 mod commands;
 use commands::*;
 
+#[cfg(feature = "mcp")]
+mod mcp_server;
+
 use db::save_manager::SaveManager;
 use ofm_core::state::StateManager;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 
@@ -21,6 +24,8 @@ pub fn run() {
         }
     }
 
+    let state_manager = Arc::new(StateManager::new());
+
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(
@@ -34,8 +39,8 @@ pub fn run() {
                 .max_file_size(5_000_000) // 5 MB per log file
                 .build(),
         )
-        .manage(StateManager::new())
-        .setup(|app| {
+        .manage(state_manager.clone())
+        .setup(move |app| {
             use tauri::Manager as TauriManager;
             let app_data_dir = app
                 .path()
@@ -80,7 +85,100 @@ pub fn run() {
                 }
             }
 
-            app.manage(SaveManagerState(Mutex::new(save_manager)));
+            app.manage(Arc::new(SaveManagerState(Mutex::new(save_manager))));
+
+            // --- MCP server startup (feature-flagged) ---
+            #[cfg(feature = "mcp")]
+            match mcp_server::config::parse_mcp_config_from_args() {
+                Ok(Some(mcp_config)) => {
+                use tauri::Manager as TauriManager;
+                use tauri::Emitter;
+
+                let sm: Arc<StateManager> = app.state::<Arc<StateManager>>().inner().clone();
+                let save_mgr: Arc<SaveManagerState> = app.state::<Arc<SaveManagerState>>().inner().clone();
+                let app_handle = app.handle().clone();
+
+                // --no-gui: hide the window
+                if mcp_config.no_gui {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.hide();
+                        log::info!("[mcp] GUI window hidden (--no-gui)");
+                    }
+                }
+
+                // --mcp-auto-start: bootstrap game
+                if let Some(ref auto_start) = mcp_config.auto_start {
+                    log::info!(
+                        "[mcp] Auto-starting: world={}, team={:?}",
+                        auto_start.world_path, auto_start.team_id
+                    );
+
+                    let mgr_name = mcp_config.manager_name
+                        .as_deref()
+                        .unwrap_or("Agent")
+                        .to_string();
+                    let mgr_last = mcp_config.manager_last_name
+                        .as_deref()
+                        .unwrap_or("Manager")
+                        .to_string();
+                    let mgr_nat = mcp_config.manager_nationality
+                        .as_deref()
+                        .unwrap_or("England")
+                        .to_string();
+
+                    match crate::commands::game::bootstrap_game_for_mcp(
+                        &sm,
+                        &save_mgr,
+                        &auto_start.world_path,
+                        auto_start.team_id.as_deref(),
+                        &mgr_name,
+                        &mgr_last,
+                        &mgr_nat,
+                    ) {
+                        Ok(save_id) => {
+                            log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
+                            // Notify GUI that a game is now active
+                            let _ = app_handle.emit("game-state-changed", ());
+                        }
+                        Err(e) => {
+                            log::error!("[mcp] Bootstrap failed: {}", e);
+                            return Err(Box::new(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                format!("MCP auto-start failed: {}", e),
+                            )) as Box<dyn std::error::Error + Send + Sync>);
+                        }
+                    }
+                }
+
+                // Spawn MCP server on the tokio runtime
+                let mcp_port = mcp_config.port;
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = mcp_server::start_mcp_server(
+                        mcp_config,
+                        sm,
+                        save_mgr,
+                        app_handle,
+                    )
+                    .await
+                    {
+                        log::error!("[mcp] MCP server failed: {}", e);
+                    }
+                });
+
+                log::info!("[mcp] Starting MCP server on port {}", mcp_port);
+                }
+                Ok(None) => {
+                    // No --mcp-port, MCP server not requested
+                }
+                Err(e) => {
+                    log::error!("[mcp-config] {}", e);
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        e,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

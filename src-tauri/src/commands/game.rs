@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -19,7 +20,7 @@ fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::
     ofm_core::generator::load_world_from_json(&json)
 }
 
-fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
+pub(crate) fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
     result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
 }
 
@@ -42,7 +43,7 @@ fn long_date_format() -> String {
         .collect()
 }
 
-fn default_save_name(manager_name: &str) -> String {
+pub(crate) fn default_save_name(manager_name: &str) -> String {
     let mut save_name = manager_name.to_string();
     save_name.push('\'');
     save_name.push('s');
@@ -63,7 +64,7 @@ pub struct RawStartupOptions {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StartPhase {
+pub(crate) enum StartPhase {
     SeasonStart,
     MidSeason,
 }
@@ -127,7 +128,7 @@ fn age_on_date(birth_date: chrono::NaiveDate, reference_date: chrono::NaiveDate)
     age
 }
 
-fn start_phase_for_game(game: &Game) -> StartPhase {
+pub(crate) fn start_phase_for_game(game: &Game) -> StartPhase {
     if game.clock.current_date > game.clock.start_date {
         StartPhase::MidSeason
     } else {
@@ -319,7 +320,7 @@ fn bootstrap_existing_world_takeover(
     Ok(stats_state)
 }
 
-fn create_new_save(
+pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
     game: &Game,
     stats_state: &StatsState,
@@ -465,7 +466,7 @@ fn bootstrap_midseason_takeover(game: &mut Game, team_id: &str) -> Result<StatsS
     Ok(stats_state)
 }
 
-fn bootstrap_team_selection(
+pub(crate) fn bootstrap_team_selection(
     game: &mut Game,
     team_id: &str,
     start_phase: StartPhase,
@@ -486,7 +487,7 @@ fn bootstrap_team_selection(
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     first_name: String,
     last_name: String,
     dob: String,
@@ -562,8 +563,8 @@ pub async fn start_new_game(
 /// Step 2: User picks a team. Assigns manager, generates welcome message, saves to DB.
 #[tauri::command]
 pub async fn select_team(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     team_id: String,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
@@ -592,7 +593,7 @@ pub async fn select_team(
 }
 
 #[tauri::command]
-pub async fn get_saves(sm_state: State<'_, SaveManagerState>) -> Result<Vec<SaveEntry>, String> {
+pub async fn get_saves(sm_state: State<'_, Arc<SaveManagerState>>) -> Result<Vec<SaveEntry>, String> {
     log::debug!("[cmd] get_saves");
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     sm.load_saves()
@@ -600,7 +601,7 @@ pub async fn get_saves(sm_state: State<'_, SaveManagerState>) -> Result<Vec<Save
 
 #[tauri::command]
 pub async fn delete_save(
-    sm_state: State<'_, SaveManagerState>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<bool, String> {
     info!("[cmd] delete_save: save_id={}", save_id);
@@ -610,8 +611,8 @@ pub async fn delete_save(
 
 #[tauri::command]
 pub async fn load_game(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<String, String> {
     info!("[cmd] load_game: save_id={}", save_id);
@@ -630,7 +631,7 @@ pub async fn load_game(
 }
 
 #[tauri::command]
-pub async fn get_active_game(state: State<'_, StateManager>) -> Result<Game, String> {
+pub async fn get_active_game(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     log::debug!("[cmd] get_active_game");
     state
         .get_game(|g: &Game| g.clone())
@@ -639,8 +640,8 @@ pub async fn get_active_game(state: State<'_, StateManager>) -> Result<Game, Str
 
 #[tauri::command]
 pub async fn save_game(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
     let game = state
@@ -659,8 +660,8 @@ pub async fn save_game(
 /// Save the current game and clear the active session so the player returns to the main menu.
 #[tauri::command]
 pub async fn exit_to_menu(
-    state: State<'_, StateManager>,
-    sm_state: State<'_, SaveManagerState>,
+    state: State<'_, Arc<StateManager>>,
+    sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
     let game = state
@@ -679,6 +680,125 @@ pub async fn exit_to_menu(
     state.clear_save_id();
 
     Ok(())
+}
+
+/// Bootstrap a game for MCP auto-start.
+/// Creates a manager, loads world, selects team, and saves.
+/// Returns the save ID.
+#[cfg(feature = "mcp")]
+pub fn bootstrap_game_for_mcp(
+    state_manager: &StateManager,
+    save_manager_state: &crate::SaveManagerState,
+    world_path: &str,
+    team_id: Option<&str>,
+    manager_first_name: &str,
+    manager_last_name: &str,
+    manager_nationality: &str,
+) -> Result<String, String> {
+    // Step 1: Load world data
+    let mut world = load_world_data_from_path(world_path)?;
+
+    // Normalize imported world for career start (same as start_new_game does for non-random imports)
+    ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+
+    // Step 2: Find the existing user manager in the world data.
+    // HistoricalSnapshot exports include the user manager (id "mgr_user") already
+    // assigned to their team. Reusing it preserves the team assignment, career
+    // history, and all manager state — no takeover/hiring logic needed.
+    // If not found (e.g. RosterBaseline world), fall back to creating a fresh one.
+    let manager = if let Some(idx) = world
+        .managers
+        .iter()
+        .position(|m| m.id == "mgr_user")
+    {
+        let mut existing = world.managers.remove(idx);
+        info!(
+            "[mcp-bootstrap] Reusing existing manager {} {} (team_id={:?})",
+            existing.first_name, existing.last_name, existing.team_id
+        );
+        // Apply CLI overrides for name/nationality if provided
+        if manager_first_name != "Agent" {
+            existing.first_name = manager_first_name.to_string();
+        }
+        if manager_last_name != "Manager" {
+            existing.last_name = manager_last_name.to_string();
+        }
+        if manager_nationality != "England" {
+            existing.nationality = manager_nationality.to_string();
+        }
+        existing
+    } else {
+        // No existing user manager — create a fresh one (DOB set to make age ~45)
+        let startup_options = normalize_startup_options(None)?;
+        let reference_date = game_clock_for_world(&startup_options, &world.metadata)?
+            .current_date
+            .date_naive();
+        let dob = reference_date - chrono::Duration::days(45 * 365);
+        let dob_str = dob.format("%Y-%m-%d").to_string();
+
+        let fresh = Manager::new(
+            "mgr_user".to_string(),
+            manager_first_name.to_string(),
+            manager_last_name.to_string(),
+            dob_str,
+            manager_nationality.to_string(),
+        );
+        info!(
+            "[mcp-bootstrap] Created fresh manager {} {}",
+            fresh.first_name, fresh.last_name
+        );
+        fresh
+    };
+
+    // Step 3: Build game from world data
+    let startup_options = normalize_startup_options(None)?;
+    let clock = game_clock_for_world(&startup_options, &world.metadata)?;
+    let (mut game, current_stats_state) =
+        build_game_from_world_data(clock, manager, &startup_options, world);
+
+    info!(
+        "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
+        game.teams.len(),
+        game.players.len(),
+        game.manager.team_id,
+    );
+
+    // Step 4: If the manager already has a team assigned (reused from world data),
+    // we don't need the takeover logic. Just refresh context and proceed.
+    // Otherwise, run the normal team selection bootstrap.
+    let stats_state = if game.manager.team_id.is_some() {
+        ofm_core::ai_hiring::seed_ai_managers(&mut game);
+        ofm_core::season_context::refresh_game_context(&mut game);
+        current_stats_state
+    } else {
+        // Manager has no team — need an explicit team_id to assign one
+        let tid = team_id.ok_or(
+            "--mcp-auto-start requires a team_id when the world's manager has no team. Format: \"world.json,team_id\""
+                .to_string(),
+        )?;
+        let start_phase = start_phase_for_game(&game);
+        bootstrap_team_selection(&mut game, tid, start_phase, current_stats_state)?
+    };
+
+    info!(
+        "[mcp-bootstrap] Manager assigned to team_id={:?}",
+        game.manager.team_id
+    );
+
+    // Step 5: Create initial save
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    let save_name = default_save_name(&manager_name);
+    let mut sm = map_save_manager_lock_error(save_manager_state.0.lock())?;
+    let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
+
+    // Step 6: Set state
+    state_manager.set_game(game);
+    state_manager.set_stats_state(stats_state);
+    state_manager.set_save_id(save_id.clone());
+
+    info!("[mcp-bootstrap] Game saved with ID: {}", save_id);
+
+    Ok(save_id)
 }
 
 #[cfg(test)]

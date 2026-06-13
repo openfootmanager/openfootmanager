@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
@@ -6,11 +7,11 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 #[tauri::command]
-pub fn upgrade_facility(state: State<'_, StateManager>, facility: String) -> Result<Game, String> {
+pub fn upgrade_facility(state: State<'_, Arc<StateManager>>, facility: String) -> Result<Game, String> {
     upgrade_facility_internal(&state, &facility)
 }
 
-fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Game, String> {
+pub fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Game, String> {
     info!("[cmd] upgrade_facility: {}", facility);
     let mut game = state
         .get_game(|g| g.clone())

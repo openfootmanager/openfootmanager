@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import type { MatchModeType } from "../hooks/useAdvanceTime";
 import { useGameStore } from "../store/gameStore";
 import type { GameStateData, PlayerSelectionOptions } from "../store/gameStore";
@@ -120,6 +121,23 @@ export default function Dashboard(): JSX.Element {
 
     fetchState();
   }, [hasActiveGame, navigate, setGameState]);
+
+  // Refresh state when MCP tools mutate game (backend emits "game-state-changed")
+  useEffect(() => {
+    const unlisten = listen("game-state-changed", async () => {
+      try {
+        const state = await invoke<GameStateData>("get_active_game");
+        setGameState(state);
+      } catch {
+        // Game may have been exited — navigate back to menu
+        clearGame();
+        navigate("/");
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [setGameState, clearGame, navigate]);
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;

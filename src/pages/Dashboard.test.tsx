@@ -173,6 +173,10 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn())),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => {

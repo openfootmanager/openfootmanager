@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use domain::negotiation::NegotiationFeedback;
 use domain::player::Position;
 use log::info;
@@ -32,13 +33,13 @@ pub struct TransferBidFinancialProjectionCommandResponse {
 
 #[tauri::command]
 pub fn toggle_transfer_list(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<Game, String> {
     toggle_transfer_list_internal(&state, &player_id)
 }
 
-fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
+pub fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -54,11 +55,11 @@ fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Resul
 }
 
 #[tauri::command]
-pub fn toggle_loan_list(state: State<'_, StateManager>, player_id: String) -> Result<Game, String> {
+pub fn toggle_loan_list(state: State<'_, Arc<StateManager>>, player_id: String) -> Result<Game, String> {
     toggle_loan_list_internal(&state, &player_id)
 }
 
-fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
+pub fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     let mut game = state
         .get_game(|g| g.clone())
@@ -75,7 +76,7 @@ fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Ga
 
 #[tauri::command]
 pub fn make_transfer_bid(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     fee: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
@@ -84,14 +85,14 @@ pub fn make_transfer_bid(
 
 #[tauri::command]
 pub fn preview_transfer_bid_financial_impact(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     fee: u64,
 ) -> Result<TransferBidFinancialProjectionCommandResponse, String> {
     preview_transfer_bid_financial_impact_internal(&state, &player_id, fee)
 }
 
-fn make_transfer_bid_internal(
+pub fn make_transfer_bid_internal(
     state: &StateManager,
     player_id: &str,
     fee: u64,
@@ -110,7 +111,7 @@ fn make_transfer_bid_internal(
     Ok(map_transfer_negotiation_response(result, game))
 }
 
-fn preview_transfer_bid_financial_impact_internal(
+pub fn preview_transfer_bid_financial_impact_internal(
     state: &StateManager,
     player_id: &str,
     fee: u64,
@@ -132,7 +133,7 @@ fn preview_transfer_bid_financial_impact_internal(
 
 #[tauri::command]
 pub fn respond_to_offer(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     offer_id: String,
     accept: bool,
@@ -140,7 +141,7 @@ pub fn respond_to_offer(
     respond_to_offer_internal(&state, &player_id, &offer_id, accept)
 }
 
-fn respond_to_offer_internal(
+pub fn respond_to_offer_internal(
     state: &StateManager,
     player_id: &str,
     offer_id: &str,
@@ -161,7 +162,7 @@ fn respond_to_offer_internal(
 
 #[tauri::command]
 pub fn counter_offer(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     offer_id: String,
     requested_fee: u64,
@@ -169,7 +170,7 @@ pub fn counter_offer(
     counter_offer_internal(&state, &player_id, &offer_id, requested_fee)
 }
 
-fn counter_offer_internal(
+pub fn counter_offer_internal(
     state: &StateManager,
     player_id: &str,
     offer_id: &str,
@@ -204,7 +205,7 @@ fn map_transfer_negotiation_response(
 
 #[tauri::command]
 pub fn send_scout(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     scout_id: String,
     player_id: String,
 ) -> Result<Game, String> {
@@ -223,7 +224,7 @@ pub fn send_scout(
 
 #[tauri::command]
 pub fn start_youth_scouting(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     scout_id: String,
     region: Option<String>,
     objective: Option<String>,
@@ -254,7 +255,7 @@ pub fn start_youth_scouting(
 
 #[tauri::command]
 pub fn cancel_youth_scouting(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     assignment_id: String,
 ) -> Result<Game, String> {
     info!(
@@ -272,7 +273,7 @@ pub fn cancel_youth_scouting(
 
 #[tauri::command]
 pub fn reassign_youth_scouting(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     assignment_id: String,
     scout_id: String,
 ) -> Result<Game, String> {

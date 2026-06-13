@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -335,6 +336,38 @@ export default function MainMenu() {
       .then((p) => setProfiles(p ?? []))
       .catch((error) => console.error("Failed to load manager profiles:", error));
   }, []);
+
+  // Check if a game is already active (e.g. loaded by MCP --mcp-auto-start before frontend mounted)
+  useEffect(() => {
+    invoke<GameStateData>("get_active_game")
+      .then((state) => {
+        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameState(state);
+        setGameActive(true, mgrName);
+        navigate("/dashboard");
+      })
+      .catch(() => {
+        // No active game — stay on menu
+      });
+  }, [setGameState, setGameActive, navigate]);
+
+  // Listen for game loaded by MCP auto-start (event may arrive after mount)
+  useEffect(() => {
+    const unlisten = listen("game-state-changed", async () => {
+      try {
+        const state = await invoke<GameStateData>("get_active_game");
+        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        setGameState(state);
+        setGameActive(true, mgrName);
+        navigate("/dashboard");
+      } catch {
+        // Game not actually active — ignore
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [setGameState, setGameActive, navigate]);
 
   /** Same messages as `validateForm` for DOB, so the age rule surfaces as the user edits. */
   const dobLiveRuleMessage = dobValidationMessage(formData, historyDepthYears, t);
