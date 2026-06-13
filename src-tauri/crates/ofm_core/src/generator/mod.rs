@@ -1,8 +1,10 @@
 pub(crate) mod data;
+pub mod competition_def;
 pub mod definitions;
 mod generation;
 pub mod world_io;
 
+pub use competition_def::*;
 pub use definitions::*;
 pub use world_io::*;
 

@@ -1,0 +1,625 @@
+//! Authoring format for user-defined competitions.
+//!
+//! A `CompetitionDefinitionFile` describes leagues, cups, and tournaments that
+//! the game resolves into runnable competitions. Definitions can ship inside a
+//! world package or be imported as standalone files at new-game time. They are
+//! validated strictly: an invalid file is rejected with a structured list of
+//! errors so modders get precise, localizable feedback.
+
+use std::collections::{HashMap, HashSet};
+
+use serde::{Deserialize, Serialize};
+
+use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
+
+/// A bundle of competition definitions, as authored in a JSON file.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompetitionDefinitionFile {
+    #[serde(default = "default_format_version")]
+    pub format_version: u32,
+    #[serde(default)]
+    pub competitions: Vec<CompetitionDefinition>,
+}
+
+fn default_format_version() -> u32 {
+    1
+}
+
+/// The highest schema version this build understands.
+pub const SUPPORTED_DEFINITION_FORMAT_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompetitionDefinition {
+    pub id: String,
+    pub name: String,
+    pub r#type: CompetitionType,
+    pub scope: CompetitionScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_region_ids: Vec<String>,
+    #[serde(default)]
+    pub priority: u32,
+    pub format: FormatDef,
+    pub participants: ParticipantSpec,
+}
+
+/// Format-specific configuration. `kind` selects the shape; the other fields
+/// apply only to the relevant kinds and otherwise fall back to sensible
+/// defaults.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormatDef {
+    pub kind: CompetitionFormat,
+    /// Round-robin legs (LeagueTable / GroupAndKnockout groups). Default 2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legs: Option<u8>,
+    /// Clubs per group (GroupAndKnockout). Default 4.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group_size: Option<u32>,
+    /// Clubs advancing per group (GroupAndKnockout). Default 2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualifiers_per_group: Option<u32>,
+    /// Best next-placed finishers that also advance (GroupAndKnockout).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub best_third_qualifiers: Option<u32>,
+}
+
+/// How a competition's participants are chosen. Exactly one variant must be
+/// supplied.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParticipantSpec {
+    /// Explicit team ids.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explicit: Option<Vec<String>>,
+    /// A rule that resolves to team ids against the world.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selector: Option<SelectorSpec>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectorSpec {
+    pub kind: SelectorKind,
+    /// Country code (for country-scoped selectors).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// Region id (for region-scoped selectors).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    /// Maximum teams to take (for ranked / capped selectors).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count: Option<u32>,
+    /// Other competition ids whose participants are excluded (e.g. a second
+    /// division excludes the clubs already placed in the first).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude_competitions: Vec<String>,
+    /// Competition id this selector draws champions/qualifiers from
+    /// (`championsOf`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_competition: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SelectorKind {
+    /// Strongest `count` clubs of a country by reputation.
+    TopByReputation,
+    /// Every club of a country.
+    AllInCountry,
+    /// Every club of a region.
+    AllInRegion,
+    /// Top `count` finishers of another competition (continental qualification).
+    ChampionsOf,
+}
+
+/// A single validation problem. `code` is an i18n key; `params` fills its
+/// placeholders. `competition_id` locates the offending entry (empty for
+/// file-level problems).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinitionError {
+    pub code: String,
+    pub competition_id: String,
+    pub params: Vec<(String, String)>,
+}
+
+impl DefinitionError {
+    fn new(code: &str, competition_id: &str) -> Self {
+        Self {
+            code: code.to_string(),
+            competition_id: competition_id.to_string(),
+            params: Vec::new(),
+        }
+    }
+
+    fn with(mut self, key: &str, value: impl Into<String>) -> Self {
+        self.params.push((key.to_string(), value.into()));
+        self
+    }
+}
+
+/// The world facts a definition is validated against.
+pub struct WorldValidationContext<'a> {
+    pub team_ids: HashSet<&'a str>,
+    pub country_codes: HashSet<&'a str>,
+    pub region_ids: HashSet<&'a str>,
+}
+
+impl<'a> WorldValidationContext<'a> {
+    pub fn from_world(world: &'a super::WorldData) -> Self {
+        let team_ids = world.teams.iter().map(|team| team.id.as_str()).collect();
+        let country_codes = world
+            .teams
+            .iter()
+            .map(|team| {
+                if team.football_nation.is_empty() {
+                    team.country.as_str()
+                } else {
+                    team.football_nation.as_str()
+                }
+            })
+            .collect();
+        let region_ids = world
+            .regions
+            .iter()
+            .map(|region| region.id.as_str())
+            .collect();
+        Self {
+            team_ids,
+            country_codes,
+            region_ids,
+        }
+    }
+}
+
+/// Validate a definition file against the world. Returns every problem found
+/// (not just the first), so the UI can present a complete list.
+pub fn validate_definitions(
+    file: &CompetitionDefinitionFile,
+    ctx: &WorldValidationContext,
+) -> Vec<DefinitionError> {
+    let mut errors = Vec::new();
+
+    if file.format_version > SUPPORTED_DEFINITION_FORMAT_VERSION {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.unsupportedVersion", "")
+                .with("version", file.format_version.to_string())
+                .with("supported", SUPPORTED_DEFINITION_FORMAT_VERSION.to_string()),
+        );
+    }
+
+    let known_ids: HashSet<&str> = file.competitions.iter().map(|c| c.id.as_str()).collect();
+    let mut seen_ids: HashSet<&str> = HashSet::new();
+
+    for competition in &file.competitions {
+        let id = competition.id.as_str();
+        if id.is_empty() {
+            errors.push(DefinitionError::new("be.error.competitionDef.emptyId", ""));
+        } else if !seen_ids.insert(id) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.duplicateId", id).with("id", id),
+            );
+        }
+        if competition.name.trim().is_empty() {
+            errors.push(DefinitionError::new(
+                "be.error.competitionDef.emptyName",
+                id,
+            ));
+        }
+
+        validate_region_and_country(competition, ctx, &mut errors);
+        validate_format(competition, &mut errors);
+        validate_participants(competition, ctx, &known_ids, &mut errors);
+    }
+
+    detect_selector_cycles(file, &mut errors);
+    errors
+}
+
+fn validate_region_and_country(
+    competition: &CompetitionDefinition,
+    ctx: &WorldValidationContext,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if let Some(region) = &competition.region_id
+        && !ctx.region_ids.contains(region.as_str())
+    {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.unknownRegion", &competition.id)
+                .with("region", region.clone()),
+        );
+    }
+    if let Some(country) = &competition.country_id
+        && !ctx.country_codes.contains(country.as_str())
+    {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.unknownCountry", &competition.id)
+                .with("country", country.clone()),
+        );
+    }
+    for region in &competition.required_region_ids {
+        if !ctx.region_ids.contains(region.as_str()) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.unknownRegion", &competition.id)
+                    .with("region", region.clone()),
+            );
+        }
+    }
+}
+
+fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<DefinitionError>) {
+    let format = &competition.format;
+    if format.kind != CompetitionFormat::GroupAndKnockout
+        && (format.group_size.is_some()
+            || format.qualifiers_per_group.is_some()
+            || format.best_third_qualifiers.is_some())
+    {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.groupConfigOnNonGroupFormat",
+            &competition.id,
+        ));
+    }
+    if let Some(group_size) = format.group_size
+        && group_size < 2
+    {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.groupSizeTooSmall", &competition.id)
+                .with("groupSize", group_size.to_string()),
+        );
+    }
+    if let Some(legs) = format.legs
+        && legs == 0
+    {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.zeroLegs",
+            &competition.id,
+        ));
+    }
+}
+
+fn validate_participants(
+    competition: &CompetitionDefinition,
+    ctx: &WorldValidationContext,
+    known_ids: &HashSet<&str>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    let spec = &competition.participants;
+    match (&spec.explicit, &spec.selector) {
+        (None, None) => errors.push(DefinitionError::new(
+            "be.error.competitionDef.noParticipants",
+            &competition.id,
+        )),
+        (Some(_), Some(_)) => errors.push(DefinitionError::new(
+            "be.error.competitionDef.bothParticipantSources",
+            &competition.id,
+        )),
+        (Some(explicit), None) => {
+            if explicit.len() < 2 {
+                errors.push(DefinitionError::new(
+                    "be.error.competitionDef.tooFewParticipants",
+                    &competition.id,
+                ));
+            }
+            for team_id in explicit {
+                if !ctx.team_ids.contains(team_id.as_str()) {
+                    errors.push(
+                        DefinitionError::new(
+                            "be.error.competitionDef.unknownTeam",
+                            &competition.id,
+                        )
+                        .with("team", team_id.clone()),
+                    );
+                }
+            }
+        }
+        (None, Some(selector)) => {
+            validate_selector(competition, selector, ctx, known_ids, errors);
+        }
+    }
+}
+
+fn validate_selector(
+    competition: &CompetitionDefinition,
+    selector: &SelectorSpec,
+    ctx: &WorldValidationContext,
+    known_ids: &HashSet<&str>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    let require_country = |errors: &mut Vec<DefinitionError>| match &selector.country {
+        Some(country) if ctx.country_codes.contains(country.as_str()) => {}
+        Some(country) => errors.push(
+            DefinitionError::new("be.error.competitionDef.unknownCountry", &competition.id)
+                .with("country", country.clone()),
+        ),
+        None => errors.push(DefinitionError::new(
+            "be.error.competitionDef.selectorMissingCountry",
+            &competition.id,
+        )),
+    };
+
+    match selector.kind {
+        SelectorKind::TopByReputation => {
+            require_country(errors);
+            if selector.count.unwrap_or(0) < 2 {
+                errors.push(DefinitionError::new(
+                    "be.error.competitionDef.selectorCountTooSmall",
+                    &competition.id,
+                ));
+            }
+        }
+        SelectorKind::AllInCountry => require_country(errors),
+        SelectorKind::AllInRegion => match &selector.region {
+            Some(region) if ctx.region_ids.contains(region.as_str()) => {}
+            Some(region) => errors.push(
+                DefinitionError::new("be.error.competitionDef.unknownRegion", &competition.id)
+                    .with("region", region.clone()),
+            ),
+            None => errors.push(DefinitionError::new(
+                "be.error.competitionDef.selectorMissingRegion",
+                &competition.id,
+            )),
+        },
+        SelectorKind::ChampionsOf => match &selector.source_competition {
+            Some(source) if known_ids.contains(source.as_str()) => {}
+            Some(source) => errors.push(
+                DefinitionError::new(
+                    "be.error.competitionDef.unknownSourceCompetition",
+                    &competition.id,
+                )
+                .with("source", source.clone()),
+            ),
+            None => errors.push(DefinitionError::new(
+                "be.error.competitionDef.selectorMissingSource",
+                &competition.id,
+            )),
+        },
+    }
+
+    for excluded in &selector.exclude_competitions {
+        if !known_ids.contains(excluded.as_str()) {
+            errors.push(
+                DefinitionError::new(
+                    "be.error.competitionDef.unknownExcludedCompetition",
+                    &competition.id,
+                )
+                .with("excluded", excluded.clone()),
+            );
+        }
+    }
+}
+
+/// `championsOf` selectors create dependencies between competitions; a cycle
+/// would make resolution impossible.
+fn detect_selector_cycles(
+    file: &CompetitionDefinitionFile,
+    errors: &mut Vec<DefinitionError>,
+) {
+    let mut dependencies: HashMap<&str, &str> = HashMap::new();
+    for competition in &file.competitions {
+        if let Some(selector) = &competition.participants.selector
+            && selector.kind == SelectorKind::ChampionsOf
+            && let Some(source) = &selector.source_competition
+        {
+            dependencies.insert(competition.id.as_str(), source.as_str());
+        }
+    }
+
+    for start in dependencies.keys().copied() {
+        let mut visited: HashSet<&str> = HashSet::new();
+        let mut current = start;
+        while let Some(&next) = dependencies.get(current) {
+            if next == start {
+                errors.push(
+                    DefinitionError::new(
+                        "be.error.competitionDef.selectorCycle",
+                        start,
+                    )
+                    .with("competition", start),
+                );
+                break;
+            }
+            if !visited.insert(next) {
+                break;
+            }
+            current = next;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ctx() -> WorldValidationContext<'static> {
+        WorldValidationContext {
+            team_ids: ["team-a", "team-b", "team-c"].into_iter().collect(),
+            country_codes: ["TR", "ENG"].into_iter().collect(),
+            region_ids: ["europe", "asia"].into_iter().collect(),
+        }
+    }
+
+    fn explicit(id: &str, teams: &[&str]) -> CompetitionDefinition {
+        CompetitionDefinition {
+            id: id.to_string(),
+            name: format!("{id} name"),
+            r#type: CompetitionType::League,
+            scope: CompetitionScope::Domestic,
+            region_id: None,
+            country_id: Some("TR".to_string()),
+            required_region_ids: vec![],
+            priority: 0,
+            format: FormatDef {
+                kind: CompetitionFormat::LeagueTable,
+                legs: None,
+                group_size: None,
+                qualifiers_per_group: None,
+                best_third_qualifiers: None,
+            },
+            participants: ParticipantSpec {
+                explicit: Some(teams.iter().map(|t| t.to_string()).collect()),
+                selector: None,
+            },
+        }
+    }
+
+    fn codes(errors: &[DefinitionError]) -> Vec<&str> {
+        errors.iter().map(|e| e.code.as_str()).collect()
+    }
+
+    #[test]
+    fn a_valid_explicit_league_passes() {
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![explicit("tr-1", &["team-a", "team-b"])],
+        };
+        assert!(validate_definitions(&file, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn unknown_team_country_and_region_are_reported() {
+        let mut def = explicit("tr-1", &["team-a", "ghost"]);
+        def.country_id = Some("XX".to_string());
+        def.region_id = Some("atlantis".to_string());
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![def],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        assert!(codes(&errors).contains(&"be.error.competitionDef.unknownTeam"));
+        assert!(codes(&errors).contains(&"be.error.competitionDef.unknownCountry"));
+        assert!(codes(&errors).contains(&"be.error.competitionDef.unknownRegion"));
+    }
+
+    #[test]
+    fn duplicate_ids_are_rejected() {
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![
+                explicit("tr-1", &["team-a", "team-b"]),
+                explicit("tr-1", &["team-a", "team-c"]),
+            ],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        assert!(codes(&errors).contains(&"be.error.competitionDef.duplicateId"));
+    }
+
+    #[test]
+    fn participants_must_be_exactly_one_source() {
+        let mut none = explicit("tr-1", &["team-a", "team-b"]);
+        none.participants = ParticipantSpec::default();
+        let mut both = explicit("tr-2", &["team-a", "team-b"]);
+        both.participants.selector = Some(SelectorSpec {
+            kind: SelectorKind::AllInCountry,
+            country: Some("TR".to_string()),
+            region: None,
+            count: None,
+            exclude_competitions: vec![],
+            source_competition: None,
+        });
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![none, both],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let codes = codes(&errors);
+        assert!(codes.contains(&"be.error.competitionDef.noParticipants"));
+        assert!(codes.contains(&"be.error.competitionDef.bothParticipantSources"));
+    }
+
+    #[test]
+    fn top_by_reputation_needs_a_known_country_and_count() {
+        let mut def = explicit("tr-1", &[]);
+        def.participants = ParticipantSpec {
+            explicit: None,
+            selector: Some(SelectorSpec {
+                kind: SelectorKind::TopByReputation,
+                country: Some("XX".to_string()),
+                region: None,
+                count: Some(1),
+                exclude_competitions: vec![],
+                source_competition: None,
+            }),
+        };
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![def],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let codes = codes(&errors);
+        assert!(codes.contains(&"be.error.competitionDef.unknownCountry"));
+        assert!(codes.contains(&"be.error.competitionDef.selectorCountTooSmall"));
+    }
+
+    #[test]
+    fn champions_of_must_reference_a_known_competition_and_not_cycle() {
+        let mut a = explicit("a", &[]);
+        a.participants = ParticipantSpec {
+            explicit: None,
+            selector: Some(SelectorSpec {
+                kind: SelectorKind::ChampionsOf,
+                country: None,
+                region: None,
+                count: Some(4),
+                exclude_competitions: vec![],
+                source_competition: Some("b".to_string()),
+            }),
+        };
+        let mut b = explicit("b", &[]);
+        b.participants = ParticipantSpec {
+            explicit: None,
+            selector: Some(SelectorSpec {
+                kind: SelectorKind::ChampionsOf,
+                country: None,
+                region: None,
+                count: Some(4),
+                exclude_competitions: vec![],
+                source_competition: Some("a".to_string()),
+            }),
+        };
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![a, b],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        assert!(codes(&errors).contains(&"be.error.competitionDef.selectorCycle"));
+
+        // An unknown source is reported too.
+        let mut lonely = explicit("c", &[]);
+        lonely.participants = ParticipantSpec {
+            explicit: None,
+            selector: Some(SelectorSpec {
+                kind: SelectorKind::ChampionsOf,
+                country: None,
+                region: None,
+                count: Some(2),
+                exclude_competitions: vec![],
+                source_competition: Some("ghost".to_string()),
+            }),
+        };
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![lonely],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        assert!(codes(&errors).contains(&"be.error.competitionDef.unknownSourceCompetition"));
+    }
+
+    #[test]
+    fn group_config_on_a_league_is_rejected_and_future_versions_blocked() {
+        let mut def = explicit("tr-1", &["team-a", "team-b"]);
+        def.format.group_size = Some(4);
+        let file = CompetitionDefinitionFile {
+            format_version: 99,
+            competitions: vec![def],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let codes = codes(&errors);
+        assert!(codes.contains(&"be.error.competitionDef.groupConfigOnNonGroupFormat"));
+        assert!(codes.contains(&"be.error.competitionDef.unsupportedVersion"));
+    }
+}
