@@ -14,8 +14,6 @@ const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 /// Tauri-managed wrapper around SaveManager.
 pub struct SaveManagerState(pub Mutex<SaveManager>);
 
-#[cfg(feature = "mcp")]
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Workaround for WebKitGTK DMABuf rendering issues on Wayland (Linux)
