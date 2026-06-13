@@ -8,9 +8,14 @@
 
 use std::collections::{HashMap, HashSet};
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
+use domain::league::{
+    CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
+    StandingEntry,
+};
+use domain::team::Team;
 
 /// A bundle of competition definitions, as authored in a JSON file.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -431,6 +436,280 @@ fn detect_selector_cycles(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Resolution
+// ---------------------------------------------------------------------------
+
+fn fixture_competition_for(kind: &CompetitionType) -> FixtureCompetition {
+    match kind {
+        CompetitionType::ContinentalClub => FixtureCompetition::ContinentalClub,
+        CompetitionType::InternationalClub => FixtureCompetition::InternationalClub,
+        CompetitionType::InternationalNation => FixtureCompetition::InternationalNation,
+        CompetitionType::FriendlyCup => FixtureCompetition::FriendlyCup,
+        CompetitionType::League => FixtureCompetition::League,
+        CompetitionType::Cup => FixtureCompetition::Cup,
+    }
+}
+
+fn team_country<'a>(team: &'a Team) -> &'a str {
+    if team.football_nation.is_empty() {
+        team.country.as_str()
+    } else {
+        team.football_nation.as_str()
+    }
+}
+
+/// Country code -> region id, taken from the world's region catalog.
+fn country_to_region(world: &super::WorldData) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for region in &world.regions {
+        for country in &region.country_codes {
+            map.insert(country.clone(), region.id.clone());
+        }
+    }
+    map
+}
+
+/// Rewrite a competition's id everywhere it is referenced, so a generated
+/// competition can adopt its definition's stable id.
+fn reassign_competition_id(competition: &mut League, new_id: &str) {
+    let old = competition.id.clone();
+    competition.id = new_id.to_string();
+    for fixture in &mut competition.fixtures {
+        fixture.competition_id = new_id.to_string();
+    }
+    for round in &mut competition.knockout_rounds {
+        round.id = round.id.replace(&old, new_id);
+    }
+    for group in &mut competition.groups {
+        group.id = group.id.replace(&old, new_id);
+    }
+}
+
+/// The selector dependencies of a definition (other competitions it reads).
+fn dependency_ids(def: &CompetitionDefinition) -> Vec<String> {
+    let mut deps = Vec::new();
+    if let Some(selector) = &def.participants.selector {
+        if let Some(source) = &selector.source_competition {
+            deps.push(source.clone());
+        }
+        deps.extend(selector.exclude_competitions.iter().cloned());
+    }
+    deps
+}
+
+fn resolve_participants(
+    def: &CompetitionDefinition,
+    world: &super::WorldData,
+    region_by_country: &HashMap<String, String>,
+    resolved: &HashMap<String, Vec<String>>,
+) -> Vec<String> {
+    let spec = &def.participants;
+    if let Some(explicit) = &spec.explicit {
+        return explicit.clone();
+    }
+    let Some(selector) = &spec.selector else {
+        return Vec::new();
+    };
+
+    let excluded: HashSet<String> = selector
+        .exclude_competitions
+        .iter()
+        .flat_map(|id| resolved.get(id).cloned().unwrap_or_default())
+        .collect();
+
+    let take = selector.count.map(|c| c as usize);
+
+    match selector.kind {
+        SelectorKind::TopByReputation => {
+            let country = selector.country.clone().unwrap_or_default();
+            let mut clubs: Vec<&Team> = world
+                .teams
+                .iter()
+                .filter(|team| team_country(team) == country)
+                .filter(|team| !excluded.contains(&team.id))
+                .collect();
+            clubs.sort_by(|a, b| b.reputation.cmp(&a.reputation).then(a.id.cmp(&b.id)));
+            clubs
+                .into_iter()
+                .take(take.unwrap_or(usize::MAX))
+                .map(|team| team.id.clone())
+                .collect()
+        }
+        SelectorKind::AllInCountry => {
+            let country = selector.country.clone().unwrap_or_default();
+            world
+                .teams
+                .iter()
+                .filter(|team| team_country(team) == country)
+                .filter(|team| !excluded.contains(&team.id))
+                .map(|team| team.id.clone())
+                .collect()
+        }
+        SelectorKind::AllInRegion => {
+            let region = selector.region.clone().unwrap_or_default();
+            world
+                .teams
+                .iter()
+                .filter(|team| {
+                    region_by_country
+                        .get(team_country(team))
+                        .is_some_and(|r| r == &region)
+                })
+                .filter(|team| !excluded.contains(&team.id))
+                .map(|team| team.id.clone())
+                .collect()
+        }
+        SelectorKind::ChampionsOf => {
+            // At world creation there is no prior season, so qualification is
+            // seeded by the source competition's strongest clubs. (Re-resolution
+            // from real standings happens at season rollover.)
+            let source = selector.source_competition.clone().unwrap_or_default();
+            let mut clubs: Vec<&Team> = resolved
+                .get(&source)
+                .map(|ids| {
+                    ids.iter()
+                        .filter_map(|id| world.teams.iter().find(|team| &team.id == id))
+                        .collect()
+                })
+                .unwrap_or_default();
+            clubs.sort_by(|a, b| b.reputation.cmp(&a.reputation).then(a.id.cmp(&b.id)));
+            clubs
+                .into_iter()
+                .take(take.unwrap_or(usize::MAX))
+                .map(|team| team.id.clone())
+                .collect()
+        }
+    }
+}
+
+fn build_competition(
+    def: &CompetitionDefinition,
+    team_ids: &[String],
+    season: u32,
+    season_start: DateTime<Utc>,
+) -> Option<League> {
+    if team_ids.len() < 2 {
+        return None;
+    }
+    let fixture_competition = fixture_competition_for(&def.r#type);
+
+    let mut competition = match def.format.kind {
+        CompetitionFormat::LeagueTable => {
+            let mut league =
+                League::new(def.id.clone(), def.name.clone(), season, team_ids);
+            league.fixtures = crate::schedule::build_round_robin_fixtures_with(
+                &def.id,
+                team_ids,
+                season_start,
+                fixture_competition,
+                def.format.legs.unwrap_or(2),
+                7,
+            );
+            league
+        }
+        CompetitionFormat::Knockout => {
+            let mut cup =
+                League::new(def.id.clone(), def.name.clone(), season, team_ids);
+            cup.standings.clear();
+            cup.rules.format = CompetitionFormat::Knockout;
+            crate::schedule::seed_knockout_round(
+                &mut cup,
+                team_ids,
+                season_start,
+                fixture_competition,
+            );
+            cup
+        }
+        CompetitionFormat::GroupAndKnockout => {
+            let config = crate::group_stage::GroupStageConfig {
+                legs: def.format.legs.unwrap_or(2),
+                matchday_gap_days: 7,
+                qualifiers_per_group: def.format.qualifiers_per_group.unwrap_or(2),
+                best_third_qualifiers: def.format.best_third_qualifiers.unwrap_or(0),
+                ..Default::default()
+            };
+            let mut cup = crate::group_stage::generate_group_knockout_cup_with(
+                &def.name,
+                season,
+                team_ids,
+                season_start,
+                def.r#type.clone(),
+                def.scope.clone(),
+                &config,
+            );
+            reassign_competition_id(&mut cup, &def.id);
+            cup
+        }
+    };
+
+    competition.kind = def.r#type.clone();
+    competition.scope = def.scope.clone();
+    competition.region_id = def.region_id.clone();
+    competition.country_id = def.country_id.clone();
+    competition.required_region_ids = def.required_region_ids.clone();
+    competition.participant_ids = team_ids.to_vec();
+    competition.priority = def.priority;
+    // Rebuild standings to match the resolved participants for table formats.
+    if def.format.kind == CompetitionFormat::LeagueTable {
+        competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();
+    }
+    Some(competition)
+}
+
+/// Turn a validated definition file into runnable competitions. Selectors are
+/// resolved against the world (in dependency order), and competitions whose
+/// participant list comes out below two clubs are skipped. Call only after
+/// [`validate_definitions`] has returned no errors.
+pub fn resolve_definitions(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+    season: u32,
+    season_start: DateTime<Utc>,
+) -> Vec<League> {
+    let region_by_country = country_to_region(world);
+
+    // Resolve participant lists in dependency order (selectors that read other
+    // competitions resolve after their sources). Validation has already ruled
+    // out cycles, so this terminates.
+    let mut resolved: HashMap<String, Vec<String>> = HashMap::new();
+    let mut pending: Vec<&CompetitionDefinition> = file.competitions.iter().collect();
+    loop {
+        let mut progressed = false;
+        pending.retain(|def| {
+            let ready = dependency_ids(def)
+                .iter()
+                .all(|dep| resolved.contains_key(dep));
+            if ready {
+                let ids = resolve_participants(def, world, &region_by_country, &resolved);
+                resolved.insert(def.id.clone(), ids);
+                progressed = true;
+                false
+            } else {
+                true
+            }
+        });
+        if pending.is_empty() || !progressed {
+            break;
+        }
+    }
+    // Any unresolved (e.g. a dependency pointing outside the file) resolve
+    // ignoring the missing dependency, so nothing is silently dropped.
+    for def in pending {
+        let ids = resolve_participants(def, world, &region_by_country, &resolved);
+        resolved.insert(def.id.clone(), ids);
+    }
+
+    // Build in authoring order so priorities line up predictably.
+    file.competitions
+        .iter()
+        .filter_map(|def| {
+            let team_ids = resolved.get(&def.id).cloned().unwrap_or_default();
+            build_competition(def, &team_ids, season, season_start)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,6 +886,169 @@ mod tests {
         };
         let errors = validate_definitions(&file, &ctx());
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownSourceCompetition"));
+    }
+
+    // --- resolution ---
+
+    fn world() -> super::super::WorldData {
+        let make = |id: &str, nation: &str, reputation: u32| {
+            let mut team = Team::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                "Country".to_string(),
+                "City".to_string(),
+                "Stadium".to_string(),
+                10_000,
+            );
+            team.football_nation = nation.to_string();
+            team.reputation = reputation;
+            team
+        };
+        let mut world = super::super::WorldData::default();
+        world.teams = vec![
+            make("tr-a", "TR", 900),
+            make("tr-b", "TR", 800),
+            make("tr-c", "TR", 700),
+            make("tr-d", "TR", 600),
+            make("jp-a", "JP", 850),
+            make("jp-b", "JP", 750),
+        ];
+        world.regions = vec![
+            super::super::WorldRegionDefinition {
+                id: "europe".to_string(),
+                name: "Europe".to_string(),
+                country_codes: vec!["TR".to_string()],
+            },
+            super::super::WorldRegionDefinition {
+                id: "asia".to_string(),
+                name: "Asia".to_string(),
+                country_codes: vec!["JP".to_string()],
+            },
+        ];
+        world
+    }
+
+    fn start() -> DateTime<Utc> {
+        use chrono::TimeZone;
+        Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap()
+    }
+
+    fn selector_def(id: &str, ty: CompetitionType, format: CompetitionFormat, selector: SelectorSpec) -> CompetitionDefinition {
+        CompetitionDefinition {
+            id: id.to_string(),
+            name: id.to_string(),
+            r#type: ty,
+            scope: CompetitionScope::Domestic,
+            region_id: None,
+            country_id: None,
+            required_region_ids: vec![],
+            priority: 0,
+            format: FormatDef {
+                kind: format,
+                legs: None,
+                group_size: None,
+                qualifiers_per_group: None,
+                best_third_qualifiers: None,
+            },
+            participants: ParticipantSpec { explicit: None, selector: Some(selector) },
+        }
+    }
+
+    #[test]
+    fn resolves_top_by_reputation_with_exclusions_into_a_pyramid() {
+        // First division: top 2 Turkish clubs. Second division: next clubs,
+        // excluding the first division's.
+        let first = selector_def(
+            "tr-1",
+            CompetitionType::League,
+            CompetitionFormat::LeagueTable,
+            SelectorSpec {
+                kind: SelectorKind::TopByReputation,
+                country: Some("TR".to_string()),
+                region: None,
+                count: Some(2),
+                exclude_competitions: vec![],
+                source_competition: None,
+            },
+        );
+        let second = selector_def(
+            "tr-2",
+            CompetitionType::League,
+            CompetitionFormat::LeagueTable,
+            SelectorSpec {
+                kind: SelectorKind::TopByReputation,
+                country: Some("TR".to_string()),
+                region: None,
+                count: Some(2),
+                exclude_competitions: vec!["tr-1".to_string()],
+                source_competition: None,
+            },
+        );
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![first, second],
+        };
+
+        let competitions = resolve_definitions(&file, &world(), 2026, start());
+
+        let div1 = competitions.iter().find(|c| c.id == "tr-1").unwrap();
+        let div2 = competitions.iter().find(|c| c.id == "tr-2").unwrap();
+        assert_eq!(div1.participant_ids, vec!["tr-a", "tr-b"]);
+        assert_eq!(div2.participant_ids, vec!["tr-c", "tr-d"]);
+        // The competition's stable id flows onto its fixtures.
+        assert!(div1.fixtures.iter().all(|f| f.competition_id == "tr-1"));
+        assert_eq!(div1.fixtures.len(), 2); // 2 clubs, home & away
+    }
+
+    #[test]
+    fn resolves_champions_of_into_a_group_knockout_with_a_stable_id() {
+        let league = selector_def(
+            "tr-1",
+            CompetitionType::League,
+            CompetitionFormat::LeagueTable,
+            SelectorSpec {
+                kind: SelectorKind::TopByReputation,
+                country: Some("TR".to_string()),
+                region: None,
+                count: Some(4),
+                exclude_competitions: vec![],
+                source_competition: None,
+            },
+        );
+        let mut continental = selector_def(
+            "afc",
+            CompetitionType::ContinentalClub,
+            CompetitionFormat::GroupAndKnockout,
+            SelectorSpec {
+                kind: SelectorKind::ChampionsOf,
+                country: None,
+                region: None,
+                count: Some(4),
+                exclude_competitions: vec![],
+                source_competition: Some("tr-1".to_string()),
+            },
+        );
+        continental.scope = CompetitionScope::Continental;
+        // Author the continental cup BEFORE its source to exercise dependency
+        // ordering.
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![continental, league],
+        };
+
+        let competitions = resolve_definitions(&file, &world(), 2026, start());
+
+        let afc = competitions.iter().find(|c| c.id == "afc").unwrap();
+        assert_eq!(afc.rules.format, CompetitionFormat::GroupAndKnockout);
+        // Top 4 Turkish clubs by reputation qualified.
+        assert_eq!(
+            afc.participant_ids,
+            vec!["tr-a", "tr-b", "tr-c", "tr-d"]
+        );
+        // The generated id was rewritten to the stable definition id everywhere.
+        assert!(afc.fixtures.iter().all(|f| f.competition_id == "afc"));
+        assert!(afc.groups.iter().all(|g| g.id.starts_with("afc-group-")));
     }
 
     #[test]
