@@ -1855,6 +1855,9 @@
         "playerNotInStartingXi": "球员不在首发阵容中"
       },
       "worldReadFileFailed": "读取世界数据库文件失败。",
+    "competitionDef": {
+      "invalidEmbedded": "该世界的赛事定义无效，无法加载。"
+    },
       "worldParseFailed": "解析世界数据库文件失败。",
       "worldWriteFileFailed": "导出世界数据库文件失败。",
       "worldWriteDatabaseFailed": "保存导入的世界数据库失败。",

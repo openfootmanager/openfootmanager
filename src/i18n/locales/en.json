@@ -1863,6 +1863,9 @@
         "playerNotInStartingXi": "Player not in starting XI"
       },
       "worldReadFileFailed": "Failed to read the world database file.",
+    "competitionDef": {
+      "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded."
+    },
       "worldParseFailed": "Failed to parse the world database file.",
       "worldWriteFileFailed": "Failed to export the world database file.",
       "worldWriteDatabaseFailed": "Failed to save the imported world database.",

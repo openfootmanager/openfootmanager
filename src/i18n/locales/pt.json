@@ -1855,6 +1855,9 @@
         "playerNotInStartingXi": "O jogador não está no onze inicial"
       },
       "worldReadFileFailed": "Falha ao ler o ficheiro da base de dados do mundo.",
+    "competitionDef": {
+      "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las."
+    },
       "worldParseFailed": "Falha ao interpretar o ficheiro da base de dados do mundo.",
       "worldWriteFileFailed": "Falha ao exportar o ficheiro da base de dados do mundo.",
       "worldWriteDatabaseFailed": "Falha ao guardar a base de dados do mundo importada.",

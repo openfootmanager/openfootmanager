@@ -1855,6 +1855,9 @@
         "playerNotInStartingXi": "O jogador não está no time titular"
       },
       "worldReadFileFailed": "Falha ao ler o arquivo do banco de dados do mundo.",
+    "competitionDef": {
+      "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las."
+    },
       "worldParseFailed": "Falha ao interpretar o arquivo do banco de dados do mundo.",
       "worldWriteFileFailed": "Falha ao exportar o arquivo do banco de dados do mundo.",
       "worldWriteDatabaseFailed": "Falha ao salvar o banco de dados do mundo importado.",

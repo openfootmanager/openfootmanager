@@ -603,6 +603,9 @@ export interface GameStateData {
   world_history?: {
     world_cup_champions?: WorldCupChampionData[];
   };
+  // Authored competition definitions (resolved at game creation; present on
+  // imported worlds that ship their own competitions).
+  competitionDefinitions?: unknown;
   active_region_ids?: string[];
   active_competition_ids?: string[];
   regions?: WorldRegionData[];

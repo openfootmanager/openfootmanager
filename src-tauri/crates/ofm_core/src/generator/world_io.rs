@@ -138,6 +138,7 @@ pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
         staff,
         managers: vec![],
         competitions: vec![],
+        competition_definitions: None,
         national_teams: vec![],
         regions: vec![],
         default_active_regions: vec![],
@@ -150,11 +151,27 @@ pub fn generate_world_data(data_dir: Option<&std::path::Path>) -> WorldData {
     })
 }
 
+const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.invalidEmbedded";
+
+/// Reject a world whose embedded competition definitions don't validate, so a
+/// broken definition file never loads half-applied.
+fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
+    if let Some(file) = &world.competition_definitions {
+        let ctx = super::competition_def::WorldValidationContext::from_world(world);
+        if !super::competition_def::validate_definitions(file, &ctx).is_empty() {
+            return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
+        }
+    }
+    Ok(())
+}
+
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
     let world: WorldData =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
-    Ok(normalize_world(world))
+    let world = normalize_world(world);
+    validate_embedded_definitions(&world)?;
+    Ok(world)
 }
 
 /// Serialise a `WorldData` to a pretty-printed JSON string.
@@ -190,6 +207,7 @@ fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Resu
         staff,
         managers,
         competitions,
+        competition_definitions: None,
         national_teams,
         regions: manifest.regions,
         default_active_regions: manifest.default_active_regions,

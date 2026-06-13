@@ -1855,6 +1855,9 @@
         "playerNotInStartingXi": "Spieler ist nicht in der Startelf"
       },
       "worldReadFileFailed": "Die Weltdatenbankdatei konnte nicht gelesen werden.",
+    "competitionDef": {
+      "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden."
+    },
       "worldParseFailed": "Die Weltdatenbankdatei konnte nicht verarbeitet werden.",
       "worldWriteFileFailed": "Die Weltdatenbankdatei konnte nicht exportiert werden.",
       "worldWriteDatabaseFailed": "Die importierte Weltdatenbank konnte nicht gespeichert werden.",

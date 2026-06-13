@@ -47,6 +47,7 @@ fn export_world_database_internal(
         staff: game.staff.clone(),
         managers,
         competitions: game.competitions.clone(),
+        competition_definitions: None,
         national_teams: game.national_teams.clone(),
         regions: Vec::new(),
         default_active_regions: game.active_region_ids.clone(),

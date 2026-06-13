@@ -214,6 +214,13 @@ pub struct WorldData {
     pub staff: Vec<domain::staff::Staff>,
     pub managers: Vec<domain::manager::Manager>,
     pub competitions: Vec<domain::league::CompetitionState>,
+    /// Optional authored competition definitions resolved at game creation.
+    #[serde(
+        default,
+        rename = "competitionDefinitions",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub competition_definitions: Option<super::competition_def::CompetitionDefinitionFile>,
     pub national_teams: Vec<domain::national_team::NationalTeam>,
     pub regions: Vec<WorldRegionDefinition>,
     pub default_active_regions: Vec<String>,
@@ -235,6 +242,7 @@ impl Default for WorldData {
             staff: Vec::new(),
             managers: Vec::new(),
             competitions: Vec::new(),
+            competition_definitions: None,
             national_teams: Vec::new(),
             regions: Vec::new(),
             default_active_regions: Vec::new(),

@@ -226,6 +226,22 @@ fn build_game_from_world_data(
     startup_options: &StartupOptions,
     world: ofm_core::generator::WorldData,
 ) -> (Game, StatsState) {
+    // Resolve any authored competition definitions while we still hold the
+    // world (validation already passed at load). These replace the auto-built
+    // foundation competitions.
+    let defined_competitions: Vec<League> = world
+        .competition_definitions
+        .as_ref()
+        .map(|file| {
+            ofm_core::generator::resolve_definitions(
+                file,
+                &world,
+                preseason_league_year(&clock),
+                preseason_season_start(&clock),
+            )
+        })
+        .unwrap_or_default();
+
     let ofm_core::generator::WorldData {
         teams,
         players,
@@ -244,6 +260,14 @@ fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+
+    // Authored definitions take precedence over both the snapshot's stored
+    // competitions and the auto-built foundations.
+    let competitions = if defined_competitions.is_empty() {
+        competitions
+    } else {
+        defined_competitions
+    };
 
     match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
@@ -265,6 +289,9 @@ fn build_game_from_world_data(
             (game, stats)
         }
         ofm_core::generator::WorldDataKind::RosterBaseline => {
+            // Authored definitions, if any, become the world's competitions;
+            // otherwise ensure_multi_competition_foundations auto-builds them.
+            game.competitions = competitions;
             apply_generated_past_history(&mut game, startup_options);
             ensure_multi_competition_foundations(&mut game);
             (game, StatsState::default())
@@ -1525,6 +1552,7 @@ mod tests {
             staff: base_game.staff,
             managers: vec![incumbent],
             competitions: Vec::new(),
+            competition_definitions: None,
             national_teams: Vec::new(),
             regions: Vec::new(),
             default_active_regions: Vec::new(),
@@ -2017,6 +2045,71 @@ mod tests {
             .managers
             .iter()
             .any(|manager| manager.id == "mgr-incumbent"));
+    }
+
+    #[test]
+    fn embedded_competition_definitions_replace_the_auto_built_competitions() {
+        use ofm_core::generator::{
+            CompetitionDefinition, CompetitionDefinitionFile, FormatDef, ParticipantSpec,
+        };
+
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::MidSeason,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_historical_snapshot_world();
+        let team_ids: Vec<String> = world.teams.iter().map(|t| t.id.clone()).collect();
+        assert!(team_ids.len() >= 2);
+        world.competition_definitions = Some(CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![CompetitionDefinition {
+                id: "custom-league".to_string(),
+                name: "Custom League".to_string(),
+                r#type: domain::league::CompetitionType::League,
+                scope: domain::league::CompetitionScope::Domestic,
+                region_id: None,
+                country_id: None,
+                required_region_ids: vec![],
+                priority: 0,
+                format: FormatDef {
+                    kind: domain::league::CompetitionFormat::LeagueTable,
+                    legs: None,
+                    group_size: None,
+                    qualifiers_per_group: None,
+                    best_third_qualifiers: None,
+                },
+                participants: ParticipantSpec {
+                    explicit: Some(team_ids.clone()),
+                    selector: None,
+                },
+            }],
+        });
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let (game, _stats) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        let custom = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "custom-league")
+            .expect("authored competition replaces the auto-built ones");
+        assert_eq!(custom.participant_ids, team_ids);
+        assert!(
+            game.competitions
+                .iter()
+                .all(|c| c.id == "custom-league"
+                    || c.kind == domain::league::CompetitionType::InternationalNation),
+            "no auto-generated club competitions when definitions are supplied"
+        );
     }
 
     #[test]
