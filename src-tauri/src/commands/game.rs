@@ -899,6 +899,49 @@ fn bootstrap_team_selection(
 
 /// Step 1: Create manager + generate world. No team assigned yet.
 /// Returns the Game object so the frontend can show team selection.
+/// One validation problem in a competition-definition file, shaped for the UI.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompetitionDefinitionIssue {
+    code: String,
+    competition_id: String,
+    params: std::collections::HashMap<String, String>,
+}
+
+fn parse_competition_definitions(
+    json: &str,
+) -> Result<ofm_core::generator::CompetitionDefinitionFile, String> {
+    serde_json::from_str(json).map_err(|_| "be.error.competitionDef.parseFailed".to_string())
+}
+
+fn validate_against_world(
+    file: &ofm_core::generator::CompetitionDefinitionFile,
+    world: &ofm_core::generator::WorldData,
+) -> Vec<CompetitionDefinitionIssue> {
+    let ctx = ofm_core::generator::WorldValidationContext::from_world(world);
+    ofm_core::generator::validate_definitions(file, &ctx)
+        .into_iter()
+        .map(|error| CompetitionDefinitionIssue {
+            code: error.code,
+            competition_id: error.competition_id,
+            params: error.params.into_iter().collect(),
+        })
+        .collect()
+}
+
+/// Validate a standalone competition-definition file against a world. Returns
+/// the full list of problems (empty = valid) so the new-game UI can show them
+/// before the player commits.
+#[tauri::command]
+pub fn validate_competition_definitions(
+    world_source: Option<String>,
+    definitions_json: String,
+) -> Result<Vec<CompetitionDefinitionIssue>, String> {
+    let file = parse_competition_definitions(&definitions_json)?;
+    let world = load_world_data(world_source.as_deref())?;
+    Ok(validate_against_world(&file, &world))
+}
+
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
@@ -909,6 +952,7 @@ pub async fn start_new_game(
     nationality: String,
     startup_options: Option<RawStartupOptions>,
     world_source: Option<String>,
+    competition_definitions_json: Option<String>,
 ) -> Result<Game, String> {
     // Validate inputs
     let first_name = first_name.trim().to_string();
@@ -929,7 +973,19 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let world = load_world_data(world_source.as_deref())?;
+    let mut world = load_world_data(world_source.as_deref())?;
+
+    // Layer a user-picked standalone definition file onto the world. It is
+    // validated strictly; the UI has already shown any details via
+    // validate_competition_definitions.
+    if let Some(json) = &competition_definitions_json {
+        let file = parse_competition_definitions(json)?;
+        if !validate_against_world(&file, &world).is_empty() {
+            return Err("be.error.competitionDef.invalidStandalone".to_string());
+        }
+        world.competition_definitions = Some(file);
+    }
+
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let reference_date = clock.current_date.date_naive();
     let age = age_on_date(birth_date, reference_date);

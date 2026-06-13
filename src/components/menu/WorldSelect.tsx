@@ -18,6 +18,12 @@ export interface WorldDatabaseInfo {
   path: string;
 }
 
+export interface CompetitionDefinitionIssue {
+  code: string;
+  competition_id: string;
+  params: Record<string, string>;
+}
+
 interface WorldSelectProps {
   worldDatabases: WorldDatabaseInfo[];
   selectedWorldId: string;
@@ -32,6 +38,10 @@ interface WorldSelectProps {
   onStart: () => void;
   onBack: () => void;
   onClose: () => void;
+  competitionDefsFileName?: string | null;
+  competitionDefsErrors?: CompetitionDefinitionIssue[];
+  onImportCompetitionDefs?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearCompetitionDefs?: () => void;
 }
 
 const HISTORY_DEPTH_OPTIONS = [0, 6, 12, 24] as const;
@@ -57,10 +67,13 @@ function worldHistoryMode(db: WorldDatabaseInfo | undefined): "generated" | "ref
 export default function WorldSelect({
   worldDatabases, selectedWorldId, isLoadingWorlds, isStarting, startYear, startPhase,
   historyDepthYears, onSelectWorld, onChangeHistoryDepthYears, onImportFile, onStart, onBack, onClose,
+  competitionDefsFileName, competitionDefsErrors, onImportCompetitionDefs, onClearCompetitionDefs,
 }: WorldSelectProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const competitionDefsInputRef = useRef<HTMLInputElement>(null);
+  const hasCompetitionDefErrors = (competitionDefsErrors?.length ?? 0) > 0;
   const selectedWorld = worldDatabases.find((db) => db.id === selectedWorldId);
   const historyMode = worldHistoryMode(selectedWorld);
   const canConfigureGeneratedHistory = historyMode !== "reference";
@@ -248,13 +261,67 @@ export default function WorldSelect({
         onChange={onImportFile}
       />
 
+      {/* Optional custom competitions file */}
+      {onImportCompetitionDefs && (
+        <div className="space-y-2">
+          <input
+            ref={competitionDefsInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={onImportCompetitionDefs}
+            data-testid="competition-defs-input"
+          />
+          {competitionDefsFileName ? (
+            <div className="flex items-center justify-between gap-2 w-full py-2 px-3 border border-gray-200 dark:border-navy-600 rounded-xl text-sm">
+              <span className="flex items-center gap-2 truncate text-gray-700 dark:text-gray-200">
+                <Database className="w-4 h-4 shrink-0" />
+                <span className="truncate">{competitionDefsFileName}</span>
+              </span>
+              <button
+                onClick={onClearCompetitionDefs}
+                className="shrink-0 font-heading font-bold uppercase tracking-wider text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                {t('worldSelect.removeCompetitions')}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => competitionDefsInputRef.current?.click()}
+              className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="font-heading font-bold uppercase tracking-wider">{t('worldSelect.importCompetitions')}</span>
+            </button>
+          )}
+          {hasCompetitionDefErrors && (
+            <div
+              className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs"
+              data-testid="competition-defs-errors"
+            >
+              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+                {t('worldSelect.competitionsErrorsTitle')}
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
+                {competitionDefsErrors!.map((issue, index) => (
+                  <li key={index}>
+                    {issue.competition_id ? `[${issue.competition_id}] ` : ''}
+                    {t(issue.code, issue.params)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <Button
         variant="primary"
         size="lg"
         className="w-full"
         iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
         onClick={onStart}
-        disabled={isStarting}
+        disabled={isStarting || hasCompetitionDefErrors}
       >
         {isStarting ? t('worldSelect.creatingWorld') : t('worldSelect.startCareer')}
       </Button>
