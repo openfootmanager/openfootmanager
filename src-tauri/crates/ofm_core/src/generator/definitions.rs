@@ -37,22 +37,27 @@ pub struct TeamsDefinition {
     pub teams: Vec<TeamDef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TeamDef {
-    pub name: String,
+    /// Stable id used to reference this club (e.g. from player or competition
+    /// files). Empty for procedurally generated clubs, which get a UUID.
     #[serde(default)]
+    pub id: String,
+    pub name: String,
+    #[serde(default, alias = "short_name")]
     pub short_name: String,
     pub city: String,
-    /// ISO 3166-1 alpha-2 country code.
+    /// ISO 3166-1 alpha-2 / football country code.
     pub country: String,
     pub colors: TeamColorsDef,
-    #[serde(default = "default_play_style")]
+    #[serde(default = "default_play_style", alias = "play_style")]
     pub play_style: String,
-    #[serde(default)]
+    #[serde(default, alias = "stadium_name")]
     pub stadium_name: String,
-    #[serde(default)]
+    #[serde(default, alias = "reputation_range")]
     pub reputation_range: Option<[u32; 2]>,
-    #[serde(default)]
+    #[serde(default, alias = "finance_range")]
     pub finance_range: Option<[i64; 2]>,
 }
 
@@ -60,7 +65,7 @@ fn default_play_style() -> String {
     "Balanced".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TeamColorsDef {
     pub primary: String,
     pub secondary: String,
@@ -107,6 +112,7 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
         teams: TEAM_TEMPLATES
             .iter()
             .map(|t| TeamDef {
+                id: String::new(),
                 name: t.name.to_string(),
                 short_name: t
                     .name

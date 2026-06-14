@@ -258,6 +258,7 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
             let play_style = PLAY_STYLES[rng.random_range(0..PLAY_STYLES.len())];
 
             defs.push(TeamDef {
+                id: String::new(),
                 short_name: short_code(&name),
                 name,
                 city: city.clone(),

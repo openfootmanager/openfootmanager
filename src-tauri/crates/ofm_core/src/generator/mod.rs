@@ -4,12 +4,14 @@ pub mod competition_def;
 pub mod definitions;
 pub mod file_format;
 mod generation;
+pub mod package;
 pub mod world_io;
 
 pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
+pub use package::{load_world_package, PackageError, WorldPackage};
 pub use world_io::*;
 
 use domain::player::{Player, Position};
