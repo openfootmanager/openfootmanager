@@ -701,6 +701,53 @@ colors:
     }
 
     #[test]
+    fn builds_a_playable_world_from_a_package() {
+        let dir = temp_package();
+        write(&dir, "world.yaml", "schema: world\nname: Zed World\ndescription: A tiny world\n");
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            &dir,
+            "teams.yaml",
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n  - { id: zed-utd, name: Zed United, city: Zedford, country: ZZ, colors: { primary: \"#111\", secondary: \"#fff\" } }\n",
+        );
+        write(
+            &dir,
+            "league.yaml",
+            "schema: competition\nid: zz-1\nname: Zed League\ntype: League\nscope: Domestic\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: ZZ\n",
+        );
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "package should be valid: {errors:?}");
+
+        let world = crate::generator::build_world_data_from_package(&package);
+        assert_eq!(world.name, "Zed World");
+        let team_ids: Vec<&str> = world.teams.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(team_ids, vec!["zed-fc", "zed-utd"], "stable authored ids are kept");
+        assert_eq!(world.players.len(), 44, "22 players per club are generated");
+
+        let galaxy = world
+            .regions
+            .iter()
+            .find(|r| r.id == "galaxy")
+            .expect("the package's confederation becomes a region");
+        assert!(galaxy.country_codes.contains(&"ZZ".to_string()));
+
+        let defs = world
+            .competition_definitions
+            .as_ref()
+            .expect("package competitions are embedded for resolution");
+        assert_eq!(defs.competitions.len(), 1);
+        assert_eq!(defs.competitions[0].id, "zz-1");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn competition_reference_errors_surface_as_package_errors() {
         let dir = temp_package();
         write(

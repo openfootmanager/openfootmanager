@@ -248,6 +248,223 @@ pub fn generate_world(
     generate_world_with(&clubs::WorldGenConfig::standard(), data_dir)
 }
 
+/// Build a club (without players) from a definition. Uses the definition's
+/// stable `id` when set (world packages); otherwise a fresh UUID.
+fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
+    let team_id = if tdef.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        tdef.id.clone()
+    };
+    let short_name = if tdef.short_name.is_empty() {
+        tdef.name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .collect::<String>()
+            .to_uppercase()
+            .chars()
+            .take(3)
+            .collect()
+    } else {
+        tdef.short_name.clone()
+    };
+    let stadium = if tdef.stadium_name.is_empty() {
+        format!("{} Arena", tdef.city)
+    } else {
+        tdef.stadium_name.clone()
+    };
+
+    let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
+    let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
+
+    let mut team = domain::team::Team::new(
+        team_id,
+        tdef.name.clone(),
+        short_name,
+        tdef.country.clone(),
+        tdef.city.clone(),
+        stadium,
+        rng.random_range(10000..80000),
+    );
+    team.finance = rng.random_range(fin_range[0]..fin_range[1]);
+    team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
+    team.wage_budget = (team.finance as f64 * 0.06) as i64;
+    team.transfer_budget = (team.finance as f64 * 0.15) as i64;
+    team.founded_year = rng.random_range(1880..1960);
+    team.colors = TeamColors {
+        primary: tdef.colors.primary.clone(),
+        secondary: tdef.colors.secondary.clone(),
+    };
+    team.play_style = play_style_from_str(&tdef.play_style);
+    team
+}
+
+/// Build a club with a full generated squad (22 players) and staff, normalised
+/// to a sensible opening wage budget. Shared by the random world and world
+/// packages.
+fn build_club(
+    tdef: &TeamDef,
+    country_codes: &[String],
+    names_def: &NamesDefinition,
+    rng: &mut impl rand::Rng,
+) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
+    let mut team = build_team(tdef, rng);
+    let team_id = team.id.clone();
+
+    let mut team_players = Vec::with_capacity(22);
+    for slot in 0..22 {
+        let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
+        let mut player =
+            generate_random_player_from_def(&team_id, slot, &nationality, names_def, rng);
+        if rng.random_range(0..100) < 12 {
+            player.transfer_listed = true;
+        } else if rng.random_range(0..100) < 8 {
+            player.loan_listed = true;
+        }
+        team_players.push(player);
+    }
+
+    let mut team_staff = Vec::with_capacity(4);
+    for role in [
+        StaffRole::AssistantManager,
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+    ] {
+        let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
+        team_staff.push(generate_random_staff_from_def(
+            &team_id,
+            role,
+            &nationality,
+            names_def,
+            rng,
+        ));
+    }
+
+    normalize_generated_team(&mut team, &mut team_players);
+    (team, team_players, team_staff)
+}
+
+/// Human-readable name for the built-in confederations, falling back to the id.
+fn builtin_region_name(id: &str) -> String {
+    match id {
+        "europe" => "Europe",
+        "south-america" => "South America",
+        "north-america" => "North America",
+        "central-america" => "Central America",
+        "africa" => "Africa",
+        "asia" => "Asia",
+        "oceania" => "Oceania",
+        other => other,
+    }
+    .to_string()
+}
+
+/// Build the region list for a package: one region per confederation, with each
+/// club's country assigned to its confederation (package-defined first,
+/// otherwise the built-in catalog).
+fn regions_from_package(
+    package: &package::WorldPackage,
+    teams: &[domain::team::Team],
+) -> Vec<WorldRegionDefinition> {
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+    let mut region_names: BTreeMap<String, String> = BTreeMap::new();
+    let mut region_countries: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for confederation in &package.confederations {
+        region_names.insert(confederation.id.clone(), confederation.name.clone());
+        region_countries.entry(confederation.id.clone()).or_default();
+    }
+
+    let country_region: HashMap<&str, &str> = package
+        .countries
+        .iter()
+        .filter(|country| !country.confederation.is_empty())
+        .map(|country| (country.id.as_str(), country.confederation.as_str()))
+        .collect();
+
+    for team in teams {
+        let code = if team.football_nation.is_empty() {
+            team.country.as_str()
+        } else {
+            team.football_nation.as_str()
+        };
+        let region = country_region
+            .get(code)
+            .copied()
+            .unwrap_or_else(|| crate::nations::region_for_code(code));
+        region_names
+            .entry(region.to_string())
+            .or_insert_with(|| builtin_region_name(region));
+        region_countries
+            .entry(region.to_string())
+            .or_default()
+            .insert(code.to_string());
+    }
+
+    region_countries
+        .into_iter()
+        .map(|(id, codes)| WorldRegionDefinition {
+            name: region_names.get(&id).cloned().unwrap_or_else(|| id.clone()),
+            id,
+            country_codes: codes.into_iter().collect(),
+        })
+        .collect()
+}
+
+/// Build a runnable [`WorldData`] from a validated world package: clubs with
+/// generated squads, regions from the package's confederations/countries, and
+/// the package's competitions as embedded definitions (resolved at game start).
+/// Call only after [`package::load_world_package`] reports no errors.
+pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldData {
+    let mut rng = rand::rng();
+    let names_def = package.names.clone().unwrap_or_else(default_names_definition);
+    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+
+    let mut teams = Vec::new();
+    let mut players = Vec::new();
+    let mut staff = Vec::new();
+    for tdef in &package.teams {
+        let (team, team_players, team_staff) =
+            build_club(tdef, &country_codes, &names_def, &mut rng);
+        teams.push(team);
+        players.extend(team_players);
+        staff.extend(team_staff);
+    }
+
+    let regions = regions_from_package(package, &teams);
+    let competition_definitions = if package.competitions.is_empty() {
+        None
+    } else {
+        Some(CompetitionDefinitionFile {
+            format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        })
+    };
+
+    let meta = package.meta.clone().unwrap_or_default();
+    let mut world = WorldData {
+        name: if meta.name.is_empty() {
+            "Imported World".to_string()
+        } else {
+            meta.name.clone()
+        },
+        description: meta.description.clone(),
+        teams,
+        players,
+        staff,
+        competition_definitions,
+        regions,
+        default_active_regions: meta.default_active_regions.clone(),
+        default_active_competitions: meta.default_active_competitions.clone(),
+        ..WorldData::default()
+    };
+    if let Some(base_year) = meta.base_year {
+        world.metadata.base_year = Some(base_year);
+    }
+    world
+}
+
 /// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
 fn find_definition_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
     ["json", "yaml", "yml"]
@@ -297,82 +514,10 @@ pub fn generate_world_with(
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
     for tdef in &team_defs {
-        let team_id = Uuid::new_v4().to_string();
-        let short_name = if tdef.short_name.is_empty() {
-            tdef.name
-                .split_whitespace()
-                .filter_map(|w| w.chars().next())
-                .collect::<String>()
-                .to_uppercase()
-                .chars()
-                .take(3)
-                .collect()
-        } else {
-            tdef.short_name.clone()
-        };
-        let stadium = if tdef.stadium_name.is_empty() {
-            format!("{} Arena", tdef.city)
-        } else {
-            tdef.stadium_name.clone()
-        };
-
-        let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
-        let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
-
-        let mut team = domain::team::Team::new(
-            team_id.clone(),
-            tdef.name.clone(),
-            short_name,
-            tdef.country.clone(),
-            tdef.city.clone(),
-            stadium,
-            rng.random_range(10000..80000),
-        );
-        team.finance = rng.random_range(fin_range[0]..fin_range[1]);
-        team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
-        team.wage_budget = (team.finance as f64 * 0.06) as i64;
-        team.transfer_budget = (team.finance as f64 * 0.15) as i64;
-        team.founded_year = rng.random_range(1880..1960);
-        team.colors = TeamColors {
-            primary: tdef.colors.primary.clone(),
-            secondary: tdef.colors.secondary.clone(),
-        };
-        team.play_style = play_style_from_str(&tdef.play_style);
-        let team_player_start = players.len();
-
-        // Generate 22 players
-        for j in 0..22 {
-            let nationality = pick_nationality_from_def(&tdef.country, &country_codes, &mut rng);
-            let mut player =
-                generate_random_player_from_def(&team_id, j, &nationality, &names_def, &mut rng);
-            if rng.random_range(0..100) < 12 {
-                player.transfer_listed = true;
-            } else if rng.random_range(0..100) < 8 {
-                player.loan_listed = true;
-            }
-            players.push(player);
-        }
-
-        // Generate 4 staff per team
-        let roles = [
-            StaffRole::AssistantManager,
-            StaffRole::Coach,
-            StaffRole::Scout,
-            StaffRole::Physio,
-        ];
-        for role in &roles {
-            let nationality = pick_nationality_from_def(&tdef.country, &country_codes, &mut rng);
-            let s = generate_random_staff_from_def(
-                &team_id,
-                role.clone(),
-                &nationality,
-                &names_def,
-                &mut rng,
-            );
-            staff.push(s);
-        }
-
-        normalize_generated_team(&mut team, &mut players[team_player_start..]);
+        let (team, team_players, team_staff) =
+            build_club(tdef, &country_codes, &names_def, &mut rng);
+        players.extend(team_players);
+        staff.extend(team_staff);
         teams_out.push(team);
     }
 
