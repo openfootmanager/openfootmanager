@@ -1,12 +1,16 @@
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
+    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus,
+    KnockoutRoundState, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
-use ofm_core::end_of_season::{expected_fixture_count, is_season_complete, process_end_of_season};
+use ofm_core::end_of_season::{
+    continental_qualified_entrants, expected_fixture_count, is_season_complete,
+    process_end_of_season,
+};
 use ofm_core::game::{BoardObjective, Game, ObjectiveType};
 
 // ---------------------------------------------------------------------------
@@ -177,6 +181,229 @@ fn make_completed_season_game() -> Game {
     );
     game.league = Some(league);
     game
+}
+
+fn make_club(id: &str, nation: &str, reputation: u32) -> Team {
+    let mut team = make_team(id, id);
+    team.football_nation = nation.to_string();
+    team.reputation = reputation;
+    team
+}
+
+/// A single-division domestic league with `clubs` listed strongest-first; the
+/// final standings are set so the listed order is the finishing order.
+fn first_division(id: &str, country: &str, region: &str, clubs: &[&str]) -> League {
+    let total = clubs.len() as u32;
+    let standings = clubs
+        .iter()
+        .enumerate()
+        .map(|(rank, club)| {
+            let won = total - rank as u32; // strictly decreasing → unique order
+            make_standing(club, won, 0, total - won, won * 2, 0)
+        })
+        .collect();
+    League {
+        id: id.to_string(),
+        name: id.to_string(),
+        season: 1,
+        kind: CompetitionType::League,
+        scope: CompetitionScope::Domestic,
+        country_id: Some(country.to_string()),
+        region_id: Some(region.to_string()),
+        participant_ids: clubs.iter().map(|c| c.to_string()).collect(),
+        standings,
+        priority: 0,
+        ..Default::default()
+    }
+}
+
+/// A domestic knockout cup whose final has been won by `winner`.
+fn domestic_cup(id: &str, country: &str, region: &str, winner: &str, loser: &str) -> League {
+    let final_id = format!("{id}-final");
+    let mut final_fixture = make_completed_fixture(&final_id, winner, loser, 2, 1);
+    final_fixture.competition = FixtureCompetition::Cup;
+    League {
+        id: id.to_string(),
+        name: id.to_string(),
+        season: 1,
+        kind: CompetitionType::Cup,
+        scope: CompetitionScope::Domestic,
+        country_id: Some(country.to_string()),
+        region_id: Some(region.to_string()),
+        fixtures: vec![final_fixture],
+        knockout_rounds: vec![KnockoutRoundState {
+            id: format!("{id}-final-round"),
+            name: "Final".to_string(),
+            fixture_ids: vec![final_id],
+            bye_team_ids: vec![],
+            completed: true,
+        }],
+        ..Default::default()
+    }
+}
+
+/// A continental club competition fed by `region`, with a `field_size`-club
+/// field (the placeholder entrants are replaced at qualification time).
+fn continental_cup(id: &str, region: &str, field_size: usize) -> League {
+    League {
+        id: id.to_string(),
+        name: id.to_string(),
+        season: 1,
+        kind: CompetitionType::ContinentalClub,
+        scope: CompetitionScope::Continental,
+        required_region_ids: vec![region.to_string()],
+        participant_ids: (0..field_size).map(|i| format!("seed-{i}")).collect(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
+    // Europe (ES) and South America (BR), each with six clubs whose reputations
+    // mirror their finishing order. In each country the cup is won by the 5th-
+    // placed club, so it qualifies despite finishing outside the top four.
+    let mut teams = Vec::new();
+    for (rank, id) in ["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]
+        .iter()
+        .enumerate()
+    {
+        teams.push(make_club(id, "ES", 900 - rank as u32 * 50));
+    }
+    for (rank, id) in ["br-a", "br-b", "br-c", "br-d", "br-e", "br-f"]
+        .iter()
+        .enumerate()
+    {
+        teams.push(make_club(id, "BR", 900 - rank as u32 * 50));
+    }
+
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+    game.competitions = vec![
+        first_division("es-1", "ES", "europe", &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]),
+        domestic_cup("es-cup", "ES", "europe", "es-e", "es-f"),
+        first_division("br-1", "BR", "south-america", &["br-a", "br-b", "br-c", "br-d", "br-e", "br-f"]),
+        domestic_cup("br-cup", "BR", "south-america", "br-e", "br-f"),
+        // Five-club fields so the top four plus the cup winner exactly fill each
+        // bracket (no reputation top-up masking the cup berth).
+        continental_cup("europe-cup", "europe", 5),
+        continental_cup("libertadores", "south-america", 5),
+    ];
+
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+    let euro_field = continental_qualified_entrants(&game, europe);
+    for club in ["es-a", "es-b", "es-c", "es-d", "es-e"] {
+        assert!(
+            euro_field.contains(&club.to_string()),
+            "europe field should include {club}: {euro_field:?}"
+        );
+    }
+    assert!(
+        !euro_field.contains(&"es-f".to_string()),
+        "es-f neither finished top four nor won the cup: {euro_field:?}"
+    );
+    assert!(
+        euro_field.iter().all(|id| id.starts_with("es-")),
+        "europe field drew a club from another confederation: {euro_field:?}"
+    );
+
+    let south_america = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "libertadores")
+        .unwrap();
+    let sa_field = continental_qualified_entrants(&game, south_america);
+    for club in ["br-a", "br-b", "br-c", "br-d", "br-e"] {
+        assert!(
+            sa_field.contains(&club.to_string()),
+            "south american field should include {club}: {sa_field:?}"
+        );
+    }
+    assert!(
+        sa_field.iter().all(|id| id.starts_with("br-")),
+        "south american field drew a club from another confederation: {sa_field:?}"
+    );
+}
+
+#[test]
+fn rollover_passes_continental_qualifiers_into_the_next_season() {
+    // 2027 is neither a World Cup summer nor a qualifying season, so the rollover
+    // just regenerates club competitions.
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2027, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("eng-a".to_string());
+
+    let teams = vec![make_club("eng-a", "ENG", 800), make_club("eng-b", "ENG", 700)];
+    let mut p1 = make_player("p1", "Star", "eng-a", Position::Forward);
+    p1.stats = PlayerSeasonStats {
+        appearances: 30,
+        goals: 20,
+        ..PlayerSeasonStats::default()
+    };
+    let mut p2 = make_player("p2", "Rival", "eng-b", Position::Forward);
+    p2.stats = PlayerSeasonStats {
+        appearances: 28,
+        goals: 8,
+        ..PlayerSeasonStats::default()
+    };
+
+    let league = League {
+        id: "eng-1".to_string(),
+        name: "England League".to_string(),
+        season: 1,
+        kind: CompetitionType::League,
+        scope: CompetitionScope::Domestic,
+        country_id: Some("ENG".to_string()),
+        region_id: Some("europe".to_string()),
+        participant_ids: vec!["eng-a".to_string(), "eng-b".to_string()],
+        fixtures: vec![
+            make_completed_fixture("f1", "eng-a", "eng-b", 2, 0),
+            make_completed_fixture("f2", "eng-b", "eng-a", 0, 1),
+        ],
+        // eng-a won both: 6 pts; eng-b: 0.
+        standings: vec![
+            make_standing("eng-a", 2, 0, 0, 3, 0),
+            make_standing("eng-b", 0, 0, 2, 0, 3),
+        ],
+        ..Default::default()
+    };
+    let continental = continental_cup("ucl", "europe", 2);
+
+    let mut game = Game::new(clock, manager, teams, vec![p1, p2], vec![], vec![]);
+    game.competitions = vec![league, continental];
+
+    process_end_of_season(&mut game);
+
+    let ucl = game.competitions.iter().find(|c| c.id == "ucl").unwrap();
+    assert!(
+        ucl.participant_ids.contains(&"eng-a".to_string())
+            && ucl.participant_ids.contains(&"eng-b".to_string()),
+        "next season's continental field should be the domestic qualifiers, got {:?}",
+        ucl.participant_ids
+    );
+    assert!(
+        !ucl.participant_ids.iter().any(|id| id.starts_with("seed-")),
+        "placeholder seeds should be replaced by real qualifiers: {:?}",
+        ucl.participant_ids
+    );
 }
 
 #[test]

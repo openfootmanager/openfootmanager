@@ -2,7 +2,9 @@ use crate::game::Game;
 use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
-use domain::league::{CompetitionFormat, FixtureStatus, League, StandingEntry};
+use domain::league::{
+    CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
+};
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
@@ -201,6 +203,127 @@ fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     }
 }
 
+/// Domestic league finishes that earn a continental berth — the top N of each
+/// first division. Cup winners qualify on top of these.
+const CONTINENTAL_LEAGUE_SLOTS: usize = 4;
+
+/// The clubs that qualify for a continental competition next season, decided by
+/// the domestic season just completed: the top finishers of each first division
+/// in the competition's feeder regions, plus domestic cup winners. The field is
+/// seeded by reputation and capped to the competition's size; a thin field is
+/// topped up by reputation so the bracket keeps its shape.
+///
+/// This is what makes domestic results feed continental qualification — a club
+/// that finishes top of its league then plays continental football, instead of
+/// the field being frozen at world creation. Read from final standings, so call
+/// it before regeneration resets them.
+pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<String> {
+    use std::collections::{BTreeMap, HashSet};
+
+    let field_size = competition.participant_ids.len().max(4);
+
+    // Feeder regions: the competition's declared regions, or — if it declares
+    // none — every region present in the domestic competition set.
+    let feeder_regions: HashSet<String> = if competition.required_region_ids.is_empty() {
+        game.competitions
+            .iter()
+            .filter_map(|c| c.region_id.clone())
+            .collect()
+    } else {
+        competition.required_region_ids.iter().cloned().collect()
+    };
+    let in_feeder = |c: &League| {
+        c.region_id
+            .as_deref()
+            .is_some_and(|region| feeder_regions.contains(region))
+    };
+
+    let mut qualified: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    // The first division of each feeder country is its lowest-priority league.
+    let mut first_division: BTreeMap<&str, &League> = BTreeMap::new();
+    for competition in &game.competitions {
+        if competition.scope != CompetitionScope::Domestic
+            || competition.kind != CompetitionType::League
+            || !in_feeder(competition)
+        {
+            continue;
+        }
+        let Some(country) = competition.country_id.as_deref() else {
+            continue;
+        };
+        first_division
+            .entry(country)
+            .and_modify(|best| {
+                if competition.priority < best.priority {
+                    *best = competition;
+                }
+            })
+            .or_insert(competition);
+    }
+    for league in first_division.values() {
+        for entry in league
+            .sorted_standings()
+            .into_iter()
+            .take(CONTINENTAL_LEAGUE_SLOTS)
+        {
+            if seen.insert(entry.team_id.clone()) {
+                qualified.push(entry.team_id);
+            }
+        }
+    }
+
+    // Domestic cup winners earn a berth too.
+    for competition in &game.competitions {
+        if competition.scope != CompetitionScope::Domestic
+            || competition.kind != CompetitionType::Cup
+            || !in_feeder(competition)
+        {
+            continue;
+        }
+        if let Some(winner) = crate::world_cup::world_cup_champion(competition)
+            && seen.insert(winner.clone())
+        {
+            qualified.push(winner);
+        }
+    }
+
+    // Seed by reputation, cap to the field, and top up a thin field by
+    // reputation so the continental bracket keeps its size.
+    let reputation = |id: &str| {
+        game.teams
+            .iter()
+            .find(|team| team.id == id)
+            .map(|team| team.reputation)
+            .unwrap_or(0)
+    };
+    qualified.sort_by(|a, b| reputation(b).cmp(&reputation(a)).then_with(|| a.cmp(b)));
+    qualified.truncate(field_size);
+
+    if qualified.len() < field_size {
+        let mut fillers: Vec<_> = game
+            .teams
+            .iter()
+            .filter(|team| !seen.contains(&team.id))
+            .filter(|team| feeder_regions.contains(crate::nations::region_for_code(&team.football_nation)))
+            .collect();
+        fillers.sort_by(|a, b| {
+            b.reputation
+                .cmp(&a.reputation)
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        for team in fillers {
+            if qualified.len() >= field_size {
+                break;
+            }
+            qualified.push(team.id.clone());
+        }
+    }
+
+    qualified
+}
+
 /// Roll every competition over to the next season: apply promotion/relegation
 /// to domestic pyramids, regenerate fixtures and standings in place (preserving
 /// each competition's identity), and keep the legacy `league` slot in sync.
@@ -242,9 +365,34 @@ fn regenerate_competitions_for_new_season(
     game.active_competition_ids
         .retain(|competition_id| remaining_ids.contains(competition_id));
 
+    // Continental qualification reflects the season just completed: capture each
+    // continental field from final domestic standings and cup winners before
+    // regeneration resets those standings.
+    let continental_entrants: std::collections::HashMap<String, Vec<String>> = game
+        .competitions
+        .iter()
+        .filter(|competition| {
+            competition.scope == CompetitionScope::Continental
+                && competition.kind == CompetitionType::ContinentalClub
+        })
+        .map(|competition| {
+            (
+                competition.id.clone(),
+                continental_qualified_entrants(game, competition),
+            )
+        })
+        .collect();
+
     apply_pyramid_promotion_relegation(&mut game.competitions);
 
     for competition in game.competitions.iter_mut() {
+        // Re-qualified continental fields take their new entrants before the
+        // bracket is rebuilt from `participant_ids`.
+        if let Some(entrants) = continental_entrants.get(&competition.id)
+            && entrants.len() >= 2
+        {
+            competition.participant_ids = entrants.clone();
+        }
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
                 crate::schedule::regenerate_league_for_season(competition, next_season, next_start);

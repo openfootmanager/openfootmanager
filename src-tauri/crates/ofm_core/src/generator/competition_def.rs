@@ -562,8 +562,10 @@ fn resolve_participants(
         }
         SelectorKind::ChampionsOf => {
             // At world creation there is no prior season, so qualification is
-            // seeded by the source competition's strongest clubs. (Re-resolution
-            // from real standings happens at season rollover.)
+            // seeded by the source competition's strongest clubs. Once seasons
+            // are played, continental fields are re-qualified from real domestic
+            // standings at rollover (see
+            // `end_of_season::continental_qualified_entrants`).
             let source = selector.source_competition.clone().unwrap_or_default();
             let mut clubs: Vec<&Team> = resolved
                 .get(&source)
