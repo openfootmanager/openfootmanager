@@ -110,6 +110,9 @@ const UNKNOWN_SCHEMA: &str = "be.error.package.unknownSchema";
 const INVALID_ENTITY: &str = "be.error.package.invalidEntity";
 const MISSING_ID: &str = "be.error.package.missingId";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
+const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
+const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
+const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
 
 /// A structured problem found while loading a package. `code` is an i18n key,
 /// `file` locates the offending file (empty for aggregate-level problems), and
@@ -286,6 +289,7 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     package.competitions.sort_by(|a, b| a.id.cmp(&b.id));
 
     errors.extend(validate_ids(&package));
+    errors.extend(validate_references(&package));
     (package, errors)
 }
 
@@ -338,6 +342,111 @@ fn check_ids<'a>(
             );
         }
     }
+}
+
+/// Validate cross-file references: a country's confederation, a team's country,
+/// a player's club and nationality, and every competition reference. References
+/// resolve against entities defined in the package **plus** the built-in
+/// confederation/country catalog, so a package may reference (e.g.) `europe` or
+/// `ES` without redefining them. Empty (unspecified) references are left for the
+/// world-build step to default.
+pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
+    let mut errors = Vec::new();
+
+    let team_ids: HashSet<&str> = package.teams.iter().map(|t| t.id.as_str()).collect();
+    let country_ids: HashSet<&str> = package.countries.iter().map(|c| c.id.as_str()).collect();
+    let confederation_ids: HashSet<&str> =
+        package.confederations.iter().map(|c| c.id.as_str()).collect();
+
+    let known_confederation =
+        |id: &str| confederation_ids.contains(id) || crate::nations::is_builtin_region(id);
+    let known_country =
+        |code: &str| country_ids.contains(code) || crate::nations::nation_by_code(code).is_some();
+
+    for country in &package.countries {
+        if !country.confederation.is_empty() && !known_confederation(&country.confederation) {
+            errors.push(
+                PackageError::new(UNKNOWN_CONFEDERATION, "")
+                    .with("country", &country.id)
+                    .with("confederation", &country.confederation),
+            );
+        }
+    }
+
+    for team in &package.teams {
+        if !team.country.is_empty() && !known_country(&team.country) {
+            errors.push(
+                PackageError::new(UNKNOWN_COUNTRY, "")
+                    .with("entity", &team.id)
+                    .with("country", &team.country),
+            );
+        }
+    }
+
+    for player in &package.players {
+        if !player.club.is_empty() && !team_ids.contains(player.club.as_str()) {
+            errors.push(
+                PackageError::new(UNKNOWN_TEAM, "")
+                    .with("player", &player.id)
+                    .with("team", &player.club),
+            );
+        }
+        if !player.nationality.is_empty() && !known_country(&player.nationality) {
+            errors.push(
+                PackageError::new(UNKNOWN_COUNTRY, "")
+                    .with("entity", &player.id)
+                    .with("country", &player.nationality),
+            );
+        }
+    }
+
+    errors.extend(validate_competition_references(package));
+    errors
+}
+
+/// Run the existing competition validator over a package's competitions, with a
+/// world context built from the package's teams/countries/regions plus the
+/// built-in catalog. Definition errors are surfaced as package errors.
+fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
+    if package.competitions.is_empty() {
+        return Vec::new();
+    }
+
+    let team_ids: HashSet<&str> = package.teams.iter().map(|t| t.id.as_str()).collect();
+
+    let mut country_codes: HashSet<&str> =
+        package.countries.iter().map(|c| c.id.as_str()).collect();
+    let mut region_ids: HashSet<&str> =
+        package.confederations.iter().map(|c| c.id.as_str()).collect();
+    for nation in crate::nations::NATION_CATALOG {
+        country_codes.insert(nation.code);
+        region_ids.insert(nation.region_id);
+    }
+
+    let ctx = super::WorldValidationContext {
+        team_ids,
+        country_codes,
+        region_ids,
+    };
+    let file = super::CompetitionDefinitionFile {
+        format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
+        competitions: package.competitions.clone(),
+    };
+
+    super::validate_definitions(&file, &ctx)
+        .into_iter()
+        .map(|error| {
+            let mut params = error.params;
+            if !error.competition_id.is_empty() {
+                params.push(("competition".to_string(), error.competition_id));
+            }
+            PackageError {
+                code: error.code,
+                file: String::new(),
+                params,
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -499,6 +608,114 @@ colors:
         assert_eq!(package.competitions.len(), 1);
         assert_eq!(package.competitions[0].id, "es-1");
         assert_eq!(package.competitions[0].r#type, domain::league::CompetitionType::League);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_fully_cross_referenced_package_is_valid() {
+        let dir = temp_package();
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            &dir,
+            "teams.yaml",
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n  - { id: zed-utd, name: Zed United, city: Zedford, country: ZZ, colors: { primary: \"#111\", secondary: \"#fff\" } }\n",
+        );
+        write(
+            &dir,
+            "player.yaml",
+            "schema: player\nid: zed-star\nname: Zed Star\nclub: zed-fc\nnationality: ZZ\nposition: Forward\noverall: 80\n",
+        );
+        write(
+            &dir,
+            "league.yaml",
+            "schema: competition\nid: zz-1\nname: Zed League\ntype: League\nscope: Domestic\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: ZZ\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "expected a valid package, got: {errors:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn references_to_the_builtin_catalog_resolve() {
+        let dir = temp_package();
+        // A country in the built-in `europe` region, and a club in the built-in
+        // country `ES` — neither redefined in the package.
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: CUSTOM\nname: Customland\nconfederation: europe\n",
+        );
+        write(
+            &dir,
+            "team.yaml",
+            "schema: team\nid: madrid\nname: Madrid FC\ncity: Madrid\ncountry: ES\ncolors: { primary: \"#fff\", secondary: \"#000\" }\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "builtin refs should resolve: {errors:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn unknown_references_are_reported() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: nowhere\n",
+        );
+        write(
+            &dir,
+            "team.yaml",
+            "schema: team\nid: t1\nname: Orphan FC\ncity: Nowhere\ncountry: XX\ncolors: { primary: \"#000\", secondary: \"#fff\" }\n",
+        );
+        write(
+            &dir,
+            "player.yaml",
+            "schema: player\nid: p1\nname: Lost Player\nclub: ghost\nnationality: XX\nposition: Midfielder\noverall: 70\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let codes: Vec<&str> = errors.iter().map(|e| e.code.as_str()).collect();
+        assert!(codes.contains(&UNKNOWN_CONFEDERATION), "{errors:?}");
+        assert!(codes.contains(&UNKNOWN_TEAM), "{errors:?}");
+        assert!(
+            errors
+                .iter()
+                .filter(|e| e.code == UNKNOWN_COUNTRY)
+                .count()
+                >= 2,
+            "both the team's and player's unknown country should be reported: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn competition_reference_errors_surface_as_package_errors() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "league.yaml",
+            "schema: competition\nid: bad-1\nname: Bad League\ntype: League\nscope: Domestic\nformat:\n  kind: LeagueTable\nparticipants:\n  selector:\n    kind: allInCountry\n    country: XX\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.code == "be.error.competitionDef.unknownCountry"),
+            "competition validation should surface: {errors:?}"
+        );
 
         std::fs::remove_dir_all(&dir).ok();
     }

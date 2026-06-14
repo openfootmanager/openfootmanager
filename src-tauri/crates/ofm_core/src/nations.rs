@@ -101,6 +101,12 @@ pub fn region_for_code(code: &str) -> &'static str {
         .unwrap_or("europe")
 }
 
+/// Whether `id` names one of the built-in confederations/regions (so a world
+/// package may reference it without redefining it).
+pub fn is_builtin_region(id: &str) -> bool {
+    NATION_CATALOG.iter().any(|nation| nation.region_id == id)
+}
+
 /// Human-readable nation name, falling back to the code for nations outside
 /// the catalog (e.g. nationalities only present in a custom world file).
 pub fn nation_display_name(code: &str) -> String {
