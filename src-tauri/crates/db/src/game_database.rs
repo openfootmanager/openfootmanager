@@ -3,6 +3,7 @@ use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
 use crate::migrations::{MIGRATION_COUNT, all_migrations};
+use crate::save_load_error::SaveLoadError;
 
 const GAME_DATABASE_OPEN_FAILED: &str = "be.error.gameDatabase.openFailed";
 const GAME_DATABASE_MIGRATION_FAILED: &str = "be.error.gameDatabase.migrationFailed";
@@ -33,6 +34,42 @@ impl GameDatabase {
         })?;
 
         info!("[game_db] database ready at {:?}", path);
+        Ok(Self {
+            conn,
+            path: Some(path.to_path_buf()),
+        })
+    }
+
+    /// Open an existing save with structured error classification, so the UI
+    /// can distinguish a corrupted file from one created by a newer build. Used
+    /// by the save-loading path; other callers use [`GameDatabase::open`].
+    pub fn open_save(path: &Path) -> Result<Self, SaveLoadError> {
+        debug!("[game_db] opening save at {:?}", path);
+        let mut conn = Connection::open(path).map_err(|e| {
+            error!("[game_db] failed to open save at {:?}: {}", path, e);
+            SaveLoadError::Corrupted
+        })?;
+
+        // A save from a newer build carries a higher schema version than we can
+        // apply; detect it before migrating so the failure is explainable rather
+        // than a generic migration error.
+        let save_version: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap_or(0);
+        if save_version > MIGRATION_COUNT as i64 {
+            return Err(SaveLoadError::IncompatibleVersion {
+                save_version,
+                supported: MIGRATION_COUNT as i64,
+            });
+        }
+
+        let migrations = all_migrations();
+        migrations.to_latest(&mut conn).map_err(|e| {
+            error!("[game_db] migration failed for save {:?}: {}", path, e);
+            SaveLoadError::Corrupted
+        })?;
+
+        info!("[game_db] save ready at {:?}", path);
         Ok(Self {
             conn,
             path: Some(path.to_path_buf()),
@@ -174,5 +211,53 @@ mod tests {
             Err(error) => assert_eq!(error, GAME_DATABASE_OPEN_FAILED),
             Ok(_) => panic!("expected directory open to fail"),
         }
+    }
+
+    #[test]
+    fn open_save_rejects_a_future_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("future.db");
+        {
+            // A save written by a newer build: schema version above ours.
+            let conn = Connection::open(&db_path).unwrap();
+            conn.pragma_update(None, "user_version", (MIGRATION_COUNT + 5) as i64)
+                .unwrap();
+        }
+
+        match GameDatabase::open_save(&db_path) {
+            Err(SaveLoadError::IncompatibleVersion {
+                save_version,
+                supported,
+            }) => {
+                assert_eq!(save_version, (MIGRATION_COUNT + 5) as i64);
+                assert_eq!(supported, MIGRATION_COUNT as i64);
+            }
+            Err(other) => panic!("expected IncompatibleVersion, got {other:?}"),
+            Ok(_) => panic!("expected IncompatibleVersion, got an open database"),
+        }
+    }
+
+    #[test]
+    fn open_save_reports_corruption_for_a_non_database_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("corrupt.db");
+        std::fs::write(&db_path, b"this is not a sqlite database").unwrap();
+
+        match GameDatabase::open_save(&db_path) {
+            Err(SaveLoadError::Corrupted) => {}
+            Err(other) => panic!("expected Corrupted, got {other:?}"),
+            Ok(_) => panic!("expected Corrupted, got an open database"),
+        }
+    }
+
+    #[test]
+    fn open_save_loads_a_current_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("current.db");
+        // Create a fully-migrated save, then reopen it through open_save.
+        GameDatabase::open(&db_path).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).expect("a current save should open");
+        assert!(db.validate_schema().unwrap());
     }
 }

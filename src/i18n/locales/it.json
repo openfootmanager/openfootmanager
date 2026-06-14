@@ -18,6 +18,7 @@
     "deleteSave": "Elimina salvataggio",
     "noResults": "Nessun risultato",
     "importedDescription": "Database del mondo importato",
+    "loadGameFailed": "Impossibile caricare il salvataggio: {{error}}",
     "invalidWorldDb": "File di database del mondo non valido: {{error}}",
     "failedStartGame": "Impossibile avviare il gioco: {{error}}"
   },
@@ -1887,6 +1888,13 @@
       "worldWriteFileFailed": "Impossibile esportare il file del database del mondo.",
       "worldWriteDatabaseFailed": "Impossibile salvare il database del mondo importato.",
       "worldSerializeFailed": "Impossibile esportare i dati del database del mondo.",
+      "saveLoad": {
+        "corrupted": "Questo file di salvataggio è danneggiato e non può essere caricato.",
+        "incompatibleVersion": "Questo salvataggio è stato creato con una versione più recente del gioco (salvataggio v{{saveVersion}}; questa versione supporta fino alla v{{supported}}). Aggiorna il gioco per caricarlo.",
+        "missingData": "A questo salvataggio mancano dati necessari e non può essere caricato.",
+        "invalidWorld": "I dati del mondo o della mod di questo salvataggio non sono validi e non possono essere caricati.",
+        "unknown": "Impossibile caricare questo salvataggio a causa di un errore imprevisto."
+      },
       "gameDatabase": {
         "openFailed": "Impossibile aprire i dati di salvataggio.",
         "migrationFailed": "Impossibile preparare i dati di salvataggio.",

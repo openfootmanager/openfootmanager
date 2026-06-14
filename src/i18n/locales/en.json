@@ -18,6 +18,7 @@
     "deleteSave": "Delete save",
     "noResults": "No results",
     "importedDescription": "Imported world database",
+    "loadGameFailed": "Couldn't load the save: {{error}}",
     "invalidWorldDb": "Invalid world database file: {{error}}",
     "failedStartGame": "Failed to start game: {{error}}"
   },
@@ -1895,6 +1896,13 @@
       "worldWriteFileFailed": "Failed to export the world database file.",
       "worldWriteDatabaseFailed": "Failed to save the imported world database.",
       "worldSerializeFailed": "Failed to export the world database data.",
+      "saveLoad": {
+        "corrupted": "This save file is corrupted and can't be loaded.",
+        "incompatibleVersion": "This save was made by a newer version of the game (save v{{saveVersion}}; this build supports up to v{{supported}}). Update the game to load it.",
+        "missingData": "This save is missing required data and can't be loaded.",
+        "invalidWorld": "This save's world or mod data is invalid and can't be loaded.",
+        "unknown": "This save couldn't be loaded due to an unexpected error."
+      },
       "gameDatabase": {
         "openFailed": "Failed to open save data.",
         "migrationFailed": "Failed to prepare save data.",

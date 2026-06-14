@@ -18,6 +18,7 @@
     "deleteSave": "Spielstand löschen",
     "noResults": "Keine Ergebnisse",
     "importedDescription": "Importierte Weltdatenbank",
+    "loadGameFailed": "Speicherstand konnte nicht geladen werden: {{error}}",
     "invalidWorldDb": "Ungültige Welt-Datenbankdatei: {{error}}",
     "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}"
   },
@@ -1887,6 +1888,13 @@
       "worldWriteFileFailed": "Die Weltdatenbankdatei konnte nicht exportiert werden.",
       "worldWriteDatabaseFailed": "Die importierte Weltdatenbank konnte nicht gespeichert werden.",
       "worldSerializeFailed": "Die Weltdatenbankdaten konnten nicht exportiert werden.",
+      "saveLoad": {
+        "corrupted": "Diese Speicherdatei ist beschädigt und kann nicht geladen werden.",
+        "incompatibleVersion": "Dieser Spielstand stammt aus einer neueren Spielversion (Stand v{{saveVersion}}; diese Version unterstützt bis v{{supported}}). Aktualisiere das Spiel, um ihn zu laden.",
+        "missingData": "Diesem Spielstand fehlen erforderliche Daten und er kann nicht geladen werden.",
+        "invalidWorld": "Die Welt- oder Mod-Daten dieses Spielstands sind ungültig und können nicht geladen werden.",
+        "unknown": "Dieser Spielstand konnte aufgrund eines unerwarteten Fehlers nicht geladen werden."
+      },
       "gameDatabase": {
         "openFailed": "Die Speicherdaten konnten nicht geoeffnet werden.",
         "migrationFailed": "Die Speicherdaten konnten nicht vorbereitet werden.",

@@ -589,6 +589,7 @@ export default function MainMenu() {
     } catch (error) {
       console.error("Failed to load game:", error);
       setLoadingSaveId(null);
+      alert(t("menu.loadGameFailed", { error: resolveBackendError(error) }));
     }
   };
 

@@ -18,6 +18,7 @@
     "deleteSave": "Eliminar partida",
     "noResults": "Sin resultados",
     "importedDescription": "Base de datos de mundo importada",
+    "loadGameFailed": "No se pudo cargar la partida: {{error}}",
     "invalidWorldDb": "Archivo de base de datos de mundo inválido: {{error}}",
     "failedStartGame": "Error al iniciar el juego: {{error}}"
   },
@@ -1917,6 +1918,13 @@
       "worldWriteFileFailed": "No se pudo exportar el archivo de la base de datos del mundo.",
       "worldWriteDatabaseFailed": "No se pudo guardar la base de datos del mundo importada.",
       "worldSerializeFailed": "No se pudieron exportar los datos de la base de datos del mundo.",
+      "saveLoad": {
+        "corrupted": "Este archivo de guardado está dañado y no se puede cargar.",
+        "incompatibleVersion": "Esta partida se creó con una versión más reciente del juego (guardado v{{saveVersion}}; esta versión admite hasta la v{{supported}}). Actualiza el juego para cargarla.",
+        "missingData": "A esta partida le faltan datos necesarios y no se puede cargar.",
+        "invalidWorld": "Los datos del mundo o del mod de esta partida no son válidos y no se puede cargar.",
+        "unknown": "No se pudo cargar esta partida debido a un error inesperado."
+      },
       "gameDatabase": {
         "openFailed": "No se pudieron abrir los datos guardados.",
         "migrationFailed": "No se pudieron preparar los datos guardados.",

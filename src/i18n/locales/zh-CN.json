@@ -18,6 +18,7 @@
     "deleteSave": "删除存档",
     "noResults": "无结果",
     "importedDescription": "已导入的世界数据库",
+    "loadGameFailed": "无法加载存档：{{error}}",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
     "failedStartGame": "启动游戏失败：{{error}}"
   },
@@ -1887,6 +1888,13 @@
       "worldWriteFileFailed": "导出世界数据库文件失败。",
       "worldWriteDatabaseFailed": "保存导入的世界数据库失败。",
       "worldSerializeFailed": "导出世界数据库数据失败。",
+      "saveLoad": {
+        "corrupted": "该存档文件已损坏，无法加载。",
+        "incompatibleVersion": "该存档由更新版本的游戏创建（存档 v{{saveVersion}}；当前版本最高支持 v{{supported}}）。请更新游戏后再加载。",
+        "missingData": "该存档缺少必要数据，无法加载。",
+        "invalidWorld": "该存档的世界或模组数据无效，无法加载。",
+        "unknown": "由于发生意外错误，无法加载该存档。"
+      },
       "gameDatabase": {
         "openFailed": "打开存档数据失败。",
         "migrationFailed": "准备存档数据失败。",

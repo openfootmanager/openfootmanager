@@ -338,8 +338,11 @@ impl SaveManager {
         let db_path = self.saves_dir.join(&entry.db_filename);
         let save_name = entry.name.clone();
 
-        let db = GameDatabase::open(&db_path)?;
-        let mut game = GamePersistenceReader::read_game(&db)?;
+        // Classify load failures (corrupted vs incompatible version) so the UI
+        // can explain why, rather than showing a single generic error.
+        let db = GameDatabase::open_save(&db_path).map_err(|error| error.i18n_key())?;
+        let mut game = GamePersistenceReader::read_game(&db)
+            .map_err(|_| crate::save_load_error::SaveLoadError::MissingData.i18n_key())?;
         let mut needs_resave = false;
         let manager_count_before = game.managers.len();
         let assigned_manager_count_before = game

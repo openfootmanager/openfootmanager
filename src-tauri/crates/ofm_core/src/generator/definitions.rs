@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
+use super::data::NATIONALITY_POOLS;
+#[cfg(test)]
+use super::data::TEAM_TEMPLATES;
 
 // ---------------------------------------------------------------------------
 // Definition file types (JSON-serialisable)
@@ -95,7 +97,9 @@ pub(super) fn default_names_definition() -> NamesDefinition {
     }
 }
 
-/// Build the hardcoded teams definition as fallback.
+/// Build the hardcoded teams definition. Retained as a test fixture now that
+/// the shipped world is generated procedurally.
+#[cfg(test)]
 pub(super) fn default_teams_definition() -> TeamsDefinition {
     TeamsDefinition {
         version: 1,

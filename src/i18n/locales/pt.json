@@ -18,6 +18,7 @@
     "deleteSave": "Eliminar jogo",
     "noResults": "Sem resultados",
     "importedDescription": "Base de dados de mundo importada",
+    "loadGameFailed": "Não foi possível carregar a gravação: {{error}}",
     "invalidWorldDb": "Ficheiro de base de dados de mundo inválido: {{error}}",
     "failedStartGame": "Falha ao iniciar o jogo: {{error}}"
   },
@@ -1887,6 +1888,13 @@
       "worldWriteFileFailed": "Falha ao exportar o ficheiro da base de dados do mundo.",
       "worldWriteDatabaseFailed": "Falha ao guardar a base de dados do mundo importada.",
       "worldSerializeFailed": "Falha ao exportar os dados da base de dados do mundo.",
+      "saveLoad": {
+        "corrupted": "Este ficheiro de gravação está corrompido e não pode ser carregado.",
+        "incompatibleVersion": "Esta gravação foi criada por uma versão mais recente do jogo (gravação v{{saveVersion}}; esta versão suporta até à v{{supported}}). Atualize o jogo para a carregar.",
+        "missingData": "Faltam dados necessários a esta gravação e não pode ser carregada.",
+        "invalidWorld": "Os dados de mundo ou de mod desta gravação são inválidos e não podem ser carregados.",
+        "unknown": "Não foi possível carregar esta gravação devido a um erro inesperado."
+      },
       "gameDatabase": {
         "openFailed": "Falha ao abrir os dados da gravação.",
         "migrationFailed": "Falha ao preparar os dados da gravação.",
