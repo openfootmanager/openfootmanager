@@ -748,6 +748,56 @@ colors:
     }
 
     #[test]
+    fn authored_players_are_placed_in_their_clubs() {
+        let dir = temp_package();
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
+        write(
+            &dir,
+            "country.yaml",
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        );
+        write(
+            &dir,
+            "team.yaml",
+            "schema: team\nid: zed-fc\nname: Zed FC\ncity: Zedtown\ncountry: ZZ\ncolors: { primary: \"#000\", secondary: \"#fff\" }\n",
+        );
+        write(
+            &dir,
+            "star.yaml",
+            "schema: player\nid: zed-star\nname: Zed Star\nclub: zed-fc\nnationality: ZZ\nposition: Forward\noverall: 88\n",
+        );
+
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+
+        let world = crate::generator::build_world_data_from_package(&package);
+
+        let star = world
+            .players
+            .iter()
+            .find(|p| p.id == "zed-star")
+            .expect("the authored player should be in the squad");
+        assert_eq!(star.team_id.as_deref(), Some("zed-fc"));
+        assert_eq!(star.full_name, "Zed Star");
+        assert_eq!(star.position, domain::player::Position::Forward);
+        assert!(
+            star.ovr >= 72,
+            "an overall of 88 should yield a high OVR, got {}",
+            star.ovr
+        );
+
+        // The authored forward replaced a generated one, so the squad stays at 22.
+        let squad = world
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("zed-fc"))
+            .count();
+        assert_eq!(squad, 22);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn competition_reference_errors_surface_as_package_errors() {
         let dir = temp_package();
         write(

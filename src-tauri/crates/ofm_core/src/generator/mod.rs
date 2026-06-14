@@ -345,6 +345,50 @@ fn build_club(
     (team, team_players, team_staff)
 }
 
+/// Build a club for a world package: start from a generated squad, then swap
+/// each hand-authored player in over a generated one of the same position (so
+/// squad balance is kept), appending if the position is already full.
+fn build_package_club(
+    tdef: &TeamDef,
+    authored: &[&package::PlayerDef],
+    country_codes: &[String],
+    names_def: &NamesDefinition,
+    rng: &mut impl rand::Rng,
+) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
+    let (mut team, mut players, staff) = build_club(tdef, country_codes, names_def, rng);
+    if authored.is_empty() {
+        return (team, players, staff);
+    }
+
+    let mut placed = vec![false; players.len()];
+    for def in authored {
+        let authored_player = generate_player_from_def(def, &team.id, names_def, rng);
+        let group = authored_player.position.to_group_position();
+        let slot = players
+            .iter()
+            .enumerate()
+            .find(|(index, player)| {
+                !placed[*index] && player.position.to_group_position() == group
+            })
+            .map(|(index, _)| index);
+        match slot {
+            Some(index) => {
+                players[index] = authored_player;
+                placed[index] = true;
+            }
+            None => {
+                players.push(authored_player);
+                placed.push(true);
+            }
+        }
+    }
+
+    // Authored wages may differ from the players they replaced, so re-normalise
+    // the opening wage budget to the final squad.
+    normalize_generated_team(&mut team, &mut players);
+    (team, players, staff)
+}
+
 /// Human-readable name for the built-in confederations, falling back to the id.
 fn builtin_region_name(id: &str) -> String {
     match id {
@@ -421,12 +465,29 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     let names_def = package.names.clone().unwrap_or_else(default_names_definition);
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
+    // Group hand-authored players by the club they belong to.
+    let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
+        std::collections::HashMap::new();
+    for player in &package.players {
+        if !player.club.is_empty() {
+            authored_by_club
+                .entry(player.club.as_str())
+                .or_default()
+                .push(player);
+        }
+    }
+    const NO_AUTHORED: &[&package::PlayerDef] = &[];
+
     let mut teams = Vec::new();
     let mut players = Vec::new();
     let mut staff = Vec::new();
     for tdef in &package.teams {
+        let authored = authored_by_club
+            .get(tdef.id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or(NO_AUTHORED);
         let (team, team_players, team_staff) =
-            build_club(tdef, &country_codes, &names_def, &mut rng);
+            build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
         teams.push(team);
         players.extend(team_players);
         staff.extend(team_staff);
