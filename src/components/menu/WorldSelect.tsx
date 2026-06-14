@@ -267,7 +267,7 @@ export default function WorldSelect({
           <input
             ref={competitionDefsInputRef}
             type="file"
-            accept=".json"
+            accept=".json,.yaml,.yml"
             className="hidden"
             onChange={onImportCompetitionDefs}
             data-testid="competition-defs-input"

@@ -66,16 +66,16 @@ pub struct TeamColorsDef {
     pub secondary: String,
 }
 
-/// Try to load a names definition from a file, returning None on any error.
+/// Try to load a names definition from a JSON or YAML file, returning None on
+/// any error.
 pub fn load_names_definition(path: &std::path::Path) -> Option<NamesDefinition> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
+    super::file_format::load_definition_file(path)
 }
 
-/// Try to load a teams definition from a file, returning None on any error.
+/// Try to load a teams definition from a JSON or YAML file, returning None on
+/// any error.
 pub fn load_teams_definition(path: &std::path::Path) -> Option<TeamsDefinition> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
+    super::file_format::load_definition_file(path)
 }
 
 /// Build the hardcoded names definition as fallback.

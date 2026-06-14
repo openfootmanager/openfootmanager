@@ -916,9 +916,11 @@ pub struct CompetitionDefinitionIssue {
 }
 
 fn parse_competition_definitions(
-    json: &str,
+    source: &str,
 ) -> Result<ofm_core::generator::CompetitionDefinitionFile, String> {
-    serde_json::from_str(json).map_err(|_| "be.error.competitionDef.parseFailed".to_string())
+    // Accept either JSON or YAML so definitions can be hand-authored in either.
+    ofm_core::generator::parse_definition_str(source)
+        .map_err(|_| "be.error.competitionDef.parseFailed".to_string())
 }
 
 fn validate_against_world(
@@ -1174,7 +1176,8 @@ mod tests {
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
         build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        preseason_league_year, preseason_season_start, require_active_stats_state,
+        parse_competition_definitions, preseason_league_year, preseason_season_start,
+        require_active_stats_state,
         resolve_simulation_scope, select_continental_entrants, split_into_divisions,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
@@ -1355,6 +1358,33 @@ mod tests {
                 "bra-b".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn parse_competition_definitions_accepts_yaml_and_json() {
+        let yaml = "\
+formatVersion: 1
+competitions:
+  - id: tr-1
+    name: Super Lig
+    type: League
+    scope: Domestic
+    format:
+      kind: LeagueTable
+    participants:
+      selector:
+        kind: allInCountry
+        country: TR
+";
+        let parsed = parse_competition_definitions(yaml).expect("YAML should parse");
+        assert_eq!(parsed.competitions.len(), 1);
+        assert_eq!(parsed.competitions[0].id, "tr-1");
+
+        let json = r#"{"formatVersion":1,"competitions":[{"id":"tr-1","name":"Super Lig","type":"League","scope":"Domestic","format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"TR"}}}]}"#;
+        let parsed_json = parse_competition_definitions(json).expect("JSON should parse");
+        assert_eq!(parsed_json.competitions[0].id, "tr-1");
+
+        assert!(parse_competition_definitions("not: [valid").is_err());
     }
 
     #[test]

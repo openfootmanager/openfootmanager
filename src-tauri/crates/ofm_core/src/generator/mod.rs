@@ -2,19 +2,21 @@ pub mod clubs;
 pub(crate) mod data;
 pub mod competition_def;
 pub mod definitions;
+pub mod file_format;
 mod generation;
 pub mod world_io;
 
 pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
+pub use file_format::{load_definition_file, parse_definition_str};
 pub use world_io::*;
 
 use domain::player::{Player, Position};
 use domain::staff::{Staff, StaffRole};
 use domain::team::Team;
 use domain::team::TeamColors;
-use log::{debug, info};
+use log::info;
 use rand::RngExt;
 use uuid::Uuid;
 
@@ -244,6 +246,14 @@ pub fn generate_world(
     generate_world_with(&clubs::WorldGenConfig::standard(), data_dir)
 }
 
+/// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
+fn find_definition_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
+    ["json", "yaml", "yml"]
+        .iter()
+        .map(|ext| dir.join(format!("{stem}.{ext}")))
+        .find(|path| path.exists())
+}
+
 /// Generate a world from an explicit generation config. The shipped game uses
 /// [`WorldGenConfig::standard`]; tests use a smaller config for speed.
 pub fn generate_world_with(
@@ -256,30 +266,26 @@ pub fn generate_world_with(
     let mut players = Vec::new();
     let mut staff = Vec::new();
 
-    // Load name pools (external file → hardcoded fallback)
+    // Load name pools (external JSON/YAML file → hardcoded fallback)
     let names_def = data_dir
-        .and_then(|dir| {
-            let path = dir.join("default_names.json");
+        .and_then(|dir| find_definition_file(dir, "default_names"))
+        .and_then(|path| {
             let result = load_names_definition(&path);
             if result.is_some() {
                 info!("[generator] loaded names from {:?}", path);
-            } else {
-                debug!("[generator] no names file at {:?}, using defaults", path);
             }
             result
         })
         .unwrap_or_else(default_names_definition);
 
-    // Clubs come from an external curated file when present, otherwise from the
-    // procedural generator driven by `config`.
+    // Clubs come from an external curated JSON/YAML file when present, otherwise
+    // from the procedural generator driven by `config`.
     let team_defs: Vec<TeamDef> = data_dir
-        .and_then(|dir| {
-            let path = dir.join("default_teams.json");
+        .and_then(|dir| find_definition_file(dir, "default_teams"))
+        .and_then(|path| {
             let result = load_teams_definition(&path);
             if result.is_some() {
                 info!("[generator] loaded teams from {:?}", path);
-            } else {
-                debug!("[generator] no teams file at {:?}, generating procedurally", path);
             }
             result
         })
@@ -674,6 +680,24 @@ mod tests {
         let names: Vec<&str> = TEAM_TEMPLATES.iter().map(|t| t.name).collect();
         let unique: std::collections::HashSet<&str> = names.iter().cloned().collect();
         assert_eq!(names.len(), unique.len(), "Duplicate team names found");
+    }
+
+    #[test]
+    fn generate_world_loads_a_yaml_teams_file() {
+        let dir = std::env::temp_dir().join(format!("ofm-world-yaml-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("default_teams.yaml"),
+            "teams:\n  - name: Istanbul United\n    city: Istanbul\n    country: TR\n    colors:\n      primary: \"#ff0000\"\n      secondary: \"#ffffff\"\n",
+        )
+        .unwrap();
+
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), Some(&dir));
+        assert_eq!(teams.len(), 1, "the YAML teams file should drive generation");
+        assert_eq!(teams[0].name, "Istanbul United");
+        assert_eq!(players.len(), 22);
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
