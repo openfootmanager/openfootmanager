@@ -174,6 +174,17 @@ pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
     Ok(world)
 }
 
+/// Build a runnable, finalised `WorldData` from a validated world package —
+/// normalised and with its embedded definitions checked, exactly like a loaded
+/// world file. Call only after [`super::load_world_package`] reports no errors.
+pub fn build_world_from_package(
+    package: &super::package::WorldPackage,
+) -> Result<WorldData, String> {
+    let world = normalize_world(super::build_world_data_from_package(package));
+    validate_embedded_definitions(&world)?;
+    Ok(world)
+}
+
 /// Serialise a `WorldData` to a pretty-printed JSON string.
 pub fn export_world_to_json(world: &WorldData) -> Result<String, String> {
     let normalized = normalize_world(world.clone());

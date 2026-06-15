@@ -20,6 +20,16 @@ fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::
         .map_err(|_| "be.error.worldReadFileFailed".to_string())
 }
 
+/// Load a world from a modular package directory (recursively scanned, schema
+/// typed). Rejects an invalid package so a broken mod never loads half-applied.
+fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldData, String> {
+    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
+    if !errors.is_empty() {
+        return Err("be.error.package.invalid".to_string());
+    }
+    ofm_core::generator::build_world_from_package(&package)
+}
+
 fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
     result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
 }
@@ -181,7 +191,14 @@ fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOption
 fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::WorldData, String> {
     match world_source {
         None | Some("random") => Ok(ofm_core::generator::generate_world_data(None)),
-        Some(source) => load_world_data_from_path(source),
+        Some(source) => {
+            let raw = source.strip_prefix("file:").unwrap_or(source);
+            if std::path::Path::new(raw).is_dir() {
+                load_world_data_from_package(raw)
+            } else {
+                load_world_data_from_path(source)
+            }
+        }
     }
 }
 
@@ -951,6 +968,30 @@ pub fn validate_competition_definitions(
     Ok(validate_against_world(&file, &world))
 }
 
+/// One problem found while loading a world package, shaped for the UI.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageIssue {
+    code: String,
+    file: String,
+    params: std::collections::HashMap<String, String>,
+}
+
+/// Validate a modular world-package directory. Returns the full list of problems
+/// (empty = valid) so the new-game UI can show them before the player commits.
+#[tauri::command]
+pub fn validate_world_package(path: String) -> Result<Vec<PackageIssue>, String> {
+    let (_package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    Ok(errors
+        .into_iter()
+        .map(|error| PackageIssue {
+            code: error.code,
+            file: error.file,
+            params: error.params.into_iter().collect(),
+        })
+        .collect())
+}
+
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
@@ -1385,6 +1426,74 @@ competitions:
         assert_eq!(parsed_json.competitions[0].id, "tr-1");
 
         assert!(parse_competition_definitions("not: [valid").is_err());
+    }
+
+    fn temp_pkg_dir(tag: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("ofm-pkg-cmd-{tag}-{nanos}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn loads_a_world_from_a_package_directory() {
+        let dir = temp_pkg_dir("load");
+        std::fs::write(
+            dir.join("confed.yaml"),
+            "schema: confederation\nid: galaxy\nname: Galaxy\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("country.yaml"),
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("teams.yaml"),
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n  - { id: zed-utd, name: Zed United, city: Zedford, country: ZZ, colors: { primary: \"#111\", secondary: \"#fff\" } }\n",
+        )
+        .unwrap();
+
+        let world =
+            super::load_world_data(Some(dir.to_string_lossy().as_ref())).expect("package loads");
+        assert!(world.teams.iter().any(|t| t.id == "zed-fc"));
+        assert!(world.teams.iter().any(|t| t.id == "zed-utd"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn validate_world_package_reports_problems_and_passes_clean_packages() {
+        let team = "schema: team\nid: {id}\nname: {name}\ncity: X\ncountry: ES\ncolors: { primary: \"#000\", secondary: \"#fff\" }\n";
+
+        let valid = temp_pkg_dir("valid");
+        std::fs::write(
+            valid.join("team.yaml"),
+            team.replace("{id}", "zed-fc").replace("{name}", "Zed FC"),
+        )
+        .unwrap();
+        let clean = super::validate_world_package(valid.to_string_lossy().to_string()).unwrap();
+        assert!(clean.is_empty(), "a clean package should have no issues");
+
+        let broken = temp_pkg_dir("broken");
+        std::fs::write(
+            broken.join("a.yaml"),
+            team.replace("{id}", "dup").replace("{name}", "A"),
+        )
+        .unwrap();
+        std::fs::write(
+            broken.join("b.yaml"),
+            team.replace("{id}", "dup").replace("{name}", "B"),
+        )
+        .unwrap();
+        let issues = super::validate_world_package(broken.to_string_lossy().to_string()).unwrap();
+        assert!(!issues.is_empty(), "a duplicate id should be reported");
+
+        std::fs::remove_dir_all(&valid).ok();
+        std::fs::remove_dir_all(&broken).ok();
     }
 
     #[test]
