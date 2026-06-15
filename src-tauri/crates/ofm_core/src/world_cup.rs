@@ -310,10 +310,8 @@ fn nation_code_of_national_team(team_id: &str) -> String {
         .unwrap_or_else(|| team_id.to_string())
 }
 
-fn region_of_code(code: &str) -> String {
-    nations::nation_by_code(code)
-        .map(|nation| nation.region_id.to_string())
-        .unwrap_or_else(|| "europe".to_string())
+fn region_of_code(game: &Game, code: &str) -> String {
+    game.region_for_country(code)
 }
 
 /// Candidate nations grouped by region: every world nation with players plus
@@ -331,7 +329,10 @@ fn qualifying_candidates_by_region(game: &Game) -> BTreeMap<String, Vec<String>>
         if !seen.insert(code.clone()) {
             continue;
         }
-        by_region.entry(region_of_code(&code)).or_default().push(code);
+        by_region
+            .entry(region_of_code(game, &code))
+            .or_default()
+            .push(code);
     }
     by_region
 }
@@ -541,7 +542,7 @@ pub fn qualified_field_from_game(game: &Game, field_size: usize) -> Option<Vec<S
         let region = group
             .team_ids
             .first()
-            .map(|id| region_of_code(&nation_code_of_national_team(id)))
+            .map(|id| region_of_code(game, &nation_code_of_national_team(id)))
             .unwrap_or_else(|| "europe".to_string());
         let sorted = crate::group_stage::sorted_group_standings(group);
         *nations_by_region.entry(region.clone()).or_insert(0) += sorted.len();

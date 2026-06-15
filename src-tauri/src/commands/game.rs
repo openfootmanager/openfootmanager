@@ -374,7 +374,7 @@ fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
                 format!("nt-{}", nation.to_lowercase()),
                 format!("{} National Team", nation_label),
                 nation.clone(),
-                Some(infer_region_id(&nation)),
+                Some(game.region_for_country(&nation)),
             );
             national_team.squad_player_ids = players
                 .into_iter()

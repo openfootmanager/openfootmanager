@@ -176,6 +176,18 @@ impl Game {
         self.competitions.first().or(self.league.as_ref())
     }
 
+    /// Confederation/region id for a country code. Prefers the world's own
+    /// data — a domestic competition's declared region — so data-defined
+    /// confederations are respected at runtime, falling back to the built-in
+    /// nation catalog for countries the world doesn't place itself.
+    pub fn region_for_country(&self, country_code: &str) -> String {
+        self.competitions
+            .iter()
+            .filter(|competition| competition.country_id.as_deref() == Some(country_code))
+            .find_map(|competition| competition.region_id.clone())
+            .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
     pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
         if self.competitions.is_empty() && let Some(league) = self.league.clone() {
             self.competitions.push(league);

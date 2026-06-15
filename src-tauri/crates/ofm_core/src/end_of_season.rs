@@ -306,7 +306,7 @@ pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<
             .teams
             .iter()
             .filter(|team| !seen.contains(&team.id))
-            .filter(|team| feeder_regions.contains(crate::nations::region_for_code(&team.football_nation)))
+            .filter(|team| feeder_regions.contains(game.region_for_country(&team.football_nation).as_str()))
             .collect();
         fillers.sort_by(|a, b| {
             b.reputation

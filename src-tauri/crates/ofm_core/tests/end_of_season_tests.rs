@@ -338,6 +338,33 @@ fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
 }
 
 #[test]
+fn region_for_country_prefers_world_data_over_the_catalog() {
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let manager = Manager::new(
+        "m".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+    // A data-defined confederation: ZZ sits in "galaxy", declared by its league.
+    game.competitions = vec![first_division("zz-1", "ZZ", "galaxy", &["zz-a", "zz-b"])];
+
+    assert_eq!(
+        game.region_for_country("ZZ"),
+        "galaxy",
+        "the world's own data wins over the catalog"
+    );
+    assert_eq!(
+        game.region_for_country("ES"),
+        "europe",
+        "countries the world doesn't place fall back to the catalog"
+    );
+    assert_eq!(game.region_for_country("BR"), "south-america");
+}
+
+#[test]
 fn rollover_passes_continental_qualifiers_into_the_next_season() {
     // 2027 is neither a World Cup summer nor a qualifying season, so the rollover
     // just regenerates club competitions.
