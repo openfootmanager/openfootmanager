@@ -73,7 +73,12 @@ impl WorldHistoryArchive {
         intensity: u8,
         started_season: Option<u32>,
     ) {
-        let Some(rivalry) = WorldRivalry::new(team_a_id.into(), team_b_id.into(), intensity, started_season) else {
+        let Some(rivalry) = WorldRivalry::new(
+            team_a_id.into(),
+            team_b_id.into(),
+            intensity,
+            started_season,
+        ) else {
             return;
         };
 
@@ -151,9 +156,7 @@ impl WorldRivalry {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        HistoricalPlayerAwardWinner, HistoricalSeasonAwardsRecord, WorldHistoryArchive,
-    };
+    use super::{HistoricalPlayerAwardWinner, HistoricalSeasonAwardsRecord, WorldHistoryArchive};
 
     #[test]
     fn world_history_archive_deserializes_missing_fields_to_empty_vectors() {

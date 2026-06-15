@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Nuevo Juego",
@@ -20,7 +20,18 @@
     "importedDescription": "Base de datos de mundo importada",
     "loadGameFailed": "No se pudo cargar la partida: {{error}}",
     "invalidWorldDb": "Archivo de base de datos de mundo inválido: {{error}}",
-    "failedStartGame": "Error al iniciar el juego: {{error}}"
+    "failedStartGame": "Error al iniciar el juego: {{error}}",
+    "openDiscord": "Abrir comunidad de Discord",
+    "openGithub": "Abrir repositorio de GitHub"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Guardar Perfil",
+      "body": "Has modificado el perfil de {{name}}. ¿Qué deseas hacer?",
+      "update": "Actualizar \"{{name}}\"",
+      "saveNew": "Guardar como Nuevo Perfil",
+      "skip": "Continuar sin guardar"
+    }
   },
   "createManager": {
     "title": "Crear Mánager",
@@ -395,6 +406,7 @@
     "all": "Todos",
     "allPlayers": "Todos los jugadores",
     "cancel": "Cancelar",
+    "clear": "Borrar",
     "close": "Cerrar",
     "done": "Listo",
     "confirm": "Confirmar",
@@ -1814,6 +1826,233 @@
       "FreeKick": "Tiro Libre",
       "Foul": "Falta",
       "PenaltyAwarded": "Penalti Señalado"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "¡GOOOL!",
+        "lines": {
+          "0": "¡{{player}} bate al portero y marca para el {{team}}!",
+          "1": "¡{{player}} la mete! ¡Qué definición!",
+          "2": "¡{{player}} marca para el {{team}}!"
+        },
+        "opener": {
+          "headline": "¡GOOOL!",
+          "lines": {
+            "0": "¡{{player}} abre el marcador para el {{team}}!",
+            "1": "¡El {{team}} se adelanta — {{player}} dispara!"
+          }
+        },
+        "equaliser": {
+          "headline": "¡GOOOL!",
+          "lines": {
+            "0": "¡{{player}} empata para el {{team}}! ¡Sigue el partido!",
+            "1": "¡El {{team}} iguala el partido — {{player}} con el empate!"
+          }
+        },
+        "extends": {
+          "headline": "¡GOOOL!",
+          "lines": {
+            "0": "¡{{player}} amplía la ventaja del {{team}}!",
+            "1": "¡{{player}} marca de nuevo — el {{team}} se escapa!"
+          }
+        },
+        "consolation": {
+          "headline": "GOL",
+          "lines": {
+            "0": "{{player}} recorta distancias para el {{team}}.",
+            "1": "Un gol de honor para el {{team}}, lo marca {{player}}."
+          }
+        },
+        "brace": {
+          "headline": "¡GOOOL!",
+          "lines": {
+            "0": "¡{{player}} marca otro — doblete!",
+            "1": "¡Dos para {{player}}!"
+          }
+        },
+        "hattrick": {
+          "headline": "¡HAT-TRICK!",
+          "lines": {
+            "0": "¡{{player}} completa el hat-trick! ¡Increíble!",
+            "1": "¡Tres goles de {{player}} — qué tarde tan memorable!"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "¡PENALTI — GOL!",
+        "lines": {
+          "0": "¡{{player}} bate al portero desde el punto de penalti! El {{team}} marca.",
+          "1": "¡Sangre fría de {{player}} — penalti transformado para el {{team}}!"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "¡PENALTI FALLADO!",
+        "lines": {
+          "0": "¡{{player}} falla desde el punto de penalti! ¡Qué alivio para el {{opponent}}!",
+          "1": "¡Parado! {{player}} se llevará esta pesadilla a casa."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "¡PENALTI!",
+        "lines": {
+          "0": "¡El árbitro señala el punto de penalti — penalti para el {{team}}!",
+          "1": "¡Penalti para el {{team}}! Momento clave."
+        }
+      },
+      "ShotSaved": {
+        "headline": "¡GRAN PARADA!",
+        "lines": {
+          "0": "{{player}} obliga al portero a emplearse a fondo.",
+          "1": "¡El portero le niega el gol a {{player}}!"
+        },
+        "routine": {
+          "headline": "PARADA",
+          "lines": {
+            "0": "Una parada cómoda ante el remate de {{player}}.",
+            "1": "Directamente al portero, el disparo de {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "¡BUENA PARADA!",
+          "lines": {
+            "0": "¡El portero tiene que estar atento para detener a {{player}}!",
+            "1": "¡Manos firmes para negarle el gol a {{player}}!"
+          }
+        },
+        "worldClass": {
+          "headline": "¡QUÉ PARADÓN!",
+          "lines": {
+            "0": "¡Increíble! ¡El portero saca el disparo de {{player}} de manera milagrosa!",
+            "1": "¡Parada de clase mundial para negarle un gol cantado a {{player}}!"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "¡QUÉ CERCA!",
+        "lines": {
+          "0": "{{player}} la manda fuera por poco para el {{team}}.",
+          "1": "¡Qué cerca! {{player}} no puede encontrar la portería."
+        },
+        "speculative": {
+          "headline": "FUERA",
+          "lines": {
+            "0": "{{player}} lo intenta desde lejos pero va muy desviado.",
+            "1": "Demasiado ambicioso de {{player}} — muy lejos."
+          }
+        },
+        "decent": {
+          "headline": "¡CERCA!",
+          "lines": {
+            "0": "El remate de {{player}} roza el poste.",
+            "1": "¡No le ha faltado mucho a {{player}}!"
+          }
+        },
+        "bigChance": {
+          "headline": "¿CÓMO NO HA ENTRADO?!",
+          "lines": {
+            "0": "¡{{player}} tenía que haber marcado — increíblemente se va fuera!",
+            "1": "¡Una ocasión clarísima se pierde para el {{team}}! {{player}} no podrá creerlo."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "¡BLOQUEADO!",
+        "lines": {
+          "0": "El disparo de {{player}} es bloqueado por un valiente defensa.",
+          "1": "¡Cuerpos en el camino! {{player}} es neutralizado."
+        },
+        "bigChance": {
+          "headline": "¡GRAN BLOQUEO!",
+          "lines": {
+            "0": "¡Un bloqueo crucial impide que {{player}} marque desde gran posición!",
+            "1": "¡Defensa al límite para negarle el gol a {{player}}!"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FALTA",
+        "lines": {
+          "0": "{{player}} comete falta sobre {{victim}}. Libre directo para el {{opponent}}.",
+          "1": "{{player}} regala un tiro libre contra {{victim}}."
+        },
+        "hard": {
+          "headline": "ES FALTA",
+          "lines": {
+            "0": "¡{{player}} entra fuerte sobre {{victim}}! Falta para el {{opponent}}.",
+            "1": "Una entrada dura de {{player}} sobre {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "¡TEMERARIA!",
+          "lines": {
+            "0": "¡{{player}} se lanza sobre {{victim}} — eso es peligroso!",
+            "1": "¡Falta brutal de {{player}} sobre {{victim}}! Al árbitro no le va a gustar."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "TARJETA AMARILLA",
+        "lines": {
+          "0": "{{player}} ve la amarilla con el {{team}}.",
+          "1": "Tarjeta amarilla para {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "¡TARJETA ROJA!",
+        "lines": {
+          "0": "¡{{player}} es expulsado! ¡El {{team}} se queda con diez!",
+          "1": "¡Roja directa para {{player}}! Un desastre para el {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "¡SEGUNDA AMARILLA — EXPULSADO!",
+        "lines": {
+          "0": "¡{{player}} ve la segunda amarilla y es expulsado!",
+          "1": "Dos amarillas y se va — {{player}} deja al {{team}} en inferioridad."
+        }
+      },
+      "Injury": {
+        "headline": "LESIÓN",
+        "lines": {
+          "0": "{{player}} está en el suelo y necesita atención médica.",
+          "1": "Preocupación en el {{team}}: {{player}} cae lesionado."
+        }
+      },
+      "Substitution": {
+        "headline": "SUSTITUCIÓN",
+        "lines": {
+          "0": "{{team}} realiza un cambio: entra {{player}}, sale {{victim}}.",
+          "1": "{{player}} reemplaza a {{victim}} en el {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "SAQUE INICIAL",
+        "lines": {
+          "0": "¡El partido ha comenzado!",
+          "1": "¡Ya estamos en marcha!"
+        }
+      },
+      "HalfTime": {
+        "headline": "DESCANSO",
+        "lines": {
+          "0": "El árbitro pita el final del primer tiempo.",
+          "1": "Fin de la primera mitad."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "SEGUNDO TIEMPO",
+        "lines": {
+          "0": "Ya estamos de vuelta para el segundo tiempo.",
+          "1": "¡Comienza el segundo tiempo!"
+        }
+      },
+      "FullTime": {
+        "headline": "FINAL",
+        "lines": {
+          "0": "¡Y aquí termina — tiempo reglamentario!",
+          "1": "El árbitro pita el final del partido."
+        }
+      }
     }
   },
   "endOfSeason": {
@@ -1951,6 +2190,11 @@
         "parseFailed": "Los datos de configuración no son válidos.",
         "saveFailed": "No se pudo guardar la configuración.",
         "invalidCurrency": "La moneda seleccionada no es compatible."
+      },
+      "profiles": {
+        "loadFailed": "No se pudieron cargar los perfiles de mánager.",
+        "saveFailed": "No se pudo guardar el perfil de mánager.",
+        "pathFailed": "No se pudo resolver la ruta de almacenamiento de perfiles."
       },
       "finance": {
         "boardSupportUnavailable": "El apoyo de emergencia de la directiva solo está disponible cuando la tesorería está bajo presión.",
@@ -2825,7 +3069,12 @@
     "rejected": "Tu solicitud no fue exitosa.",
     "noJobs": "No hay puestos disponibles actualmente.",
     "leaguePosition": "Última temporada: {{position}}",
-    "refresh": "Buscar nuevas ofertas"
+    "refresh": "Buscar nuevas ofertas",
+    "sameTeam": "Ya eres el entrenador de ese club.",
+    "notBetterClub": "Solo puedes solicitar puestos en clubes que supongan un paso adelante respecto al actual.",
+    "switchConfirmTitle": "¿Dejar tu club actual?",
+    "switchConfirmBody": "Aceptar esta oportunidad pondrá fin a tu etapa en {{currentClub}} y te llevará a {{newClub}}.",
+    "switchConfirmAccept": "Aceptar nuevo cargo"
   },
   "awardsCeremony": {
     "title": "Ceremonia de Premios",

@@ -107,7 +107,7 @@ fn to_team_history_dto(
     }
 }
 
-pub(super) fn get_team_stats_overview_internal(
+pub fn get_team_stats_overview_internal(
     state: &StateManager,
     team_id: &str,
 ) -> Result<Option<TeamStatsOverviewDto>, String> {
@@ -127,7 +127,7 @@ pub(super) fn get_team_stats_overview_internal(
     Ok(aggregate_team_history(&records).map(|aggregate| build_team_overview(&aggregate)))
 }
 
-pub(super) fn get_team_match_history_internal(
+pub fn get_team_match_history_internal(
     state: &StateManager,
     team_id: &str,
     limit: Option<usize>,

@@ -96,10 +96,10 @@ pub(super) fn pick_name_from_def(
         }
     }
 
-    // Fallback: pick from any available pool
-    let keys: Vec<&String> = names_def.pools.keys().collect();
-    if let Some(key) = keys.first() {
-        let pool = &names_def.pools[*key];
+    // Fallback: pick from any available pool. Use the lexicographically
+    // smallest key so the choice is stable (HashMap order is randomized).
+    if let Some(key) = names_def.pools.keys().min() {
+        let pool = &names_def.pools[key];
         let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
         let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
         return (first, last);

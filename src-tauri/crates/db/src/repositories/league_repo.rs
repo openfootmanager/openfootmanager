@@ -114,18 +114,14 @@ pub fn upsert_league(conn: &Connection, league: &League) -> Result<(), String> {
         Ok(()) => conn
             .execute_batch("RELEASE SAVEPOINT league_upsert")
             .map_err(|error| {
-                format!(
-                    "{GAME_PERSISTENCE_WRITE_ERROR}; cleanup=release_savepoint: {error}"
-                )
+                format!("{GAME_PERSISTENCE_WRITE_ERROR}; cleanup=release_savepoint: {error}")
             }),
         Err(error) => {
             conn.execute_batch(
                 "ROLLBACK TO SAVEPOINT league_upsert; RELEASE SAVEPOINT league_upsert",
             )
             .map_err(|cleanup_error| {
-                format!(
-                    "{error}; cleanup=rollback_release_savepoint: {cleanup_error}"
-                )
+                format!("{error}; cleanup=rollback_release_savepoint: {cleanup_error}")
             })?;
             Err(error)
         }
@@ -436,7 +432,9 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM transfer_log", [], |row| row.get(0))
             .unwrap();
         let transfer_rumour_count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM transfer_rumours", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM transfer_rumours", [], |row| {
+                row.get(0)
+            })
             .unwrap();
 
         (
@@ -665,7 +663,10 @@ mod tests {
         commit_db.conn().execute_batch("COMMIT").unwrap();
 
         assert_eq!(persisted_row_counts(commit_db.conn()), (1, 2, 2, 1, 1));
-        assert_eq!(load_league(commit_db.conn()).unwrap().unwrap().id, "league-1");
+        assert_eq!(
+            load_league(commit_db.conn()).unwrap().unwrap().id,
+            "league-1"
+        );
     }
 
     #[test]

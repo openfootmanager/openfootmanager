@@ -5,7 +5,7 @@ import {
   PlayerSelectionOptions,
   TransferOfferData,
 } from "../../store/gameStore";
-import { Card, CardBody, Badge, CountryFlag } from "../ui";
+import { Card, CardBody, Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
 import {
   Search,
@@ -534,7 +534,7 @@ export default function TransfersTab({
                     )}
                     {isScoutingView && (
                       <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                        {t("common.action")}
+                        {t("scouting.action")}
                       </th>
                     )}
                   </tr>
@@ -630,18 +630,23 @@ export default function TransfersTab({
                           </Badge>
                         </td>
                         <td className="py-2.5 px-4">
-                          <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                            {player.full_name}
-                          </span>
-                          <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1">
-                            <CountryFlag
-                              code={player.nationality}
-                              locale={i18n.language}
-                              className="text-sm leading-none"
-                            />
-                            <span>
-                              {countryName(player.nationality, i18n.language)}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <PlayerAvatar player={player} />
+                            <div className="min-w-0">
+                              <span className="block truncate font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                {player.full_name}
+                              </span>
+                              <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1">
+                                <CountryFlag
+                                  code={player.nationality}
+                                  locale={i18n.language}
+                                  className="text-sm leading-none"
+                                />
+                                <span>
+                                  {countryName(player.nationality, i18n.language)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">

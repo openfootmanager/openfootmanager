@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "新游戏",
@@ -20,7 +20,18 @@
     "importedDescription": "已导入的世界数据库",
     "loadGameFailed": "无法加载存档：{{error}}",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
-    "failedStartGame": "启动游戏失败：{{error}}"
+    "failedStartGame": "启动游戏失败：{{error}}",
+    "openDiscord": "打开 Discord 社区",
+    "openGithub": "打开 GitHub 仓库"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "保存档案",
+      "body": "您已修改 {{name}} 的档案。您想做什么？",
+      "update": "更新「{{name}}」",
+      "saveNew": "保存为新档案",
+      "skip": "不保存继续"
+    }
   },
   "createManager": {
     "title": "创建经理",
@@ -365,6 +376,7 @@
     "all": "全部",
     "allPlayers": "所有球员",
     "cancel": "取消",
+    "clear": "清除",
     "close": "关闭",
     "done": "完成",
     "confirm": "确认",
@@ -1784,6 +1796,233 @@
       "FreeKick": "任意球",
       "Foul": "犯规",
       "PenaltyAwarded": "判罚点球"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "进球啦！",
+        "lines": {
+          "0": "{{player}} 为{{team}}攻破球门！",
+          "1": "{{player}} 破门！多么精彩的射门！",
+          "2": "{{player}} 为{{team}}打进一球！"
+        },
+        "opener": {
+          "headline": "进球啦！",
+          "lines": {
+            "0": "{{player}} 为{{team}}率先破门！",
+            "1": "{{team}}先拔头筹——{{player}}打进！"
+          }
+        },
+        "equaliser": {
+          "headline": "进球啦！",
+          "lines": {
+            "0": "{{player}} 为{{team}}扳平！比赛重回同一起跑线！",
+            "1": "{{team}}追平比分——{{player}}打入扳平球！"
+          }
+        },
+        "extends": {
+          "headline": "进球啦！",
+          "lines": {
+            "0": "{{player}} 再为{{team}}添一球！",
+            "1": "{{player}}再度破门——{{team}}越拉越开！"
+          }
+        },
+        "consolation": {
+          "headline": "进球",
+          "lines": {
+            "0": "{{player}} 为{{team}}扳回一球。",
+            "1": "{{team}}打入安慰球，{{player}}完成破门。"
+          }
+        },
+        "brace": {
+          "headline": "进球啦！",
+          "lines": {
+            "0": "{{player}} 再进一球——梅开二度！",
+            "1": "{{player}}已打入两球！"
+          }
+        },
+        "hattrick": {
+          "headline": "帽子戏法！",
+          "lines": {
+            "0": "{{player}} 完成帽子戏法！精彩绝伦！",
+            "1": "{{player}}三球在身——难忘的一天！"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "点球——进球！",
+        "lines": {
+          "0": "{{player}} 点球骗过门将！{{team}}从十二码处得分。",
+          "1": "{{player}}冷静罚入点球——{{team}}十二码建功！"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "点球未进！",
+        "lines": {
+          "0": "{{player}} 点球没踢进！{{opponent}}如释重负！",
+          "1": "被扑出！{{player}}今晚将梦见这粒点球。"
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "点球！",
+        "lines": {
+          "0": "裁判指向点球点——{{team}}获得点球！",
+          "1": "{{team}}获得点球！关键时刻。"
+        }
+      },
+      "ShotSaved": {
+        "headline": "精彩扑救！",
+        "lines": {
+          "0": "{{player}}逼迫门将做出一次扑救。",
+          "1": "门将拒绝了{{player}}的射门！"
+        },
+        "routine": {
+          "headline": "被扑出",
+          "lines": {
+            "0": "门将轻松化解了{{player}}的射门。",
+            "1": "{{player}}的射门正对门将。"
+          }
+        },
+        "strong": {
+          "headline": "不错的扑救！",
+          "lines": {
+            "0": "门将必须保持警觉才能封堵{{player}}！",
+            "1": "稳固的双手拒绝了{{player}}的进球！"
+          }
+        },
+        "worldClass": {
+          "headline": "难以置信的扑救！",
+          "lines": {
+            "0": "令人难以置信！门将竟然扑出了{{player}}的必进球！",
+            "1": "世界级扑救，拒绝了{{player}}的必然进球！"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "差一点点！",
+        "lines": {
+          "0": "{{player}}的射门为{{team}}稍稍偏出。",
+          "1": "太接近了！{{player}}未能找到目标。"
+        },
+        "speculative": {
+          "headline": "偏出",
+          "lines": {
+            "0": "{{player}}从远处一试，但偏出太远。",
+            "1": "{{player}}太过大胆——远离球门。"
+          }
+        },
+        "decent": {
+          "headline": "接近！",
+          "lines": {
+            "0": "{{player}}的射门擦着门柱而过。",
+            "1": "{{player}}差一点点！"
+          }
+        },
+        "bigChance": {
+          "headline": "怎么没进？！",
+          "lines": {
+            "0": "{{player}}在那里必须得分——令人痛苦地偏出！",
+            "1": "{{team}}浪费了一次绝好机会！{{player}}难以置信。"
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "被封堵！",
+        "lines": {
+          "0": "{{player}}的射门被一位勇敢的后卫封堵。",
+          "1": "身体挡在射线上！{{player}}被阻截。"
+        },
+        "bigChance": {
+          "headline": "精彩封堵！",
+          "lines": {
+            "0": "关键封堵阻止了身处绝佳位置的{{player}}破门！",
+            "1": "最后一刻的防守拒绝了{{player}}的进球！"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "犯规",
+        "lines": {
+          "0": "{{player}}对{{victim}}犯规。{{opponent}}获得任意球。",
+          "1": "{{player}}在{{victim}}身上送出一个任意球。"
+        },
+        "hard": {
+          "headline": "这是犯规",
+          "lines": {
+            "0": "{{player}}对{{victim}}强硬进入！{{opponent}}获得任意球。",
+            "1": "{{player}}对{{victim}}的一次硬朗铲球。"
+          }
+        },
+        "reckless": {
+          "headline": "莽撞！",
+          "lines": {
+            "0": "{{player}}猛扑向{{victim}}——这很危险！",
+            "1": "{{player}}对{{victim}}的粗野犯规！裁判不会放过这个。"
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "黄牌",
+        "lines": {
+          "0": "{{player}}代表{{team}}吃到一张黄牌。",
+          "1": "{{player}}被出示黄牌。"
+        }
+      },
+      "RedCard": {
+        "headline": "红牌！",
+        "lines": {
+          "0": "{{player}}被罚下场！{{team}}少打一人！",
+          "1": "{{player}}直接红牌！{{team}}遭受重创。"
+        }
+      },
+      "SecondYellow": {
+        "headline": "第二张黄牌——出场！",
+        "lines": {
+          "0": "{{player}}领到第二张黄牌被罚出场！",
+          "1": "两张黄牌离场——{{player}}让{{team}}少了一人。"
+        }
+      },
+      "Injury": {
+        "headline": "受伤",
+        "lines": {
+          "0": "{{player}}倒在地上，需要医疗救治。",
+          "1": "{{team}}令人担忧：{{player}}带伤倒地。"
+        }
+      },
+      "Substitution": {
+        "headline": "换人",
+        "lines": {
+          "0": "{{team}}换人：{{player}}上场，{{victim}}下场。",
+          "1": "{{player}}替换{{team}}的{{victim}}。"
+        }
+      },
+      "KickOff": {
+        "headline": "开球",
+        "lines": {
+          "0": "比赛开始了！",
+          "1": "比赛正式打响！"
+        }
+      },
+      "HalfTime": {
+        "headline": "半场",
+        "lines": {
+          "0": "裁判吹响半场哨声。",
+          "1": "上半场就此结束。"
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "下半场",
+        "lines": {
+          "0": "下半场比赛重新开始。",
+          "1": "下半场开球！"
+        }
+      },
+      "FullTime": {
+        "headline": "全场结束",
+        "lines": {
+          "0": "就是这样——全场结束！",
+          "1": "裁判吹响终场哨声。"
+        }
+      }
     }
   },
   "endOfSeason": {
@@ -1921,6 +2160,11 @@
         "parseFailed": "设置数据无效。",
         "saveFailed": "保存设置失败。",
         "invalidCurrency": "所选货币不受支持。"
+      },
+      "profiles": {
+        "loadFailed": "无法加载经理档案。",
+        "saveFailed": "无法保存经理档案。",
+        "pathFailed": "无法解析档案存储路径。"
       },
       "finance": {
         "boardSupportUnavailable": "只有当现金储备承压时，董事会紧急支持才可用。",
@@ -2792,7 +3036,12 @@
     "rejected": "您的申请未通过。",
     "noJobs": "目前没有空缺职位。",
     "leaguePosition": "上赛季排名：{{position}}",
-    "refresh": "查看新职位"
+    "refresh": "查看新职位",
+    "sameTeam": "您已经是该俱乐部的主教练。",
+    "notBetterClub": "您只能申请比当前俱乐部级别更高的俱乐部。",
+    "switchConfirmTitle": "离开当前俱乐部？",
+    "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
+    "switchConfirmAccept": "接受新职位"
   },
   "awardsCeremony": {
     "title": "颁奖典礼",

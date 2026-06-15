@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
-import { Badge, Card, CardBody, CardHeader, CountryFlag } from "../ui";
+import { Badge, Card, CardBody, CardHeader, CountryFlag, TeamLogo } from "../ui";
 import {
   deriveHallOfFameLegends,
   derivePastChampions,
@@ -216,23 +216,31 @@ export default function HallOfFameWorldTab({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm md:min-w-[16rem]">
-                    <StatTile
-                      label={t("hallOfFameWorld.played")}
-                      value={champion.record.played.toString()}
+                  <div className="flex items-center gap-4">
+                    <TeamLogo
+                      team={champion.team}
+                      className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-accent-100 dark:bg-accent-900/40 flex items-center justify-center text-sm font-heading font-bold text-accent-700 dark:text-accent-300"
+                      imageClassName="h-11 w-11 object-contain drop-shadow"
+                      fallback={<span>{champion.team.short_name.charAt(0)}</span>}
                     />
-                    <StatTile
-                      label={t("hallOfFameWorld.goals")}
-                      value={champion.record.goals_for.toString()}
-                    />
-                    <StatTile
-                      label={t("hallOfFameWorld.record")}
-                      value={`${champion.record.won}-${champion.record.drawn}-${champion.record.lost}`}
-                    />
-                    <StatTile
-                      label={t("hallOfFameWorld.goalDifference")}
-                      value={(champion.record.goals_for - champion.record.goals_against).toString()}
-                    />
+                    <div className="grid grid-cols-2 gap-3 text-sm md:min-w-[16rem]">
+                      <StatTile
+                        label={t("hallOfFameWorld.played")}
+                        value={champion.record.played.toString()}
+                      />
+                      <StatTile
+                        label={t("hallOfFameWorld.goals")}
+                        value={champion.record.goals_for.toString()}
+                      />
+                      <StatTile
+                        label={t("hallOfFameWorld.record")}
+                        value={`${champion.record.won}-${champion.record.drawn}-${champion.record.lost}`}
+                      />
+                      <StatTile
+                        label={t("hallOfFameWorld.goalDifference")}
+                        value={(champion.record.goals_for - champion.record.goals_against).toString()}
+                      />
+                    </div>
                   </div>
                 </CardBody>
               </Card>

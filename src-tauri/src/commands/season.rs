@@ -1,10 +1,11 @@
+use std::sync::Arc;
 use log::info;
 use tauri::State;
 
 use ofm_core::state::StateManager;
 
 #[tauri::command]
-pub fn check_season_complete(state: State<'_, StateManager>) -> Result<bool, String> {
+pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
     log::debug!("[cmd] check_season_complete");
     let game = state
         .get_game(|g| g.clone())
@@ -13,7 +14,7 @@ pub fn check_season_complete(state: State<'_, StateManager>) -> Result<bool, Str
 }
 
 #[tauri::command]
-pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_season(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
     info!("[cmd] advance_to_next_season");
     let mut game = state
         .get_game(|g| g.clone())
@@ -46,7 +47,7 @@ pub fn advance_to_next_season(state: State<'_, StateManager>) -> Result<serde_js
 
 #[tauri::command]
 pub fn get_season_awards(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
 ) -> Result<ofm_core::season_awards::SeasonAwards, String> {
     log::debug!("[cmd] get_season_awards");
     let game = state

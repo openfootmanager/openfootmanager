@@ -81,8 +81,8 @@ fn write_game_to_connection(
     let now = Utc::now().to_rfc3339();
     let vacant_team_days_json = serde_json::to_string(&game.vacant_team_days)
         .map_err(|_| game_persistence_write_error())?;
-    let world_history_json = serde_json::to_string(&game.world_history)
-        .map_err(|_| game_persistence_write_error())?;
+    let world_history_json =
+        serde_json::to_string(&game.world_history).map_err(|_| game_persistence_write_error())?;
     let manager_id = if game.manager_id.is_empty() {
         game.manager.id.clone()
     } else {
@@ -107,6 +107,9 @@ fn write_game_to_connection(
             last_played_at: now,
             vacant_team_days_json,
             world_history_json,
+            available_staff_market_last_activity_date: game
+                .available_staff_market_last_activity_date
+                .clone(),
             save_format_version: 2,
             world_format_version: 2,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -316,6 +319,8 @@ impl GamePersistenceReader {
             board_objectives,
             season_context: domain::season::SeasonContext::default(),
             days_since_last_job_offer: None,
+            available_staff_market_last_activity_date: meta
+                .available_staff_market_last_activity_date,
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
@@ -354,6 +359,7 @@ mod tests {
             last_played_at: "2026-07-01T00:00:00+00:00".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            available_staff_market_last_activity_date: Some("2026-07-01".to_string()),
             save_format_version: 2,
             world_format_version: 2,
             app_version: String::new(),
@@ -513,6 +519,21 @@ mod tests {
 
         let loaded = GamePersistenceReader::read_game(&db).unwrap();
         assert_eq!(loaded.world_history, game.world_history);
+    }
+
+    #[test]
+    fn write_and_read_game_preserves_available_staff_market_activity_date() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2032, 18);
+        game.available_staff_market_last_activity_date = Some("2032-07-18".to_string());
+
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(
+            loaded.available_staff_market_last_activity_date.as_deref(),
+            Some("2032-07-18")
+        );
     }
 
     #[test]

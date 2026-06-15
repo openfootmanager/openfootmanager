@@ -1115,7 +1115,11 @@ fn player_stats_reset() {
 #[test]
 fn season_end_ages_players_and_retires_out_of_contract_veterans() {
     let mut game = make_completed_season_game();
-    let veteran = game.players.iter_mut().find(|player| player.id == "p1").unwrap();
+    let veteran = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "p1")
+        .unwrap();
     veteran.date_of_birth = "1988-01-01".to_string();
     veteran.contract_end = Some("2026-05-01".to_string());
     veteran.attributes.pace = 16;
@@ -1123,9 +1127,19 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
 
     process_end_of_season(&mut game);
 
-    let veteran = game.players.iter().find(|player| player.id == "p1").unwrap();
-    assert!(veteran.retired, "older out-of-contract veterans should retire");
-    assert_eq!(veteran.team_id, None, "retired players should leave their club");
+    let veteran = game
+        .players
+        .iter()
+        .find(|player| player.id == "p1")
+        .unwrap();
+    assert!(
+        veteran.retired,
+        "older out-of-contract veterans should retire"
+    );
+    assert_eq!(
+        veteran.team_id, None,
+        "retired players should leave their club"
+    );
     assert!(
         veteran.attributes.pace < 16,
         "seasonal aging should reduce veteran pace"
@@ -1501,7 +1515,10 @@ fn season_end_message_sent() {
     assert!(msg.is_some(), "Should send season end message");
     let msg = msg.unwrap();
     assert_eq!(msg.subject, "");
-    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.seasonReview.subject"));
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.seasonReview.subject")
+    );
     assert_eq!(msg.sender, "");
     assert_eq!(msg.sender_role, "");
 }
@@ -1515,7 +1532,10 @@ fn new_season_schedule_message_sent() {
     assert!(msg.is_some(), "Should send new season message");
     let msg = msg.unwrap();
     assert_eq!(msg.subject, "");
-    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.newSeasonSchedule.subject"));
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.newSeasonSchedule.subject")
+    );
     assert_eq!(msg.sender, "");
     assert_eq!(msg.sender_role, "");
 }
@@ -1928,9 +1948,15 @@ fn season_end_payout_message_has_i18n_keys() {
     assert_eq!(msg.body, "");
     assert_eq!(msg.sender, "");
     assert_eq!(msg.sender_role, "");
-    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.seasonPayout.subject"));
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.seasonPayout.subject")
+    );
     assert_eq!(msg.body_key.as_deref(), Some("be.msg.seasonPayout.body"));
-    assert_eq!(msg.sender_key.as_deref(), Some("be.sender.boardOfDirectors"));
+    assert_eq!(
+        msg.sender_key.as_deref(),
+        Some("be.sender.boardOfDirectors")
+    );
     assert_eq!(msg.sender_role_key.as_deref(), Some("be.role.chairman"));
     assert_eq!(msg.i18n_params.get("season"), Some(&"1".to_string()));
     assert_eq!(msg.i18n_params.get("position"), Some(&"1".to_string()));

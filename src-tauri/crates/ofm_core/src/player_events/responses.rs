@@ -294,26 +294,21 @@ fn banded_morale_talk_outcome<R: rand::Rng + ?Sized>(
             ),
         },
         "promise_time" => match band {
-            ResponseOutcomeBand::StrongPositive => outcome(
-                14,
-                "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-            ),
-            ResponseOutcomeBand::MildPositive => outcome(
-                10,
-                "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-            ),
-            ResponseOutcomeBand::Neutral => outcome(
-                4,
-                "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-            ),
-            ResponseOutcomeBand::MildNegative => outcome(
-                -2,
-                "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-            ),
-            ResponseOutcomeBand::StrongNegative => outcome(
-                -6,
-                "be.msg.playerEvent.effects.moraleCrisis.promiseTime",
-            ),
+            ResponseOutcomeBand::StrongPositive => {
+                outcome(14, "be.msg.playerEvent.effects.moraleCrisis.promiseTime")
+            }
+            ResponseOutcomeBand::MildPositive => {
+                outcome(10, "be.msg.playerEvent.effects.moraleCrisis.promiseTime")
+            }
+            ResponseOutcomeBand::Neutral => {
+                outcome(4, "be.msg.playerEvent.effects.moraleCrisis.promiseTime")
+            }
+            ResponseOutcomeBand::MildNegative => {
+                outcome(-2, "be.msg.playerEvent.effects.moraleCrisis.promiseTime")
+            }
+            ResponseOutcomeBand::StrongNegative => {
+                outcome(-6, "be.msg.playerEvent.effects.moraleCrisis.promiseTime")
+            }
         },
         "work_harder" => match band {
             ResponseOutcomeBand::StrongPositive => outcome(
@@ -486,10 +481,7 @@ pub fn apply_player_response(
             "promise_chance" => {
                 // PROMISE — big boost now, tracked for consequences
                 let d = rng.random_range(8..=14);
-                outcome(
-                    d,
-                    "be.msg.playerEvent.effects.benchComplaint.promiseChance",
-                )
+                outcome(d, "be.msg.playerEvent.effects.benchComplaint.promiseChance")
             }
             "prove_yourself" => {
                 // Very risky — high-aggression players rebel
@@ -512,10 +504,7 @@ pub fn apply_player_response(
         match option_id {
             "praise_back" => {
                 let d = rng.random_range(2..=5);
-                outcome(
-                    d,
-                    "be.msg.playerEvent.effects.happyPlayer.praiseBack",
-                )
+                outcome(d, "be.msg.playerEvent.effects.happyPlayer.praiseBack")
             }
             "stay_professional" => {
                 // Neutral — can slightly drop morale on volatile players
@@ -554,10 +543,7 @@ pub fn apply_player_response(
             "reassure" => {
                 // Sets expectation of renewal — moderate boost
                 let d = rng.random_range(4..=10);
-                outcome(
-                    d,
-                    "be.msg.playerEvent.effects.contractConcern.reassure",
-                )
+                outcome(d, "be.msg.playerEvent.effects.contractConcern.reassure")
             }
             "noncommittal" => {
                 // Almost always negative — players hate uncertainty
@@ -576,10 +562,7 @@ pub fn apply_player_response(
             }
             "no_renewal" => {
                 let d = rng.random_range(-15..=-8);
-                outcome(
-                    d,
-                    "be.msg.playerEvent.effects.contractConcern.noRenewal",
-                )
+                outcome(d, "be.msg.playerEvent.effects.contractConcern.noRenewal")
             }
             _ => return None,
         }

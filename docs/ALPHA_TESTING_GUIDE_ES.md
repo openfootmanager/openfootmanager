@@ -168,4 +168,4 @@ Gracias por ser parte de esto. Vamos a construir algo increíble juntos.
 
 ---
 
-*Versión alpha 0.2.0*
+*Versión alpha 0.2.1*

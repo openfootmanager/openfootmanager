@@ -332,7 +332,7 @@ fn to_dto(state: &StateManager, record: &PlayerMatchStatsRecord) -> PlayerMatchH
     }
 }
 
-pub(super) fn get_player_match_history_internal(
+pub fn get_player_match_history_internal(
     state: &StateManager,
     player_id: &str,
     limit: Option<usize>,
@@ -364,7 +364,7 @@ pub(super) fn get_player_match_history_internal(
         .collect())
 }
 
-pub(super) fn get_player_stats_overview_internal(
+pub fn get_player_stats_overview_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<PlayerStatsOverviewDto, String> {

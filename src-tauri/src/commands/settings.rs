@@ -1,4 +1,5 @@
 use log::info;
+use std::sync::Arc;
 use ofm_core::currency::{self, CurrencyDefinition};
 use tauri::Manager as TauriManager;
 
@@ -99,8 +100,10 @@ pub fn get_settings(app_handle: tauri::AppHandle) -> Result<AppSettingsResponse,
     if !path.exists() {
         return Ok(response_for_settings(AppSettings::default()));
     }
-    let json = std::fs::read_to_string(&path).map_err(|_| SETTINGS_LOAD_FAILED_ERROR.to_string())?;
-    let settings = serde_json::from_str(&json).map_err(|_| SETTINGS_PARSE_FAILED_ERROR.to_string())?;
+    let json =
+        std::fs::read_to_string(&path).map_err(|_| SETTINGS_LOAD_FAILED_ERROR.to_string())?;
+    let settings =
+        serde_json::from_str(&json).map_err(|_| SETTINGS_PARSE_FAILED_ERROR.to_string())?;
     Ok(response_for_settings(normalize_loaded_settings(settings)))
 }
 
@@ -118,7 +121,7 @@ pub fn save_settings(app_handle: tauri::AppHandle, settings: AppSettings) -> Res
 }
 
 #[tauri::command]
-pub fn clear_all_saves(sm_state: tauri::State<crate::SaveManagerState>) -> Result<(), String> {
+pub fn clear_all_saves(sm_state: tauri::State<'_, Arc<crate::SaveManagerState>>) -> Result<(), String> {
     log::warn!("[cmd] clear_all_saves: deleting all save data!");
     let mut sm = sm_state
         .0
@@ -133,7 +136,7 @@ pub fn clear_all_saves(sm_state: tauri::State<crate::SaveManagerState>) -> Resul
 
 #[cfg(test)]
 mod tests {
-    use super::{AppSettings, normalize_loaded_settings, response_for_settings, validate_settings};
+    use super::{normalize_loaded_settings, response_for_settings, validate_settings, AppSettings};
 
     fn make_settings(currency: &str) -> AppSettings {
         AppSettings {

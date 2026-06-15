@@ -146,6 +146,7 @@ where
     random_events::check_random_events(game);
     scouting::process_scouting(game);
     transfers::generate_incoming_transfer_offers(game);
+    crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
 
     news::generate_weekly_digest_news(game, &today);
@@ -178,6 +179,7 @@ pub fn finish_live_match_day(game: &mut Game) {
     random_events::check_random_events(game);
     scouting::process_scouting(game);
     transfers::generate_incoming_transfer_offers(game);
+    crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
     news::generate_weekly_digest_news(game, &today);
     news::generate_pre_match_messages(game, &today);

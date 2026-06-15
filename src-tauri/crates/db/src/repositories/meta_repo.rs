@@ -18,6 +18,8 @@ pub struct GameMeta {
     pub vacant_team_days_json: String,
     #[serde(default = "default_world_history_json")]
     pub world_history_json: String,
+    #[serde(default)]
+    pub available_staff_market_last_activity_date: Option<String>,
     #[serde(default = "default_save_format_version")]
     pub save_format_version: u32,
     #[serde(default = "default_world_format_version")]
@@ -57,8 +59,8 @@ fn default_active_ids_json() -> String {
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         params![
             meta.save_id,
             meta.save_name,
@@ -69,6 +71,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.last_played_at,
             meta.vacant_team_days_json,
             meta.world_history_json,
+            meta.available_staff_market_last_activity_date,
             meta.save_format_version,
             meta.world_format_version,
             meta.app_version,
@@ -86,7 +89,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -103,14 +106,15 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 last_played_at: row.get(6)?,
                 vacant_team_days_json: row.get(7)?,
                 world_history_json: row.get(8)?,
-                save_format_version: row.get(9).unwrap_or(default_save_format_version()),
-                world_format_version: row.get(10).unwrap_or(default_world_format_version()),
-                app_version: row.get(11).unwrap_or_default(),
-                source_world_id: row.get(12).unwrap_or_default(),
-                source_world_kind: row.get(13).unwrap_or_default(),
-                active_region_ids_json: row.get(14).unwrap_or_else(|_| default_active_ids_json()),
+                available_staff_market_last_activity_date: row.get(9)?,
+                save_format_version: row.get(10).unwrap_or(default_save_format_version()),
+                world_format_version: row.get(11).unwrap_or(default_world_format_version()),
+                app_version: row.get(12).unwrap_or_default(),
+                source_world_id: row.get(13).unwrap_or_default(),
+                source_world_kind: row.get(14).unwrap_or_default(),
+                active_region_ids_json: row.get(15).unwrap_or_else(|_| default_active_ids_json()),
                 active_competition_ids_json: row
-                    .get(15)
+                    .get(16)
                     .unwrap_or_else(|_| default_active_ids_json()),
             })
         })
@@ -145,6 +149,7 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            available_staff_market_last_activity_date: Some("2026-07-01".to_string()),
             save_format_version: 2,
             world_format_version: 2,
             app_version: String::new(),
@@ -162,6 +167,10 @@ mod tests {
         assert_eq!(loaded.manager_id, "mgr_user");
         assert_eq!(loaded.game_date, "2026-07-15T00:00:00Z");
         assert_eq!(loaded.world_history_json, "{}");
+        assert_eq!(
+            loaded.available_staff_market_last_activity_date.as_deref(),
+            Some("2026-07-01")
+        );
     }
 
     #[test]
@@ -184,6 +193,7 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            available_staff_market_last_activity_date: None,
             save_format_version: 2,
             world_format_version: 2,
             app_version: String::new(),
@@ -204,6 +214,7 @@ mod tests {
             last_played_at: "2026-03-06T10:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: r#"{"rivalries":[{"team_a_id":"team-1","team_b_id":"team-2","intensity":80}],"season_awards":[]}"#.to_string(),
+            available_staff_market_last_activity_date: Some("2026-08-01".to_string()),
             save_format_version: 2,
             world_format_version: 2,
             app_version: String::new(),
@@ -218,6 +229,10 @@ mod tests {
         assert_eq!(loaded.save_name, "Career v2");
         assert_eq!(loaded.game_date, "2026-08-01T00:00:00Z");
         assert!(loaded.world_history_json.contains("rivalries"));
+        assert_eq!(
+            loaded.available_staff_market_last_activity_date.as_deref(),
+            Some("2026-08-01")
+        );
     }
 
     #[test]
@@ -233,6 +248,7 @@ mod tests {
             last_played_at: "2026-03-05T19:00:00Z".to_string(),
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
+            available_staff_market_last_activity_date: None,
             save_format_version: 2,
             world_format_version: 2,
             app_version: String::new(),

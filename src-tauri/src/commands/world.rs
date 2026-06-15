@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use chrono::Datelike;
 use log::info;
 use tauri::Manager as TauriManager;
@@ -20,16 +21,21 @@ fn backend_text_with_param(key: &str, param_name: &str, param_value: impl ToStri
     text
 }
 
-fn export_world_database_internal(
+pub fn export_world_database_internal(
     state: &StateManager,
     export_path: &std::path::Path,
 ) -> Result<String, String> {
     let game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    let stats = state.get_stats_state(|stats| stats.clone()).unwrap_or_default();
+    let stats = state
+        .get_stats_state(|stats| stats.clone())
+        .unwrap_or_default();
     let mut managers = game.managers.clone();
-    if let Some(existing) = managers.iter_mut().find(|manager| manager.id == game.manager_id) {
+    if let Some(existing) = managers
+        .iter_mut()
+        .find(|manager| manager.id == game.manager_id)
+    {
         *existing = game.manager.clone();
     } else {
         managers.push(game.manager.clone());
@@ -134,7 +140,7 @@ pub fn list_world_databases(
 /// Export the current world data to a JSON file so it can be shared/reused.
 #[tauri::command]
 pub fn export_world_database(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     export_path: String,
 ) -> Result<String, String> {
     info!("[cmd] export_world_database: path={}", export_path);
@@ -305,7 +311,10 @@ mod tests {
         assert_eq!(world.players[0].football_nation, "ENG");
         assert_eq!(world.managers.len(), 1);
         assert_eq!(world.managers[0].football_nation, "ENG");
-        assert_eq!(world.league.as_ref().map(|league| league.season), Some(2026));
+        assert_eq!(
+            world.league.as_ref().map(|league| league.season),
+            Some(2026)
+        );
         assert_eq!(world.news.len(), 1);
         assert_eq!(world.world_history.rivalries.len(), 1);
         assert_eq!(world.metadata.kind, WorldDataKind::HistoricalSnapshot);

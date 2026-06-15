@@ -282,9 +282,15 @@ fn request_board_support_can_recover_runway_without_random_events() {
     let snapshot = finances::team_finance_snapshot(&game, "team1").expect("snapshot");
 
     assert_eq!(result.support_amount, preview.support_amount);
-    assert_eq!(result.transfer_budget_reduction, preview.transfer_budget_reduction);
+    assert_eq!(
+        result.transfer_budget_reduction,
+        preview.transfer_budget_reduction
+    );
     assert_eq!(result.satisfaction_penalty, preview.satisfaction_penalty);
-    assert_eq!(snapshot.overall_status, finances::FinanceHealthLevel::Stable);
+    assert_eq!(
+        snapshot.overall_status,
+        finances::FinanceHealthLevel::Stable
+    );
 }
 
 #[test]
@@ -303,9 +309,15 @@ fn request_sponsor_pitch_creates_pending_offer_for_over_budget_team() {
         .expect("sponsor offer message");
     assert!(message.id.starts_with("sponsor_"));
     assert!(message.actions.iter().any(|action| !action.resolved));
-    assert_eq!(message.subject_key.as_deref(), Some("be.msg.sponsor.subject"));
+    assert_eq!(
+        message.subject_key.as_deref(),
+        Some("be.msg.sponsor.subject")
+    );
     assert_eq!(message.body_key.as_deref(), Some("be.msg.sponsor.body"));
-    assert_eq!(message.sender_key.as_deref(), Some("be.sender.commercialDirector"));
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.commercialDirector")
+    );
     assert!(message.subject.is_empty());
     assert!(message.body.is_empty());
     assert!(message.sender.is_empty());
@@ -364,9 +376,18 @@ fn request_marketing_campaign_generates_cash_for_pressured_club() {
         .iter()
         .find(|message| message.id == result.message_id)
         .expect("marketing campaign message");
-    assert_eq!(message.subject_key.as_deref(), Some("be.msg.marketingCampaign.subject"));
-    assert_eq!(message.body_key.as_deref(), Some("be.msg.marketingCampaign.body"));
-    assert_eq!(message.sender_key.as_deref(), Some("be.sender.commercialDirector"));
+    assert_eq!(
+        message.subject_key.as_deref(),
+        Some("be.msg.marketingCampaign.subject")
+    );
+    assert_eq!(
+        message.body_key.as_deref(),
+        Some("be.msg.marketingCampaign.body")
+    );
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.commercialDirector")
+    );
     assert!(message.subject.is_empty());
     assert!(message.body.is_empty());
     assert!(message.sender.is_empty());
@@ -613,7 +634,10 @@ fn critical_finances_reduce_board_satisfaction_more_aggressively() {
         pressure_msgs[0].body_key.as_deref(),
         Some("be.msg.financeBoardPressure.bodyCritical")
     );
-    assert_eq!(pressure_msgs[0].priority, domain::message::MessagePriority::Urgent);
+    assert_eq!(
+        pressure_msgs[0].priority,
+        domain::message::MessagePriority::Urgent
+    );
 }
 
 #[test]

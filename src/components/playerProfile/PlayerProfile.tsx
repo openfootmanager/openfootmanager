@@ -15,6 +15,8 @@ import {
 } from "../../services/contractService";
 import DashboardModalFrame from "../dashboard/DashboardModalFrame";
 import { Button } from "../ui";
+import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
+import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import {
   buildPlayerAdvancedStats,
   getPlayerAge,
@@ -84,10 +86,6 @@ export default function PlayerProfile({
     `common.footedness.${player.footedness || "Right"}`,
   );
   const weakFootValue = player.weak_foot ?? 2;
-
-  if (!player) {
-    return null;
-  }
 
   const [scoutStatus, setScoutStatus] = useState<PlayerProfileScoutStatus>(
     "idle",
@@ -186,6 +184,30 @@ export default function PlayerProfile({
   const advancedStats = advancedStatsOverride ?? fallbackAdvancedStats;
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
+  const isFreeAgent = player.team_id === null && !player.retired;
+  const managerTeamId = gameState.manager.team_id;
+  const hasAssistantManager = managerTeamId
+    ? gameState.staff.some(
+      (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
+    )
+    : false;
+
+  const {
+    freeAgentTarget,
+    contractWage,
+    setContractWage,
+    contractLength,
+    setContractLength,
+    contractFeedback,
+    contractProjection,
+    contractSubmitting,
+    contractSubmitDisabled,
+    contractStatusMessage,
+    contractStatusClassName,
+    openFreeAgentContract,
+    closeFreeAgentContract,
+    submitFreeAgentContract,
+  } = useFreeAgentContractFlow({ gameState, onGameUpdate });
 
   function openRenewalModal(): void {
     setRenewalWage(String(player.wage));
@@ -419,7 +441,7 @@ export default function PlayerProfile({
       }
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(String(error));
+      setRenewalError(resolveTranslatedErrorMessage(error, t));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);
@@ -428,6 +450,18 @@ export default function PlayerProfile({
 
   async function handleDelegateRenewal(): Promise<void> {
     if (renewalSubmitting) {
+      return;
+    }
+
+    if (!hasAssistantManager) {
+      setRenewalStatus("error");
+      setRenewalError(
+        resolveTranslatedErrorMessage(
+          "be.error.contracts.noAssistantManagerAssigned",
+          t,
+        ),
+      );
+      setRenewalCooledOff(false);
       return;
     }
 
@@ -498,7 +532,7 @@ export default function PlayerProfile({
       );
     } catch (error) {
       setRenewalStatus("error");
-      setRenewalError(String(error));
+      setRenewalError(resolveTranslatedErrorMessage(error, t));
       setRenewalCooledOff(false);
     } finally {
       setRenewalSubmitting(false);
@@ -520,7 +554,7 @@ export default function PlayerProfile({
       );
       onGameUpdate?.(result.game);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -538,7 +572,7 @@ export default function PlayerProfile({
       const result = await clearContractExitIntent(player.id);
       onGameUpdate?.(result.game);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -558,7 +592,7 @@ export default function PlayerProfile({
       const result = await previewContractTermination(player.id);
       setTerminationPreview(result.preview);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -578,7 +612,7 @@ export default function PlayerProfile({
       setShowTerminationModal(false);
       setTerminationPreview(null);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveTranslatedErrorMessage(error, t));
     } finally {
       setContractActionSubmitting(false);
     }
@@ -657,12 +691,14 @@ export default function PlayerProfile({
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
           isOwnClub={isOwnClub}
+          isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
           actionSubmitting={contractActionSubmitting}
           onOpenRenewal={openRenewalModal}
           onMarkLetExpire={() => void handleMarkLetExpire()}
           onClearLetExpire={() => void handleClearLetExpire()}
           onOpenTermination={() => void openTerminationModal()}
+          onOpenFreeAgentContract={() => openFreeAgentContract(player)}
           t={t}
         />
 
@@ -690,6 +726,25 @@ export default function PlayerProfile({
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>
 
+      {freeAgentTarget && (
+        <FreeAgentContractModal
+          player={freeAgentTarget}
+          teams={gameState.teams}
+          wage={contractWage}
+          onWageChange={setContractWage}
+          contractLength={contractLength}
+          onContractLengthChange={setContractLength}
+          projection={contractProjection}
+          feedback={contractFeedback}
+          statusMessage={contractStatusMessage(t)}
+          statusClassName={contractStatusClassName}
+          submitting={contractSubmitting}
+          submitDisabled={contractSubmitDisabled}
+          onSubmit={submitFreeAgentContract}
+          onClose={closeFreeAgentContract}
+        />
+      )}
+
       <PlayerProfileRenewalModal
         show={showRenewalModal}
         playerName={player.full_name}
@@ -705,8 +760,8 @@ export default function PlayerProfile({
         renewalStatusClassName={renewalStatusClassName}
         renewalCooledOff={renewalCooledOff}
         renewalFeedback={renewalFeedback}
-        renewalSubmitting={renewalSubmitting}
         renewalSubmitDisabled={renewalSubmitDisabled}
+        delegateRenewalDisabled={!hasAssistantManager || renewalSubmitting}
         onWageChange={setRenewalWage}
         onLengthChange={setRenewalLength}
         onClose={closeRenewalModal}

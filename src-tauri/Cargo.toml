@@ -1,6 +1,6 @@
 [package]
 name = "openfootmanager"
-version = "0.2.0"
+version = "0.2.1"
 description = "Openfoot Manager"
 authors = ["Sturdy Robot (admin@esportsmanager.net)"]
 edition = "2021"
@@ -33,3 +33,29 @@ engine = { path = "crates/engine" }
 db = { path = "crates/db" }
 chrono = "0.4.44"
 rand = "0.10"
+
+[features]
+mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]
+
+[dependencies.rmcp]
+version = "1.7"
+features = ["server", "transport-streamable-http-server", "macros"]
+optional = true
+
+[dependencies.axum]
+version = "0.8"
+optional = true
+
+[dependencies.tower]
+version = "0.5"
+optional = true
+
+[dependencies.tokio]
+version = "1"
+features = ["net", "rt-multi-thread", "macros", "signal"]
+optional = true
+
+[dependencies.tokio-util]
+version = "0.7"
+features = ["codec"]
+optional = true

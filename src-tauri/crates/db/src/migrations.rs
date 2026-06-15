@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 29;
+pub const MIGRATION_COUNT: usize = 31;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -59,12 +59,16 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v025_player_retired.sql")),
         // V26: Persist world-history archives for rivalries and historical season awards
         M::up(include_str!("sql/v026_world_history_archive.sql")),
-        // V27: Save metadata for world package versions and active simulation scope
-        M::up(include_str!("sql/v027_competition_save_metadata.sql")),
-        // V28: Persist multi-competition and national-team state
-        M::up(include_str!("sql/v028_competitions_and_national_teams.sql")),
-        // V29: Persist group stages for group-and-knockout competitions
-        M::up(include_str!("sql/v029_competition_groups.sql")),
+        // V27: Persist available staff market activity for monthly rotation
+        M::up(include_str!("sql/v027_available_staff_market_activity.sql")),
+        // V28: Persist optional local media paths for teams and players
+        M::up(include_str!("sql/v028_entity_media.sql")),
+        // V29: Save metadata for world package versions and active simulation scope
+        M::up(include_str!("sql/v029_competition_save_metadata.sql")),
+        // V30: Persist multi-competition and national-team state
+        M::up(include_str!("sql/v030_competitions_and_national_teams.sql")),
+        // V31: Persist group stages for group-and-knockout competitions
+        M::up(include_str!("sql/v031_competition_groups.sql")),
     ])
 }
 
@@ -151,6 +155,34 @@ mod tests {
         assert!(
             game_meta_columns.contains(&"world_history_json".to_string()),
             "missing game_meta.world_history_json"
+        );
+        assert!(
+            game_meta_columns.contains(&"available_staff_market_last_activity_date".to_string()),
+            "missing game_meta.available_staff_market_last_activity_date"
+        );
+
+        let team_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(teams)")
+            .unwrap()
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .filter_map(|row| row.ok())
+            .collect();
+        assert!(
+            team_columns.contains(&"media_json".to_string()),
+            "missing teams.media_json"
+        );
+
+        let player_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(players)")
+            .unwrap()
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .filter_map(|row| row.ok())
+            .collect();
+        assert!(
+            player_columns.contains(&"media_json".to_string()),
+            "missing players.media_json"
         );
     }
 

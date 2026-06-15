@@ -81,6 +81,7 @@ mod tests {
             id: "save-1".to_string(),
             name: "Career".to_string(),
             manager_name: "John Smith".to_string(),
+            team_name: "London FC".to_string(),
             db_filename: "save-1.db".to_string(),
             checksum: "checksum".to_string(),
             created_at: "2026-01-01T00:00:00Z".to_string(),

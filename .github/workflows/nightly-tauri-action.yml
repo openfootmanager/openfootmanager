@@ -67,8 +67,8 @@ jobs:
           node-version: lts/*
           cache: "npm"
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 

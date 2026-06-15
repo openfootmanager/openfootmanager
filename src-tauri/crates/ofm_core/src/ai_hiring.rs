@@ -61,17 +61,11 @@ fn create_seeded_manager(
     manager.satisfaction = BASE_AI_MANAGER_SATISFACTION as u8;
     manager.fan_approval = 50;
     manager.hire(team.id.clone());
-    manager.career_history.push(ManagerCareerEntry {
-        team_id: team.id.clone(),
-        team_name: team.name.clone(),
-        start_date: game.clock.current_date.format("%Y-%m-%d").to_string(),
-        end_date: None,
-        matches: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        best_league_position: None,
-    });
+    manager.career_history.push(ManagerCareerEntry::open(
+        team.id.clone(),
+        team.name.clone(),
+        game.clock.current_date.format("%Y-%m-%d").to_string(),
+    ));
     Some(manager)
 }
 
@@ -107,11 +101,14 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
     let current_date = game.clock.current_date.date_naive();
 
     let recent_loss = league.fixtures.iter().any(|fixture| {
-        if !fixture.counts_for_league_standings() || fixture.status != domain::league::FixtureStatus::Completed {
+        if !fixture.counts_for_league_standings()
+            || fixture.status != domain::league::FixtureStatus::Completed
+        {
             return false;
         }
 
-        let involves_user_and_team = (fixture.home_team_id == team_id && fixture.away_team_id == user_team_id)
+        let involves_user_and_team = (fixture.home_team_id == team_id
+            && fixture.away_team_id == user_team_id)
             || (fixture.home_team_id == user_team_id && fixture.away_team_id == team_id);
         if !involves_user_and_team {
             return false;

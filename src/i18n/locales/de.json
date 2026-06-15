@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Neues Spiel",
@@ -20,7 +20,18 @@
     "importedDescription": "Importierte Weltdatenbank",
     "loadGameFailed": "Speicherstand konnte nicht geladen werden: {{error}}",
     "invalidWorldDb": "Ungültige Welt-Datenbankdatei: {{error}}",
-    "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}"
+    "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}",
+    "openDiscord": "Discord-Community öffnen",
+    "openGithub": "GitHub-Repository öffnen"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Profil speichern",
+      "body": "Du hast Änderungen am Profil von {{name}} vorgenommen. Was möchtest du tun?",
+      "update": "\"{{name}}\" aktualisieren",
+      "saveNew": "Als neues Profil speichern",
+      "skip": "Ohne Speichern fortfahren"
+    }
   },
   "createManager": {
     "title": "Manager erstellen",
@@ -365,6 +376,7 @@
     "all": "Alle",
     "allPlayers": "Alle Spieler",
     "cancel": "Abbrechen",
+    "clear": "Löschen",
     "close": "Schließen",
     "done": "Fertig",
     "confirm": "Bestätigen",
@@ -1784,6 +1796,233 @@
       "FreeKick": "Freistoß",
       "Foul": "Foul",
       "PenaltyAwarded": "Elfmeter gegeben"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "TOOOR!",
+        "lines": {
+          "0": "{{player}} trifft für {{team}}!",
+          "1": "{{player}} versenkt den Ball! Was für ein Abschluss!",
+          "2": "{{player}} erzielt das Tor für {{team}}!"
+        },
+        "opener": {
+          "headline": "TOOOR!",
+          "lines": {
+            "0": "{{player}} öffnet den Torreigen für {{team}}!",
+            "1": "{{team}} geht in Führung — {{player}} schlägt zu!"
+          }
+        },
+        "equaliser": {
+          "headline": "TOOOR!",
+          "lines": {
+            "0": "{{player}} gleicht für {{team}} aus! Das Spiel lebt!",
+            "1": "{{team}} ist wieder dran — {{player}} mit dem Ausgleich!"
+          }
+        },
+        "extends": {
+          "headline": "TOOOR!",
+          "lines": {
+            "0": "{{player}} erhöht für {{team}}!",
+            "1": "{{player}} trifft erneut — {{team}} setzt sich ab!"
+          }
+        },
+        "consolation": {
+          "headline": "TOR",
+          "lines": {
+            "0": "{{player}} verkürzt für {{team}}.",
+            "1": "Ein Ehrentreffer für {{team}} durch {{player}}."
+          }
+        },
+        "brace": {
+          "headline": "TOOOR!",
+          "lines": {
+            "0": "{{player}} trifft ein weiteres Mal — Doppelpack!",
+            "1": "Zwei Tore für {{player}}!"
+          }
+        },
+        "hattrick": {
+          "headline": "HAT-TRICK!",
+          "lines": {
+            "0": "{{player}} schnürt den Hattrick! Hut ab!",
+            "1": "Drei Tore von {{player}} — was für ein Tag!"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "ELFMETER — TOR!",
+        "lines": {
+          "0": "{{player}} lässt dem Keeper keine Chance! {{team}} trifft vom Punkt.",
+          "1": "Eiskalt von {{player}} — Elfmeter verwandelt für {{team}}!"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "ELFMETER VERSCHOSSEN!",
+        "lines": {
+          "0": "{{player}} scheitert vom Punkt! Was für eine Erleichterung für {{opponent}}!",
+          "1": "Gehalten! {{player}} wird von diesem Elfmeter noch träumen."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "ELFMETER!",
+        "lines": {
+          "0": "Der Schiedsrichter zeigt auf den Punkt — Elfmeter für {{team}}!",
+          "1": "Es gibt Elfmeter für {{team}}! Entscheidender Moment."
+        }
+      },
+      "ShotSaved": {
+        "headline": "TOLLE PARADE!",
+        "lines": {
+          "0": "{{player}} zwingt den Keeper zu einer Parade.",
+          "1": "Der Keeper verweigert {{player}} den Treffer!"
+        },
+        "routine": {
+          "headline": "GEHALTEN",
+          "lines": {
+            "0": "Eine bequeme Parade beim Schuss von {{player}}.",
+            "1": "Direkt in die Hände des Keepers, der Schuss von {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "GUTE PARADE!",
+          "lines": {
+            "0": "Der Keeper muss aufpassen, um {{player}} aufzuhalten!",
+            "1": "Starke Hände, um {{player}} den Treffer zu verwehren!"
+          }
+        },
+        "worldClass": {
+          "headline": "WAS FÜR EINE PARADE!",
+          "lines": {
+            "0": "Unglaublich! Der Keeper kratzt den Schuss von {{player}} irgendwie heraus!",
+            "1": "Weltklasse-Parade, um {{player}} einen sicheren Treffer zu verwehren!"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "KNAPP DANEBEN!",
+        "lines": {
+          "0": "{{player}} zieht den Ball knapp am Tor vorbei für {{team}}.",
+          "1": "So nah! {{player}} findet das Tor nicht."
+        },
+        "speculative": {
+          "headline": "AM TOR VORBEI",
+          "lines": {
+            "0": "{{player}} versucht es aus der Distanz, aber weit daneben.",
+            "1": "Zu ehrgeizig von {{player}} — weit weg."
+          }
+        },
+        "decent": {
+          "headline": "NAH DRAN!",
+          "lines": {
+            "0": "Der Schuss von {{player}} streift den Pfosten.",
+            "1": "Nicht weit weg von {{player}}!"
+          }
+        },
+        "bigChance": {
+          "headline": "WIE HAT ER DAS VERPASST?!",
+          "lines": {
+            "0": "{{player}} hätte das wirklich treffen müssen — qualvoll knapp vorbei!",
+            "1": "Eine große Chance ungenutzt für {{team}}! {{player}} kann es nicht fassen."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "GEBLOCKT!",
+        "lines": {
+          "0": "Der Schuss von {{player}} wird von einem mutigen Verteidiger geblockt.",
+          "1": "Körper im Weg! {{player}} wird abgeblockt."
+        },
+        "bigChance": {
+          "headline": "TOLLE GRÄTSCHE!",
+          "lines": {
+            "0": "Eine entscheidende Grätsche verhindert den Treffer von {{player}} aus guter Position!",
+            "1": "Rettung in letzter Sekunde gegen {{player}}!"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FOUL",
+        "lines": {
+          "0": "{{player}} foult {{victim}}. Freistoß für {{opponent}}.",
+          "1": "{{player}} verschuldet einen Freistoß gegen {{victim}}."
+        },
+        "hard": {
+          "headline": "DAS IST EIN FOUL",
+          "lines": {
+            "0": "{{player}} geht hart rein gegen {{victim}}! Foul für {{opponent}}.",
+            "1": "Ein harter Einsteiger von {{player}} gegen {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "RÜCKSICHTSLOS!",
+          "lines": {
+            "0": "{{player}} fliegt rein gegen {{victim}} — das ist gefährlich!",
+            "1": "Grobes Foulspiel von {{player}} gegen {{victim}}! Der Schiedsrichter wird einschreiten."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "GELBE KARTE",
+        "lines": {
+          "0": "{{player}} sieht Gelb für {{team}}.",
+          "1": "Gelbe Karte für {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "ROTE KARTE!",
+        "lines": {
+          "0": "{{player}} fliegt vom Platz! {{team}} ist nur noch zu zehnt!",
+          "1": "Direkter Platzverweis für {{player}}! Eine Katastrophe für {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "ZWEITE GELBE — VOM PLATZ!",
+        "lines": {
+          "0": "{{player}} sieht die zweite Gelbe und wird des Feldes verwiesen!",
+          "1": "Zwei Gelbe und weg — {{player}} lässt {{team}} in Unterzahl."
+        }
+      },
+      "Injury": {
+        "headline": "VERLETZUNG",
+        "lines": {
+          "0": "{{player}} liegt am Boden und braucht Behandlung.",
+          "1": "Sorge bei {{team}}: {{player}} geht verletzt zu Boden."
+        }
+      },
+      "Substitution": {
+        "headline": "AUSWECHSLUNG",
+        "lines": {
+          "0": "{{team}} wechselt: {{player}} kommt, {{victim}} geht.",
+          "1": "{{player}} ersetzt {{victim}} bei {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "ANPFIFF",
+        "lines": {
+          "0": "Es geht los!",
+          "1": "Das Spiel läuft!"
+        }
+      },
+      "HalfTime": {
+        "headline": "HALBZEIT",
+        "lines": {
+          "0": "Der Schiedsrichter pfeift zur Halbzeit.",
+          "1": "Das ist das Ende der ersten Hälfte."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "ZWEITE HALBZEIT",
+        "lines": {
+          "0": "Wir sind zurück für die zweite Halbzeit.",
+          "1": "Die zweite Halbzeit ist angebrochen!"
+        }
+      },
+      "FullTime": {
+        "headline": "ABPFIFF",
+        "lines": {
+          "0": "Das war's — Abpfiff!",
+          "1": "Der Schiedsrichter beendet das Spiel."
+        }
+      }
     }
   },
   "endOfSeason": {
@@ -1921,6 +2160,11 @@
         "parseFailed": "Die Einstellungsdaten sind ungültig.",
         "saveFailed": "Die Einstellungen konnten nicht gespeichert werden.",
         "invalidCurrency": "Die ausgewählte Währung wird nicht unterstützt."
+      },
+      "profiles": {
+        "loadFailed": "Manager-Profile konnten nicht geladen werden.",
+        "saveFailed": "Manager-Profil konnte nicht gespeichert werden.",
+        "pathFailed": "Der Speicherpfad für Profile konnte nicht ermittelt werden."
       },
       "finance": {
         "boardSupportUnavailable": "Notfallhilfe des Vorstands ist nur verfügbar, wenn die Geldreserven unter Druck stehen.",
@@ -2795,7 +3039,12 @@
     "rejected": "Ihre Bewerbung war leider nicht erfolgreich.",
     "noJobs": "Derzeit keine Stellen verfügbar.",
     "leaguePosition": "Letzte Saison: {{position}}",
-    "refresh": "Nach neuen Stellen suchen"
+    "refresh": "Nach neuen Stellen suchen",
+    "sameTeam": "Sie sind bereits Trainer dieses Vereins.",
+    "notBetterClub": "Sie können sich nur bei Vereinen bewerben, die einen Aufstieg gegenüber Ihrem aktuellen Verein darstellen.",
+    "switchConfirmTitle": "Aktuellen Verein verlassen?",
+    "switchConfirmBody": "Wenn Sie diese Gelegenheit annehmen, beenden Sie Ihre Amtszeit bei {{currentClub}} und wechseln zu {{newClub}}.",
+    "switchConfirmAccept": "Neue Position annehmen"
   },
   "awardsCeremony": {
     "title": "Preisverleihung",

@@ -1,5 +1,7 @@
 use domain::player::{Player, PlayerAttributes, PlayerTrait, Position};
-use ofm_core::player_rating::{generate_potential, refresh_player_derived};
+use ofm_core::player_rating::{
+    generate_potential, qualifies_for_wonderkid, refresh_player_derived,
+};
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -142,7 +144,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
     refresh_player_derived(&mut player, 2026);
 
     assert!(
-        player.potential >= 85 && player.potential.saturating_sub(player.ovr) >= 10,
+        player.potential >= 90 && player.potential.saturating_sub(player.ovr) >= 14,
         "Expected deterministic Wonderkid setup to qualify with potential={} ovr={}",
         player.potential,
         player.ovr
@@ -166,6 +168,26 @@ fn refresh_does_not_award_wonderkid_for_old_player() {
         !player.traits.contains(&PlayerTrait::Wonderkid),
         "Old player (age ~36) should not get Wonderkid trait"
     );
+}
+
+#[test]
+fn wonderkid_qualification_accepts_exact_boundary() {
+    assert!(qualifies_for_wonderkid(20, 90, 76));
+}
+
+#[test]
+fn wonderkid_qualification_rejects_age_above_boundary() {
+    assert!(!qualifies_for_wonderkid(21, 90, 76));
+}
+
+#[test]
+fn wonderkid_qualification_rejects_potential_below_boundary() {
+    assert!(!qualifies_for_wonderkid(20, 89, 75));
+}
+
+#[test]
+fn wonderkid_qualification_rejects_growth_room_below_boundary() {
+    assert!(!qualifies_for_wonderkid(20, 90, 77));
 }
 
 // ---------------------------------------------------------------------------

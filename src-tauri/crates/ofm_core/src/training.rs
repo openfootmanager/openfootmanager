@@ -104,7 +104,11 @@ struct TeamTrainingPlan {
 /// `weekday_num` is 0=Mon .. 6=Sun (chrono Weekday::num_days_from_monday()).
 pub fn process_training(game: &mut Game, weekday_num: u32) {
     // Derive the current year from the game clock for accurate age calculations.
-    let current_year = game.clock.current_date.format("%Y").to_string()
+    let current_year = game
+        .clock
+        .current_date
+        .format("%Y")
+        .to_string()
         .parse::<u32>()
         .unwrap_or(2026);
 

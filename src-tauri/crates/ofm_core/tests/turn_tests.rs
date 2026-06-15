@@ -656,9 +656,18 @@ fn process_day_releases_players_with_expired_contracts() {
         message.subject_key.as_deref(),
         Some("be.msg.contractExpired.subject")
     );
-    assert_eq!(message.body_key.as_deref(), Some("be.msg.contractExpired.body"));
-    assert_eq!(message.sender_key.as_deref(), Some("be.sender.assistantManager"));
-    assert_eq!(message.sender_role_key.as_deref(), Some("be.role.assistantManager"));
+    assert_eq!(
+        message.body_key.as_deref(),
+        Some("be.msg.contractExpired.body")
+    );
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.assistantManager")
+    );
+    assert_eq!(
+        message.sender_role_key.as_deref(),
+        Some("be.role.assistantManager")
+    );
     assert!(message.subject.is_empty());
     assert!(message.body.is_empty());
     assert!(message.sender.is_empty());

@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use log::info;
 use serde::Serialize;
 use tauri::State;
@@ -82,7 +83,7 @@ fn serialize_session_status(status: RenewalSessionStatus) -> String {
 
 #[tauri::command]
 pub async fn propose_renewal(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
@@ -92,7 +93,7 @@ pub async fn propose_renewal(
 
 #[tauri::command]
 pub async fn delegate_renewals(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
     max_contract_years: u32,
@@ -107,7 +108,7 @@ pub async fn delegate_renewals(
 
 #[tauri::command]
 pub async fn preview_renewal_financial_impact(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
 ) -> Result<RenewalFinancialProjectionCommandResponse, String> {
@@ -116,7 +117,7 @@ pub async fn preview_renewal_financial_impact(
 
 #[tauri::command]
 pub async fn offer_free_agent_contract(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
     contract_years: u32,
@@ -126,7 +127,7 @@ pub async fn offer_free_agent_contract(
 
 #[tauri::command]
 pub async fn preview_free_agent_contract_impact(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     weekly_wage: u32,
 ) -> Result<FreeAgentContractProjectionCommandResponse, String> {
@@ -135,7 +136,7 @@ pub async fn preview_free_agent_contract_impact(
 
 #[tauri::command]
 pub async fn set_contract_exit_intent(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
     reason: Option<String>,
 ) -> Result<ContractExitIntentCommandResponse, String> {
@@ -144,7 +145,7 @@ pub async fn set_contract_exit_intent(
 
 #[tauri::command]
 pub async fn clear_contract_exit_intent(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractExitIntentCommandResponse, String> {
     clear_contract_exit_intent_internal(&state, &player_id)
@@ -152,7 +153,7 @@ pub async fn clear_contract_exit_intent(
 
 #[tauri::command]
 pub async fn preview_contract_termination(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractTerminationPreviewCommandResponse, String> {
     preview_contract_termination_internal(&state, &player_id)
@@ -160,13 +161,13 @@ pub async fn preview_contract_termination(
 
 #[tauri::command]
 pub async fn terminate_contract_now(
-    state: State<'_, StateManager>,
+    state: State<'_, Arc<StateManager>>,
     player_id: String,
 ) -> Result<ContractTerminationCommandResponse, String> {
     terminate_contract_now_internal(&state, &player_id)
 }
 
-fn propose_renewal_internal(
+pub fn propose_renewal_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -204,7 +205,7 @@ fn propose_renewal_internal(
     })
 }
 
-fn delegate_renewals_internal(
+pub fn delegate_renewals_internal(
     state: &StateManager,
     player_ids: Option<Vec<String>>,
     max_wage_increase_pct: u32,
@@ -233,7 +234,7 @@ fn delegate_renewals_internal(
     Ok(DelegatedRenewalCommandResponse { game, report })
 }
 
-fn preview_renewal_financial_impact_internal(
+pub fn preview_renewal_financial_impact_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -253,7 +254,7 @@ fn preview_renewal_financial_impact_internal(
     Ok(RenewalFinancialProjectionCommandResponse { projection })
 }
 
-fn offer_free_agent_contract_internal(
+pub fn offer_free_agent_contract_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -291,7 +292,7 @@ fn offer_free_agent_contract_internal(
     })
 }
 
-fn preview_free_agent_contract_impact_internal(
+pub fn preview_free_agent_contract_impact_internal(
     state: &StateManager,
     player_id: &str,
     weekly_wage: u32,
@@ -311,7 +312,7 @@ fn preview_free_agent_contract_impact_internal(
     Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
 
-fn set_contract_exit_intent_internal(
+pub fn set_contract_exit_intent_internal(
     state: &StateManager,
     player_id: &str,
     reason: Option<String>,
@@ -328,7 +329,7 @@ fn set_contract_exit_intent_internal(
     Ok(ContractExitIntentCommandResponse { game })
 }
 
-fn clear_contract_exit_intent_internal(
+pub fn clear_contract_exit_intent_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractExitIntentCommandResponse, String> {
@@ -344,7 +345,7 @@ fn clear_contract_exit_intent_internal(
     Ok(ContractExitIntentCommandResponse { game })
 }
 
-fn preview_contract_termination_internal(
+pub fn preview_contract_termination_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractTerminationPreviewCommandResponse, String> {
@@ -361,7 +362,7 @@ fn preview_contract_termination_internal(
     Ok(ContractTerminationPreviewCommandResponse { preview })
 }
 
-fn terminate_contract_now_internal(
+pub fn terminate_contract_now_internal(
     state: &StateManager,
     player_id: &str,
 ) -> Result<ContractTerminationCommandResponse, String> {
@@ -391,7 +392,8 @@ mod tests {
         clear_contract_exit_intent_internal, delegate_renewals_internal,
         offer_free_agent_contract_internal, preview_contract_termination_internal,
         preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal, set_contract_exit_intent_internal, terminate_contract_now_internal,
+        propose_renewal_internal, set_contract_exit_intent_internal,
+        terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -772,7 +774,10 @@ mod tests {
         assert!(matches!(response.outcome, RenewalDecision::Accepted));
         assert_eq!(response.session_status, "agreed");
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
-        assert_eq!(response.game.players[0].contract_end.as_deref(), Some("2029-08-01"));
+        assert_eq!(
+            response.game.players[0].contract_end.as_deref(),
+            Some("2029-08-01")
+        );
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.players[0].team_id.as_deref(), Some("team-1"));
@@ -783,9 +788,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_free_agent_game());
 
-        let response =
-            preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
-                .expect("response");
+        let response = preview_free_agent_contract_impact_internal(&state, "player-1", 4_000)
+            .expect("response");
 
         assert_eq!(response.projection.current_annual_wage_bill, 0);
         assert_eq!(response.projection.projected_annual_wage_bill, 4_000);
@@ -816,8 +820,14 @@ mod tests {
 
     #[test]
     fn serialize_session_status_uses_frontend_casing() {
-        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Idle), "idle");
-        assert_eq!(super::serialize_session_status(RenewalSessionStatus::Open), "open");
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Idle),
+            "idle"
+        );
+        assert_eq!(
+            super::serialize_session_status(RenewalSessionStatus::Open),
+            "open"
+        );
         assert_eq!(
             super::serialize_session_status(RenewalSessionStatus::Agreed),
             "agreed"

@@ -8,11 +8,14 @@ import {
   applyForJob,
   type JobOpportunity,
 } from "../../services/jobService";
+import { getTeamName } from "../../lib/helpers";
 import type { GameStateData } from "../../store/gameStore";
+import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 
 interface JobOpportunitiesCardProps {
   gameState: GameStateData;
   onGameUpdate: (state: GameStateData) => void;
+  hideWhenEmpty?: boolean;
 }
 
 function getReputationStars(reputation: number): number {
@@ -22,17 +25,25 @@ function getReputationStars(reputation: number): number {
 export default function JobOpportunitiesCard({
   gameState,
   onGameUpdate,
-}: JobOpportunitiesCardProps): JSX.Element {
+  hideWhenEmpty = false,
+}: JobOpportunitiesCardProps): JSX.Element | null {
   const { t } = useTranslation();
   const [jobs, setJobs] = useState<JobOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
+  const [pendingSwitch, setPendingSwitch] = useState<JobOpportunity | null>(
+    null,
+  );
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
   const currentDate = gameState.clock.current_date;
+  const currentClubName = getTeamName(
+    gameState.teams,
+    gameState.manager?.team_id ?? null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -50,25 +61,65 @@ export default function JobOpportunitiesCard({
     };
   }, [currentDate]);
 
-  const handleApply = async (teamId: string) => {
-    if (applyingTo) return;
-    setApplyingTo(teamId);
+  const submitApplication = async (job: JobOpportunity) => {
+    setApplyingTo(job.team_id);
     setFeedback(null);
     try {
-      const response = await applyForJob(teamId);
+      const response = await applyForJob(job.team_id);
       onGameUpdate(response.game);
       if (response.result === "hired") {
+        // Set success feedback first: a refresh failure below must not
+        // swallow the "hired" message via the surrounding catch.
         setFeedback({ type: "success", message: t("jobs.hired") });
+        // After a club switch the prior list reflects opportunities relative
+        // to the old club — refetch so we don't keep showing offers that
+        // would now fail the "step up" check.
+        const updated = await getAvailableJobs();
+        setJobs(updated);
       } else if (response.result === "rejected") {
         setFeedback({ type: "error", message: t("jobs.rejected") });
         const updated = await getAvailableJobs();
         setJobs(updated);
+      } else if (response.result === "same_team") {
+        setFeedback({
+          type: "error",
+          message: t("jobs.sameTeam", "You are already managing that club."),
+        });
+      } else if (response.result === "not_better_club") {
+        setFeedback({
+          type: "error",
+          message: t(
+            "jobs.notBetterClub",
+            "You can only apply for clubs that are a step up from your current one.",
+          ),
+        });
       }
     } catch (err) {
       console.error("Failed to apply:", err);
     } finally {
       setApplyingTo(null);
     }
+  };
+
+  const handleApply = (job: JobOpportunity) => {
+    if (applyingTo) return;
+    // Only prompt for confirmation when the offer points at a different club —
+    // applying to your current club is a backend no-op (returns `same_team`).
+    if (
+      gameState.manager?.team_id &&
+      gameState.manager.team_id !== job.team_id
+    ) {
+      setPendingSwitch(job);
+      return;
+    }
+    void submitApplication(job);
+  };
+
+  const handleConfirmSwitch = () => {
+    if (!pendingSwitch) return;
+    const job = pendingSwitch;
+    setPendingSwitch(null);
+    void submitApplication(job);
   };
 
   const handleRefresh = async () => {
@@ -82,6 +133,10 @@ export default function JobOpportunitiesCard({
       setLoading(false);
     }
   };
+
+  if (hideWhenEmpty && !loading && jobs.length === 0 && !feedback) {
+    return null;
+  }
 
   return (
     <Card>
@@ -166,7 +221,7 @@ export default function JobOpportunitiesCard({
                     </div>
                   </div>
                   <button
-                    onClick={() => handleApply(job.team_id)}
+                    onClick={() => handleApply(job)}
                     disabled={applyingTo !== null}
                     className="ml-3 shrink-0 rounded-lg bg-primary-500 px-4 py-1.5 text-xs font-heading font-bold uppercase tracking-wider text-white transition-all hover:bg-primary-600 disabled:opacity-50"
                   >
@@ -180,6 +235,14 @@ export default function JobOpportunitiesCard({
           </div>
         )}
       </CardBody>
+      <SwitchClubConfirmModal
+        open={pendingSwitch !== null}
+        currentClubName={currentClubName}
+        newClubName={pendingSwitch?.team_name ?? ""}
+        busy={applyingTo !== null}
+        onCancel={() => setPendingSwitch(null)}
+        onConfirm={handleConfirmSwitch}
+      />
     </Card>
   );
 }

@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.0-alpha"
+    "version": "v0.2.1-alpha"
   },
   "menu": {
     "newGame": "Nouvelle Partie",
@@ -20,7 +20,18 @@
     "importedDescription": "Base de données de monde importée",
     "loadGameFailed": "Impossible de charger la sauvegarde : {{error}}",
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
-    "failedStartGame": "Échec du démarrage du jeu : {{error}}"
+    "failedStartGame": "Échec du démarrage du jeu : {{error}}",
+    "openDiscord": "Ouvrir la communauté Discord",
+    "openGithub": "Ouvrir le dépôt GitHub"
+  },
+  "managerProfiles": {
+    "saveConfirm": {
+      "title": "Enregistrer le profil",
+      "body": "Vous avez modifié le profil de {{name}}. Que souhaitez-vous faire ?",
+      "update": "Mettre à jour \"{{name}}\"",
+      "saveNew": "Enregistrer comme nouveau profil",
+      "skip": "Continuer sans enregistrer"
+    }
   },
   "createManager": {
     "title": "Créer un Entraîneur",
@@ -365,6 +376,7 @@
     "all": "Tous",
     "allPlayers": "Tous les joueurs",
     "cancel": "Annuler",
+    "clear": "Effacer",
     "close": "Fermer",
     "done": "Terminé",
     "confirm": "Confirmer",
@@ -1784,6 +1796,233 @@
       "FreeKick": "Coup franc",
       "Foul": "Faute",
       "PenaltyAwarded": "Penalty accordé"
+    },
+    "commentary": {
+      "Goal": {
+        "headline": "BUUUT !",
+        "lines": {
+          "0": "{{player}} trouve le fond des filets pour {{team}} !",
+          "1": "{{player}} l'envoie ! Quelle finition !",
+          "2": "{{player}} marque pour {{team}} !"
+        },
+        "opener": {
+          "headline": "BUUUT !",
+          "lines": {
+            "0": "{{player}} ouvre le score pour {{team}} !",
+            "1": "{{team}} passe devant — {{player}} frappe !"
+          }
+        },
+        "equaliser": {
+          "headline": "BUUUT !",
+          "lines": {
+            "0": "{{player}} égalise pour {{team}} ! Le match repart !",
+            "1": "{{team}} revient au score — {{player}} égalise !"
+          }
+        },
+        "extends": {
+          "headline": "BUUUT !",
+          "lines": {
+            "0": "{{player}} en ajoute un autre pour {{team}} !",
+            "1": "{{player}} remet ça — {{team}} s'échappe !"
+          }
+        },
+        "consolation": {
+          "headline": "BUT",
+          "lines": {
+            "0": "{{player}} sauve l'honneur pour {{team}}.",
+            "1": "Un but de consolation pour {{team}} signé {{player}}."
+          }
+        },
+        "brace": {
+          "headline": "BUUUT !",
+          "lines": {
+            "0": "{{player}} signe un doublé !",
+            "1": "Deux buts pour {{player}} !"
+          }
+        },
+        "hattrick": {
+          "headline": "HAT-TRICK !",
+          "lines": {
+            "0": "{{player}} complète son hat-trick ! Chapeau bas !",
+            "1": "Trois buts pour {{player}} — quelle journée !"
+          }
+        }
+      },
+      "PenaltyGoal": {
+        "headline": "PENALTY — BUT !",
+        "lines": {
+          "0": "{{player}} trompe le gardien sur penalty ! {{team}} marque.",
+          "1": "Sang-froid absolu de {{player}} — penalty transformé pour {{team}} !"
+        }
+      },
+      "PenaltyMiss": {
+        "headline": "PENALTY MANQUÉ !",
+        "lines": {
+          "0": "{{player}} loupe le penalty ! Quel soulagement pour {{opponent}} !",
+          "1": "Arrêté ! {{player}} va faire des cauchemars avec ce penalty."
+        }
+      },
+      "PenaltyAwarded": {
+        "headline": "PENALTY !",
+        "lines": {
+          "0": "L'arbitre pointe le point de penalty — penalty pour {{team}} !",
+          "1": "C'est un penalty pour {{team}} ! Moment capital."
+        }
+      },
+      "ShotSaved": {
+        "headline": "QUEL ARRÊT !",
+        "lines": {
+          "0": "{{player}} contraint le gardien à une belle parade.",
+          "1": "Le gardien refuse le but à {{player}} !"
+        },
+        "routine": {
+          "headline": "ARRÊT",
+          "lines": {
+            "0": "Une parade sans difficulté sur la frappe de {{player}}.",
+            "1": "Directement dans les bras du gardien, le tir de {{player}}."
+          }
+        },
+        "strong": {
+          "headline": "BELLE PARADE !",
+          "lines": {
+            "0": "Le gardien doit se montrer vigilant pour stopper {{player}} !",
+            "1": "Parades solides pour refuser le but à {{player}} !"
+          }
+        },
+        "worldClass": {
+          "headline": "ARRÊT EXTRAORDINAIRE !",
+          "lines": {
+            "0": "Incroyable ! Le gardien détourne le tir de {{player}} de façon miraculeuse !",
+            "1": "Un arrêt de classe mondiale pour refuser un but certain à {{player}} !"
+          }
+        }
+      },
+      "ShotOffTarget": {
+        "headline": "TOUT PRÈS !",
+        "lines": {
+          "0": "{{player}} envoie ça à côté de peu pour {{team}}.",
+          "1": "Si proche ! {{player}} ne parvient pas à cadrer."
+        },
+        "speculative": {
+          "headline": "HORS CADRE",
+          "lines": {
+            "0": "{{player}} tente sa chance de loin mais ça passe loin.",
+            "1": "Trop ambitieux de {{player}} — ça ne passe pas du tout."
+          }
+        },
+        "decent": {
+          "headline": "PROCHE !",
+          "lines": {
+            "0": "La frappe de {{player}} frôle le poteau.",
+            "1": "Pas loin pour {{player}} !"
+          }
+        },
+        "bigChance": {
+          "headline": "COMMENT A-T-IL RATÉ ?!",
+          "lines": {
+            "0": "{{player}} devait marquer là — ça passe à côté de façon agoniante !",
+            "1": "Une occasion en or gâchée par {{team}} ! {{player}} n'en revient pas."
+          }
+        }
+      },
+      "ShotBlocked": {
+        "headline": "BLOQUÉ !",
+        "lines": {
+          "0": "Le tir de {{player}} est contré par un défenseur courageux.",
+          "1": "Des corps sur la trajectoire ! {{player}} est stoppé."
+        },
+        "bigChance": {
+          "headline": "QUEL BLOCAGE !",
+          "lines": {
+            "0": "Un blocage crucial empêche {{player}} de marquer depuis une excellente position !",
+            "1": "Défense in extremis pour refuser le but à {{player}} !"
+          }
+        }
+      },
+      "Foul": {
+        "headline": "FAUTE",
+        "lines": {
+          "0": "{{player}} fait faute sur {{victim}}. Coup franc pour {{opponent}}.",
+          "1": "{{player}} concède un coup franc contre {{victim}}."
+        },
+        "hard": {
+          "headline": "C'EST UNE FAUTE",
+          "lines": {
+            "0": "{{player}} entre fort sur {{victim}} ! Faute pour {{opponent}}.",
+            "1": "Un tacle costaud de {{player}} sur {{victim}}."
+          }
+        },
+        "reckless": {
+          "headline": "IMPRUDENT !",
+          "lines": {
+            "0": "{{player}} se jette sur {{victim}} — c'est dangereux !",
+            "1": "Faute violente de {{player}} sur {{victim}} ! L'arbitre va sévir."
+          }
+        }
+      },
+      "YellowCard": {
+        "headline": "CARTON JAUNE",
+        "lines": {
+          "0": "{{player}} prend un carton jaune avec {{team}}.",
+          "1": "Carton jaune pour {{player}}."
+        }
+      },
+      "RedCard": {
+        "headline": "CARTON ROUGE !",
+        "lines": {
+          "0": "{{player}} est expulsé ! {{team}} se retrouve à dix !",
+          "1": "Carton rouge direct pour {{player}} ! Catastrophe pour {{team}}."
+        }
+      },
+      "SecondYellow": {
+        "headline": "DEUXIÈME JAUNE — EXPULSÉ !",
+        "lines": {
+          "0": "{{player}} prend un deuxième jaune et est expulsé !",
+          "1": "Deux jaunes et dehors — {{player}} laisse {{team}} à dix."
+        }
+      },
+      "Injury": {
+        "headline": "BLESSURE",
+        "lines": {
+          "0": "{{player}} est à terre et nécessite des soins.",
+          "1": "Inquiétude dans {{team}} : {{player}} s'effondre blessé."
+        }
+      },
+      "Substitution": {
+        "headline": "REMPLACEMENT",
+        "lines": {
+          "0": "{{team}} effectue un changement : {{player}} entre, {{victim}} sort.",
+          "1": "{{player}} remplace {{victim}} dans {{team}}."
+        }
+      },
+      "KickOff": {
+        "headline": "COUP D'ENVOI",
+        "lines": {
+          "0": "C'est parti !",
+          "1": "Le match est lancé !"
+        }
+      },
+      "HalfTime": {
+        "headline": "MI-TEMPS",
+        "lines": {
+          "0": "L'arbitre siffle la mi-temps.",
+          "1": "C'est la fin de la première période."
+        }
+      },
+      "SecondHalfStart": {
+        "headline": "DEUXIÈME MI-TEMPS",
+        "lines": {
+          "0": "On repart pour la deuxième mi-temps.",
+          "1": "La deuxième mi-temps est lancée !"
+        }
+      },
+      "FullTime": {
+        "headline": "COUP DE SIFFLET FINAL",
+        "lines": {
+          "0": "Et voilà — c'est terminé !",
+          "1": "L'arbitre siffle la fin du match."
+        }
+      }
     }
   },
   "endOfSeason": {
@@ -1921,6 +2160,11 @@
         "parseFailed": "Les données de paramètres sont invalides.",
         "saveFailed": "Impossible d'enregistrer les paramètres.",
         "invalidCurrency": "La devise sélectionnée n'est pas prise en charge."
+      },
+      "profiles": {
+        "loadFailed": "Impossible de charger les profils d'entraîneur.",
+        "saveFailed": "Impossible d'enregistrer le profil d'entraîneur.",
+        "pathFailed": "Impossible de résoudre le chemin de stockage des profils."
       },
       "finance": {
         "boardSupportUnavailable": "Le soutien d'urgence du conseil n'est disponible que lorsque la trésorerie est sous pression.",
@@ -2795,7 +3039,12 @@
     "rejected": "Votre candidature n'a pas été retenue.",
     "noJobs": "Aucun poste disponible actuellement.",
     "leaguePosition": "Dernière saison : {{position}}",
-    "refresh": "Vérifier les nouvelles offres"
+    "refresh": "Vérifier les nouvelles offres",
+    "sameTeam": "Vous êtes déjà l'entraîneur de ce club.",
+    "notBetterClub": "Vous ne pouvez postuler qu'à des clubs représentant une progression par rapport à votre club actuel.",
+    "switchConfirmTitle": "Quitter votre club actuel ?",
+    "switchConfirmBody": "Accepter cette opportunité mettra fin à votre mandat à {{currentClub}} et vous fera rejoindre {{newClub}}.",
+    "switchConfirmAccept": "Accepter le nouveau poste"
   },
   "awardsCeremony": {
     "title": "Ceremonie des Recompenses",

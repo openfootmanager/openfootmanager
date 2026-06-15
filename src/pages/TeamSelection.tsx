@@ -17,7 +17,7 @@ import {
 } from "../store/gameStore";
 import { countryName } from "../lib/countries";
 import { formatVal, getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
-import { Badge, Card, CardBody, TeamLocation, ThemeToggle } from "../components/ui";
+import { Badge, Card, CardBody, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
 import {
   ArrowLeft,
   ChevronRight,
@@ -748,13 +748,12 @@ export default function TeamSelection() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-12 w-12 items-center justify-center rounded-lg font-heading text-lg font-bold ${
+                          <TeamLogo
+                            team={team}
+                            className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg font-heading text-lg font-bold ${
                               isSelected ? "bg-white/20 text-white" : "bg-white/10 text-gray-300"
                             }`}
-                          >
-                            {team.short_name}
-                          </div>
+                          />
                           <div>
                             <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
                               {team.name}
