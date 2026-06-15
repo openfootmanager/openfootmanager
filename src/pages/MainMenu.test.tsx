@@ -117,7 +117,21 @@ vi.mock("../components/ui/ThemeToggle", () => ({
 }));
 
 vi.mock("../components/menu/SavesList", () => ({
-  default: () => <div data-testid="saves-list" />,
+  default: ({
+    saves,
+    onLoad,
+  }: {
+    saves?: Array<{ id: string; name: string }>;
+    onLoad?: (id: string) => void;
+  }) => (
+    <div data-testid="saves-list">
+      {(saves ?? []).map((save) => (
+        <button key={save.id} type="button" onClick={() => onLoad?.(save.id)}>
+          {save.name}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("../components/menu/WorldSelect", () => ({
