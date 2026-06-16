@@ -7,8 +7,12 @@ import {
   advanceTimeWithMode,
   checkBlockingActions,
   skipToMatchDay,
-  type AdvanceMatchResultData,
 } from "../services/advanceTimeService";
+import {
+  buildAdvanceRecap,
+  toDatePart,
+  type AdvanceRecap,
+} from "../components/dashboard/advanceRecap";
 
 export type MatchModeType = "live" | "spectator" | "delegate";
 
@@ -26,9 +30,7 @@ export function useAdvanceTime(
   const [showMatchConfirm, setShowMatchConfirm] = useState(false);
   const [matchMode, setMatchMode] = useState<MatchModeType>("live");
   const [blockerModal, setBlockerModal] = useState<BlockerModal | null>(null);
-  const [recapResults, setRecapResults] = useState<
-    AdvanceMatchResultData[] | null
-  >(null);
+  const [recapResults, setRecapResults] = useState<AdvanceRecap | null>(null);
 
   // Sync matchMode with settings when loaded
   useEffect(() => {
@@ -55,6 +57,10 @@ export function useAdvanceTime(
     });
     setIsAdvancing(true);
     resetTransientUi();
+    // Clock date before advancing — the cursor for "what happened" in the recap.
+    const sinceDate = toDatePart(
+      useGameStore.getState().gameState?.clock?.current_date,
+    );
     try {
       const result = await advanceTimeWithMode(effectiveMode);
       console.info("[useAdvanceTime] doAdvance:result", {
@@ -76,10 +82,11 @@ export function useAdvanceTime(
           },
         });
       } else if (result.action === "advanced" && result.game) {
-        setGameState(result.game as GameStateData);
-        if (result.results && result.results.length > 0) {
-          setRecapResults(result.results);
-        }
+        const game = result.game as GameStateData;
+        setGameState(game);
+        setRecapResults(
+          buildAdvanceRecap(game, sinceDate, result.results ?? []),
+        );
       }
     } catch (err) {
       console.error("Failed to advance time:", err);
@@ -137,6 +144,9 @@ export function useAdvanceTime(
     console.info("[useAdvanceTime] doSkipToMatchDay:start");
     setIsAdvancing(true);
     resetTransientUi();
+    const sinceDate = toDatePart(
+      useGameStore.getState().gameState?.clock?.current_date,
+    );
     try {
       const result = await skipToMatchDay();
       console.info("[useAdvanceTime] doSkipToMatchDay:result", {
@@ -150,11 +160,12 @@ export function useAdvanceTime(
         setShowFiredModal(true);
         return;
       }
-      if (result.game) setGameState(result.game as GameStateData);
+      const game = result.game as GameStateData | undefined;
+      if (game) setGameState(game);
       if (result.action === "blocked" && result.blockers && result.blockers.length > 0) {
         setBlockerModal({ blockers: result.blockers });
-      } else if (result.results && result.results.length > 0) {
-        setRecapResults(result.results);
+      } else if (game) {
+        setRecapResults(buildAdvanceRecap(game, sinceDate, result.results ?? []));
       }
     } catch (err) {
       console.error("Failed to skip to match day:", err);

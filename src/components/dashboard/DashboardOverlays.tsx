@@ -9,13 +9,13 @@ import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
 import DashboardResultsRecapModal from "./DashboardResultsRecapModal";
 import DashboardSimulatingModal from "./DashboardSimulatingModal";
-import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
+import type { AdvanceRecap } from "./advanceRecap";
 
 interface DashboardOverlaysProps {
   blockerModal: BlockerModal | null;
   currentModeMeta: DashboardMatchModeMeta;
   isAdvancing: boolean;
-  recapResults: AdvanceMatchResultData[] | null;
+  recapResults: AdvanceRecap | null;
   onCloseRecap: () => void;
   handleConfirmMatch: () => void;
   handleExitToMenu: () => void | Promise<void>;
@@ -60,8 +60,8 @@ export default function DashboardOverlays({
     <>
       {isAdvancing ? <DashboardSimulatingModal /> : null}
 
-      {!isAdvancing && recapResults && recapResults.length > 0 ? (
-        <DashboardResultsRecapModal results={recapResults} onClose={onCloseRecap} />
+      {!isAdvancing && recapResults ? (
+        <DashboardResultsRecapModal recap={recapResults} onClose={onCloseRecap} />
       ) : null}
 
       {isExitingToMenu ? <DashboardExitSavingModal /> : null}

@@ -2,12 +2,14 @@ import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatMatchDate } from "../../lib/helpers";
+import { formatVal } from "../../lib/valueFormatting";
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import { Badge } from "../ui";
+import type { AdvanceRecap, RecapHeadline, RecapTransfer } from "./advanceRecap";
 import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardResultsRecapModalProps {
-  results: AdvanceMatchResultData[];
+  recap: AdvanceRecap;
   onClose: () => void;
 }
 
@@ -30,30 +32,82 @@ function groupByDate(results: AdvanceMatchResultData[]): DayGroup[] {
   return groups;
 }
 
+function SectionHeading({ children }: { children: string }): JSX.Element {
+  return (
+    <p className="font-heading text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+      {children}
+    </p>
+  );
+}
+
 /**
- * Post-advance recap of the matches played during a Continue / Skip — the
- * user's competitions and national-team fixtures, grouped day by day.
+ * Post-advance recap of what happened during a Continue / Skip: the new date,
+ * the user's match results day by day, and the notable events (transfers, key
+ * news, high-priority inbox items) — so even quiet, no-match days have context.
  */
 export default function DashboardResultsRecapModal({
-  results,
+  recap,
   onClose,
 }: DashboardResultsRecapModalProps): JSX.Element {
   const { t } = useTranslation();
-  const days = groupByDate(results);
+  const days = groupByDate(recap.matches);
+
+  const resolveHeadline = (headline: RecapHeadline): string =>
+    headline.textKey
+      ? t(headline.textKey, { defaultValue: headline.text, ...headline.params })
+      : headline.text;
+
+  const renderTransfer = (transfer: RecapTransfer, index: number): JSX.Element => (
+    <div
+      key={`${transfer.date}-${index}`}
+      className={`flex items-center justify-between gap-3 py-1.5 text-sm ${
+        transfer.involvesUser
+          ? "font-bold text-primary-600 dark:text-primary-400"
+          : "text-gray-700 dark:text-gray-300"
+      }`}
+    >
+      <span className="truncate">
+        {t("dashboard.recapTransferLine", {
+          player: transfer.player,
+          from: transfer.from,
+          to: transfer.to,
+        })}
+      </span>
+      <span className="shrink-0 font-heading font-bold tabular-nums">
+        {formatVal(transfer.fee)}
+      </span>
+    </div>
+  );
+
+  const renderHeadline = (headline: RecapHeadline): JSX.Element => (
+    <p
+      key={headline.id}
+      className="truncate py-1.5 text-sm text-gray-700 dark:text-gray-300"
+    >
+      {resolveHeadline(headline)}
+    </p>
+  );
 
   return (
     <DashboardModalFrame maxWidthClassName="max-w-lg">
       <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-          {t("dashboard.resultsRecapTitle")}
-        </h3>
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
+            {t("dashboard.resultsRecapTitle")}
+          </h3>
+          {recap.advancedTo && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t("dashboard.recapAdvancedTo", {
+                date: formatMatchDate(recap.advancedTo),
+              })}
+            </p>
+          )}
+        </div>
 
         <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
           {days.map((day) => (
             <div key={day.date} className="flex flex-col gap-1.5">
-              <p className="font-heading text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {formatMatchDate(day.date)}
-              </p>
+              <SectionHeading>{formatMatchDate(day.date)}</SectionHeading>
               <div className="flex flex-col divide-y divide-gray-100 dark:divide-navy-700">
                 {day.matches.map((match, index) => (
                   <div
@@ -83,6 +137,39 @@ export default function DashboardResultsRecapModal({
               </div>
             </div>
           ))}
+
+          {recap.transfers.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <SectionHeading>{t("dashboard.recapSectionTransfers")}</SectionHeading>
+              <div className="flex flex-col divide-y divide-gray-100 dark:divide-navy-700">
+                {recap.transfers.map(renderTransfer)}
+              </div>
+            </div>
+          )}
+
+          {recap.news.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <SectionHeading>{t("dashboard.recapSectionNews")}</SectionHeading>
+              <div className="flex flex-col divide-y divide-gray-100 dark:divide-navy-700">
+                {recap.news.map(renderHeadline)}
+              </div>
+            </div>
+          )}
+
+          {recap.inbox.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <SectionHeading>{t("dashboard.recapSectionInbox")}</SectionHeading>
+              <div className="flex flex-col divide-y divide-gray-100 dark:divide-navy-700">
+                {recap.inbox.map(renderHeadline)}
+              </div>
+            </div>
+          )}
+
+          {!recap.hasEvents && (
+            <p className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t("dashboard.recapNothingNotable")}
+            </p>
+          )}
         </div>
 
         <button
