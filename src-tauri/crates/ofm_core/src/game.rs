@@ -1,5 +1,5 @@
 use crate::clock::GameClock;
-use domain::league::League;
+use domain::league::{CompetitionType, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::national_team::NationalTeam;
@@ -169,7 +169,32 @@ impl Game {
     }
 
     pub fn sync_legacy_league(&mut self) {
-        self.league = self.competitions.first().cloned();
+        // The legacy `league` field backs the home dashboard (next match, league
+        // position, etc.), so it must mirror the competition the user's club
+        // actually plays in — not just the first competition in the world.
+        self.league = self
+            .user_competition_index()
+            .map(|index| self.competitions[index].clone())
+            .or_else(|| self.competitions.first().cloned());
+    }
+
+    /// Index of the competition the user's club plays in, preferring its
+    /// domestic league. `None` when unemployed or no competition lists the club.
+    fn user_competition_index(&self) -> Option<usize> {
+        let team_id = self.manager.team_id.as_deref()?;
+        let contains = |competition: &League| {
+            competition
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == team_id)
+                || competition.participant_ids.iter().any(|id| id == team_id)
+        };
+        self.competitions
+            .iter()
+            .position(|competition| {
+                competition.kind == CompetitionType::League && contains(competition)
+            })
+            .or_else(|| self.competitions.iter().position(contains))
     }
 
     pub fn primary_competition(&self) -> Option<&League> {
