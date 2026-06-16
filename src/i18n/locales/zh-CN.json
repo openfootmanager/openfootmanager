@@ -277,6 +277,8 @@
     "homeRegion": "所属地区",
     "homeCountry": "所属国家",
     "allCountries": "所有国家",
+    "simulationScope": "模拟范围",
+    "otherClubs": "其他俱乐部",
     "searchClubs": "搜索俱乐部…",
     "clubCount": "{{n}} 家俱乐部",
     "noClubsMatch": "没有匹配的俱乐部。",

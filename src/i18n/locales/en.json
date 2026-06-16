@@ -277,6 +277,8 @@
     "homeRegion": "Home Region",
     "homeCountry": "Home Country",
     "allCountries": "All countries",
+    "simulationScope": "Simulation Scope",
+    "otherClubs": "Other clubs",
     "searchClubs": "Search clubs…",
     "clubCount": "{{n}} clubs",
     "noClubsMatch": "No clubs match your search.",

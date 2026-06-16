@@ -277,6 +277,8 @@
     "homeRegion": "Домашний регион",
     "homeCountry": "Домашняя страна",
     "allCountries": "Все страны",
+    "simulationScope": "Объём симуляции",
+    "otherClubs": "Другие клубы",
     "searchClubs": "Поиск клубов…",
     "clubCount": "Клубов: {{n}}",
     "noClubsMatch": "Нет клубов по вашему запросу.",

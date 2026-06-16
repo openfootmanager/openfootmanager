@@ -12,6 +12,7 @@ import {
   GameStateData,
   LeagueData,
   PlayerData,
+  TeamData,
   WorldRegionData,
   useGameStore,
 } from "../store/gameStore";
@@ -173,6 +174,7 @@ export default function TeamSelection() {
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [clubSearch, setClubSearch] = useState("");
+  const [scopeExpanded, setScopeExpanded] = useState(true);
   const [selectedHomeRegionId, setSelectedHomeRegionId] = useState<string | null>(null);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelection>({});
@@ -311,6 +313,61 @@ export default function TeamSelection() {
           team.city.toLowerCase().includes(clubSearchQuery),
       )
     : teams;
+
+  // Group the visible clubs by their domestic league/division (strongest first),
+  // with any club not in a league falling into an "other" bucket.
+  const teamGroups = useMemo(() => {
+    const leagueByTeam = new Map<string, LeagueData>();
+    for (const competition of competitions) {
+      if (competition.kind !== "League" || competition.scope !== "Domestic") {
+        continue;
+      }
+      for (const teamId of competition.participant_ids ?? []) {
+        if (!leagueByTeam.has(teamId)) {
+          leagueByTeam.set(teamId, competition);
+        }
+      }
+    }
+
+    const groups = new Map<
+      string,
+      { id: string; name: string; order: number; teams: TeamData[] }
+    >();
+    const ungrouped: TeamData[] = [];
+    for (const team of filteredTeams) {
+      const league = leagueByTeam.get(team.id);
+      if (!league) {
+        ungrouped.push(team);
+        continue;
+      }
+      const group = groups.get(league.id) ?? {
+        id: league.id,
+        name: league.name,
+        order: league.priority ?? 0,
+        teams: [],
+      };
+      group.teams.push(team);
+      groups.set(league.id, group);
+    }
+
+    const ordered = Array.from(groups.values()).sort(
+      (left, right) =>
+        left.order - right.order || left.name.localeCompare(right.name),
+    );
+    for (const group of ordered) {
+      group.teams.sort((left, right) => right.reputation - left.reputation);
+    }
+    if (ungrouped.length > 0) {
+      ungrouped.sort((left, right) => right.reputation - left.reputation);
+      ordered.push({
+        id: "__ungrouped",
+        name: t("teamSelect.otherClubs"),
+        order: Number.MAX_SAFE_INTEGER,
+        teams: ungrouped,
+      });
+    }
+    return ordered;
+  }, [competitions, filteredTeams, t]);
 
   useEffect(() => {
     if (teams.length === 0) {
@@ -580,6 +637,37 @@ export default function TeamSelection() {
         )}
 
         <Card>
+          <button
+            type="button"
+            onClick={() => setScopeExpanded((value) => !value)}
+            className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+          >
+            <span className="font-heading text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+              {t("teamSelect.simulationScope")}
+            </span>
+            <span className="flex items-center gap-2">
+              {!scopeExpanded && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {[
+                    selectedHomeRegionId
+                      ? buildRegionLabel(t, selectedHomeRegionId)
+                      : null,
+                    selectedCountryCode
+                      ? countryName(selectedCountryCode, i18n.language)
+                      : t("teamSelect.allCountries"),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              )}
+              <ChevronRight
+                className={`h-4 w-4 text-gray-400 transition-transform ${
+                  scopeExpanded ? "rotate-90" : ""
+                }`}
+              />
+            </span>
+          </button>
+          {scopeExpanded && (
           <CardBody className="grid gap-4 lg:grid-cols-4">
             <div>
               <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
@@ -727,6 +815,7 @@ export default function TeamSelection() {
               </div>
             </div>
           </CardBody>
+          )}
         </Card>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
@@ -748,9 +837,14 @@ export default function TeamSelection() {
                 {t("teamSelect.noClubsMatch")}
               </p>
             ) : (
-              <div className="max-h-[640px] overflow-y-auto pr-1">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {filteredTeams.map((team) => {
+              <div className="max-h-[640px] space-y-5 overflow-y-auto pr-1">
+                {teamGroups.map((group) => (
+                  <div key={group.id}>
+                    <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                      {group.name}
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {group.teams.map((team) => {
               const isSelected = selectedTeam?.id === team.id;
               const avgOvr = getTeamAvgOvr(team.id);
               const repInfo = getReputationLabel(team.reputation);
@@ -844,7 +938,9 @@ export default function TeamSelection() {
                 </button>
               );
             })}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

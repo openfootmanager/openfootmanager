@@ -277,6 +277,8 @@
     "homeRegion": "Heimatregion",
     "homeCountry": "Heimatland",
     "allCountries": "Alle Länder",
+    "simulationScope": "Simulationsumfang",
+    "otherClubs": "Andere Vereine",
     "searchClubs": "Vereine suchen…",
     "clubCount": "{{n}} Vereine",
     "noClubsMatch": "Keine Vereine entsprechen deiner Suche.",

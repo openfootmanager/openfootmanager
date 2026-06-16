@@ -307,6 +307,8 @@
     "homeRegion": "Región de origen",
     "homeCountry": "País de origen",
     "allCountries": "Todos los países",
+    "simulationScope": "Alcance de simulación",
+    "otherClubs": "Otros clubes",
     "searchClubs": "Buscar clubes…",
     "clubCount": "{{n}} clubes",
     "noClubsMatch": "Ningún club coincide con tu búsqueda.",
