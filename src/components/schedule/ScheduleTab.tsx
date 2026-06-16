@@ -25,6 +25,9 @@ interface ScheduleTabProps {
   onSelectTeam: (id: string) => void;
 }
 
+/** How many matchday groups to render per page before "load more". */
+const MATCHDAY_PAGE_SIZE = 6;
+
 function sortStandings(competition: LeagueData | null): LeagueData["standings"] {
   if (!competition) {
     return [];
@@ -47,6 +50,7 @@ export default function ScheduleTab({
     "fixtures",
   );
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
+  const [visibleMatchdayCount, setVisibleMatchdayCount] = useState(MATCHDAY_PAGE_SIZE);
   const userTeamId = gameState.manager.team_id;
   const nationalFixtures = getNationalTeamFixtures(gameState);
   const hasInternational = nationalFixtures.length > 0;
@@ -94,6 +98,11 @@ export default function ScheduleTab({
       activeCompetitions[0].id;
     setSelectedCompetitionId(preferredCompetitionId);
   }, [activeCompetitions, selectedCompetitionId, userCompetitions]);
+
+  // Reset paging when the shown competition or view changes.
+  useEffect(() => {
+    setVisibleMatchdayCount(MATCHDAY_PAGE_SIZE);
+  }, [selectedCompetition?.id, view]);
 
   const buildTeamMenuItem = (
     label: string,
@@ -241,7 +250,7 @@ export default function ScheduleTab({
 
       {view === "fixtures" && (
         <div className="flex flex-col gap-4">
-          {sortedMatchdays.map(([groupKey, fixtures]) => (
+          {sortedMatchdays.slice(0, visibleMatchdayCount).map(([groupKey, fixtures]) => (
             <Card key={groupKey}>
               <div className="rounded-t-xl border-b border-gray-100 bg-gray-50 px-5 py-3 dark:border-navy-600 dark:bg-navy-800">
                 <h4 className="font-heading text-sm font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
@@ -313,6 +322,16 @@ export default function ScheduleTab({
               </CardBody>
             </Card>
           ))}
+          {sortedMatchdays.length > visibleMatchdayCount && (
+            <button
+              onClick={() =>
+                setVisibleMatchdayCount((count) => count + MATCHDAY_PAGE_SIZE)
+              }
+              className="mx-auto rounded-lg border border-gray-200 bg-white px-4 py-2 font-heading text-sm font-bold uppercase tracking-wider text-gray-500 transition-all hover:text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              {t("schedule.loadMore")}
+            </button>
+          )}
         </div>
       )}
 

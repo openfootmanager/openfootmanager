@@ -33,6 +33,7 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.internationalDuty") return "On International Duty";
       if (key === "schedule.promotionZone") return "Promotion";
       if (key === "schedule.relegationZone") return "Relegation";
+      if (key === "schedule.loadMore") return "Load more";
       return key;
     },
     i18n: {
@@ -306,6 +307,38 @@ describe("ScheduleTab", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "bra-1" } });
     expect(screen.getByTestId("schedule-fixture-fixB")).toBeInTheDocument();
     expect(screen.queryByTestId("schedule-fixture-fixA")).not.toBeInTheDocument();
+  });
+
+  it("lazily renders matchdays and reveals more on demand", () => {
+    const state = createGameState(true);
+    const fixtures: FixtureData[] = Array.from({ length: 10 }, (_, index) => {
+      const matchday = index + 1;
+      return createFixture({
+        id: `md${matchday}`,
+        competition_id: "league-1",
+        matchday,
+        date: `2026-08-${String(matchday).padStart(2, "0")}`,
+        status: "Scheduled",
+        result: null,
+      });
+    });
+    state.league = { ...state.league!, fixtures };
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    // Only the first page of matchdays renders up front.
+    expect(screen.getByTestId("schedule-fixture-md1")).toBeInTheDocument();
+    expect(screen.getByTestId("schedule-fixture-md6")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule-fixture-md7")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
+
+    // The rest appear after loading more, and the button goes away.
+    expect(screen.getByTestId("schedule-fixture-md7")).toBeInTheDocument();
+    expect(screen.getByTestId("schedule-fixture-md10")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Load more/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the international toggle when there are no national-team fixtures", () => {
