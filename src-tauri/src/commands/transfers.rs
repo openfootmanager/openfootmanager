@@ -97,14 +97,15 @@ pub fn make_transfer_bid_internal(
         "[cmd] make_transfer_bid: player_id={}, fee={}",
         player_id, fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::make_transfer_bid(&mut game, player_id, fee)?;
-    state.set_game(game.clone());
-
-    Ok(map_transfer_negotiation_response(result, game))
+    // make_transfer_bid validates (window/player/funds) before executing; its
+    // only post-mutation error path (player-not-found in execute_transfer) is
+    // unreachable here, so in-place mutation is safe.
+    state
+        .update_game(|game| {
+            let result = ofm_core::transfers::make_transfer_bid(game, player_id, fee)?;
+            Ok(map_transfer_negotiation_response(result, game.clone()))
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -146,13 +147,11 @@ pub fn respond_to_offer_internal(
         "[cmd] respond_to_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::respond_to_offer(&mut game, player_id, offer_id, accept)?;
-    state.set_game(game.clone());
-    Ok(game)
+    // Validates (player owned / offer pending) before mutating; the post-accept
+    // execute_transfer error is unreachable once the player is validated.
+    mutate_active_game(state, |game| {
+        ofm_core::transfers::respond_to_offer(game, player_id, offer_id, accept)
+    })
 }
 
 #[tauri::command]
@@ -175,14 +174,14 @@ pub fn counter_offer_internal(
         "[cmd] counter_offer: player_id={}, offer_id={}, requested_fee={}",
         player_id, offer_id, requested_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::counter_offer(&mut game, player_id, offer_id, requested_fee)?;
-    state.set_game(game.clone());
-
-    Ok(map_transfer_negotiation_response(result, game))
+    // Same shape as make_transfer_bid: full validation precedes mutation.
+    state
+        .update_game(|game| {
+            let result =
+                ofm_core::transfers::counter_offer(game, player_id, offer_id, requested_fee)?;
+            Ok(map_transfer_negotiation_response(result, game.clone()))
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 fn map_transfer_negotiation_response(
@@ -208,13 +207,9 @@ pub fn send_scout(
         "[cmd] send_scout: scout_id={}, player_id={}",
         scout_id, player_id
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::scouting::send_scout(&mut game, &scout_id, &player_id)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(&state, |game| {
+        ofm_core::scouting::send_scout(game, &scout_id, &player_id)
+    })
 }
 
 #[tauri::command]
@@ -229,23 +224,19 @@ pub fn start_youth_scouting(
         "[cmd] start_youth_scouting: scout_id={}, region={:?}, objective={:?}, target_position={:?}",
         scout_id, region, objective, target_position
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
     let region = parse_youth_region(region.as_deref())?;
     let objective = parse_youth_objective(objective.as_deref())?;
     let target_position = parse_youth_target_position(target_position.as_deref())?;
 
-    ofm_core::scouting::start_youth_scouting(
-        &mut game,
-        &scout_id,
-        region,
-        objective,
-        target_position,
-    )?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(&state, |game| {
+        ofm_core::scouting::start_youth_scouting(
+            game,
+            &scout_id,
+            region,
+            objective,
+            target_position,
+        )
+    })
 }
 
 #[tauri::command]
@@ -257,13 +248,9 @@ pub fn cancel_youth_scouting(
         "[cmd] cancel_youth_scouting: assignment_id={}",
         assignment_id
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::scouting::cancel_youth_scouting(&mut game, &assignment_id)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(&state, |game| {
+        ofm_core::scouting::cancel_youth_scouting(game, &assignment_id)
+    })
 }
 
 #[tauri::command]
@@ -276,13 +263,9 @@ pub fn reassign_youth_scouting(
         "[cmd] reassign_youth_scouting: assignment_id={}, scout_id={}",
         assignment_id, scout_id
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::scouting::reassign_youth_scouting(&mut game, &assignment_id, &scout_id)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(&state, |game| {
+        ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)
+    })
 }
 
 fn parse_youth_region(value: Option<&str>) -> Result<YouthScoutingRegion, String> {
