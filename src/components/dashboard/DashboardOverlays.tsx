@@ -7,10 +7,12 @@ import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
 import DashboardExitSavingModal from "./DashboardExitSavingModal";
 import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
+import DashboardSimulatingModal from "./DashboardSimulatingModal";
 
 interface DashboardOverlaysProps {
   blockerModal: BlockerModal | null;
   currentModeMeta: DashboardMatchModeMeta;
+  isAdvancing: boolean;
   handleConfirmMatch: () => void;
   handleExitToMenu: () => void | Promise<void>;
   handleNavigate: (tab: string) => void;
@@ -31,6 +33,7 @@ interface DashboardOverlaysProps {
 export default function DashboardOverlays({
   blockerModal,
   currentModeMeta,
+  isAdvancing,
   handleConfirmMatch,
   handleExitToMenu,
   handleNavigate,
@@ -49,6 +52,8 @@ export default function DashboardOverlays({
 }: DashboardOverlaysProps) {
   return (
     <>
+      {isAdvancing ? <DashboardSimulatingModal /> : null}
+
       {isExitingToMenu ? <DashboardExitSavingModal /> : null}
 
       {showExitConfirm ? (

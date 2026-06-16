@@ -71,7 +71,7 @@
     "teams": "{{count}} times",
     "players": "{{count}} jogadores",
     "randomWorld": "Mundo Aleatório",
-    "randomDescription": "Liga gerada aleatoriamente com 8 times, jogadores e staff",
+    "randomDescription": "Um mundo gerado proceduralmente com clubes, jogadores e staff",
     "historyMode": {
       "generated": "Histórico gerado",
       "reference": "Histórico de referência",
@@ -121,6 +121,7 @@
     "exitToMenu": "Voltar ao Menu",
     "continue": "Continuar",
     "simulating": "Simulando...",
+    "simulatingMessage": "Processando o mundo — leva só um instante.",
     "searchPlaceholder": "Buscar jogadores, times...",
     "sectionClub": "Clube",
     "sectionWorld": "Mundo",

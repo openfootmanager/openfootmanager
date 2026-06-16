@@ -239,6 +239,75 @@ describe("ScheduleTab", () => {
     expect(screen.getByText("Relegation")).toBeInTheDocument();
   });
 
+  it("fixtures view shows only the selected competition, not every competition", () => {
+    const state = createGameState(true);
+    state.league = null;
+    state.teams = [
+      createTeam(),
+      createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" }),
+      createTeam({ id: "team-3", name: "Gamma FC", short_name: "GAM" }),
+      createTeam({ id: "team-4", name: "Delta FC", short_name: "DEL" }),
+    ];
+    const standing = (teamId: string) => ({
+      team_id: teamId,
+      played: 1,
+      won: 0,
+      drawn: 1,
+      lost: 0,
+      goals_for: 1,
+      goals_against: 1,
+      points: 1,
+    });
+    state.competitions = [
+      {
+        id: "eng-1",
+        name: "England First Division",
+        season: 1,
+        country_id: "ENG",
+        priority: 0,
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [
+          createFixture({
+            id: "fixA",
+            competition_id: "eng-1",
+            home_team_id: "team-1",
+            away_team_id: "team-2",
+          }),
+        ],
+        standings: [standing("team-1"), standing("team-2")],
+      },
+      {
+        id: "bra-1",
+        name: "Brazil First Division",
+        season: 1,
+        country_id: "BRA",
+        priority: 0,
+        participant_ids: ["team-3", "team-4"],
+        fixtures: [
+          createFixture({
+            id: "fixB",
+            competition_id: "bra-1",
+            home_team_id: "team-3",
+            away_team_id: "team-4",
+          }),
+        ],
+        standings: [standing("team-3"), standing("team-4")],
+      },
+    ];
+    state.active_competition_ids = ["eng-1", "bra-1"];
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    // Defaults to the user's competition only.
+    expect(screen.getByTestId("schedule-fixture-fixA")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule-fixture-fixB")).not.toBeInTheDocument();
+
+    // Selecting another competition swaps the fixtures shown.
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "bra-1" } });
+    expect(screen.getByTestId("schedule-fixture-fixB")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule-fixture-fixA")).not.toBeInTheDocument();
+  });
+
   it("hides the international toggle when there are no national-team fixtures", () => {
     render(<ScheduleTab gameState={createGameState(true)} onSelectTeam={vi.fn()} />);
 

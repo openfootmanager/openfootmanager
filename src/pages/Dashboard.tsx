@@ -448,6 +448,7 @@ export default function Dashboard(): JSX.Element {
       <DashboardOverlays
         blockerModal={blockerModal}
         currentModeMeta={currentModeMeta}
+        isAdvancing={isAdvancing}
         handleConfirmMatch={handleConfirmMatch}
         handleExitToMenu={handleExitToMenu}
         handleNavigate={handleNavigate}

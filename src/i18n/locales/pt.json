@@ -71,7 +71,7 @@
     "teams": "{{count}} equipas",
     "players": "{{count}} jogadores",
     "randomWorld": "Mundo Aleatório",
-    "randomDescription": "Liga gerada aleatoriamente com equipas, jogadores e staff",
+    "randomDescription": "Um mundo gerado proceduralmente com clubes, jogadores e staff",
     "historyMode": {
       "generated": "Histórico gerado",
       "reference": "Histórico de referência",
@@ -121,6 +121,7 @@
     "exitToMenu": "Sair para o Menu",
     "continue": "Continuar",
     "simulating": "A simular...",
+    "simulatingMessage": "A processar o mundo — demora apenas um momento.",
     "loading": "A carregar estado do jogo...",
     "noResults": "Nenhum resultado encontrado.",
     "searchPlaceholder": "Procurar jogadores, equipas...",

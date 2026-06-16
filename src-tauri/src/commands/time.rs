@@ -9,26 +9,28 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
-    let mut current_game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    info!(
-        "[cmd] advance_time: date={}",
-        current_game.clock.current_date.format("%Y-%m-%d")
-    );
-
+    // Process the day in place (no upfront clone of the whole world) and clone
+    // only once for the response. Captures are appended after the game lock is
+    // released to avoid holding two state locks at once.
     let mut captures = Vec::new();
-    ofm_core::turn::process_day_with_capture(&mut current_game, &mut |capture| {
-        captures.push(capture);
-    });
+    let advanced = state
+        .update_game(|game| {
+            info!(
+                "[cmd] advance_time: date={}",
+                game.clock.current_date.format("%Y-%m-%d")
+            );
+            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                captures.push(capture);
+            });
+            game.clone()
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
     for capture in captures {
         state.append_stats_state(capture);
     }
 
-    state.set_game(current_game.clone());
-    Ok(current_game)
+    Ok(advanced)
 }
 
 pub fn advance_time_with_mode_internal(
@@ -42,17 +44,33 @@ pub fn advance_time_with_mode_internal(
 /// mode: "live" | "spectator" | "delegate" | "instant"
 /// If mode is "live" or "spectator" and there's a user match today,
 /// it sets up the live match session instead of auto-simulating.
+///
+/// Runs on a blocking worker so the day's simulation never freezes the webview.
 #[tauri::command]
-pub fn advance_time_with_mode(
+pub async fn advance_time_with_mode(
     state: State<'_, Arc<StateManager>>,
     mode: String,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
-    advance_time_with_mode_internal(&state, &mode)
+    let state = state.inner().clone();
+    run_off_thread(move || advance_time_with_mode_internal(&state, &mode)).await
 }
 
 #[tauri::command]
-pub fn advance_time(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
-    advance_time_internal(&state)
+pub async fn advance_time(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
+    let state = state.inner().clone();
+    run_off_thread(move || advance_time_internal(&state)).await
+}
+
+/// Run blocking simulation work on Tauri's blocking thread pool so the webview
+/// (main) thread stays responsive while a turn is processed.
+async fn run_off_thread<T, F>(work: F) -> Result<T, String>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|err| format!("be.error.taskJoinFailed: {err}"))?
 }
 
 pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
@@ -76,7 +94,16 @@ pub fn check_blocking_actions(state: State<'_, Arc<StateManager>>) -> Result<ser
 }
 
 #[tauri::command]
-pub fn skip_to_match_day(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
+pub async fn skip_to_match_day(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<serde_json::Value, String> {
+    let state = state.inner().clone();
+    run_off_thread(move || skip_to_match_day_internal(&state)).await
+}
+
+pub fn skip_to_match_day_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
     info!("[cmd] skip_to_match_day");
     let mut game = state
         .get_game(|g| g.clone())

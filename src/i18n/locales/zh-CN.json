@@ -71,7 +71,7 @@
     "teams": "{{count}} 支球队",
     "players": "{{count}} 名球员",
     "randomWorld": "随机世界",
-    "randomDescription": "随机生成的联赛，包含 8 支球队、球员和员工",
+    "randomDescription": "程序化生成的足球世界，包含俱乐部、球员和职员",
     "historyMode": {
       "generated": "生成历史",
       "reference": "参考历史",
@@ -121,6 +121,7 @@
     "exitToMenu": "返回主菜单",
     "continue": "继续",
     "simulating": "模拟中...",
+    "simulatingMessage": "正在处理世界——只需片刻。",
     "loading": "正在加载游戏状态...",
     "noResults": "未找到结果。",
     "searchPlaceholder": "搜索球员、球队...",

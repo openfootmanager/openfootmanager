@@ -11,7 +11,6 @@ import {
 import {
   formatMatchDate,
   getActiveCompetitions,
-  getAllFixturesAcrossCompetitions,
   getNationalTeamFixtures,
   getNationalTeamName,
   getPromotionRelegationZones,
@@ -139,7 +138,7 @@ export default function ScheduleTab({
   };
 
   const matchdays = new Map<string, FixtureData[]>();
-  getAllFixturesAcrossCompetitions(gameState).forEach((fixture) => {
+  (selectedCompetition?.fixtures ?? []).forEach((fixture) => {
     const key = getFixtureGroupKey(fixture);
     const list = matchdays.get(key) || [];
     list.push(fixture);

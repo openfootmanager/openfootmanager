@@ -71,7 +71,7 @@
     "teams": "{{count}} squadre",
     "players": "{{count}} giocatori",
     "randomWorld": "Mondo casuale",
-    "randomDescription": "Campionato generato casualmente con 8 squadre, giocatori e staff",
+    "randomDescription": "Un mondo generato proceduralmente con club, giocatori e staff",
     "historyMode": {
       "generated": "Storia generata",
       "reference": "Storia di riferimento",
@@ -121,6 +121,7 @@
     "exitToMenu": "Esci al menu",
     "continue": "Continua",
     "simulating": "Simulazione...",
+    "simulatingMessage": "Elaborazione del mondo: richiede solo un istante.",
     "loading": "Caricamento stato di gioco...",
     "noResults": "Nessun risultato trovato.",
     "searchPlaceholder": "Cerca giocatori, squadre...",

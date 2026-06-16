@@ -71,7 +71,7 @@
     "teams": "{{count}} Teams",
     "players": "{{count}} Spieler",
     "randomWorld": "Zufällige Welt",
-    "randomDescription": "Zufällig generierte Liga mit Teams, Spielern und Staff",
+    "randomDescription": "Eine prozedural generierte Welt aus Vereinen, Spielern und Staff",
     "historyMode": {
       "generated": "Generierte Historie",
       "reference": "Referenzhistorie",
@@ -121,6 +121,7 @@
     "exitToMenu": "Zum Menü",
     "continue": "Weiter",
     "simulating": "Simuliere...",
+    "simulatingMessage": "Die Welt wird verarbeitet – das dauert nur einen Moment.",
     "loading": "Spielstand wird geladen...",
     "noResults": "Keine Ergebnisse gefunden.",
     "searchPlaceholder": "Spieler, Teams suchen...",

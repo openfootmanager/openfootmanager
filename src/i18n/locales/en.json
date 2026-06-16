@@ -71,7 +71,7 @@
     "teams": "{{count}} teams",
     "players": "{{count}} players",
     "randomWorld": "Random World",
-    "randomDescription": "Randomly generated league with 8 teams, players, and staff",
+    "randomDescription": "A procedurally generated world of clubs, players, and staff",
     "historyMode": {
       "generated": "Generated History",
       "reference": "Reference History",
@@ -121,6 +121,7 @@
     "exitToMenu": "Exit to Menu",
     "continue": "Continue",
     "simulating": "Simulating...",
+    "simulatingMessage": "Processing the world — this only takes a moment.",
     "loading": "Loading game state...",
     "noResults": "No results found.",
     "searchPlaceholder": "Search players, teams...",

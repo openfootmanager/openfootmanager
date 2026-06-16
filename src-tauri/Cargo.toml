@@ -34,6 +34,16 @@ db = { path = "crates/db" }
 chrono = "0.4.44"
 rand = "0.10"
 
+# Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
+# is the dominant cause of the in-app sluggishness. Lightly optimizing our own
+# crates and fully optimizing dependencies keeps incremental compiles fast while
+# making the played dev build an order of magnitude quicker at runtime.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]
 
