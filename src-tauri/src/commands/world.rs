@@ -103,13 +103,15 @@ pub fn list_world_databases(
     info!("[cmd] list_world_databases");
     use ofm_core::generator::WorldDatabaseInfo;
 
-    // Always include the built-in random option
+    // Always include the built-in random option. Counts mirror the standard
+    // generation config used by generate_world_data(None): 440 clubs with
+    // 22-man squads (= 9,680 players). Keep in sync if that config changes.
     let mut databases = vec![WorldDatabaseInfo {
         id: "random".to_string(),
         name: RANDOM_WORLD_NAME_KEY.to_string(),
-        description: backend_text_with_param(RANDOM_WORLD_DESCRIPTION_KEY, TEAM_COUNT_PARAM, 16),
-        team_count: 16,
-        player_count: 352,
+        description: backend_text_with_param(RANDOM_WORLD_DESCRIPTION_KEY, TEAM_COUNT_PARAM, 440),
+        team_count: 440,
+        player_count: 9_680,
         history_mode: "generated".to_string(),
         base_year: None,
         snapshot_date: None,
