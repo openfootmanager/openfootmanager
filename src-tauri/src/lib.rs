@@ -251,6 +251,7 @@ pub fn run() {
             finish_live_match,
             delete_save,
             skip_to_match_day,
+            advance_to_next_event,
             check_blocking_actions,
             apply_team_talk,
             submit_press_conference,

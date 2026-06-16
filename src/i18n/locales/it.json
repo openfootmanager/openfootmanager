@@ -1363,6 +1363,8 @@
     "matchCommentaryDesc": "Mostra la cronaca eventi durante le partite live",
     "confirmAdvance": "Conferma prima di avanzare",
     "confirmAdvanceDesc": "Chiedi conferma prima di avanzare di un giorno",
+    "continueToNextEvent": "Continua salta al prossimo evento",
+    "continueToNextEventDesc": "Continua avanza fino alla prossima partita, un blocco, una scadenza di mercato o una notizia importante",
     "savesData": "Salvataggi e dati",
     "autoSave": "Salvataggio automatico",
     "autoSaveDesc": "Salva automaticamente la partita dopo ogni giorno",

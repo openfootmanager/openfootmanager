@@ -1344,6 +1344,8 @@
     "matchCommentaryDesc": "Ereigniskommentare während Live-Spielen anzeigen",
     "confirmAdvance": "Vor dem Fortfahren bestätigen",
     "confirmAdvanceDesc": "Bestätigung anfordern, bevor ein Tag vorrückt",
+    "continueToNextEvent": "Fortfahren springt zum nächsten Ereignis",
+    "continueToNextEventDesc": "Fortfahren spult bis zum nächsten Spiel, einer nötigen Aktion, einer Transferfrist oder wichtigen Neuigkeiten vor",
     "savesData": "Speicherstände & Daten",
     "autoSave": "Automatisch speichern",
     "autoSaveDesc": "Automatisch nach jedem Tag speichern",

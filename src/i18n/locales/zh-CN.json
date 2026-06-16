@@ -1344,6 +1344,8 @@
     "matchCommentaryDesc": "在实时比赛中显示事件解说",
     "confirmAdvance": "推进前确认",
     "confirmAdvanceDesc": "推进一天前请求确认",
+    "continueToNextEvent": "继续将跳至下一个事件",
+    "continueToNextEventDesc": "继续会推进到你的下一场比赛、需要处理的事项、转会截止日或重要新闻",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
     "autoSaveDesc": "每天结束后自动保存游戏",

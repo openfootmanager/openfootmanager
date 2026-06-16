@@ -5,8 +5,10 @@ import { useGameStore } from "../store/gameStore";
 import type { BlockerModal } from "./useAdvanceTime.helpers";
 import {
   advanceTimeWithMode,
+  advanceToNextEvent,
   checkBlockingActions,
   skipToMatchDay,
+  type SkipToMatchDayResponse,
 } from "../services/advanceTimeService";
 import {
   buildAdvanceRecap,
@@ -22,6 +24,7 @@ export function useAdvanceTime(
   defaultMatchMode: MatchModeType | undefined,
   settingsLoaded: boolean,
   isUnemployed: boolean,
+  continueToNextEvent: boolean = false,
 ) {
   const navigate = useNavigate();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
@@ -116,12 +119,17 @@ export function useAdvanceTime(
       return;
     }
     if (isAdvancing) return;
+    // With the opt-in setting, Continue rolls forward to the next event instead
+    // of a single day (unless there's a match today, handled above).
+    const runContinue = continueToNextEvent
+      ? doAdvanceToNextEvent
+      : () => doAdvance(resolvedMode);
     const blockers = await checkBlockingActions("handleContinue");
     if (blockers.length > 0) {
-      setBlockerModal({ blockers, pendingAction: () => doAdvance(resolvedMode) });
+      setBlockerModal({ blockers, pendingAction: runContinue });
       return;
     }
-    doAdvance(resolvedMode);
+    runContinue();
   };
 
   const handleConfirmMatch = () => {
@@ -140,16 +148,21 @@ export function useAdvanceTime(
     doSkipToMatchDay();
   };
 
-  const doSkipToMatchDay = async () => {
-    console.info("[useAdvanceTime] doSkipToMatchDay:start");
+  // Shared driver for the multi-day advances (Skip to Match Day and the opt-in
+  // smart Continue): both roll forward several days and end on a fired / blocked
+  // / arrived outcome, feeding the day-by-day recap.
+  const runMultiDayAdvance = async (
+    run: () => Promise<SkipToMatchDayResponse>,
+    label: string,
+  ) => {
     setIsAdvancing(true);
     resetTransientUi();
     const sinceDate = toDatePart(
       useGameStore.getState().gameState?.clock?.current_date,
     );
     try {
-      const result = await skipToMatchDay();
-      console.info("[useAdvanceTime] doSkipToMatchDay:result", {
+      const result = await run();
+      console.info(`[useAdvanceTime] ${label}:result`, {
         action: result.action,
         daysSkipped: result.days_skipped,
         blockerCount: result.blockers?.length ?? 0,
@@ -168,12 +181,18 @@ export function useAdvanceTime(
         setRecapResults(buildAdvanceRecap(game, sinceDate, result.results ?? []));
       }
     } catch (err) {
-      console.error("Failed to skip to match day:", err);
+      console.error(`Failed to ${label}:`, err);
     } finally {
-      console.info("[useAdvanceTime] doSkipToMatchDay:complete");
+      console.info(`[useAdvanceTime] ${label}:complete`);
       setIsAdvancing(false);
     }
   };
+
+  const doSkipToMatchDay = () =>
+    runMultiDayAdvance(skipToMatchDay, "doSkipToMatchDay");
+
+  const doAdvanceToNextEvent = () =>
+    runMultiDayAdvance(advanceToNextEvent, "doAdvanceToNextEvent");
 
   return {
     isAdvancing,

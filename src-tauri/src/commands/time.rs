@@ -213,9 +213,147 @@ pub fn skip_to_match_day_internal(
     }))
 }
 
+fn count_high_priority_messages(game: &Game) -> usize {
+    game.messages
+        .iter()
+        .filter(|message| message.priority == domain::message::MessagePriority::High)
+        .count()
+}
+
+/// Whether the day just processed produced something the user should pause on:
+/// a transfer deadline, the window opening, or a fresh high-priority inbox item.
+/// (Match days and blockers are handled separately in the loop.)
+fn continue_reached_attention_event(
+    transfer_status: &domain::season::TransferWindowStatus,
+    opens_on: Option<&str>,
+    today: &str,
+    high_priority_before: usize,
+    high_priority_after: usize,
+) -> bool {
+    *transfer_status == domain::season::TransferWindowStatus::DeadlineDay
+        || opens_on == Some(today)
+        || high_priority_after > high_priority_before
+}
+
+#[tauri::command]
+pub async fn advance_to_next_event(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<serde_json::Value, String> {
+    let state = state.inner().clone();
+    run_off_thread(move || advance_to_next_event_internal(&state)).await
+}
+
+/// Roll the clock forward day by day until the next thing the user should see:
+/// their next match, an action-required blocker, a transfer deadline / window
+/// opening, or a new high-priority inbox item (capped at 60 days). Mirrors
+/// `skip_to_match_day` but with the broader stop conditions of an opt-in
+/// "smart Continue".
+pub fn advance_to_next_event_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
+    info!("[cmd] advance_to_next_event");
+    let mut game = state
+        .get_game(|g| g.clone())
+        .ok_or("be.error.noActiveGameSession")?;
+
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
+        .ok_or("be.error.noTeamAssigned")?;
+    let start_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let mut days_skipped = 0u32;
+    loop {
+        if days_skipped >= 60 {
+            break;
+        }
+
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+        // Stop *on* the user's match day so it can be played interactively
+        // rather than auto-simulated.
+        let has_match = game.league.as_ref().is_some_and(|league| {
+            league.fixtures.iter().any(|fixture| {
+                fixture.date == today
+                    && fixture.status == domain::league::FixtureStatus::Scheduled
+                    && (fixture.home_team_id == user_team_id
+                        || fixture.away_team_id == user_team_id)
+            })
+        });
+        if has_match {
+            break;
+        }
+
+        let high_priority_before = count_high_priority_messages(&game);
+
+        let mut captures = Vec::new();
+        ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
+            captures.push(capture);
+        });
+        for capture in captures {
+            state.append_stats_state(capture);
+        }
+        days_skipped += 1;
+
+        if game.manager.team_id.is_none() {
+            let results = collect_advance_results(&game, &start_date);
+            state.set_game(game.clone());
+            return Ok(serde_json::json!({
+                "action": "fired",
+                "game": game,
+                "days_skipped": days_skipped,
+                "results": results
+            }));
+        }
+
+        let blockers = compute_blocking_actions(&game);
+        if !blockers.is_empty() {
+            let results = collect_advance_results(&game, &start_date);
+            state.set_game(game.clone());
+            return Ok(serde_json::json!({
+                "action": "blocked",
+                "game": game,
+                "blockers": blockers,
+                "days_skipped": days_skipped,
+                "results": results
+            }));
+        }
+
+        let new_today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        if continue_reached_attention_event(
+            &game.season_context.transfer_window.status,
+            game.season_context.transfer_window.opens_on.as_deref(),
+            &new_today,
+            high_priority_before,
+            count_high_priority_messages(&game),
+        ) {
+            break;
+        }
+    }
+
+    info!(
+        "[cmd] advance_to_next_event: stopped_after_days={}, final_date={}",
+        days_skipped,
+        game.clock.current_date.format("%Y-%m-%d")
+    );
+    let results = collect_advance_results(&game, &start_date);
+    state.set_game(game.clone());
+    Ok(serde_json::json!({
+        "action": "arrived",
+        "game": game,
+        "days_skipped": days_skipped,
+        "results": results
+    }))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{advance_time_with_mode_internal, compute_blocking_actions};
+    use super::{
+        advance_time_with_mode_internal, compute_blocking_actions,
+        continue_reached_attention_event,
+    };
+    use domain::season::TransferWindowStatus;
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
     use domain::manager::Manager;
@@ -410,6 +548,42 @@ mod tests {
                 reason: Some("test".to_string()),
             }),
         });
+    }
+
+    #[test]
+    fn continue_stops_on_deadline_open_day_or_new_high_priority_mail() {
+        // Deadline day always stops.
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::DeadlineDay,
+            None,
+            "2026-08-31",
+            0,
+            0,
+        ));
+        // The window's opening day stops.
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::Open,
+            Some("2026-07-01"),
+            "2026-07-01",
+            0,
+            0,
+        ));
+        // A freshly arrived high-priority message stops.
+        assert!(continue_reached_attention_event(
+            &TransferWindowStatus::Closed,
+            None,
+            "2026-07-05",
+            1,
+            2,
+        ));
+        // A quiet day mid-window with no new mail keeps rolling.
+        assert!(!continue_reached_attention_event(
+            &TransferWindowStatus::Open,
+            Some("2026-07-01"),
+            "2026-07-10",
+            3,
+            3,
+        ));
     }
 
     #[test]
