@@ -337,12 +337,10 @@ describe("InboxTab", function (): void {
   });
 
   it("marks an unread message as read when selected", async function (): Promise<void> {
-    const updatedGameState = createGameState([
-      createMessage({ id: "m1", read: true }),
-    ]);
+    const updatedMessages = [createMessage({ id: "m1", read: true })];
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
     renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1" })]),
@@ -357,7 +355,9 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    expect(onGameUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ messages: updatedMessages }),
+    );
   });
 
   it("sorts messages by date when the sort order changes", function (): void {
@@ -402,9 +402,9 @@ describe("InboxTab", function (): void {
 
   it("confirms before deleting a single message", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
-    const updatedGameState = createGameState([]);
+    const updatedMessages: ReturnType<typeof createMessage>[] = [];
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
     renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1", read: true })]),
@@ -427,7 +427,9 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    expect(onGameUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ messages: updatedMessages }),
+    );
   });
 
   it("opens the context menu on a message row and requests deletion", function (): void {
@@ -445,11 +447,11 @@ describe("InboxTab", function (): void {
 
   it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
-    const updatedGameState = createGameState([
+    const updatedMessages = [
       createMessage({ id: "m3", subject: "Keep Me", read: true }),
-    ]);
+    ];
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
     renderInboxTab({
       gameState: createGameState([
@@ -478,7 +480,9 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    expect(onGameUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ messages: updatedMessages }),
+    );
   });
 
   it("navigates to a team route without resolving the message action", async function (): Promise<void> {

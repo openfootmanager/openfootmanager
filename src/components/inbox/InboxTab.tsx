@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, MessageData } from "../../store/gameStore";
 import {
   clearOldMessages,
   deleteMessage,
@@ -111,8 +111,8 @@ export default function InboxTab({
 
     if (message && !message.read) {
       try {
-        const updatedGameState = await markMessageRead(messageId);
-        onGameUpdate(updatedGameState);
+        const messages = await markMessageRead(messageId);
+        onGameUpdate({ ...gameState, messages });
       } catch { }
     }
   }
@@ -167,15 +167,15 @@ export default function InboxTab({
 
   async function handleMarkAllRead(): Promise<void> {
     try {
-      const updatedGameState = await markAllMessagesRead();
-      onGameUpdate(updatedGameState);
+      const messages = await markAllMessagesRead();
+      onGameUpdate({ ...gameState, messages });
     } catch { }
   }
 
   async function handleClearOld(): Promise<void> {
     try {
-      const updatedGameState = await clearOldMessages();
-      onGameUpdate(updatedGameState);
+      const messages = await clearOldMessages();
+      onGameUpdate({ ...gameState, messages });
       setSelectedMessageId(null);
     } catch { }
   }
@@ -188,19 +188,19 @@ export default function InboxTab({
     setIsDeleting(true);
 
     try {
-      let updatedGameState: GameStateData;
+      let updatedMessages: MessageData[];
       let deletedMessageIds: string[];
 
       if (deleteModalState.mode === "single") {
         deletedMessageIds = [deleteModalState.messageId];
-        updatedGameState = await deleteMessage(deleteModalState.messageId);
+        updatedMessages = await deleteMessage(deleteModalState.messageId);
       } else {
         deletedMessageIds = deleteModalState.messageIds;
-        updatedGameState = await deleteMessages(deleteModalState.messageIds);
+        updatedMessages = await deleteMessages(deleteModalState.messageIds);
         setBulkSelectionEnabled(false);
       }
 
-      onGameUpdate(updatedGameState);
+      onGameUpdate({ ...gameState, messages: updatedMessages });
       setSelectedMessageIds((currentIds) =>
         currentIds.filter((messageId) => !deletedMessageIds.includes(messageId)),
       );
