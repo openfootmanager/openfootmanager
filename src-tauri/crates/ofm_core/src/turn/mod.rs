@@ -37,14 +37,7 @@ fn progress_injury_recovery(game: &mut Game) {
 }
 
 fn competition_is_active(game: &Game, competition: &domain::league::League) -> bool {
-    let competition_selected = game.active_competition_ids.is_empty()
-        || game.active_competition_ids.contains(&competition.id);
-    let region_selected = game.active_region_ids.is_empty()
-        || competition
-            .region_id
-            .as_ref()
-            .is_none_or(|region_id| game.active_region_ids.contains(region_id));
-    competition_selected && region_selected
+    game.competition_in_active_scope(competition)
 }
 
 fn competition_indices_due_today(game: &Game, today: &str) -> Vec<usize> {

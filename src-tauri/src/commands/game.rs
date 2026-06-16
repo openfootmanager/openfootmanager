@@ -1570,6 +1570,54 @@ competitions:
     }
 
     #[test]
+    #[ignore = "perf harness; run: cargo test -p openfootmanager perf_baseline -- --ignored --nocapture"]
+    fn perf_baseline() {
+        use std::time::Instant;
+
+        let t = Instant::now();
+        let world = ofm_core::generator::generate_world_data(None);
+        let gen = t.elapsed();
+        let teams = world.teams.len();
+        let players = world.players.len();
+
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2026,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let t = Instant::now();
+        let (mut game, _stats) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+        let build = t.elapsed();
+
+        let competitions = game.competitions.len();
+        let active = game.active_competition_ids.len();
+
+        const DAYS: u32 = 30;
+        let t = Instant::now();
+        for _ in 0..DAYS {
+            ofm_core::turn::process_day(&mut game);
+        }
+        let days = t.elapsed();
+
+        eprintln!(
+            "PERF teams={teams} players={players} competitions={competitions} active_competition_ids={active}"
+        );
+        eprintln!("PERF world-gen         = {gen:?}");
+        eprintln!("PERF build-game        = {build:?}  (foundations + history)");
+        eprintln!("PERF {DAYS}x process_day   = {days:?}  ({:?}/day)", days / DAYS);
+    }
+
+    #[test]
     fn loads_a_world_from_a_package_directory() {
         let dir = temp_pkg_dir("load");
         std::fs::write(

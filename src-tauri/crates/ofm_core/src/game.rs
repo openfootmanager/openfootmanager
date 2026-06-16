@@ -11,7 +11,7 @@ use domain::team::Team;
 use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ObjectiveType {
@@ -186,6 +186,45 @@ impl Game {
             .filter(|competition| competition.country_id.as_deref() == Some(country_code))
             .find_map(|competition| competition.region_id.clone())
             .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
+    /// Whether a competition falls within the player's active simulation scope.
+    /// Empty scope sets mean "everything is active" (the legacy, unscoped game),
+    /// so this stays backward compatible with worlds that never set a scope.
+    pub fn competition_in_active_scope(&self, competition: &League) -> bool {
+        let competition_selected = self.active_competition_ids.is_empty()
+            || self.active_competition_ids.contains(&competition.id);
+        let region_selected = self.active_region_ids.is_empty()
+            || competition
+                .region_id
+                .as_ref()
+                .is_none_or(|region_id| self.active_region_ids.contains(region_id));
+        competition_selected && region_selected
+    }
+
+    /// The set of team ids participating in an actively-simulated competition,
+    /// or `None` when no scope is configured (every team is simulated in full).
+    ///
+    /// Used to keep expensive daily subsystems (e.g. the transfer market) to the
+    /// teams the player actually follows; dormant clubs are handled by lighter,
+    /// periodic approximations rather than the full daily pass.
+    pub fn active_team_ids(&self) -> Option<HashSet<String>> {
+        if self.active_competition_ids.is_empty() && self.active_region_ids.is_empty() {
+            return None;
+        }
+        let mut ids = HashSet::new();
+        for competition in &self.competitions {
+            if self.competition_in_active_scope(competition) {
+                for entry in &competition.standings {
+                    ids.insert(entry.team_id.clone());
+                }
+            }
+        }
+        // The player's own club is always simulated in full.
+        if let Some(team_id) = &self.manager.team_id {
+            ids.insert(team_id.clone());
+        }
+        Some(ids)
     }
 
     pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
