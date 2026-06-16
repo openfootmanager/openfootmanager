@@ -172,6 +172,7 @@ export default function TeamSelection() {
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [clubSearch, setClubSearch] = useState("");
   const [selectedHomeRegionId, setSelectedHomeRegionId] = useState<string | null>(null);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [regionSelection, setRegionSelection] = useState<RegionSelection>({});
@@ -300,6 +301,16 @@ export default function TeamSelection() {
     }
     return true;
   });
+
+  // Free-text search over the country/region-filtered clubs (name or city).
+  const clubSearchQuery = clubSearch.trim().toLowerCase();
+  const filteredTeams = clubSearchQuery
+    ? teams.filter(
+        (team) =>
+          team.name.toLowerCase().includes(clubSearchQuery) ||
+          team.city.toLowerCase().includes(clubSearchQuery),
+      )
+    : teams;
 
   useEffect(() => {
     if (teams.length === 0) {
@@ -599,22 +610,20 @@ export default function TeamSelection() {
               <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
                 {t("teamSelect.homeCountry")}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <select
+                value={selectedCountryCode ?? ""}
+                onChange={(event) =>
+                  setSelectedCountryCode(event.target.value || null)
+                }
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
+              >
+                <option value="">{t("teamSelect.allCountries")}</option>
                 {regionCountries.map((countryCode) => (
-                  <button
-                    key={countryCode}
-                    type="button"
-                    onClick={() => setSelectedCountryCode(countryCode)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
-                      selectedCountryCode === countryCode
-                        ? "bg-accent-500 text-white"
-                        : "bg-gray-100 text-gray-600 dark:bg-navy-700 dark:text-gray-300"
-                    }`}
-                  >
+                  <option key={countryCode} value={countryCode}>
                     {countryName(countryCode, i18n.language)}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <div>
@@ -721,8 +730,27 @@ export default function TeamSelection() {
         </Card>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {teams.map((team) => {
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                value={clubSearch}
+                onChange={(event) => setClubSearch(event.target.value)}
+                placeholder={t("teamSelect.searchClubs")}
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
+              />
+              <span className="shrink-0 text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {t("teamSelect.clubCount", { n: filteredTeams.length })}
+              </span>
+            </div>
+            {filteredTeams.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                {t("teamSelect.noClubsMatch")}
+              </p>
+            ) : (
+              <div className="max-h-[640px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {filteredTeams.map((team) => {
               const isSelected = selectedTeam?.id === team.id;
               const avgOvr = getTeamAvgOvr(team.id);
               const repInfo = getReputationLabel(team.reputation);
@@ -816,6 +844,9 @@ export default function TeamSelection() {
                 </button>
               );
             })}
+                </div>
+              </div>
+            )}
           </div>
 
           <Card accent="accent" className="h-fit">
