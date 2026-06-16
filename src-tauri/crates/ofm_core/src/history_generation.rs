@@ -1,7 +1,7 @@
 use crate::{game::Game, season_awards::SeasonAwards};
 use chrono::{TimeZone, Utc};
 use domain::{
-    league::{League, StandingEntry},
+    league::{CompetitionScope, CompetitionType, League, StandingEntry},
     manager::ManagerCareerEntry,
     player::{CareerEntry, Player, PlayerSeasonStats, Position},
     team::TeamSeasonRecord,
@@ -34,11 +34,77 @@ fn season_start_string(season: u32) -> String {
     format!("{:04}-07-01", season)
 }
 
-fn build_historical_standings(game: &Game, season: u32) -> Vec<StandingEntry> {
-    let matches_played = ((game.teams.len().saturating_sub(1)) * 2) as u32;
-    let mut ranking_scores: Vec<(String, u32)> = game
+/// Partition the world's teams into the leagues they actually play in, so a
+/// historical season reflects a real ~20-team league rather than treating all
+/// 440 clubs as one mega-league (which produced ~878-match seasons). Falls back
+/// to a single all-teams group for legacy single-competition worlds.
+fn historical_league_groups(game: &Game) -> Vec<Vec<String>> {
+    let valid: std::collections::HashSet<&str> =
+        game.teams.iter().map(|team| team.id.as_str()).collect();
+    let mut groups: Vec<Vec<String>> = Vec::new();
+    let mut covered: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for competition in &game.competitions {
+        if competition.kind != CompetitionType::League
+            || competition.scope != CompetitionScope::Domestic
+        {
+            continue;
+        }
+        let candidate_ids: Vec<&String> = if competition.participant_ids.is_empty() {
+            competition
+                .standings
+                .iter()
+                .map(|entry| &entry.team_id)
+                .collect()
+        } else {
+            competition.participant_ids.iter().collect()
+        };
+        let members: Vec<String> = candidate_ids
+            .into_iter()
+            .filter(|id| valid.contains(id.as_str()) && !covered.contains(*id))
+            .cloned()
+            .collect();
+        if members.len() >= 2 {
+            for id in &members {
+                covered.insert(id.clone());
+            }
+            groups.push(members);
+        }
+    }
+
+    // Teams not assigned to a domestic league still get a history entry.
+    let residual: Vec<String> = game
         .teams
         .iter()
+        .map(|team| team.id.clone())
+        .filter(|id| !covered.contains(id))
+        .collect();
+    if !residual.is_empty() {
+        groups.push(residual);
+    }
+
+    groups
+}
+
+fn build_historical_standings(game: &Game, season: u32) -> Vec<StandingEntry> {
+    historical_league_groups(game)
+        .into_iter()
+        .flat_map(|team_ids| build_league_season_standings(game, season, &team_ids))
+        .collect()
+}
+
+/// Synthesize one season's standings for a single league of `team_ids`.
+fn build_league_season_standings(
+    game: &Game,
+    season: u32,
+    team_ids: &[String],
+) -> Vec<StandingEntry> {
+    let num_teams = team_ids.len() as u32;
+    let matches_played = if num_teams > 1 { (num_teams - 1) * 2 } else { 0 };
+
+    let mut ranking_scores: Vec<(String, u32)> = team_ids
+        .iter()
+        .filter_map(|id| game.teams.iter().find(|team| &team.id == id))
         .map(|team| {
             let score = team.reputation.saturating_mul(10)
                 + deterministic_u32((&team.id, season, "ranking"), 250);
@@ -51,10 +117,10 @@ fn build_historical_standings(game: &Game, season: u32) -> Vec<StandingEntry> {
         .into_iter()
         .enumerate()
         .map(|(index, (team_id, _))| {
-            let strength = (game.teams.len().saturating_sub(index)) as u32;
+            let strength = num_teams.saturating_sub(index as u32);
             let max_draws =
                 matches_played.min(4 + deterministic_u32((&team_id, season, "draws"), 5));
-            let target_wins = ((matches_played * strength) / (game.teams.len() as u32 + 1))
+            let target_wins = ((matches_played * strength) / (num_teams + 1))
                 .saturating_add(2)
                 .min(matches_played.saturating_sub(max_draws));
             let wins = target_wins;
