@@ -122,6 +122,8 @@
     "continue": "Continue",
     "simulating": "Simulating...",
     "simulatingMessage": "Processing the world — this only takes a moment.",
+    "resultsRecapTitle": "Results",
+    "resultsRecapDismiss": "Continue",
     "loading": "Loading game state...",
     "noResults": "No results found.",
     "searchPlaceholder": "Search players, teams...",

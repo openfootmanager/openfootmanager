@@ -122,6 +122,8 @@
     "continue": "Continua",
     "simulating": "Simulazione...",
     "simulatingMessage": "Elaborazione del mondo: richiede solo un istante.",
+    "resultsRecapTitle": "Risultati",
+    "resultsRecapDismiss": "Continua",
     "loading": "Caricamento stato di gioco...",
     "noResults": "Nessun risultato trovato.",
     "searchPlaceholder": "Cerca giocatori, squadre...",

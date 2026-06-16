@@ -2,6 +2,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
+use ofm_core::advance_results::{collect_advance_results, AdvanceMatchResult};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
 use ofm_core::state::StateManager;
@@ -14,6 +15,9 @@ pub struct AdvanceTimeWithModeResponse {
     pub fixture_index: Option<usize>,
     pub mode: Option<String>,
     pub round_summary: Option<RoundSummaryDto>,
+    /// Matches finished during this advance (user's competitions + nationals).
+    #[serde(default)]
+    pub results: Vec<AdvanceMatchResult>,
 }
 
 fn round_context_for_today(
@@ -134,6 +138,7 @@ pub fn advance_time_with_mode(
                 fixture_index: Some(index),
                 mode: Some(mode.to_string()),
                 round_summary,
+                results: Vec::new(),
             })
         }
         ("delegate", Some((competition_index, index))) => {
@@ -188,6 +193,7 @@ pub fn advance_time_with_mode(
                     });
 
             ofm_core::turn::finish_live_match_day(&mut game);
+            let results = collect_advance_results(&game, &today);
             state.set_game(game.clone());
 
             Ok(AdvanceTimeWithModeResponse {
@@ -197,6 +203,7 @@ pub fn advance_time_with_mode(
                 fixture_index: None,
                 mode: None,
                 round_summary,
+                results,
             })
         }
         _ => {
@@ -217,6 +224,7 @@ pub fn advance_time_with_mode(
                     .and_then(|(matchday, previous_standings)| {
                         build_round_summary_dto(&game, *matchday, previous_standings)
                     });
+            let results = collect_advance_results(&game, &today);
             state.set_game(game.clone());
 
             Ok(AdvanceTimeWithModeResponse {
@@ -226,6 +234,7 @@ pub fn advance_time_with_mode(
                 fixture_index: None,
                 mode: None,
                 round_summary,
+                results,
             })
         }
     }

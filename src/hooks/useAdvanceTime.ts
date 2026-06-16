@@ -7,6 +7,7 @@ import {
   advanceTimeWithMode,
   checkBlockingActions,
   skipToMatchDay,
+  type AdvanceMatchResultData,
 } from "../services/advanceTimeService";
 
 export type MatchModeType = "live" | "spectator" | "delegate";
@@ -25,6 +26,9 @@ export function useAdvanceTime(
   const [showMatchConfirm, setShowMatchConfirm] = useState(false);
   const [matchMode, setMatchMode] = useState<MatchModeType>("live");
   const [blockerModal, setBlockerModal] = useState<BlockerModal | null>(null);
+  const [recapResults, setRecapResults] = useState<
+    AdvanceMatchResultData[] | null
+  >(null);
 
   // Sync matchMode with settings when loaded
   useEffect(() => {
@@ -73,6 +77,9 @@ export function useAdvanceTime(
         });
       } else if (result.action === "advanced" && result.game) {
         setGameState(result.game as GameStateData);
+        if (result.results && result.results.length > 0) {
+          setRecapResults(result.results);
+        }
       }
     } catch (err) {
       console.error("Failed to advance time:", err);
@@ -146,6 +153,8 @@ export function useAdvanceTime(
       if (result.game) setGameState(result.game as GameStateData);
       if (result.action === "blocked" && result.blockers && result.blockers.length > 0) {
         setBlockerModal({ blockers: result.blockers });
+      } else if (result.results && result.results.length > 0) {
+        setRecapResults(result.results);
       }
     } catch (err) {
       console.error("Failed to skip to match day:", err);
@@ -161,6 +170,7 @@ export function useAdvanceTime(
     showMatchConfirm, setShowMatchConfirm,
     matchMode, setMatchMode,
     blockerModal, setBlockerModal,
+    recapResults, setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,

@@ -122,6 +122,8 @@
     "continue": "继续",
     "simulating": "模拟中...",
     "simulatingMessage": "正在处理世界——只需片刻。",
+    "resultsRecapTitle": "比赛结果",
+    "resultsRecapDismiss": "继续",
     "loading": "正在加载游戏状态...",
     "noResults": "未找到结果。",
     "searchPlaceholder": "搜索球员、球队...",

@@ -5,6 +5,7 @@ use tauri::State;
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
 use crate::application::time_blockers::compute_blocking_actions as compute_blocking_actions_service;
+use ofm_core::advance_results::collect_advance_results;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
@@ -116,10 +117,12 @@ pub fn skip_to_match_day_internal(
         .team_id
         .clone()
         .ok_or("be.error.noTeamAssigned")?;
+    // Clock date before any processing — every match dated on/after this was
+    // played during the skip, which is what the results recap shows.
+    let start_date = game.clock.current_date.format("%Y-%m-%d").to_string();
     info!(
         "[cmd] skip_to_match_day: start_date={}, user_team_id={}",
-        game.clock.current_date.format("%Y-%m-%d"),
-        user_team_id
+        start_date, user_team_id
     );
 
     let mut days_skipped = 0u32;
@@ -164,11 +167,13 @@ pub fn skip_to_match_day_internal(
                 "[cmd] skip_to_match_day: manager fired after {} days",
                 days_skipped
             );
+            let results = collect_advance_results(&game, &start_date);
             state.set_game(game.clone());
             return Ok(serde_json::json!({
                 "action": "fired",
                 "game": game,
-                "days_skipped": days_skipped
+                "days_skipped": days_skipped,
+                "results": results
             }));
         }
 
@@ -181,12 +186,14 @@ pub fn skip_to_match_day_internal(
                 game.clock.current_date.format("%Y-%m-%d"),
                 blockers.len()
             );
+            let results = collect_advance_results(&game, &start_date);
             state.set_game(game.clone());
             return Ok(serde_json::json!({
                 "action": "blocked",
                 "game": game,
                 "blockers": blockers,
-                "days_skipped": days_skipped
+                "days_skipped": days_skipped,
+                "results": results
             }));
         }
     }
@@ -196,11 +203,13 @@ pub fn skip_to_match_day_internal(
         days_skipped,
         game.clock.current_date.format("%Y-%m-%d")
     );
+    let results = collect_advance_results(&game, &start_date);
     state.set_game(game.clone());
     Ok(serde_json::json!({
         "action": "arrived",
         "game": game,
-        "days_skipped": days_skipped
+        "days_skipped": days_skipped,
+        "results": results
     }))
 }
 

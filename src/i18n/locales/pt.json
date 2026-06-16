@@ -122,6 +122,8 @@
     "continue": "Continuar",
     "simulating": "A simular...",
     "simulatingMessage": "A processar o mundo — demora apenas um momento.",
+    "resultsRecapTitle": "Resultados",
+    "resultsRecapDismiss": "Continuar",
     "loading": "A carregar estado do jogo...",
     "noResults": "Nenhum resultado encontrado.",
     "searchPlaceholder": "Procurar jogadores, equipas...",

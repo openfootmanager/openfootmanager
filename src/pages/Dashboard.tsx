@@ -217,6 +217,8 @@ export default function Dashboard(): JSX.Element {
     setMatchMode,
     blockerModal,
     setBlockerModal,
+    recapResults,
+    setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
@@ -449,6 +451,8 @@ export default function Dashboard(): JSX.Element {
         blockerModal={blockerModal}
         currentModeMeta={currentModeMeta}
         isAdvancing={isAdvancing}
+        recapResults={recapResults}
+        onCloseRecap={() => setRecapResults(null)}
         handleConfirmMatch={handleConfirmMatch}
         handleExitToMenu={handleExitToMenu}
         handleNavigate={handleNavigate}

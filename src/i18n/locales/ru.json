@@ -122,6 +122,8 @@
     "continue": "Продолжить",
     "simulating": "Симуляция...",
     "simulatingMessage": "Обработка мира — это займёт всего мгновение.",
+    "resultsRecapTitle": "Результаты",
+    "resultsRecapDismiss": "Продолжить",
     "loading": "Загрузка состояния игры...",
     "noResults": "Ничего не найдено.",
     "searchPlaceholder": "Поиск игроков, команд...",

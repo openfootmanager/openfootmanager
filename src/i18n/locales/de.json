@@ -122,6 +122,8 @@
     "continue": "Weiter",
     "simulating": "Simuliere...",
     "simulatingMessage": "Die Welt wird verarbeitet – das dauert nur einen Moment.",
+    "resultsRecapTitle": "Ergebnisse",
+    "resultsRecapDismiss": "Weiter",
     "loading": "Spielstand wird geladen...",
     "noResults": "Keine Ergebnisse gefunden.",
     "searchPlaceholder": "Spieler, Teams suchen...",
