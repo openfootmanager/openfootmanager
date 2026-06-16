@@ -1,10 +1,12 @@
-use std::sync::Arc;
 use chrono::Datelike;
 use log::info;
+use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
+
+use crate::commands::util::mutate_active_game;
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -26,97 +28,97 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
 }
 
 pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-
-    // Parse formation into (def, mid, fwd) counts
-    let parts: Vec<usize> = formation
-        .split('-')
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    let (num_def, num_mid, num_fwd) = match parts.len() {
-        3 => (parts[0], parts[1], parts[2]),
-        4 => (parts[0], parts[1] + parts[2], parts[3]),
-        _ => (4, 4, 2),
-    };
-
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.formation = formation.to_string();
-    }
-
-    // Reassign positions for outfield players on this team
-    let player_ids: Vec<String> = game
-        .players
-        .iter()
-        .filter(|p| {
-            p.team_id.as_deref() == Some(&team_id)
-                && p.position != domain::player::Position::Goalkeeper
-        })
-        .map(|p| p.id.clone())
-        .collect();
-
-    // Sort by defensive ability (most defensive first)
-    let mut sorted_ids = player_ids.clone();
-    sorted_ids.sort_by(|a_id, b_id| {
-        let pa = game.players.iter().find(|p| p.id == *a_id).unwrap();
-        let pb = game.players.iter().find(|p| p.id == *b_id).unwrap();
-        let def_a = pa.attributes.defending as u16
-            + pa.attributes.tackling as u16
-            + pa.attributes.strength as u16;
-        let def_b = pb.attributes.defending as u16
-            + pb.attributes.tackling as u16
-            + pb.attributes.strength as u16;
-        def_b.cmp(&def_a)
-    });
-
-    // Assign positions
-    for (slot, pid) in sorted_ids.iter().enumerate() {
-        let new_pos = if slot < num_def {
-            domain::player::Position::Defender
-        } else if slot < num_def + num_mid {
-            domain::player::Position::Midfielder
-        } else if slot < num_def + num_mid + num_fwd {
-            domain::player::Position::Forward
-        } else {
-            continue;
+        // Parse formation into (def, mid, fwd) counts
+        let parts: Vec<usize> = formation
+            .split('-')
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        let (num_def, num_mid, num_fwd) = match parts.len() {
+            3 => (parts[0], parts[1], parts[2]),
+            4 => (parts[0], parts[1] + parts[2], parts[3]),
+            _ => (4, 4, 2),
         };
-        if let Some(player) = game.players.iter_mut().find(|p| p.id == *pid) {
-            player.position = new_pos;
-        }
-    }
 
-    state.set_game(game.clone());
-    Ok(game)
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.formation = formation.to_string();
+        }
+
+        // Reassign positions for outfield players on this team
+        let player_ids: Vec<String> = game
+            .players
+            .iter()
+            .filter(|p| {
+                p.team_id.as_deref() == Some(&team_id)
+                    && p.position != domain::player::Position::Goalkeeper
+            })
+            .map(|p| p.id.clone())
+            .collect();
+
+        // Sort by defensive ability (most defensive first)
+        let mut sorted_ids = player_ids.clone();
+        sorted_ids.sort_by(|a_id, b_id| {
+            let pa = game.players.iter().find(|p| p.id == *a_id).unwrap();
+            let pb = game.players.iter().find(|p| p.id == *b_id).unwrap();
+            let def_a = pa.attributes.defending as u16
+                + pa.attributes.tackling as u16
+                + pa.attributes.strength as u16;
+            let def_b = pb.attributes.defending as u16
+                + pb.attributes.tackling as u16
+                + pb.attributes.strength as u16;
+            def_b.cmp(&def_a)
+        });
+
+        // Assign positions
+        for (slot, pid) in sorted_ids.iter().enumerate() {
+            let new_pos = if slot < num_def {
+                domain::player::Position::Defender
+            } else if slot < num_def + num_mid {
+                domain::player::Position::Midfielder
+            } else if slot < num_def + num_mid + num_fwd {
+                domain::player::Position::Forward
+            } else {
+                continue;
+            };
+            if let Some(player) = game.players.iter_mut().find(|p| p.id == *pid) {
+                player.position = new_pos;
+            }
+        }
+
+        Ok(())
+    })
 }
 
-pub fn set_starting_xi_internal(state: &StateManager, player_ids: Vec<String>) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+pub fn set_starting_xi_internal(
+    state: &StateManager,
+    player_ids: Vec<String>,
+) -> Result<Game, String> {
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.starting_xi_ids = player_ids;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.starting_xi_ids = player_ids;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
-pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> Result<Game, String> {
+pub fn set_formation(
+    state: State<'_, Arc<StateManager>>,
+    formation: String,
+) -> Result<Game, String> {
     info!("[cmd] set_formation: {}", formation);
     set_formation_internal(&state, &formation)
 }
@@ -131,37 +133,37 @@ pub fn set_starting_xi(
 }
 
 #[tauri::command]
-pub fn set_play_style(state: State<'_, Arc<StateManager>>, play_style: String) -> Result<Game, String> {
+pub fn set_play_style(
+    state: State<'_, Arc<StateManager>>,
+    play_style: String,
+) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
     set_play_style_internal(&state, &play_style)
 }
 
 pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let style = match play_style {
+            "Attacking" => domain::team::PlayStyle::Attacking,
+            "Defensive" => domain::team::PlayStyle::Defensive,
+            "Possession" => domain::team::PlayStyle::Possession,
+            "Counter" => domain::team::PlayStyle::Counter,
+            "HighPress" => domain::team::PlayStyle::HighPress,
+            _ => domain::team::PlayStyle::Balanced,
+        };
 
-    let style = match play_style {
-        "Attacking" => domain::team::PlayStyle::Attacking,
-        "Defensive" => domain::team::PlayStyle::Defensive,
-        "Possession" => domain::team::PlayStyle::Possession,
-        "Counter" => domain::team::PlayStyle::Counter,
-        "HighPress" => domain::team::PlayStyle::HighPress,
-        _ => domain::team::PlayStyle::Balanced,
-    };
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.play_style = style;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.play_style = style;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -177,22 +179,19 @@ pub fn set_team_match_roles_internal(
     state: &StateManager,
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.match_roles = match_roles;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.match_roles = match_roles;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -213,40 +212,37 @@ pub fn set_training_internal(
     focus: &str,
     intensity: &str,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let training_focus = match focus {
+            "Physical" => domain::team::TrainingFocus::Physical,
+            "Technical" => domain::team::TrainingFocus::Technical,
+            "Tactical" => domain::team::TrainingFocus::Tactical,
+            "Defending" => domain::team::TrainingFocus::Defending,
+            "Attacking" => domain::team::TrainingFocus::Attacking,
+            "Recovery" => domain::team::TrainingFocus::Recovery,
+            _ => domain::team::TrainingFocus::Physical,
+        };
 
-    let training_focus = match focus {
-        "Physical" => domain::team::TrainingFocus::Physical,
-        "Technical" => domain::team::TrainingFocus::Technical,
-        "Tactical" => domain::team::TrainingFocus::Tactical,
-        "Defending" => domain::team::TrainingFocus::Defending,
-        "Attacking" => domain::team::TrainingFocus::Attacking,
-        "Recovery" => domain::team::TrainingFocus::Recovery,
-        _ => domain::team::TrainingFocus::Physical,
-    };
+        let training_intensity = match intensity {
+            "Low" => domain::team::TrainingIntensity::Low,
+            "Medium" => domain::team::TrainingIntensity::Medium,
+            "High" => domain::team::TrainingIntensity::High,
+            _ => domain::team::TrainingIntensity::Medium,
+        };
 
-    let training_intensity = match intensity {
-        "Low" => domain::team::TrainingIntensity::Low,
-        "Medium" => domain::team::TrainingIntensity::Medium,
-        "High" => domain::team::TrainingIntensity::High,
-        _ => domain::team::TrainingIntensity::Medium,
-    };
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.training_focus = training_focus;
+            team.training_intensity = training_intensity;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.training_focus = training_focus;
-        team.training_intensity = training_intensity;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -262,29 +258,26 @@ pub fn set_training_schedule_internal(
     state: &StateManager,
     schedule: &str,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let training_schedule = match schedule {
+            "Intense" => domain::team::TrainingSchedule::Intense,
+            "Balanced" => domain::team::TrainingSchedule::Balanced,
+            "Light" => domain::team::TrainingSchedule::Light,
+            _ => domain::team::TrainingSchedule::Balanced,
+        };
 
-    let training_schedule = match schedule {
-        "Intense" => domain::team::TrainingSchedule::Intense,
-        "Balanced" => domain::team::TrainingSchedule::Balanced,
-        "Light" => domain::team::TrainingSchedule::Light,
-        _ => domain::team::TrainingSchedule::Balanced,
-    };
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.training_schedule = training_schedule;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.training_schedule = training_schedule;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -300,22 +293,19 @@ pub fn set_training_groups_internal(
     state: &StateManager,
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.training_groups = groups;
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.training_groups = groups;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -336,37 +326,35 @@ pub fn set_player_training_focus_internal(
         "[cmd] set_player_training_focus: player={}, focus={:?}",
         player_id, focus
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let training_focus = focus.and_then(|f| match f {
-        "Physical" => Some(domain::team::TrainingFocus::Physical),
-        "Technical" => Some(domain::team::TrainingFocus::Technical),
-        "Tactical" => Some(domain::team::TrainingFocus::Tactical),
-        "Defending" => Some(domain::team::TrainingFocus::Defending),
-        "Attacking" => Some(domain::team::TrainingFocus::Attacking),
-        "Recovery" => Some(domain::team::TrainingFocus::Recovery),
-        _ => None,
-    });
+        let training_focus = focus.and_then(|f| match f {
+            "Physical" => Some(domain::team::TrainingFocus::Physical),
+            "Technical" => Some(domain::team::TrainingFocus::Technical),
+            "Tactical" => Some(domain::team::TrainingFocus::Tactical),
+            "Defending" => Some(domain::team::TrainingFocus::Defending),
+            "Attacking" => Some(domain::team::TrainingFocus::Attacking),
+            "Recovery" => Some(domain::team::TrainingFocus::Recovery),
+            _ => None,
+        });
 
-    if let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
-    {
-        player.training_focus = training_focus;
-    } else {
-        return Err("be.error.playerNotFound".to_string());
-    }
+        if let Some(player) = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
+        {
+            player.training_focus = training_focus;
+        } else {
+            return Err("be.error.playerNotFound".to_string());
+        }
 
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -387,47 +375,44 @@ pub fn set_player_squad_role_internal(
         "[cmd] set_player_squad_role: player={}, squad_role={}",
         player_id, squad_role
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+        let target_role =
+            parse_squad_role(squad_role).ok_or("be.error.invalidSquadRole".to_string())?;
+        let current_date = game.clock.current_date.date_naive();
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-    let target_role =
-        parse_squad_role(squad_role).ok_or("be.error.invalidSquadRole".to_string())?;
-    let current_date = game.clock.current_date.date_naive();
+        let player_index = game
+            .players
+            .iter()
+            .position(|player| player.id == player_id)
+            .ok_or("be.error.playerNotFound".to_string())?;
 
-    let player_index = game
-        .players
-        .iter()
-        .position(|player| player.id == player_id)
-        .ok_or("be.error.playerNotFound".to_string())?;
-
-    if game.players[player_index].team_id.as_deref() != Some(team_id.as_str()) {
-        return Err("be.error.playerNotInSquad".to_string());
-    }
-
-    if matches!(target_role, domain::player::SquadRole::Youth) {
-        let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
-            .ok_or("be.error.invalidDateOfBirth".to_string())?;
-        if age > 21 {
-            return Err("be.error.youthAcademyOverage".to_string());
+        if game.players[player_index].team_id.as_deref() != Some(team_id.as_str()) {
+            return Err("be.error.playerNotInSquad".to_string());
         }
-    }
 
-    game.players[player_index].squad_role = target_role;
-
-    if matches!(target_role, domain::player::SquadRole::Youth) {
-        if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
-            team.starting_xi_ids.retain(|id| id != player_id);
+        if matches!(target_role, domain::player::SquadRole::Youth) {
+            let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+                .ok_or("be.error.invalidDateOfBirth".to_string())?;
+            if age > 21 {
+                return Err("be.error.youthAcademyOverage".to_string());
+            }
         }
-    }
 
-    state.set_game(game.clone());
-    Ok(game)
+        game.players[player_index].squad_role = target_role;
+
+        if matches!(target_role, domain::player::SquadRole::Youth) {
+            if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+                team.starting_xi_ids.retain(|id| id != player_id);
+            }
+        }
+
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -443,19 +428,18 @@ pub fn auto_select_set_pieces_internal(
     state: &StateManager,
     player_ids: &[String],
 ) -> Result<serde_json::Value, String> {
-    let game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let (captain, penalty, free_kick, corner) =
-        ofm_core::live_match_manager::auto_select_set_pieces(&game, player_ids);
-
-    Ok(serde_json::json!({
-        "captain": captain,
-        "penalty_taker": penalty,
-        "free_kick_taker": free_kick,
-        "corner_taker": corner,
-    }))
+    state
+        .get_game(|game| {
+            let (captain, penalty, free_kick, corner) =
+                ofm_core::live_match_manager::auto_select_set_pieces(game, player_ids);
+            serde_json::json!({
+                "captain": captain,
+                "penalty_taker": penalty,
+                "free_kick_taker": free_kick,
+                "corner_taker": corner,
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 #[cfg(test)]

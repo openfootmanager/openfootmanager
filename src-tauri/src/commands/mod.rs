@@ -14,6 +14,7 @@ pub mod staff;
 pub mod stats;
 pub mod time;
 pub mod transfers;
+pub mod util;
 pub mod world;
 
 pub use club::*;
