@@ -4,7 +4,8 @@ import { Badge } from "./ui";
 import {
   getTeamName,
   getTeamShort,
-  findNextFixture,
+  getUserCompetition,
+  getUserNextFixture,
   formatMatchDate,
   isSeasonComplete,
 } from "../lib/helpers";
@@ -16,7 +17,7 @@ export default function NextMatchDisplay({
 }) {
   const { t } = useTranslation();
   const userTeamId = gameState.manager.team_id;
-  const league = gameState.league;
+  const league = getUserCompetition(gameState);
 
   if (!userTeamId || !league) {
     return (
@@ -26,7 +27,7 @@ export default function NextMatchDisplay({
     );
   }
 
-  const nextFixture = findNextFixture(league.fixtures, userTeamId);
+  const nextFixture = getUserNextFixture(gameState);
   if (!nextFixture) {
     return (
       <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">

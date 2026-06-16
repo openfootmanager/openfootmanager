@@ -115,3 +115,83 @@ export function getAllFixturesAcrossCompetitions(
 ): FixtureData[] {
     return getActiveCompetitions(gameState).flatMap((competition) => competition.fixtures);
 }
+
+function competitionIncludesTeam(competition: LeagueData, teamId: string): boolean {
+    return (
+        (competition.participant_ids?.includes(teamId) ?? false) ||
+        competition.standings.some((entry) => entry.team_id === teamId) ||
+        competition.fixtures.some(
+            (fixture) =>
+                fixture.home_team_id === teamId || fixture.away_team_id === teamId,
+        )
+    );
+}
+
+// The manager's own domestic league — the source of truth for the league-table
+// cards. In the multi-competition world this lives in `gameState.competitions`;
+// the legacy `gameState.league` is kept only as a fallback for old saves.
+export function getUserCompetition(
+    gameState: Pick<GameStateData, "competitions" | "league" | "manager">,
+): LeagueData | null {
+    const teamId = gameState.manager?.team_id ?? null;
+    const competitions = gameState.competitions ?? [];
+
+    if (teamId && competitions.length > 0) {
+        const domestic = competitions.find(
+            (competition) =>
+                competition.kind === "League" &&
+                competition.scope === "Domestic" &&
+                competitionIncludesTeam(competition, teamId),
+        );
+        if (domestic) {
+            return domestic;
+        }
+
+        const fallback = competitions.find((competition) =>
+            competitionIncludesTeam(competition, teamId),
+        );
+        if (fallback) {
+            return fallback;
+        }
+    }
+
+    return gameState.league ?? null;
+}
+
+// Every active competition the manager's team takes part in (league, cups,
+// continental). Used to find the next fixture regardless of competition.
+export function getUserCompetitions(
+    gameState: Pick<
+        GameStateData,
+        "competitions" | "league" | "active_competition_ids" | "manager"
+    >,
+): LeagueData[] {
+    const teamId = gameState.manager?.team_id ?? null;
+    const active = getActiveCompetitions(gameState);
+
+    if (!teamId) {
+        return active;
+    }
+
+    const mine = active.filter((competition) =>
+        competitionIncludesTeam(competition, teamId),
+    );
+    return mine.length > 0 ? mine : active;
+}
+
+export function getUserNextFixture(
+    gameState: Pick<
+        GameStateData,
+        "competitions" | "league" | "active_competition_ids" | "manager"
+    >,
+): FixtureData | null {
+    const teamId = gameState.manager?.team_id ?? null;
+    if (!teamId) {
+        return null;
+    }
+
+    const fixtures = getUserCompetitions(gameState).flatMap(
+        (competition) => competition.fixtures,
+    );
+    return findNextFixture(fixtures, teamId) ?? null;
+}
