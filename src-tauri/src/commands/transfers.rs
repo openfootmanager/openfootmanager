@@ -11,6 +11,8 @@ use ofm_core::transfers::{
     TransferBidFinancialProjection, TransferNegotiationDecision, TransferNegotiationOutcome,
 };
 
+use crate::commands::util::mutate_active_game;
+
 const INVALID_YOUTH_SCOUTING_REGION_ERROR: &str = "be.error.transfers.invalidYouthScoutingRegion";
 const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingObjective";
@@ -41,17 +43,14 @@ pub fn toggle_transfer_list(
 
 pub fn toggle_transfer_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-        p.transfer_listed = !p.transfer_listed;
-    } else {
-        return Err("be.error.playerNotFound".into());
-    }
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+            p.transfer_listed = !p.transfer_listed;
+            Ok(())
+        } else {
+            Err("be.error.playerNotFound".into())
+        }
+    })
 }
 
 #[tauri::command]
@@ -61,17 +60,14 @@ pub fn toggle_loan_list(state: State<'_, Arc<StateManager>>, player_id: String) 
 
 pub fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-        p.loan_listed = !p.loan_listed;
-    } else {
-        return Err("be.error.playerNotFound".into());
-    }
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+            p.loan_listed = !p.loan_listed;
+            Ok(())
+        } else {
+            Err("be.error.playerNotFound".into())
+        }
+    })
 }
 
 #[tauri::command]
@@ -121,12 +117,11 @@ pub fn preview_transfer_bid_financial_impact_internal(
         player_id, fee
     );
 
-    let game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let projection =
-        ofm_core::transfers::project_transfer_bid_financial_impact(&game, player_id, fee)?;
+    let projection = state
+        .get_game(|game| {
+            ofm_core::transfers::project_transfer_bid_financial_impact(game, player_id, fee)
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     Ok(TransferBidFinancialProjectionCommandResponse { projection })
 }
