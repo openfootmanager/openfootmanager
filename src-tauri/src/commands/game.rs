@@ -319,8 +319,12 @@ fn build_game_from_world_data(
             // Authored definitions, if any, become the world's competitions;
             // otherwise ensure_multi_competition_foundations auto-builds them.
             game.competitions = competitions;
-            apply_generated_past_history(&mut game, startup_options);
+            // Build the league/division foundations *before* generating history so
+            // each club's past seasons are attributed to its real ~20-team
+            // division. Otherwise history runs with no competitions and treats the
+            // whole world as one mega-league (≈880-match seasons).
             ensure_multi_competition_foundations(&mut game);
+            apply_generated_past_history(&mut game, startup_options);
             (game, StatsState::default())
         }
     }

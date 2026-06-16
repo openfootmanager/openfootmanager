@@ -765,6 +765,45 @@ mod tests {
     }
 
     #[test]
+    fn historical_standings_use_per_league_match_counts() {
+        use domain::league::{League, StandingEntry};
+
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2032, 7, 1, 0, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let teams = (0..12).map(make_team).collect::<Vec<_>>();
+        let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+        let division = |id: &str, range: std::ops::Range<usize>| League {
+            id: id.to_string(),
+            name: id.to_string(),
+            season: 2031,
+            standings: range
+                .map(|index| StandingEntry::new(format!("team-{}", index + 1)))
+                .collect(),
+            ..League::default()
+        };
+        // Two 6-team domestic leagues, not one 12-team mega-league.
+        game.competitions = vec![division("league-a", 0..6), division("league-b", 6..12)];
+
+        let standings = super::build_historical_standings(&game, 2031);
+
+        assert_eq!(standings.len(), 12);
+        // A 6-team double round robin is (6-1)*2 = 10 matches — not the
+        // (12-1)*2 = 22 a single combined table would produce.
+        assert!(
+            standings.iter().all(|entry| entry.played == 10),
+            "expected per-league 10-match seasons, got {:?}",
+            standings.iter().map(|entry| entry.played).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn generate_past_world_history_populates_prior_records() {
         let mut game = make_game();
 
