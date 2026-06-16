@@ -1,3 +1,4 @@
+mod dormant;
 mod news;
 mod post_match;
 mod round_summary;
@@ -73,6 +74,29 @@ fn competition_indices_due_today(game: &Game, today: &str) -> Vec<usize> {
     }
 }
 
+/// Competitions OUTSIDE the active scope that have fixtures due today. These are
+/// resolved cheaply (scoreline only) so the dormant world keeps moving. Returns
+/// empty when no scope is configured (everything is active → nothing dormant).
+fn dormant_competition_indices_due_today(game: &Game, today: &str) -> Vec<usize> {
+    if game.competitions.is_empty() {
+        return Vec::new();
+    }
+    game.competitions
+        .iter()
+        .enumerate()
+        .filter(|(_, competition)| {
+            competition.kind != domain::league::CompetitionType::InternationalNation
+        })
+        .filter(|(_, competition)| !competition_is_active(game, competition))
+        .filter(|(_, competition)| {
+            competition.fixtures.iter().any(|fixture| {
+                fixture.date == today && fixture.status == FixtureStatus::Scheduled
+            })
+        })
+        .map(|(index, _)| index)
+        .collect()
+}
+
 fn simulate_competition_day_with_capture<F>(
     game: &mut Game,
     competition_index: usize,
@@ -117,6 +141,16 @@ where
         let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
         training::process_training(game, weekday_num);
         training::check_squad_fitness_warnings(game);
+    }
+
+    // Tiered simulation: competitions outside the active scope are resolved by
+    // scoreline only, keeping the dormant world moving without the full engine.
+    let dormant_competitions = dormant_competition_indices_due_today(game, &today);
+    if !dormant_competitions.is_empty() {
+        let mut rng = rand::rng();
+        for competition_index in dormant_competitions {
+            dormant::simulate_dormant_competition_day(game, competition_index, &today, &mut rng);
+        }
     }
 
     // National-team football: window friendlies and any running World Cup.

@@ -184,8 +184,13 @@ fn squad_strength(squad_player_ids: &[String], players: &[Player]) -> f64 {
     total as f64 / xi.len() as f64
 }
 
-/// Derive a friendly scoreline from the two sides' strengths.
-fn simulate_scoreline(home_strength: f64, away_strength: f64, rng: &mut impl Rng) -> (u8, u8) {
+/// Derive a scoreline from the two sides' strengths. Shared with the tiered
+/// (dormant-league) simulation, which resolves matches by scoreline only.
+pub(crate) fn simulate_scoreline(
+    home_strength: f64,
+    away_strength: f64,
+    rng: &mut impl Rng,
+) -> (u8, u8) {
     let edge = (home_strength - away_strength) / 10.0;
     let home_xg = (1.3 + 0.25 * edge).clamp(0.2, 4.0);
     let away_xg = (1.1 - 0.25 * edge).clamp(0.2, 4.0);
