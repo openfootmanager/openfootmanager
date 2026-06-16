@@ -2784,6 +2784,11 @@
         "subject": "Proposta Recebida por {{player}}",
         "body": "{{team}} apresentou uma proposta de {{fee}} por {{player}}. Reveja a oferta no separador Transferências para a aceitar ou rejeitar.",
         "actionReview": "Rever Oferta"
+      },
+      "transferInterest": {
+        "subject": "Interesse de transferência em {{player}}",
+        "body": "Clubes com propostas ativas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Veja as propostas no separador Transferências para responder.",
+        "actionReview": "Ver propostas"
       }
     },
     "news": {

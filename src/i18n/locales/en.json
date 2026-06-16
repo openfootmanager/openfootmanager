@@ -2780,6 +2780,11 @@
         "subject": "Incoming Offer for {{player}}",
         "body": "{{team}} have submitted an offer of {{fee}} for {{player}}. Review the bid in the Transfers tab to accept or reject it.",
         "actionReview": "Review Offer"
+      },
+      "transferInterest": {
+        "subject": "Transfer interest in {{player}}",
+        "body": "Clubs with active bids for {{player}}: {{n}}. Latest enquiry: {{team}} ({{fee}}). Review the offers in the Transfers tab to respond.",
+        "actionReview": "Review Offers"
       }
     },
     "news": {

@@ -595,38 +595,59 @@ fn create_incoming_user_offer(
     buyer_name: &str,
     today: &str,
 ) {
-    let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == candidate.player_id)
-    else {
-        return;
+    let (player_name, interested_clubs) = {
+        let Some(player) = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == candidate.player_id)
+        else {
+            return;
+        };
+
+        player.transfer_offers.push(domain::player::TransferOffer {
+            id: Uuid::new_v4().to_string(),
+            from_team_id: buyer_id.to_string(),
+            fee: candidate.fee,
+            wage_offered: 0,
+            last_manager_fee: None,
+            negotiation_round: 1,
+            suggested_counter_fee: None,
+            status: TransferOfferStatus::Pending,
+            date: today.to_string(),
+        });
+
+        // Distinct clubs currently holding a live bid — the figure the digest
+        // reports ("N clubs interested").
+        let interested_clubs = player
+            .transfer_offers
+            .iter()
+            .filter(|offer| offer.status == TransferOfferStatus::Pending)
+            .map(|offer| offer.from_team_id.clone())
+            .collect::<HashSet<String>>()
+            .len();
+
+        (player.full_name.clone(), interested_clubs)
     };
 
-    let offer_id = Uuid::new_v4().to_string();
-
-    player.transfer_offers.push(domain::player::TransferOffer {
-        id: offer_id.clone(),
-        from_team_id: buyer_id.to_string(),
-        fee: candidate.fee,
-        wage_offered: 0,
-        last_manager_fee: None,
-        negotiation_round: 1,
-        suggested_counter_fee: None,
-        status: TransferOfferStatus::Pending,
-        date: today.to_string(),
-    });
-
-    let player_name = player.full_name.clone();
-    let message = crate::messages::incoming_transfer_offer_message(
-        &offer_id,
+    // One updating thread per player rather than a fresh message per club, so
+    // repeat interest never floods the inbox.
+    let message = crate::messages::transfer_interest_digest_message(
         &candidate.player_id,
         &player_name,
+        interested_clubs,
         buyer_name,
         candidate.fee,
         today,
     );
-    game.messages.push(message);
+    if let Some(existing) = game
+        .messages
+        .iter_mut()
+        .find(|existing| existing.id == message.id)
+    {
+        *existing = message;
+    } else {
+        game.messages.push(message);
+    }
 }
 
 fn buyer_counter_offer_ceiling(

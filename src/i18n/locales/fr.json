@@ -2784,6 +2784,11 @@
         "subject": "Offre reçue pour {{player}}",
         "body": "{{team}} a soumis une offre de {{fee}} pour {{player}}. Consultez l'offre dans l'onglet Transferts pour l'accepter ou la refuser.",
         "actionReview": "Examiner l'offre"
+      },
+      "transferInterest": {
+        "subject": "Intérêt de transfert pour {{player}}",
+        "body": "Clubs avec des offres actives pour {{player}} : {{n}}. Dernière demande : {{team}} ({{fee}}). Consultez les offres dans l’onglet Transferts pour répondre.",
+        "actionReview": "Voir les offres"
       }
     },
     "news": {

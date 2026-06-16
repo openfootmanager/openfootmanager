@@ -2781,6 +2781,11 @@
         "subject": "收到对{{player}}的报价",
         "body": "{{team}}为{{player}}提交了一份{{fee}}的报价。请在转会标签页中查看该报价并决定接受或拒绝。",
         "actionReview": "查看报价"
+      },
+      "transferInterest": {
+        "subject": "对 {{player}} 的转会兴趣",
+        "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
+        "actionReview": "查看报价"
       }
     },
     "news": {

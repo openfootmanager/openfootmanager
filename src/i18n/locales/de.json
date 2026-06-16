@@ -2784,6 +2784,11 @@
         "subject": "Eingehendes Angebot für {{player}}",
         "body": "{{team}} hat ein Angebot über {{fee}} für {{player}} abgegeben. Prüfen Sie das Angebot im Transfers-Tab, um es anzunehmen oder abzulehnen.",
         "actionReview": "Angebot prüfen"
+      },
+      "transferInterest": {
+        "subject": "Transferinteresse an {{player}}",
+        "body": "Vereine mit aktiven Geboten für {{player}}: {{n}}. Letzte Anfrage: {{team}} ({{fee}}). Prüfe die Angebote im Transfers-Tab, um zu reagieren.",
+        "actionReview": "Angebote prüfen"
       }
     },
     "news": {

@@ -2814,6 +2814,11 @@
         "subject": "Oferta Entrante por {{player}}",
         "body": "{{team}} ha presentado una oferta de {{fee}} por {{player}}. Revise la propuesta en la pestaña de Fichajes para aceptarla o rechazarla.",
         "actionReview": "Revisar Oferta"
+      },
+      "transferInterest": {
+        "subject": "Interés de traspaso por {{player}}",
+        "body": "Clubes con ofertas activas por {{player}}: {{n}}. Última consulta: {{team}} ({{fee}}). Revisa las ofertas en la pestaña Traspasos para responder.",
+        "actionReview": "Ver ofertas"
       }
     },
     "news": {
