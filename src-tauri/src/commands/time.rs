@@ -133,16 +133,10 @@ pub fn skip_to_match_day_internal(
 
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
-        let has_match = game.league.as_ref().is_some_and(|league| {
-            league.fixtures.iter().any(|fixture| {
-                fixture.date == today
-                    && fixture.status == domain::league::FixtureStatus::Scheduled
-                    && (fixture.home_team_id == user_team_id
-                        || fixture.away_team_id == user_team_id)
-            })
-        });
-
-        if has_match {
+        // Stop on the user's match day so it can be played interactively rather
+        // than auto-simulated. Detect it across the user's competitions (the
+        // source of truth) — not the legacy `league` mirror, which misses cups.
+        if game.user_has_scheduled_match_on(&today) {
             info!(
                 "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
                 today, days_skipped
@@ -256,7 +250,9 @@ pub fn advance_to_next_event_internal(
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession")?;
 
-    let user_team_id = game
+    // Require an employed manager at entry so a later `team_id.is_none()` in the
+    // loop is a genuine firing transition.
+    let _user_team_id = game
         .manager
         .team_id
         .clone()
@@ -272,16 +268,8 @@ pub fn advance_to_next_event_internal(
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
         // Stop *on* the user's match day so it can be played interactively
-        // rather than auto-simulated.
-        let has_match = game.league.as_ref().is_some_and(|league| {
-            league.fixtures.iter().any(|fixture| {
-                fixture.date == today
-                    && fixture.status == domain::league::FixtureStatus::Scheduled
-                    && (fixture.home_team_id == user_team_id
-                        || fixture.away_team_id == user_team_id)
-            })
-        });
-        if has_match {
+        // rather than auto-simulated — detected across the user's competitions.
+        if game.user_has_scheduled_match_on(&today) {
             break;
         }
 
@@ -508,6 +496,39 @@ mod tests {
             ..domain::league::League::default()
         });
         game
+    }
+
+    #[test]
+    fn user_match_day_is_detected_from_competitions_not_legacy_league() {
+        let mut game = make_game(2);
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        // The user's fixture lives in a competition; the legacy mirror is empty,
+        // so the old game.league check would have missed this match day and the
+        // skip/continue loops would have auto-simulated the user's match.
+        game.league = None;
+        game.competitions = vec![domain::league::League {
+            id: "comp-1".to_string(),
+            name: "League".to_string(),
+            season: 2025,
+            fixtures: vec![Fixture {
+                id: "fx-1".to_string(),
+                competition_id: "comp-1".to_string(),
+                matchday: 2,
+                date: today.clone(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
+            ..domain::league::League::default()
+        }];
+
+        assert!(
+            game.user_has_scheduled_match_on(&today),
+            "a match day held only in a competition must be detected"
+        );
+        assert!(!game.user_has_scheduled_match_on("2099-01-01"));
     }
 
     fn make_message(id: &str, priority: MessagePriority, read: bool) -> InboxMessage {

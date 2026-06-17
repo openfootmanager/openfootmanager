@@ -1179,6 +1179,7 @@
         "winRate": "胜率"
       },
       "managerOfSeasonTitle": "赛季最佳主教练",
+      "currentLeaders": "当前领先者 —— 最终奖项将在赛季结束时颁发。",
       "managerOfSeasonSubtitle": "场边表现最出色的赛季"
     },
     "noGoals": "暂无进球。"

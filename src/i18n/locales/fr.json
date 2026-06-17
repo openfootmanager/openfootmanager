@@ -1179,6 +1179,7 @@
         "winRate": "taux de victoire"
       },
       "managerOfSeasonTitle": "Entraîneur de la Saison",
+      "currentLeaders": "Meneurs actuels — les récompenses finales sont décernées en fin de saison.",
       "managerOfSeasonSubtitle": "La meilleure campagne sur le banc"
     },
     "noGoals": "Aucun but marqué."

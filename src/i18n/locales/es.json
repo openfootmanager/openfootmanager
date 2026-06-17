@@ -1209,6 +1209,7 @@
         "winRate": "% victorias"
       },
       "managerOfSeasonTitle": "Entrenador de la Temporada",
+      "currentLeaders": "Líderes actuales — los premios finales se deciden al final de la temporada.",
       "managerOfSeasonSubtitle": "La mejor campaña desde el banquillo"
     },
     "noGoals": "Ningún gol marcado todavía."

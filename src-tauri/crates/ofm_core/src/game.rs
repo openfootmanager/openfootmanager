@@ -1,5 +1,5 @@
 use crate::clock::GameClock;
-use domain::league::{CompetitionType, League};
+use domain::league::{CompetitionType, FixtureStatus, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::national_team::NationalTeam;
@@ -183,6 +183,23 @@ impl Game {
             .user_competition_index()
             .map(|index| self.competitions[index].clone())
             .or_else(|| self.competitions.first().cloned());
+    }
+
+    /// Whether the user's club has a scheduled fixture on `date` in ANY of its
+    /// competitions (league or cup). This is the source of truth for "is today a
+    /// match day" — the legacy `league` mirror misses cups and isn't reliable
+    /// while the turn loop swaps competitions through it.
+    pub fn user_has_scheduled_match_on(&self, date: &str) -> bool {
+        let Some(team_id) = self.manager.team_id.as_deref() else {
+            return false;
+        };
+        self.competitions.iter().any(|competition| {
+            competition.fixtures.iter().any(|fixture| {
+                fixture.date == date
+                    && fixture.status == FixtureStatus::Scheduled
+                    && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+            })
+        })
     }
 
     /// Index of the competition the user's club plays in, preferring its

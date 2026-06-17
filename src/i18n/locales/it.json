@@ -1198,6 +1198,7 @@
         "winRate": "% vittorie"
       },
       "managerOfSeasonTitle": "Allenatore della Stagione",
+      "currentLeaders": "Leader attuali — i premi finali vengono assegnati a fine stagione.",
       "managerOfSeasonSubtitle": "La miglior annata in panchina"
     },
     "noGoals": "Ancora nessun gol segnato."

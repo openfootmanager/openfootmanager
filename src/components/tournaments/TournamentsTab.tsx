@@ -191,6 +191,9 @@ export default function TournamentsTab({
     fixtures.every((f) => f.status === "Completed"),
   ).length;
   const totalMatchdays = sortedMatchdays.length;
+  // Awards only become final once the competition's season has fully played out;
+  // before that the standings-based winners are just current leaders.
+  const seasonComplete = totalMatchdays > 0 && completedMatchdays >= totalMatchdays;
   const totalGoals = competitiveFixtures
     .filter((f) => f.result)
     .reduce((s, f) => s + (f.result!.home_goals + f.result!.away_goals), 0);
@@ -900,6 +903,11 @@ export default function TournamentsTab({
       {/* Awards */}
       {view === "awards" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {!seasonComplete && (
+            <div className="md:col-span-2 lg:col-span-3 rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+              {t("tournaments.awards.currentLeaders")}
+            </div>
+          )}
           {awards ? (
             <>
               <AwardCard
