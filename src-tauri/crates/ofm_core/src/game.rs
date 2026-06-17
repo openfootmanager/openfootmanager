@@ -1,5 +1,5 @@
 use crate::clock::GameClock;
-use domain::league::{CompetitionScope, CompetitionType, League};
+use domain::league::{CompetitionType, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::national_team::NationalTeam;
@@ -90,9 +90,10 @@ pub struct Game {
     /// DEPRECATED (legacy, back-compat only). Superseded by `competitions`, which
     /// is the single source of truth. Retained for two reasons: loading saves
     /// written before the multi-competition system (see
-    /// [`Game::migrate_legacy_league_into_competitions`]), and as the turn loop's
-    /// working buffer (`sync_legacy_league` mirrors the user's competition here).
-    /// Do not add new readers; it will be removed once save migration is proven.
+    /// [`Game::promote_legacy_league`], run on load to populate `competitions`
+    /// from it), and as the turn loop's working buffer (`sync_legacy_league`
+    /// mirrors the user's competition here). Do not add new readers; it will be
+    /// removed once the save-format gate has migrated all saves off it.
     #[serde(default)]
     pub league: Option<League>,
     #[serde(default)]
@@ -182,36 +183,6 @@ impl Game {
             .user_competition_index()
             .map(|index| self.competitions[index].clone())
             .or_else(|| self.competitions.first().cloned());
-    }
-
-    /// One-way migration for saves written before the multi-competition system:
-    /// such a save has a populated `league` but an empty `competitions`. Promote
-    /// that legacy league into `competitions` (tagged as the user's domestic
-    /// league) so the current system becomes the single source of truth, while
-    /// preserving its in-progress standings and fixtures. No-op once
-    /// `competitions` is populated, so current saves are untouched.
-    ///
-    /// Returns `true` when it migrated, so the loader can persist the upgraded
-    /// save in the new format.
-    pub fn migrate_legacy_league_into_competitions(&mut self) -> bool {
-        if !self.competitions.is_empty() {
-            return false;
-        }
-        let Some(mut league) = self.league.clone() else {
-            return false;
-        };
-
-        // A pre-multi-competition league is always the user's domestic top flight.
-        league.kind = CompetitionType::League;
-        league.scope = CompetitionScope::Domestic;
-        let competition_id = league.id.clone();
-        self.competitions = vec![league];
-
-        if self.active_competition_ids.is_empty() {
-            self.active_competition_ids = vec![competition_id];
-        }
-        self.sync_legacy_league();
-        true
     }
 
     /// Index of the competition the user's club plays in, preferring its

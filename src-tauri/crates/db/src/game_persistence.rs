@@ -110,7 +110,7 @@ fn write_game_to_connection(
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
-            save_format_version: 2,
+            save_format_version: meta_repo::CURRENT_SAVE_FORMAT_VERSION,
             world_format_version: 2,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
             source_world_id: game

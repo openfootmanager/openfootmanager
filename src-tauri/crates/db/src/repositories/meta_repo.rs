@@ -44,6 +44,15 @@ fn default_world_history_json() -> String {
     "{}".to_string()
 }
 
+/// Current game-data save format this build writes. Bumped when the in-memory
+/// `Game` shape changes in a way that needs an on-load migration. The loader
+/// rejects saves newer than this and migrates + restamps older ones.
+/// v3 = `competitions` is the source of truth (legacy `game.league` demoted to a
+/// back-compat mirror, populated from it on load for pre-v3 saves).
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 3;
+
+/// Baseline for a save that predates the version field entirely (reads as the
+/// pre-gate format, so it gets migrated and restamped to current on load).
 fn default_save_format_version() -> u32 {
     2
 }
