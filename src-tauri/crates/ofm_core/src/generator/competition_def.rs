@@ -712,6 +712,21 @@ pub fn resolve_definitions(
         .collect()
 }
 
+/// Build a single competition from a definition whose participants are listed
+/// explicitly (no selectors), at a caller-chosen start date. This is the
+/// construction path the built-in foundation world uses so generated and
+/// imported competitions flow through the same [`build_competition`] core; the
+/// per-call start lets built-ins keep their staggered calendar. Returns `None`
+/// when the explicit list has fewer than two clubs.
+pub fn build_explicit_competition(
+    def: &CompetitionDefinition,
+    season: u32,
+    season_start: DateTime<Utc>,
+) -> Option<League> {
+    let team_ids = def.participants.explicit.clone().unwrap_or_default();
+    build_competition(def, &team_ids, season, season_start)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

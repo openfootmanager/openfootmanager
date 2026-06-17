@@ -2,10 +2,10 @@ use std::sync::Arc;
 use log::info;
 use tauri::State;
 
-use chrono::{Datelike, Duration, TimeZone, Utc};
+use chrono::{Datelike, DateTime, Duration, TimeZone, Utc};
 
 use db::{save_index::SaveEntry, save_manager::SaveManager};
-use domain::league::{CompetitionScope, CompetitionType, League};
+use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, League};
 use domain::manager::Manager;
 use domain::national_team::NationalTeam;
 use domain::stats::StatsState;
@@ -464,12 +464,24 @@ fn division_name(country: &str, tier: usize, division_count: usize) -> String {
     }
 }
 
-fn build_foundation_competitions(game: &Game) -> Vec<League> {
+/// Build the generated world's competitions as `CompetitionDefinition`s with
+/// explicit participant lists, paired with their staggered start dates. Built-in
+/// competitions then flow through the same `build_explicit_competition` core as
+/// imported definitions (see [`build_foundation_competitions`]).
+fn build_foundation_competition_plan(
+    game: &Game,
+    season_start: DateTime<Utc>,
+) -> Vec<(ofm_core::generator::CompetitionDefinition, DateTime<Utc>)> {
+    use ofm_core::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use std::collections::BTreeMap;
 
-    let season_start = preseason_season_start(&game.clock);
-    let season = preseason_league_year(&game.clock);
-    let mut competitions = Vec::new();
+    let make_format = |kind: CompetitionFormat| FormatDef {
+        kind,
+        legs: None,
+        group_size: None,
+        qualifiers_per_group: None,
+        best_third_qualifiers: None,
+    };
 
     let mut teams_by_country: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for team in &game.teams {
@@ -485,6 +497,7 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         .map(|team| (team.id.as_str(), team.reputation))
         .collect();
 
+    let mut planned: Vec<(CompetitionDefinition, DateTime<Utc>)> = Vec::new();
     let mut priority = 0u32;
     for (country, mut team_ids) in teams_by_country {
         if team_ids.len() < 2 {
@@ -501,41 +514,54 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         let region_id = infer_region_id(&country);
         // Human-readable nation name for competition titles ("ES" → "Spain").
         let country_label = ofm_core::nations::nation_display_name(&country);
+        let country_slug = country.to_lowercase();
 
         // One or two divisions depending on how many clubs the country has.
         let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
         let division_count = divisions.len();
         for (tier, division_ids) in divisions.iter().enumerate() {
-            let mut league = ofm_core::schedule::generate_league(
-                &division_name(&country_label, tier, division_count),
-                season,
-                division_ids,
+            planned.push((
+                CompetitionDefinition {
+                    id: format!("{country_slug}-d{}", tier + 1),
+                    name: division_name(&country_label, tier, division_count),
+                    r#type: CompetitionType::League,
+                    scope: CompetitionScope::Domestic,
+                    region_id: Some(region_id.clone()),
+                    country_id: Some(country.clone()),
+                    required_region_ids: vec![region_id.clone()],
+                    priority,
+                    format: make_format(CompetitionFormat::LeagueTable),
+                    participants: ParticipantSpec {
+                        explicit: Some(division_ids.clone()),
+                        selector: None,
+                    },
+                },
                 season_start,
-            );
-            league.region_id = Some(region_id.clone());
-            league.country_id = Some(country.clone());
-            league.required_region_ids = vec![region_id.clone()];
-            league.priority = priority;
+            ));
             priority += 1;
-            competitions.push(league);
         }
 
         // National cup contested by every club in the country (byes handle any
-        // entrant count).
-        let mut cup = ofm_core::schedule::generate_knockout_cup(
-            &format!("{country_label} Cup"),
-            season,
-            &team_ids,
+        // entrant count), kicking off a few weeks after the league.
+        planned.push((
+            CompetitionDefinition {
+                id: format!("{country_slug}-cup"),
+                name: format!("{country_label} Cup"),
+                r#type: CompetitionType::Cup,
+                scope: CompetitionScope::Domestic,
+                region_id: Some(region_id.clone()),
+                country_id: Some(country.clone()),
+                required_region_ids: vec![region_id],
+                priority,
+                format: make_format(CompetitionFormat::Knockout),
+                participants: ParticipantSpec {
+                    explicit: Some(team_ids.clone()),
+                    selector: None,
+                },
+            },
             season_start + Duration::days(35),
-            CompetitionType::Cup,
-            CompetitionScope::Domestic,
-        );
-        cup.region_id = Some(region_id.clone());
-        cup.country_id = Some(country.clone());
-        cup.required_region_ids = vec![region_id];
-        cup.priority = priority;
+        ));
         priority += 1;
-        competitions.push(cup);
     }
 
     let continental_team_ids = select_continental_entrants(&game.teams, 2, 16);
@@ -550,32 +576,43 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
         feeder_regions.dedup();
         // With a big enough field, the continental cup opens with a group
         // stage; smaller fields go straight to a knockout bracket.
-        let mut continental = if continental_team_ids.len() >= 8 {
-            ofm_core::group_stage::generate_group_knockout_cup(
-                "Continental Champions Cup",
-                season,
-                &continental_team_ids,
-                season_start + Duration::days(70),
-                CompetitionType::ContinentalClub,
-                CompetitionScope::Continental,
-            )
+        let format_kind = if continental_team_ids.len() >= 8 {
+            CompetitionFormat::GroupAndKnockout
         } else {
-            ofm_core::schedule::generate_knockout_cup(
-                "Continental Champions Cup",
-                season,
-                &continental_team_ids,
-                season_start + Duration::days(70),
-                CompetitionType::ContinentalClub,
-                CompetitionScope::Continental,
-            )
+            CompetitionFormat::Knockout
         };
-        continental.region_id = None;
-        continental.required_region_ids = feeder_regions;
-        continental.priority = priority;
-        competitions.push(continental);
+        planned.push((
+            CompetitionDefinition {
+                id: "continental-champions-cup".to_string(),
+                name: "Continental Champions Cup".to_string(),
+                r#type: CompetitionType::ContinentalClub,
+                scope: CompetitionScope::Continental,
+                region_id: None,
+                country_id: None,
+                required_region_ids: feeder_regions,
+                priority,
+                format: make_format(format_kind),
+                participants: ParticipantSpec {
+                    explicit: Some(continental_team_ids),
+                    selector: None,
+                },
+            },
+            season_start + Duration::days(70),
+        ));
     }
 
-    competitions
+    planned
+}
+
+fn build_foundation_competitions(game: &Game) -> Vec<League> {
+    let season_start = preseason_season_start(&game.clock);
+    let season = preseason_league_year(&game.clock);
+    build_foundation_competition_plan(game, season_start)
+        .iter()
+        .filter_map(|(def, start)| {
+            ofm_core::generator::build_explicit_competition(def, season, *start)
+        })
+        .collect()
 }
 
 fn ensure_multi_competition_foundations(game: &mut Game) {
