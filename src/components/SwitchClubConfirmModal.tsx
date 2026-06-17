@@ -32,17 +32,13 @@ export default function SwitchClubConfirmModal({
       <div className="space-y-4" data-testid="switch-club-confirm-modal">
         <div>
           <h3 className="text-lg font-heading font-bold text-gray-900 dark:text-gray-100">
-            {t("jobs.switchConfirmTitle", "Leave your current club?")}
+            {t("jobs.switchConfirmTitle")}
           </h3>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            {t(
-              "jobs.switchConfirmBody",
-              "Accepting this opportunity will end your tenure at {{currentClub}} and move you to {{newClub}}.",
-              {
-                currentClub: currentClubName,
-                newClub: newClubName,
-              },
-            )}
+            {t("jobs.switchConfirmBody", {
+              currentClub: currentClubName,
+              newClub: newClubName,
+            })}
           </p>
         </div>
         <div className="flex items-center justify-end gap-3">
@@ -53,7 +49,7 @@ export default function SwitchClubConfirmModal({
             onClick={onCancel}
             disabled={busy}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -62,7 +58,7 @@ export default function SwitchClubConfirmModal({
             disabled={busy}
             data-testid="switch-club-confirm"
           >
-            {t("jobs.switchConfirmAccept", "Accept new role")}
+            {t("jobs.switchConfirmAccept")}
           </Button>
         </div>
       </div>

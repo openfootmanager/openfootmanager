@@ -243,7 +243,7 @@ describe("TacticsTab", () => {
     mockedInvoke.mockResolvedValue(makeGameState());
   });
 
-  it("renders play style guidance plus bench cards inside the pitch view", () => {
+  it("renders the top tactical controls plus bench cards inside the pitch view", () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -252,17 +252,56 @@ describe("TacticsTab", () => {
       />,
     );
 
-    expect(screen.getByText("squad.playStyleImpactTitle")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Keeps your team measured in and out of possession, with a steady shape and fewer extremes.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
+    expect(screen.getByText("tactics.formation")).toBeInTheDocument();
+    expect(screen.getByText("tactics.playStyle")).toBeInTheDocument();
     expect(screen.getAllByText("preMatch.substitutes").length).toBeGreaterThan(
       0,
     );
     expect(screen.getByTestId("bench-player-d5")).toBeInTheDocument();
     expect(screen.getByTestId("pitch-bench-player-d5")).toBeInTheDocument();
+  });
+
+  it("shows the compact tactics toolbar across the top of the lineup workspace", () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
+    expect(screen.getByText("tactics.activePreset")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "4-4-2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Balanced" })).toBeInTheDocument();
+  });
+
+  it("applies a preset by updating formation and play style", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_formation", {
+        formation: "3-4-3",
+      });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "set_play_style", {
+        playStyle: "HighPress",
+      });
+    });
   });
 
   it("keeps youth academy players out of first-team tactics selection", () => {
@@ -369,6 +408,28 @@ describe("TacticsTab", () => {
     expect(
       within(benchCard).queryByText("common.posAbbr.Midfielder"),
     ).not.toBeInTheDocument();
+  });
+
+  it("can duplicate the current setup into a custom tactic shell", () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.duplicateTactic" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "tactics.updateTactic" }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+    expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
   });
 
   it("localizes the selected player position in the comparison panel", () => {
@@ -510,6 +571,151 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("xi-player-d1"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("d1");
+  });
+
+  it("reassigns a starter to another tactical slot from the pos combobox", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    const defenderRow = screen.getByTestId("xi-player-d1");
+    fireEvent.click(within(defenderRow).getByRole("combobox"));
+    fireEvent.click(screen.getAllByRole("option")[4]);
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        playerIds: [
+          "gk1",
+          "d4",
+          "d2",
+          "d3",
+          "d1",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
+      });
+    });
+  });
+
+  it("offers tactics context-menu actions to promote a bench player", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    const benchRow = screen.getByTestId("bench-player-d5");
+    fireEvent.contextMenu(benchRow);
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.promoteToLineup" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        playerIds: [
+          "gk1",
+          "d5",
+          "d2",
+          "d3",
+          "d4",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
+      });
+    });
+  });
+
+  it("offers pitch context-menu actions to move a starter to the bench", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.moveToBench" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        playerIds: [
+          "gk1",
+          "d5",
+          "d2",
+          "d3",
+          "d4",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
+      });
+    });
+  });
+
+  it("assigns captaincy from the tactics table context menu", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("xi-player-d1"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.makeCaptain" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
+        matchRoles: expect.objectContaining({
+          captain: "d1",
+        }),
+      });
+    });
+  });
+
+  it("assigns captaincy from the pitch context menu", async () => {
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.makeCaptain" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
+        matchRoles: expect.objectContaining({
+          captain: "d1",
+        }),
+      });
+    });
   });
 
   it("persists default set piece and team role assignments from the roles tab", async () => {

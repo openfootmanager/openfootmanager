@@ -140,14 +140,20 @@ function createSnapshot(): MatchSnapshot {
 }
 
 describe("SubPanel", () => {
+    const createProps = () => ({
+        snapshot: createSnapshot(),
+        side: "Home" as const,
+        onSubstitute: vi.fn(),
+        onFormationChange: vi.fn(),
+        onPlayStyleChange: vi.fn(),
+        onClose: vi.fn(),
+    });
+
     it("shows a disabled bench context menu action until a player is selected to come off", () => {
+        const props = createProps();
+
         render(
-            <SubPanel
-                snapshot={createSnapshot()}
-                side="Home"
-                onSubstitute={vi.fn()}
-                onClose={vi.fn()}
-            />,
+            <SubPanel {...props} />,
         );
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-bench-bench-1"));
@@ -158,15 +164,10 @@ describe("SubPanel", () => {
     });
 
     it("supports the substitution selection flow through context menus", () => {
-        const onSubstitute = vi.fn();
+        const props = createProps();
 
         render(
-            <SubPanel
-                snapshot={createSnapshot()}
-                side="Home"
-                onSubstitute={onSubstitute}
-                onClose={vi.fn()}
-            />,
+            <SubPanel {...props} />,
         );
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
@@ -179,17 +180,14 @@ describe("SubPanel", () => {
             screen.getByRole("button", { name: "Confirm substitution" }),
         );
 
-        expect(onSubstitute).toHaveBeenCalledWith("starter-1", "bench-1");
+        expect(props.onSubstitute).toHaveBeenCalledWith("starter-1", "bench-1");
     });
 
     it("allows clearing the selected off-player through the context menu", () => {
+        const props = createProps();
+
         render(
-            <SubPanel
-                snapshot={createSnapshot()}
-                side="Home"
-                onSubstitute={vi.fn()}
-                onClose={vi.fn()}
-            />,
+            <SubPanel {...props} />,
         );
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
@@ -201,5 +199,36 @@ describe("SubPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
         expect(screen.queryByText("match.selectBenchToCompare")).not.toBeInTheDocument();
+    });
+
+    it("surfaces recommendations and applies the recommended play style", () => {
+        const props = createProps();
+
+        render(<SubPanel {...props} />);
+
+        expect(screen.getByText("match.recommendedChanges")).toBeInTheDocument();
+        expect(
+            screen.getByTestId("recommended-sub-starter-1-bench-1"),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId("recommended-plan-cta"));
+
+        expect(props.onPlayStyleChange).toHaveBeenCalledWith("Balanced");
+    });
+
+    it("lets a recommendation prefill the swap flow", () => {
+        const props = createProps();
+
+        render(<SubPanel {...props} />);
+
+        fireEvent.click(
+            screen.getByTestId("recommended-sub-starter-1-bench-1"),
+        );
+
+        expect(screen.getAllByText("Starter One").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Bench One").length).toBeGreaterThan(0);
+        expect(
+            screen.getByRole("button", { name: "Confirm substitution" }),
+        ).toBeInTheDocument();
     });
 });

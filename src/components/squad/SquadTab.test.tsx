@@ -220,6 +220,15 @@ describe("SquadTab", () => {
     expect(screen.queryByText("What this changes")).not.toBeInTheDocument();
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
+    expect(screen.getByText("squad.planStatus")).toBeInTheDocument();
+    expect(screen.getByText("squad.tacticalFit")).toBeInTheDocument();
+    expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
+    expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
+    expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/squad.bestRole/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/squad.styleFitValues./).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows contract inspection columns and renew entry points for expiring players", () => {
@@ -364,6 +373,64 @@ describe("SquadTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
         playerId: "gk1",
         squadRole: "Youth",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    });
+  });
+
+  it("promotes a bench player into the starting xi from the roster context menu", async () => {
+    const gameState = makeGameState();
+    const updatedGameState = {
+      ...gameState,
+      teams: gameState.teams.map((team) => ({
+        ...team,
+        starting_xi_ids: [
+          "gk1",
+          "d5",
+          "d2",
+          "d3",
+          "d4",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
+      })),
+    };
+    const onGameUpdate = vi.fn();
+    mockedInvoke.mockResolvedValue(updatedGameState);
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    const benchRow = screen.getByText("Player d5").closest("tr");
+    expect(benchRow).not.toBeNull();
+    fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "squad.makeStarter" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        playerIds: [
+          "gk1",
+          "d5",
+          "d2",
+          "d3",
+          "d4",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });

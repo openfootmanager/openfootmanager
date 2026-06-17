@@ -402,7 +402,14 @@ export default function MatchLive({
 
       {/* Substitution Modal */}
       {showSubPanel && userSide && (
-        <SubPanel snapshot={snapshot} side={userSide} onSubstitute={handleSubstitution} onClose={() => setShowSubPanel(false)} />
+        <SubPanel
+          snapshot={snapshot}
+          side={userSide}
+          onSubstitute={handleSubstitution}
+          onFormationChange={handleFormationChange}
+          onPlayStyleChange={handlePlayStyleChange}
+          onClose={() => setShowSubPanel(false)}
+        />
       )}
     </MatchScreenLayout>
   );

@@ -83,15 +83,12 @@ export default function JobOpportunitiesCard({
       } else if (response.result === "same_team") {
         setFeedback({
           type: "error",
-          message: t("jobs.sameTeam", "You are already managing that club."),
+          message: t("jobs.sameTeam"),
         });
       } else if (response.result === "not_better_club") {
         setFeedback({
           type: "error",
-          message: t(
-            "jobs.notBetterClub",
-            "You can only apply for clubs that are a step up from your current one.",
-          ),
+          message: t("jobs.notBetterClub"),
         });
       }
     } catch (err) {

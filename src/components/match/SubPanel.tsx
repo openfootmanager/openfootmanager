@@ -3,19 +3,37 @@ import { useTranslation } from "react-i18next";
 import { MatchSnapshot } from "./types";
 import { getPlayerName } from "./helpers";
 import { Badge } from "../ui";
-import { RefreshCw, AlertTriangle, UserMinus, UserPlus } from "lucide-react";
+import {
+  RefreshCw,
+  AlertTriangle,
+  UserMinus,
+  UserPlus,
+  Shield,
+  Swords,
+  Sparkles,
+} from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import {
+  buildRecommendedSubstitutions,
+  getMatchScenario,
+  type MatchScenarioId,
+  type RecommendationReasonId,
+} from "./SubPanel.helpers";
 
 export function SubPanel({
   snapshot,
   side,
   onSubstitute,
+  onFormationChange,
+  onPlayStyleChange,
   onClose,
 }: {
   snapshot: MatchSnapshot;
   side: "Home" | "Away";
   onSubstitute: (offId: string, onId: string) => void;
+  onFormationChange: (formation: string) => void;
+  onPlayStyleChange: (playStyle: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -44,26 +62,10 @@ export function SubPanel({
   const comparedPlayer = selectedBench
     ? availableBench.find((p) => p.id === selectedBench)
     : null;
+  const scenario = getMatchScenario(snapshot, side);
+  const recommendations = buildRecommendedSubstitutions(snapshot, side);
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-
-  // Parse formation to get expected counts per position
-  const parts = team.formation.split("-").map(Number);
-  const expectedCounts: Record<string, number> = {
-    Goalkeeper: 1,
-    Defender: 0,
-    Midfielder: 0,
-    Forward: 0,
-  };
-  if (parts.length === 3) {
-    expectedCounts.Defender = parts[0];
-    expectedCounts.Midfielder = parts[1];
-    expectedCounts.Forward = parts[2];
-  } else if (parts.length === 4) {
-    expectedCounts.Defender = parts[0];
-    expectedCounts.Midfielder = parts[1] + parts[2];
-    expectedCounts.Forward = parts[3];
-  }
 
   const condColor = (c: number) =>
     c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
@@ -104,6 +106,60 @@ export function SubPanel({
 
     onSubstitute(selectedOff, selectedBench);
   };
+
+  const handleApplyRecommendation = (offId: string, onId: string) => {
+    setSelectedOff(offId);
+    setSelectedBench(onId);
+  };
+
+  const getScenarioIcon = (scenarioId: MatchScenarioId) => {
+    switch (scenarioId) {
+      case "protect-lead":
+        return <Shield className="h-4 w-4 text-primary-400" />;
+      case "chase-goal":
+        return <Swords className="h-4 w-4 text-accent-400" />;
+      case "find-winner":
+        return <Sparkles className="h-4 w-4 text-accent-400" />;
+      default:
+        return <RefreshCw className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getScenarioTitle = (scenarioId: MatchScenarioId): string => {
+    return t(`match.subScenario.${scenarioId}.title`);
+  };
+
+  const getScenarioDescription = (scenarioId: MatchScenarioId): string => {
+    return t(`match.subScenario.${scenarioId}.description`);
+  };
+
+  const getRecommendationReasonLabel = (
+    reasonId: RecommendationReasonId,
+  ): string => {
+    return t(`match.subRecommendationReasons.${reasonId}`);
+  };
+
+  const getImpactToneClassName = (delta: number): string => {
+    if (delta > 0) {
+      return "text-success-400";
+    }
+
+    if (delta < 0) {
+      return "text-red-400";
+    }
+
+    return "text-gray-500 dark:text-gray-400";
+  };
+
+  const formationOptions = ["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3"];
+  const playStyleOptions = [
+    "Balanced",
+    "Attacking",
+    "Defensive",
+    "Possession",
+    "Counter",
+    "HighPress",
+  ];
 
   const handleInteractiveRowKeyDown = (
     event: KeyboardEvent<HTMLElement>,
@@ -214,6 +270,38 @@ export function SubPanel({
                     ? t("match.takingOff", { name: selectedPlayer?.name })
                     : t("match.selectPlayerOff")}
                 </p>
+              </div>
+
+              <div className="px-4 pt-3">
+                <div className="rounded-xl border border-primary-500/20 bg-primary-500/8 px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    {getScenarioIcon(scenario.id)}
+                    <div>
+                      <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-900 dark:text-white">
+                        {getScenarioTitle(scenario.id)}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                        {getScenarioDescription(scenario.id)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      {t("match.recommendedPlan")}
+                    </span>
+                    <button
+                      type="button"
+                      data-testid="recommended-plan-cta"
+                      onClick={() => onPlayStyleChange(scenario.recommendedPlayStyle)}
+                      className="rounded-full border border-primary-500/25 bg-primary-500/12 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-primary-500 dark:text-primary-300"
+                    >
+                      {t(
+                        `common.playStyles.${scenario.recommendedPlayStyle}`,
+                        scenario.recommendedPlayStyle,
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Mini pitch visualization */}
@@ -391,6 +479,131 @@ export function SubPanel({
                 </p>
               </div>
 
+              <div className="px-4 pt-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-3 dark:border-navy-600 dark:bg-navy-700/40">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-700 dark:text-gray-200">
+                      {t("match.recommendedChanges")}
+                    </p>
+                    <Badge variant="accent" size="sm">
+                      {recommendations.length}
+                    </Badge>
+                  </div>
+                  {recommendations.length > 0 ? (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {recommendations.map((recommendation) => {
+                        const offPlayer = team.players.find(
+                          (player) => player.id === recommendation.offId,
+                        );
+                        const onPlayer = availableBench.find(
+                          (player) => player.id === recommendation.onId,
+                        );
+
+                        if (!offPlayer || !onPlayer) {
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={`${recommendation.offId}-${recommendation.onId}`}
+                            type="button"
+                            data-testid={`recommended-sub-${recommendation.offId}-${recommendation.onId}`}
+                            onClick={() =>
+                              handleApplyRecommendation(
+                                recommendation.offId,
+                                recommendation.onId,
+                              )
+                            }
+                            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50/60 dark:border-navy-600 dark:bg-navy-800 dark:hover:border-primary-400 dark:hover:bg-navy-700"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-heading font-bold text-gray-900 dark:text-white">
+                                  {offPlayer.name} {"->"} {onPlayer.name}
+                                </div>
+                                <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                  {translatePositionAbbreviation(t, offPlayer.position)} / {translatePositionAbbreviation(t, onPlayer.position)}
+                                </div>
+                              </div>
+                              <div className="text-right text-[11px]">
+                                <div className="font-heading font-bold text-success-400">
+                                  +{Math.max(0, Math.round(onPlayer.condition - offPlayer.condition))}
+                                </div>
+                                <div className="text-gray-500 dark:text-gray-400">
+                                  {t("match.fitness")}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {recommendation.reasons.map((reason) => (
+                                <span
+                                  key={reason}
+                                  className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-wider text-gray-600 dark:bg-navy-700 dark:text-gray-300"
+                                >
+                                  {getRecommendationReasonLabel(reason)}
+                                </span>
+                              ))}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {t("match.noRecommendedChanges")}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3 dark:border-navy-600 dark:bg-navy-700/40">
+                  <p className="text-xs font-heading font-bold uppercase tracking-widest text-gray-700 dark:text-gray-200">
+                    {t("match.quickTacticalTweaks")}
+                  </p>
+                  <div className="mt-3">
+                    <p className="mb-2 text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      {t("match.formation")}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {formationOptions.map((formation) => (
+                        <button
+                          key={formation}
+                          type="button"
+                          onClick={() => onFormationChange(formation)}
+                          className={`rounded-md px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-wider transition-colors ${
+                            team.formation === formation
+                              ? "bg-primary-500/20 text-primary-500 ring-1 ring-primary-500/40 dark:text-primary-300"
+                              : "bg-white text-gray-600 hover:text-gray-900 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          {formation}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <p className="mb-2 text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      {t("match.playStyle")}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {playStyleOptions.map((playStyle) => (
+                        <button
+                          key={playStyle}
+                          type="button"
+                          onClick={() => onPlayStyleChange(playStyle)}
+                          className={`rounded-md px-2 py-1 text-[10px] font-heading font-bold uppercase tracking-wider transition-colors ${
+                            team.play_style === playStyle
+                              ? "bg-primary-500/20 text-primary-500 ring-1 ring-primary-500/40 dark:text-primary-300"
+                              : "bg-white text-gray-600 hover:text-gray-900 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          {t(`common.playStyles.${playStyle}`, playStyle)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Comparison panel */}
               {selectedPlayer && comparedPlayer ? (
                 <div className="mx-4 mt-3 p-3 bg-gray-100 dark:bg-navy-700/50 rounded-xl border border-gray-200 dark:border-navy-600 transition-colors duration-300">
@@ -446,6 +659,44 @@ export function SubPanel({
                     valA={Math.round(selectedPlayer.condition)}
                     valB={Math.round(comparedPlayer.condition)}
                   />
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-white px-2 py-2 dark:bg-navy-800">
+                      <div className="text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                        {t("common.ovr")}
+                      </div>
+                      <div
+                        className={`mt-1 text-sm font-heading font-bold ${getImpactToneClassName(comparedPlayer.ovr - selectedPlayer.ovr)}`}
+                      >
+                        {comparedPlayer.ovr - selectedPlayer.ovr > 0 ? "+" : ""}
+                        {comparedPlayer.ovr - selectedPlayer.ovr}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-white px-2 py-2 dark:bg-navy-800">
+                      <div className="text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                        {t("match.fitness")}
+                      </div>
+                      <div
+                        className={`mt-1 text-sm font-heading font-bold ${getImpactToneClassName(
+                          Math.round(comparedPlayer.condition - selectedPlayer.condition),
+                        )}`}
+                      >
+                        {comparedPlayer.condition - selectedPlayer.condition > 0
+                          ? "+"
+                          : ""}
+                        {Math.round(comparedPlayer.condition - selectedPlayer.condition)}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-white px-2 py-2 dark:bg-navy-800">
+                      <div className="text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                        {t("match.roleFit")}
+                      </div>
+                      <div className="mt-1 text-sm font-heading font-bold text-gray-900 dark:text-white">
+                        {comparedPlayer.position === selectedPlayer.position
+                          ? t("match.fitExact")
+                          : t("match.fitAdjusted")}
+                      </div>
+                    </div>
+                  </div>
                   <div className="mt-3 flex items-center justify-end gap-2">
                     <button
                       type="button"

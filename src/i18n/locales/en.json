@@ -330,6 +330,10 @@
     "confirm": "Confirm",
     "save": "Save",
     "search": "Search",
+    "left": "Left",
+    "center": "Centre",
+    "right": "Right",
+    "teamLogoAlt": "{{team}} logo",
     "noTeam": "No team assigned.",
     "unemployed": "You are currently unemployed.",
     "freeAgent": "Free Agent",
@@ -522,6 +526,27 @@
     "compare": "Compare",
     "selected": "selected",
     "playersLabel": "players",
+    "currentPlan": "Current plan",
+    "planStatus": "Plan",
+    "tacticalFit": "Tactical fit",
+    "coverageTitle": "Role coverage",
+    "coverageStable": "Coverage looks healthy",
+    "coverageNeedsAttention": "{{count}} role groups need cover",
+    "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
+    "bestRole": "Best role",
+    "styleFit": "Style fit",
+    "starter": "Starter",
+    "benchOption": "Bench",
+    "naturalFit": "Natural fit",
+    "adaptedFit": "Adapted fit",
+    "needsCover": "Needs cover",
+    "makeStarter": "Make starter",
+    "sendToBench": "Send to bench",
+    "styleFitValues": {
+      "strong": "Style fit: Strong",
+      "good": "Style fit: Good",
+      "risky": "Style fit: Risky"
+    },
     "noBench": "No bench players.",
     "viewProfile": "View profile",
     "swapPlayer": "Swap player",
@@ -552,8 +577,59 @@
     "formationStyle": "Formation & Style",
     "formation": "Formation",
     "playStyle": "Play Style",
+    "teamIdentity": "Team Identity",
+    "presetTactics": "Preset Tactics",
+    "tacticLibrary": "Tactic Library",
+    "chooseTactic": "Choose tactic",
+    "searchTactics": "Search tactics...",
+    "myTactics": "My tactics",
+    "newTactic": "New tactic",
+    "duplicateTactic": "Duplicate",
+    "saveAsTactic": "Save as tactic",
+    "updateTactic": "Update tactic",
+    "tacticName": "Tactic name",
+    "identitySummary": "Identity summary",
+    "synced": "Synced",
+    "unsavedChanges": "Unsaved changes",
+    "currentPlanCard": "Current plan",
+    "phaseBlueprint": "Phase blueprint",
+    "phaseLabels": {
+      "withBall": "With Ball",
+      "withoutBall": "Without Ball",
+      "transitions": "Transitions"
+    },
+    "phaseSummaries": {
+      "withBall": "Build the team identity first: shape, width, rhythm, and which roles support the attack.",
+      "withoutBall": "Use block height, compactness, and pressing intent to define how aggressive the team is off the ball.",
+      "transitions": "The next layer should describe how fast the team breaks, counter-presses, or regroups after turnovers."
+    },
+    "customTacticDescription": "Build a custom setup by combining any formation with the play style that fits your squad.",
+    "customTacticNumber": "Custom tactic {{count}}",
+    "copyOfTactic": "{{name}} Copy",
+    "modifiedPreset": "Modified preset",
+    "activePreset": "Active preset",
+    "customTactic": "Custom tactic",
     "lineupTab": "Lineup",
     "rolesTab": "Set Pieces & Roles",
+    "layoutModes": {
+      "pitch": "Pitch Focus",
+      "balanced": "Balanced View",
+      "analysis": "Analysis View"
+    },
+    "presetNames": {
+      "balanced-control": "Balanced Control",
+      "wing-play": "Wing Play",
+      "high-press": "High Press",
+      "counter-attack": "Counter Attack",
+      "low-block": "Low Block"
+    },
+    "presetDescriptions": {
+      "balanced-control": "Stable lines, reliable coverage, and a straightforward shape for most squads.",
+      "wing-play": "Natural width, earlier support around the box, and more runners ahead of the ball.",
+      "high-press": "Pushes the block higher, asks for aggressive pressure, and commits numbers forward.",
+      "counter-attack": "Prioritises quick breaks from a safer midfield base once possession is regained.",
+      "low-block": "Extra protection across the back line and a more compact shape when absorbing pressure."
+    },
     "teamRoles": "Team Roles",
     "viceCaptain": "Vice-captain",
     "setPiecesSection": "Set Pieces",
@@ -562,14 +638,69 @@
     "noStartersForRoles": "Set your starting XI to assign team roles and set pieces.",
     "startingXI": "Starting XI — {{formation}}",
     "fullSquad": "Full Squad",
-    "pitchInteractionHint": "Drag players between the pitch and bench, click one player to inspect them, click a second player to compare them, then confirm the swap in the compare panel.",
+    "pitchInteractionHint": "Drag players between the pitch and bench, click to inspect, click a second player to compare, or right-click for quick tactical actions.",
+    "tableInteractionHint": "Right-click players for quick actions.",
+    "clearSelection": "Clear selection",
+    "compareWithSelected": "Compare with selected",
+    "selectForSwap": "Select for swap",
+    "assignBestFit": "Assign best-fit slot",
+    "moveToBench": "Move to bench",
+    "promoteToLineup": "Promote to starting XI",
+    "makeCaptain": "Make captain",
+    "makeViceCaptain": "Make vice-captain",
+    "setPenaltyTaker": "Set penalties",
+    "setFreeKickTaker": "Set free kicks",
+    "setCornerTaker": "Set corners",
+    "inspector": "Inspector",
+    "inspectorEmptyTitle": "Nothing selected",
     "selectedPlayer": "Selected player",
     "comparePlayer": "Comparison player",
     "selectSecondPlayer": "Select a second player in the lineup view to compare attributes and prepare the swap.",
     "compareSelectionHint": "Review both players below, then confirm the swap when you're ready.",
     "confirmSwap": "Confirm swap",
     "selectPitchPlayer": "Select a player in the lineup view to inspect their attributes.",
-    "selectAnotherToSwap": "Select a second player to compare them and confirm the swap."
+    "selectAnotherToSwap": "Select a second player to compare them and confirm the swap.",
+    "tableView": "Table view",
+    "tableModeHints": {
+      "lineup": "See tactical slots, fitness, morale, and playable positions.",
+      "roles": "Focus on fit signals and current match responsibilities."
+    },
+    "tableModes": {
+      "lineup": "Lineup",
+      "roles": "Roles"
+    },
+    "positionSelector": "Tactical slot",
+    "playablePositions": "Positions",
+    "slotFit": "Slot fit",
+    "styleFit": "Style fit",
+    "responsibilities": "Responsibilities",
+    "noSpecialRoles": "No special roles",
+    "naturalFit": "Natural fit",
+    "adaptedFit": "Adapted role",
+    "moraleLevels": {
+      "superb": "Superb",
+      "veryGood": "Very Good",
+      "good": "Good",
+      "okay": "Okay",
+      "poor": "Poor",
+      "veryPoor": "Very Poor"
+    },
+    "conditionLevels": {
+      "ready": "Ready",
+      "sharp": "Sharp",
+      "managing": "Managing",
+      "risk": "Risk"
+    },
+    "styleFitLevels": {
+      "strong": "Strong match",
+      "good": "Good match",
+      "risky": "Risky fit"
+    },
+    "tokenStates": {
+      "ready": "Ready",
+      "adjusted": "Adjusted",
+      "risk": "Risk"
+    }
   },
   "training": {
     "weeklySchedule": "Weekly Schedule",
@@ -1422,12 +1553,46 @@
     "selectForSwap": "Select for swap",
     "swapWithSelectedStarter": "Swap with selected starter",
     "benchPlayers": "Bench players",
+    "recommendedPlan": "Recommended plan",
+    "recommendedChanges": "Recommended changes",
+    "noRecommendedChanges": "No clear change stands out yet.",
+    "quickTacticalTweaks": "Quick tactical tweaks",
     "selectBenchToCompare": "Select a bench player to compare",
     "confirmSubstitution": "Confirm substitution",
     "noBenchAvailable": "No bench players available",
     "history": "History",
     "player": "Player",
     "fitness": "Fitness",
+    "roleFit": "Role fit",
+    "fitExact": "Exact",
+    "fitAdjusted": "Adjusted",
+    "subRecommendationReasons": {
+      "low-fitness": "Low fitness",
+      "yellow-risk": "Card risk",
+      "fresh-legs": "Fresh legs",
+      "upgrade": "Quality boost",
+      "role-match": "Role match",
+      "attacking-boost": "Attacking push",
+      "defensive-cover": "Defensive cover"
+    },
+    "subScenario": {
+      "steady": {
+        "title": "Steady Management",
+        "description": "No need to force the game yet. Favor clean energy gains and like-for-like changes."
+      },
+      "protect-lead": {
+        "title": "Protect The Lead",
+        "description": "The priority is control and defensive security. Fresh legs and safer profiles matter most now."
+      },
+      "find-winner": {
+        "title": "Push For A Winner",
+        "description": "The match is still there to be taken. Look for sharper legs and more aggressive options."
+      },
+      "chase-goal": {
+        "title": "Chase The Goal",
+        "description": "You need extra threat. Favor attacking energy, risk, and players who can change the tempo."
+      }
+    },
     "halfTime": "Half Time",
     "ht": "HT",
     "fullTime": "Full Time",
