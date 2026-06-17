@@ -384,6 +384,17 @@ impl SaveManager {
         let mut game = GamePersistenceReader::read_game(&db)
             .map_err(|_| crate::save_load_error::SaveLoadError::MissingData.i18n_key())?;
         let mut needs_resave = false;
+
+        // Upgrade pre-multi-competition saves so `competitions` is the single
+        // source of truth, then persist them in the new format. No-op for saves
+        // that already carry competitions.
+        if game.migrate_legacy_league_into_competitions() {
+            info!(
+                "[save_manager] migrated legacy league into competitions for save {}",
+                save_id
+            );
+            needs_resave = true;
+        }
         let manager_count_before = game.managers.len();
         let assigned_manager_count_before = game
             .teams
