@@ -1411,7 +1411,8 @@ pub fn bootstrap_game_for_mcp(
 mod tests {
     use super::{
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
-        build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
+        build_foundation_competitions, build_game_from_world_data, create_new_save,
+        current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         package_folder_name, parse_competition_definitions, preseason_league_year,
         preseason_season_start, require_active_stats_state,
@@ -1421,7 +1422,9 @@ mod tests {
     };
     use db::save_manager::SaveManager;
     use domain::{
-        league::{CompetitionScope, FixtureCompetition, League},
+        league::{
+            CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
+        },
         news::{NewsArticle, NewsCategory},
         stats::{PlayerMatchStatsRecord, TeamMatchStatsRecord},
         world_history::{HistoricalSeasonAwardsRecord, WorldHistoryArchive},
@@ -1441,6 +1444,95 @@ mod tests {
         assert_eq!(package_folder_name("turkish-league"), "turkish-league");
         // No usable component → a sensible default rather than an empty name.
         assert_eq!(package_folder_name(""), "World Package");
+    }
+
+    fn nation_team(id: &str, nation: &str, reputation: u32) -> domain::team::Team {
+        let mut team = domain::team::Team::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            nation.to_string(),
+            "City".to_string(),
+            "Stadium".to_string(),
+            10_000,
+        );
+        team.football_nation = nation.to_string();
+        team.reputation = reputation;
+        team
+    }
+
+    /// Characterization test: locks the STRUCTURE of the generated foundation
+    /// world (kinds, scopes, regions, countries, priorities, participant and
+    /// fixture counts, formats) so the Phase E "unify built-ins through the
+    /// resolver" refactor can prove it preserves behavior (modulo ids).
+    #[test]
+    fn foundation_competitions_structure_is_stable() {
+        // A 30-club nation (→ two divisions: 20 + 10), a 6-club nation (one
+        // division), and a 1-club nation (skipped). All in one region, so the
+        // continental field stays under four entrants and no continental cup
+        // is created — keeping the structure fully deterministic.
+        let mut teams = Vec::new();
+        for index in 0..30 {
+            teams.push(nation_team(&format!("esp-{index:02}"), "ESP", 1000 - index as u32));
+        }
+        for index in 0..6 {
+            teams.push(nation_team(&format!("fra-{index}"), "FRA", 500 - index as u32));
+        }
+        teams.push(nation_team("and-0", "AND", 100));
+
+        let clock = GameClock::new(start_date_for_year(2032).unwrap());
+        let manager = domain::manager::Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+        let competitions = build_foundation_competitions(&game);
+
+        let summary: Vec<(CompetitionType, CompetitionScope, Option<String>, Option<String>, usize, u32, CompetitionFormat)> =
+            competitions
+                .iter()
+                .map(|competition| {
+                    (
+                        competition.kind.clone(),
+                        competition.scope.clone(),
+                        competition.region_id.clone(),
+                        competition.country_id.clone(),
+                        competition.participant_ids.len(),
+                        competition.priority,
+                        competition.rules.format.clone(),
+                    )
+                })
+                .collect();
+
+        let europe = || Some("europe".to_string());
+        assert_eq!(
+            summary,
+            vec![
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 20, 0, CompetitionFormat::LeagueTable),
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 10, 1, CompetitionFormat::LeagueTable),
+                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 30, 2, CompetitionFormat::Knockout),
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 3, CompetitionFormat::LeagueTable),
+                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 4, CompetitionFormat::Knockout),
+            ],
+        );
+
+        // League tables carry a full double round robin and a standings row per
+        // club; the refactor must preserve both.
+        let top_division = &competitions[0];
+        assert_eq!(top_division.standings.len(), 20);
+        assert_eq!(top_division.fixtures.len(), 20 * 19);
+        assert_eq!(competitions[3].fixtures.len(), 6 * 5);
+
+        // No continental cup for a single-region field.
+        assert!(
+            !competitions
+                .iter()
+                .any(|competition| competition.kind == CompetitionType::ContinentalClub)
+        );
     }
 
     fn default_player_attributes() -> domain::player::PlayerAttributes {
