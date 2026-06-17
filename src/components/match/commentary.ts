@@ -111,7 +111,7 @@ function goalTally(evt: MatchEvent, snapshot: MatchSnapshot): number {
 function variantKey(evt: MatchEvent, snapshot: MatchSnapshot): string | null {
   if (evt.event_type === "Goal" || evt.event_type === "PenaltyGoal") {
     const tally = goalTally(evt, snapshot);
-    if (tally >= 3) return "hattrick";
+    if (tally === 3) return "hattrick";
     if (tally === 2) return "brace";
   }
   return detailVariant(evt.detail);
