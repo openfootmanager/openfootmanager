@@ -6,7 +6,7 @@ import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import { TraitList } from "../TraitBadge";
 import { getOverallRatingClassName, type SortKey } from "./TacticsTab.helpers";
-import { Badge, Card, ProgressBar } from "../ui";
+import { Badge, Card, ProgressBar, InjuryBadge } from "../ui";
 import {
   getPreferredPositions,
   isPlayerOutOfPosition,
@@ -179,9 +179,7 @@ function renderTableRow(props: {
       <td className="px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           {player.injury ? (
-            <Badge variant="danger" size="sm">
-              {t("common.injured")}
-            </Badge>
+            <InjuryBadge injury={player.injury} />
           ) : (
             <span className="text-xs text-gray-500">—</span>
           )}
@@ -281,7 +279,7 @@ export default function TacticsPlayerTable({
                 toggleSort={toggleSort}
               />
               <th className="px-4 py-2.5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("common.actions")}
+                {t("common.status")}
               </th>
             </tr>
           </thead>

@@ -257,6 +257,26 @@ describe("TransfersTab.model", () => {
     expect(getIds("offers")).toEqual(["offers"]);
   });
 
+  it("returns one my-list row for a player listed for transfer and loan", () => {
+    const dualListedPlayer = createPlayer({
+      id: "dual-listed",
+      transfer_listed: true,
+      loan_listed: true,
+    });
+    const gameState = createGameState([dualListedPlayer]);
+    const collections = deriveTransferCollections(gameState, "team-1");
+
+    expect(collections.myTransferList.map((player) => player.id)).toEqual([
+      "dual-listed",
+    ]);
+    expect(collections.myLoanList.map((player) => player.id)).toEqual([
+      "dual-listed",
+    ]);
+    expect(
+      getCurrentTransferList("my_list", collections).map((player) => player.id),
+    ).toEqual(["dual-listed"]);
+  });
+
   it("filters by position and search text", () => {
     const players = [
       createPlayer({

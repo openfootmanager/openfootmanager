@@ -9,3 +9,4 @@ export { DatePicker } from "./DatePicker";
 export { Select } from "./Select";
 export { PlayerAvatar } from "./PlayerAvatar";
 export { TeamLogo } from "./TeamLogo";
+export { InjuryBadge } from "./InjuryBadge";

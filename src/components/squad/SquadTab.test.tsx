@@ -21,8 +21,14 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.contractRisk") return "Contract Risk";
       if (key === "finances.contractRiskCritical") return "Critical";
       if (key === "finances.contractRiskWarning") return "Warning";
+      if (key === "finances.wagePerYear") return "Wage/yr";
+      if (key === "finances.perYearSuffix") return "/yr";
       if (key === "finances.contractExpiresOn")
         return `Expires ${String((fallback as Record<string, unknown> | undefined)?.date ?? "")}`;
+      if (key === "playerProfile.daysRemaining")
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
+      if (key.startsWith("common.injuries."))
+        return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
       return typeof fallback === "string" ? fallback : key;
     },
     i18n: { language: "en" },
@@ -220,6 +226,77 @@ describe("SquadTab", () => {
     expect(screen.queryByText("What this changes")).not.toBeInTheDocument();
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
+  });
+
+  it("shows annual wages and progressive injury details in the roster", () => {
+    const gameState = makeGameState();
+    gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
+      full_name: "Injured Keeper",
+      wage: 14000,
+      injury: {
+        name: "Knee bruise",
+        days_remaining: 10,
+      },
+    });
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Wage/yr")).toBeInTheDocument();
+    expect(screen.getByText(/14K\/yr/)).toBeInTheDocument();
+    expect(screen.getByText("Knee bruise")).toBeInTheDocument();
+    expect(screen.getByText("10d")).toBeInTheDocument();
+  });
+
+  it("honors a persisted OVR sort state from the dashboard", () => {
+    const gameState = makeGameState();
+    gameState.players = [
+      makePlayer("low", "Forward", {
+        full_name: "Low OVR",
+        attributes: {
+          ...makePlayer("base-low", "Forward").attributes,
+          pace: 30,
+          shooting: 30,
+          passing: 30,
+          dribbling: 30,
+        },
+      }),
+      makePlayer("high", "Forward", {
+        full_name: "High OVR",
+        attributes: {
+          ...makePlayer("base-high", "Forward").attributes,
+          pace: 90,
+          shooting: 90,
+          passing: 90,
+          dribbling: 90,
+        },
+      }),
+    ];
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "ovr", sortDir: "desc" }}
+        onSortStateChange={vi.fn()}
+      />,
+    );
+
+    const rowTexts = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    const highIndex = rowTexts.findIndex((text) => text.includes("High OVR"));
+    const lowIndex = rowTexts.findIndex((text) => text.includes("Low OVR"));
+
+    expect(highIndex).toBeGreaterThan(-1);
+    expect(lowIndex).toBeGreaterThan(-1);
+    expect(highIndex).toBeLessThan(lowIndex);
   });
 
   it("shows contract inspection columns and renew entry points for expiring players", () => {
