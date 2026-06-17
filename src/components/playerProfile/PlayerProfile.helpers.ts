@@ -5,7 +5,14 @@ import type {
 } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { annualAmountToWeeklyCommitment } from "../../lib/finance";
-import { formatExactMoney, formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import {
+    formatAnnualAmount,
+    formatExactMoney,
+    formatVal,
+    formatWeeklyAmount,
+} from "../../lib/helpers";
+import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
+import { resolveInjuryName } from "../../lib/injury";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
@@ -88,30 +95,22 @@ export function formatPlayerWage(
     return formatWeeklyAmount(formatExactMoney(weeklyWage), weeklySuffix);
 }
 
+export function formatPlayerAnnualWage(
+    annualWage: number,
+    annualSuffix: string,
+): string {
+    return formatAnnualAmount(formatVal(annualWage), annualSuffix);
+}
+
 export function getAttributeColorClass(value: number): string {
-    if (value >= 80) {
-        return "text-primary-500 dark:text-primary-400";
-    }
-    if (value >= 60) {
-        return "text-accent-600 dark:text-accent-400";
-    }
-    if (value >= 40) {
-        return "text-gray-600 dark:text-gray-400";
-    }
-    return "text-red-500 dark:text-red-400";
+    return getAttributeValueClassName(value);
 }
 
 export function resolvePlayerInjuryName(
     injuryName: string,
     translate: TranslateFn,
 ): string {
-    if (injuryName.includes(".")) {
-        return translate(injuryName, { defaultValue: injuryName });
-    }
-
-    return translate(`common.injuries.${injuryName}`, {
-        defaultValue: injuryName,
-    });
+    return resolveInjuryName(injuryName, translate);
 }
 
 function statValue(value: number | undefined): number {

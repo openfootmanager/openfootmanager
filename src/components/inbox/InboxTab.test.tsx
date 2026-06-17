@@ -32,7 +32,9 @@ const mockTranslationState = vi.hoisted(function () {
         "inbox.youthProspectSigned": "Signed to academy",
         "finances.marketValue": "Market Value",
         "finances.perWeekSuffix": "/wk",
+        "finances.perYearSuffix": "/yr",
         "finances.wagePerWeek": "Wage/wk",
+        "finances.wagePerYear": "Wage/yr",
         "playerProfile.contractInfo": "Contract",
         "scouting.youthTargetLabel": "Youth target",
         "scouting.youthAnyPosition": "Any position",
@@ -1283,7 +1285,7 @@ describe("InboxTab", function (): void {
     expect(screen.getByText("Balanced")).toBeInTheDocument();
     expect(screen.getAllByText("Signed to academy").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
-    expect(screen.getAllByText(/Wage\/wk:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Wage\/yr:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: "Sign to academy" }),

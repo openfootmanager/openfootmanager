@@ -190,6 +190,7 @@ pub fn run() {
             get_saves,
             load_game,
             get_active_game,
+            get_active_save_id,
             advance_time,
             advance_time_with_mode,
             upgrade_facility,

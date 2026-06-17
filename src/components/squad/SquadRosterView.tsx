@@ -4,7 +4,7 @@ import type {
   PlayerData,
   PlayerSelectionOptions,
 } from "../../store/gameStore";
-import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar } from "../ui";
+import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
   ChevronDown,
@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 import {
   calcAge,
-  formatExactMoney,
-  formatWeeklyAmount,
+  formatAnnualAmount,
   formatVal,
   getPlayerOvr,
   getContractRiskBadgeVariant,
@@ -57,31 +56,40 @@ import {
   buildToggleTransferListMenuItem,
   buildViewProfileMenuItem,
 } from "../playerActions/playerContextMenuItems";
+import {
+  DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListSortKey,
+  type SquadListSortState,
+} from "./SquadRosterView.state";
 
 interface SquadRosterViewProps {
   gameState: GameStateData;
   managerId: string;
   onGameUpdate?: (g: GameStateData) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
+  sortState?: SquadListSortState;
+  onSortStateChange?: (sortState: SquadListSortState) => void;
 }
 
 type FilterScope = "all" | "xi" | "bench" | "outOfPosition" | "injured";
-type SortKey = "pos" | "name" | "age" | "condition" | "morale" | "ovr";
 
 export default function SquadRosterView({
   gameState,
   managerId,
   onGameUpdate,
   onSelectPlayer,
+  sortState,
+  onSortStateChange,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix");
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("pos");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [localSortState, setLocalSortState] = useState<SquadListSortState>(
+    DEFAULT_SQUAD_LIST_SORT_STATE,
+  );
   const [contractActionPlayerId, setContractActionPlayerId] = useState<
     string | null
   >(null);
@@ -134,14 +142,32 @@ export default function SquadRosterView({
   );
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = new Set(startingXiIds);
+  const activeSortState = sortState ?? localSortState;
+  const sortKey = activeSortState.sortKey;
+  const sortDir = activeSortState.sortDir;
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+  const updateSortState = (nextSortState: SquadListSortState) => {
+    if (onSortStateChange) {
+      onSortStateChange(nextSortState);
       return;
     }
-    setSortKey(key);
-    setSortDir(key === "ovr" ? "desc" : "asc");
+
+    setLocalSortState(nextSortState);
+  };
+
+  const toggleSort = (key: SquadListSortKey) => {
+    if (sortKey === key) {
+      updateSortState({
+        sortKey,
+        sortDir: sortDir === "asc" ? "desc" : "asc",
+      });
+      return;
+    }
+
+    updateSortState({
+      sortKey: key,
+      sortDir: key === "ovr" ? "desc" : "asc",
+    });
   };
 
   const isOutOfPosition = (player: PlayerData): boolean => {
@@ -281,7 +307,7 @@ export default function SquadRosterView({
     </div>
   );
 
-  const SortHeader = ({ col, label }: { col: SortKey; label: string }) => (
+  const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
     <th
       className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
       onClick={() => toggleSort(col)}
@@ -417,7 +443,7 @@ export default function SquadRosterView({
                   {t("common.value")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("finances.wagePerWeek")}
+                  {t("finances.wagePerYear")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("playerProfile.yearsRemaining")}
@@ -567,11 +593,16 @@ export default function SquadRosterView({
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">
                           <PlayerAvatar player={player} />
-                          <div>
+                          <div className="min-w-0">
                             <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                               {player.full_name}
                             </div>
-                            {renderPreferredPositionMeta(player)}
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {renderPreferredPositionMeta(player)}
+                              {player.injury ? (
+                                <InjuryBadge injury={player.injury} />
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -600,10 +631,7 @@ export default function SquadRosterView({
                         {formatVal(player.market_value)}
                       </td>
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                        {formatWeeklyAmount(
-                          formatExactMoney(player.wage),
-                          weeklySuffix,
-                        )}
+                        {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                       </td>
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
                         <div className="space-y-1">

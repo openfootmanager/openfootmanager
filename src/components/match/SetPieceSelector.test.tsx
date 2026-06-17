@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { getSetPieceStats } from "./SetPieceSelector";
 import SetPieceSelector from "./SetPieceSelector";
+import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import type { PlayerData } from "../../store/gameStore";
 
 // Mock react-i18next
@@ -154,6 +155,11 @@ const allSquad = [
 ];
 
 describe("SetPieceSelector component", () => {
+  it("uses readable shared stat value classes for selector chips", () => {
+    expect(getAttributeValueClassName(75)).toContain("text-accent-700");
+    expect(getAttributeValueClassName(48)).toContain("text-gray-700");
+  });
+
   it("renders the label and 'not assigned' when no currentId", () => {
     render(
       <SetPieceSelector

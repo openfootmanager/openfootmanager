@@ -27,6 +27,10 @@ import {
 } from "../components/dashboard/dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "../components/dashboard/dashboardTabContentModel";
 import {
+  DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListSortState,
+} from "../components/squad/SquadRosterView.state";
+import {
   isOnboardingPageTab,
   loadVisitedOnboardingTabs,
   saveVisitedOnboardingTabs,
@@ -102,6 +106,9 @@ export default function Dashboard(): JSX.Element {
   const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<
     Set<string>
   >(new Set<string>());
+  const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
+  const [squadListSortState, setSquadListSortState] =
+    useState<SquadListSortState>(DEFAULT_SQUAD_LIST_SORT_STATE);
 
   // Fetch initial state
   useEffect(() => {
@@ -112,8 +119,12 @@ export default function Dashboard(): JSX.Element {
 
     const fetchState = async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
+        const [state, saveId] = await Promise.all([
+          invoke<GameStateData>("get_active_game"),
+          invoke<string | null>("get_active_save_id"),
+        ]);
         setGameState(state);
+        setActiveSaveId(saveId);
       } catch (err) {
         console.error("Failed to fetch game state:", err);
       }
@@ -126,8 +137,12 @@ export default function Dashboard(): JSX.Element {
   useEffect(() => {
     const unlisten = listen("game-state-changed", async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
+        const [state, saveId] = await Promise.all([
+          invoke<GameStateData>("get_active_game"),
+          invoke<string | null>("get_active_save_id"),
+        ]);
         setGameState(state);
+        setActiveSaveId(saveId);
       } catch {
         // Game may have been exited — navigate back to menu
         clearGame();
@@ -170,8 +185,14 @@ export default function Dashboard(): JSX.Element {
       return;
     }
 
-    setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState));
-  }, [gameState]);
+    setVisitedOnboardingTabs(
+      loadVisitedOnboardingTabs(gameState, undefined, activeSaveId),
+    );
+  }, [gameState, activeSaveId]);
+
+  useEffect(() => {
+    setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
+  }, [activeSaveId]);
 
   useEffect(() => {
     if (!isOnboardingPageTab(profileNavigation.activeTab)) {
@@ -189,10 +210,10 @@ export default function Dashboard(): JSX.Element {
 
       const nextTabs = new Set(currentTabs);
       nextTabs.add(profileNavigation.activeTab);
-      saveVisitedOnboardingTabs(gameState, nextTabs);
+      saveVisitedOnboardingTabs(gameState, nextTabs, undefined, activeSaveId);
       return nextTabs;
     });
-  }, [gameState, profileNavigation.activeTab]);
+  }, [activeSaveId, gameState, profileNavigation.activeTab]);
 
   // Reset to Home tab if current tab is a club tab and manager is unemployed
   useEffect(() => {
@@ -412,12 +433,14 @@ export default function Dashboard(): JSX.Element {
     gameState,
     seasonComplete,
     visitedOnboardingTabs,
+    squadListSortState,
     initialMessageId: profileNavigation.initialMessageId,
     handlers: {
       onSelectPlayer: selectPlayer,
       onSelectTeam: selectTeam,
       onGameUpdate: setGameState,
       onNavigate: handleNavigate,
+      onSquadListSortChange: setSquadListSortState,
     },
   });
 

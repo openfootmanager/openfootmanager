@@ -123,3 +123,10 @@ export function formatWeeklyAmount(
 ): string {
     return `${formattedAmount}${weeklySuffix}`;
 }
+
+export function formatAnnualAmount(
+    formattedAmount: string,
+    annualSuffix: string,
+): string {
+    return `${formattedAmount}${annualSuffix}`;
+}
