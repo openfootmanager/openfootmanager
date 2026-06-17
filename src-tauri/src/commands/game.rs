@@ -674,6 +674,23 @@ fn ensure_multi_competition_foundations(game: &mut Game) {
 /// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
 /// left untouched, and shifting already-clear club fixtures is a no-op.
 fn ensure_international_windows(game: &mut Game) {
+    // A career that opens during a World Cup summer stages the tournament right
+    // away: the World Cup is otherwise created only at season rollover, which a
+    // fresh save beginning in a cup summer (e.g. mid-2026) never reaches, so the
+    // edition would simply never happen. It fills the summer break, so no window
+    // friendlies/qualifiers are scheduled when it runs.
+    let now = game.clock.current_date;
+    let opens_in_world_cup_summer = ofm_core::world_cup::is_world_cup_summer(now.year())
+        && (6..=8).contains(&now.month());
+    if opens_in_world_cup_summer
+        && ofm_core::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
+    {
+        for national_team in game.national_teams.iter_mut() {
+            national_team.fixtures.clear();
+        }
+        return;
+    }
+
     let window_dates =
         ofm_core::national_team::international_window_dates(preseason_season_start(&game.clock));
     if window_dates.is_empty() {
@@ -1476,7 +1493,7 @@ mod tests {
     use super::{
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
         build_foundation_competitions, build_game_from_world_data, create_new_save,
-        current_date_for_phase, game_clock_for_world,
+        current_date_for_phase, ensure_international_windows, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
         package_folder_name, parse_competition_definitions, preseason_league_year,
         preseason_season_start, require_active_stats_state,
@@ -1484,11 +1501,13 @@ mod tests {
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
+    use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
     use domain::{
         league::{
             CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
         },
+        manager::Manager,
         news::{NewsArticle, NewsCategory},
         stats::{PlayerMatchStatsRecord, TeamMatchStatsRecord},
         world_history::{HistoricalSeasonAwardsRecord, WorldHistoryArchive},
@@ -1501,6 +1520,77 @@ mod tests {
         state::StateManager,
     };
     use std::sync::Mutex;
+
+    fn manager_for(team_id: &str) -> Manager {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire(team_id.to_string());
+        manager
+    }
+
+    #[test]
+    fn world_cup_summer_career_stages_and_surfaces_the_tournament() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        // A career opening in the 2026 World Cup summer.
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+        // A non-empty active scope so staging registers the tournament as active.
+        game.active_competition_ids = vec!["dummy".to_string()];
+
+        ensure_international_windows(&mut game);
+
+        let world_cup = game
+            .competitions
+            .iter()
+            .find(|competition| is_world_cup_competition(competition))
+            .expect("a World Cup summer career stages the tournament");
+        assert!(
+            game.active_competition_ids.contains(&world_cup.id),
+            "the World Cup is surfaced in the active scope"
+        );
+        assert!(
+            game.news
+                .iter()
+                .any(|article| article.id.starts_with("world_cup_kickoff_")),
+            "a kickoff news article is published"
+        );
+    }
+
+    #[test]
+    fn non_world_cup_year_career_stages_no_tournament() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        ensure_international_windows(&mut game);
+
+        assert!(
+            !game
+                .competitions
+                .iter()
+                .any(|competition| is_world_cup_competition(competition)),
+            "no World Cup is staged outside a cup summer"
+        );
+    }
 
     #[test]
     fn package_folder_name_falls_back_to_the_directory_name() {
