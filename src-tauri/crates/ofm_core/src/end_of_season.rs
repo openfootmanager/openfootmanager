@@ -221,8 +221,6 @@ const CONTINENTAL_LEAGUE_SLOTS: usize = 4;
 pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<String> {
     use std::collections::{BTreeMap, HashSet};
 
-    let field_size = competition.participant_ids.len().max(4);
-
     // Feeder regions: the competition's declared regions, or — if it declares
     // none — every region present in the domestic competition set.
     let feeder_regions: HashSet<String> = if competition.required_region_ids.is_empty() {
@@ -302,32 +300,36 @@ pub fn competition_has_incoming_berths(game: &Game, target_id: &str) -> bool {
         .any(|berth| berth.target == target_id || berth.fallback_to.as_deref() == Some(target_id))
 }
 
+/// Teams a single berth rule selects from a competition's finished results.
+/// `PlayoffWinner` is scheduled and resolved separately (Phase C.3b).
+fn evaluate_berth_rule(source: &League, rule: &BerthRule) -> Vec<String> {
+    match rule {
+        BerthRule::PositionRange { from, to } => {
+            let start = (*from as usize).saturating_sub(1);
+            let count = (*to).saturating_sub(*from).saturating_add(1) as usize;
+            source
+                .sorted_standings()
+                .into_iter()
+                .skip(start)
+                .take(count)
+                .map(|entry| entry.team_id)
+                .collect()
+        }
+        BerthRule::CupWinner => crate::world_cup::world_cup_champion(source)
+            .into_iter()
+            .collect(),
+        BerthRule::PlayoffWinner { .. } => Vec::new(),
+    }
+}
+
 /// Teams a single competition's results award to `target` via its berths.
 fn berth_winners(source: &League, target_id: &str) -> Vec<String> {
-    let mut winners = Vec::new();
-    for berth in &source.berths {
-        if berth.target != target_id {
-            continue;
-        }
-        match &berth.rule {
-            BerthRule::PositionRange { from, to } => {
-                let standings = source.sorted_standings();
-                let start = (*from as usize).saturating_sub(1);
-                let count = (*to).saturating_sub(*from).saturating_add(1) as usize;
-                for entry in standings.into_iter().skip(start).take(count) {
-                    winners.push(entry.team_id);
-                }
-            }
-            BerthRule::CupWinner => {
-                if let Some(winner) = crate::world_cup::world_cup_champion(source) {
-                    winners.push(winner);
-                }
-            }
-            // Playoff berths are scheduled and resolved separately (Phase C.3).
-            BerthRule::PlayoffWinner { .. } => {}
-        }
-    }
-    winners
+    source
+        .berths
+        .iter()
+        .filter(|berth| berth.target == target_id)
+        .flat_map(|berth| evaluate_berth_rule(source, &berth.rule))
+        .collect()
 }
 
 /// Continental field from data-defined berths: collect every competition's berth
@@ -346,6 +348,73 @@ pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
         }
     }
     seed_cap_and_fill(game, target, qualified, seen)
+}
+
+/// Resolve every berth-fed continental field at once, honouring cross-target
+/// exclusivity and the `fallbackTo` cascade: a club ends in the single most
+/// prestigious target (lowest priority) it earns, and a berth's `fallbackTo`
+/// is a lower-preference target used when the club doesn't earn the primary.
+/// Returns `target_id -> field`; targets without incoming berths are absent
+/// (the caller keeps the inferred path for those).
+pub fn resolve_continental_fields(
+    game: &Game,
+) -> std::collections::HashMap<String, Vec<String>> {
+    use std::collections::{HashMap, HashSet};
+
+    // Berth-fed continental targets, most prestigious (lowest priority) first.
+    let mut targets: Vec<&League> = game
+        .competitions
+        .iter()
+        .filter(|competition| {
+            competition.scope == CompetitionScope::Continental
+                && competition_has_incoming_berths(game, &competition.id)
+        })
+        .collect();
+    targets.sort_by(|a, b| a.priority.cmp(&b.priority).then_with(|| a.id.cmp(&b.id)));
+    let priority_of: HashMap<&str, u32> =
+        targets.iter().map(|c| (c.id.as_str(), c.priority)).collect();
+
+    // Each club keeps the most prestigious target any of its berths award it;
+    // a berth's primary target outranks its fallback for the same club.
+    let mut best: HashMap<String, (u32, String)> = HashMap::new();
+    let mut consider = |club: &str, target: &str| {
+        if let Some(&prio) = priority_of.get(target) {
+            let slot = best
+                .entry(club.to_string())
+                .or_insert((u32::MAX, String::new()));
+            if prio < slot.0 {
+                *slot = (prio, target.to_string());
+            }
+        }
+    };
+    for source in &game.competitions {
+        for berth in &source.berths {
+            for winner in evaluate_berth_rule(source, &berth.rule) {
+                consider(&winner, &berth.target);
+                if let Some(fallback) = &berth.fallback_to {
+                    consider(&winner, fallback);
+                }
+            }
+        }
+    }
+
+    // Every club placed in any target — excluded from all targets' reputation
+    // top-up so a thin field never pulls in a club already qualified elsewhere.
+    let all_placed: HashSet<String> = best.keys().cloned().collect();
+    let mut raw: HashMap<String, Vec<String>> = HashMap::new();
+    for (club, (_prio, target)) in best {
+        raw.entry(target).or_default().push(club);
+    }
+
+    let mut fields = HashMap::new();
+    for target in &targets {
+        let qualified = raw.remove(&target.id).unwrap_or_default();
+        fields.insert(
+            target.id.clone(),
+            seed_cap_and_fill(game, target, qualified, all_placed.clone()),
+        );
+    }
+    fields
 }
 
 /// Shared tail for both qualification paths: seed by reputation, cap to the
@@ -446,6 +515,7 @@ fn regenerate_competitions_for_new_season(
     // Continental qualification reflects the season just completed: capture each
     // continental field from final domestic standings and cup winners before
     // regeneration resets those standings.
+    let berth_fields = resolve_continental_fields(game);
     let continental_entrants: std::collections::HashMap<String, Vec<String>> = game
         .competitions
         .iter()
@@ -454,13 +524,13 @@ fn regenerate_competitions_for_new_season(
                 && competition.kind == CompetitionType::ContinentalClub
         })
         .map(|competition| {
-            // Data-defined berths win when present; otherwise fall back to the
-            // inferred top-of-each-first-division + cup-winners field.
-            let entrants = if competition_has_incoming_berths(game, &competition.id) {
-                berth_qualified_entrants(game, competition)
-            } else {
-                continental_qualified_entrants(game, competition)
-            };
+            // Data-defined berths win when present (resolved together so the
+            // cascade and cross-target exclusivity hold); otherwise fall back to
+            // the inferred top-of-each-first-division + cup-winners field.
+            let entrants = berth_fields
+                .get(&competition.id)
+                .cloned()
+                .unwrap_or_else(|| continental_qualified_entrants(game, competition));
             (competition.id.clone(), entrants)
         })
         .collect();

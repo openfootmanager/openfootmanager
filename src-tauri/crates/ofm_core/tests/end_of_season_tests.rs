@@ -9,7 +9,7 @@ use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::end_of_season::{
     berth_qualified_entrants, continental_qualified_entrants, expected_fixture_count,
-    is_season_complete, process_end_of_season,
+    is_season_complete, process_end_of_season, resolve_continental_fields,
 };
 use ofm_core::game::{BoardObjective, Game, ObjectiveType};
 
@@ -391,6 +391,78 @@ fn default_berths_reproduce_the_inferred_continental_field() {
         continental_qualified_entrants(&game, europe),
         "default berths must reproduce the inferred field"
     );
+}
+
+/// Multi-tier qualification: a club lands in only its most prestigious target,
+/// so a cup winner who'd otherwise be a Europa club via league position is
+/// promoted to the Champions Cup and dropped from Europa.
+#[test]
+fn berths_keep_each_club_in_its_most_prestigious_continental_target() {
+    let mut teams = Vec::new();
+    for (rank, id) in ["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]
+        .iter()
+        .enumerate()
+    {
+        teams.push(make_club(id, "ES", 900 - rank as u32 * 50));
+    }
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+    let mut first = first_division(
+        "es-1",
+        "ES",
+        "europe",
+        &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"],
+    );
+    first.berths = vec![
+        Berth {
+            target: "ucl".to_string(),
+            rule: BerthRule::PositionRange { from: 1, to: 2 },
+            fallback_to: None,
+        },
+        Berth {
+            target: "uel".to_string(),
+            rule: BerthRule::PositionRange { from: 3, to: 4 },
+            fallback_to: None,
+        },
+    ];
+    // The cup is won by the 4th-placed club, whose cup berth outranks its Europa
+    // league berth.
+    let mut cup = domestic_cup("es-cup", "ES", "europe", "es-d", "es-e");
+    cup.berths = vec![Berth {
+        target: "ucl".to_string(),
+        rule: BerthRule::CupWinner,
+        fallback_to: Some("uel".to_string()),
+    }];
+
+    let mut ucl = continental_cup("ucl", "europe", 3);
+    ucl.priority = 100;
+    let mut uel = continental_cup("uel", "europe", 2);
+    uel.priority = 101;
+    game.competitions = vec![first, cup, ucl, uel];
+
+    let fields = resolve_continental_fields(&game);
+    let ucl_field = &fields["ucl"];
+    let uel_field = &fields["uel"];
+
+    assert!(
+        ucl_field.contains(&"es-d".to_string()),
+        "cup winner promoted to the top tier: {ucl_field:?}"
+    );
+    assert!(
+        !uel_field.contains(&"es-d".to_string()),
+        "a club sits in only one continental tier: {uel_field:?}"
+    );
+    assert!(ucl_field.contains(&"es-a".to_string()) && ucl_field.contains(&"es-b".to_string()));
+    assert!(uel_field.contains(&"es-c".to_string()));
 }
 
 #[test]
