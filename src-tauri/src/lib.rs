@@ -28,6 +28,7 @@ pub fn run() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -186,6 +187,7 @@ pub fn run() {
             start_new_game,
             validate_competition_definitions,
             validate_world_package,
+            inspect_world_package,
             export_world_database,
             write_temp_database,
             select_team,

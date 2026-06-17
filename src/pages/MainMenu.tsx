@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -13,6 +14,7 @@ import type {
 } from "../components/menu/CreateManagerForm";
 import type {
   CompetitionDefinitionIssue,
+  PackageIssue,
   WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
@@ -327,6 +329,8 @@ export default function MainMenu() {
   const [competitionDefsErrors, setCompetitionDefsErrors] = useState<
     CompetitionDefinitionIssue[]
   >([]);
+  const [packageErrors, setPackageErrors] = useState<PackageIssue[]>([]);
+  const [isInspectingPackage, setIsInspectingPackage] = useState(false);
   const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
   const [historyDepthYears, setHistoryDepthYears] = useState(
     initialHistoryDepthYears,
@@ -601,6 +605,61 @@ export default function MainMenu() {
     setCompetitionDefsJson(null);
     setCompetitionDefsFileName(null);
     setCompetitionDefsErrors([]);
+  };
+
+  // Import a modular world package (a folder) via the native directory picker.
+  // The backend validates it; valid packages become a selectable world whose
+  // source is the directory path (load_world_data detects a dir = package).
+  const handleImportPackage = async () => {
+    setPackageErrors([]);
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t("worldSelect.importPackage"),
+    });
+    if (typeof selected !== "string") {
+      return;
+    }
+    setIsInspectingPackage(true);
+    try {
+      const inspection = await invoke<{
+        name: string;
+        teamCount: number;
+        playerCount: number;
+        issues: PackageIssue[];
+      }>("inspect_world_package", { path: selected });
+      if (inspection.issues.length > 0) {
+        setPackageErrors(inspection.issues);
+        return;
+      }
+      const info: WorldDatabaseInfo = {
+        id: `package:${selected}`,
+        name: inspection.name,
+        description: t("menu.importedPackageDescription"),
+        team_count: inspection.teamCount,
+        player_count: inspection.playerCount,
+        history_mode: "hybrid",
+        base_year: null,
+        snapshot_date: null,
+        source: "imported",
+        path: selected,
+      };
+      setWorldDatabases((prev) => [
+        ...prev.filter((db) => db.source !== "imported"),
+        info,
+      ]);
+      setSelectedWorldId(info.id);
+    } catch (err) {
+      setPackageErrors([
+        {
+          code: typeof err === "string" ? err : "be.error.package.invalid",
+          file: "",
+          params: {},
+        },
+      ]);
+    } finally {
+      setIsInspectingPackage(false);
+    }
   };
 
   const handleStartGame = async () => {
@@ -916,6 +975,9 @@ export default function MainMenu() {
                 competitionDefsErrors={competitionDefsErrors}
                 onImportCompetitionDefs={handleImportCompetitionDefs}
                 onClearCompetitionDefs={handleClearCompetitionDefs}
+                onImportPackage={handleImportPackage}
+                isInspectingPackage={isInspectingPackage}
+                packageErrors={packageErrors}
               />
             </Suspense>
           )}

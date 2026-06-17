@@ -18,6 +18,7 @@
     "deleteSave": "Excluir save",
     "noResults": "Sem resultados",
     "importedDescription": "Banco de dados importado",
+    "importedPackageDescription": "Pacote de mundo importado",
     "loadGameFailed": "Não foi possível carregar o save: {{error}}",
     "invalidWorldDb": "Arquivo de banco de dados de mundo inválido: {{error}}",
     "failedStartGame": "Falha ao iniciar o jogo: {{error}}",
@@ -63,6 +64,8 @@
     "title": "Escolher Mundo",
     "scanning": "Buscando bancos de dados...",
     "importFile": "Importar arquivo",
+    "importPackage": "Importar pacote de mundo",
+    "packageErrorsTitle": "Problemas do pacote",
     "importCompetitions": "Adicionar arquivo de competições",
     "removeCompetitions": "Remover",
     "competitionsErrorsTitle": "Este arquivo de competições não pode ser usado:",
@@ -2119,6 +2122,18 @@
         "playerNotInStartingXi": "O jogador não está no time titular"
       },
       "worldReadFileFailed": "Falha ao ler o arquivo do banco de dados do mundo.",
+      "package": {
+        "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
+        "readFailed": "Não foi possível ler um arquivo do pacote.",
+        "missingSchema": "Falta o campo \"schema\" em um arquivo do pacote.",
+        "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
+        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
+        "missingId": "Falta o id em uma entrada {{kind}}.",
+        "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
+        "unknownConfederation": "O país \"{{country}}\" referencia uma confederação desconhecida \"{{confederation}}\".",
+        "unknownCountry": "\"{{entity}}\" referencia um país desconhecido \"{{country}}\".",
+        "unknownTeam": "O jogador \"{{player}}\" referencia um clube desconhecido \"{{team}}\"."
+      },
     "competitionDef": {
       "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
       "invalidStandalone": "O arquivo de definição de competições selecionado é inválido.",

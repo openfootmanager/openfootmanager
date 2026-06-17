@@ -18,6 +18,7 @@
     "deleteSave": "Delete save",
     "noResults": "No results",
     "importedDescription": "Imported world database",
+    "importedPackageDescription": "Imported world package",
     "loadGameFailed": "Couldn't load the save: {{error}}",
     "invalidWorldDb": "Invalid world database file: {{error}}",
     "failedStartGame": "Failed to start game: {{error}}",
@@ -63,6 +64,8 @@
     "title": "Choose World",
     "scanning": "Scanning for databases...",
     "importFile": "Import from file",
+    "importPackage": "Import World Package",
+    "packageErrorsTitle": "Package problems",
     "importCompetitions": "Add competitions file",
     "removeCompetitions": "Remove",
     "competitionsErrorsTitle": "This competitions file can't be used:",
@@ -2132,6 +2135,18 @@
         "playerNotInStartingXi": "Player not in starting XI"
       },
       "worldReadFileFailed": "Failed to read the world database file.",
+      "package": {
+        "invalid": "This world package is invalid and could not be loaded.",
+        "readFailed": "A package file could not be read.",
+        "missingSchema": "A package file is missing its \"schema\" field.",
+        "unknownSchema": "Unknown schema \"{{schema}}\".",
+        "invalidEntity": "A \"{{schema}}\" entry is invalid.",
+        "missingId": "A {{kind}} entry is missing its id.",
+        "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
+        "unknownConfederation": "Country \"{{country}}\" references unknown confederation \"{{confederation}}\".",
+        "unknownCountry": "\"{{entity}}\" references unknown country \"{{country}}\".",
+        "unknownTeam": "Player \"{{player}}\" references unknown club \"{{team}}\"."
+      },
     "competitionDef": {
       "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
       "invalidStandalone": "The selected competition definition file is invalid.",

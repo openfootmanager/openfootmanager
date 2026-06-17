@@ -175,4 +175,40 @@ describe("WorldSelect", () => {
       screen.getByText("worldSelect.startCareer").closest("button"),
     ).not.toBeDisabled();
   });
+
+  it("triggers the package import handler and lists package errors", () => {
+    const onImportPackage = vi.fn();
+
+    render(
+      <WorldSelect
+        {...baseWorldProps}
+        onImportPackage={onImportPackage}
+        packageErrors={[
+          {
+            code: "be.error.package.unknownTeam",
+            file: "players/star.json",
+            params: { player: "x", team: "ghost" },
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("worldSelect.importPackage"));
+    expect(onImportPackage).toHaveBeenCalledTimes(1);
+
+    const errorBox = screen.getByTestId("package-errors");
+    expect(errorBox).toHaveTextContent("be.error.package.unknownTeam");
+    expect(errorBox).toHaveTextContent("[players/star.json]");
+    // A package with problems blocks starting the career.
+    expect(
+      screen.getByText("worldSelect.startCareer").closest("button"),
+    ).toBeDisabled();
+  });
+
+  it("hides the package import button when no handler is provided", () => {
+    render(<WorldSelect {...baseWorldProps} />);
+    expect(
+      screen.queryByText("worldSelect.importPackage"),
+    ).not.toBeInTheDocument();
+  });
 });

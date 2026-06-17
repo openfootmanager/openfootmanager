@@ -18,6 +18,7 @@
     "deleteSave": "Supprimer la sauvegarde",
     "noResults": "Aucun résultat",
     "importedDescription": "Base de données de monde importée",
+    "importedPackageDescription": "Package de monde importé",
     "loadGameFailed": "Impossible de charger la sauvegarde : {{error}}",
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
     "failedStartGame": "Échec du démarrage du jeu : {{error}}",
@@ -63,6 +64,8 @@
     "title": "Choisir le Monde",
     "scanning": "Recherche de bases de données...",
     "importFile": "Importer un fichier",
+    "importPackage": "Importer un package de monde",
+    "packageErrorsTitle": "Problèmes du package",
     "importCompetitions": "Ajouter un fichier de compétitions",
     "removeCompetitions": "Retirer",
     "competitionsErrorsTitle": "Ce fichier de compétitions ne peut pas être utilisé :",
@@ -2119,6 +2122,18 @@
         "playerNotInStartingXi": "Le joueur n'est pas dans le onze de départ"
       },
       "worldReadFileFailed": "Impossible de lire le fichier de base de données du monde.",
+      "package": {
+        "invalid": "Ce package de monde est invalide et n’a pas pu être chargé.",
+        "readFailed": "Un fichier du package n’a pas pu être lu.",
+        "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
+        "unknownSchema": "Schéma inconnu « {{schema}} ».",
+        "invalidEntity": "Une entrée « {{schema}} » est invalide.",
+        "missingId": "Une entrée {{kind}} n’a pas d’id.",
+        "duplicateId": "Id {{kind}} en double « {{id}} ».",
+        "unknownConfederation": "Le pays « {{country}} » référence une confédération inconnue « {{confederation}} ».",
+        "unknownCountry": "« {{entity}} » référence un pays inconnu « {{country}} ».",
+        "unknownTeam": "Le joueur « {{player}} » référence un club inconnu « {{team}} »."
+      },
     "competitionDef": {
       "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
       "invalidStandalone": "Le fichier de définition de compétitions sélectionné est invalide.",

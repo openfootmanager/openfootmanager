@@ -1006,6 +1006,66 @@ pub fn validate_world_package(path: String) -> Result<Vec<PackageIssue>, String>
         .collect())
 }
 
+/// A world package summarised for the import card: a display name (falling back
+/// to the folder name when the package declares none), club/player counts, and
+/// any validation problems (empty = ready to start).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldPackageInspection {
+    name: String,
+    team_count: usize,
+    player_count: usize,
+    issues: Vec<PackageIssue>,
+}
+
+fn package_folder_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "World Package".to_string())
+}
+
+/// Validate and summarise a world package for the new-game picker. On any
+/// validation problem the issues are returned (with a folder-name fallback) and
+/// the world isn't built; otherwise the built world's name and counts come back.
+#[tauri::command]
+pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, String> {
+    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    let issues: Vec<PackageIssue> = errors
+        .into_iter()
+        .map(|error| PackageIssue {
+            code: error.code,
+            file: error.file,
+            params: error.params.into_iter().collect(),
+        })
+        .collect();
+
+    let fallback_name = package_folder_name(&path);
+    if !issues.is_empty() {
+        return Ok(WorldPackageInspection {
+            name: fallback_name,
+            team_count: 0,
+            player_count: 0,
+            issues,
+        });
+    }
+
+    let world = ofm_core::generator::build_world_from_package(&package)?;
+    let name = if world.name.trim().is_empty() {
+        fallback_name
+    } else {
+        world.name.clone()
+    };
+    Ok(WorldPackageInspection {
+        name,
+        team_count: world.teams.len(),
+        player_count: world.players.len(),
+        issues: Vec::new(),
+    })
+}
+
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
@@ -1353,8 +1413,8 @@ mod tests {
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
         build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        parse_competition_definitions, preseason_league_year, preseason_season_start,
-        require_active_stats_state,
+        package_folder_name, parse_competition_definitions, preseason_league_year,
+        preseason_season_start, require_active_stats_state,
         resolve_simulation_scope, select_continental_entrants, split_into_divisions,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
@@ -1374,6 +1434,14 @@ mod tests {
         state::StateManager,
     };
     use std::sync::Mutex;
+
+    #[test]
+    fn package_folder_name_falls_back_to_the_directory_name() {
+        assert_eq!(package_folder_name("/mods/My World"), "My World");
+        assert_eq!(package_folder_name("turkish-league"), "turkish-league");
+        // No usable component → a sensible default rather than an empty name.
+        assert_eq!(package_folder_name(""), "World Package");
+    }
 
     fn default_player_attributes() -> domain::player::PlayerAttributes {
         domain::player::PlayerAttributes {

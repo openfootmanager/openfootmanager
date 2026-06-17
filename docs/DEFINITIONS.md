@@ -287,6 +287,70 @@ group settings on a non-group format, and an unsupported `formatVersion`.
 
 ---
 
+## World Packages
+
+A **world package** is a *folder* of definition files that together describe a
+complete world — confederations, countries, clubs, players, and competitions —
+instead of a single monolithic world database. The loader walks the folder
+**recursively** and classifies every `.json`/`.yaml`/`.yml` file by a top-level
+**`schema`** field, never by which sub-folder it sits in, so you can organise
+files however you like. Entities link to one another by stable string `id`s,
+resolved after every file is read.
+
+### File `schema` types
+
+Each file sets `"schema": "<type>"` and then the entity's fields. A single file
+may hold one entity, or many of the same type under an `items` array.
+
+| `schema` | Purpose | Key fields |
+| --- | --- | --- |
+| `world` | Package metadata (at most one) | `name`, `description`, `defaultActiveRegions`, `defaultActiveCompetitions`, `baseYear` |
+| `confederation` | A region/confederation | `id` (region id), `name` |
+| `country` | A country in a confederation | `id` (country code), `name`, `confederation` (a confederation id) |
+| `team` | A club | `id`, `name`, `city`, `country` (a country id), `colors`, optional `shortName`, `stadiumName`, `reputationRange`, `financeRange` |
+| `player` | A hand-authored player | `id`, `club` (a team id), `nationality` (a country id), `position`; ability as a single `overall` *or* an explicit `attributes` block |
+| `competition` | A competition (same shape as a Competition Definition, above) | `id`, `name`, `type`, `format`, `participants`, … |
+| `names` | Name pools (same shape as `default_names`) | per-nationality first/last name lists |
+
+```json
+// confederations.json
+{ "schema": "confederation", "id": "europe", "name": "Europe" }
+
+// countries.json — bulk form
+{
+  "schema": "country",
+  "items": [
+    { "id": "TR", "name": "Türkiye", "confederation": "europe" }
+  ]
+}
+
+// galatasaray.json
+{
+  "schema": "team",
+  "id": "ts-gs", "name": "Galatasaray", "city": "Istanbul", "country": "TR",
+  "colors": { "primary": "#A90432", "secondary": "#FBB03B" }
+}
+
+// star-player.yaml
+schema: player
+id: gs-icardi
+name: M. Icardi
+club: ts-gs
+nationality: AR
+position: Striker
+overall: 84
+```
+
+### Importing a package
+
+In the new-game screen, use **Import World Package** and pick the package
+folder. The game validates the whole package up front — unknown confederations,
+countries, or clubs, missing or duplicate ids, malformed files — and lists every
+problem at once. A package only becomes selectable once it is valid; nothing
+loads half-broken. If the package has no `world` name, the folder name is used.
+
+---
+
 ## Creating Your Own
 
 1. **Start simple** — Copy `default_names.json` and `default_teams.json` from the `data/` directory.

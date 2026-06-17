@@ -1,7 +1,7 @@
 import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
-import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2 } from "lucide-react";
+import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2, FolderOpen } from "lucide-react";
 import { resolveBackendText } from "../../utils/backendI18n";
 import type { CareerStartPhase } from "./CreateManagerForm";
 
@@ -24,6 +24,12 @@ export interface CompetitionDefinitionIssue {
   params: Record<string, string>;
 }
 
+export interface PackageIssue {
+  code: string;
+  file: string;
+  params: Record<string, string>;
+}
+
 interface WorldSelectProps {
   worldDatabases: WorldDatabaseInfo[];
   selectedWorldId: string;
@@ -42,6 +48,9 @@ interface WorldSelectProps {
   competitionDefsErrors?: CompetitionDefinitionIssue[];
   onImportCompetitionDefs?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearCompetitionDefs?: () => void;
+  onImportPackage?: () => void;
+  isInspectingPackage?: boolean;
+  packageErrors?: PackageIssue[];
 }
 
 const HISTORY_DEPTH_OPTIONS = [0, 6, 12, 24] as const;
@@ -68,12 +77,14 @@ export default function WorldSelect({
   worldDatabases, selectedWorldId, isLoadingWorlds, isStarting, startYear, startPhase,
   historyDepthYears, onSelectWorld, onChangeHistoryDepthYears, onImportFile, onStart, onBack, onClose,
   competitionDefsFileName, competitionDefsErrors, onImportCompetitionDefs, onClearCompetitionDefs,
+  onImportPackage, isInspectingPackage, packageErrors,
 }: WorldSelectProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const competitionDefsInputRef = useRef<HTMLInputElement>(null);
   const hasCompetitionDefErrors = (competitionDefsErrors?.length ?? 0) > 0;
+  const hasPackageErrors = (packageErrors?.length ?? 0) > 0;
   const selectedWorld = worldDatabases.find((db) => db.id === selectedWorldId);
   const historyMode = worldHistoryMode(selectedWorld);
   const canConfigureGeneratedHistory = historyMode !== "reference";
@@ -261,6 +272,44 @@ export default function WorldSelect({
         onChange={onImportFile}
       />
 
+      {/* Import a modular world package (folder) via the native picker */}
+      {onImportPackage && (
+        <div className="space-y-2">
+          <button
+            onClick={onImportPackage}
+            disabled={isInspectingPackage}
+            className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isInspectingPackage ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FolderOpen className="w-4 h-4" />
+            )}
+            <span className="font-heading font-bold uppercase tracking-wider">
+              {t("worldSelect.importPackage")}
+            </span>
+          </button>
+          {hasPackageErrors && (
+            <div
+              className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs"
+              data-testid="package-errors"
+            >
+              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+                {t("worldSelect.packageErrorsTitle")}
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
+                {packageErrors!.map((issue, index) => (
+                  <li key={index}>
+                    {issue.file ? `[${issue.file}] ` : ""}
+                    {t(issue.code, issue.params)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Optional custom competitions file */}
       {onImportCompetitionDefs && (
         <div className="space-y-2">
@@ -321,7 +370,7 @@ export default function WorldSelect({
         className="w-full"
         iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
         onClick={onStart}
-        disabled={isStarting || hasCompetitionDefErrors}
+        disabled={isStarting || hasCompetitionDefErrors || hasPackageErrors}
       >
         {isStarting ? t('worldSelect.creatingWorld') : t('worldSelect.startCareer')}
       </Button>

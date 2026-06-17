@@ -18,6 +18,7 @@
     "deleteSave": "Eliminar jogo",
     "noResults": "Sem resultados",
     "importedDescription": "Base de dados de mundo importada",
+    "importedPackageDescription": "Pacote de mundo importado",
     "loadGameFailed": "Não foi possível carregar a gravação: {{error}}",
     "invalidWorldDb": "Ficheiro de base de dados de mundo inválido: {{error}}",
     "failedStartGame": "Falha ao iniciar o jogo: {{error}}",
@@ -63,6 +64,8 @@
     "title": "Escolher Mundo",
     "scanning": "A procurar bases de dados...",
     "importFile": "Importar ficheiro",
+    "importPackage": "Importar pacote de mundo",
+    "packageErrorsTitle": "Problemas do pacote",
     "importCompetitions": "Adicionar ficheiro de competições",
     "removeCompetitions": "Remover",
     "competitionsErrorsTitle": "Este ficheiro de competições não pode ser usado:",
@@ -2119,6 +2122,18 @@
         "playerNotInStartingXi": "O jogador não está no onze inicial"
       },
       "worldReadFileFailed": "Falha ao ler o ficheiro da base de dados do mundo.",
+      "package": {
+        "invalid": "Este pacote de mundo é inválido e não pôde ser carregado.",
+        "readFailed": "Não foi possível ler um ficheiro do pacote.",
+        "missingSchema": "Falta o campo \"schema\" num ficheiro do pacote.",
+        "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
+        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
+        "missingId": "Falta o id numa entrada {{kind}}.",
+        "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
+        "unknownConfederation": "O país \"{{country}}\" refere uma confederação desconhecida \"{{confederation}}\".",
+        "unknownCountry": "\"{{entity}}\" refere um país desconhecido \"{{country}}\".",
+        "unknownTeam": "O jogador \"{{player}}\" refere um clube desconhecido \"{{team}}\"."
+      },
     "competitionDef": {
       "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
       "invalidStandalone": "O ficheiro de definição de competições selecionado é inválido.",

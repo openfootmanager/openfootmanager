@@ -18,6 +18,7 @@
     "deleteSave": "Удалить сохранение",
     "noResults": "Ничего не найдено",
     "importedDescription": "Импортированная база мира",
+    "importedPackageDescription": "Импортированный пакет мира",
     "loadGameFailed": "Не удалось загрузить сохранение: {{error}}",
     "invalidWorldDb": "Недопустимый файл базы мира: {{error}}",
     "failedStartGame": "Не удалось начать игру: {{error}}",
@@ -63,6 +64,8 @@
     "title": "Выберите мир",
     "scanning": "Поиск баз данных...",
     "importFile": "Импортировать из файла",
+    "importPackage": "Импорт пакета мира",
+    "packageErrorsTitle": "Проблемы пакета",
     "importCompetitions": "Добавить файл турниров",
     "removeCompetitions": "Убрать",
     "competitionsErrorsTitle": "Этот файл турниров нельзя использовать:",
@@ -2132,6 +2135,18 @@
         "playerNotInStartingXi": "Игрок не в стартовом составе"
       },
       "worldReadFileFailed": "Не удалось прочитать файл мировой базы данных.",
+      "package": {
+        "invalid": "Этот пакет мира недействителен и не может быть загружен.",
+        "readFailed": "Не удалось прочитать файл пакета.",
+        "missingSchema": "В файле пакета отсутствует поле «schema».",
+        "unknownSchema": "Неизвестная схема «{{schema}}».",
+        "invalidEntity": "Запись «{{schema}}» недействительна.",
+        "missingId": "У записи {{kind}} отсутствует id.",
+        "duplicateId": "Повторяющийся id {{kind}} «{{id}}».",
+        "unknownConfederation": "Страна «{{country}}» ссылается на неизвестную конфедерацию «{{confederation}}».",
+        "unknownCountry": "«{{entity}}» ссылается на неизвестную страну «{{country}}».",
+        "unknownTeam": "Игрок «{{player}}» ссылается на неизвестный клуб «{{team}}»."
+      },
     "competitionDef": {
       "invalidEmbedded": "Определения турниров этого мира недействительны и не могут быть загружены.",
       "invalidStandalone": "Выбранный файл определений турниров недействителен.",

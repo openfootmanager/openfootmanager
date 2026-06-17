@@ -16,6 +16,7 @@
     "@fontsource/barlow-condensed": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@tauri-apps/api": "2.11",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
     "country-flag-icons": "^1.6.15",
     "i18n-iso-countries": "^7.14.0",

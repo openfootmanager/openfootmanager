@@ -18,6 +18,7 @@
     "deleteSave": "Elimina salvataggio",
     "noResults": "Nessun risultato",
     "importedDescription": "Database del mondo importato",
+    "importedPackageDescription": "Pacchetto mondo importato",
     "loadGameFailed": "Impossibile caricare il salvataggio: {{error}}",
     "invalidWorldDb": "File di database del mondo non valido: {{error}}",
     "failedStartGame": "Impossibile avviare il gioco: {{error}}",
@@ -63,6 +64,8 @@
     "title": "Scegli Mondo",
     "scanning": "Ricerca database in corso...",
     "importFile": "Importa da file",
+    "importPackage": "Importa pacchetto mondo",
+    "packageErrorsTitle": "Problemi del pacchetto",
     "importCompetitions": "Aggiungi file competizioni",
     "removeCompetitions": "Rimuovi",
     "competitionsErrorsTitle": "Questo file delle competizioni non può essere usato:",
@@ -2119,6 +2122,18 @@
         "playerNotInStartingXi": "Il giocatore non è nell'undici titolare"
       },
       "worldReadFileFailed": "Impossibile leggere il file del database del mondo.",
+      "package": {
+        "invalid": "Questo pacchetto mondo non è valido e non può essere caricato.",
+        "readFailed": "Impossibile leggere un file del pacchetto.",
+        "missingSchema": "A un file del pacchetto manca il campo \"schema\".",
+        "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
+        "invalidEntity": "Una voce \"{{schema}}\" non è valida.",
+        "missingId": "A una voce {{kind}} manca l’id.",
+        "duplicateId": "Id {{kind}} duplicato \"{{id}}\".",
+        "unknownConfederation": "Il paese \"{{country}}\" fa riferimento a una confederazione sconosciuta \"{{confederation}}\".",
+        "unknownCountry": "\"{{entity}}\" fa riferimento a un paese sconosciuto \"{{country}}\".",
+        "unknownTeam": "Il giocatore \"{{player}}\" fa riferimento a un club sconosciuto \"{{team}}\"."
+      },
     "competitionDef": {
       "invalidEmbedded": "Le definizioni delle competizioni di questo mondo non sono valide e non è stato possibile caricarle.",
       "invalidStandalone": "Il file di definizione delle competizioni selezionato non è valido.",
