@@ -3,7 +3,8 @@ use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
-    CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
+    BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League,
+    StandingEntry,
 };
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
@@ -289,8 +290,83 @@ pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<
         }
     }
 
-    // Seed by reputation, cap to the field, and top up a thin field by
-    // reputation so the continental bracket keeps its size.
+    seed_cap_and_fill(game, competition, qualified, seen)
+}
+
+/// Whether any competition awards a berth into `target_id` — i.e. continental
+/// qualification for that competition is data-defined rather than inferred.
+pub fn competition_has_incoming_berths(game: &Game, target_id: &str) -> bool {
+    game.competitions
+        .iter()
+        .flat_map(|source| &source.berths)
+        .any(|berth| berth.target == target_id || berth.fallback_to.as_deref() == Some(target_id))
+}
+
+/// Teams a single competition's results award to `target` via its berths.
+fn berth_winners(source: &League, target_id: &str) -> Vec<String> {
+    let mut winners = Vec::new();
+    for berth in &source.berths {
+        if berth.target != target_id {
+            continue;
+        }
+        match &berth.rule {
+            BerthRule::PositionRange { from, to } => {
+                let standings = source.sorted_standings();
+                let start = (*from as usize).saturating_sub(1);
+                let count = (*to).saturating_sub(*from).saturating_add(1) as usize;
+                for entry in standings.into_iter().skip(start).take(count) {
+                    winners.push(entry.team_id);
+                }
+            }
+            BerthRule::CupWinner => {
+                if let Some(winner) = crate::world_cup::world_cup_champion(source) {
+                    winners.push(winner);
+                }
+            }
+            // Playoff berths are scheduled and resolved separately (Phase C.3).
+            BerthRule::PlayoffWinner { .. } => {}
+        }
+    }
+    winners
+}
+
+/// Continental field from data-defined berths: collect every competition's berth
+/// winners for this target, then apply the same reputation seeding, field cap,
+/// and top-up as the inferred path so a thin field still fills its bracket.
+pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
+    use std::collections::HashSet;
+
+    let mut qualified: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for source in &game.competitions {
+        for team_id in berth_winners(source, &target.id) {
+            if seen.insert(team_id.clone()) {
+                qualified.push(team_id);
+            }
+        }
+    }
+    seed_cap_and_fill(game, target, qualified, seen)
+}
+
+/// Shared tail for both qualification paths: seed by reputation, cap to the
+/// target's field size, and top up a thin field from the feeder regions.
+fn seed_cap_and_fill(
+    game: &Game,
+    competition: &League,
+    mut qualified: Vec<String>,
+    seen: std::collections::HashSet<String>,
+) -> Vec<String> {
+    let field_size = competition.participant_ids.len().max(4);
+    let feeder_regions: std::collections::HashSet<String> =
+        if competition.required_region_ids.is_empty() {
+            game.competitions
+                .iter()
+                .filter_map(|c| c.region_id.clone())
+                .collect()
+        } else {
+            competition.required_region_ids.iter().cloned().collect()
+        };
+
     let reputation = |id: &str| {
         game.teams
             .iter()
@@ -306,7 +382,9 @@ pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<
             .teams
             .iter()
             .filter(|team| !seen.contains(&team.id))
-            .filter(|team| feeder_regions.contains(game.region_for_country(&team.football_nation).as_str()))
+            .filter(|team| {
+                feeder_regions.contains(game.region_for_country(&team.football_nation).as_str())
+            })
             .collect();
         fillers.sort_by(|a, b| {
             b.reputation
@@ -376,10 +454,14 @@ fn regenerate_competitions_for_new_season(
                 && competition.kind == CompetitionType::ContinentalClub
         })
         .map(|competition| {
-            (
-                competition.id.clone(),
-                continental_qualified_entrants(game, competition),
-            )
+            // Data-defined berths win when present; otherwise fall back to the
+            // inferred top-of-each-first-division + cup-winners field.
+            let entrants = if competition_has_incoming_berths(game, &competition.id) {
+                berth_qualified_entrants(game, competition)
+            } else {
+                continental_qualified_entrants(game, competition)
+            };
+            (competition.id.clone(), entrants)
         })
         .collect();
 

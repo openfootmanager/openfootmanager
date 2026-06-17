@@ -434,6 +434,12 @@ fn select_continental_entrants(
 /// single league. Smaller imported worlds run a single league per country.
 const TOP_DIVISION_SIZE: usize = 20;
 
+/// Stable id of the generated world's continental club competition.
+const CONTINENTAL_CHAMPIONS_CUP_ID: &str = "continental-champions-cup";
+/// Top finishers of each first division that earn a continental berth — matches
+/// the inferred `CONTINENTAL_LEAGUE_SLOTS` so built-in qualification is unchanged.
+const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
+
 /// Split a country's clubs (passed strongest-first) into divisions of
 /// `division_size`, strongest tier first. A trailing remainder smaller than
 /// half a division is folded up so no tier is left tiny.
@@ -472,8 +478,17 @@ fn build_foundation_competition_plan(
     game: &Game,
     season_start: DateTime<Utc>,
 ) -> Vec<(ofm_core::generator::CompetitionDefinition, DateTime<Utc>)> {
+    use domain::league::{Berth, BerthRule};
     use ofm_core::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
     use std::collections::BTreeMap;
+
+    // Default berth into the continental cup; reproduces the inferred field so a
+    // freshly generated world's qualification is unchanged.
+    let continental_berth = |rule: BerthRule| Berth {
+        target: CONTINENTAL_CHAMPIONS_CUP_ID.to_string(),
+        rule,
+        fallback_to: None,
+    };
 
     let make_format = |kind: CompetitionFormat| FormatDef {
         kind,
@@ -520,6 +535,15 @@ fn build_foundation_competition_plan(
         let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
         let division_count = divisions.len();
         for (tier, division_ids) in divisions.iter().enumerate() {
+            // Only the first division awards continental berths (top finishers).
+            let berths = if tier == 0 {
+                vec![continental_berth(BerthRule::PositionRange {
+                    from: 1,
+                    to: CONTINENTAL_QUALIFYING_POSITIONS,
+                })]
+            } else {
+                Vec::new()
+            };
             planned.push((
                 CompetitionDefinition {
                     id: format!("{country_slug}-d{}", tier + 1),
@@ -535,7 +559,7 @@ fn build_foundation_competition_plan(
                         explicit: Some(division_ids.clone()),
                         selector: None,
                     },
-                    berths: Vec::new(),
+                    berths,
                 },
                 season_start,
             ));
@@ -559,7 +583,7 @@ fn build_foundation_competition_plan(
                     explicit: Some(team_ids.clone()),
                     selector: None,
                 },
-                berths: Vec::new(),
+                berths: vec![continental_berth(BerthRule::CupWinner)],
             },
             season_start + Duration::days(35),
         ));
@@ -1573,6 +1597,23 @@ mod tests {
                 .iter()
                 .any(|competition| competition.kind == CompetitionType::ContinentalClub)
         );
+
+        // Default continental berths: first division awards positions 1–4, the
+        // cup awards its winner, the second division awards nothing.
+        use domain::league::BerthRule;
+        let top_division = &competitions[0];
+        assert_eq!(top_division.berths.len(), 1);
+        assert_eq!(top_division.berths[0].target, "continental-champions-cup");
+        assert!(matches!(
+            top_division.berths[0].rule,
+            BerthRule::PositionRange { from: 1, to: 4 }
+        ));
+        assert!(competitions[1].berths.is_empty(), "second division awards no berth");
+        let cup = &competitions[2];
+        assert!(matches!(
+            cup.berths.first().map(|berth| &berth.rule),
+            Some(BerthRule::CupWinner)
+        ));
     }
 
     fn default_player_attributes() -> domain::player::PlayerAttributes {

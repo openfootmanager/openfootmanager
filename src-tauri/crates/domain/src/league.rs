@@ -78,6 +78,37 @@ pub struct KnockoutRoundState {
     pub completed: bool,
 }
 
+/// One qualification berth a competition awards into another, based on this
+/// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
+/// Authored on competition definitions; carried on the runtime competition so
+/// it can be evaluated at season rollover.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Berth {
+    /// Competition id the qualifying club(s) enter.
+    pub target: String,
+    /// How the qualifying club(s) are chosen from this competition's results.
+    pub rule: BerthRule,
+    /// Optional cascade: when a chosen club has already taken a higher-priority
+    /// berth, its place passes to this competition instead (e.g. cup winner
+    /// already in the Champions Cup → their cup berth drops to the Europa Cup).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_to: Option<String>,
+}
+
+/// How a [`Berth`] selects qualifying clubs from the source competition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum BerthRule {
+    /// League finishers in the inclusive 1-based range `[from, to]`.
+    PositionRange { from: u32, to: u32 },
+    /// The winner of this (knockout/group-and-knockout) competition.
+    CupWinner,
+    /// The winner of a playoff contested by league finishers in the inclusive
+    /// 1-based range `[from, to]`.
+    PlayoffWinner { from: u32, to: u32 },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct League {
@@ -103,6 +134,9 @@ pub struct League {
     pub transfer_rumours: Vec<TransferRumour>,
     #[serde(default)]
     pub priority: u32,
+    /// Qualification berths this competition awards, evaluated at rollover.
+    #[serde(default)]
+    pub berths: Vec<Berth>,
 }
 
 impl Default for League {
@@ -125,6 +159,7 @@ impl Default for League {
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
             priority: 0,
+            berths: Vec::new(),
         }
     }
 }
@@ -319,6 +354,7 @@ impl League {
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
             priority: 0,
+            berths: Vec::new(),
         }
     }
 

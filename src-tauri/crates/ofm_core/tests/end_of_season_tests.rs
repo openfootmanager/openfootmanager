@@ -1,15 +1,15 @@
 use chrono::{TimeZone, Utc};
 use domain::league::{
-    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus,
-    KnockoutRoundState, League, MatchResult, StandingEntry,
+    Berth, BerthRule, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
+    FixtureStatus, KnockoutRoundState, League, MatchResult, StandingEntry,
 };
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::end_of_season::{
-    continental_qualified_entrants, expected_fixture_count, is_season_complete,
-    process_end_of_season,
+    berth_qualified_entrants, continental_qualified_entrants, expected_fixture_count,
+    is_season_complete, process_end_of_season,
 };
 use ofm_core::game::{BoardObjective, Game, ObjectiveType};
 
@@ -334,6 +334,62 @@ fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
     assert!(
         sa_field.iter().all(|id| id.starts_with("br-")),
         "south american field drew a club from another confederation: {sa_field:?}"
+    );
+}
+
+/// Characterization: the built-in default berths (first division positions 1–4
+/// + cup winner) reproduce the inferred continental field exactly, so routing
+/// the generated world through berths is behavior-preserving.
+#[test]
+fn default_berths_reproduce_the_inferred_continental_field() {
+    let mut teams = Vec::new();
+    for (rank, id) in ["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]
+        .iter()
+        .enumerate()
+    {
+        teams.push(make_club(id, "ES", 900 - rank as u32 * 50));
+    }
+
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+    let mut first = first_division(
+        "es-1",
+        "ES",
+        "europe",
+        &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"],
+    );
+    first.berths = vec![Berth {
+        target: "europe-cup".to_string(),
+        rule: BerthRule::PositionRange { from: 1, to: 4 },
+        fallback_to: None,
+    }];
+    let mut cup = domestic_cup("es-cup", "ES", "europe", "es-e", "es-f");
+    cup.berths = vec![Berth {
+        target: "europe-cup".to_string(),
+        rule: BerthRule::CupWinner,
+        fallback_to: None,
+    }];
+    game.competitions = vec![first, cup, continental_cup("europe-cup", "europe", 5)];
+
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    assert_eq!(
+        berth_qualified_entrants(&game, europe),
+        continental_qualified_entrants(&game, europe),
+        "default berths must reproduce the inferred field"
     );
 }
 

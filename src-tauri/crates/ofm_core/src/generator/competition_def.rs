@@ -17,6 +17,11 @@ use domain::league::{
 };
 use domain::team::Team;
 
+// Qualification berths live in `domain` so the runtime `League` can carry them;
+// re-export here so authored definitions and `ofm_core::generator` consumers
+// keep referring to them through this module.
+pub use domain::league::{Berth, BerthRule};
+
 /// A bundle of competition definitions, as authored in a JSON file.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -55,35 +60,6 @@ pub struct CompetitionDefinition {
     /// evaluated from the season's real results at rollover (Phase C).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub berths: Vec<Berth>,
-}
-
-/// One qualification berth a competition awards into another, based on this
-/// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct Berth {
-    /// Competition id the qualifying club(s) enter.
-    pub target: String,
-    /// How the qualifying club(s) are chosen from this competition's results.
-    pub rule: BerthRule,
-    /// Optional cascade: when a chosen club has already taken a higher-priority
-    /// berth, its place passes to this competition instead (e.g. cup winner
-    /// already in the Champions Cup → their cup berth drops to the Europa Cup).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fallback_to: Option<String>,
-}
-
-/// How a [`Berth`] selects qualifying clubs from the source competition.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum BerthRule {
-    /// League finishers in the inclusive 1-based range `[from, to]`.
-    PositionRange { from: u32, to: u32 },
-    /// The winner of this (knockout/group-and-knockout) competition.
-    CupWinner,
-    /// The winner of a playoff contested by league finishers in the inclusive
-    /// 1-based range `[from, to]` (Phase C.3 schedules and plays it).
-    PlayoffWinner { from: u32, to: u32 },
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -772,6 +748,7 @@ fn build_competition(
     competition.required_region_ids = def.required_region_ids.clone();
     competition.participant_ids = team_ids.to_vec();
     competition.priority = def.priority;
+    competition.berths = def.berths.clone();
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();
