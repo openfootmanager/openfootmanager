@@ -51,6 +51,39 @@ pub struct CompetitionDefinition {
     pub priority: u32,
     pub format: FormatDef,
     pub participants: ParticipantSpec,
+    /// Qualification berths this competition awards into other competitions,
+    /// evaluated from the season's real results at rollover (Phase C).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub berths: Vec<Berth>,
+}
+
+/// One qualification berth a competition awards into another, based on this
+/// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Berth {
+    /// Competition id the qualifying club(s) enter.
+    pub target: String,
+    /// How the qualifying club(s) are chosen from this competition's results.
+    pub rule: BerthRule,
+    /// Optional cascade: when a chosen club has already taken a higher-priority
+    /// berth, its place passes to this competition instead (e.g. cup winner
+    /// already in the Champions Cup → their cup berth drops to the Europa Cup).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_to: Option<String>,
+}
+
+/// How a [`Berth`] selects qualifying clubs from the source competition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum BerthRule {
+    /// League finishers in the inclusive 1-based range `[from, to]`.
+    PositionRange { from: u32, to: u32 },
+    /// The winner of this (knockout/group-and-knockout) competition.
+    CupWinner,
+    /// The winner of a playoff contested by league finishers in the inclusive
+    /// 1-based range `[from, to]` (Phase C.3 schedules and plays it).
+    PlayoffWinner { from: u32, to: u32 },
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -220,10 +253,97 @@ pub fn validate_definitions(
         validate_region_and_country(competition, ctx, &mut errors);
         validate_format(competition, &mut errors);
         validate_participants(competition, ctx, &known_ids, &mut errors);
+        validate_berths(competition, &known_ids, &mut errors);
     }
 
     detect_selector_cycles(file, &mut errors);
     errors
+}
+
+fn validate_berths(
+    competition: &CompetitionDefinition,
+    known_ids: &HashSet<&str>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    let is_league = competition.format.kind == CompetitionFormat::LeagueTable;
+    let is_knockout = matches!(
+        competition.format.kind,
+        CompetitionFormat::Knockout | CompetitionFormat::GroupAndKnockout
+    );
+
+    for berth in &competition.berths {
+        check_berth_target(competition, &berth.target, known_ids, errors);
+        if let Some(fallback) = &berth.fallback_to {
+            check_berth_target(competition, fallback, known_ids, errors);
+        }
+
+        match &berth.rule {
+            BerthRule::PositionRange { from, to } => {
+                validate_range(competition, *from, *to, errors);
+                require_league(competition, is_league, errors);
+            }
+            BerthRule::PlayoffWinner { from, to } => {
+                validate_range(competition, *from, *to, errors);
+                require_league(competition, is_league, errors);
+                if to.saturating_sub(*from) + 1 < 2 {
+                    errors.push(DefinitionError::new(
+                        "be.error.competitionDef.berthPlayoffTooSmall",
+                        &competition.id,
+                    ));
+                }
+            }
+            BerthRule::CupWinner => {
+                if !is_knockout {
+                    errors.push(DefinitionError::new(
+                        "be.error.competitionDef.berthRequiresCup",
+                        &competition.id,
+                    ));
+                }
+            }
+        }
+    }
+}
+
+fn check_berth_target(
+    competition: &CompetitionDefinition,
+    target: &str,
+    known_ids: &HashSet<&str>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if !known_ids.contains(target) {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.berthUnknownTarget", &competition.id)
+                .with("target", target.to_string()),
+        );
+    }
+}
+
+fn validate_range(
+    competition: &CompetitionDefinition,
+    from: u32,
+    to: u32,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if from < 1 || to < from {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.berthInvalidRange", &competition.id)
+                .with("from", from.to_string())
+                .with("to", to.to_string()),
+        );
+    }
+}
+
+fn require_league(
+    competition: &CompetitionDefinition,
+    is_league: bool,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if !is_league {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.berthRequiresLeague",
+            &competition.id,
+        ));
+    }
 }
 
 fn validate_region_and_country(
@@ -760,6 +880,7 @@ mod tests {
                 explicit: Some(teams.iter().map(|t| t.to_string()).collect()),
                 selector: None,
             },
+            berths: Vec::new(),
         }
     }
 
@@ -774,6 +895,86 @@ mod tests {
             competitions: vec![explicit("tr-1", &["team-a", "team-b"])],
         };
         assert!(validate_definitions(&file, &ctx()).is_empty());
+    }
+
+    fn berth(target: &str, rule: BerthRule) -> Berth {
+        Berth {
+            target: target.to_string(),
+            rule,
+            fallback_to: None,
+        }
+    }
+
+    #[test]
+    fn valid_berths_pass() {
+        let mut league = explicit("tr-1", &["team-a", "team-b"]);
+        league.berths = vec![
+            berth("ucl", BerthRule::PositionRange { from: 1, to: 2 }),
+            berth("ucl", BerthRule::PlayoffWinner { from: 1, to: 2 }),
+        ];
+        let mut cup = explicit("tr-cup", &["team-a", "team-b"]);
+        cup.format.kind = CompetitionFormat::Knockout;
+        cup.berths = vec![berth("ucl", BerthRule::CupWinner)];
+        let ucl = explicit("ucl", &["team-a", "team-b"]);
+
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![league, cup, ucl],
+        };
+        assert!(validate_definitions(&file, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn berth_unknown_target_and_invalid_range_are_reported() {
+        let mut league = explicit("tr-1", &["team-a", "team-b"]);
+        league.berths = vec![
+            berth("ghost", BerthRule::PositionRange { from: 0, to: 2 }),
+            Berth {
+                target: "tr-1".to_string(),
+                rule: BerthRule::PositionRange { from: 1, to: 2 },
+                fallback_to: Some("also-ghost".to_string()),
+            },
+        ];
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![league],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let reported = codes(&errors);
+        assert!(reported.contains(&"be.error.competitionDef.berthUnknownTarget"));
+        assert!(reported.contains(&"be.error.competitionDef.berthInvalidRange"));
+    }
+
+    #[test]
+    fn berth_rule_must_match_host_format() {
+        // cupWinner on a league table, and a position range on a knockout cup.
+        let mut league = explicit("tr-1", &["team-a", "team-b"]);
+        league.berths = vec![berth("tr-1", BerthRule::CupWinner)];
+        let mut cup = explicit("tr-cup", &["team-a", "team-b"]);
+        cup.format.kind = CompetitionFormat::Knockout;
+        cup.berths = vec![berth("tr-cup", BerthRule::PositionRange { from: 1, to: 2 })];
+
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![league, cup],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let reported = codes(&errors);
+        assert!(reported.contains(&"be.error.competitionDef.berthRequiresCup"));
+        assert!(reported.contains(&"be.error.competitionDef.berthRequiresLeague"));
+    }
+
+    #[test]
+    fn berth_playoff_needs_at_least_two_contestants() {
+        let mut league = explicit("tr-1", &["team-a", "team-b"]);
+        league.berths = vec![berth("tr-1", BerthRule::PlayoffWinner { from: 5, to: 5 })];
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![league],
+        };
+        let errors = validate_definitions(&file, &ctx());
+        let reported = codes(&errors);
+        assert!(reported.contains(&"be.error.competitionDef.berthPlayoffTooSmall"));
     }
 
     #[test]
@@ -969,6 +1170,7 @@ mod tests {
                 best_third_qualifiers: None,
             },
             participants: ParticipantSpec { explicit: None, selector: Some(selector) },
+            berths: Vec::new(),
         }
     }
 

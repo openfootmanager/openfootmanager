@@ -535,6 +535,7 @@ fn build_foundation_competition_plan(
                         explicit: Some(division_ids.clone()),
                         selector: None,
                     },
+                    berths: Vec::new(),
                 },
                 season_start,
             ));
@@ -558,6 +559,7 @@ fn build_foundation_competition_plan(
                     explicit: Some(team_ids.clone()),
                     selector: None,
                 },
+                berths: Vec::new(),
             },
             season_start + Duration::days(35),
         ));
@@ -596,6 +598,7 @@ fn build_foundation_competition_plan(
                     explicit: Some(continental_team_ids),
                     selector: None,
                 },
+                berths: Vec::new(),
             },
             season_start + Duration::days(70),
         ));
@@ -2913,6 +2916,7 @@ competitions:
                     explicit: Some(team_ids.clone()),
                     selector: None,
                 },
+                berths: Vec::new(),
             }],
         });
         let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
