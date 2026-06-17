@@ -1128,6 +1128,9 @@
     "showingRange": "{{from}}–{{to}} di {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Cerca club…",
+    "noResults": "Nessun club corrisponde alla ricerca.",
+    "otherClubs": "Altri club",
     "yourTeam": "La tua squadra",
     "squad": "Rosa",
     "avgOvr": "OVR medio",

@@ -1139,6 +1139,9 @@
     "showingRange": "{{from}}–{{to}} de {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Buscar clubes…",
+    "noResults": "Ningún club coincide con la búsqueda.",
+    "otherClubs": "Otros clubes",
     "yourTeam": "Tu Equipo",
     "squad": "Plantilla",
     "avgOvr": "Media OVR",

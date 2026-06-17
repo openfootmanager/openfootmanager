@@ -1109,6 +1109,9 @@
     "showingRange": "{{from}}–{{to}} / {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "搜索俱乐部…",
+    "noResults": "没有匹配的俱乐部。",
+    "otherClubs": "其他俱乐部",
     "yourTeam": "您的球队",
     "squad": "阵容",
     "avgOvr": "平均综合",

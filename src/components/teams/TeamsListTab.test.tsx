@@ -6,17 +6,26 @@ import TeamsListTab from "./TeamsListTab";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => {
-      if (key === "teams.yourTeam") return "Your Team";
-      if (key === "common.position") return "Position";
-      if (key === "teams.squad") return "Squad";
-      if (key === "teams.avgOvr") return "Avg OVR";
-      if (key === "teams.rep") return "Rep";
-      if (key === "common.value") return "Value";
-      if (key === "common.pts") return "Pts";
-      if (key === "teams.est") return "Est";
-      if (key === "common.playStyles.Balanced") return "Equilibrado";
-      if (key === "common.playStyles.Counter") return "Contra-ataque";
+    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+      const labels: Record<string, string> = {
+        "teams.yourTeam": "Your Team",
+        "common.position": "Position",
+        "teams.squad": "Squad",
+        "teams.avgOvr": "Avg OVR",
+        "teams.rep": "Rep",
+        "common.value": "Value",
+        "common.pts": "Pts",
+        "teams.est": "Est",
+        "teams.searchPlaceholder": "Search clubs",
+        "teams.noResults": "No clubs match your search.",
+        "teams.otherClubs": "Other clubs",
+        "common.playStyles.Balanced": "Equilibrado",
+        "common.playStyles.Counter": "Contra-ataque",
+      };
+      if (labels[key]) return labels[key];
+      if (fallback && typeof fallback === "object") {
+        return fallback.defaultValue ?? key;
+      }
       return fallback ?? key;
     },
     i18n: { language: "en" },
@@ -209,6 +218,27 @@ describe("TeamsListTab", () => {
     expect(headings[0]).toHaveTextContent("Beta FC");
     expect(headings[1]).toHaveTextContent("Alpha FC");
     expect(screen.getByText("Your Team")).toBeInTheDocument();
+  });
+
+  it("filters clubs by name via the search box", () => {
+    render(<TeamsListTab gameState={createGameState()} onSelectTeam={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Search clubs"), {
+      target: { value: "beta" },
+    });
+
+    expect(screen.getByText("Beta FC")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state when no clubs match", () => {
+    render(<TeamsListTab gameState={createGameState()} onSelectTeam={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Search clubs"), {
+      target: { value: "zzzzz" },
+    });
+
+    expect(screen.getByText("No clubs match your search.")).toBeInTheDocument();
   });
 
   it("selects a team when its card is clicked", () => {

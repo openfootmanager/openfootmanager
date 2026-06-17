@@ -18,6 +18,7 @@ import {
 } from "../store/gameStore";
 import { countryName } from "../lib/countries";
 import { formatVal, getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
+import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 import { Badge, Card, CardBody, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
 import {
   ArrowLeft,
@@ -40,17 +41,6 @@ type ScopeMessage = {
   values?: Record<string, string | number>;
 };
 
-function buildRegionLabel(t: TFunction, regionId: string, fallbackName?: string): string {
-  return t(`teamSelect.regionLabels.${regionId}`, {
-    defaultValue:
-      fallbackName ??
-      regionId
-        .split("-")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" "),
-  });
-}
-
 function competitionScopeLabel(t: TFunction, scope?: string): string | null {
   if (!scope) {
     return null;
@@ -63,44 +53,6 @@ function competitionKindLabel(t: TFunction, kind?: string): string | null {
     return null;
   }
   return t(`teamSelect.kinds.${kind}`, { defaultValue: kind });
-}
-
-function inferRegionId(countryCode: string): string {
-  switch (countryCode) {
-    case "BR":
-    case "AR":
-    case "UY":
-    case "CL":
-    case "CO":
-    case "PE":
-    case "EC":
-    case "VE":
-    case "PY":
-    case "BO":
-      return "south-america";
-    case "US":
-    case "CA":
-    case "MX":
-      return "north-america";
-    case "CR":
-    case "PA":
-    case "HN":
-    case "GT":
-    case "SV":
-    case "NI":
-      return "central-america";
-    case "AU":
-    case "NZ":
-      return "oceania";
-    case "JP":
-    case "KR":
-    case "CN":
-    case "SA":
-    case "QA":
-      return "asia";
-    default:
-      return "europe";
-  }
 }
 
 function buildFallbackRegions(

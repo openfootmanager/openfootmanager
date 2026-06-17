@@ -1109,6 +1109,9 @@
     "showingRange": "{{from}}–{{to}} из {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Поиск клубов…",
+    "noResults": "Нет клубов по вашему запросу.",
+    "otherClubs": "Другие клубы",
     "yourTeam": "Ваша команда",
     "squad": "Состав",
     "avgOvr": "Сред. OVR",

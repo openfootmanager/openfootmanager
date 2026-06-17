@@ -1109,6 +1109,9 @@
     "showingRange": "{{from}}–{{to}} de {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Pesquisar clubes…",
+    "noResults": "Nenhum clube corresponde à pesquisa.",
+    "otherClubs": "Outros clubes",
     "yourTeam": "A Tua Equipa",
     "squad": "Plantel",
     "avgOvr": "Média OVR",

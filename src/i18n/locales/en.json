@@ -1109,6 +1109,9 @@
     "showingRange": "{{from}}–{{to}} of {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Search clubs…",
+    "noResults": "No clubs match your search.",
+    "otherClubs": "Other clubs",
     "yourTeam": "Your Team",
     "squad": "Squad",
     "avgOvr": "Avg OVR",
