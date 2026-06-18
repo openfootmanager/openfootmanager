@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   GameStateData,
   PlayerData,
@@ -105,6 +105,12 @@ export default function SquadRosterView({
   const isControlled =
     sortState !== undefined && onSortStateChange !== undefined;
   const activeSortState = isControlled ? sortState : localSortState;
+
+  useEffect(() => {
+    if (!isControlled && sortState !== undefined) {
+      setLocalSortState(sortState);
+    }
+  }, [isControlled, sortState]);
 
   if (!myTeam) {
     return (

@@ -242,6 +242,18 @@ fn create_live_match_preserves_saved_slot_order_when_some_saved_players_are_unav
         "team1_fwd2".to_string(),
         "team1_fwd3".to_string(),
     ];
+    let replacement_left_back = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "team1_def1")
+        .unwrap();
+    replacement_left_back.position = Position::LeftBack;
+    replacement_left_back.natural_position = Position::LeftBack;
+    replacement_left_back.attributes.pace = 84;
+    replacement_left_back.attributes.stamina = 82;
+    replacement_left_back.attributes.tackling = 80;
+    replacement_left_back.attributes.defending = 78;
+    replacement_left_back.attributes.positioning = 76;
     game.players
         .iter_mut()
         .find(|player| player.id == "team1_def2")
@@ -262,7 +274,7 @@ fn create_live_match_preserves_saved_slot_order_when_some_saved_players_are_unav
         .collect();
 
     assert_eq!(starter_ids[0], "team1_gk1");
-    assert_ne!(starter_ids[1], "team1_def3");
+    assert_eq!(starter_ids[1], "team1_def1");
     assert_eq!(starter_ids[2], "team1_def3");
 }
 
