@@ -1,34 +1,88 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
 
 import { formatVal } from "../../lib/helpers";
+import { buildRegionLabel } from "../../lib/teamRegions";
 import { GameStateData } from "../../store/gameStore";
-import { Badge, Card, CardBody, TeamLocation, TeamLogo } from "../ui";
 import {
-  buildTeamRegionGroups,
-  filterTeamRegionGroups,
+  fetchTeamsDirectory,
+  UNGROUPED_LEAGUE_ID,
   type TeamCard,
-} from "./teamsListModel";
+  type TeamsDirectory,
+} from "../../services/teamsService";
+import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
+import { Badge, Card, CardBody, TeamLocation, TeamLogo } from "../ui";
 
 interface TeamsListTabProps {
   gameState: GameStateData;
   onSelectTeam: (id: string) => void;
 }
 
+interface DisplayLeague {
+  id: string;
+  rawId: string;
+  name: string;
+  teams: TeamCard[];
+}
+
+interface DisplayRegion {
+  id: string;
+  name: string;
+  leagues: DisplayLeague[];
+  teamCount: number;
+}
+
 export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabProps) {
   const { t, i18n } = useTranslation();
   const userTeamId = gameState.manager.team_id;
 
-  const groups = useMemo(
-    () => buildTeamRegionGroups(gameState, t),
-    [gameState, t],
-  );
+  const [search, setSearch] = useState("");
+  const [directory, setDirectory] = useState<TeamsDirectory | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
+  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
 
-  // The user's region/league are expanded by default; everything else stays
-  // collapsed so the world's hundreds of clubs render lazily.
+  useEffect(() => {
+    let cancelled = false;
+    fetchTeamsDirectory({ search: search.trim() || null })
+      .then((result) => {
+        if (cancelled) return;
+        setDirectory(result);
+        setFetchError(null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [search, t]);
+
+  const visibleGroups = useMemo<DisplayRegion[]>(() => {
+    if (!directory) return [];
+    return directory.regions
+      .map((region) => ({
+        id: region.id,
+        name: buildRegionLabel(t, region.id),
+        teamCount: region.team_count,
+        leagues: region.leagues.map((league) => ({
+          id: league.id,
+          rawId: league.id,
+          name:
+            league.id === UNGROUPED_LEAGUE_ID
+              ? t("teams.otherClubs")
+              : league.name,
+          teams: league.teams,
+        })),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [directory, t]);
+
   const userLocation = useMemo(() => {
-    for (const region of groups) {
+    if (!directory) return null;
+    for (const region of directory.regions) {
       for (const league of region.leagues) {
         if (league.teams.some((card) => card.team.id === userTeamId)) {
           return { regionId: region.id, leagueId: league.id };
@@ -36,21 +90,19 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
       }
     }
     return null;
-  }, [groups, userTeamId]);
+  }, [directory, userTeamId]);
 
-  const [search, setSearch] = useState("");
-  const [expandedRegions, setExpandedRegions] = useState<Set<string>>(
-    () => new Set(userLocation ? [userLocation.regionId] : []),
-  );
-  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(
-    () => new Set(userLocation ? [`${userLocation.regionId}:${userLocation.leagueId}`] : []),
-  );
+  const expansionInitialized = useRef(false);
+  useEffect(() => {
+    if (expansionInitialized.current || !userLocation) return;
+    setExpandedRegions(new Set([userLocation.regionId]));
+    setExpandedLeagues(
+      new Set([`${userLocation.regionId}:${userLocation.leagueId}`]),
+    );
+    expansionInitialized.current = true;
+  }, [userLocation]);
 
   const isSearching = search.trim().length > 0;
-  const visibleGroups = useMemo(
-    () => filterTeamRegionGroups(groups, search),
-    [groups, search],
-  );
 
   const toggle = (set: Set<string>, key: string): Set<string> => {
     const next = new Set(set);
@@ -74,6 +126,12 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 py-2.5 pl-10 pr-4 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
         />
       </div>
+
+      {fetchError ? (
+        <p role="alert" className="text-sm text-red-500">
+          {fetchError}
+        </p>
+      ) : null}
 
       {visibleGroups.length === 0 ? (
         <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -104,7 +162,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
 
               {regionOpen &&
                 region.leagues.map((league) => {
-                  const leagueKey = `${region.id}:${league.id}`;
+                  const leagueKey = `${region.id}:${league.rawId}`;
                   const leagueOpen = isSearching || expandedLeagues.has(leagueKey);
                   return (
                     <div key={leagueKey} className="flex flex-col gap-2 pl-2">
@@ -166,7 +224,14 @@ function TeamCardView({
   t: ReturnType<typeof useTranslation>["t"];
   onSelect: (id: string) => void;
 }) {
-  const { team, rosterSize, avgOvr, totalValue, leaguePos, standing } = card;
+  const {
+    team,
+    roster_size: rosterSize,
+    avg_ovr: avgOvr,
+    total_value: totalValue,
+    league_pos: leaguePos,
+    standing,
+  } = card;
   const playStyleLabel = t(`common.playStyles.${team.play_style}`, team.play_style);
 
   return (
