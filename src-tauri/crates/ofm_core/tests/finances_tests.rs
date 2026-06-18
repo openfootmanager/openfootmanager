@@ -550,6 +550,47 @@ fn season_expenses_tracked() {
 }
 
 #[test]
+fn weekly_wages_are_charged_to_each_member_own_team() {
+    // Given: two teams on a Monday, each with its own players and staff
+    let date = Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap();
+    let clock = GameClock::new(date);
+    let mut manager = Manager::new(
+        "mgr1".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("team1".to_string());
+
+    let team1 = make_team("team1", "Alpha FC");
+    let team2 = make_team("team2", "Beta FC");
+    let a_player = make_player("a1", "team1", 52_000); // 1000/week
+    let a_staff = make_staff("as", "team1", 10_400); // 200/week → team1 owes 1200/week
+    let b_player1 = make_player("b1", "team2", 26_000); // 500/week
+    let b_player2 = make_player("b2", "team2", 26_000); // 500/week → team2 owes 1000/week
+
+    let mut game = Game::new(
+        clock,
+        manager,
+        vec![team1, team2],
+        vec![a_player, b_player1, b_player2],
+        vec![a_staff],
+        vec![],
+    );
+    let finance_of = |g: &Game, id: &str| g.teams.iter().find(|t| t.id == id).unwrap().finance;
+    let t1_initial = finance_of(&game, "team1");
+    let t2_initial = finance_of(&game, "team2");
+
+    // When: the weekly tick runs
+    finances::process_weekly_finances(&mut game);
+
+    // Then: each team is charged exactly its OWN members' wages, not the other's
+    assert_eq!(finance_of(&game, "team1"), t1_initial - 1_200);
+    assert_eq!(finance_of(&game, "team2"), t2_initial - 1_000);
+}
+
+#[test]
 fn no_processing_on_non_monday() {
     let mut game = make_monday_game();
     // Change to Tuesday
