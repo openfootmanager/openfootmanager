@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "Best campaign on the touchline"
     },
     "noGoals": "No goals scored yet.",
-    "worldCupChampion": "World Cup Champion"
+    "worldCupChampion": "World Cup Champion",
+    "competitions": {
+      "title": "All Competitions",
+      "statusNotStarted": "Not Started",
+      "statusInProgress": "In Progress",
+      "statusCompleted": "Completed",
+      "participating": "Participating"
+    }
   },
   "news": {
     "noNews": "No news articles yet.",

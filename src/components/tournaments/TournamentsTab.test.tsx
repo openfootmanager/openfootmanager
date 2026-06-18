@@ -469,6 +469,59 @@ describe("TournamentsTab", () => {
     expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
   });
 
+  it("shows a champion banner when a World Cup winner is recorded", () => {
+    const state = createGameState(true);
+    state.world_history = {
+      world_cup_champions: [{ year: 2026, nation_code: "BR", nation_name: "Brazil" }],
+    };
+    state.competitions = [
+      state.league!,
+      {
+        id: "wc-2026",
+        name: "World Cup 2026",
+        season: 2026,
+        kind: "InternationalNation",
+        rules: { format: "GroupAndKnockout", counts_in_season_flow: true },
+        participant_ids: [],
+        fixtures: [],
+        standings: [],
+        groups: [],
+        knockout_rounds: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "wc-2026" } });
+
+    expect(screen.getByText("Brazil")).toBeInTheDocument();
+    expect(screen.getByText("tournaments.worldCupChampion:")).toBeInTheDocument();
+  });
+
+  it("does not show a champion banner for an in-progress World Cup", () => {
+    const state = createGameState(true);
+    state.world_history = { world_cup_champions: [] };
+    state.competitions = [
+      state.league!,
+      {
+        id: "wc-2026",
+        name: "World Cup 2026",
+        season: 2026,
+        kind: "InternationalNation",
+        rules: { format: "GroupAndKnockout", counts_in_season_flow: true },
+        participant_ids: [],
+        fixtures: [],
+        standings: [],
+        groups: [],
+        knockout_rounds: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "wc-2026" } });
+
+    expect(screen.queryByText("tournaments.worldCupChampion:")).not.toBeInTheDocument();
+  });
+
   it("marks the relegation zone in pyramid standings", () => {
     const state = createGameState(true);
     const standing = (teamId: string, points: number) => ({
@@ -515,6 +568,43 @@ describe("TournamentsTab", () => {
     expect(screen.getByTestId("tournaments-relegation-team-4")).toBeInTheDocument();
     expect(screen.queryByTestId("tournaments-relegation-team-3")).not.toBeInTheDocument();
     expect(screen.getByText("Relegation")).toBeInTheDocument();
+  });
+
+  it("shows competitions overview when multiple competitions are active", () => {
+    const state = createGameState(true);
+    state.competitions = [
+      {
+        id: "league-1",
+        name: "Premier League",
+        season: 1,
+        scope: "Domestic",
+        kind: "League",
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [createFixture({ status: "Scheduled" })],
+        standings: [],
+      },
+      {
+        id: "cup-1",
+        name: "Champions Cup",
+        season: 1,
+        scope: "Continental",
+        kind: "Cup",
+        participant_ids: ["team-2"],
+        fixtures: [],
+        standings: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    expect(screen.getByTestId("competitions-overview-row-league-1")).toBeInTheDocument();
+    expect(screen.getByTestId("competitions-overview-row-cup-1")).toBeInTheDocument();
+  });
+
+  it("does not show competitions overview for a single competition", () => {
+    const state = createGameState(true);
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+    expect(screen.queryByTestId(/competitions-overview-row-/)).not.toBeInTheDocument();
   });
 
   it("renders manager of the season in the awards view", async () => {

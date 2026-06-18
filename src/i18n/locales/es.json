@@ -1245,7 +1245,14 @@
       "managerOfSeasonSubtitle": "La mejor campaña desde el banquillo"
     },
     "noGoals": "Ningún gol marcado todavía.",
-    "worldCupChampion": "Campeón del mundo"
+    "worldCupChampion": "Campeón del mundo",
+    "competitions": {
+      "title": "Todos los torneos",
+      "statusNotStarted": "No iniciado",
+      "statusInProgress": "En curso",
+      "statusCompleted": "Completado",
+      "participating": "Participando"
+    }
   },
   "news": {
     "noNews": "Sin noticias todavía.",

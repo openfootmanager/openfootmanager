@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "场边表现最出色的赛季"
     },
     "noGoals": "暂无进球。",
-    "worldCupChampion": "世界杯冠军"
+    "worldCupChampion": "世界杯冠军",
+    "competitions": {
+      "title": "所有赛事",
+      "statusNotStarted": "未开始",
+      "statusInProgress": "进行中",
+      "statusCompleted": "已完成",
+      "participating": "参与中"
+    }
   },
   "news": {
     "noNews": "暂无新闻报道。",

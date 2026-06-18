@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "A melhor campanha à beira do campo"
     },
     "noGoals": "Nenhum gol marcado ainda.",
-    "worldCupChampion": "Campeão da Copa do Mundo"
+    "worldCupChampion": "Campeão da Copa do Mundo",
+    "competitions": {
+      "title": "Todas as competições",
+      "statusNotStarted": "Não iniciado",
+      "statusInProgress": "Em andamento",
+      "statusCompleted": "Concluído",
+      "participating": "Participando"
+    }
   },
   "news": {
     "noNews": "Nenhuma notícia ainda.",

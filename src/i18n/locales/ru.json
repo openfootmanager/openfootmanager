@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "Лучшая работа на тренерском мостике"
     },
     "noGoals": "Голов пока нет.",
-    "worldCupChampion": "Чемпион мира"
+    "worldCupChampion": "Чемпион мира",
+    "competitions": {
+      "title": "Все соревнования",
+      "statusNotStarted": "Не начато",
+      "statusInProgress": "В процессе",
+      "statusCompleted": "Завершено",
+      "participating": "Участвует"
+    }
   },
   "news": {
     "noNews": "Новостей пока нет.",

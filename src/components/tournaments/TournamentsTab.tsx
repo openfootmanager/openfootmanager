@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import CompetitionsOverview from "./CompetitionsOverview";
 import { invoke } from "@tauri-apps/api/core";
 import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
@@ -104,6 +105,12 @@ export default function TournamentsTab({
     gameState.league;
   const currentSeason = league?.season ?? 0;
   const awards = awardsBySeason[currentSeason] ?? null;
+  const isWorldCup = league?.kind === "InternationalNation";
+  const worldCupChampion = isWorldCup
+    ? (gameState.world_history?.world_cup_champions ?? []).find(
+        (c) => c.year === currentSeason,
+      ) ?? null
+    : null;
 
   useEffect(() => {
     if (activeCompetitions.length === 0) {
@@ -433,6 +440,17 @@ export default function TournamentsTab({
             </div>
           </div>
         </div>
+        {worldCupChampion && (
+          <div className="flex items-center gap-3 bg-accent-500/10 px-6 py-3 rounded-b-xl border-t border-accent-500/20">
+            <Trophy className="w-5 h-5 text-accent-400 flex-shrink-0" />
+            <span className="text-sm font-heading font-bold uppercase tracking-wider text-accent-300">
+              {t("tournaments.worldCupChampion")}:
+            </span>
+            <span className="text-sm font-semibold text-white">
+              {worldCupChampion.nation_name}
+            </span>
+          </div>
+        )}
       </Card>
 
       {/* Tab switcher */}
@@ -654,6 +672,16 @@ export default function TournamentsTab({
               )}
             </CardBody>
           </Card>
+        </div>
+      )}
+
+      {view === "overview" && activeCompetitions.length > 1 && (
+        <div className="mt-5">
+          <CompetitionsOverview
+            competitions={activeCompetitions}
+            userTeamId={userTeamId}
+            onSelect={setSelectedCompetitionId}
+          />
         </div>
       )}
 

@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "A melhor campanha no banco"
     },
     "noGoals": "Nenhum golo marcado ainda.",
-    "worldCupChampion": "Campeão do Mundo"
+    "worldCupChampion": "Campeão do Mundo",
+    "competitions": {
+      "title": "Todas as competições",
+      "statusNotStarted": "Não iniciado",
+      "statusInProgress": "Em andamento",
+      "statusCompleted": "Concluído",
+      "participating": "A participar"
+    }
   },
   "news": {
     "noNews": "Sem notícias ainda.",

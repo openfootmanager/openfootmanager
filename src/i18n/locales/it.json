@@ -1234,7 +1234,14 @@
       "managerOfSeasonSubtitle": "La miglior annata in panchina"
     },
     "noGoals": "Ancora nessun gol segnato.",
-    "worldCupChampion": "Campione del mondo"
+    "worldCupChampion": "Campione del mondo",
+    "competitions": {
+      "title": "Tutte le competizioni",
+      "statusNotStarted": "Non iniziato",
+      "statusInProgress": "In corso",
+      "statusCompleted": "Completato",
+      "participating": "Partecipante"
+    }
   },
   "news": {
     "noNews": "Ancora nessuna notizia.",

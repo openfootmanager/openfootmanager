@@ -1215,7 +1215,14 @@
       "managerOfSeasonSubtitle": "Beste Saison an der Seitenlinie"
     },
     "noGoals": "Noch keine Tore erzielt.",
-    "worldCupChampion": "Weltmeister"
+    "worldCupChampion": "Weltmeister",
+    "competitions": {
+      "title": "Alle Wettbewerbe",
+      "statusNotStarted": "Nicht begonnen",
+      "statusInProgress": "Läuft",
+      "statusCompleted": "Abgeschlossen",
+      "participating": "Teilnehmend"
+    }
   },
   "news": {
     "noNews": "Noch keine Nachrichten.",
