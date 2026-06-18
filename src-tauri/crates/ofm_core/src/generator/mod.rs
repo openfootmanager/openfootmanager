@@ -15,6 +15,7 @@ use rand::RngExt;
 use uuid::Uuid;
 
 use generation::*;
+use chrono::Datelike;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
@@ -394,6 +395,7 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
     if unemployed_mgr_count < floor {
         let needed = floor - unemployed_mgr_count;
         let (names_def, country_codes) = create_staff_generator_context();
+        let current_year = game.clock.current_date.year() as u32;
         let mut rng = rand::rng();
         for _ in 0..needed {
             let nationality = if country_codes.is_empty() {
@@ -402,8 +404,12 @@ pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
                 let idx = rng.random_range(0..country_codes.len());
                 country_codes[idx].clone()
             };
-            let mgr =
-                generation::generate_random_unemployed_manager(&nationality, &names_def, &mut rng);
+            let mgr = generation::generate_random_unemployed_manager(
+                &nationality,
+                &names_def,
+                current_year,
+                &mut rng,
+            );
             game.managers.push(mgr);
         }
     }

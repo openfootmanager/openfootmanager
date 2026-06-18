@@ -41,7 +41,9 @@ const CONGESTION_FIXTURE_THRESHOLD: usize = 2;
 /// Returns a 5-slot weekly focus cycle for the given play style.
 ///
 /// Indexed by `weekday_num % 5`:
-///   0 = Mon slot, 1 = Tue slot, 2 = Wed slot, 3 = Thu slot, 4 = Fri/Sat slot.
+///   0 = Mon slot, 1 = Tue slot, 2 = Wed slot, 3 = Thu slot, 4 = Fri slot.
+///   With modulo-5 indexing, Saturday (`weekday_num = 5`) wraps to slot 0
+///   (the Monday slot), so the 5-slot cycle repeats Monday-Friday.
 ///
 /// Balanced uses one of each focus.
 /// Every other style has 3 slots for its biased focus (2 extras vs the base).

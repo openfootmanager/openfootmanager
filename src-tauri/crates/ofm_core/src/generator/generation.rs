@@ -420,11 +420,12 @@ pub(super) fn generate_random_staff_unattached_from_def(
 pub(super) fn generate_random_unemployed_manager(
     nationality: &str,
     names_def: &NamesDefinition,
+    current_year: u32,
     rng: &mut impl Rng,
 ) -> domain::manager::Manager {
     let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
     let age: u32 = rng.random_range(35..65);
-    let birth_year = 2026u32.saturating_sub(age);
+    let birth_year = current_year.saturating_sub(age);
     let dob = format!(
         "{:04}-{:02}-{:02}",
         birth_year,
