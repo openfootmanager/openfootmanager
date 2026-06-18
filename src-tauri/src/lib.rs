@@ -195,6 +195,7 @@ pub fn run() {
             load_game,
             get_active_game,
             get_players_page,
+            get_teams_directory,
             advance_time,
             advance_time_with_mode,
             upgrade_facility,

@@ -3,6 +3,9 @@ use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::slices::players::{PlayersPage, PlayersPageQuery, query_page};
+use ofm_core::slices::teams::{
+    TeamsDirectory, TeamsDirectoryQuery, query_directory,
+};
 use ofm_core::state::StateManager;
 
 const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
@@ -14,5 +17,15 @@ pub async fn get_players_page(
 ) -> Result<PlayersPage, String> {
     state
         .get_game(|game| query_page(game, &query))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
+pub async fn get_teams_directory(
+    state: State<'_, Arc<StateManager>>,
+    query: TeamsDirectoryQuery,
+) -> Result<TeamsDirectory, String> {
+    state
+        .get_game(|game| query_directory(game, &query))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
