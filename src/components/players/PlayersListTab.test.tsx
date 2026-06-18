@@ -8,6 +8,11 @@ import type {
   StaffData,
   TeamData,
 } from "../../store/gameStore";
+import type {
+  PlayerSummary,
+  PlayersPage,
+  PlayersPageQuery,
+} from "../../services/playersService";
 import PlayersListTab from "./PlayersListTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -256,74 +261,175 @@ function createGameState(): GameStateData {
 
 const mockedInvoke = vi.mocked(invoke);
 
+function groupPosition(pos: string): string {
+  if (pos === "Goalkeeper") return "Goalkeeper";
+  if (pos === "Defender" || pos.endsWith("Back")) return "Defender";
+  if (pos === "Midfielder" || pos.endsWith("Midfielder")) return "Midfielder";
+  return "Forward";
+}
+
+function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
+  const team_name = player.team_id
+    ? teams.find((t) => t.id === player.team_id)?.name ?? null
+    : null;
+  return {
+    id: player.id,
+    full_name: player.full_name,
+    match_name: player.match_name,
+    date_of_birth: player.date_of_birth,
+    nationality: player.nationality,
+    position: player.position,
+    natural_position: player.natural_position ?? player.position,
+    team_id: player.team_id ?? null,
+    team_name,
+    market_value: player.market_value,
+    ovr: (player as { ovr?: number }).ovr ?? 0,
+    transfer_listed: player.transfer_listed,
+    loan_listed: player.loan_listed,
+    injured: player.injury != null,
+    retired: player.retired ?? false,
+  };
+}
+
+function applyQuery(
+  items: PlayerSummary[],
+  query: PlayersPageQuery,
+): PlayersPage {
+  let filtered = items;
+  if (query.search) {
+    const needle = query.search.toLowerCase();
+    filtered = filtered.filter(
+      (s) =>
+        s.full_name.toLowerCase().includes(needle) ||
+        s.match_name.toLowerCase().includes(needle) ||
+        s.nationality.toLowerCase().includes(needle),
+    );
+  }
+  if (query.position) {
+    filtered = filtered.filter(
+      (s) => groupPosition(s.natural_position) === query.position,
+    );
+  }
+  if (query.team_id) {
+    filtered = filtered.filter((s) => s.team_id === query.team_id);
+  }
+  if (query.status === "transfer") {
+    filtered = filtered.filter((s) => s.transfer_listed);
+  } else if (query.status === "loan") {
+    filtered = filtered.filter((s) => s.loan_listed);
+  }
+  return {
+    items: filtered,
+    total: filtered.length,
+    page: query.page,
+    page_size: query.page_size,
+  };
+}
+
+type InvokeOverrides = Record<string, (args: unknown) => unknown>;
+
+function setupSliceMock(
+  gameState: GameStateData,
+  overrides: InvokeOverrides = {},
+) {
+  mockedInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+    if (cmd in overrides) {
+      const result = overrides[cmd]!(args);
+      if (result instanceof Error) throw result;
+      return result;
+    }
+    if (cmd === "get_players_page") {
+      const summaries = gameState.players.map((p) =>
+        summaryFrom(p, gameState.teams),
+      );
+      const query = (args as { query: PlayersPageQuery }).query;
+      return applyQuery(summaries, query);
+    }
+    return undefined;
+  });
+}
+
 describe("PlayersListTab", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
   });
 
-  it("filters by search and position before selecting a player", () => {
+  it("filters by search and position before selecting a player", async () => {
     const onSelectPlayer = vi.fn();
+    const gameState = createGameState();
+    setupSliceMock(gameState);
 
     render(
       <PlayersListTab
-        gameState={createGameState()}
+        gameState={gameState}
         onSelectPlayer={onSelectPlayer}
         onSelectTeam={vi.fn()}
       />,
     );
 
+    await screen.findByText("Alex Keeper");
+    expect(screen.getByText("John Smith")).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText("Search players"), {
       target: { value: "keeper" },
     });
 
+    await waitFor(() => {
+      expect(screen.queryByText("John Smith")).not.toBeInTheDocument();
+    });
     expect(screen.getByText("Alex Keeper")).toBeInTheDocument();
-    expect(screen.queryByText("John Smith")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Goalkeeper" }));
-    fireEvent.click(screen.getByText("Alex Keeper"));
+    fireEvent.click(await screen.findByText("Alex Keeper"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-2");
   });
 
-  it("keeps team navigation separate from player row selection", () => {
+  it("keeps team navigation separate from player row selection", async () => {
     const onSelectPlayer = vi.fn();
     const onSelectTeam = vi.fn();
+    const gameState = createGameState();
+    setupSliceMock(gameState);
 
     render(
       <PlayersListTab
-        gameState={createGameState()}
+        gameState={gameState}
         onSelectPlayer={onSelectPlayer}
         onSelectTeam={onSelectTeam}
       />,
     );
 
+    await screen.findByText("Alex Keeper");
     fireEvent.click(screen.getAllByRole("button", { name: "Beta FC" })[0]);
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
     expect(onSelectPlayer).not.toHaveBeenCalled();
   });
 
-  it("renders localized free-agent labels for unattached players", () => {
+  it("renders localized free-agent labels for unattached players", async () => {
+    const gameState: GameStateData = {
+      ...createGameState(),
+      players: [
+        createPlayer({
+          id: "player-free-agent",
+          full_name: "Free Agent Player",
+          match_name: "F. Agent",
+          team_id: null,
+          contract_end: null,
+        }),
+      ],
+    };
+    setupSliceMock(gameState);
+
     render(
       <PlayersListTab
-        gameState={{
-          ...createGameState(),
-          players: [
-            createPlayer({
-              id: "player-free-agent",
-              full_name: "Free Agent Player",
-              match_name: "F. Agent",
-              team_id: null,
-              contract_end: null,
-            }),
-          ],
-        }}
+        gameState={gameState}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("Free Agent")).toBeInTheDocument();
+    expect(await screen.findByText("Free Agent")).toBeInTheDocument();
   });
 
   it("offers context-menu actions for team navigation and scouting", async () => {
@@ -332,8 +438,7 @@ describe("PlayersListTab", () => {
     const onSelectTeam = vi.fn();
     const gameState = createGameState();
     gameState.staff = [createScout()];
-
-    mockedInvoke.mockResolvedValueOnce(gameState);
+    setupSliceMock(gameState, { send_scout: () => gameState });
 
     render(
       <PlayersListTab
@@ -344,7 +449,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    const playerRow = screen.getByText("Alex Keeper").closest("tr");
+    const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -372,10 +477,10 @@ describe("PlayersListTab", () => {
       const onGameUpdate = vi.fn();
       const gameState = createGameState();
       gameState.staff = [createScout()];
-
-      mockedInvoke.mockRejectedValueOnce(
-        new Error("Scout is already assigned to another scouting task."),
-      );
+      setupSliceMock(gameState, {
+        send_scout: () =>
+          new Error("Scout is already assigned to another scouting task."),
+      });
 
       render(
         <PlayersListTab
@@ -386,7 +491,7 @@ describe("PlayersListTab", () => {
         />,
       );
 
-      const playerRow = screen.getByText("Alex Keeper").closest("tr");
+      const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
       expect(playerRow).not.toBeNull();
 
       fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -409,42 +514,35 @@ describe("PlayersListTab", () => {
     const gameState = createGameState();
     const updatedState = createGameState();
 
-    mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "preview_transfer_bid_financial_impact") {
-        return {
-          projection: {
-            transfer_budget_before: 250000,
-            transfer_budget_after: -100000,
-            finance_before: 500000,
-            finance_after: 150000,
-            annual_wage_bill_before: 1000,
-            annual_wage_bill_after: 2000,
-            annual_wage_budget: 50000,
-            projected_wage_budget_usage_pct: 4,
-            exceeds_transfer_budget: false,
-            exceeds_finance: false,
-          },
-        };
-      }
-
-      if (command === "make_transfer_bid") {
-        return {
-          decision: "counter_offer",
-          suggested_fee: 425000,
-          is_terminal: false,
-          feedback: {
-            mood: "firm",
-            headline_key: "headline",
-            detail_key: null,
-            tension: 45,
-            patience: 62,
-            round: 1,
-          },
-          game: updatedState,
-        };
-      }
-
-      return {};
+    setupSliceMock(gameState, {
+      preview_transfer_bid_financial_impact: () => ({
+        projection: {
+          transfer_budget_before: 250000,
+          transfer_budget_after: -100000,
+          finance_before: 500000,
+          finance_after: 150000,
+          annual_wage_bill_before: 1000,
+          annual_wage_bill_after: 2000,
+          annual_wage_budget: 50000,
+          projected_wage_budget_usage_pct: 4,
+          exceeds_transfer_budget: false,
+          exceeds_finance: false,
+        },
+      }),
+      make_transfer_bid: () => ({
+        decision: "counter_offer",
+        suggested_fee: 425000,
+        is_terminal: false,
+        feedback: {
+          mood: "firm",
+          headline_key: "headline",
+          detail_key: null,
+          tension: 45,
+          patience: 62,
+          round: 1,
+        },
+        game: updatedState,
+      }),
     });
 
     render(
@@ -456,7 +554,7 @@ describe("PlayersListTab", () => {
       />,
     );
 
-    const playerRow = screen.getByText("Alex Keeper").closest("tr");
+    const playerRow = (await screen.findByText("Alex Keeper")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -491,29 +589,32 @@ describe("PlayersListTab", () => {
     });
   });
 
-  it("does not offer scouting or contract actions for retired free agents", () => {
+  it("does not offer scouting or contract actions for retired free agents", async () => {
+    const gameState: GameStateData = {
+      ...createGameState(),
+      players: [
+        createPlayer({
+          id: "retired-free-agent",
+          full_name: "Retired Free Agent",
+          match_name: "R. Agent",
+          team_id: null,
+          retired: true,
+          contract_end: null,
+        }),
+      ],
+    };
+    setupSliceMock(gameState);
+
     render(
       <PlayersListTab
-        gameState={{
-          ...createGameState(),
-          players: [
-            createPlayer({
-              id: "retired-free-agent",
-              full_name: "Retired Free Agent",
-              match_name: "R. Agent",
-              team_id: null,
-              retired: true,
-              contract_end: null,
-            }),
-          ],
-        }}
+        gameState={gameState}
         onGameUpdate={vi.fn()}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
       />,
     );
 
-    const playerRow = screen.getByText("Retired Free Agent").closest("tr");
+    const playerRow = (await screen.findByText("Retired Free Agent")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
