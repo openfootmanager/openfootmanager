@@ -110,13 +110,13 @@
     "squad": "Kader",
     "tactics": "Taktik",
     "training": "Training",
-    "staff": "Staff",
+    "staff": "Mitarbeiter",
     "finances": "Finanzen",
     "transfers": "Transfers",
     "players": "Spieler",
     "managers": "Trainer",
     "hallOfFame": "Ruhmeshalle",
-    "teams": "Teams",
+    "teams": "Vereine",
     "tournaments": "Turniere",
     "schedule": "Spielplan",
     "news": "Nachrichten",
@@ -138,7 +138,7 @@
     "searchPlaceholder": "Spieler, Teams suchen...",
     "sectionClub": "Verein",
     "sectionWorld": "Welt",
-    "searchTeams": "Teams",
+    "searchTeams": "Vereine",
     "searchPlayers": "Spieler",
     "scouting": "Scouting",
     "youthAcademy": "Jugendakademie",
@@ -157,7 +157,21 @@
       "financeRunway": "Liquidität reicht nur noch für {{count}} Woche(n)",
       "wagePressure": "Lohnkosten bei {{percent}}% des Budgets"
     },
-    "unemployedBanner": "Sie sind derzeit ohne Verein. Jobangebote könnten in Ihrem Posteingang eintreffen."
+    "unemployedBanner": "Sie sind derzeit ohne Verein. Jobangebote könnten in Ihrem Posteingang eintreffen.",
+    "digestAdvancing": "Vorrücken...",
+    "digestDone": "Fertig",
+    "digestClose": "Schließen",
+    "digestEmpty": "Nichts passiert.",
+    "digestQuietDay": "Ruhiger Tag.",
+    "digestSimulating": "Simuliere...",
+    "digestMatchDay": "Spieltag",
+    "digestMatchDayDesc": "Ihr Team hat heute ein Spiel.",
+    "digestPlayMatch": "Spiel starten",
+    "digestBlocked": "Aktion erforderlich",
+    "digestBlockedDesc": "Es gibt Probleme, die Ihre Aufmerksamkeit erfordern.",
+    "digestViewIssues": "Probleme anzeigen",
+    "digestFired": "Sie wurden entlassen.",
+    "digestContinueAnyway": "Trotzdem fortfahren"
   },
   "continueMenu": {
     "goToField": "Aufs Spielfeld",
@@ -356,9 +370,9 @@
     "youthProspects": "Jugendtalente",
     "noYouthPlayers": "Keine Jugendspieler (≤21) in deinem Kader.",
     "player": "Spieler",
-    "pos": "Pos",
+    "pos": "Pos.",
     "age": "Alter",
-    "ovr": "OVR",
+    "ovr": "GES",
     "potential": "Potenzial",
     "growth": "Wachstum",
     "traits": "Eigenschaften",
@@ -409,15 +423,15 @@
     "matchday": "Spieltag {{n}}",
     "result": "Ergebnis",
     "results": "Ergebnisse",
-    "vs": "vs",
+    "vs": "gegen",
     "age": "Alter",
-    "ovr": "OVR",
+    "ovr": "GES",
     "condition": "Kondition",
     "morale": "Moral",
     "value": "Wert",
     "wage": "Gehalt",
     "name": "Name",
-    "team": "Team",
+    "team": "Verein",
     "viewTeam": "Team ansehen",
     "player": "Spieler",
     "actions": "Aktionen",
@@ -515,7 +529,7 @@
       "passing": "Passen",
       "shooting": "Schuss",
       "tackling": "Tackling",
-      "dribbling": "Dribbling",
+      "dribbling": "Dribbeln",
       "defending": "Verteidigung",
       "positioning": "Positionierung",
       "vision": "Übersicht",
@@ -562,7 +576,7 @@
     "attrGroups": {
       "physical": "Physisch",
       "technical": "Technisch",
-      "mental": "Mental",
+      "mental": "Geistig",
       "goalkeeper": "Torwart"
     },
     "retry": "Erneut versuchen",
@@ -586,7 +600,7 @@
     "title": "{{team}} Kader",
     "playerCount": "{{count}} Spieler",
     "noPlayers": "Keine Spieler in deinem Kader gefunden.",
-    "pos": "Pos",
+    "pos": "Pos.",
     "traits": "Merkmale",
     "fullRoster": "Gesamter Kader",
     "compare": "Vergleichen",
@@ -923,7 +937,7 @@
       "Training": "Training",
       "Finance": "Finanzen",
       "Contract": "Vertrag",
-      "ScoutReport": "Scout",
+      "ScoutReport": "Bericht",
       "Media": "Medien",
       "System": "System",
       "JobOffer": "Stellenangebote"
@@ -963,7 +977,7 @@
     "vacancy": "Vakanz",
     "employed": "Im Amt",
     "unemployed": "Vereinslos",
-    "reputation": "Reputation",
+    "reputation": "Ruf",
     "winRate": "Siegquote",
     "matches": "Spiele",
     "currentClub": "Aktueller Klub",
@@ -1100,7 +1114,25 @@
     "internationalDuty": "Im Länderspieleinsatz",
     "promotionZone": "Aufstieg",
     "loadMore": "Mehr laden",
-    "relegationZone": "Abstieg"
+    "relegationZone": "Abstieg",
+    "nextMatch": "Nächstes Spiel",
+    "noUpcoming": "Keine anstehenden Spiele.",
+    "pastResults": "Vergangene Ergebnisse",
+    "calendar": {
+      "title": "Kalender",
+      "mon": "Mo",
+      "tue": "Di",
+      "wed": "Mi",
+      "thu": "Do",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "So",
+      "prevMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "dayWithFixtures": "{{date}} — hat Spiele",
+      "yourMatch": "Dein Spiel",
+      "otherFixtures": "Andere Spiele"
+    }
   },
   "players": {
     "searchPlaceholder": "Nach Name oder Nationalität suchen...",
@@ -1129,7 +1161,7 @@
   },
   "teamsList": {
     "yourTeam": "Dein Team",
-    "pos": "Pos",
+    "pos": "Pl.",
     "rep": "Ruf",
     "est": "Gegr. {{year}}"
   },
@@ -1182,7 +1214,8 @@
       "currentLeaders": "Aktuelle Führende — die endgültigen Auszeichnungen werden am Saisonende vergeben.",
       "managerOfSeasonSubtitle": "Beste Saison an der Seitenlinie"
     },
-    "noGoals": "Noch keine Tore erzielt."
+    "noGoals": "Noch keine Tore erzielt.",
+    "worldCupChampion": "Weltmeister"
   },
   "news": {
     "noNews": "Noch keine Nachrichten.",
@@ -1342,7 +1375,7 @@
       "zhCN": "Vereinfachtes Chinesisch",
       "ru": "Russisch"
     },
-    "gameplay": "Gameplay",
+    "gameplay": "Spielweise",
     "defaultMatchMode": "Standard-Spielmodus",
     "defaultMatchModeDesc": "Wie Spiele starten, wenn du auf Weiter klickst",
     "matchSpeed": "Spielgeschwindigkeit",
@@ -1451,12 +1484,12 @@
     "findPlayers": "Spieler zum Scouten finden",
     "searchPlaceholder": "Nach Name, Nationalität oder Team suchen...",
     "player": "Spieler",
-    "pos": "Pos",
+    "pos": "Pos.",
     "age": "Alter",
-    "team": "Team",
+    "team": "Verein",
     "value": "Wert",
     "action": "Aktion",
-    "scoutingInProgress": "Scouting...",
+    "scoutingInProgress": "Scouting läuft…",
     "noScoutsFree": "Keine Scouts frei",
     "cancelSearch": "Abbrechen",
     "reassignSearch": "Neu zuweisen",
@@ -1733,7 +1766,7 @@
               "text": "Ich schätze jeden einzelnen Fan, der kommt, um uns zu sehen. Ihre Energie hebt die Mannschaft."
             },
             "understand": {
-              "tone": "Fair",
+              "tone": "Verständnisvoll",
               "text": "Sie wollen uns gewinnen sehen, und ich auch. Wir werden weiter alles geben, bis die Ergebnisse kommen."
             },
             "curt": {
@@ -1866,7 +1899,7 @@
           }
         },
         "hattrick": {
-          "headline": "HAT-TRICK!",
+          "headline": "HUT-TRICK!",
           "lines": {
             "0": "{{player}} schnürt den Hattrick! Hut ab!",
             "1": "Drei Tore von {{player}} — was für ein Tag!"
@@ -2053,7 +2086,7 @@
   "endOfSeason": {
     "seasonComplete": "Saison beendet",
     "champions": "Meister!",
-    "position": "Position",
+    "position": "Platz",
     "points": "Punkte",
     "finalStandings": "Endtabelle (Top 5)",
     "leagueChampions": "Ligameister",
@@ -2135,36 +2168,36 @@
         "unknownCountry": "\"{{entity}}\" verweist auf unbekanntes Land \"{{country}}\".",
         "unknownTeam": "Spieler \"{{player}}\" verweist auf unbekannten Verein \"{{team}}\"."
       },
-    "competitionDef": {
-      "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
-      "invalidStandalone": "Die ausgewählte Wettbewerbsdefinitionsdatei ist ungültig.",
-      "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",
-      "unsupportedVersion": "Nicht unterstützte Formatversion {{version}}; dieser Build unterstützt bis zu {{supported}}.",
-      "berthUnknownTarget": "Ein Qualifikationsplatz verweist auf unbekannten Wettbewerb \"{{target}}\".",
-      "berthInvalidRange": "Ungültiger Platzbereich {{from}}–{{to}}.",
-      "berthRequiresLeague": "Platz- und Playoff-Plätze kann nur eine Ligatabelle vergeben.",
-      "berthRequiresCup": "Einen Pokalsieger-Platz kann nur ein K.-o.-Wettbewerb vergeben.",
-      "berthPlayoffTooSmall": "Ein Playoff-Platz braucht mindestens zwei Teilnehmer.",
-      "emptyId": "Einem Wettbewerb fehlt die id.",
-      "duplicateId": "Doppelte Wettbewerbs-id \"{{id}}\".",
-      "emptyName": "Einem Wettbewerb fehlt der Name.",
-      "unknownRegion": "Unbekannte Region \"{{region}}\".",
-      "unknownCountry": "Unbekanntes Land \"{{country}}\".",
-      "groupConfigOnNonGroupFormat": "Gruppeneinstellungen gelten nur für ein Gruppen-und-K.-o.-Format.",
-      "groupSizeTooSmall": "Gruppengröße {{groupSize}} ist zu klein (mindestens 2).",
-      "zeroLegs": "Ein Wettbewerb braucht mindestens ein Spiel.",
-      "noParticipants": "Keine Teilnehmer: Geben Sie eine explizite Liste oder einen Selektor an.",
-      "bothParticipantSources": "Geben Sie entweder eine explizite Liste oder einen Selektor an, nicht beides.",
-      "tooFewParticipants": "Mindestens zwei Teilnehmer sind erforderlich.",
-      "unknownTeam": "Unbekanntes Team \"{{team}}\".",
-      "selectorMissingCountry": "Dieser Selektor benötigt ein Land.",
-      "selectorCountTooSmall": "Dieser Selektor benötigt eine Anzahl von mindestens 2.",
-      "selectorMissingRegion": "Dieser Selektor benötigt eine Region.",
-      "unknownSourceCompetition": "Unbekannter Quellwettbewerb \"{{source}}\".",
-      "selectorMissingSource": "Dieser Selektor benötigt einen Quellwettbewerb.",
-      "unknownExcludedCompetition": "Unbekannter ausgeschlossener Wettbewerb \"{{excluded}}\".",
-      "selectorCycle": "Zirkuläre Qualifikation zwischen Wettbewerben."
-    },
+      "competitionDef": {
+        "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
+        "invalidStandalone": "Die ausgewählte Wettbewerbsdefinitionsdatei ist ungültig.",
+        "parseFailed": "Die Wettbewerbsdefinitionsdatei konnte nicht als JSON gelesen werden.",
+        "unsupportedVersion": "Nicht unterstützte Formatversion {{version}}; dieser Build unterstützt bis zu {{supported}}.",
+        "berthUnknownTarget": "Ein Qualifikationsplatz verweist auf unbekannten Wettbewerb \"{{target}}\".",
+        "berthInvalidRange": "Ungültiger Platzbereich {{from}}–{{to}}.",
+        "berthRequiresLeague": "Platz- und Playoff-Plätze kann nur eine Ligatabelle vergeben.",
+        "berthRequiresCup": "Einen Pokalsieger-Platz kann nur ein K.-o.-Wettbewerb vergeben.",
+        "berthPlayoffTooSmall": "Ein Playoff-Platz braucht mindestens zwei Teilnehmer.",
+        "emptyId": "Einem Wettbewerb fehlt die id.",
+        "duplicateId": "Doppelte Wettbewerbs-id \"{{id}}\".",
+        "emptyName": "Einem Wettbewerb fehlt der Name.",
+        "unknownRegion": "Unbekannte Region \"{{region}}\".",
+        "unknownCountry": "Unbekanntes Land \"{{country}}\".",
+        "groupConfigOnNonGroupFormat": "Gruppeneinstellungen gelten nur für ein Gruppen-und-K.-o.-Format.",
+        "groupSizeTooSmall": "Gruppengröße {{groupSize}} ist zu klein (mindestens 2).",
+        "zeroLegs": "Ein Wettbewerb braucht mindestens ein Spiel.",
+        "noParticipants": "Keine Teilnehmer: Geben Sie eine explizite Liste oder einen Selektor an.",
+        "bothParticipantSources": "Geben Sie entweder eine explizite Liste oder einen Selektor an, nicht beides.",
+        "tooFewParticipants": "Mindestens zwei Teilnehmer sind erforderlich.",
+        "unknownTeam": "Unbekanntes Team \"{{team}}\".",
+        "selectorMissingCountry": "Dieser Selektor benötigt ein Land.",
+        "selectorCountTooSmall": "Dieser Selektor benötigt eine Anzahl von mindestens 2.",
+        "selectorMissingRegion": "Dieser Selektor benötigt eine Region.",
+        "unknownSourceCompetition": "Unbekannter Quellwettbewerb \"{{source}}\".",
+        "selectorMissingSource": "Dieser Selektor benötigt einen Quellwettbewerb.",
+        "unknownExcludedCompetition": "Unbekannter ausgeschlossener Wettbewerb \"{{excluded}}\".",
+        "selectorCycle": "Zirkuläre Qualifikation zwischen Wettbewerben."
+      },
       "worldParseFailed": "Die Weltdatenbankdatei konnte nicht verarbeitet werden.",
       "worldWriteFileFailed": "Die Weltdatenbankdatei konnte nicht exportiert werden.",
       "worldWriteDatabaseFailed": "Die importierte Weltdatenbank konnte nicht gespeichert werden.",
@@ -2296,7 +2329,7 @@
       "directorOfFootball": "Sportdirektor",
       "intlLiaison": "Internationaler Verbindungsbeauftragter",
       "player": "Spieler",
-      "scout": "Scout"
+      "scout": "Scouts"
     },
     "source": {
       "sportsGazette": "Sportgazette",
@@ -2445,8 +2478,8 @@
         "actionAdjust": "Training anpassen"
       },
       "event": {
-        "ack": "Understood",
-        "respond": "Respond"
+        "ack": "Verstanden",
+        "respond": "Antworten"
       },
       "action": {
         "viewFinances": "Finanzen ansehen"
@@ -2557,7 +2590,7 @@
         }
       },
       "sponsor": {
-        "subject": "Sponsorship Offer — {{sponsor}}",
+        "subject": "Sponsoringangebot — {{sponsor}}",
         "body": "Gute Nachrichten, Boss! {{sponsor}} hat Interesse bekundet, Sponsor von {{team}} zu werden.\n\nSie bieten in den nächsten 12 Wochen eine wöchentliche Zahlung von {{amount}} im Austausch für Werbefläche am Trainingsgelände an.\n\nDas scheint ein vernünftiger Deal zu sein, aber die Entscheidung liegt bei dir.",
         "options": {
           "accept": {
@@ -2575,38 +2608,38 @@
         }
       },
       "trainingInjury": {
-        "subject": "Injury — {{player}} ({{injury}})",
-        "body0": "Bad news from the training ground. {{player}} has picked up a {{injury}} during today's session.\n\nThe medical team estimates {{days}} days on the sidelines. We'll monitor the recovery closely.",
-        "body1": "Unfortunately, {{player}} went down in training today with a {{injury}}.\n\nInitial assessment: out for approximately {{days}} days. We'll keep you updated on their progress."
+        "subject": "Verletzung — {{player}} ({{injury}})",
+        "body0": "Schlechte Nachrichten vom Trainingsgelände. {{player}} hat sich bei der heutigen Einheit eine {{injury}} zugezogen.\n\nDas Ärzteteam schätzt {{days}} Tage Ausfallzeit. Wir werden die Genesung genau beobachten.",
+        "body1": "Leider fiel {{player}} heute im Training mit einer {{injury}} aus.\n\nErste Einschätzung: etwa {{days}} Tage nicht einsatzfähig. Wir halten Sie über den Fortschritt auf dem Laufenden."
       },
       "mediaPositive": {
-        "subject": "Positive Press — {{player}}",
-        "body": "The local papers are running a very positive piece on {{player}} today.\n\nThey are highlighting their excellent recent form and commitment to {{team}}. This kind of coverage is great for the player's confidence and the club's image."
+        "subject": "Positive Presse — {{player}}",
+        "body": "Die Lokalpresse veröffentlicht heute einen sehr positiven Artikel über {{player}}.\n\nSie heben seine ausgezeichnete jüngste Form und sein Engagement für {{team}} hervor. Diese Art von Berichterstattung ist großartig für das Selbstvertrauen des Spielers und das Image des Vereins."
       },
       "mediaNegative": {
-        "subject": "Negative Press — {{player}}",
-        "body": "Some unflattering coverage of {{player}} appeared in the tabloids today.\n\nJournalists are questioning their form and commitment to {{team}}. This could affect the player's morale — you might want to have a word."
+        "subject": "Negative Presse — {{player}}",
+        "body": "In den Boulevardzeitungen erschienen heute einige wenig schmeichelhafte Berichte über {{player}}.\n\nJournalisten stellen seine Form und sein Engagement für {{team}} in Frage. Das könnte die Moral des Spielers beeinträchtigen — Sie sollten vielleicht ein Wort mit ihm reden."
       },
       "intlCallup": {
         "subject": "Internationale Berufung — {{player}}",
         "body": "{{player}} wurde für die kommende Länderspielpause in die Nationalmannschaft von {{nationality}} berufen.\n\nDas ist eine große Ehre für den Spieler und wirft auch auf den Verein ein gutes Licht. Er wird mit guter Stimmung zurückkehren, aber behalte seine Ermüdungswerte im Blick."
       },
       "community": {
-        "subject0": "Community Open Day",
-        "subject1": "Youth Coaching Session",
-        "subject2": "Charity Match Announcement",
-        "body0": "{{team}} hosted a community open day at the training ground today.\n\nFans got to meet the players and watch a training session. The atmosphere was fantastic and it's done wonders for team spirit.",
-        "body1": "Several first-team players from {{team}} volunteered for a youth coaching session at a local school.\n\nGreat PR for the club, and the players seem energized by the experience.",
-        "body2": "The club has organized a charity initiative in partnership with a local foundation.\n\n{{team}} continues to build strong ties with the community. The board is pleased with the positive image."
+        "subject0": "Vereins-Tag der offenen Tür",
+        "subject1": "Jugend-Trainingseinheit",
+        "subject2": "Ankündigung des Wohltätigkeitsspiels",
+        "body0": "{{team}} veranstaltete heute einen gemeinschaftlichen Tag der offenen Tür am Trainingsgelände.\n\nDie Fans konnten die Spieler treffen und einer Trainingseinheit zusehen. Die Atmosphäre war fantastisch und hat dem Teamgeist enorm gutgetan.",
+        "body1": "Mehrere Spieler aus dem Kader von {{team}} haben sich freiwillig für eine Jugend-Trainingseinheit an einer lokalen Schule gemeldet.\n\nGute PR für den Verein, und die Spieler scheinen durch die Erfahrung mit neuer Energie erfüllt zu sein.",
+        "body2": "Der Verein hat eine Wohltätigkeitsinitiative in Partnerschaft mit einer lokalen Stiftung organisiert.\n\n{{team}} baut weiterhin starke Verbindungen zur Gemeinschaft auf. Der Vorstand ist mit dem positiven Image zufrieden."
       },
       "moodReport": {
-        "subject": "Dressing Room Report — Mood: {{mood}}",
-        "body": "Here is your weekly dressing room report:\n\n• Overall mood: {{mood}} (avg morale: {{avgMorale}})\n• Players in high spirits (80+): {{highCount}}\n• Players with low morale (<40): {{lowCount}}\n• Total squad: {{total}}"
+        "subject": "Kabinenbericht — Stimmung: {{mood}}",
+        "body": "Hier ist Ihr wöchentlicher Kabinenbericht:\n\n• Gesamtstimmung: {{mood}} (Ø Moral: {{avgMorale}})\n• Spieler mit hoher Stimmung (80+): {{highCount}}\n• Spieler mit niedriger Moral (<40): {{lowCount}}\n• Gesamtkader: {{total}}"
       },
       "boardConfidence": {
-        "subject": "Board Meeting — Results Under Scrutiny",
-        "body0": "The board has called an urgent meeting. Three consecutive defeats have raised serious concerns about the team's direction.\n\n\"We need to see improvement quickly. The fans are restless and results must change.\"\n\nHow do you respond?",
-        "body1": "After a string of poor results, the chairman has summoned you for a difficult conversation.\n\n\"We backed you with resources and time. The results simply aren't good enough. What's your plan?\"\n\nChoose your response carefully.",
+        "subject": "Vorstandssitzung — Ergebnisse unter Beobachtung",
+        "body0": "Der Vorstand hat eine dringende Sitzung einberufen. Drei aufeinanderfolgende Niederlagen haben ernsthafte Bedenken über die Richtung der Mannschaft geweckt.\n\n\"Wir müssen schnell Verbesserungen sehen. Die Fans sind unruhig und die Ergebnisse müssen sich ändern.\"\n\nWie reagieren Sie?",
+        "body1": "Nach einer Reihe schlechter Ergebnisse hat der Vorsitzende Sie zu einem schwierigen Gespräch vorgeladen.\n\n\"Wir haben Sie mit Ressourcen und Zeit unterstützt. Die Ergebnisse sind einfach nicht gut genug. Was ist Ihr Plan?\"\n\nWählen Sie Ihre Antwort sorgfältig.",
         "options": {
           "reassureBoard": {
             "label": "Sie mit einem Plan beruhigen",
@@ -2628,12 +2661,12 @@
         }
       },
       "fanPetition": {
-        "subject0": "Fan Petition — More Attacking Football",
-        "subject1": "Fan Petition — Give Youth a Chance",
-        "subject2": "Fan Open Letter — Transparency",
-        "body0": "A group of {{team}} supporters has organized a petition calling for more attacking football.\n\n\"We pay good money to watch exciting football. We want to see the team go forward and entertain us!\"\n\nOver 500 signatures so far. How do you respond?",
-        "body1": "Supporters of {{team}} have started a campaign urging you to give more opportunities to young players from the academy.\n\n\"The future of our club depends on developing homegrown talent. Stop overlooking the kids!\"\n\nIt's getting traction on social media. What's your response?",
-        "body2": "An open letter from the {{team}} Supporters Trust has been published, asking for more transparency from the management.\n\n\"We want to understand the club's vision. Where are we heading? What's the long-term plan?\"\n\nThe local press is covering it. How do you handle this?",
+        "subject0": "Fan-Petition — Mehr Angriffsfußball",
+        "subject1": "Fan-Petition — Gebt der Jugend eine Chance",
+        "subject2": "Offener Brief der Fans — Transparenz",
+        "body0": "Eine Gruppe von {{team}}-Fans hat eine Petition organisiert, die mehr Angriffsfußball fordert.\n\n\"Wir zahlen gutes Geld, um aufregenden Fußball zu sehen. Wir wollen, dass die Mannschaft nach vorne spielt und uns unterhält!\"\n\nBisher über 500 Unterschriften. Wie reagieren Sie?",
+        "body1": "Die Fans von {{team}} haben eine Kampagne gestartet, die Sie auffordert, mehr Nachwuchsspielern aus der Akademie Chancen zu geben.\n\n\"Die Zukunft unseres Vereins hängt davon ab, einheimische Talente zu entwickeln. Hören Sie auf, die Jugendspieler zu übergehen!\"\n\nEs gewinnt an Fahrt in den sozialen Medien. Was ist Ihre Reaktion?",
+        "body2": "Ein offener Brief des {{team}} Unterstützervereins wurde veröffentlicht und fordert mehr Transparenz vom Management.\n\n\"Wir wollen die Vision des Vereins verstehen. Wohin geht es? Was ist der langfristige Plan?\"\n\nDie Lokalpresse berichtet darüber. Wie gehen Sie damit um?",
         "options": {
           "listenFans": {
             "label": "Den Fans zuhören",
@@ -2655,9 +2688,9 @@
         }
       },
       "rivalInterest": {
-        "subject": "Transfer Rumour — {{player}} linked with {{rival}}",
-        "body0": "We've received word that {{rival}} have been making enquiries about {{player}}.\n\nTheir scouts were spotted at our last few matches, and our sources suggest they may approach with a formal offer soon.\n\nHow would you like us to respond if they make contact?",
-        "body1": "The press are reporting that {{player}} is a target for {{rival}}.\n\nAccording to sources, the player has attracted attention after their recent performances. No formal bid yet, but it's only a matter of time.\n\nWhat's your stance?",
+        "subject": "Transfergerücht — {{player}} mit {{rival}} in Verbindung gebracht",
+        "body0": "Wir haben erfahren, dass {{rival}} Erkundigungen über {{player}} angestellt hat.\n\nIhre Scouts wurden bei unseren letzten Spielen gesichtet, und unsere Quellen deuten darauf hin, dass sie sich bald mit einem formellen Angebot melden könnten.\n\nWie sollen wir reagieren, wenn sie Kontakt aufnehmen?",
+        "body1": "Die Presse berichtet, dass {{player}} ein Transfer-Ziel für {{rival}} ist.\n\nLaut Quellen hat der Spieler durch seine jüngsten Leistungen Aufmerksamkeit erregt. Noch kein offizielles Angebot, aber es ist nur eine Frage der Zeit.\n\nWas ist Ihre Haltung?",
         "options": {
           "notForSale": {
             "label": "Nicht zu verkaufen",
@@ -2848,7 +2881,7 @@
         "body0.noScorers": "Am Spieltag {{matchday}} endete das Spiel {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Das Ergebnis könnte Auswirkungen auf die Tabelle im weiteren Saisonverlauf haben.",
         "body1.noScorers": "Das Spiel endete {{home}} {{homeGoals}} - {{awayGoals}} {{away}} in einem Duell am Spieltag {{matchday}}. Beide Seiten gaben alles in einer spannenden Begegnung.",
         "body2.noScorers": "Spieltag {{matchday}} bot eine weitere spannende Begegnung zwischen {{home}} und {{away}} ({{homeGoals}}-{{awayGoals}}). Die Fans erlebten ein wettbewerbsfähiges Spiel.",
-        "scorer": "{{player}} ({{minute}}', {{team}})",
+        "scorer": "{{player}} ({{minute}}. Min., {{team}})",
         "scorersSection": "\n\nTore: {{scorers}}",
         "reportFriendly": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Freundschaftsspiel-Bericht",

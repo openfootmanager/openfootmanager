@@ -157,7 +157,21 @@
       "financeRunway": "Cash runway down to {{count}} week(s)",
       "wagePressure": "Wage bill at {{percent}}% of budget"
     },
-    "unemployedBanner": "You are currently without a club. Job offers may arrive in your inbox."
+    "unemployedBanner": "You are currently without a club. Job offers may arrive in your inbox.",
+    "digestAdvancing": "Advancing...",
+    "digestDone": "Done",
+    "digestClose": "Close",
+    "digestEmpty": "Nothing to show.",
+    "digestQuietDay": "All quiet.",
+    "digestSimulating": "Processing...",
+    "digestMatchDay": "Match Day",
+    "digestMatchDayDesc": "Your fixture is ready to play.",
+    "digestPlayMatch": "Play Match",
+    "digestBlocked": "Action Required",
+    "digestBlockedDesc": "Some issues need your attention before advancing.",
+    "digestViewIssues": "View Issues",
+    "digestFired": "You have been dismissed.",
+    "digestContinueAnyway": "Continue Anyway"
   },
   "continueMenu": {
     "goToField": "Go to the Field",
@@ -1100,7 +1114,25 @@
     "internationalDuty": "On International Duty",
     "promotionZone": "Promotion",
     "loadMore": "Load more",
-    "relegationZone": "Relegation"
+    "relegationZone": "Relegation",
+    "nextMatch": "Next match",
+    "noUpcoming": "No upcoming fixtures.",
+    "pastResults": "Past results",
+    "calendar": {
+      "title": "Calendar",
+      "mon": "Mo",
+      "tue": "Tu",
+      "wed": "We",
+      "thu": "Th",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "Su",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "dayWithFixtures": "{{date}} — has fixtures",
+      "yourMatch": "Your match",
+      "otherFixtures": "Other fixtures"
+    }
   },
   "players": {
     "searchPlaceholder": "Search by name or nationality...",
@@ -1182,7 +1214,8 @@
       "currentLeaders": "Current leaders — final awards are decided when the season ends.",
       "managerOfSeasonSubtitle": "Best campaign on the touchline"
     },
-    "noGoals": "No goals scored yet."
+    "noGoals": "No goals scored yet.",
+    "worldCupChampion": "World Cup Champion"
   },
   "news": {
     "noNews": "No news articles yet.",
