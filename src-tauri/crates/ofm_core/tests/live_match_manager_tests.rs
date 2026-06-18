@@ -185,6 +185,88 @@ fn create_live_match_succeeds() {
 }
 
 #[test]
+fn create_live_match_uses_saved_starting_xi() {
+    let mut game = make_game_with_fixture();
+    let saved_xi_ids = vec![
+        "team1_gk1".to_string(),
+        "team1_def2".to_string(),
+        "team1_def3".to_string(),
+        "team1_def4".to_string(),
+        "team1_def5".to_string(),
+        "team1_mid2".to_string(),
+        "team1_mid3".to_string(),
+        "team1_mid4".to_string(),
+        "team1_mid5".to_string(),
+        "team1_fwd2".to_string(),
+        "team1_fwd3".to_string(),
+    ];
+    game.teams[0].formation = "4-4-2".to_string();
+    game.teams[0].starting_xi_ids = saved_xi_ids.clone();
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+    let starter_ids: Vec<String> = snap
+        .home_team
+        .players
+        .iter()
+        .map(|player| player.id.clone())
+        .collect();
+    let bench_ids: Vec<String> = snap
+        .home_bench
+        .iter()
+        .map(|player| player.id.clone())
+        .collect();
+
+    assert_eq!(starter_ids, saved_xi_ids);
+    assert!(
+        bench_ids.contains(&"team1_gk0".to_string()),
+        "auto-selected keeper should stay on the bench when the saved keeper starts"
+    );
+}
+
+#[test]
+fn create_live_match_preserves_saved_slot_order_when_some_saved_players_are_unavailable() {
+    let mut game = make_game_with_fixture();
+    game.teams[0].formation = "4-4-2".to_string();
+    game.teams[0].starting_xi_ids = vec![
+        "team1_gk1".to_string(),
+        "team1_def2".to_string(),
+        "team1_def3".to_string(),
+        "team1_def4".to_string(),
+        "team1_def5".to_string(),
+        "team1_mid2".to_string(),
+        "team1_mid3".to_string(),
+        "team1_mid4".to_string(),
+        "team1_mid5".to_string(),
+        "team1_fwd2".to_string(),
+        "team1_fwd3".to_string(),
+    ];
+    game.players
+        .iter_mut()
+        .find(|player| player.id == "team1_def2")
+        .unwrap()
+        .injury = Some(domain::player::Injury {
+            name: "Hamstring".to_string(),
+            days_remaining: 10,
+        });
+
+    let session =
+        live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+    let snap = session.snapshot();
+    let starter_ids: Vec<String> = snap
+        .home_team
+        .players
+        .iter()
+        .map(|player| player.id.clone())
+        .collect();
+
+    assert_eq!(starter_ids[0], "team1_gk1");
+    assert_ne!(starter_ids[1], "team1_def3");
+    assert_eq!(starter_ids[2], "team1_def3");
+}
+
+#[test]
 fn create_live_match_user_side_home() {
     let game = make_game_with_fixture();
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Live, false).unwrap();

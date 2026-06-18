@@ -222,6 +222,50 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
   });
 
+  it("uses an initial uncontrolled sort state and still updates locally", () => {
+    const gameState = makeGameState();
+    gameState.players = [
+      makePlayer("older", "Forward", {
+        full_name: "Older Forward",
+        date_of_birth: "1988-01-01",
+      }),
+      makePlayer("younger", "Forward", {
+        full_name: "Younger Forward",
+        date_of_birth: "2005-01-01",
+      }),
+    ];
+    gameState.teams[0].starting_xi_ids = ["older", "younger"];
+
+    const getRowTexts = () =>
+      screen.getAllByRole("row").map((row) => row.textContent ?? "");
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "age", sortDir: "desc" }}
+      />,
+    );
+
+    let rowTexts = getRowTexts();
+    let olderIndex = rowTexts.findIndex((text) => text.includes("Older Forward"));
+    let youngerIndex = rowTexts.findIndex((text) =>
+      text.includes("Younger Forward"),
+    );
+    expect(olderIndex).toBeGreaterThan(-1);
+    expect(youngerIndex).toBeGreaterThan(-1);
+    expect(olderIndex).toBeLessThan(youngerIndex);
+
+    fireEvent.click(screen.getByText("common.age"));
+
+    rowTexts = getRowTexts();
+    olderIndex = rowTexts.findIndex((text) => text.includes("Older Forward"));
+    youngerIndex = rowTexts.findIndex((text) => text.includes("Younger Forward"));
+    expect(youngerIndex).toBeLessThan(olderIndex);
+  });
+
   it("shows contract inspection columns and renew entry points for expiring players", () => {
     const onSelectPlayer = vi.fn();
     const gameState = makeGameState();

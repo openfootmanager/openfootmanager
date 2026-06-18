@@ -63,16 +63,29 @@ interface SquadRosterViewProps {
   managerId: string;
   onGameUpdate?: (g: GameStateData) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
+  sortState?: SquadRosterSortState;
+  onSortStateChange?: (sortState: SquadRosterSortState) => void;
 }
 
 type FilterScope = "all" | "xi" | "bench" | "outOfPosition" | "injured";
 type SortKey = "pos" | "name" | "age" | "condition" | "morale" | "ovr";
+export interface SquadRosterSortState {
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+}
+
+const DEFAULT_SORT_STATE: SquadRosterSortState = {
+  sortKey: "pos",
+  sortDir: "asc",
+};
 
 export default function SquadRosterView({
   gameState,
   managerId,
   onGameUpdate,
   onSelectPlayer,
+  sortState,
+  onSortStateChange,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
@@ -80,14 +93,18 @@ export default function SquadRosterView({
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("pos");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [localSortState, setLocalSortState] = useState<SquadRosterSortState>(
+    () => sortState ?? DEFAULT_SORT_STATE,
+  );
   const [contractActionPlayerId, setContractActionPlayerId] = useState<
     string | null
   >(null);
   const [contractActionError, setContractActionError] = useState<string | null>(
     null,
   );
+  const isControlled =
+    sortState !== undefined && onSortStateChange !== undefined;
+  const activeSortState = isControlled ? sortState : localSortState;
 
   if (!myTeam) {
     return (
@@ -136,12 +153,23 @@ export default function SquadRosterView({
   const xiIds = new Set(startingXiIds);
 
   const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+    const nextSortState: SquadRosterSortState =
+      activeSortState.sortKey === key
+        ? {
+            sortKey: key,
+            sortDir: activeSortState.sortDir === "asc" ? "desc" : "asc",
+          }
+        : {
+            sortKey: key,
+            sortDir: key === "ovr" ? "desc" : "asc",
+          };
+
+    if (isControlled) {
+      onSortStateChange(nextSortState);
       return;
     }
-    setSortKey(key);
-    setSortDir(key === "ovr" ? "desc" : "asc");
+
+    setLocalSortState(nextSortState);
   };
 
   const isOutOfPosition = (player: PlayerData): boolean => {
@@ -206,7 +234,7 @@ export default function SquadRosterView({
         return normalisePosition(player.position);
       };
 
-      switch (sortKey) {
+      switch (activeSortState.sortKey) {
         case "pos": {
           const aOvr = getPlayerOvr(a);
           const bOvr = getPlayerOvr(b);
@@ -235,8 +263,15 @@ export default function SquadRosterView({
       }
     });
 
-    return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [roster, sortKey, sortDir, playerSearch, positionFilter, statusFilter]);
+    return activeSortState.sortDir === "desc" ? sorted.reverse() : sorted;
+  }, [
+    activeSortState.sortDir,
+    activeSortState.sortKey,
+    playerSearch,
+    positionFilter,
+    roster,
+    statusFilter,
+  ]);
 
   const hasActiveFilters =
     playerSearch.trim().length > 0 ||
@@ -283,13 +318,13 @@ export default function SquadRosterView({
 
   const SortHeader = ({ col, label }: { col: SortKey; label: string }) => (
     <th
-      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+      className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${activeSortState.sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
       onClick={() => toggleSort(col)}
     >
       <div className="flex items-center gap-1">
         {label}
-        {sortKey === col ? (
-          sortDir === "asc" ? (
+        {activeSortState.sortKey === col ? (
+          activeSortState.sortDir === "asc" ? (
             <ChevronUp className="w-3 h-3" />
           ) : (
             <ChevronDown className="w-3 h-3" />
