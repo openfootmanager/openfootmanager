@@ -239,6 +239,7 @@ const createDataTransfer = () => {
 
 describe("TacticsTab", () => {
   beforeEach(() => {
+    localStorage.clear();
     mockedInvoke.mockReset();
     mockedInvoke.mockResolvedValue(makeGameState());
   });
@@ -278,6 +279,44 @@ describe("TacticsTab", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "4-4-2" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Balanced" })).toBeInTheDocument();
+  });
+
+  it("falls back to a custom current setup when no preset matches the active tactic", () => {
+    const gameState = makeGameState();
+    gameState.teams = [
+      makeTeam({
+        formation: "4-4-2",
+        play_style: "Counter",
+        starting_xi_ids: [
+          "gk1",
+          "d1",
+          "d2",
+          "d3",
+          "d4",
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "f1",
+          "f2",
+        ],
+      }),
+    ];
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    ).toHaveTextContent("tactics.customTactic");
+    expect(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    ).not.toHaveTextContent("balanced-control");
   });
 
   it("applies a preset by updating formation and play style", async () => {
@@ -432,6 +471,137 @@ describe("TacticsTab", () => {
     expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
   });
 
+  it("persists custom tactics across remounts", () => {
+    const gameState = makeGameState();
+    const { unmount } = render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.duplicateTactic" }),
+    );
+
+    unmount();
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+
+    expect(
+      screen.getByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not leak custom tactics across manager or team storage scopes", () => {
+    const originalState = makeGameState();
+    const otherState = makeGameState();
+    otherState.clock.start_date = "2026-09-01";
+    otherState.manager.id = "mgr2";
+    otherState.manager.team_id = "team2";
+    otherState.teams = [makeTeam({ id: "team2", manager_id: "mgr2" })];
+    otherState.players = otherState.players.map((player) => ({
+      ...player,
+      team_id: "team2",
+    }));
+
+    const { unmount } = render(
+      <TacticsTab
+        gameState={originalState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.duplicateTactic" }),
+    );
+
+    unmount();
+
+    const secondRender = render(
+      <TacticsTab
+        gameState={otherState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+
+    expect(
+      screen.queryByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).not.toBeInTheDocument();
+
+    secondRender.unmount();
+
+    render(
+      <TacticsTab
+        gameState={originalState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+
+    expect(
+      screen.getByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not mark a preset as active when applying it fails", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "set_formation") {
+        throw new Error("boom");
+      }
+
+      return makeGameState();
+    });
+
+    render(
+      <TacticsTab
+        gameState={makeGameState()}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    ).toHaveTextContent("balanced-control");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        formation: "3-4-3",
+      });
+    });
+
+    expect(
+      screen.getByRole("button", { name: "tactics.chooseTactic" }),
+    ).toHaveTextContent("balanced-control");
+  });
+
   it("localizes the selected player position in the comparison panel", () => {
     render(
       <TacticsTab
@@ -584,7 +754,7 @@ describe("TacticsTab", () => {
 
     const defenderRow = screen.getByTestId("xi-player-d1");
     fireEvent.click(within(defenderRow).getByRole("combobox"));
-    fireEvent.click(screen.getAllByRole("option")[4]);
+    fireEvent.click(within(defenderRow).getAllByRole("option")[4]);
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
@@ -603,6 +773,60 @@ describe("TacticsTab", () => {
         ],
       });
     });
+  });
+
+  it("does not promote an injured bench player into the starting XI", async () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d5"
+        ? {
+            ...player,
+            injury: { name: "Hamstring strain", days_remaining: 7 },
+          }
+        : player,
+    );
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByTestId("bench-player-d5"));
+
+    expect(
+      screen.queryByRole("button", { name: "tactics.promoteToLineup" }),
+    ).not.toBeInTheDocument();
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("does not allow swapping an injured bench player into the starting XI", () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d5"
+        ? {
+            ...player,
+            injury: { name: "Hamstring strain", days_remaining: 7 },
+          }
+        : player,
+    );
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
+    fireEvent.click(screen.getByTestId("pitch-player-d2"));
+
+    expect(
+      screen.getByRole("button", { name: "tactics.confirmSwap" }),
+    ).toBeDisabled();
   });
 
   it("offers tactics context-menu actions to promote a bench player", async () => {

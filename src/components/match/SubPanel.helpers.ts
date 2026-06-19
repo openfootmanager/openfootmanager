@@ -77,7 +77,7 @@ function buildOffPriority(
     (100 - player.condition) * 2 +
     yellowCount * 18 -
     player.ovr * 0.35 +
-    getPositionPriority(player.position, scenario)
+    -getPositionPriority(player.position, scenario)
   );
 }
 
@@ -204,10 +204,23 @@ export function buildRecommendedSubstitutions(
     return [];
   }
 
-  return activePlayers
-    .map((offPlayer) => {
+  const usedOffIds = new Set<string>();
+  const usedOnIds = new Set<string>();
+  const recommendations: Array<RecommendedSubstitution & { score: number }> = [];
+
+  while (
+    recommendations.length < 3 &&
+    usedOffIds.size < activePlayers.length &&
+    usedOnIds.size < availableBench.length
+  ) {
+    const nextRecommendation = activePlayers
+      .filter((offPlayer) => !usedOffIds.has(offPlayer.id))
+      .map((offPlayer) => {
+        const eligibleBench = availableBench.filter(
+          (benchPlayer) => !usedOnIds.has(benchPlayer.id),
+        );
       const yellowCount = yellows[offPlayer.id] ?? 0;
-      const onPlayer = [...availableBench].sort((leftPlayer, rightPlayer) => {
+        const onPlayer = [...eligibleBench].sort((leftPlayer, rightPlayer) => {
         return (
           buildBenchPriority(rightPlayer, offPlayer, scenario.id) -
             buildBenchPriority(leftPlayer, offPlayer, scenario.id) ||
@@ -220,15 +233,21 @@ export function buildRecommendedSubstitutions(
         return null;
       }
 
-      return {
-        offId: offPlayer.id,
-        onId: onPlayer.id,
-        reasons: buildRecommendationReasons({
+        const reasons = buildRecommendationReasons({
           benchPlayer: onPlayer,
           offPlayer,
           scenario: scenario.id,
           yellowCount,
-        }),
+        });
+
+        if (reasons.length === 0) {
+          return null;
+        }
+
+      return {
+        offId: offPlayer.id,
+        onId: onPlayer.id,
+          reasons,
         score:
           buildOffPriority(offPlayer, yellowCount, scenario.id) +
           buildBenchPriority(onPlayer, offPlayer, scenario.id),
@@ -238,11 +257,20 @@ export function buildRecommendedSubstitutions(
       (
         recommendation,
       ): recommendation is RecommendedSubstitution & { score: number } =>
-        recommendation != null && recommendation.reasons.length > 0,
+          recommendation != null,
     )
     .sort((leftRecommendation, rightRecommendation) => {
       return rightRecommendation.score - leftRecommendation.score;
-    })
-    .slice(0, 3)
-    .map(({ score: _score, ...recommendation }) => recommendation);
+      })[0];
+
+    if (!nextRecommendation) {
+      break;
+    }
+
+    usedOffIds.add(nextRecommendation.offId);
+    usedOnIds.add(nextRecommendation.onId);
+    recommendations.push(nextRecommendation);
+  }
+
+  return recommendations.map(({ score: _score, ...recommendation }) => recommendation);
 }

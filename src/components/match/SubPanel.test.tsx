@@ -216,6 +216,16 @@ describe("SubPanel", () => {
         expect(props.onPlayStyleChange).toHaveBeenCalledWith("Balanced");
     });
 
+    it("applies formation from quick tactical tweaks", () => {
+        const props = createProps();
+
+        render(<SubPanel {...props} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "4-3-3" }));
+
+        expect(props.onFormationChange).toHaveBeenCalledWith("4-3-3");
+    });
+
     it("lets a recommendation prefill the swap flow", () => {
         const props = createProps();
 

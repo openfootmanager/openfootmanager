@@ -41,6 +41,11 @@ import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import TacticsPlayerTable from "./TacticsPlayerTable";
 import TacticsRolesPanel from "./TacticsRolesPanel";
 import {
+  buildCustomTacticsStorageKey,
+  loadCustomTactics,
+  saveCustomTactics,
+} from "./TacticsCustomTactics.helpers";
+import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
@@ -52,6 +57,12 @@ interface TacticsTabProps {
   gameState: GameStateData;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onGameUpdate: (g: GameStateData) => void;
+}
+
+function isPlayerEligibleForLineup(
+  player: PlayerData | null | undefined,
+): boolean {
+  return Boolean(player && !player.injury);
 }
 
 export default function TacticsTab({
@@ -89,7 +100,9 @@ export default function TacticsTab({
     useState<SquadSection | null>(null);
   const [activeTab, setActiveTab] = useState<"lineup" | "roles">("lineup");
   const [tableMode, setTableMode] = useState<TacticsTableMode>("lineup");
-  const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>([]);
+  const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
+    loadCustomTactics(gameState),
+  );
   const [activeTacticId, setActiveTacticId] = useState<string | null>(
     initialPreset ? `preset:${initialPreset.id}` : null,
   );
@@ -101,8 +114,10 @@ export default function TacticsTab({
   const dragStateRef = useRef<DragState | null>(null);
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
+  const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
   const roster = buildTacticsRoster(gameState.players, myTeam?.id ?? "");
+  const customTacticsStorageKey = buildCustomTacticsStorageKey(gameState);
 
   const formation = myTeam?.formation || "4-4-2";
   const activePlayStyle = myTeam?.play_style || "Balanced";
@@ -182,12 +197,39 @@ export default function TacticsTab({
     selectedPlayerId,
   );
 
+  useEffect(() => {
+    hydratedCustomTacticsScopeRef.current = null;
+    setCustomTactics(loadCustomTactics(gameState));
+  }, [customTacticsStorageKey, gameState]);
+
+  useEffect(() => {
+    if (hydratedCustomTacticsScopeRef.current !== customTacticsStorageKey) {
+      hydratedCustomTacticsScopeRef.current = customTacticsStorageKey;
+      return;
+    }
+
+    saveCustomTactics(gameState, customTactics);
+  }, [customTactics, customTacticsStorageKey, gameState]);
+
   const canConfirmSwap = useMemo(() => {
     if (
       !selectedPlayerId ||
       !selectedPlayerSection ||
       !comparePlayerId ||
       !comparePlayerSection
+    ) {
+      return false;
+    }
+
+    if (
+      (selectedPlayerSection === "bench" &&
+        !isPlayerEligibleForLineup(
+          selectedPlayerId ? playersById.get(selectedPlayerId) : null,
+        )) ||
+      (comparePlayerSection === "bench" &&
+        !isPlayerEligibleForLineup(
+          comparePlayerId ? playersById.get(comparePlayerId) : null,
+        ))
     ) {
       return false;
     }
@@ -203,6 +245,7 @@ export default function TacticsTab({
   }, [
     comparePlayerId,
     comparePlayerSection,
+    playersById,
     selectedPlayerId,
     selectedPlayerSection,
     startingXiIds,
@@ -298,10 +341,22 @@ export default function TacticsTab({
     () => [...customTactics, ...translatedPresetLibrary],
     [customTactics, translatedPresetLibrary],
   );
+  const currentSetupFallbackTactic = useMemo<TacticsLibraryEntry>(
+    () => ({
+      description: t("tactics.customTacticDescription"),
+      formation,
+      id: "current:setup",
+      name: t("tactics.customTactic"),
+      playStyle: activePlayStyle,
+      sourcePresetName: null,
+      type: "custom",
+    }),
+    [activePlayStyle, formation, t],
+  );
   const activeTactic =
     tacticLibrary.find((entry) => entry.id === activeTacticId) ??
     translatedPresetLibrary.find((entry) => entry.id === `preset:${matchedPreset?.id}`) ??
-    translatedPresetLibrary[0];
+    currentSetupFallbackTactic;
   const isActiveCustomTactic = activeTactic?.type === "custom";
   const isActiveTacticDirty = Boolean(
     activeTactic &&
@@ -311,6 +366,9 @@ export default function TacticsTab({
           draftTacticName.trim().length > 0 &&
           draftTacticName.trim() !== activeTactic.name)),
   );
+  const isCommandBarDirty = isActiveCustomTactic
+    ? isActiveTacticDirty
+    : isActiveTacticDirty || isPresetDirty;
 
   useEffect(() => {
     if (!matchedPreset) {
@@ -320,6 +378,13 @@ export default function TacticsTab({
     if (matchedPreset.id !== presetAnchorId) {
       setPresetAnchorId(matchedPreset.id);
     }
+
+    const nextActivePresetId = `preset:${matchedPreset.id}`;
+    setActiveTacticId((current) =>
+      current?.startsWith("custom:") || current === nextActivePresetId
+        ? current
+        : nextActivePresetId,
+    );
   }, [matchedPreset, presetAnchorId]);
 
   useEffect(() => {
@@ -364,19 +429,25 @@ export default function TacticsTab({
   }
 
   async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
+    if (formation !== nextTactic.formation) {
+      const didUpdateFormation = await handleFormationChange(nextTactic.formation);
+      if (!didUpdateFormation) {
+        return;
+      }
+    }
+
+    if (activePlayStyle !== nextTactic.playStyle) {
+      const didUpdatePlayStyle = await handlePlayStyleChange(nextTactic.playStyle);
+      if (!didUpdatePlayStyle) {
+        return;
+      }
+    }
+
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
 
     if (nextTactic.id.startsWith("preset:")) {
       setPresetAnchorId(nextTactic.id.replace("preset:", ""));
-    }
-
-    if (formation !== nextTactic.formation) {
-      await handleFormationChange(nextTactic.formation);
-    }
-
-    if (activePlayStyle !== nextTactic.playStyle) {
-      await handlePlayStyleChange(nextTactic.playStyle);
     }
   }
 
@@ -449,25 +520,29 @@ export default function TacticsTab({
     }
   }
 
-  async function handleFormationChange(nextFormation: string): Promise<void> {
+  async function handleFormationChange(nextFormation: string): Promise<boolean> {
     try {
       const updated = await invoke<GameStateData>("set_formation", {
         formation: nextFormation,
       });
       onGameUpdate(updated);
+      return true;
     } catch (error) {
       console.error("Failed to set formation:", error);
+      return false;
     }
   }
 
-  async function handlePlayStyleChange(playStyle: string): Promise<void> {
+  async function handlePlayStyleChange(playStyle: string): Promise<boolean> {
     try {
       const updated = await invoke<GameStateData>("set_play_style", {
         playStyle,
       });
       onGameUpdate(updated);
+      return true;
     } catch (error) {
       console.error("Failed to set play style:", error);
+      return false;
     }
   }
 
@@ -506,6 +581,10 @@ export default function TacticsTab({
   }
 
   async function handlePromoteBenchPlayer(playerId: string): Promise<void> {
+    if (!isPlayerEligibleForLineup(playersById.get(playerId))) {
+      return;
+    }
+
     const nextXiIds = buildPromoteToStartingXi(
       startingXiIds,
       playersById,
@@ -623,6 +702,14 @@ export default function TacticsTab({
 
     if (!resolvedDragState) return;
 
+    if (
+      resolvedDragState.from === "bench" &&
+      !isPlayerEligibleForLineup(playersById.get(resolvedDragState.playerId))
+    ) {
+      resetDragState();
+      return;
+    }
+
     const nextXiIds = applyLineupDrop(
       startingXiIds,
       resolvedDragState,
@@ -677,6 +764,19 @@ export default function TacticsTab({
       !selectedPlayerSection ||
       !comparePlayerId ||
       !comparePlayerSection
+    ) {
+      return;
+    }
+
+    if (
+      (selectedPlayerSection === "bench" &&
+        !isPlayerEligibleForLineup(
+          selectedPlayerId ? playersById.get(selectedPlayerId) : null,
+        )) ||
+      (comparePlayerSection === "bench" &&
+        !isPlayerEligibleForLineup(
+          comparePlayerId ? playersById.get(comparePlayerId) : null,
+        ))
     ) {
       return;
     }
@@ -903,7 +1003,7 @@ export default function TacticsTab({
         activeTactic={activeTactic}
         activePlayStyle={activePlayStyle}
         formation={formation}
-        isDirty={isActiveTacticDirty || isPresetDirty}
+        isDirty={isCommandBarDirty}
         onCreateNew={handleCreateCustomTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {

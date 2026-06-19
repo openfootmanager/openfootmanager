@@ -655,6 +655,10 @@ export function buildPromoteToStartingXi(
     return null;
   }
 
+  if (promotedPlayer.injury) {
+    return null;
+  }
+
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
 
   const targetSlotIndex = slotPositions

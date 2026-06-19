@@ -23,6 +23,7 @@ const mockTranslationState = vi.hoisted(function () {
     translations: {
       en: {
         "common.age": "Age",
+        "common.cancel": "Cancel",
         "inbox.chooseResponseOutcomeVaries": "Choose your response — outcome varies",
         "inbox.deleteMessage": "Delete message",
         "inbox.effectOutcomeLabel": "Outcome",
@@ -46,6 +47,8 @@ const mockTranslationState = vi.hoisted(function () {
         "inbox.sortLabel": "Sort",
         "inbox.sortNewest": "Newest first",
         "inbox.sortOldest": "Oldest first",
+        "jobs.switchConfirmAccept": "Accept new role",
+        "jobs.switchConfirmTitle": "Leave your current club?",
         "youthAcademy.growth": "Growth",
         "youthAcademy.ovr": "OVR",
         "youthAcademy.potential": "Potential",

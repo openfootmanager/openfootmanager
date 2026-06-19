@@ -64,6 +64,20 @@ export function SubPanel({
     : null;
   const scenario = getMatchScenario(snapshot, side);
   const recommendations = buildRecommendedSubstitutions(snapshot, side);
+  const visibleRecommendations = recommendations.flatMap((recommendation) => {
+    const offPlayer = team.players.find(
+      (player) => player.id === recommendation.offId,
+    );
+    const onPlayer = availableBench.find(
+      (player) => player.id === recommendation.onId,
+    );
+
+    if (!offPlayer || !onPlayer) {
+      return [];
+    }
+
+    return [{ recommendation, offPlayer, onPlayer }];
+  });
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -295,10 +309,7 @@ export function SubPanel({
                       onClick={() => onPlayStyleChange(scenario.recommendedPlayStyle)}
                       className="rounded-full border border-primary-500/25 bg-primary-500/12 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-primary-500 dark:text-primary-300"
                     >
-                      {t(
-                        `common.playStyles.${scenario.recommendedPlayStyle}`,
-                        scenario.recommendedPlayStyle,
-                      )}
+                      {t(`common.playStyles.${scenario.recommendedPlayStyle}`)}
                     </button>
                   </div>
                 </div>
@@ -486,23 +497,13 @@ export function SubPanel({
                       {t("match.recommendedChanges")}
                     </p>
                     <Badge variant="accent" size="sm">
-                      {recommendations.length}
+                      {visibleRecommendations.length}
                     </Badge>
                   </div>
-                  {recommendations.length > 0 ? (
+                  {visibleRecommendations.length > 0 ? (
                     <div className="mt-3 flex flex-col gap-2">
-                      {recommendations.map((recommendation) => {
-                        const offPlayer = team.players.find(
-                          (player) => player.id === recommendation.offId,
-                        );
-                        const onPlayer = availableBench.find(
-                          (player) => player.id === recommendation.onId,
-                        );
-
-                        if (!offPlayer || !onPlayer) {
-                          return null;
-                        }
-
+                      {visibleRecommendations.map((item) => {
+                        const { recommendation, offPlayer, onPlayer } = item;
                         return (
                           <button
                             key={`${recommendation.offId}-${recommendation.onId}`}
@@ -596,7 +597,7 @@ export function SubPanel({
                               : "bg-white text-gray-600 hover:text-gray-900 dark:bg-navy-800 dark:text-gray-400 dark:hover:text-gray-200"
                           }`}
                         >
-                          {t(`common.playStyles.${playStyle}`, playStyle)}
+                          {t(`common.playStyles.${playStyle}`)}
                         </button>
                       ))}
                     </div>

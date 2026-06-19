@@ -220,12 +220,17 @@ export default function TacticsCommandBar({
                       type="text"
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
+                      aria-label={t("tactics.searchTactics")}
                       placeholder={t("tactics.searchTactics")}
                       className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400 dark:text-gray-100"
                     />
                   </div>
 
-                  <div className="max-h-80 space-y-3 overflow-y-auto p-1">
+                  <div
+                    role="listbox"
+                    aria-label={t("tactics.chooseTactic")}
+                    className="max-h-80 space-y-3 overflow-y-auto p-1"
+                  >
                     {customEntries.length > 0 ? (
                       <div>
                         <div className="mb-2 px-2 text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
@@ -321,6 +326,7 @@ export default function TacticsCommandBar({
                   <button
                     key={nextFormation}
                     type="button"
+                    aria-pressed={formation === nextFormation}
                     onClick={() => onFormationChange(nextFormation)}
                     className={`rounded-xl px-3 py-2.5 text-sm font-heading font-bold transition-all ${
                       formation === nextFormation
@@ -343,6 +349,7 @@ export default function TacticsCommandBar({
                   <button
                     key={style.id}
                     type="button"
+                    aria-pressed={activePlayStyle === style.id}
                     onClick={() => onPlayStyleChange(style.id)}
                     className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-all ${
                       activePlayStyle === style.id

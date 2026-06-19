@@ -1,4 +1,4 @@
-import { calcAge, getPlayerOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import type { PlayerData } from "../../store/gameStore";
 import {
@@ -27,25 +27,10 @@ export const FORMATIONS = [
   "4-1-4-1",
 ];
 
-export const PLAY_STYLE_DESCRIPTION_FALLBACKS: Record<string, string> = {
-  Balanced:
-    "Keeps your team measured in and out of possession, with a steady shape and fewer extremes.",
-  Attacking:
-    "Pushes more bodies forward, creates extra support around the box, and asks your team to take more initiative.",
-  Defensive:
-    "Makes your team protect space first, stay compact, and reduce the risk of getting exposed behind the ball.",
-  Possession:
-    "Encourages your team to circulate the ball patiently, control the tempo, and look for cleaner openings.",
-  Counter:
-    "Invites your team to break forward quickly after regaining the ball, attacking space before the opponent resets.",
-  HighPress:
-    "Asks your team to close down earlier, win the ball higher up the pitch, and keep opponents under pressure.",
-};
-
 export type TacticsLayoutMode = "balanced" | "pitch" | "analysis";
 export type TacticsTableMode = "lineup" | "roles";
 export type SortDirection = "asc" | "desc";
-export type SortKey = "pos" | "name" | "age" | "condition" | "morale" | "ovr";
+export type SortKey = "pos" | "name" | "condition" | "morale" | "ovr";
 
 export interface TacticsPresetDefinition {
   descriptionKey: string;
@@ -231,8 +216,6 @@ export function sortTacticsPlayers(
         );
       case "name":
         return leftPlayer.full_name.localeCompare(rightPlayer.full_name);
-      case "age":
-        return calcAge(leftPlayer.date_of_birth) - calcAge(rightPlayer.date_of_birth);
       case "condition":
         return leftPlayer.condition - rightPlayer.condition;
       case "morale":

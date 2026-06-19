@@ -806,7 +806,7 @@ export default function SquadRosterView({
                               ? "squad.naturalFit"
                               : tacticalFit === "adapted"
                                 ? "squad.adaptedFit"
-                                : "squad.needsCover",
+                                : "squad.outOfPosition",
                           )}
                         </Badge>
                       </td>

@@ -1,24 +1,12 @@
 import type { DragEvent, JSX } from "react";
 import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  Award,
-  CircleDot,
-  CornerDownRight,
-  Crown,
-  Footprints,
-  ShieldAlert,
-  Shuffle,
   Star,
-  UserRound,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { buildDividerMenuItem } from "../playerActions/playerContextMenuItems";
 import { Badge, Card } from "../ui";
 import {
   isPlayerExactForSlot,
@@ -28,6 +16,7 @@ import {
   type SquadSection,
 } from "../squad/SquadTab.helpers";
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
+import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 
 interface TacticsPitchProps {
   benchPlayers: PlayerData[];
@@ -309,112 +298,6 @@ export default function TacticsPitch({
   const translateLabel = (key: string, fallback?: string) =>
     t(key, fallback ?? key);
 
-  function buildPitchPlayerContextItems(
-    player: PlayerData,
-    section: SquadSection,
-  ) {
-    const items = [];
-    const isSelected = selectedPlayerId === player.id;
-
-    if (isSelected) {
-      items.push({
-        label: t("tactics.clearSelection"),
-        icon: <ShieldAlert className="h-4 w-4" />,
-        onClick: onClearSelection,
-      });
-    } else {
-      items.push({
-        label: selectedPlayerId
-          ? t("tactics.compareWithSelected")
-          : t("tactics.selectForSwap"),
-        icon: <Shuffle className="h-4 w-4" />,
-        onClick: () => onLineupPlayerClick(player.id, section),
-      });
-    }
-
-    if (section === "xi" && onAssignBestFit) {
-      items.push(buildDividerMenuItem());
-      items.push({
-        label: t("tactics.assignBestFit"),
-        icon: <ArrowRight className="h-4 w-4" />,
-        onClick: () => onAssignBestFit(player.id),
-      });
-    }
-
-    if (section === "xi" && onDemoteStarter) {
-      items.push({
-        label: t("tactics.moveToBench"),
-        icon: <ArrowDown className="h-4 w-4" />,
-        onClick: () => onDemoteStarter(player.id),
-      });
-    }
-
-    if (section === "bench" && onPromoteBench) {
-      items.push(buildDividerMenuItem());
-      items.push({
-        label: t("tactics.promoteToLineup"),
-        icon: <ArrowUp className="h-4 w-4" />,
-        onClick: () => onPromoteBench(player.id),
-      });
-    }
-
-    if (section === "xi" && onAssignMatchRole && matchRoles) {
-      const roleItems = [
-        matchRoles.captain !== player.id
-          ? {
-              label: t("tactics.makeCaptain"),
-              icon: <Crown className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("captain", player.id),
-            }
-          : null,
-        matchRoles.vice_captain !== player.id
-          ? {
-              label: t("tactics.makeViceCaptain"),
-              icon: <Award className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("vice_captain", player.id),
-            }
-          : null,
-        matchRoles.penalty_taker !== player.id
-          ? {
-              label: t("tactics.setPenaltyTaker"),
-              icon: <CircleDot className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("penalty_taker", player.id),
-            }
-          : null,
-        matchRoles.free_kick_taker !== player.id
-          ? {
-              label: t("tactics.setFreeKickTaker"),
-              icon: <Footprints className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("free_kick_taker", player.id),
-            }
-          : null,
-        matchRoles.corner_taker !== player.id
-          ? {
-              label: t("tactics.setCornerTaker"),
-              icon: <CornerDownRight className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("corner_taker", player.id),
-            }
-          : null,
-      ].filter((item): item is NonNullable<typeof item> => item != null);
-
-      if (roleItems.length > 0) {
-        items.push(buildDividerMenuItem());
-        items.push(...roleItems);
-      }
-    }
-
-    if (onOpenPlayerProfile) {
-      items.push(buildDividerMenuItem());
-      items.push({
-        label: t("squad.viewProfile"),
-        icon: <UserRound className="h-4 w-4" />,
-        onClick: () => onOpenPlayerProfile(player.id),
-      });
-    }
-
-    return items;
-  }
-
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-gray-100 bg-linear-to-r from-navy-700 to-navy-800 px-5 py-4 dark:border-navy-600">
@@ -597,12 +480,37 @@ export default function TacticsPitch({
                       );
 
                       return (
-                        <ContextMenu items={buildPitchPlayerContextItems(player, "xi")}>
+                        <ContextMenu
+                          items={buildTacticsPlayerContextMenuItems({
+                            isSelected: selectedPlayerId === player.id,
+                            matchRoles,
+                            onAssignBestFit,
+                            onAssignMatchRole,
+                            onClearSelection,
+                            onDemoteStarter,
+                            onOpenProfile: (playerId) => {
+                              if (onOpenPlayerProfile) {
+                                onOpenPlayerProfile(playerId);
+                              } else {
+                                onLineupPlayerClick(playerId, "xi");
+                              }
+                            },
+                            onPromoteBench,
+                            onTacticalSelect: onLineupPlayerClick,
+                            player,
+                            section: "xi",
+                            selectedPlayerId,
+                            t,
+                          })}
+                        >
                           <button
                             type="button"
                             draggable
                             data-testid={`pitch-player-${player.id}`}
                             onClick={() => onLineupPlayerClick(player.id, "xi")}
+                            onDragOver={(event) => onSlotDragOver(event, slot.index)}
+                            onDragLeave={() => onSlotDragLeave(slot.index)}
+                            onDrop={(event) => onSlotDrop(event, slot.index)}
                             onDragStart={(event) =>
                               onDragStart(event, player.id, "xi", slot.index)
                             }
@@ -704,10 +612,30 @@ export default function TacticsPitch({
                 );
 
                 return (
-                  <ContextMenu
-                    items={buildPitchPlayerContextItems(player, "bench")}
-                    key={player.id}
-                  >
+                    <ContextMenu
+                      items={buildTacticsPlayerContextMenuItems({
+                        isSelected: selectedPlayerId === player.id,
+                        matchRoles,
+                        onAssignBestFit,
+                        onAssignMatchRole,
+                        onClearSelection,
+                        onDemoteStarter,
+                        onOpenProfile: (playerId) => {
+                          if (onOpenPlayerProfile) {
+                            onOpenPlayerProfile(playerId);
+                          } else {
+                            onLineupPlayerClick(playerId, "bench");
+                          }
+                        },
+                        onPromoteBench,
+                        onTacticalSelect: onLineupPlayerClick,
+                        player,
+                        section: "bench",
+                        selectedPlayerId,
+                        t,
+                      })}
+                      key={player.id}
+                    >
                     <button
                       type="button"
                       draggable={!player.injury}
@@ -734,7 +662,7 @@ export default function TacticsPitch({
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <div className="truncate text-sm font-heading font-bold text-gray-900 dark:text-white">
-                                {player.match_name}
+                                {player.match_name || player.full_name}
                               </div>
                               <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-gray-500 dark:text-white/60">
                                 {naturalPosition}

@@ -3,17 +3,9 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  Award,
   ChevronDown,
   ChevronUp,
-  CircleDot,
-  CornerDownRight,
-  Crown,
-  Footprints,
-  ShieldAlert,
-  Shuffle,
   Star,
-  UserRound,
 } from "lucide-react";
 import type { JSX } from "react";
 import { useMemo } from "react";
@@ -25,7 +17,6 @@ import type {
   TeamMatchRolesData,
 } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { buildDividerMenuItem } from "../playerActions/playerContextMenuItems";
 import { Badge, Card, Select } from "../ui";
 import {
   getPlayStyleFit,
@@ -42,6 +33,7 @@ import {
   type TacticsFormationSlotOption,
   type TacticsTableMode,
 } from "./TacticsTab.helpers";
+import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 
 interface TacticsPlayerTableProps {
   activePlayStyle: string;
@@ -392,105 +384,22 @@ function TacticsTableRow({
     player.full_name && player.full_name !== primaryName ? player.full_name : null;
 
   const contextItems = useMemo(() => {
-    const items = [];
-
-    if (isHighlighted && onClearTacticsSelection) {
-      items.push({
-        label: t("tactics.clearSelection"),
-        icon: <ShieldAlert className="h-4 w-4" />,
-        onClick: onClearTacticsSelection,
-      });
-    } else if (onTacticalSelect) {
-      items.push({
-        label: highlightedPlayerId
-          ? t("tactics.compareWithSelected")
-          : t("tactics.selectForSwap"),
-        icon: <Shuffle className="h-4 w-4" />,
-        onClick: () => onTacticalSelect(player.id, section),
-      });
-    }
-
-    if (section === "xi" && onAssignBestFit) {
-      items.push(buildDividerMenuItem());
-      items.push({
-        label: t("tactics.assignBestFit"),
-        icon: <ArrowRight className="h-4 w-4" />,
-        onClick: () => onAssignBestFit(player.id),
-      });
-    }
-
-    if (section === "xi" && onDemoteStarter) {
-      items.push({
-        label: t("tactics.moveToBench"),
-        icon: <ArrowDown className="h-4 w-4" />,
-        onClick: () => onDemoteStarter(player.id),
-      });
-    }
-
-    if (section === "bench" && onPromoteBench) {
-      items.push(buildDividerMenuItem());
-      items.push({
-        label: t("tactics.promoteToLineup"),
-        icon: <ArrowUp className="h-4 w-4" />,
-        onClick: () => onPromoteBench(player.id),
-      });
-    }
-
-    if (section === "xi" && onAssignMatchRole && matchRoles) {
-      const roleItems = [
-        matchRoles.captain !== player.id
-          ? {
-              label: t("tactics.makeCaptain"),
-              icon: <Crown className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("captain", player.id),
-            }
-          : null,
-        matchRoles.vice_captain !== player.id
-          ? {
-              label: t("tactics.makeViceCaptain"),
-              icon: <Award className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("vice_captain", player.id),
-            }
-          : null,
-        matchRoles.penalty_taker !== player.id
-          ? {
-              label: t("tactics.setPenaltyTaker"),
-              icon: <CircleDot className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("penalty_taker", player.id),
-            }
-          : null,
-        matchRoles.free_kick_taker !== player.id
-          ? {
-              label: t("tactics.setFreeKickTaker"),
-              icon: <Footprints className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("free_kick_taker", player.id),
-            }
-          : null,
-        matchRoles.corner_taker !== player.id
-          ? {
-              label: t("tactics.setCornerTaker"),
-              icon: <CornerDownRight className="h-4 w-4" />,
-              onClick: () => onAssignMatchRole("corner_taker", player.id),
-            }
-          : null,
-      ].filter((item): item is NonNullable<typeof item> => item != null);
-
-      if (roleItems.length > 0) {
-        items.push(buildDividerMenuItem());
-        items.push(...roleItems);
-      }
-    }
-
-    items.push(buildDividerMenuItem());
-    items.push({
-      label: t("squad.viewProfile"),
-      icon: <UserRound className="h-4 w-4" />,
-      onClick: () => onSelectPlayer(player.id),
+    return buildTacticsPlayerContextMenuItems({
+      isSelected: isHighlighted,
+      matchRoles,
+      onAssignBestFit,
+      onAssignMatchRole,
+      onClearSelection: onClearTacticsSelection,
+      onDemoteStarter,
+      onOpenProfile: onSelectPlayer,
+      onPromoteBench,
+      onTacticalSelect,
+      player,
+      section,
+      selectedPlayerId: highlightedPlayerId,
+      t,
     });
-
-    return items;
   }, [
-    highlightedPlayerId,
     isHighlighted,
     onAssignBestFit,
     onAssignMatchRole,
@@ -500,7 +409,8 @@ function TacticsTableRow({
     onPromoteBench,
     onSelectPlayer,
     onTacticalSelect,
-    player.id,
+    player,
+    highlightedPlayerId,
     section,
     t,
   ]);
