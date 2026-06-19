@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2, Users } from "lucide-react";
 
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
   setPlayerTrainingFocus,
   setTrainingGroups,
@@ -19,9 +19,9 @@ import {
 type TrainingGroup = TrainingGroupData;
 
 interface TrainingGroupsCardProps {
-  gameState: GameStateData;
+  team: TeamData | null;
   onGameUpdate?: (state: GameStateData) => void;
-  roster: GameStateData["players"];
+  roster: PlayerData[];
   isSaving: boolean;
   setIsSaving: (value: boolean) => void;
   trainingFocusIds: readonly string[];
@@ -29,7 +29,7 @@ interface TrainingGroupsCardProps {
 }
 
 export default function TrainingGroupsCard({
-  gameState,
+  team,
   onGameUpdate,
   roster,
   isSaving,
@@ -38,11 +38,8 @@ export default function TrainingGroupsCard({
   trainingFocusIcons,
 }: TrainingGroupsCardProps) {
   const { t } = useTranslation();
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
-  );
-  const groups: TrainingGroup[] = (myTeam as any)?.training_groups ?? [];
-  const teamFocus = myTeam?.training_focus || "Physical";
+  const groups: TrainingGroup[] = (team as any)?.training_groups ?? [];
+  const teamFocus = team?.training_focus || "Physical";
 
   const saveGroups = useCallback(
     async (nextGroups: TrainingGroup[]) => {

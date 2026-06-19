@@ -140,8 +140,12 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
     properly exercise client-side `isSeniorSquadPlayer` filter via the post-fetch state.
     Selection-click tests updated to `not.toHaveBeenCalledWith("set_starting_xi", ...)` (more
     specific than the former `not.toHaveBeenCalled()` which now conflicts with the mount fetch).
+  - TrainingTab **full flip** complete: self-fetches squad via `get_squad` on mount; `isSaving`
+    useState moved before early return (fixes pre-existing hooks violation). Roster =
+    `(fetchedSquad ?? gameState?.players.filter(teamId) ?? []).filter(isSeniorSquadPlayer)`.
+    Clock date from `sessionState?.clock.current_date` with gameState fallback. `TrainingGroupsCard`
+    slimmed: replaced `gameState: GameStateData` prop with `team: TeamData | null`.
   **Remaining (gated on new backend slices):**
-  - Training tab still reads `gameState.players` — can now use `get_squad`.
   - Transfers, Scouting, Staff tabs read `gameState.staff`/`gameState.scouting_assignments`
     — requires a `get_staff(team_id)` slice (NOT unblocked by `get_squad`).
   - HomeTab still reads `gameState.news`, `gameState.messages`, `gameState.teams`,
