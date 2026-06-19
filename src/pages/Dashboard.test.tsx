@@ -350,4 +350,26 @@ describe("Dashboard", () => {
     fireEvent.click(screen.getByText("nav-managers"));
     expect(screen.getByText("Header Managers")).toBeInTheDocument();
   });
+
+  it("loads game state when the active save id fetch fails", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") {
+        return gameState;
+      }
+
+      if (command === "get_active_save_id") {
+        throw new Error("save id unavailable");
+      }
+
+      return null;
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(setGameStateMock).toHaveBeenCalledWith(gameState);
+    });
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(clearGameMock).not.toHaveBeenCalled();
+  });
 });

@@ -109,6 +109,22 @@ export default function Dashboard(): JSX.Element {
   const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
   const [squadListSortState, setSquadListSortState] =
     useState<SquadListSortState>(DEFAULT_SQUAD_LIST_SORT_STATE);
+  const loadActiveGameState = useCallback(async () => {
+    const [stateResult, saveIdResult] = await Promise.allSettled([
+      invoke<GameStateData>("get_active_game"),
+      invoke<string | null>("get_active_save_id"),
+    ]);
+
+    if (stateResult.status === "rejected") {
+      throw stateResult.reason;
+    }
+
+    setGameState(stateResult.value);
+
+    if (saveIdResult.status === "fulfilled") {
+      setActiveSaveId(saveIdResult.value);
+    }
+  }, [setGameState]);
 
   // Fetch initial state
   useEffect(() => {
@@ -119,30 +135,20 @@ export default function Dashboard(): JSX.Element {
 
     const fetchState = async () => {
       try {
-        const [state, saveId] = await Promise.all([
-          invoke<GameStateData>("get_active_game"),
-          invoke<string | null>("get_active_save_id"),
-        ]);
-        setGameState(state);
-        setActiveSaveId(saveId);
+        await loadActiveGameState();
       } catch (err) {
         console.error("Failed to fetch game state:", err);
       }
     };
 
     fetchState();
-  }, [hasActiveGame, navigate, setGameState]);
+  }, [hasActiveGame, loadActiveGameState, navigate]);
 
   // Refresh state when MCP tools mutate game (backend emits "game-state-changed")
   useEffect(() => {
     const unlisten = listen("game-state-changed", async () => {
       try {
-        const [state, saveId] = await Promise.all([
-          invoke<GameStateData>("get_active_game"),
-          invoke<string | null>("get_active_save_id"),
-        ]);
-        setGameState(state);
-        setActiveSaveId(saveId);
+        await loadActiveGameState();
       } catch {
         // Game may have been exited — navigate back to menu
         clearGame();
@@ -152,7 +158,7 @@ export default function Dashboard(): JSX.Element {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [setGameState, clearGame, navigate]);
+  }, [loadActiveGameState, clearGame, navigate]);
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;

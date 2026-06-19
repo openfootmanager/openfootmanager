@@ -27,6 +27,8 @@ vi.mock("react-i18next", () => ({
         return `Expires ${String((fallback as Record<string, unknown> | undefined)?.date ?? "")}`;
       if (key === "playerProfile.daysRemaining")
         return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
+      if (key === "playerProfile.injuryDaysShort")
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")}d`;
       if (key.startsWith("common.injuries."))
         return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
       return typeof fallback === "string" ? fallback : key;

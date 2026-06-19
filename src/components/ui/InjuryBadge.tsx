@@ -18,7 +18,9 @@ export function InjuryBadge({
 }: InjuryBadgeProps) {
   const { t } = useTranslation();
   const injuryName = resolveInjuryName(injury.name, t);
-  const daysLabel = `${injury.days_remaining}d`;
+  const daysLabel = t("playerProfile.injuryDaysShort", {
+    count: injury.days_remaining,
+  });
   const title = `${injuryName} - ${t("playerProfile.daysRemaining", {
     count: injury.days_remaining,
   })}`;
