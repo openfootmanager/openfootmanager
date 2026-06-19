@@ -201,6 +201,7 @@ pub fn run() {
             get_messages_page,
             get_competitions_view,
             get_session_state,
+            get_squad,
             advance_time,
             advance_time_with_mode,
             upgrade_facility,
