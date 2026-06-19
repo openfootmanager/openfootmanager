@@ -115,6 +115,12 @@ pub fn nation_display_name(code: &str) -> String {
         .unwrap_or_else(|| code.to_string())
 }
 
+/// Countries that use a split-season (Apertura + Clausura) format rather than
+/// a single annual competition.
+pub fn is_split_season_country(code: &str) -> bool {
+    matches!(code, "AR" | "CO")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

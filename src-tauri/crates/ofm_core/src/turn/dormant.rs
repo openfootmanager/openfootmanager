@@ -5,29 +5,8 @@
 
 use crate::game::Game;
 use crate::national_team::simulate_scoreline;
-use domain::league::{FixtureStatus, MatchResult};
-use domain::player::Player;
+use domain::league::FixtureStatus;
 use rand::Rng;
-
-/// Best-XI size used to gauge a club's match strength.
-const DORMANT_MATCH_XI: usize = 11;
-
-/// Average OVR of a club's best XI, used as scoreline strength. Falls back to a
-/// neutral rating when the club has no players on the books.
-fn club_strength(players: &[Player], club_id: &str) -> f64 {
-    let mut ovrs: Vec<u8> = players
-        .iter()
-        .filter(|player| player.team_id.as_deref() == Some(club_id))
-        .map(|player| player.ovr)
-        .collect();
-    if ovrs.is_empty() {
-        return 50.0;
-    }
-    ovrs.sort_unstable_by(|a, b| b.cmp(a));
-    let count = ovrs.len().min(DORMANT_MATCH_XI);
-    let total: u32 = ovrs.iter().take(count).map(|ovr| u32::from(*ovr)).sum();
-    total as f64 / count as f64
-}
 
 /// Resolve every fixture due `today` in the dormant competition at
 /// `competition_index` with a scoreline-only model: update the fixture result
@@ -56,41 +35,18 @@ pub(super) fn simulate_dormant_competition_day(
         .collect();
 
     for (fixture_index, home_team_id, away_team_id) in due {
-        let home_strength = club_strength(&game.players, &home_team_id);
-        let away_strength = club_strength(&game.players, &away_team_id);
+        let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
+        let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
         let (home_goals, away_goals) = simulate_scoreline(home_strength, away_strength, rng);
-
         let competition = &mut game.competitions[competition_index];
-        let fixture = &mut competition.fixtures[fixture_index];
-        fixture.status = FixtureStatus::Completed;
-        let counts_for_standings = fixture.counts_for_league_standings();
-        fixture.result = Some(MatchResult {
+        crate::catchup::apply_simulated_result(
+            competition,
+            fixture_index,
+            &home_team_id,
+            &away_team_id,
             home_goals,
             away_goals,
-            home_scorers: Vec::new(),
-            away_scorers: Vec::new(),
-            report: None,
-        });
-
-        if counts_for_standings {
-            if let Some(entry) = competition
-                .standings
-                .iter_mut()
-                .find(|entry| entry.team_id == home_team_id)
-            {
-                entry.record_result(home_goals, away_goals);
-            }
-            if let Some(entry) = competition
-                .standings
-                .iter_mut()
-                .find(|entry| entry.team_id == away_team_id)
-            {
-                entry.record_result(away_goals, home_goals);
-            }
-        }
-
-        crate::group_stage::process_completed_fixture(competition, fixture_index);
-        crate::schedule::advance_knockout_competition_round(competition);
+        );
     }
 }
 

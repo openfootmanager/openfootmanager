@@ -26,8 +26,6 @@ import {
 import {
   fetchPlayersPage,
   type PlayerSortKey,
-  type PlayerStatusFilter,
-  type PlayerSummary,
   type PlayersPage,
   type PlayersPageQuery,
 } from "../../services/playersService";
@@ -202,7 +200,7 @@ export default function PlayersListTab({
 
   const items = slice?.items ?? [];
   const total = slice?.total ?? 0;
-  const page = slice?.page ?? query.page;
+  const page = query.page;
   const pageSize = slice?.page_size ?? query.page_size;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];

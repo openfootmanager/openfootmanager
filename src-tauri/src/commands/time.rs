@@ -207,6 +207,94 @@ pub fn skip_to_match_day_internal(
     }))
 }
 
+/// Advance exactly one day, surfacing what happened so the frontend can build a
+/// per-day digest feed instead of a silent batch spinner.
+///
+/// Stop conditions are checked **before** advancing so the user can never
+/// auto-simulate their own match or skip past an unresolved blocker:
+///   - `match_day`  — user has a scheduled fixture today; game state unchanged
+///   - `blocked`    — action-required blocker exists; game state unchanged
+///   - `fired`      — manager was dismissed during today's processing
+///   - `advanced`   — quiet day processed successfully; game state updated
+pub fn advance_one_day_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
+    let mut game = state
+        .get_game(|g| g.clone())
+        .ok_or("be.error.noActiveGameSession")?;
+
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    info!("[cmd] advance_one_day: date={}", today);
+
+    if game.user_has_scheduled_match_on(&today) {
+        info!("[cmd] advance_one_day: match_day={}", today);
+        return Ok(serde_json::json!({
+            "action": "match_day",
+            "game": game,
+            "date": today,
+            "results": []
+        }));
+    }
+
+    let blockers = compute_blocking_actions(&game);
+    if !blockers.is_empty() {
+        info!(
+            "[cmd] advance_one_day: blocked date={} count={}",
+            today,
+            blockers.len()
+        );
+        return Ok(serde_json::json!({
+            "action": "blocked",
+            "game": game,
+            "date": today,
+            "blockers": blockers,
+            "results": []
+        }));
+    }
+
+    let mut captures = Vec::new();
+    ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
+        captures.push(capture);
+    });
+    for capture in captures {
+        state.append_stats_state(capture);
+    }
+
+    if game.manager.team_id.is_none() {
+        info!("[cmd] advance_one_day: manager fired on date={}", today);
+        let results = collect_advance_results(&game, &today);
+        state.set_game(game.clone());
+        return Ok(serde_json::json!({
+            "action": "fired",
+            "game": game,
+            "date": today,
+            "results": results
+        }));
+    }
+
+    let results = collect_advance_results(&game, &today);
+    state.set_game(game.clone());
+    info!(
+        "[cmd] advance_one_day: advanced from={} to={}",
+        today,
+        game.clock.current_date.format("%Y-%m-%d")
+    );
+    Ok(serde_json::json!({
+        "action": "advanced",
+        "game": game,
+        "date": today,
+        "results": results
+    }))
+}
+
+#[tauri::command]
+pub async fn advance_one_day(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<serde_json::Value, String> {
+    let state = state.inner().clone();
+    run_off_thread(move || advance_one_day_internal(&state)).await
+}
+
 fn count_high_priority_messages(game: &Game) -> usize {
     game.messages
         .iter()
@@ -495,6 +583,59 @@ mod tests {
             transfer_rumours: vec![],
             ..domain::league::League::default()
         });
+        game
+    }
+
+    /// Like `make_game_with_matchday` but stores the fixture in `game.competitions`
+    /// (the source of truth for `user_has_scheduled_match_on`).
+    fn make_game_with_competition_matchday() -> Game {
+        let mut game = make_game(22);
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let mut opponent_team = Team::new(
+            "team2".to_string(),
+            "Rival FC".to_string(),
+            "RIV".to_string(),
+            "England".to_string(),
+            "Rivaltown".to_string(),
+            "Rival Ground".to_string(),
+            21_000,
+        );
+        opponent_team.starting_xi_ids = game
+            .players
+            .iter()
+            .skip(11)
+            .take(11)
+            .map(|p| p.id.clone())
+            .collect();
+        game.teams.push(opponent_team);
+        for player in game.players.iter_mut().skip(11) {
+            player.team_id = Some("team2".to_string());
+        }
+        game.teams[0].starting_xi_ids =
+            game.players.iter().take(11).map(|p| p.id.clone()).collect();
+
+        game.competitions = vec![domain::league::League {
+            id: "comp-1".to_string(),
+            name: "League".to_string(),
+            season: 2025,
+            fixtures: vec![Fixture {
+                id: "fx-1".to_string(),
+                competition_id: "comp-1".to_string(),
+                matchday: 1,
+                date: today,
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
+            standings: vec![
+                domain::league::StandingEntry::new("team1".to_string()),
+                domain::league::StandingEntry::new("team2".to_string()),
+            ],
+            ..domain::league::League::default()
+        }];
+        game.league = None;
         game
     }
 
@@ -1132,5 +1273,76 @@ mod tests {
         assert!(round_summary.is_complete);
         assert_eq!(round_summary.pending_fixture_count, 0);
         assert_eq!(round_summary.completed_results.len(), 2);
+    }
+
+    #[test]
+    fn advance_one_day_stops_on_match_day_without_advancing() {
+        let state = StateManager::new();
+        // Must use a competition-based fixture because user_has_scheduled_match_on
+        // checks game.competitions, not the legacy game.league mirror.
+        state.set_game(make_game_with_competition_matchday());
+
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
+
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("match_day"));
+        // Clock must not have advanced — the match should be played interactively.
+        let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
+            .expect("game deserializable");
+        assert_eq!(
+            game.clock.current_date.date_naive().to_string(),
+            "2025-06-15",
+            "clock must not advance on a match day stop"
+        );
+    }
+
+    #[test]
+    fn advance_one_day_stops_on_blocker_without_advancing() {
+        let state = StateManager::new();
+        let mut game = make_game(11);
+        // Inject two injured starters to trigger the injured_xi blocker.
+        for player_id in ["p2", "p5"] {
+            let player = game
+                .players
+                .iter_mut()
+                .find(|p| p.id == player_id)
+                .unwrap();
+            player.injury = Some(Injury {
+                name: "Hamstring".to_string(),
+                days_remaining: 7,
+            });
+        }
+        state.set_game(game);
+
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
+
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("blocked"));
+        let blockers = result.get("blockers").and_then(Value::as_array).unwrap();
+        assert!(!blockers.is_empty(), "blockers array must be populated");
+    }
+
+    #[test]
+    fn advance_one_day_advances_quiet_day_and_returns_date() {
+        let state = StateManager::new();
+        // No match today, no blockers.
+        state.set_game(make_game(11));
+
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
+
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("advanced"));
+        assert_eq!(
+            result.get("date").and_then(Value::as_str),
+            Some("2025-06-15"),
+            "returned date must be the day that was processed"
+        );
+        // Game clock should now be 2025-06-16.
+        let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
+            .expect("game deserializable");
+        assert_eq!(
+            game.clock.current_date.date_naive().to_string(),
+            "2025-06-16"
+        );
     }
 }

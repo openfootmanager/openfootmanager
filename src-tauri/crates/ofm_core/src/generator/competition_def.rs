@@ -8,7 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use domain::league::{
@@ -60,6 +60,12 @@ pub struct CompetitionDefinition {
     /// evaluated from the season's real results at rollover (Phase C).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub berths: Vec<Berth>,
+    /// Calendar month the season starts (1–12). Defaults to 8 (August).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub season_start_month: Option<u8>,
+    /// Day of month the season starts (1–31). Defaults to 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub season_start_day: Option<u8>,
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -365,6 +371,37 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
             &competition.id,
         ));
     }
+    if let Some(month) = competition.season_start_month {
+        if !(1..=12).contains(&month) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.invalidSeasonMonth", &competition.id)
+                    .with("month", month.to_string()),
+            );
+        }
+    }
+    if let Some(day) = competition.season_start_day {
+        if !(1..=31).contains(&day) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
+                    .with("day", day.to_string()),
+            );
+        }
+    }
+    // Cross-check month + day using a leap year as probe so Feb 29 is accepted
+    // (it clamps to Feb 28 at runtime). This rejects truly impossible dates
+    // such as Apr 31 or Feb 30 that pass the independent range checks above.
+    if let (Some(month), Some(day)) = (competition.season_start_month, competition.season_start_day)
+    {
+        if (1..=12).contains(&month)
+            && (1..=31).contains(&day)
+            && NaiveDate::from_ymd_opt(2000, month as u32, day as u32).is_none()
+        {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
+                    .with("day", day.to_string()),
+            );
+        }
+    }
     if let Some(group_size) = format.group_size
         && group_size < 2
     {
@@ -529,6 +566,55 @@ fn detect_selector_cycles(
             }
             current = next;
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Season date helpers
+// ---------------------------------------------------------------------------
+
+/// Converts (year, month, day) to midnight UTC, clamping `day` down to the
+/// last valid day of the month when necessary (e.g. Feb 29 in a non-leap year
+/// becomes Feb 28). Month and day are also clamped into their valid ranges so
+/// this function is infallible even for DB-sourced values.
+fn date_utc(year: i32, month: u8, day: u8) -> DateTime<Utc> {
+    let m = month.clamp(1, 12);
+    let d = day.clamp(1, 31);
+    for candidate in (1..=d).rev() {
+        if let Some(naive) = NaiveDate::from_ymd_opt(year, m as u32, candidate as u32) {
+            return naive.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        }
+    }
+    // m is 1..=12 after clamp, so day 1 always exists.
+    NaiveDate::from_ymd_opt(year, m as u32, 1)
+        .expect("month is 1–12")
+        .and_hms_opt(0, 0, 0)
+        .unwrap()
+        .and_utc()
+}
+
+/// At game-open: returns the competition's start date for the first season and
+/// whether it is already mid-season at that point (i.e. the competition's
+/// start date falls before `game_start`).
+pub fn start_date_at_game_open(
+    game_start: DateTime<Utc>,
+    month: u8,
+    day: u8,
+) -> (DateTime<Utc>, bool) {
+    let date = date_utc(game_start.year(), month, day);
+    let is_mid_season = date <= game_start;
+    (date, is_mid_season)
+}
+
+/// At rollover: the next calendar occurrence of (month, day) strictly after
+/// `after`. Used to compute each competition's own next-season start without a
+/// single global rollover anchor.
+pub fn next_season_start(after: DateTime<Utc>, month: u8, day: u8) -> DateTime<Utc> {
+    let same_year = date_utc(after.year(), month, day);
+    if same_year >= after {
+        same_year
+    } else {
+        date_utc(after.year() + 1, month, day)
     }
 }
 
@@ -749,6 +835,8 @@ fn build_competition(
     competition.participant_ids = team_ids.to_vec();
     competition.priority = def.priority;
     competition.berths = def.berths.clone();
+    competition.season_start_month = def.season_start_month.unwrap_or(8);
+    competition.season_start_day = def.season_start_day.unwrap_or(1);
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();
@@ -760,11 +848,15 @@ fn build_competition(
 /// resolved against the world (in dependency order), and competitions whose
 /// participant list comes out below two clubs are skipped. Call only after
 /// [`validate_definitions`] has returned no errors.
+///
+/// `game_start` is the game's anchor date (July 1 of the chosen start year).
+/// Each competition derives its own season-start date from its
+/// `season_start_month`/`season_start_day` fields.
 pub fn resolve_definitions(
     file: &CompetitionDefinitionFile,
     world: &super::WorldData,
     season: u32,
-    season_start: DateTime<Utc>,
+    game_start: DateTime<Utc>,
 ) -> Vec<League> {
     let region_by_country = country_to_region(world);
 
@@ -804,7 +896,10 @@ pub fn resolve_definitions(
         .iter()
         .filter_map(|def| {
             let team_ids = resolved.get(&def.id).cloned().unwrap_or_default();
-            build_competition(def, &team_ids, season, season_start)
+            let month = def.season_start_month.unwrap_or(8);
+            let day = def.season_start_day.unwrap_or(1);
+            let (comp_start, _) = start_date_at_game_open(game_start, month, day);
+            build_competition(def, &team_ids, season, comp_start)
         })
         .collect()
 }
@@ -858,6 +953,8 @@ mod tests {
                 selector: None,
             },
             berths: Vec::new(),
+            season_start_month: None,
+            season_start_day: None,
         }
     }
 
@@ -1148,6 +1245,8 @@ mod tests {
             },
             participants: ParticipantSpec { explicit: None, selector: Some(selector) },
             berths: Vec::new(),
+            season_start_month: None,
+            season_start_day: None,
         }
     }
 

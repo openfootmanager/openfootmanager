@@ -51,6 +51,17 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.promotionZone") return "Promotion";
       if (key === "schedule.relegationZone") return "Relegation";
       if (key.startsWith("season.phases.")) return key.replace("season.phases.", "");
+      if (key === "tournaments.competitions.title") return "Active Competitions";
+      if (key === "tournaments.competitions.statusNotStarted") return "Not Started";
+      if (key === "tournaments.competitions.statusInProgress") return "In Progress";
+      if (key === "tournaments.competitions.statusCompleted") return "Completed";
+      if (key === "tournaments.competitions.participating") return "Participating";
+      if (key === "teamSelect.kinds.League") return "League";
+      if (key === "teamSelect.kinds.Cup") return "Cup";
+      if (key === "teamSelect.scopes.Domestic") return "Domestic";
+      if (key === "teamSelect.scopes.Continental") return "Continental";
+      if (key === "teamSelect.scopes.Regional") return "Regional";
+      if (key === "teamSelect.scopes.International") return "International";
       return key;
     },
   }),
@@ -605,6 +616,38 @@ describe("TournamentsTab", () => {
     const state = createGameState(true);
     render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
     expect(screen.queryByTestId(/competitions-overview-row-/)).not.toBeInTheDocument();
+  });
+
+  it("clicking a competitions overview row updates the selected competition", () => {
+    const state = createGameState(true);
+    state.competitions = [
+      {
+        id: "league-1",
+        name: "Premier League",
+        season: 1,
+        scope: "Domestic",
+        kind: "League",
+        participant_ids: ["team-1", "team-2"],
+        fixtures: [],
+        standings: [],
+      },
+      {
+        id: "cup-1",
+        name: "Champions Cup",
+        season: 1,
+        scope: "Continental",
+        kind: "Cup",
+        participant_ids: ["team-2"],
+        fixtures: [],
+        standings: [],
+      },
+    ];
+
+    render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("competitions-overview-row-cup-1"));
+
+    expect(screen.getByRole("combobox")).toHaveValue("cup-1");
   });
 
   it("renders manager of the season in the awards view", async () => {

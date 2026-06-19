@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Trophy, Users } from "lucide-react";
 import type { LeagueData } from "../../store/types";
+import { getCompetitiveFixtures } from "../../lib/fixtures";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 
 interface Props {
@@ -9,23 +10,26 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-type CompetitionScope = "Domestic" | "Regional" | "Continental" | "International";
+export type CompetitionScope = "Domestic" | "Regional" | "Continental" | "International";
 
-const SCOPE_ORDER: CompetitionScope[] = [
+export const SCOPE_ORDER: CompetitionScope[] = [
   "Domestic",
   "Regional",
   "Continental",
   "International",
 ];
 
-function getCompetitionStatus(
+export function getCompetitionStatus(
   comp: LeagueData,
 ): "notStarted" | "inProgress" | "completed" {
-  const { fixtures } = comp;
-  if (fixtures.length === 0) return "notStarted";
-  const completed = fixtures.filter((f) => f.status === "Completed").length;
+  const competitive = getCompetitiveFixtures(comp.fixtures);
+  if (competitive.length === 0) return "notStarted";
+  let completed = 0;
+  for (const f of competitive) {
+    if (f.status === "Completed") completed++;
+  }
   if (completed === 0) return "notStarted";
-  if (completed >= fixtures.length) return "completed";
+  if (completed >= competitive.length) return "completed";
   return "inProgress";
 }
 
@@ -51,22 +55,22 @@ export default function CompetitionsOverview({
     );
   }
 
-  const byScope = SCOPE_ORDER.reduce<Record<string, LeagueData[]>>(
-    (acc, scope) => {
-      const group = competitions.filter(
-        (c) => (c.scope ?? "Domestic") === scope,
-      );
-      if (group.length > 0) acc[scope] = group;
-      return acc;
-    },
-    {},
+  const grouped = new Map<CompetitionScope, LeagueData[]>();
+  for (const c of competitions) {
+    const scope = (c.scope as CompetitionScope | undefined) ?? "Domestic";
+    const bucket = grouped.get(scope);
+    if (bucket) bucket.push(c);
+    else grouped.set(scope, [c]);
+  }
+  const byScope = SCOPE_ORDER.filter((s) => grouped.has(s)).map(
+    (s) => [s, grouped.get(s)!] as const,
   );
 
   return (
     <Card>
       <CardHeader>{t("tournaments.competitions.title")}</CardHeader>
       <CardBody className="p-0">
-        {Object.entries(byScope).map(([scope, comps]) => (
+        {byScope.map(([scope, comps]) => (
           <div key={scope}>
             <div className="px-4 py-2 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800">
               <h5 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-600 dark:text-gray-300">

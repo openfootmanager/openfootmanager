@@ -76,3 +76,23 @@ export async function skipToMatchDay(): Promise<SkipToMatchDayResponse> {
 export async function advanceToNextEvent(): Promise<SkipToMatchDayResponse> {
   return invoke<SkipToMatchDayResponse>("advance_to_next_event");
 }
+
+/** Per-day response used by the digest feed loop. */
+export interface OneDayResponse {
+  /** "advanced" | "match_day" | "blocked" | "fired" */
+  action: string;
+  game?: GameStateData;
+  /** YYYY-MM-DD of the day that was checked or processed. */
+  date: string;
+  results?: AdvanceMatchResultData[];
+  blockers?: BlockerData[];
+}
+
+/**
+ * Advance exactly one day. Stop conditions (match today, blocker) are checked
+ * *before* advancing so the frontend digest loop can surface per-day events
+ * without ever auto-simulating the user's own match.
+ */
+export async function advanceOneDay(): Promise<OneDayResponse> {
+  return invoke<OneDayResponse>("advance_one_day");
+}

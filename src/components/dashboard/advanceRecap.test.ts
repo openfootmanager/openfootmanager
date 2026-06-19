@@ -179,6 +179,37 @@ describe("advanceRecap", function (): void {
     expect(recap.inbox[0].textKey).toBe("be.msg.transferInterest.subject");
   });
 
+  it("reads transfer_log from competitions, not the deprecated league mirror", function (): void {
+    // When competitions are present they take precedence over game.league.
+    const game = createGame({
+      competitions: [
+        {
+          id: "comp-1",
+          name: "Premier League",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [],
+          standings: [],
+          transfer_log: [
+            {
+              date: "2026-07-01",
+              from_team_id: "team-1",
+              to_team_id: "team-2",
+              player_id: "player-1",
+              fee: 5_000_000,
+            },
+          ],
+        },
+      ],
+      // Deliberately absent from the deprecated mirror.
+      league: null,
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+    expect(recap.transfers).toHaveLength(1);
+    expect(recap.transfers[0].fee).toBe(5_000_000);
+  });
+
   it("flags match results as events", function (): void {
     const recap = buildAdvanceRecap(createGame(), "2026-07-01", [matchOnDay]);
     expect(recap.matches).toHaveLength(1);

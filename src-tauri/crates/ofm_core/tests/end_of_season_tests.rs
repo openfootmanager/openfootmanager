@@ -1042,8 +1042,8 @@ fn process_end_of_season_promotes_and_relegates_between_divisions() {
     assert!(new_div2.participant_ids.contains(&"team2".to_string()));
     assert!(!new_div2.participant_ids.contains(&"team3".to_string()));
 
-    // Fixtures regenerated for the new season.
-    assert_eq!(new_div1.season, 2);
+    // Fixtures regenerated for the new season (calendar year, not sequential).
+    assert_eq!(new_div1.season, 2026);
     assert!(
         new_div1
             .fixtures
@@ -1415,7 +1415,7 @@ fn new_league_generated() {
     process_end_of_season(&mut game);
 
     let league = game.league.as_ref().unwrap();
-    assert_eq!(league.season, 2, "Should be season 2");
+    assert_eq!(league.season, 2026, "Should be season 2026");
     assert!(
         !league.fixtures.is_empty(),
         "Should have fixtures for new season"

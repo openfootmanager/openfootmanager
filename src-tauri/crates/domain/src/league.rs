@@ -137,7 +137,17 @@ pub struct League {
     /// Qualification berths this competition awards, evaluated at rollover.
     #[serde(default)]
     pub berths: Vec<Berth>,
+    /// Calendar month the season starts (1–12). Stored so rollover can compute
+    /// the correct next-season start date without re-reading the definition.
+    #[serde(default = "default_season_start_month")]
+    pub season_start_month: u8,
+    /// Day of month the season starts (1–31).
+    #[serde(default = "default_season_start_day")]
+    pub season_start_day: u8,
 }
+
+fn default_season_start_month() -> u8 { 8 }
+fn default_season_start_day() -> u8 { 1 }
 
 impl Default for League {
     fn default() -> Self {
@@ -160,6 +170,8 @@ impl Default for League {
             transfer_rumours: Vec::new(),
             priority: 0,
             berths: Vec::new(),
+            season_start_month: default_season_start_month(),
+            season_start_day: default_season_start_day(),
         }
     }
 }
@@ -355,6 +367,8 @@ impl League {
             transfer_rumours: Vec::new(),
             priority: 0,
             berths: Vec::new(),
+            season_start_month: default_season_start_month(),
+            season_start_day: default_season_start_day(),
         }
     }
 

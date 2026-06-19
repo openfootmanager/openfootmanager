@@ -49,6 +49,18 @@ pub fn season_has_started(league: &League) -> bool {
         || league.standings.iter().any(|e| e.played > 0)
 }
 
+/// True when a league's season has started and no more scheduled fixtures
+/// remain. Unlike `is_league_complete` this does not require a full schedule to
+/// be present — which makes it suitable for prize money / history distribution
+/// where we only want to skip leagues that are actively in-progress.
+fn is_league_season_ended(league: &League) -> bool {
+    season_has_started(league)
+        && !league
+            .fixtures
+            .iter()
+            .any(|f| f.counts_for_league_standings() && f.status == FixtureStatus::Scheduled)
+}
+
 pub fn is_league_complete(league: &League) -> bool {
     season_has_started(league)
         && has_full_schedule(league)
@@ -59,18 +71,50 @@ pub fn is_league_complete(league: &League) -> bool {
             .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
-/// Check if the season is complete: every league division has played out its
-/// full schedule. Rolling over while any league is mid-season would wipe its
-/// remaining fixtures, so the trigger waits for all of them.
+/// A competition is complete when all of its fixtures have been played.
+/// Guard for whether a competition should be regenerated at rollover. League
+/// tables that are mid-season (started but not finished) return false so their
+/// fixtures are not wiped during a hemisphere-foreign rollover. Cups and
+/// group-knockout competitions are always regenerated — freshly-seeded cups
+/// have no fixtures yet and must receive new participants each season.
+fn is_competition_complete(competition: &League) -> bool {
+    match competition.rules.format {
+        CompetitionFormat::LeagueTable => is_league_season_ended(competition),
+        _ => true,
+    }
+}
+
+/// Check if the season is complete for the purposes of allowing rollover.
+/// Only the user's own league(s) gate the button; foreign leagues on different
+/// hemispheres may still be in progress and are skipped during regeneration.
 pub fn is_season_complete(game: &Game) -> bool {
-    let leagues: Vec<&League> = if game.competitions.is_empty() {
-        game.league.iter().collect()
-    } else {
-        game.competitions
+    // Only the user's own league(s) gate the season-complete button. Other
+    // leagues (different hemisphere, foreign divisions) may still be in
+    // progress without blocking the rollover.
+    let user_id = game.manager.team_id.as_deref().unwrap_or_default();
+    if !game.competitions.is_empty() {
+        let user_leagues: Vec<&League> = game
+            .competitions
             .iter()
-            .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
-            .collect()
-    };
+            .filter(|c| {
+                c.rules.format == CompetitionFormat::LeagueTable
+                    && c.participant_ids.iter().any(|id| id == user_id)
+            })
+            .collect();
+        if !user_leagues.is_empty() {
+            return user_leagues.into_iter().all(is_league_complete);
+        }
+        // Fallback when user has no known league (e.g. international-only):
+        // all league tables must complete before rollover is available.
+        let all_leagues: Vec<&League> = game
+            .competitions
+            .iter()
+            .filter(|c| c.rules.format == CompetitionFormat::LeagueTable)
+            .collect();
+        return !all_leagues.is_empty() && all_leagues.into_iter().all(is_league_season_ended);
+    }
+    // Legacy single-league path.
+    let leagues: Vec<&League> = game.league.iter().collect();
     !leagues.is_empty() && leagues.into_iter().all(is_league_complete)
 }
 
@@ -141,7 +185,10 @@ fn division_standings_with_tiers(game: &Game) -> Vec<(Vec<StandingEntry>, u32)> 
     } else {
         game.competitions
             .iter()
-            .filter(|competition| competition.rules.format == CompetitionFormat::LeagueTable)
+            .filter(|competition| {
+                competition.rules.format == CompetitionFormat::LeagueTable
+                    && is_league_season_ended(competition)
+            })
             .collect()
     };
 
@@ -179,6 +226,9 @@ fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     for (index, competition) in competitions.iter().enumerate() {
         if competition.rules.format != CompetitionFormat::LeagueTable {
             continue;
+        }
+        if !is_league_season_ended(competition) {
+            continue; // mid-season foreign leagues skip this rollover's P/R
         }
         if let Some(country) = &competition.country_id {
             tiers_by_country
@@ -474,10 +524,15 @@ fn seed_cap_and_fill(
 /// Roll every competition over to the next season: apply promotion/relegation
 /// to domestic pyramids, regenerate fixtures and standings in place (preserving
 /// each competition's identity), and keep the legacy `league` slot in sync.
+///
+/// `rollover_anchor` is the global trigger point (current date + 28 days). Each
+/// competition derives its own next-season start date from its stored
+/// `season_start_month`/`season_start_day` fields so that northern and southern
+/// hemisphere leagues renew on their respective calendars.
 fn regenerate_competitions_for_new_season(
     game: &mut Game,
-    next_season: u32,
-    next_start: DateTime<Utc>,
+    _next_season: u32,
+    rollover_anchor: DateTime<Utc>,
 ) {
     // Fall back to the legacy single league when no competition list exists yet.
     if game.competitions.is_empty() {
@@ -537,28 +592,64 @@ fn regenerate_competitions_for_new_season(
 
     apply_pyramid_promotion_relegation(&mut game.competitions);
 
+    // Re-seed continental competitions with this season's qualified entrants
+    // before regeneration resets their brackets. Done as a separate pass so
+    // cups that haven't started yet (no fixtures) still get new participants
+    // even when the completeness guard below would otherwise skip them.
     for competition in game.competitions.iter_mut() {
-        // Re-qualified continental fields take their new entrants before the
-        // bracket is rebuilt from `participant_ids`.
         if let Some(entrants) = continental_entrants.get(&competition.id)
             && entrants.len() >= 2
         {
             competition.participant_ids = entrants.clone();
         }
+    }
+
+    for competition in game.competitions.iter_mut() {
+        if !is_competition_complete(competition) {
+            // TODO(hemisphere-stall): Mid-season foreign leagues are correctly
+            // skipped here to prevent their fixtures from being wiped. However,
+            // they will also miss regeneration when *they* finish, because
+            // rollover is driven by the user's league rather than by each
+            // competition finishing independently. Fix requires a per-competition
+            // completion hook separate from the global rollover trigger.
+            continue;
+        }
+
+        // Each competition starts its next season on its own calendar date so
+        // northern and southern hemisphere leagues renew independently.
+        let comp_next_start = crate::generator::next_season_start(
+            rollover_anchor,
+            competition.season_start_month,
+            competition.season_start_day,
+        );
+        let comp_next_season = comp_next_start.year() as u32;
+
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {
-                crate::schedule::regenerate_league_for_season(competition, next_season, next_start);
+                crate::schedule::regenerate_league_for_season(
+                    competition,
+                    comp_next_season,
+                    comp_next_start,
+                );
             }
             CompetitionFormat::GroupAndKnockout => {
-                crate::group_stage::regenerate_for_season(competition, next_season, next_start);
+                crate::group_stage::regenerate_for_season(
+                    competition,
+                    comp_next_season,
+                    comp_next_start,
+                );
             }
             CompetitionFormat::Knockout => {
-                crate::schedule::regenerate_knockout_for_season(competition, next_season, next_start);
+                crate::schedule::regenerate_knockout_for_season(
+                    competition,
+                    comp_next_season,
+                    comp_next_start,
+                );
             }
         }
     }
 
-    manage_international_calendar(game, next_start, kickoff, world_cup_due, qualified_field);
+    manage_international_calendar(game, rollover_anchor, kickoff, world_cup_due, qualified_field);
     game.sync_legacy_league();
 }
 
@@ -931,12 +1022,13 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     // 7. Roll every competition over to the next season, applying domestic
     //    promotion/relegation, and keep the legacy `league` slot in sync.
+    //    Each competition computes its own next-season start from its stored
+    //    season_start_month; `rollover_anchor` is just the global trigger point.
     let next_season = season + 1;
-    // Start date: a few weeks after the current date (preseason break).
-    let next_start = game.clock.current_date + Duration::days(28);
+    let rollover_anchor = game.clock.current_date + Duration::days(28);
     let user_division_before = user_division(game, &user_team_id)
         .map(|division| (division.id.clone(), division.priority));
-    regenerate_competitions_for_new_season(game, next_season, next_start);
+    regenerate_competitions_for_new_season(game, next_season, rollover_anchor);
     notify_user_division_change(
         game,
         user_division_before,

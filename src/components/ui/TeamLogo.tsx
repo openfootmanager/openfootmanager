@@ -11,7 +11,7 @@ interface TeamLogoTeam {
     secondary?: string;
   };
   media?: {
-    logo?: string;
+    logo?: string | null;
   };
 }
 

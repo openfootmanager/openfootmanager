@@ -222,6 +222,12 @@ export default function Dashboard(): JSX.Element {
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
+    digestEntries,
+    digestStopReason,
+    isDigestVisible,
+    isDigestRunning,
+    startDigest,
+    dismissDigest,
   } = useAdvanceTime(
     setGameState,
     hasMatchToday,
@@ -376,7 +382,7 @@ export default function Dashboard(): JSX.Element {
   }
 
   function handleToggleContinueMenu(): void {
-    setShowContinueMenu((currentValue) => !currentValue);
+    setShowContinueMenu(!showContinueMenu);
   }
 
   function handleSelectMatchMode(mode: MatchModeType): void {
@@ -469,6 +475,16 @@ export default function Dashboard(): JSX.Element {
         showMatchConfirm={showMatchConfirm}
         teams={gameState.teams}
         todayMatchFixture={todayMatchFixture}
+        digestEntries={digestEntries}
+        digestStopReason={digestStopReason}
+        isDigestVisible={isDigestVisible}
+        isDigestRunning={isDigestRunning}
+        onDigestPlayMatch={() => { dismissDigest(); handleConfirmMatch(); }}
+        onDigestViewBlockers={(blockers) =>
+          setBlockerModal({ blockers })
+        }
+        onDigestContinueAfterBlocker={() => void startDigest()}
+        onDismissDigest={dismissDigest}
       />
       <FiredModal />
 

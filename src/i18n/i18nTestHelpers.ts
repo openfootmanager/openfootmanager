@@ -1,45 +1,18 @@
 export type LocaleTree = Record<string, unknown>;
 
-export function collectMissingKeys(
+type LeafResult = string[];
+
+function traverseLocaleTree(
     reference: LocaleTree,
     candidate: LocaleTree,
-    path: string[] = [],
-): string[] {
-    return Object.entries(reference).flatMap(([key, value]) => {
-        const nextPath = [...path, key];
-        const candidateValue = candidate[key];
-
-        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-            if (
-                candidateValue === null ||
-                typeof candidateValue !== "object" ||
-                Array.isArray(candidateValue)
-            ) {
-                return [nextPath.join(".")];
-            }
-
-            return collectMissingKeys(
-                value as LocaleTree,
-                candidateValue as LocaleTree,
-                nextPath,
-            );
-        }
-
-        return candidateValue == null || typeof candidateValue !== "string"
-            ? [nextPath.join(".")]
-            : [];
-    });
-}
-
-/**
- * Returns keys whose value in `candidate` is identical to `reference` (English).
- * These are likely untranslated copy-pastes rather than real translations.
- */
-export function collectUntranslatedKeys(
-    reference: LocaleTree,
-    candidate: LocaleTree,
-    path: string[] = [],
-): string[] {
+    path: string[],
+    onLeaf: (
+        key: string,
+        refValue: unknown,
+        candidateValue: unknown,
+        path: string[],
+    ) => LeafResult,
+): LeafResult {
     return Object.entries(reference).flatMap(([key, value]) => {
         const nextPath = [...path, key];
         const candidateValue = candidate[key];
@@ -50,15 +23,44 @@ export function collectUntranslatedKeys(
                 typeof candidateValue === "object" &&
                 !Array.isArray(candidateValue)
             ) {
-                return collectUntranslatedKeys(
+                return traverseLocaleTree(
                     value as LocaleTree,
                     candidateValue as LocaleTree,
                     nextPath,
+                    onLeaf,
                 );
             }
-            return [];
+            return onLeaf(key, value, candidateValue, nextPath);
         }
 
+        return onLeaf(key, value, candidateValue, nextPath);
+    });
+}
+
+export function collectMissingKeys(
+    reference: LocaleTree,
+    candidate: LocaleTree,
+    path: string[] = [],
+): string[] {
+    return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+            return [nextPath.join(".")];
+        }
+        return candidateValue == null || typeof candidateValue !== "string"
+            ? [nextPath.join(".")]
+            : [];
+    });
+}
+
+export function collectUntranslatedKeys(
+    reference: LocaleTree,
+    candidate: LocaleTree,
+    path: string[] = [],
+): string[] {
+    return traverseLocaleTree(reference, candidate, path, (_key, value, candidateValue, nextPath) => {
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+            return [];
+        }
         return typeof value === "string" &&
             typeof candidateValue === "string" &&
             candidateValue === value

@@ -1,5 +1,6 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
+import { getUserCompetition } from "../../lib/fixtures";
 
 /** A completed transfer surfaced in the post-advance recap. */
 export interface RecapTransfer {
@@ -71,7 +72,8 @@ export function buildAdvanceRecap(
     ]),
   );
 
-  const transfers: RecapTransfer[] = (game.league?.transfer_log ?? [])
+  const userCompetition = getUserCompetition(game);
+  const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
     .filter((entry) => entry.date >= sinceDate)
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)

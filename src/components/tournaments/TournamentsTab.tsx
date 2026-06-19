@@ -112,6 +112,9 @@ export default function TournamentsTab({
       ) ?? null
     : null;
 
+  const activeCompetitionIds = activeCompetitions.map((c) => c.id).join(",");
+  const userCompetitionIds = userCompetitions.map((c) => c.id).join(",");
+
   useEffect(() => {
     if (activeCompetitions.length === 0) {
       if (selectedCompetitionId !== null) {
@@ -128,7 +131,11 @@ export default function TournamentsTab({
     }
 
     setSelectedCompetitionId(userCompetitions[0]?.id ?? activeCompetitions[0].id);
-  }, [activeCompetitions, selectedCompetitionId, userCompetitions]);
+  // activeCompetitionIds / userCompetitionIds are stable string keys derived from
+  // the arrays; using the arrays directly would cause the effect to fire on every
+  // render because getActiveCompetitions() and .filter() always return new refs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompetitionIds, selectedCompetitionId, userCompetitionIds]);
 
   useEffect(() => {
     if (view !== "awards" || awards) {
@@ -179,7 +186,7 @@ export default function TournamentsTab({
   const groups = league.groups ?? [];
   const zones = isKnockout
     ? { promotionSlots: 0, relegationSlots: 0 }
-    : getPromotionRelegationZones(gameState, league);
+    : getPromotionRelegationZones(activeCompetitions, league);
   const participantCount = league.participant_ids?.length ?? league.standings.length;
 
   const competitiveFixtures = getCompetitiveFixtures(league.fixtures);
@@ -820,6 +827,7 @@ export default function TournamentsTab({
                     const gd = entry.goals_for - entry.goals_against;
                     const inPromotionZone = idx < zones.promotionSlots;
                     const inRelegationZone =
+                      zones.relegationSlots > 0 &&
                       idx >= standings.length - zones.relegationSlots;
                     return (
                       <ContextMenu

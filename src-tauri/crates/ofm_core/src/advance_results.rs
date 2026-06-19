@@ -54,7 +54,8 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
                 .any(|entry| entry.team_id == team_id)
                 || competition.participant_ids.iter().any(|id| id == team_id)
         });
-        if !user_in_competition {
+        let is_wc = crate::world_cup::is_world_cup_competition(competition);
+        if !user_in_competition && !is_wc {
             continue;
         }
         for fixture in &competition.fixtures {
@@ -64,15 +65,26 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
             let Some(result) = &fixture.result else {
                 continue;
             };
+            let (home_team, away_team) = if is_wc {
+                (
+                    national_team_name(game, &fixture.home_team_id),
+                    national_team_name(game, &fixture.away_team_id),
+                )
+            } else {
+                (
+                    team_name(game, &fixture.home_team_id),
+                    team_name(game, &fixture.away_team_id),
+                )
+            };
             results.push(AdvanceMatchResult {
                 date: fixture.date.clone(),
                 competition: competition.name.clone(),
-                international: false,
-                home_team: team_name(game, &fixture.home_team_id),
-                away_team: team_name(game, &fixture.away_team_id),
+                international: is_wc,
+                home_team,
+                away_team,
                 home_goals: result.home_goals,
                 away_goals: result.away_goals,
-                involves_user: user_team_id.is_some_and(|team_id| {
+                involves_user: !is_wc && user_team_id.is_some_and(|team_id| {
                     fixture.home_team_id == team_id || fixture.away_team_id == team_id
                 }),
             });
@@ -111,9 +123,11 @@ mod tests {
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
     use domain::league::{
-        Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
+        CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus, League,
+        MatchResult, StandingEntry,
     };
     use domain::manager::Manager;
+    use domain::national_team::NationalTeam;
     use domain::team::Team;
 
     fn team(id: &str) -> Team {
@@ -214,6 +228,76 @@ mod tests {
         game.manager.team_id = Some("unaffiliated".to_string());
 
         let results = collect_advance_results(&game, "2026-08-10");
+
+        assert!(results.is_empty());
+    }
+
+    fn wc_fixture(id: &str, date: &str, home: &str, away: &str, hg: u8, ag: u8) -> Fixture {
+        Fixture {
+            id: id.to_string(),
+            competition_id: "wc-2026".to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: FixtureCompetition::InternationalNation,
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals: hg,
+                away_goals: ag,
+                home_scorers: Vec::new(),
+                away_scorers: Vec::new(),
+                report: None,
+            }),
+        }
+    }
+
+    fn game_with_wc() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 15, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        game.national_teams = vec![
+            NationalTeam::new("nt-bra".to_string(), "Brazil".to_string(), "BR".to_string(), None),
+            NationalTeam::new("nt-ger".to_string(), "Germany".to_string(), "DE".to_string(), None),
+        ];
+        let mut wc = League::new("wc-2026".to_string(), "World Cup 2026".to_string(), 2026, &[]);
+        wc.kind = CompetitionType::InternationalNation;
+        wc.scope = CompetitionScope::International;
+        wc.fixtures = vec![
+            wc_fixture("g1", "2026-06-15", "nt-bra", "nt-ger", 2, 1),
+            wc_fixture("g2", "2026-06-10", "nt-ger", "nt-bra", 1, 3),
+        ];
+        game.competitions = vec![wc];
+        game
+    }
+
+    #[test]
+    fn includes_wc_fixtures_as_international() {
+        let game = game_with_wc();
+
+        let results = collect_advance_results(&game, "2026-06-12");
+
+        assert_eq!(results.len(), 1, "only fixture on or after since_date");
+        let r = &results[0];
+        assert!(r.international);
+        assert_eq!(r.competition, "World Cup 2026");
+        assert_eq!(r.home_team, "Brazil");
+        assert_eq!(r.away_team, "Germany");
+        assert_eq!((r.home_goals, r.away_goals), (2, 1));
+        assert!(!r.involves_user);
+    }
+
+    #[test]
+    fn wc_fixtures_excluded_before_since_date() {
+        let game = game_with_wc();
+
+        let results = collect_advance_results(&game, "2026-06-20");
 
         assert!(results.is_empty());
     }

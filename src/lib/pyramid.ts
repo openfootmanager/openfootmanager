@@ -1,4 +1,4 @@
-import type { GameStateData, LeagueData } from "../store/gameStore";
+import type { LeagueData } from "../store/gameStore";
 
 export interface PromotionRelegationZones {
   promotionSlots: number;
@@ -26,7 +26,7 @@ function divisionSize(competition: LeagueData): number {
  * country, ordered by priority — lower priority is the higher tier).
  */
 export function getPromotionRelegationZones(
-  gameState: Pick<GameStateData, "competitions">,
+  competitions: LeagueData[],
   competition: LeagueData,
 ): PromotionRelegationZones {
   if (!competition.country_id || !isLeagueTable(competition)) {
@@ -34,7 +34,7 @@ export function getPromotionRelegationZones(
   }
 
   const myPriority = competition.priority ?? 0;
-  const siblings = (gameState.competitions ?? []).filter(
+  const siblings = competitions.filter(
     (other) =>
       other.id !== competition.id &&
       other.country_id === competition.country_id &&

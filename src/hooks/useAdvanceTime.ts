@@ -5,7 +5,6 @@ import { useGameStore } from "../store/gameStore";
 import type { BlockerModal } from "./useAdvanceTime.helpers";
 import {
   advanceTimeWithMode,
-  advanceToNextEvent,
   checkBlockingActions,
   skipToMatchDay,
   type SkipToMatchDayResponse,
@@ -15,8 +14,34 @@ import {
   toDatePart,
   type AdvanceRecap,
 } from "../components/dashboard/advanceRecap";
+import { useDigestAdvance } from "./useDigestAdvance";
+import type { DigestEntry, DigestStopReason } from "./useDigestAdvance";
 
 export type MatchModeType = "live" | "spectator" | "delegate";
+
+export interface AdvanceTimeState {
+  isAdvancing: boolean;
+  showContinueMenu: boolean;
+  setShowContinueMenu: (v: boolean) => void;
+  showMatchConfirm: boolean;
+  setShowMatchConfirm: (v: boolean) => void;
+  matchMode: MatchModeType;
+  setMatchMode: (v: MatchModeType) => void;
+  blockerModal: BlockerModal | null;
+  setBlockerModal: (v: BlockerModal | null) => void;
+  recapResults: AdvanceRecap | null;
+  setRecapResults: (v: AdvanceRecap | null) => void;
+  handleContinue: (mode?: string) => Promise<void>;
+  handleConfirmMatch: () => void;
+  handleSkipToMatchDay: () => Promise<void>;
+  // Digest feed state (populated when continueToNextEvent is true)
+  digestEntries: DigestEntry[];
+  digestStopReason: DigestStopReason | null;
+  isDigestVisible: boolean;
+  isDigestRunning: boolean;
+  startDigest: () => Promise<void>;
+  dismissDigest: () => void;
+}
 
 export function useAdvanceTime(
   setGameState: (state: GameStateData) => void,
@@ -25,7 +50,7 @@ export function useAdvanceTime(
   settingsLoaded: boolean,
   isUnemployed: boolean,
   continueToNextEvent: boolean = false,
-) {
+): AdvanceTimeState {
   const navigate = useNavigate();
   const setShowFiredModal = useGameStore((s) => s.setShowFiredModal);
   const [isAdvancing, setIsAdvancing] = useState(false);
@@ -34,6 +59,15 @@ export function useAdvanceTime(
   const [matchMode, setMatchMode] = useState<MatchModeType>("live");
   const [blockerModal, setBlockerModal] = useState<BlockerModal | null>(null);
   const [recapResults, setRecapResults] = useState<AdvanceRecap | null>(null);
+
+  const {
+    isRunning: isDigestRunning,
+    entries: digestEntries,
+    stopReason: digestStopReason,
+    isVisible: isDigestVisible,
+    startDigest,
+    dismissDigest,
+  } = useDigestAdvance(setGameState, () => setShowFiredModal(true));
 
   // Sync matchMode with settings when loaded
   useEffect(() => {
@@ -119,10 +153,10 @@ export function useAdvanceTime(
       return;
     }
     if (isAdvancing) return;
-    // With the opt-in setting, Continue rolls forward to the next event instead
-    // of a single day (unless there's a match today, handled above).
+    // With the opt-in setting, Continue runs the day-by-day digest loop instead
+    // of the silent batch advance (unless there's a match today, handled above).
     const runContinue = continueToNextEvent
-      ? doAdvanceToNextEvent
+      ? () => void startDigest()
       : () => doAdvance(resolvedMode);
     const blockers = await checkBlockingActions("handleContinue");
     if (blockers.length > 0) {
@@ -191,9 +225,6 @@ export function useAdvanceTime(
   const doSkipToMatchDay = () =>
     runMultiDayAdvance(skipToMatchDay, "doSkipToMatchDay");
 
-  const doAdvanceToNextEvent = () =>
-    runMultiDayAdvance(advanceToNextEvent, "doAdvanceToNextEvent");
-
   return {
     isAdvancing,
     showContinueMenu, setShowContinueMenu,
@@ -204,5 +235,11 @@ export function useAdvanceTime(
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
+    digestEntries,
+    digestStopReason,
+    isDigestVisible,
+    isDigestRunning,
+    startDigest,
+    dismissDigest,
   };
 }

@@ -1,6 +1,8 @@
 import type { FixtureData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
+import type { DigestEntry, DigestStopReason } from "../../hooks/useDigestAdvance";
+import type { BlockerData } from "../../services/advanceTimeService";
 import DashboardBlockerModal from "./DashboardBlockerModal";
 import DashboardCloseConfirmModal from "./DashboardCloseConfirmModal";
 import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
@@ -9,6 +11,7 @@ import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
 import DashboardResultsRecapModal from "./DashboardResultsRecapModal";
 import DashboardSimulatingModal from "./DashboardSimulatingModal";
+import DigestFeed from "./DigestFeed";
 import type { AdvanceRecap } from "./advanceRecap";
 
 interface DashboardOverlaysProps {
@@ -32,6 +35,15 @@ interface DashboardOverlaysProps {
   showMatchConfirm: boolean;
   teams: TeamData[];
   todayMatchFixture: FixtureData | null;
+  // Digest feed props (present when digest mode is active)
+  digestEntries?: DigestEntry[];
+  digestStopReason?: DigestStopReason | null;
+  isDigestVisible?: boolean;
+  isDigestRunning?: boolean;
+  onDigestPlayMatch?: () => void;
+  onDigestViewBlockers?: (blockers: BlockerData[]) => void;
+  onDigestContinueAfterBlocker?: () => void;
+  onDismissDigest?: () => void;
 }
 
 export default function DashboardOverlays({
@@ -55,10 +67,30 @@ export default function DashboardOverlays({
   showMatchConfirm,
   teams,
   todayMatchFixture,
+  digestEntries,
+  digestStopReason,
+  isDigestVisible,
+  isDigestRunning,
+  onDigestPlayMatch,
+  onDigestViewBlockers,
+  onDigestContinueAfterBlocker,
+  onDismissDigest,
 }: DashboardOverlaysProps) {
   return (
     <>
-      {isAdvancing ? <DashboardSimulatingModal /> : null}
+      {isDigestVisible && digestEntries !== undefined && onDismissDigest ? (
+        <DigestFeed
+          isRunning={isDigestRunning ?? false}
+          entries={digestEntries}
+          stopReason={digestStopReason ?? null}
+          onPlayMatch={onDigestPlayMatch ?? (() => {})}
+          onViewBlockers={onDigestViewBlockers ?? (() => {})}
+          onContinueAfterBlocker={onDigestContinueAfterBlocker ?? (() => {})}
+          onDismiss={onDismissDigest}
+        />
+      ) : isAdvancing ? (
+        <DashboardSimulatingModal />
+      ) : null}
 
       {!isAdvancing && recapResults ? (
         <DashboardResultsRecapModal recap={recapResults} onClose={onCloseRecap} />

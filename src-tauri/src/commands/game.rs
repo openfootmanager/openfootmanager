@@ -247,16 +247,28 @@ fn build_game_from_world_data(
     // Resolve any authored competition definitions while we still hold the
     // world (validation already passed at load). These replace the auto-built
     // foundation competitions.
+    let game_start = clock.start_date;
     let defined_competitions: Vec<League> = world
         .competition_definitions
         .as_ref()
         .map(|file| {
-            ofm_core::generator::resolve_definitions(
+            let mut comps = ofm_core::generator::resolve_definitions(
                 file,
                 &world,
                 preseason_league_year(&clock),
-                preseason_season_start(&clock),
-            )
+                game_start,
+            );
+            for comp in &mut comps {
+                let (_, is_mid_season) = ofm_core::generator::start_date_at_game_open(
+                    game_start,
+                    comp.season_start_month,
+                    comp.season_start_day,
+                );
+                if is_mid_season {
+                    ofm_core::catchup::simulate_past_fixtures(comp, &world.players, game_start);
+                }
+            }
+            comps
         })
         .unwrap_or_default();
 
@@ -459,14 +471,29 @@ fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec
     divisions
 }
 
+fn division_tier_name(tier: usize, division_count: usize) -> &'static str {
+    if division_count <= 1 {
+        "League"
+    } else if tier == 0 {
+        "First Division"
+    } else {
+        "Second Division"
+    }
+}
+
 /// Name a division within a country's pyramid.
 fn division_name(country: &str, tier: usize, division_count: usize) -> String {
-    if division_count <= 1 {
-        format!("{country} League")
-    } else if tier == 0 {
-        format!("{country} First Division")
-    } else {
-        format!("{country} Second Division")
+    format!("{country} {}", division_tier_name(tier, division_count))
+}
+
+/// Default league-start month for a region. South American leagues start in
+/// March, Asian in February, Oceanian in October; everything else in August.
+fn default_season_month_for_region(region_id: &str) -> u8 {
+    match region_id {
+        "south-america" => 3,
+        "asia" => 2,
+        "oceania" => 10,
+        _ => 8,
     }
 }
 
@@ -474,9 +501,13 @@ fn division_name(country: &str, tier: usize, division_count: usize) -> String {
 /// explicit participant lists, paired with their staggered start dates. Built-in
 /// competitions then flow through the same `build_explicit_competition` core as
 /// imported definitions (see [`build_foundation_competitions`]).
+///
+/// `game_start` is the July-1 game anchor. Each competition's start date is
+/// derived from its region's default season month via
+/// [`ofm_core::generator::start_date_at_game_open`].
 fn build_foundation_competition_plan(
     game: &Game,
-    season_start: DateTime<Utc>,
+    game_start: DateTime<Utc>,
 ) -> Vec<(ofm_core::generator::CompetitionDefinition, DateTime<Utc>)> {
     use domain::league::{Berth, BerthRule};
     use ofm_core::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
@@ -531,43 +562,122 @@ fn build_foundation_competition_plan(
         let country_label = ofm_core::nations::nation_display_name(&country);
         let country_slug = country.to_lowercase();
 
+        let league_month = default_season_month_for_region(&region_id);
+        let (league_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, league_month, 1);
+
         // One or two divisions depending on how many clubs the country has.
         let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
         let division_count = divisions.len();
-        for (tier, division_ids) in divisions.iter().enumerate() {
-            // Only the first division awards continental berths (top finishers).
-            let berths = if tier == 0 {
-                vec![continental_berth(BerthRule::PositionRange {
-                    from: 1,
-                    to: CONTINENTAL_QUALIFYING_POSITIONS,
-                })]
-            } else {
-                Vec::new()
-            };
-            planned.push((
-                CompetitionDefinition {
-                    id: format!("{country_slug}-d{}", tier + 1),
-                    name: division_name(&country_label, tier, division_count),
-                    r#type: CompetitionType::League,
-                    scope: CompetitionScope::Domestic,
-                    region_id: Some(region_id.clone()),
-                    country_id: Some(country.clone()),
-                    required_region_ids: vec![region_id.clone()],
-                    priority,
-                    format: make_format(CompetitionFormat::LeagueTable),
-                    participants: ParticipantSpec {
-                        explicit: Some(division_ids.clone()),
-                        selector: None,
+
+        if ofm_core::nations::is_split_season_country(&country) {
+            // Split-season format: Apertura (first half, Feb) + Clausura (second
+            // half, Jul). Only the Clausura carries promotion/relegation berths
+            // since it closes the year.
+            let (apertura_start, _) =
+                ofm_core::generator::start_date_at_game_open(game_start, 2, 1);
+            let (clausura_start, _) =
+                ofm_core::generator::start_date_at_game_open(game_start, 7, 1);
+
+            for (tier, division_ids) in divisions.iter().enumerate() {
+                let clausura_berths = if tier == 0 {
+                    vec![continental_berth(BerthRule::PositionRange {
+                        from: 1,
+                        to: CONTINENTAL_QUALIFYING_POSITIONS,
+                    })]
+                } else {
+                    Vec::new()
+                };
+                let make_def = |id: &str, name: &str, month: u8, berths: Vec<Berth>, p: u32| {
+                    CompetitionDefinition {
+                        id: id.to_string(),
+                        name: name.to_string(),
+                        r#type: CompetitionType::League,
+                        scope: CompetitionScope::Domestic,
+                        region_id: Some(region_id.clone()),
+                        country_id: Some(country.clone()),
+                        required_region_ids: vec![region_id.clone()],
+                        priority: p,
+                        format: make_format(CompetitionFormat::LeagueTable),
+                        participants: ParticipantSpec {
+                            explicit: Some(division_ids.clone()),
+                            selector: None,
+                        },
+                        berths,
+                        season_start_month: Some(month),
+                        season_start_day: Some(1),
+                    }
+                };
+                let tier_suffix = format!("d{}", tier + 1);
+                planned.push((
+                    make_def(
+                        &format!("{country_slug}-{tier_suffix}-apertura"),
+                        &format!(
+                            "{country_label} {} Apertura",
+                            division_tier_name(tier, division_count)
+                        ),
+                        2,
+                        Vec::new(),
+                        priority,
+                    ),
+                    apertura_start,
+                ));
+                priority += 1;
+                planned.push((
+                    make_def(
+                        &format!("{country_slug}-{tier_suffix}-clausura"),
+                        &format!(
+                            "{country_label} {} Clausura",
+                            division_tier_name(tier, division_count)
+                        ),
+                        7,
+                        clausura_berths,
+                        priority,
+                    ),
+                    clausura_start,
+                ));
+                priority += 1;
+            }
+        } else {
+            for (tier, division_ids) in divisions.iter().enumerate() {
+                let berths = if tier == 0 {
+                    vec![continental_berth(BerthRule::PositionRange {
+                        from: 1,
+                        to: CONTINENTAL_QUALIFYING_POSITIONS,
+                    })]
+                } else {
+                    Vec::new()
+                };
+                planned.push((
+                    CompetitionDefinition {
+                        id: format!("{country_slug}-d{}", tier + 1),
+                        name: division_name(&country_label, tier, division_count),
+                        r#type: CompetitionType::League,
+                        scope: CompetitionScope::Domestic,
+                        region_id: Some(region_id.clone()),
+                        country_id: Some(country.clone()),
+                        required_region_ids: vec![region_id.clone()],
+                        priority,
+                        format: make_format(CompetitionFormat::LeagueTable),
+                        participants: ParticipantSpec {
+                            explicit: Some(division_ids.clone()),
+                            selector: None,
+                        },
+                        berths,
+                        season_start_month: Some(league_month),
+                        season_start_day: Some(1),
                     },
-                    berths,
-                },
-                season_start,
-            ));
-            priority += 1;
+                    league_start,
+                ));
+                priority += 1;
+            }
         }
 
-        // National cup contested by every club in the country (byes handle any
-        // entrant count), kicking off a few weeks after the league.
+        // National cup contested by every club in the country.
+        let cup_month = if ofm_core::nations::is_split_season_country(&country) { 2 } else { league_month };
+        let (actual_cup_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, cup_month, 1);
+        let cup_actual_start = actual_cup_start + Duration::days(35);
         planned.push((
             CompetitionDefinition {
                 id: format!("{country_slug}-cup"),
@@ -584,8 +694,10 @@ fn build_foundation_competition_plan(
                     selector: None,
                 },
                 berths: vec![continental_berth(BerthRule::CupWinner)],
+                season_start_month: Some(cup_actual_start.month() as u8),
+                season_start_day: Some(cup_actual_start.day() as u8),
             },
-            season_start + Duration::days(35),
+            cup_actual_start,
         ));
         priority += 1;
     }
@@ -607,6 +719,10 @@ fn build_foundation_competition_plan(
         } else {
             CompetitionFormat::Knockout
         };
+        // Continental cup starts in October regardless of hemisphere (it draws
+        // from multiple regions and is keyed to the European calendar).
+        let (continental_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, 10, 1);
         planned.push((
             CompetitionDefinition {
                 id: "continental-champions-cup".to_string(),
@@ -623,8 +739,10 @@ fn build_foundation_competition_plan(
                     selector: None,
                 },
                 berths: Vec::new(),
+                season_start_month: Some(10),
+                season_start_day: Some(1),
             },
-            season_start + Duration::days(70),
+            continental_start,
         ));
     }
 
@@ -632,12 +750,24 @@ fn build_foundation_competition_plan(
 }
 
 fn build_foundation_competitions(game: &Game) -> Vec<League> {
-    let season_start = preseason_season_start(&game.clock);
+    let game_start = game.clock.start_date;
     let season = preseason_league_year(&game.clock);
-    build_foundation_competition_plan(game, season_start)
+    build_foundation_competition_plan(game, game_start)
         .iter()
         .filter_map(|(def, start)| {
-            ofm_core::generator::build_explicit_competition(def, season, *start)
+            let mut competition =
+                ofm_core::generator::build_explicit_competition(def, season, *start)?;
+            // FM-style: if this competition's season already began before the game
+            // anchor date, simulate the missing matchdays so the player joins a
+            // living in-progress season rather than a blank table.
+            if *start <= game_start {
+                ofm_core::catchup::simulate_past_fixtures(
+                    &mut competition,
+                    &game.players,
+                    game_start,
+                );
+            }
+            Some(competition)
         })
         .collect()
 }
