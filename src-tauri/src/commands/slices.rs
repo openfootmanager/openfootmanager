@@ -7,6 +7,7 @@ use ofm_core::slices::inbox::{MessagesQuery, query_messages};
 use ofm_core::slices::news::{NewsFeed, NewsFeedQuery, query_news_feed};
 use ofm_core::slices::players::{PlayersPage, PlayersPageQuery, query_page};
 use ofm_core::slices::schedule::{ScheduleQuery, ScheduleSlice, query_schedule};
+use ofm_core::slices::session::{SessionState, SessionStateQuery, project_session};
 use ofm_core::slices::teams::{
     TeamsDirectory, TeamsDirectoryQuery, query_directory,
 };
@@ -73,5 +74,15 @@ pub async fn get_competitions_view(
 ) -> Result<CompetitionsView, String> {
     state
         .get_game(|game| query_competitions(game, &query))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
+pub async fn get_session_state(
+    state: State<'_, Arc<StateManager>>,
+    _query: SessionStateQuery,
+) -> Result<SessionState, String> {
+    state
+        .get_game(|game| project_session(game))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }

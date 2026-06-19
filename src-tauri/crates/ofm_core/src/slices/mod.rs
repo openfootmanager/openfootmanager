@@ -3,4 +3,5 @@ pub mod inbox;
 pub mod news;
 pub mod players;
 pub mod schedule;
+pub mod session;
 pub mod teams;
