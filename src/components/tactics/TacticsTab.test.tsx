@@ -16,6 +16,9 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.daysRemaining") {
         return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
       }
+      if (key === "playerProfile.injuryDaysShort") {
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")}d`;
+      }
       if (key.startsWith("common.injuries.")) {
         return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
       }

@@ -1191,6 +1191,7 @@
     "nGoals": "{{count}} гол.",
     "nAssists": "{{count}} асс.",
     "daysRemaining": "Осталось {{count}} дн. — игрок недоступен для выбора",
+    "injuryDaysShort": "{{count}} дн.",
     "renewalProjectionTitle": "Прогноз финансового влияния",
     "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",

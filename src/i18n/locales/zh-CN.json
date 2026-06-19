@@ -1191,6 +1191,7 @@
     "nGoals": "{{count}} 粒进球",
     "nAssists": "{{count}} 次助攻",
     "daysRemaining": "剩余 {{count}} 天 — 球员无法入选",
+    "injuryDaysShort": "{{count}}天",
     "renewalProjectionTitle": "预计财务影响",
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
