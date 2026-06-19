@@ -166,7 +166,7 @@
     "digestSimulating": "Simulazione...",
     "digestMatchDay": "Giorno di gara",
     "digestMatchDayDesc": "La tua squadra ha una partita in programma oggi.",
-    "digestPlayMatch": "Gioca la partita",
+    "digestReturnHome": "Torna alla dashboard",
     "digestBlocked": "Azione richiesta",
     "digestBlockedDesc": "Ci sono problemi che richiedono la tua attenzione prima di avanzare.",
     "digestViewIssues": "Vedi problemi",
@@ -1240,7 +1240,9 @@
       "statusNotStarted": "Non iniziato",
       "statusInProgress": "In corso",
       "statusCompleted": "Completato",
-      "participating": "Partecipante"
+      "participating": "Partecipante",
+      "worldCup": "Coppa del Mondo {{year}}",
+      "worldCupQualifying": "Qualificazioni Coppa del Mondo {{year}}"
     }
   },
   "news": {

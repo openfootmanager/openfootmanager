@@ -245,6 +245,7 @@ pub fn schedule_world_cup_with_field(
     );
     // Sort after every club competition in browsing lists.
     cup.priority = 10_000;
+    cup.name_key = Some("tournaments.competitions.worldCup".to_string());
     let cup_id = cup.id.clone();
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
@@ -440,6 +441,7 @@ pub fn schedule_world_cup_qualifying(
     competition.rules.format = CompetitionFormat::LeagueTable;
     competition.standings.clear();
     competition.priority = 9_000;
+    competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
 
     let base_date = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
         .ok()

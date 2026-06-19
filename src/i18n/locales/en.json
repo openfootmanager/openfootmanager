@@ -166,7 +166,7 @@
     "digestSimulating": "Processing...",
     "digestMatchDay": "Match Day",
     "digestMatchDayDesc": "Your fixture is ready to play.",
-    "digestPlayMatch": "Play Match",
+    "digestReturnHome": "Back to Dashboard",
     "digestBlocked": "Action Required",
     "digestBlockedDesc": "Some issues need your attention before advancing.",
     "digestViewIssues": "View Issues",
@@ -1221,7 +1221,9 @@
       "statusNotStarted": "Not Started",
       "statusInProgress": "In Progress",
       "statusCompleted": "Completed",
-      "participating": "Participating"
+      "participating": "Participating",
+      "worldCup": "{{year}} World Cup",
+      "worldCupQualifying": "World Cup Qualifying {{year}}"
     }
   },
   "news": {

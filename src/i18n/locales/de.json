@@ -166,7 +166,7 @@
     "digestSimulating": "Simuliere...",
     "digestMatchDay": "Spieltag",
     "digestMatchDayDesc": "Ihr Team hat heute ein Spiel.",
-    "digestPlayMatch": "Spiel starten",
+    "digestReturnHome": "Zurück zum Dashboard",
     "digestBlocked": "Aktion erforderlich",
     "digestBlockedDesc": "Es gibt Probleme, die Ihre Aufmerksamkeit erfordern.",
     "digestViewIssues": "Probleme anzeigen",
@@ -1221,7 +1221,9 @@
       "statusNotStarted": "Nicht begonnen",
       "statusInProgress": "Läuft",
       "statusCompleted": "Abgeschlossen",
-      "participating": "Teilnehmend"
+      "participating": "Teilnehmend",
+      "worldCup": "Weltmeisterschaft {{year}}",
+      "worldCupQualifying": "WM-Qualifikation {{year}}"
     }
   },
   "news": {

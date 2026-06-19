@@ -166,7 +166,7 @@
     "digestSimulating": "Симуляция...",
     "digestMatchDay": "Игровой день",
     "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
-    "digestPlayMatch": "Сыграть матч",
+    "digestReturnHome": "Вернуться на главную",
     "digestBlocked": "Требуется действие",
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
     "digestViewIssues": "Посмотреть проблемы",
@@ -1221,7 +1221,9 @@
       "statusNotStarted": "Не начато",
       "statusInProgress": "В процессе",
       "statusCompleted": "Завершено",
-      "participating": "Участвует"
+      "participating": "Участвует",
+      "worldCup": "Чемпионат мира {{year}}",
+      "worldCupQualifying": "Отбор на Чемпионат мира {{year}}"
     }
   },
   "news": {

@@ -154,6 +154,20 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                 berths: serde_json::from_str(&berths_json).unwrap_or_default(),
                 season_start_month: row.get::<_, i64>(18).unwrap_or(8) as u8,
                 season_start_day: row.get::<_, i64>(19).unwrap_or(1) as u8,
+                // name_key is not stored in the DB; re-derive it from type so
+                // WC competitions display their translated name after a load.
+                name_key: {
+                    let id: String = row.get(0)?;
+                    if id.starts_with("world-cup-qualifying-") {
+                        Some("tournaments.competitions.worldCupQualifying".to_string())
+                    } else if parse_competition_type(&row.get::<_, String>(2)?)
+                        == CompetitionType::InternationalNation
+                    {
+                        Some("tournaments.competitions.worldCup".to_string())
+                    } else {
+                        None
+                    }
+                },
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

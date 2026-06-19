@@ -144,6 +144,10 @@ pub struct League {
     /// Day of month the season starts (1–31).
     #[serde(default = "default_season_start_day")]
     pub season_start_day: u8,
+    /// Optional i18n key for the competition name. When set, the frontend
+    /// translates via `t(name_key, { year })` instead of displaying `name` raw.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_key: Option<String>,
 }
 
 fn default_season_start_month() -> u8 { 8 }
@@ -172,6 +176,7 @@ impl Default for League {
             berths: Vec::new(),
             season_start_month: default_season_start_month(),
             season_start_day: default_season_start_day(),
+            name_key: None,
         }
     }
 }
@@ -369,6 +374,7 @@ impl League {
             berths: Vec::new(),
             season_start_month: default_season_start_month(),
             season_start_day: default_season_start_day(),
+            name_key: None,
         }
     }
 

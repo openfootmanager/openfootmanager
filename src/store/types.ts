@@ -480,6 +480,7 @@ export interface LeagueData {
   transfer_log?: CompletedTransferData[];
   transfer_rumours?: TransferRumourData[];
   priority?: number;
+  name_key?: string;
 }
 
 export interface WorldCupChampionData {

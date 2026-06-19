@@ -166,7 +166,7 @@
     "digestSimulating": "模拟中...",
     "digestMatchDay": "比赛日",
     "digestMatchDayDesc": "您的球队今天有一场比赛。",
-    "digestPlayMatch": "开始比赛",
+    "digestReturnHome": "返回主页",
     "digestBlocked": "需要操作",
     "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
     "digestViewIssues": "查看问题",
@@ -1221,7 +1221,9 @@
       "statusNotStarted": "未开始",
       "statusInProgress": "进行中",
       "statusCompleted": "已完成",
-      "participating": "参与中"
+      "participating": "参与中",
+      "worldCup": "{{year}} 世界杯",
+      "worldCupQualifying": "世界杯预选赛 {{year}}"
     }
   },
   "news": {
