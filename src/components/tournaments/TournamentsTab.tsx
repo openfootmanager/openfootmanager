@@ -11,6 +11,10 @@ import {
   SeasonAwardsData,
   SeasonManagerAwardEntryData,
 } from "../../store/gameStore";
+import {
+  fetchCompetitionsView,
+  type CompetitionsView,
+} from "../../services/competitionsService";
 import ContextMenu from "../ContextMenu";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import {
@@ -26,11 +30,8 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  getActiveCompetitions,
   getCompetitiveFixtures,
-  getNationalTeamName,
   getPromotionRelegationZones,
-  getTeamName,
   formatMatchDate,
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
@@ -80,10 +81,50 @@ export default function TournamentsTab({
   onSelectPlayer,
 }: TournamentsTabProps) {
   const { t } = useTranslation();
-  const userTeamId = gameState.manager.team_id;
+  const [competitionsView, setCompetitionsView] = useState<CompetitionsView | null>(null);
+
+  const currentDate = gameState.clock?.current_date;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCompetitionsView()
+      .then((view) => {
+        if (!cancelled) setCompetitionsView(view);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDate]);
+
+  // Fall back to building a teamNames map from gameState.teams while slice loads.
+  const fallbackTeamNames: Record<string, string> = Object.fromEntries(
+    (gameState.teams ?? []).map((t) => [t.id, t.name]),
+  );
+  const teamNames = competitionsView?.team_names ?? fallbackTeamNames;
+  const fallbackNationalTeamNames: Record<string, string> = Object.fromEntries(
+    (gameState.national_teams ?? []).map((nt) => [nt.id, nt.name]),
+  );
+  const nationalTeamNames =
+    competitionsView?.national_team_names ?? fallbackNationalTeamNames;
+  const playerNames = competitionsView?.player_names ?? {};
+
+  const userTeamId =
+    competitionsView?.manager_team_id ?? gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const isPreseason = seasonContext.phase === "Preseason";
-  const activeCompetitions = getActiveCompetitions(gameState);
+
+  // Derive active competitions from slice; fall back to gameState while loading.
+  const gsLeague = gameState.league ? [gameState.league] : [];
+  const allCompetitions =
+    competitionsView?.competitions ?? gameState.competitions ?? gsLeague;
+  const activeIds =
+    competitionsView?.active_competition_ids ?? gameState.active_competition_ids ?? [];
+  const activeCompetitions =
+    activeIds.length === 0
+      ? allCompetitions
+      : allCompetitions.filter((c) => activeIds.includes(c.id));
+
   const [view, setView] = useState<
     "overview" | "fixtures" | "standings" | "awards"
   >("overview");
@@ -102,14 +143,14 @@ export default function TournamentsTab({
     activeCompetitions.find((competition) => competition.id === selectedCompetitionId) ??
     userCompetitions[0] ??
     activeCompetitions[0] ??
-    gameState.league;
+    gameState.league ??
+    null;
   const currentSeason = league?.season ?? 0;
   const awards = awardsBySeason[currentSeason] ?? null;
   const isWorldCup = league?.kind === "InternationalNation";
+  const worldCupChampions = competitionsView?.world_cup_champions ?? gameState.world_history?.world_cup_champions ?? [];
   const worldCupChampion = isWorldCup
-    ? (gameState.world_history?.world_cup_champions ?? []).find(
-        (c) => c.year === currentSeason,
-      ) ?? null
+    ? worldCupChampions.find((c) => c.year === currentSeason) ?? null
     : null;
 
   const activeCompetitionIds = activeCompetitions.map((c) => c.id).join(",");
@@ -215,6 +256,21 @@ export default function TournamentsTab({
     (f) => f.status === "Completed",
   ).length;
 
+  // Build fallback player name lookup from gameState.players while slice loads.
+  const fallbackPlayerNames = Object.fromEntries(
+    (gameState.players ?? []).map((p) => [
+      p.id,
+      {
+        match_name: p.match_name,
+        full_name: p.full_name,
+        team_id: p.team_id ?? null,
+        team_name: teamNames[p.team_id ?? ""] ?? null,
+      },
+    ]),
+  );
+  const resolvedPlayerNames =
+    Object.keys(playerNames).length > 0 ? playerNames : fallbackPlayerNames;
+
   const topScorers = (() => {
     const goals: Record<string, number> = {};
     competitiveFixtures.forEach((f) => {
@@ -229,20 +285,25 @@ export default function TournamentsTab({
     });
     return Object.entries(goals)
       .map(([pid, g]) => ({
-        player: gameState.players.find((p) => p.id === pid),
+        playerId: pid,
+        playerName: resolvedPlayerNames[pid] ?? null,
         goals: g,
       }))
-      .filter((e) => e.player)
+      .filter((e) => e.playerName !== null)
       .sort((a, b) => b.goals - a.goals)
       .slice(0, 10);
   })();
 
+  const isClubTeam = (id: string) => id in teamNames;
+  const resolveTeamName = (id: string) =>
+    teamNames[id] ?? nationalTeamNames[id] ?? id;
+
   const buildFixtureMenuItems = (fixture: FixtureData) =>
     [fixture.home_team_id, fixture.away_team_id]
-      .filter((teamId) => gameState.teams.some((team) => team.id === teamId))
+      .filter((teamId) => isClubTeam(teamId))
       .map((teamId) => ({
         ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
-        label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, teamId)}`,
+        label: `${t("common.viewTeam")}: ${resolveTeamName(teamId)}`,
       }));
 
   const buildStandingMenuItems = (teamId: string) => [
@@ -262,10 +323,6 @@ export default function TournamentsTab({
 
     return items;
   };
-
-  const isClubTeam = (id: string) => gameState.teams.some((team) => team.id === id);
-  const resolveTeamName = (id: string) =>
-    isClubTeam(id) ? getTeamName(gameState.teams, id) : getNationalTeamName(gameState, id);
 
   const renderGroupTable = (group: NonNullable<LeagueData["groups"]>[number]) => {
     const groupStandings = [...group.standings].sort(byTablePosition);
@@ -395,7 +452,9 @@ export default function TournamentsTab({
             </div>
             <div className="flex-1">
               <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-wide">
-                {league.name}
+                {league.name_key
+                  ? t(league.name_key, { year: league.season })
+                  : league.name}
               </h2>
               <p className="text-gray-400 text-sm mt-0.5">
                 {t("schedule.season", { number: league.season })} —{" "}
@@ -414,7 +473,9 @@ export default function TournamentsTab({
                     value={competition.id}
                     className="text-gray-900"
                   >
-                    {competition.name}
+                    {competition.name_key
+                      ? t(competition.name_key, { year: competition.season })
+                      : competition.name}
                   </option>
                 ))}
               </select>
@@ -601,7 +662,7 @@ export default function TournamentsTab({
                             <td
                               className={`py-2 px-3 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
                             >
-                              {getTeamName(gameState.teams, entry.team_id)}
+                              {resolveTeamName(entry.team_id)}
                             </td>
                             <td className="py-2 px-3 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                               {entry.played}
@@ -646,27 +707,24 @@ export default function TournamentsTab({
                   {topScorers.map((entry, i) => (
                     <ContextMenu
                       items={buildPlayerMenuItems(
-                        entry.player!.id,
-                        entry.player!.team_id,
+                        entry.playerId,
+                        entry.playerName!.team_id,
                       )}
-                      key={entry.player!.id}
+                      key={entry.playerId}
                     >
                       <div
                         className="flex items-center px-4 py-2.5 gap-3"
-                        data-testid={`tournaments-top-scorer-${entry.player!.id}`}
+                        data-testid={`tournaments-top-scorer-${entry.playerId}`}
                       >
                         <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500 w-5 text-center">
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
-                            {entry.player!.full_name}
+                            {entry.playerName!.full_name}
                           </p>
                           <p className="text-xs text-gray-400 dark:text-gray-500">
-                            {getTeamName(
-                              gameState.teams,
-                              entry.player!.team_id ?? "",
-                            )}
+                            {entry.playerName!.team_name ?? entry.playerName!.team_id ?? ""}
                           </p>
                         </div>
                         <span className="font-heading font-bold text-lg text-accent-500 tabular-nums">
@@ -781,7 +839,9 @@ export default function TournamentsTab({
             <div className="p-5 border-b border-gray-100 dark:border-navy-600 bg-gradient-to-r from-navy-700 to-navy-800 rounded-t-xl">
               <h3 className="text-lg font-heading font-bold text-white flex items-center gap-2 uppercase tracking-wide">
                 <Trophy className="text-accent-400 w-5 h-5" />
-                {league.name} —{" "}
+                {league.name_key
+                  ? t(league.name_key, { year: league.season })
+                  : league.name} —{" "}
                 {t("schedule.season", { number: league.season })}
               </h3>
             </div>
@@ -860,7 +920,7 @@ export default function TournamentsTab({
                           <td
                             className={`py-3 px-4 font-semibold text-sm ${isUser ? "text-primary-600 dark:text-primary-400" : "text-gray-800 dark:text-gray-200"}`}
                           >
-                            {getTeamName(gameState.teams, entry.team_id)}
+                            {resolveTeamName(entry.team_id)}
                           </td>
                           <td className="py-3 px-4 text-center text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                             {entry.played}

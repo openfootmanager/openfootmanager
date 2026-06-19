@@ -2,6 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, MessageData } from "../store/gameStore";
 
+export async function fetchMessages(): Promise<MessageData[]> {
+  return invoke<MessageData[]>("get_messages_page", { query: {} });
+}
+
 export interface ResolveMessageActionResult {
   game: GameStateData;
   effect: string | null;

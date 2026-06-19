@@ -111,8 +111,8 @@ export default function InboxTab({
 
     if (message && !message.read) {
       try {
-        const messages = await markMessageRead(messageId);
-        onGameUpdate({ ...gameState, messages });
+        const updated = await markMessageRead(messageId);
+        onGameUpdate({ ...gameState, messages: updated });
       } catch { }
     }
   }
