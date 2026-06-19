@@ -117,13 +117,38 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
     so the detail pane needs no live lookup. Old saves fall back to team IDs gracefully.
   - Dashboard: `unreadMessagesCount` prefers `sessionState.unread_messages_count` (falls
     back to `getUnreadMessagesCount(gameState)` while session state is loading).
+  - `get_squad(team_id)` backend slice added (`slices/squad.rs` + `query_squad()` + 4 parity
+    tests in `slices_squad_tests.rs`). Returns ALL players for team (senior + youth); client
+    filters to senior. Registered as `get_squad` Tauri command.
+  - `getSquad(teamId)` added to `squadService.ts`.
+  - SquadTab **full flip** complete: self-fetches squad via `get_squad` on mount; gets `team`
+    from `sessionState?.team` (with `gameState` fallback); gets `clockDate` from session store.
+    After mutations: calls `onGameUpdate(game)` AND updates local `fetchedSquad` from
+    `game.players.filter(team_id)`. Props: `gameState: GameStateData | null`.
+  - SquadRosterView slim props: replaced `gameState: GameStateData` + `managerId` with
+    `players: PlayerData[]` + `team: TeamData` + `clockDate: string` + `onMutationComplete?`.
+    "Unemployed" guard moved to SquadTab.
+  - SquadTab.test.tsx updated: `renderSquadTab()` helper primes `mockResolvedValueOnce(squad)`
+    for initial fetch; mutation tests route invoke calls correctly.
+  - TacticsTab **full flip** complete: self-fetches squad via `get_squad` on mount; gets `team`
+    from `sessionState?.team` (with `gameState` fallback); roster = `fetchedSquad ?? gameState?.players ?? []`.
+    Mutations (`set_starting_xi`, `set_formation`, `set_play_style`, `set_team_match_roles`) call
+    `onGameUpdate` directly — they don't change the player list, so no fetchedSquad update needed.
+    Props: `gameState: GameStateData | null`.
+  - TacticsTab.test.tsx updated: `beforeEach` uses `mockImplementation` routing by command name
+    (`get_squad` → PlayerData[], others → GameStateData). Youth/natural-position tests now
+    properly exercise client-side `isSeniorSquadPlayer` filter via the post-fetch state.
+    Selection-click tests updated to `not.toHaveBeenCalledWith("set_starting_xi", ...)` (more
+    specific than the former `not.toHaveBeenCalled()` which now conflicts with the mount fetch).
   **Remaining (gated on new backend slices):**
-  - Squad, Tactics, Training, Transfers, Scouting, Staff tabs still read `gameState.players`
-    and `gameState.staff` — requires a `get_squad(team_id)` slice returning full PlayerData.
+  - Training tab still reads `gameState.players` — can now use `get_squad`.
+  - Transfers, Scouting, Staff tabs read `gameState.staff`/`gameState.scouting_assignments`
+    — requires a `get_staff(team_id)` slice (NOT unblocked by `get_squad`).
   - HomeTab still reads `gameState.news`, `gameState.messages`, `gameState.teams`,
     `gameState.competitions` — some can use `sessionState.user_competition` + existing
     news/messages slices once HomeTab is refactored.
-  - `getDashboardAlerts` reads `gameState.players/staff/messages` — blocked on squad slice.
+  - `getDashboardAlerts` reads `gameState.players/staff/messages` — squad part now unblocked;
+    staff part still needs staff slice.
   - `resolveMessageAction` still returns full `Game` — this is intentional (club switches
     change manager state). Flipping it to return `SessionState` is a future optimization.
   - After all consumers migrated: flip `advance_time*` / `mutate_active_game` return types
