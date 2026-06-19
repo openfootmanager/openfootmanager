@@ -1191,6 +1191,7 @@
     "nGoals": "{{count}} gols",
     "nAssists": "{{count}} assistências",
     "daysRemaining": "{{count}} dias restantes — Jogador indisponível para seleção",
+    "injuryDaysShort": "{{count}} d",
     "renewalProjectionTitle": "Impacto financeiro projetado",
     "renewalProjectionWageBill": "Folha de salários semanal {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Uso do orçamento salarial {{before}}% → {{after}}%",
