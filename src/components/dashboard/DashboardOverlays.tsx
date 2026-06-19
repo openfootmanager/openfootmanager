@@ -11,7 +11,6 @@ import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
 import DashboardResultsRecapModal from "./DashboardResultsRecapModal";
 import DashboardSimulatingModal from "./DashboardSimulatingModal";
-import DigestFeed from "./DigestFeed";
 import type { AdvanceRecap } from "./advanceRecap";
 
 interface DashboardOverlaysProps {
@@ -40,7 +39,6 @@ interface DashboardOverlaysProps {
   digestStopReason?: DigestStopReason | null;
   isDigestVisible?: boolean;
   isDigestRunning?: boolean;
-  onDigestPlayMatch?: () => void;
   onDigestViewBlockers?: (blockers: BlockerData[]) => void;
   onDigestContinueAfterBlocker?: () => void;
   onDismissDigest?: () => void;
@@ -71,25 +69,21 @@ export default function DashboardOverlays({
   digestStopReason,
   isDigestVisible,
   isDigestRunning,
-  onDigestPlayMatch,
   onDigestViewBlockers,
   onDigestContinueAfterBlocker,
   onDismissDigest,
 }: DashboardOverlaysProps) {
   return (
     <>
-      {isDigestVisible && digestEntries !== undefined && onDismissDigest ? (
-        <DigestFeed
-          isRunning={isDigestRunning ?? false}
-          entries={digestEntries}
-          stopReason={digestStopReason ?? null}
-          onPlayMatch={onDigestPlayMatch ?? (() => {})}
-          onViewBlockers={onDigestViewBlockers ?? (() => {})}
-          onContinueAfterBlocker={onDigestContinueAfterBlocker ?? (() => {})}
+      {(isDigestVisible || isAdvancing) ? (
+        <DashboardSimulatingModal
+          digestEntries={digestEntries}
+          isDigestRunning={isDigestRunning}
+          stopReason={digestStopReason}
           onDismiss={onDismissDigest}
+          onViewBlockers={onDigestViewBlockers}
+          onContinueAfterBlocker={onDigestContinueAfterBlocker}
         />
-      ) : isAdvancing ? (
-        <DashboardSimulatingModal />
       ) : null}
 
       {!isAdvancing && recapResults ? (

@@ -479,7 +479,6 @@ export default function Dashboard(): JSX.Element {
         digestStopReason={digestStopReason}
         isDigestVisible={isDigestVisible}
         isDigestRunning={isDigestRunning}
-        onDigestPlayMatch={() => { dismissDigest(); handleConfirmMatch(); }}
         onDigestViewBlockers={(blockers) =>
           setBlockerModal({ blockers })
         }
