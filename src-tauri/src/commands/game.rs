@@ -113,7 +113,10 @@ fn default_history_depth_years() -> u32 {
 }
 
 fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
-    Utc.with_ymd_and_hms(start_year, 7, 1, 0, 0, 0)
+    // Use June 1 in World Cup years so a fresh career opens just before the
+    // tournament, keeping the WC in June rather than scheduling it in July.
+    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) { 6 } else { 7 };
+    Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
         .single()
         .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
 }
@@ -502,9 +505,28 @@ fn default_season_month_for_region(region_id: &str) -> u8 {
 /// competitions then flow through the same `build_explicit_competition` core as
 /// imported definitions (see [`build_foundation_competitions`]).
 ///
-/// `game_start` is the July-1 game anchor. Each competition's start date is
-/// derived from its region's default season month via
+/// `game_start` is the game anchor (July 1 in normal years; June 1 in World Cup
+/// years so the WC opens in June). Each competition's start date is derived from
+/// its region's default season month via
 /// [`ofm_core::generator::start_date_at_game_open`].
+/// When a player picks SeasonStart, find the team's primary competition and
+/// return its actual calendar season-start date. Returns None when the
+/// competition uses the default August start (no clock adjustment needed).
+fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
+    let competition = game
+        .competitions
+        .iter()
+        .find(|c| c.participant_ids.iter().any(|id| id == team_id))?;
+    let month = competition.season_start_month;
+    let day = competition.season_start_day;
+    if month == 8 && day == 1 {
+        return None; // northern-hemisphere default — no adjustment
+    }
+    let year = game.clock.start_date.year();
+    Utc.with_ymd_and_hms(i32::from(year), u32::from(month), u32::from(day), 0, 0, 0)
+        .single()
+}
+
 fn build_foundation_competition_plan(
     game: &Game,
     game_start: DateTime<Utc>,
@@ -1383,6 +1405,23 @@ pub async fn select_team(
         .get_stats_state(|stats| stats.clone())
         .unwrap_or_default();
     ensure_multi_competition_foundations(&mut game);
+
+    // Hemisphere fix: when the player picks SeasonStart for a southern-
+    // hemisphere (or other non-August-start) club, align the game clock to
+    // that club's actual season-start date and rebuild competitions from that
+    // anchor so the player arrives at the beginning of their season, not July.
+    if start_phase_for_game(&game) == StartPhase::SeasonStart {
+        if let Some(actual_start) = team_season_anchor(&game, &team_id) {
+            if actual_start < game.clock.current_date {
+                game.clock.current_date = actual_start;
+                game.clock.start_date = actual_start;
+                game.competitions.clear();
+                game.national_teams.clear();
+                ensure_multi_competition_foundations(&mut game);
+            }
+        }
+    }
+
     let (resolved_region_ids, resolved_competition_ids) = resolve_simulation_scope(
         &game,
         &team_id,
@@ -3178,6 +3217,8 @@ competitions:
                     selector: None,
                 },
                 berths: Vec::new(),
+                season_start_month: None,
+                season_start_day: None,
             }],
         });
         let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
