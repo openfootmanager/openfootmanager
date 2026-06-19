@@ -1,6 +1,6 @@
 # Design: Stop shipping the whole world over Tauri IPC
 
-Status: **Phase 1 complete. Phase 2 approved (slim `get_active_game` + hot commands).**
+Status: **Phase 1 complete. Phase 2 additive work complete (SessionState defined, get_session_state added). Return-type flip deferred to Phase 3 gate.**
 Author: Sisyphus · Scope: backend command contracts + frontend store/tabs · Risk class: invasive (gated)
 
 ---
@@ -84,11 +84,16 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
   Players, Teams, Tournaments, News tabs now self-fetch from their slice on open.
   InboxTab backend command exists but tab still reads from `gameState.messages` (Phase 3).
   The giant payload still flows but the tabs no longer depend on it for initial render.
-- **Phase 2 — Slim the hot commands (where the 17.6 MB→KB win lands) — NEXT.**
-  Decision: `get_active_game` also slimmed. Change `advance_time*`, `skip_to_match_day`,
-  `advance_to_next_event`, `get_active_game`, and the `mutate_active_game` family to return
-  `SessionState` instead of full `Game`. Because tabs already self-fetch (Phase 1), they no
-  longer need the world from these commands.
+- **Phase 2 — Slim the hot commands (where the 17.6 MB→KB win lands). ✅ Additive done.**
+  `SessionState` struct defined (`slices/session.rs`): clock, manager, user's team,
+  season_context, board_objectives, scouting queues, unread counts, `UserCompetitionSummary`
+  (standings with resolved names + next 3 / last 2 fixtures for the user's team).
+  `project_session(game)` is the canonical projection; 6 parity tests lock the contract.
+  `get_session_state` Tauri command + `sessionService.ts` added.
+  **Blocked — return-type flip pending:** 35+ components still read `gameState.players/teams/
+  competitions/staff/news/messages` directly. Flipping `advance_time*` / `mutate_active_game`
+  return types now would clear those fields and break every non-migrated tab. The flip is
+  gated on Phase 3 (store split) completing all remaining migrations.
 - **Phase 3 — Split the frontend store.**
   Replace monolithic `gameState` with `sessionState` + per-slice caches; eliminates
   whole-object replacement and broad re-render fan-out. InboxTab migration from
