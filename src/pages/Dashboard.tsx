@@ -78,6 +78,7 @@ export default function Dashboard(): JSX.Element {
     hasActiveGame,
     managerName,
     gameState,
+    sessionState,
     setGameState,
     clearGame,
     isDirty,
@@ -411,7 +412,7 @@ export default function Dashboard(): JSX.Element {
     gameState.clock.current_date,
     settings.language,
   );
-  const unreadMessagesCount = getUnreadMessagesCount(gameState);
+  const unreadMessagesCount = sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);

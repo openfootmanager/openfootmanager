@@ -94,10 +94,30 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
   competitions/staff/news/messages` directly. Flipping `advance_time*` / `mutate_active_game`
   return types now would clear those fields and break every non-migrated tab. The flip is
   gated on Phase 3 (store split) completing all remaining migrations.
-- **Phase 3 — Split the frontend store.**
+- **Phase 3 — Split the frontend store. 🔄 In progress.**
   Replace monolithic `gameState` with `sessionState` + per-slice caches; eliminates
-  whole-object replacement and broad re-render fan-out. InboxTab migration from
-  `gameState.messages` to `get_messages_page` slice happens here.
+  whole-object replacement and broad re-render fan-out.
+  **Done so far:**
+  - `sessionState: SessionState | null` added to `useGameStore`; `setGameState` now also
+    derives `sessionState` via a frontend projection (`deriveSessionState`) on every call.
+    `setSessionState` action added for direct updates (e.g. once hot commands return
+    `SessionState`). `clearGame` resets `sessionState: null`.
+  - InboxTab migrated: self-fetches messages via `get_messages_page` on mount and on
+    clock change; falls back to `gameState.messages` while the initial fetch is in flight.
+    Mutation handlers (`markRead`, `delete`, `markAllRead`, `clearOld`) still call
+    `onGameUpdate` during transition to keep `gameState` + `sessionState.unread_messages_count`
+    in sync.
+  - Dashboard: `unreadMessagesCount` prefers `sessionState.unread_messages_count` (falls
+    back to `getUnreadMessagesCount(gameState)` while session state is loading).
+  **Remaining (gated on new backend slices):**
+  - Squad, Tactics, Training, Transfers, Scouting, Staff tabs still read `gameState.players`
+    and `gameState.staff` — requires a `get_squad(team_id)` slice returning full PlayerData.
+  - HomeTab still reads `gameState.news`, `gameState.messages`, `gameState.teams`,
+    `gameState.competitions` — some can use `sessionState.user_competition` + existing
+    news/messages slices once HomeTab is refactored.
+  - `getDashboardAlerts` reads `gameState.players/staff/messages` — blocked on squad slice.
+  - After all consumers migrated: flip `advance_time*` / `mutate_active_game` return types
+    from `Game` → `SessionState` (the 17.6 MB→KB win).
 - **Phase 4 (optional) — Deltas** for frequently-changing slices (standings after a matchday)
   to avoid re-fetching. Only if profiling still warrants it.
 
