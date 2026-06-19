@@ -296,6 +296,7 @@ export interface PlayerSelectionOptions {
 
 export interface MessageContext {
   team_id: string | null;
+  team_name?: string | null;
   player_id: string | null;
   fixture_id: string | null;
   youth_target_position?: string | null;
@@ -304,7 +305,9 @@ export interface MessageContext {
   youth_prospects?: PlayerData[];
   match_result: null | {
     home_team_id: string;
+    home_team_name?: string;
     away_team_id: string;
+    away_team_name?: string;
     home_goals: number;
     away_goals: number;
   };

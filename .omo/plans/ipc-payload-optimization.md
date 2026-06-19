@@ -94,19 +94,27 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
   competitions/staff/news/messages` directly. Flipping `advance_time*` / `mutate_active_game`
   return types now would clear those fields and break every non-migrated tab. The flip is
   gated on Phase 3 (store split) completing all remaining migrations.
-- **Phase 3 — Split the frontend store. 🔄 In progress.**
+- **Phase 3 — Split the frontend store. 🔄 InboxTab fully flipped; remaining tabs gated on backend slices.**
   Replace monolithic `gameState` with `sessionState` + per-slice caches; eliminates
   whole-object replacement and broad re-render fan-out.
-  **Done so far:**
+  **Done:**
   - `sessionState: SessionState | null` added to `useGameStore`; `setGameState` now also
     derives `sessionState` via a frontend projection (`deriveSessionState`) on every call.
     `setSessionState` action added for direct updates (e.g. once hot commands return
     `SessionState`). `clearGame` resets `sessionState: null`.
-  - InboxTab migrated: self-fetches messages via `get_messages_page` on mount and on
-    clock change; falls back to `gameState.messages` while the initial fetch is in flight.
-    Mutation handlers (`markRead`, `delete`, `markAllRead`, `clearOld`) still call
-    `onGameUpdate` during transition to keep `gameState` + `sessionState.unread_messages_count`
-    in sync.
+  - InboxTab **full flip** complete: `gameState` prop is now `GameStateData | null`;
+    component self-fetches messages via `get_messages_page`; all simple mutations
+    (`markRead`, `delete`, `markAllRead`, `clearOld`) update `fetchedMessages` local state
+    directly — no more `onGameUpdate({ ...gameState, messages })`. `resolveMessageAction`
+    still calls `onGameUpdate(result.game)` (because job-offer acceptance changes manager
+    state) but also updates `fetchedMessages(result.game.messages)` immediately so the
+    "✓ responded" state is visible without waiting for the next Continue.
+  - `InboxMessageDetailPane` no longer reads `gameState` at all — replaced with
+    `currentTeamId` and `currentTeamName` slim props derived from `sessionState` (with
+    `gameState` prop fallback for tests that haven't set up the store). Team names
+    in match result and job offer context are now embedded in the backend message struct
+    (`ContextMatchResult.home_team_name/away_team_name`, `MessageContext.team_name`)
+    so the detail pane needs no live lookup. Old saves fall back to team IDs gracefully.
   - Dashboard: `unreadMessagesCount` prefers `sessionState.unread_messages_count` (falls
     back to `getUnreadMessagesCount(gameState)` while session state is loading).
   **Remaining (gated on new backend slices):**
@@ -116,6 +124,8 @@ This matches the backend's existing `active_scope` concept and the tab-based UI.
     `gameState.competitions` — some can use `sessionState.user_competition` + existing
     news/messages slices once HomeTab is refactored.
   - `getDashboardAlerts` reads `gameState.players/staff/messages` — blocked on squad slice.
+  - `resolveMessageAction` still returns full `Game` — this is intentional (club switches
+    change manager state). Flipping it to return `SessionState` is a future optimization.
   - After all consumers migrated: flip `advance_time*` / `mutate_active_game` return types
     from `Game` → `SessionState` (the 17.6 MB→KB win).
 - **Phase 4 (optional) — Deltas** for frequently-changing slices (standings after a matchday)

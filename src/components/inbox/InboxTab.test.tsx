@@ -361,9 +361,8 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ messages: updatedMessages }),
-    );
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("sorts messages by date when the sort order changes", function (): void {
@@ -433,9 +432,8 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ messages: updatedMessages }),
-    );
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("opens the context menu on a message row and requests deletion", function (): void {
@@ -486,9 +484,8 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ messages: updatedMessages }),
-    );
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("navigates to a team route without resolving the message action", async function (): Promise<void> {
@@ -787,9 +784,6 @@ describe("InboxTab", function (): void {
         },
       }),
     ]);
-    gameState.players = [
-      createProspect({ id: "player-1", full_name: "Rui Prospect" }),
-    ];
 
     renderInboxTab({
       gameState,
@@ -797,7 +791,7 @@ describe("InboxTab", function (): void {
       onNavigate,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "View profile: Rui Prospect" }));
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
 
     expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
       messageId: "player-1",
@@ -1190,6 +1184,20 @@ describe("InboxTab", function (): void {
 
     expect(screen.getByText("Youth target")).toBeInTheDocument();
     expect(screen.getByText("Defender")).toBeInTheDocument();
+  });
+
+  it("renders without crashing when gameState is null", function (): void {
+    mockedInvoke.mockResolvedValueOnce([]);
+
+    render(
+      <InboxTab
+        gameState={null}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    // Empty inbox — no message rows.
+    expect(screen.queryByTestId(/inbox-row-/)).not.toBeInTheDocument();
   });
 
   it("renders translated youth recruitment reports with contract details and signed prospects still visible", function (): void {

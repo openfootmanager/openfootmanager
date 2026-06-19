@@ -9,11 +9,10 @@ import {
   formatDateFull,
   formatVal,
   formatWeeklyAmount,
-  getTeamName,
 } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
-import type { GameStateData } from "../../store/gameStore";
+import type { MessageData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 import { Badge, Button, Card, CardBody, CountryFlag, ProgressBar } from "../ui";
@@ -37,9 +36,10 @@ interface PendingSwitch {
 
 interface InboxMessageDetailPaneProps {
   effectFeedback: string | null;
-  gameState: GameStateData;
+  currentTeamId: string | null;
+  currentTeamName: string | null;
   language: string;
-  selectedMessage: GameStateData["messages"][number] | null;
+  selectedMessage: MessageData | null;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onCloseSelectedMessage: () => void;
   onRequestDelete: () => void;
@@ -48,7 +48,8 @@ interface InboxMessageDetailPaneProps {
 
 export default function InboxMessageDetailPane({
   effectFeedback,
-  gameState,
+  currentTeamId,
+  currentTeamName,
   language,
   selectedMessage,
   onAction,
@@ -68,20 +69,11 @@ export default function InboxMessageDetailPane({
     setPendingSwitch(null);
   }, [selectedMessage?.id]);
 
-  const currentClubName = getTeamName(
-    gameState.teams,
-    gameState.manager?.team_id ?? null,
-  );
-
+  const currentClubName = currentTeamName ?? "";
   const hasYouthProspects = Boolean(
     selectedMessage?.context?.youth_prospects?.length,
   );
-  const playerId = selectedMessage?.context?.player_id;
-  const linkedPlayer = playerId
-    ? gameState.players.find(
-      (player) => player.id === playerId,
-    ) ?? null
-    : null;
+  const linkedPlayerId = selectedMessage?.context?.player_id ?? null;
 
   const handleOptionClick = (
     messageId: string,
@@ -89,7 +81,6 @@ export default function InboxMessageDetailPane({
     optionId: string,
   ) => {
     const offerTeamId = selectedMessage?.context?.team_id ?? null;
-    const currentTeamId = gameState.manager?.team_id ?? null;
     const isSwitch =
       messageId.startsWith("job_offer_") &&
       optionId === "accept" &&
@@ -103,10 +94,7 @@ export default function InboxMessageDetailPane({
       onAction(messageId, actionId, optionId);
       return;
     }
-    const newClubName = getTeamName(
-      gameState.teams,
-      selectedMessage.context?.team_id ?? null,
-    );
+    const newClubName = selectedMessage.context?.team_name ?? "";
     setPendingSwitch({ messageId, actionId, optionId, newClubName });
   };
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
@@ -191,15 +179,15 @@ export default function InboxMessageDetailPane({
             .split("\n")
             .map((line, index) => renderMessageBodyLine(line, index))}
 
-          {linkedPlayer ? (
+          {linkedPlayerId ? (
             <div className="mt-4 flex">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => onScoutPlayerClick(linkedPlayer.id)}
+                onClick={() => onScoutPlayerClick(linkedPlayerId)}
               >
-                {t("squad.viewProfile")}: {linkedPlayer.full_name}
+                {t("squad.viewProfile")}
               </Button>
             </div>
           ) : null}
@@ -263,7 +251,7 @@ export default function InboxMessageDetailPane({
                       ? chooseOptionActionType.ChooseOption.options
                       : [];
                     const signedToAcademy =
-                      prospect.team_id === gameState.manager.team_id;
+                      prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
                     const potentialLabel = getProspectPotentialLabel(
                       potential,
@@ -427,20 +415,16 @@ export default function InboxMessageDetailPane({
           {selectedMessage.context?.match_result ? (
             <div className="mt-6 p-4 bg-gray-50 dark:bg-navy-700 rounded-xl flex items-center justify-center gap-8 border border-gray-100 dark:border-navy-600">
               <span className="font-heading font-bold text-sm text-gray-700 dark:text-gray-200">
-                {getTeamName(
-                  gameState.teams,
-                  selectedMessage.context.match_result.home_team_id,
-                )}
+                {selectedMessage.context.match_result.home_team_name ||
+                  selectedMessage.context.match_result.home_team_id}
               </span>
               <span className="font-heading font-bold text-2xl text-gray-800 dark:text-gray-100">
                 {selectedMessage.context.match_result.home_goals} -{" "}
                 {selectedMessage.context.match_result.away_goals}
               </span>
               <span className="font-heading font-bold text-sm text-gray-700 dark:text-gray-200">
-                {getTeamName(
-                  gameState.teams,
-                  selectedMessage.context.match_result.away_team_id,
-                )}
+                {selectedMessage.context.match_result.away_team_name ||
+                  selectedMessage.context.match_result.away_team_id}
               </span>
             </div>
           ) : null}

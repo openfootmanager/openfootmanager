@@ -126,6 +126,8 @@ pub fn match_result_message(
         match_result: Some(ContextMatchResult {
             home_team_id: home_team_id.to_string(),
             away_team_id: away_team_id.to_string(),
+            home_team_name: home_name.to_string(),
+            away_team_name: away_name.to_string(),
             home_goals,
             away_goals,
         }),
