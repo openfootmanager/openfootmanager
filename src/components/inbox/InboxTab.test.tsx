@@ -313,6 +313,12 @@ function renderInboxTab(options: {
   onGameUpdate?: (state: GameStateData) => void;
   onNavigate?: (tab: string, context?: { messageId?: string }) => void;
 }): void {
+  // Prime the self-fetch so InboxTab's useEffect gets the same messages as
+  // gameState rather than an undefined result (which would fall back fine, but
+  // any test that uses mockResolvedValue for a mutation would accidentally
+  // serve those mutation results to get_messages_page too).
+  mockedInvoke.mockResolvedValueOnce(options.gameState.messages ?? []);
+
   render(
     <InboxTab
       gameState={options.gameState}
@@ -417,7 +423,7 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByTestId("inbox-delete-confirm-modal"),
     ).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_message", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
@@ -470,7 +476,7 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByTestId("inbox-delete-confirm-modal"),
     ).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_messages", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
@@ -510,7 +516,7 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("navigates to a player route without resolving the message action", async function (): Promise<void> {
@@ -538,7 +544,7 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("navigates to a dashboard tab and still resolves the action", async function (): Promise<void> {

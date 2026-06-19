@@ -7,6 +7,7 @@ import {
   clearOldMessages,
   deleteMessage,
   deleteMessages,
+  fetchMessages,
   markAllMessagesRead,
   markMessageRead,
   resolveMessageAction,
@@ -39,7 +40,20 @@ export default function InboxTab({
   onNavigate,
 }: InboxTabProps): JSX.Element {
   const { i18n } = useTranslation();
-  const messages = gameState.messages ?? [];
+  const [fetchedMessages, setFetchedMessages] = useState<MessageData[] | null>(null);
+
+  const clockDate = gameState.clock.current_date;
+  useEffect(() => {
+    let cancelled = false;
+    fetchMessages()
+      .then((msgs) => {
+        if (!cancelled && Array.isArray(msgs)) setFetchedMessages(msgs);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clockDate]);
+
+  const messages = (fetchedMessages ?? gameState.messages) ?? [];
   const allMessages = useMemo(() => messages.map(resolveMessage), [messages]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     initialMessageId ?? null,
