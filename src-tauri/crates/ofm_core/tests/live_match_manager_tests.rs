@@ -241,9 +241,10 @@ fn create_live_match_falls_back_to_auto_selection_when_saved_xi_has_fewer_than_e
     game.teams[0].formation = "4-4-2".to_string();
     game.teams[0].starting_xi_ids = saved_xi_ids;
 
+    let mut auto_game = game.clone();
+    auto_game.teams[0].starting_xi_ids.clear();
     let auto_session =
-        live_match_manager::create_live_match(&make_game_with_fixture(), 0, MatchMode::Instant, false)
-            .unwrap();
+        live_match_manager::create_live_match(&auto_game, 0, MatchMode::Instant, false).unwrap();
     let auto_snapshot = auto_session.snapshot();
     let auto_starter_ids: Vec<String> = auto_snapshot
         .home_team
@@ -261,8 +262,15 @@ fn create_live_match_falls_back_to_auto_selection_when_saved_xi_has_fewer_than_e
         .iter()
         .map(|player| player.id.clone())
         .collect();
+    let bench_ids: Vec<String> = snap
+        .home_bench
+        .iter()
+        .map(|player| player.id.clone())
+        .collect();
 
     assert_eq!(starter_ids, auto_starter_ids);
+    assert!(!starter_ids.iter().any(|id| id == "missing-player"));
+    assert!(!bench_ids.iter().any(|id| id == "missing-player"));
 }
 
 #[test]
@@ -357,6 +365,7 @@ fn create_live_match_filters_unavailable_players_from_saved_xi() {
     assert!(!starter_ids.contains(&"team1_fwd2".to_string()));
     assert!(!starter_ids.contains(&"missing-player".to_string()));
     assert!(!bench_ids.contains(&"team1_fwd2".to_string()));
+    assert!(!bench_ids.contains(&"missing-player".to_string()));
 }
 
 #[test]
