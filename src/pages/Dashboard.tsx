@@ -123,6 +123,8 @@ export default function Dashboard(): JSX.Element {
 
     if (saveIdResult.status === "fulfilled") {
       setActiveSaveId(saveIdResult.value);
+    } else {
+      setActiveSaveId(null);
     }
   }, [setGameState]);
 
