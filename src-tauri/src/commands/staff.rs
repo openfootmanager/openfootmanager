@@ -5,6 +5,8 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
+use crate::commands::util::mutate_active_game;
+
 #[tauri::command]
 pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
     hire_staff_internal(&state, &staff_id)
@@ -12,42 +14,39 @@ pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Resu
 
 pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let staff_wage = {
+            let staff = game
+                .staff
+                .iter_mut()
+                .find(|s| s.id == staff_id)
+                .ok_or("be.error.staffMemberNotFound".to_string())?;
 
-    let staff_wage = {
-        let staff = game
-            .staff
-            .iter_mut()
-            .find(|s| s.id == staff_id)
-            .ok_or("be.error.staffMemberNotFound".to_string())?;
+            if staff.team_id.is_some() {
+                return Err("be.error.staffMemberAlreadyEmployed".to_string());
+            }
 
-        if staff.team_id.is_some() {
-            return Err("be.error.staffMemberAlreadyEmployed".to_string());
+            staff.team_id = Some(team_id.clone());
+            staff.wage
+        };
+
+        // Deduct wage from team budget
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            team.season_expenses += staff_wage as i64;
         }
 
-        staff.team_id = Some(team_id.clone());
-        staff.wage
-    };
+        game.available_staff_market_last_activity_date =
+            Some(game.clock.current_date.format("%Y-%m-%d").to_string());
+        ofm_core::generator::process_available_staff_market(game);
 
-    // Deduct wage from team budget
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.season_expenses += staff_wage as i64;
-    }
-
-    game.available_staff_market_last_activity_date =
-        Some(game.clock.current_date.format("%Y-%m-%d").to_string());
-    ofm_core::generator::process_available_staff_market(&mut game);
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -225,32 +224,29 @@ pub fn release_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> R
 
 pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let staff = game
+            .staff
+            .iter_mut()
+            .find(|s| s.id == staff_id)
+            .ok_or("be.error.staffMemberNotFound".to_string())?;
 
-    let staff = game
-        .staff
-        .iter_mut()
-        .find(|s| s.id == staff_id)
-        .ok_or("be.error.staffMemberNotFound".to_string())?;
+        if staff.team_id.as_deref() != Some(&team_id) {
+            return Err("be.error.staffMemberNotInTeam".to_string());
+        }
 
-    if staff.team_id.as_deref() != Some(&team_id) {
-        return Err("be.error.staffMemberNotInTeam".to_string());
-    }
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+            team.season_expenses = team.season_expenses.saturating_sub(staff.wage as i64);
+        }
 
-    if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
-        team.season_expenses = team.season_expenses.saturating_sub(staff.wage as i64);
-    }
+        staff.team_id = None;
 
-    staff.team_id = None;
-
-    state.set_game(game.clone());
-    Ok(game)
+        Ok(())
+    })
 }

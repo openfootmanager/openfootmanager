@@ -168,7 +168,7 @@ describe("TrainingGroupsCard", () => {
   it("renders the empty groups state", () => {
     render(
       <TrainingGroupsCard
-        gameState={createGameState(createTeam())}
+        team={createTeam()}
         onGameUpdate={vi.fn()}
         roster={[createPlayer()]}
         isSaving={false}
@@ -201,7 +201,7 @@ describe("TrainingGroupsCard", () => {
 
     render(
       <TrainingGroupsCard
-        gameState={createGameState(createTeam())}
+        team={createTeam()}
         onGameUpdate={onGameUpdate}
         roster={[createPlayer()]}
         isSaving={false}

@@ -1,5 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
+use domain::league::{
+    CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, Fixture,
+    FixtureCompetition, FixtureStatus, KnockoutRoundState, League, StandingEntry,
+};
 use uuid::Uuid;
 
 /// Generate a full double round-robin schedule (home & away) for the given teams.
@@ -16,78 +19,286 @@ pub fn generate_league(
 
     let league_id = Uuid::new_v4().to_string();
     let mut league = League::new(league_id, name.to_string(), season, team_ids);
+    append_round_robin_fixtures(&mut league, team_ids, start_date);
+    league
+}
 
-    // For round-robin with n teams (n must be even; if odd, add a "bye" — we assume even here)
-    // Number of rounds in a single round-robin = n - 1
-    // Each round has n / 2 matches
-    let rounds = n - 1;
-    let half = n / 2;
+/// Append a full double round-robin (home & away) for `team_ids` to `league`,
+/// spacing matchdays 7 days apart from `start_date`.
+fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
+    let fixtures = build_round_robin_fixtures(
+        &league.id,
+        team_ids,
+        start_date,
+        FixtureCompetition::League,
+    );
+    league.fixtures.extend(fixtures);
+}
 
-    // Build a mutable list of team indices (fix index 0, rotate the rest)
-    let mut indices: Vec<usize> = (0..n).collect();
+/// Build a full double round-robin (home & away) fixture list spacing matchdays
+/// 7 days apart from `start_date`.
+pub fn build_round_robin_fixtures(
+    competition_id: &str,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+) -> Vec<Fixture> {
+    build_round_robin_fixtures_with(competition_id, team_ids, start_date, fixture_competition, 2, 7)
+}
 
+/// Build a round-robin fixture list with a configurable number of legs (even
+/// legs reverse home and away) and days between matchdays. Uses the circle
+/// method; an odd club count plays against a phantom slot, giving each club
+/// one bye per leg.
+pub fn build_round_robin_fixtures_with(
+    competition_id: &str,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+    legs: u8,
+    matchday_gap_days: i64,
+) -> Vec<Fixture> {
+    let n = team_ids.len();
+    if n < 2 || legs == 0 {
+        return Vec::new();
+    }
+    let slots = if n % 2 == 0 { n } else { n + 1 };
+    let rounds = slots - 1;
+    let half = slots / 2;
+    let mut fixtures = Vec::new();
     let mut matchday: u32 = 1;
 
-    // First leg (home)
-    for _round in 0..rounds {
-        let round_date = start_date + Duration::days((matchday as i64 - 1) * 7);
-        let date_str = round_date.format("%Y-%m-%d").to_string();
-
-        for i in 0..half {
-            let home_idx = indices[i];
-            let away_idx = indices[n - 1 - i];
-
-            let fixture = Fixture {
-                id: Uuid::new_v4().to_string(),
-                matchday,
-                date: date_str.clone(),
-                home_team_id: team_ids[home_idx].clone(),
-                away_team_id: team_ids[away_idx].clone(),
-                competition: FixtureCompetition::League,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            };
-            league.fixtures.push(fixture);
+    // Even-numbered legs reverse home and away.
+    for leg in 0..legs {
+        let mut indices: Vec<usize> = (0..slots).collect();
+        for _round in 0..rounds {
+            let date_str = (start_date
+                + Duration::days((matchday as i64 - 1) * matchday_gap_days))
+            .format("%Y-%m-%d")
+            .to_string();
+            for i in 0..half {
+                let (mut home, mut away) = (indices[i], indices[slots - 1 - i]);
+                if leg % 2 == 1 {
+                    std::mem::swap(&mut home, &mut away);
+                }
+                if home >= n || away >= n {
+                    continue; // Paired with the phantom slot: a bye.
+                }
+                fixtures.push(Fixture {
+                    id: Uuid::new_v4().to_string(),
+                    competition_id: competition_id.to_string(),
+                    matchday,
+                    date: date_str.clone(),
+                    home_team_id: team_ids[home].clone(),
+                    away_team_id: team_ids[away].clone(),
+                    competition: fixture_competition.clone(),
+                    status: FixtureStatus::Scheduled,
+                    result: None,
+                });
+            }
+            matchday += 1;
+            let last = indices.pop().unwrap();
+            indices.insert(1, last);
         }
+    }
+    fixtures
+}
 
-        matchday += 1;
+/// Reset a league for a new season in place, preserving its identity, name, and
+/// participants but clearing results and regenerating standings and fixtures.
+/// Participants are taken from `participant_ids`, falling back to the previous
+/// standings for legacy leagues that never recorded a participant list.
+pub fn regenerate_league_for_season(
+    league: &mut League,
+    season: u32,
+    start_date: DateTime<Utc>,
+) {
+    let team_ids: Vec<String> = if !league.participant_ids.is_empty() {
+        league.participant_ids.clone()
+    } else {
+        league.standings.iter().map(|s| s.team_id.clone()).collect()
+    };
 
-        // Rotate: keep index 0 fixed, rotate the rest
-        let last = indices.pop().unwrap();
-        indices.insert(1, last);
+    league.participant_ids = team_ids.clone();
+    league.season = season;
+    league.fixtures.clear();
+    league.standings = team_ids
+        .iter()
+        .map(|id| StandingEntry::new(id.clone()))
+        .collect();
+
+    if team_ids.len() >= 2 {
+        append_round_robin_fixtures(league, &team_ids, start_date);
+    }
+}
+
+/// Reset a knockout competition for a new season in place, preserving identity
+/// and participants but clearing previous fixtures, standings, and rounds.
+pub fn regenerate_knockout_for_season(
+    cup: &mut League,
+    season: u32,
+    start_date: DateTime<Utc>,
+) {
+    cup.season = season;
+    cup.fixtures.clear();
+    cup.standings.clear();
+    cup.knockout_rounds.clear();
+
+    let team_ids = cup.participant_ids.clone();
+    if team_ids.len() < 2 {
+        return;
+    }
+    let fixture_competition = match cup.kind {
+        CompetitionType::ContinentalClub => FixtureCompetition::ContinentalClub,
+        CompetitionType::InternationalClub => FixtureCompetition::InternationalClub,
+        CompetitionType::InternationalNation => FixtureCompetition::InternationalNation,
+        CompetitionType::FriendlyCup => FixtureCompetition::FriendlyCup,
+        _ => FixtureCompetition::Cup,
+    };
+    seed_knockout_round(cup, &team_ids, start_date, fixture_competition);
+}
+
+pub fn generate_knockout_cup(
+    name: &str,
+    season: u32,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    kind: CompetitionType,
+    scope: CompetitionScope,
+) -> League {
+    let competition_id = Uuid::new_v4().to_string();
+    let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
+    cup.kind = kind.clone();
+    cup.scope = scope;
+    cup.rules = CompetitionRules {
+        format: CompetitionFormat::Knockout,
+        counts_in_season_flow: true,
+        ..Default::default()
+    };
+    cup.standings.clear();
+    seed_knockout_round(
+        &mut cup,
+        team_ids,
+        start_date,
+        match kind {
+            CompetitionType::ContinentalClub => FixtureCompetition::ContinentalClub,
+            CompetitionType::InternationalClub => FixtureCompetition::InternationalClub,
+            CompetitionType::InternationalNation => FixtureCompetition::InternationalNation,
+            CompetitionType::FriendlyCup => FixtureCompetition::FriendlyCup,
+            _ => FixtureCompetition::Cup,
+        },
+    );
+    cup
+}
+
+/// Seed the next knockout round of `cup` from `team_ids` (strongest first —
+/// any byes for a non-power-of-two field go to the leading seeds).
+pub fn seed_knockout_round(
+    cup: &mut League,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+    fixture_competition: FixtureCompetition,
+) {
+    let round_index = cup.knockout_rounds.len() as u32 + 1;
+    let round_name = match team_ids.len() {
+        2 => "Final".to_string(),
+        4 => "Semifinal".to_string(),
+        8 => "Quarterfinal".to_string(),
+        size => format!("Round of {size}"),
+    };
+
+    // When the entrant count is not a power of two, the strongest seeds (which
+    // the caller passes first) receive a bye into the next round so the bracket
+    // converges to a power of two.
+    let byes = team_ids.len().next_power_of_two() - team_ids.len();
+    let (bye_teams, playing_teams) = team_ids.split_at(byes);
+
+    let mut round_fixture_ids = Vec::new();
+    for (pair_index, pair) in playing_teams.chunks(2).enumerate() {
+        if pair.len() < 2 {
+            continue;
+        }
+        let fixture_id = Uuid::new_v4().to_string();
+        round_fixture_ids.push(fixture_id.clone());
+        cup.fixtures.push(Fixture {
+            id: fixture_id,
+            competition_id: cup.id.clone(),
+            matchday: round_index,
+            date: (start_date + Duration::days(pair_index as i64))
+                .format("%Y-%m-%d")
+                .to_string(),
+            home_team_id: pair[0].clone(),
+            away_team_id: pair[1].clone(),
+            competition: fixture_competition.clone(),
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+    }
+    cup.knockout_rounds.push(KnockoutRoundState {
+        id: format!("{}-round-{}", cup.id, round_index),
+        name: round_name,
+        fixture_ids: round_fixture_ids,
+        bye_team_ids: bye_teams.to_vec(),
+        completed: false,
+    });
+}
+
+pub fn advance_knockout_competition_round(cup: &mut League) {
+    if !matches!(
+        cup.rules.format,
+        CompetitionFormat::Knockout | CompetitionFormat::GroupAndKnockout
+    ) {
+        return;
     }
 
-    // Second leg (reverse home/away)
-    let mut indices2: Vec<usize> = (0..n).collect();
-
-    for _round in 0..rounds {
-        let round_date = start_date + Duration::days((matchday as i64 - 1) * 7);
-        let date_str = round_date.format("%Y-%m-%d").to_string();
-
-        for i in 0..half {
-            let home_idx = indices2[n - 1 - i]; // Reversed
-            let away_idx = indices2[i];
-
-            let fixture = Fixture {
-                id: Uuid::new_v4().to_string(),
-                matchday,
-                date: date_str.clone(),
-                home_team_id: team_ids[home_idx].clone(),
-                away_team_id: team_ids[away_idx].clone(),
-                competition: FixtureCompetition::League,
-                status: FixtureStatus::Scheduled,
-                result: None,
-            };
-            league.fixtures.push(fixture);
-        }
-
-        matchday += 1;
-
-        let last = indices2.pop().unwrap();
-        indices2.insert(1, last);
+    let Some(next_round) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
+        return;
+    };
+    let round_fixtures: Vec<_> = next_round
+        .fixture_ids
+        .iter()
+        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
+        .collect();
+    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none()) {
+        return;
     }
 
-    league
+    next_round.completed = true;
+    let round_fixture_ids = next_round.fixture_ids.clone();
+    let mut advancing: Vec<String> = round_fixtures
+        .iter()
+        .filter_map(|fixture| {
+            let result = fixture.result.as_ref()?;
+            if result.home_goals >= result.away_goals {
+                Some(fixture.home_team_id.clone())
+            } else {
+                Some(fixture.away_team_id.clone())
+            }
+        })
+        .collect();
+    // Teams that received a bye this round join the winners in the next round.
+    advancing.extend(next_round.bye_team_ids.iter().cloned());
+
+    if advancing.len() >= 2 {
+        let last_round_date = round_fixtures
+            .iter()
+            .map(|fixture| fixture.date.as_str())
+            .max()
+            .unwrap_or("2026-01-01");
+        let round_start = chrono::NaiveDate::parse_from_str(last_round_date, "%Y-%m-%d")
+            .ok()
+            .and_then(|date| date.and_hms_opt(0, 0, 0))
+            .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+            .unwrap_or_else(Utc::now)
+            + Duration::days(cup.rules.knockout_round_gap_days as i64);
+        let fixture_competition = cup
+            .fixtures
+            .iter()
+            .find(|fixture| round_fixture_ids.contains(&fixture.id))
+            .map(|fixture| fixture.competition.clone())
+            .unwrap_or(FixtureCompetition::Cup);
+        seed_knockout_round(cup, &advancing, round_start, fixture_competition);
+    }
 }
 
 pub fn generate_preseason_friendlies(
@@ -135,6 +346,7 @@ pub fn generate_preseason_friendlies(
 
             fixtures.push(Fixture {
                 id: Uuid::new_v4().to_string(),
+                competition_id: String::new(),
                 matchday: 0,
                 date: date.clone(),
                 home_team_id: team_ids[home_idx].clone(),
@@ -152,6 +364,31 @@ pub fn generate_preseason_friendlies(
     fixtures
 }
 
+/// Push any fixture that lands on a reserved date (e.g. an international
+/// window) forward to the next free day, so club matches never clash with
+/// national-team call-ups. Order is preserved.
+pub fn shift_fixtures_off_reserved_dates(league: &mut League, reserved_dates: &[String]) {
+    if reserved_dates.is_empty() {
+        return;
+    }
+    let reserved: std::collections::HashSet<&str> =
+        reserved_dates.iter().map(|date| date.as_str()).collect();
+
+    for fixture in &mut league.fixtures {
+        let Some(mut date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok()
+        else {
+            continue;
+        };
+        while reserved.contains(date.format("%Y-%m-%d").to_string().as_str()) {
+            match date.succ_opt() {
+                Some(next) => date = next,
+                None => break,
+            }
+        }
+        fixture.date = date.format("%Y-%m-%d").to_string();
+    }
+}
+
 pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture>) {
     league.fixtures.append(&mut additional_fixtures);
     league.fixtures.sort_by(|left, right| {
@@ -166,6 +403,223 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn shift_fixtures_off_reserved_dates_moves_clashing_matches_forward() {
+        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Test League", 2026, &teams, start);
+
+        // Force a clash, then reserve that exact day.
+        league.fixtures[0].date = "2026-09-09".to_string();
+        let reserved = vec!["2026-09-09".to_string()];
+
+        shift_fixtures_off_reserved_dates(&mut league, &reserved);
+
+        assert!(
+            league.fixtures.iter().all(|f| f.date != "2026-09-09"),
+            "no fixture should remain on a reserved date"
+        );
+        assert_eq!(
+            league.fixtures[0].date, "2026-09-10",
+            "clashing fixture should move to the next free day"
+        );
+    }
+
+    #[test]
+    fn shift_fixtures_off_reserved_dates_is_noop_without_reservations() {
+        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Test League", 2026, &teams, start);
+        let before: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
+
+        shift_fixtures_off_reserved_dates(&mut league, &[]);
+
+        let after: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
+        assert_eq!(before, after);
+    }
+
+    fn resolve_scheduled_fixtures(cup: &mut League) {
+        for fixture in cup.fixtures.iter_mut() {
+            if fixture.status == FixtureStatus::Scheduled {
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = Some(domain::league::MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn knockout_cup_seeds_byes_for_non_power_of_two_entrants() {
+        let teams: Vec<String> = (0..6).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+
+        // 6 entrants -> next power of two is 8 -> 2 byes and 2 first-round ties.
+        let round_one = &cup.knockout_rounds[0];
+        assert_eq!(round_one.name, "Round of 6");
+        assert_eq!(round_one.fixture_ids.len(), 2);
+        assert_eq!(
+            round_one.bye_team_ids,
+            vec!["team_0".to_string(), "team_1".to_string()],
+            "the first seeds receive the byes"
+        );
+    }
+
+    #[test]
+    fn knockout_cup_with_byes_progresses_to_a_single_champion() {
+        let teams: Vec<String> = (0..6).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+
+        // Resolve each round and advance until the bracket is exhausted.
+        for _ in 0..5 {
+            resolve_scheduled_fixtures(&mut cup);
+            advance_knockout_competition_round(&mut cup);
+        }
+
+        let names: Vec<&str> = cup
+            .knockout_rounds
+            .iter()
+            .map(|round| round.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["Round of 6", "Semifinal", "Final"]);
+        assert!(
+            cup.knockout_rounds.iter().all(|round| round.completed),
+            "every round should be completed"
+        );
+
+        let final_round = cup.knockout_rounds.last().unwrap();
+        assert_eq!(final_round.fixture_ids.len(), 1);
+    }
+
+    #[test]
+    fn regenerate_league_for_season_rebuilds_fresh_fixtures_and_standings() {
+        let teams: Vec<String> = (0..4).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Top Flight", 2026, &teams, start);
+        league.fixtures[0].status = FixtureStatus::Completed;
+        league.standings[0].points = 9;
+
+        let next_start = Utc.with_ymd_and_hms(2027, 8, 1, 0, 0, 0).unwrap();
+        regenerate_league_for_season(&mut league, 2027, next_start);
+
+        assert_eq!(league.season, 2027);
+        assert_eq!(league.fixtures.len(), 12); // 4 teams, double round robin
+        assert!(
+            league
+                .fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Scheduled && f.result.is_none())
+        );
+        assert_eq!(league.standings.len(), 4);
+        assert!(league.standings.iter().all(|s| s.points == 0 && s.played == 0));
+        assert_eq!(league.participant_ids.len(), 4);
+    }
+
+    #[test]
+    fn regenerate_league_for_season_falls_back_to_standings_without_participants() {
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = League::new("l1".to_string(), "Legacy".to_string(), 2026, &[]);
+        league.participant_ids.clear();
+        league.standings = vec![
+            StandingEntry::new("a".to_string()),
+            StandingEntry::new("b".to_string()),
+        ];
+
+        regenerate_league_for_season(&mut league, 2027, start);
+
+        assert_eq!(league.participant_ids, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(league.fixtures.len(), 2);
+    }
+
+    #[test]
+    fn regenerate_knockout_for_season_reseeds_first_round() {
+        let teams: Vec<String> = (0..4).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        cup.fixtures[0].status = FixtureStatus::Completed;
+
+        let next_start = Utc.with_ymd_and_hms(2027, 9, 1, 0, 0, 0).unwrap();
+        regenerate_knockout_for_season(&mut cup, 2027, next_start);
+
+        assert_eq!(cup.season, 2027);
+        assert_eq!(cup.knockout_rounds.len(), 1);
+        assert_eq!(cup.fixtures.len(), 2);
+        assert!(cup.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
+    }
+
+    #[test]
+    fn generate_league_with_odd_team_count_gives_everyone_a_full_schedule() {
+        let teams: Vec<String> = (0..5).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let league = generate_league("Odd League", 2026, &teams, start);
+
+        // 5 teams, double round robin: 5 * 4 = 20 fixtures over 10 rounds
+        // (each round one club has a bye).
+        assert_eq!(league.fixtures.len(), 20);
+        let max_matchday = league.fixtures.iter().map(|f| f.matchday).max().unwrap();
+        assert_eq!(max_matchday, 10);
+
+        for team in &teams {
+            let appearances = league
+                .fixtures
+                .iter()
+                .filter(|f| &f.home_team_id == team || &f.away_team_id == team)
+                .count();
+            assert_eq!(appearances, 8, "{team} must play every rival twice");
+        }
+
+        // No club plays twice on the same matchday.
+        for matchday in 1..=max_matchday {
+            let mut seen = std::collections::HashSet::new();
+            for fixture in league.fixtures.iter().filter(|f| f.matchday == matchday) {
+                assert!(seen.insert(fixture.home_team_id.clone()));
+                assert!(seen.insert(fixture.away_team_id.clone()));
+            }
+        }
+
+        // Every pairing occurs exactly once per leg (home and away).
+        for left in &teams {
+            for right in &teams {
+                if left == right {
+                    continue;
+                }
+                let count = league
+                    .fixtures
+                    .iter()
+                    .filter(|f| &f.home_team_id == left && &f.away_team_id == right)
+                    .count();
+                assert_eq!(count, 1, "{left} must host {right} exactly once");
+            }
+        }
+    }
 
     #[test]
     fn test_generate_league_8_teams() {

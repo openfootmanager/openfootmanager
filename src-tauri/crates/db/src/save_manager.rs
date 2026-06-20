@@ -16,7 +16,8 @@ use ofm_core::player_rating::{
 
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
-use crate::repositories::league_repo;
+use crate::repositories::{league_repo, meta_repo};
+use crate::save_load_error::SaveLoadError;
 use crate::save_index::{SaveEntry, compute_checksum, save_entry_metadata_from_game};
 use crate::save_index_manager::SaveIndexManager;
 
@@ -378,9 +379,38 @@ impl SaveManager {
         let db_path = self.saves_dir.join(&entry.db_filename);
         let save_name = entry.name.clone();
 
-        let db = GameDatabase::open(&db_path)?;
-        let mut game = GamePersistenceReader::read_game(&db)?;
+        // Classify load failures (corrupted vs incompatible version) so the UI
+        // can explain why, rather than showing a single generic error.
+        let db = GameDatabase::open_save(&db_path).map_err(|error| error.i18n_key())?;
+        let mut game = GamePersistenceReader::read_game(&db)
+            .map_err(|_| crate::save_load_error::SaveLoadError::MissingData.i18n_key())?;
         let mut needs_resave = false;
+
+        // Save-format gate: reject saves from a newer build whose format this
+        // build can't understand, and flag older saves so the migrations below
+        // are restamped at the current format on resave.
+        let save_format_version = meta_repo::load_meta(db.conn())?
+            .map(|meta| meta.save_format_version)
+            .unwrap_or(meta_repo::CURRENT_SAVE_FORMAT_VERSION);
+        if save_format_version > meta_repo::CURRENT_SAVE_FORMAT_VERSION {
+            return Err(SaveLoadError::IncompatibleVersion {
+                save_version: save_format_version as i64,
+                supported: meta_repo::CURRENT_SAVE_FORMAT_VERSION as i64,
+            }
+            .i18n_key());
+        }
+        if save_format_version < meta_repo::CURRENT_SAVE_FORMAT_VERSION {
+            // Pre-v3 saves are already promoted into `competitions` by
+            // `read_game` (via `promote_legacy_league`); resaving restamps them
+            // at the current format so the upgrade persists.
+            info!(
+                "[save_manager] upgrading save {} from format {} to {}",
+                save_id,
+                save_format_version,
+                meta_repo::CURRENT_SAVE_FORMAT_VERSION
+            );
+            needs_resave = true;
+        }
         let manager_count_before = game.managers.len();
         let assigned_manager_count_before = game
             .teams
@@ -787,6 +817,7 @@ mod tests {
                 competition: FixtureCompetition::League,
                 status: FixtureStatus::Scheduled,
                 result: None,
+                ..Default::default()
             }],
             standings: vec![
                 StandingEntry::new("team-001".to_string()),
@@ -794,6 +825,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..Default::default()
         };
 
         let mut game = Game::new(
@@ -1098,6 +1130,73 @@ mod tests {
         assert_eq!(saves.len(), 1);
         assert_eq!(saves[0].manager_name, "Jane Doe");
         assert_eq!(saves[0].team_name, "");
+    }
+
+    #[test]
+    fn loading_a_pre_v3_save_promotes_competitions_and_restamps_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        // Vintage shape: a legacy league with no competitions.
+        let save_id = sm
+            .create_save(&sample_game_with_league(), "Vintage Career")
+            .unwrap();
+
+        // Stamp it as a pre-v3 save, as an old build would have written.
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            db.conn()
+                .execute(
+                    "UPDATE game_meta SET save_format_version = 2 WHERE id = 'singleton'",
+                    [],
+                )
+                .unwrap();
+        }
+
+        let game = sm.load_game(&save_id).unwrap();
+
+        // The legacy league is now the source-of-truth competition.
+        assert_eq!(game.competitions.len(), 1);
+        assert_eq!(game.competitions[0].id, "league-current");
+
+        // The upgrade was persisted and restamped at the current format.
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+    }
+
+    #[test]
+    fn loading_a_future_format_save_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm
+            .create_save(&sample_game_with_league(), "Future Career")
+            .unwrap();
+
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            db.conn()
+                .execute(
+                    "UPDATE game_meta SET save_format_version = ?1 WHERE id = 'singleton'",
+                    params![(meta_repo::CURRENT_SAVE_FORMAT_VERSION + 1) as i64],
+                )
+                .unwrap();
+        }
+
+        let error = sm
+            .load_game(&save_id)
+            .expect_err("a newer-format save must be rejected");
+        assert!(
+            error.starts_with("be.error.saveLoad.incompatibleVersion"),
+            "got: {error}"
+        );
     }
 
     #[test]

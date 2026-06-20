@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
@@ -232,112 +232,100 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-describe("YouthAcademyTab", () => {
-  it("renders the empty state when the squad has no youth players", () => {
-    render(
-      <YouthAcademyTab
-        gameState={createGameState([
-          createPlayer({
-            id: "player-young-senior",
-            full_name: "Senior Prospect",
-            date_of_birth: "2008-01-01",
-          }),
-        ])}
-        onSelectPlayer={vi.fn()}
-      />,
-    );
+function makeEmptyStaffSlice() {
+  return { team_staff: [], available_staff: [], scouting_assignments: [], youth_scouting_assignments: [] };
+}
 
-    expect(screen.getByText("No youth players")).toBeInTheDocument();
+describe("YouthAcademyTab", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+  });
+
+  it("renders the empty state when the squad has no youth players", async () => {
+    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const state = createGameState([player]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No youth players")).toBeInTheDocument();
+    });
     expect(screen.getByText("Build your academy")).toBeInTheDocument();
     expect(screen.getByText("1 eligible senior players")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Delegate to youth academy" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delegate to youth academy" })).toBeInTheDocument();
   });
 
   it("delegates eligible senior players from the recovery card", async () => {
-    const gameState = createGameState([
-      createPlayer({
-        id: "player-young-senior",
-        full_name: "Senior Prospect",
-        date_of_birth: "2008-01-01",
-      }),
-    ]);
+    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const gameState = createGameState([player]);
     const updatedGameState = {
       ...gameState,
-      players: gameState.players.map((player) =>
-        player.id === "player-young-senior"
-          ? { ...player, squad_role: "Youth" as const }
-          : player,
+      players: gameState.players.map((p) =>
+        p.id === "player-young-senior" ? { ...p, squad_role: "Youth" as const } : p,
       ),
     };
     const onGameUpdate = vi.fn();
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return updatedGameState;
+    });
 
-    render(
-      <YouthAcademyTab
-        gameState={gameState}
-        onGameUpdate={onGameUpdate}
-        onSelectPlayer={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delegate to youth academy" }),
-    );
+    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
-        playerId: "player-young-senior",
-        squadRole: "Youth",
-      });
+      expect(screen.getByRole("button", { name: "Delegate to youth academy" })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delegate to youth academy" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young-senior", squadRole: "Youth" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
 
-  it("opens the scouting tab from the recovery card", () => {
+  it("opens the scouting tab from the recovery card", async () => {
+    const player = createPlayer({ id: "player-young-senior", full_name: "Senior Prospect", date_of_birth: "2008-01-01" });
+    const state = createGameState([player]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
     const onNavigate = vi.fn();
 
-    render(
-      <YouthAcademyTab
-        gameState={createGameState([
-          createPlayer({
-            id: "player-young-senior",
-            full_name: "Senior Prospect",
-            date_of_birth: "2008-01-01",
-          }),
-        ])}
-        onNavigate={onNavigate}
-        onSelectPlayer={vi.fn()}
-      />,
-    );
+    render(<YouthAcademyTab gameState={state} onNavigate={onNavigate} onSelectPlayer={vi.fn()} />);
 
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Open scouting" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Open scouting" }));
 
     expect(onNavigate).toHaveBeenCalledWith("Scouting");
   });
 
   it("starts youth recruitment directly from the youth academy view", async () => {
-    const baseState = createGameState([
-      createPlayer({
-        id: "player-young",
-        full_name: "Rising Star",
-        date_of_birth: "2008-01-01",
-        squad_role: "Youth",
-      }),
-    ]);
-    const gameState = { ...baseState, staff: [createScout()] };
+    const scout = createScout();
+    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const baseState = createGameState([youthPlayer]);
+    const gameState = { ...baseState, staff: [scout] };
     const onGameUpdate = vi.fn();
-    mockedInvoke.mockResolvedValue(gameState);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return { team_staff: [scout], available_staff: [], scouting_assignments: [], youth_scouting_assignments: [] };
+      return gameState;
+    });
 
-    render(
-      <YouthAcademyTab
-        gameState={gameState}
-        onGameUpdate={onGameUpdate}
-        onSelectPlayer={vi.fn()}
-      />,
-    );
+    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
 
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Youth target" })).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("combobox", { name: "Youth target" }));
     fireEvent.click(screen.getByRole("option", { name: "Defender" }));
     fireEvent.click(screen.getByRole("button", { name: "Start youth search" }));
@@ -353,29 +341,22 @@ describe("YouthAcademyTab", () => {
     });
   });
 
-  it("shows youth prospects only and routes row selection", () => {
+  it("shows youth prospects only and routes row selection", async () => {
+    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const seniorPlayer = createPlayer({ id: "player-older", full_name: "Senior Pro", date_of_birth: "1998-01-01" });
+    const state = createGameState([youthPlayer, seniorPlayer]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
     const onSelectPlayer = vi.fn();
 
-    render(
-      <YouthAcademyTab
-        gameState={createGameState([
-          createPlayer({
-            id: "player-young",
-            full_name: "Rising Star",
-            date_of_birth: "2008-01-01",
-            squad_role: "Youth",
-          }),
-          createPlayer({
-            id: "player-older",
-            full_name: "Senior Pro",
-            date_of_birth: "1998-01-01",
-          }),
-        ])}
-        onSelectPlayer={onSelectPlayer}
-      />,
-    );
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={onSelectPlayer} />);
 
-    expect(screen.getByText("Rising Star")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Rising Star")).toBeInTheDocument();
+    });
     expect(screen.queryByText("Senior Pro")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Rising Star"));
@@ -384,45 +365,33 @@ describe("YouthAcademyTab", () => {
   });
 
   it("promotes youth academy players through the context menu", async () => {
-    const gameState = createGameState([
-      createPlayer({
-        id: "player-young",
-        full_name: "Rising Star",
-        date_of_birth: "2008-01-01",
-        squad_role: "Youth",
-      }),
-    ]);
+    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const gameState = createGameState([youthPlayer]);
     const updatedGameState = {
       ...gameState,
-      players: gameState.players.map((player) =>
-        player.id === "player-young"
-          ? { ...player, squad_role: "Senior" as const }
-          : player,
+      players: gameState.players.map((p) =>
+        p.id === "player-young" ? { ...p, squad_role: "Senior" as const } : p,
       ),
     };
     const onGameUpdate = vi.fn();
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return updatedGameState;
+    });
 
-    render(
-      <YouthAcademyTab
-        gameState={gameState}
-        onGameUpdate={onGameUpdate}
-        onSelectPlayer={vi.fn()}
-      />,
-    );
+    render(<YouthAcademyTab gameState={gameState} onGameUpdate={onGameUpdate} onSelectPlayer={vi.fn()} />);
 
+    await waitFor(() => {
+      expect(screen.getByText("Rising Star")).toBeInTheDocument();
+    });
     const playerRow = screen.getByText("Rising Star").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Promote to senior squad" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Promote to senior squad" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
-        playerId: "player-young",
-        squadRole: "Senior",
-      });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young", squadRole: "Senior" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });

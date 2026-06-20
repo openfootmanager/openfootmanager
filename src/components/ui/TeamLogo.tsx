@@ -1,12 +1,17 @@
 import type { CSSProperties, ReactNode } from "react";
 import { resolveLocalMediaPath } from "../../lib/mediaAssets";
 import AssetImage from "./AssetImage";
+import GeneratedCrest from "./GeneratedCrest";
 
 interface TeamLogoTeam {
   name: string;
   short_name: string;
+  colors?: {
+    primary?: string;
+    secondary?: string;
+  };
   media?: {
-    logo?: string;
+    logo?: string | null;
   };
 }
 
@@ -31,7 +36,16 @@ export function TeamLogo({
         src={resolveLocalMediaPath(team.media?.logo)}
         alt={`${team.name} logo`}
         className={imageClassName}
-        fallback={fallback ?? <span>{team.short_name}</span>}
+        fallback={
+          fallback ?? (
+            <GeneratedCrest
+              name={team.name}
+              label={team.short_name}
+              colors={team.colors}
+              className="h-full w-full"
+            />
+          )
+        }
       />
     </div>
   );

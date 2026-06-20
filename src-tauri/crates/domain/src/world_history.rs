@@ -6,6 +6,16 @@ pub struct WorldHistoryArchive {
     pub rivalries: Vec<WorldRivalry>,
     #[serde(default)]
     pub season_awards: Vec<HistoricalSeasonAwardsRecord>,
+    #[serde(default)]
+    pub world_cup_champions: Vec<WorldCupChampionRecord>,
+}
+
+/// A nation crowned at a World Cup — the game world's highest honour.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorldCupChampionRecord {
+    pub year: u32,
+    pub nation_code: String,
+    pub nation_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -100,6 +110,21 @@ impl WorldHistoryArchive {
 
         self.season_awards
             .sort_by(|left, right| right.season.cmp(&left.season));
+    }
+
+    pub fn record_world_cup_champion(&mut self, record: WorldCupChampionRecord) {
+        if let Some(existing) = self
+            .world_cup_champions
+            .iter_mut()
+            .find(|existing| existing.year == record.year)
+        {
+            *existing = record;
+        } else {
+            self.world_cup_champions.push(record);
+        }
+
+        self.world_cup_champions
+            .sort_by(|left, right| right.year.cmp(&left.year));
     }
 }
 

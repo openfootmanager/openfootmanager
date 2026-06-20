@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   match_speed: "normal",
   show_match_commentary: true,
   confirm_advance: false,
+  continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
 } as const;

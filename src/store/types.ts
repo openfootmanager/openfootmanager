@@ -296,6 +296,7 @@ export interface PlayerSelectionOptions {
 
 export interface MessageContext {
   team_id: string | null;
+  team_name?: string | null;
   player_id: string | null;
   fixture_id: string | null;
   youth_target_position?: string | null;
@@ -304,7 +305,9 @@ export interface MessageContext {
   youth_prospects?: PlayerData[];
   match_result: null | {
     home_team_id: string;
+    home_team_name?: string;
     away_team_id: string;
+    away_team_name?: string;
     home_goals: number;
     away_goals: number;
   };
@@ -371,11 +374,20 @@ export interface ManagerData {
 
 export interface FixtureData {
   id: string;
+  competition_id?: string;
   matchday: number;
   date: string;
   home_team_id: string;
   away_team_id: string;
-  competition: "League" | "Friendly" | "PreseasonTournament";
+  competition:
+  | "League"
+  | "Cup"
+  | "ContinentalClub"
+  | "InternationalClub"
+  | "InternationalNation"
+  | "Friendly"
+  | "FriendlyCup"
+  | "PreseasonTournament";
   status: "Scheduled" | "InProgress" | "Completed";
   result: null | {
     home_goals: number;
@@ -442,11 +454,59 @@ export interface TransferRumourData {
 export interface LeagueData {
   id: string;
   name: string;
+  kind?: string;
+  scope?: string;
   season: number;
+  region_id?: string | null;
+  country_id?: string | null;
+  required_region_ids?: string[];
+  participant_ids?: string[];
+  rules?: {
+    format: "LeagueTable" | "Knockout" | "GroupAndKnockout";
+    counts_in_season_flow: boolean;
+  };
   fixtures: FixtureData[];
   standings: StandingData[];
+  groups?: {
+    id: string;
+    name: string;
+    team_ids: string[];
+    standings: StandingData[];
+  }[];
+  knockout_rounds?: {
+    id: string;
+    name: string;
+    fixture_ids: string[];
+    bye_team_ids?: string[];
+    completed: boolean;
+  }[];
   transfer_log?: CompletedTransferData[];
   transfer_rumours?: TransferRumourData[];
+  priority?: number;
+  name_key?: string;
+}
+
+export interface WorldCupChampionData {
+  year: number;
+  nation_code: string;
+  nation_name: string;
+}
+
+export interface NationalTeamData {
+  id: string;
+  name: string;
+  football_nation: string;
+  region_id?: string | null;
+  squad_player_ids: string[];
+  manager_name?: string | null;
+  reputation: number;
+  fixtures: FixtureData[];
+}
+
+export interface WorldRegionData {
+  id: string;
+  name: string;
+  country_codes: string[];
 }
 
 export type SeasonPhase = "Preseason" | "InSeason" | "PostSeason";
@@ -556,6 +616,17 @@ export interface GameStateData {
   staff: StaffData[];
   messages: MessageData[];
   news: NewsArticle[];
+  competitions?: LeagueData[];
+  national_teams?: NationalTeamData[];
+  world_history?: {
+    world_cup_champions?: WorldCupChampionData[];
+  };
+  // Authored competition definitions (resolved at game creation; present on
+  // imported worlds that ship their own competitions).
+  competitionDefinitions?: unknown;
+  active_region_ids?: string[];
+  active_competition_ids?: string[];
+  regions?: WorldRegionData[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments?: YouthScoutingAssignment[];

@@ -4,7 +4,12 @@ use ofm_core::state::StateManager;
 pub(super) fn competition_label(competition: &FixtureCompetition) -> String {
     match competition {
         FixtureCompetition::League => "League".to_string(),
+        FixtureCompetition::Cup => "Cup".to_string(),
+        FixtureCompetition::ContinentalClub => "ContinentalClub".to_string(),
+        FixtureCompetition::InternationalClub => "InternationalClub".to_string(),
+        FixtureCompetition::InternationalNation => "InternationalNation".to_string(),
         FixtureCompetition::Friendly => "Friendly".to_string(),
+        FixtureCompetition::FriendlyCup => "FriendlyCup".to_string(),
         FixtureCompetition::PreseasonTournament => "PreseasonTournament".to_string(),
     }
 }

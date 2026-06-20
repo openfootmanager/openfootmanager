@@ -7,10 +7,9 @@ use tauri::State;
 #[tauri::command]
 pub fn get_available_jobs(state: State<'_, Arc<StateManager>>) -> Result<Vec<JobOpportunity>, String> {
     info!("[cmd] get_available_jobs");
-    let game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-    Ok(job_offers::get_available_jobs(&game))
+    state
+        .get_game(|game| job_offers::get_available_jobs(game))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
@@ -19,15 +18,14 @@ pub fn apply_for_job(
     team_id: String,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] apply_for_job: team_id={}", team_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = job_offers::apply_for_job(&mut game, &team_id);
-    state.set_game(game.clone());
-
-    Ok(serde_json::json!({
-        "result": result,
-        "game": game,
-    }))
+    // apply_for_job has no error path; mutate in place and serialize the result.
+    state
+        .update_game(|game| {
+            let result = job_offers::apply_for_job(game, &team_id);
+            serde_json::json!({
+                "result": result,
+                "game": game,
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }

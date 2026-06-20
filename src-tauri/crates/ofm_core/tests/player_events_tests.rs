@@ -285,6 +285,7 @@ fn bench_complaint_after_5_missed_matches() {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         })
         .collect();
     let league = League {
@@ -295,6 +296,7 @@ fn bench_complaint_after_5_missed_matches() {
         standings: vec![StandingEntry::new("team1".to_string())],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
     game.league = Some(league);
 
@@ -342,6 +344,7 @@ fn bench_complaint_not_for_gk() {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         })
         .collect();
     game.league = Some(League {
@@ -352,6 +355,7 @@ fn bench_complaint_not_for_gk() {
         standings: vec![],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
     // GK has low morale
     game.players
@@ -388,6 +392,7 @@ fn bench_complaint_not_with_fewer_than_5_fixtures() {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         })
         .collect();
     game.league = Some(League {
@@ -398,6 +403,7 @@ fn bench_complaint_not_with_fewer_than_5_fixtures() {
         standings: vec![],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     });
     // Set low morale so they would complain if threshold was met
     for p in &mut game.players {

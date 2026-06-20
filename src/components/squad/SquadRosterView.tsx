@@ -3,6 +3,7 @@ import type {
   GameStateData,
   PlayerData,
   PlayerSelectionOptions,
+  TeamData,
 } from "../../store/gameStore";
 import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
@@ -63,10 +64,11 @@ import {
 } from "./SquadRosterView.state";
 
 interface SquadRosterViewProps {
-  gameState: GameStateData;
-  managerId: string;
-  onGameUpdate?: (g: GameStateData) => void;
+  players: PlayerData[];
+  team: TeamData;
+  clockDate: string;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
+  onMutationComplete?: (g: GameStateData) => void;
   sortState?: SquadListSortState;
   onSortStateChange?: (sortState: SquadListSortState) => void;
 }
@@ -74,16 +76,16 @@ interface SquadRosterViewProps {
 type FilterScope = "all" | "xi" | "bench" | "outOfPosition" | "injured";
 
 export default function SquadRosterView({
-  gameState,
-  managerId,
-  onGameUpdate,
+  players,
+  team,
+  clockDate,
   onSelectPlayer,
+  onMutationComplete,
   sortState,
   onSortStateChange,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
   const annualSuffix = t("finances.perYearSuffix", "/yr");
-  const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
@@ -97,14 +99,6 @@ export default function SquadRosterView({
     null,
   );
 
-  if (!myTeam) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">
-        {t("common.unemployed")}
-      </p>
-    );
-  }
-
   const posOrder: Record<string, number> = {
     Goalkeeper: 1,
     Defender: 2,
@@ -112,10 +106,8 @@ export default function SquadRosterView({
     Forward: 4,
   };
 
-  const roster = gameState.players
-    .filter(
-      (player) => player.team_id === myTeam.id && isSeniorSquadPlayer(player),
-    )
+  const roster = players
+    .filter((player) => isSeniorSquadPlayer(player))
     .sort(
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
@@ -129,10 +121,10 @@ export default function SquadRosterView({
   );
 
   const available = roster.filter((player) => !player.injury);
-  const formation = myTeam.formation || "4-4-2";
+  const formation = team.formation || "4-4-2";
   const startingXiIds = buildStartingXIIds(
     available,
-    myTeam.starting_xi_ids || [],
+    team.starting_xi_ids || [],
     formation,
   );
   const pitchSlotRows = buildPitchSlotRows(
@@ -284,7 +276,7 @@ export default function SquadRosterView({
       const result = shouldLetExpire
         ? await setContractExitIntent(playerId, "manager_squad_action")
         : await clearContractExitIntent(playerId);
-      onGameUpdate?.(result.game);
+      onMutationComplete?.(result.game);
     } catch (error) {
       setContractActionError(String(error));
     } finally {
@@ -420,7 +412,7 @@ export default function SquadRosterView({
         <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
           <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
             <Users className="w-4 h-4 text-accent-400" />
-            {t("squad.title", { team: myTeam.name })}
+            {t("squad.title", { team: team.name })}
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {filteredRoster.length} / {roster.length}{" "}
@@ -468,7 +460,7 @@ export default function SquadRosterView({
                 const wrongPos = inXI && isOutOfPosition(player);
                 const contractRiskLevel = getContractRiskLevel(
                   player.contract_end,
-                  gameState.clock.current_date,
+                  clockDate,
                 );
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
@@ -529,7 +521,7 @@ export default function SquadRosterView({
                     async () => {
                       try {
                         const updated = await toggleTransferList(player.id);
-                        onGameUpdate?.(updated);
+                        onMutationComplete?.(updated);
                       } catch {
                         return;
                       }
@@ -538,7 +530,7 @@ export default function SquadRosterView({
                   buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
                     try {
                       const updated = await toggleLoanList(player.id);
-                      onGameUpdate?.(updated);
+                      onMutationComplete?.(updated);
                     } catch {
                       return;
                     }
@@ -551,7 +543,7 @@ export default function SquadRosterView({
                             player.id,
                             "Youth",
                           );
-                          onGameUpdate?.(updated);
+                          onMutationComplete?.(updated);
                         } catch {
                           return;
                         }
@@ -638,7 +630,7 @@ export default function SquadRosterView({
                           <div className="font-medium text-gray-700 dark:text-gray-300">
                             {getContractYearsRemaining(
                               player.contract_end,
-                              gameState.clock.current_date,
+                              clockDate,
                             )}
                           </div>
                           <div>

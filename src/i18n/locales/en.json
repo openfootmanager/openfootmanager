@@ -18,6 +18,8 @@
     "deleteSave": "Delete save",
     "noResults": "No results",
     "importedDescription": "Imported world database",
+    "importedPackageDescription": "Imported world package",
+    "loadGameFailed": "Couldn't load the save: {{error}}",
     "invalidWorldDb": "Invalid world database file: {{error}}",
     "failedStartGame": "Failed to start game: {{error}}",
     "openDiscord": "Open Discord community",
@@ -62,12 +64,17 @@
     "title": "Choose World",
     "scanning": "Scanning for databases...",
     "importFile": "Import from file",
+    "importPackage": "Import World Package",
+    "packageErrorsTitle": "Package problems",
+    "importCompetitions": "Add competitions file",
+    "removeCompetitions": "Remove",
+    "competitionsErrorsTitle": "This competitions file can't be used:",
     "startCareer": "Start Career",
     "creatingWorld": "Creating World...",
     "teams": "{{count}} teams",
     "players": "{{count}} players",
     "randomWorld": "Random World",
-    "randomDescription": "Randomly generated league with 8 teams, players, and staff",
+    "randomDescription": "A procedurally generated world of clubs, players, and staff",
     "historyMode": {
       "generated": "Generated History",
       "reference": "Reference History",
@@ -117,6 +124,15 @@
     "exitToMenu": "Exit to Menu",
     "continue": "Continue",
     "simulating": "Simulating...",
+    "simulatingMessage": "Processing the world — this only takes a moment.",
+    "resultsRecapTitle": "Results",
+    "recapAdvancedTo": "Advanced to {{date}}",
+    "recapSectionTransfers": "Transfers",
+    "recapSectionNews": "News",
+    "recapSectionInbox": "Inbox",
+    "recapNothingNotable": "No notable events.",
+    "recapTransferLine": "{{player}}: {{from}} → {{to}}",
+    "resultsRecapDismiss": "Continue",
     "loading": "Loading game state...",
     "noResults": "No results found.",
     "searchPlaceholder": "Search players, teams...",
@@ -141,7 +157,21 @@
       "financeRunway": "Cash runway down to {{count}} week(s)",
       "wagePressure": "Wage bill at {{percent}}% of budget"
     },
-    "unemployedBanner": "You are currently without a club. Job offers may arrive in your inbox."
+    "unemployedBanner": "You are currently without a club. Job offers may arrive in your inbox.",
+    "digestAdvancing": "Advancing...",
+    "digestDone": "Done",
+    "digestClose": "Close",
+    "digestEmpty": "Nothing to show.",
+    "digestQuietDay": "All quiet.",
+    "digestSimulating": "Processing...",
+    "digestMatchDay": "Match Day",
+    "digestMatchDayDesc": "Your fixture is ready to play.",
+    "digestReturnHome": "Back to Dashboard",
+    "digestBlocked": "Action Required",
+    "digestBlockedDesc": "Some issues need your attention before advancing.",
+    "digestViewIssues": "View Issues",
+    "digestFired": "You have been dismissed.",
+    "digestContinueAnyway": "Continue Anyway"
   },
   "continueMenu": {
     "goToField": "Go to the Field",
@@ -266,7 +296,61 @@
     "repStrong": "Strong",
     "repAverage": "Average",
     "repDeveloping": "Developing",
-    "failedToSelectTeam": "Failed to select team: {{error}}"
+    "failedToSelectTeam": "Failed to select team: {{error}}",
+    "homeRegion": "Home Region",
+    "homeCountry": "Home Country",
+    "allCountries": "All countries",
+    "simulationScope": "Simulation Scope",
+    "otherClubs": "Other clubs",
+    "searchClubs": "Search clubs…",
+    "clubCount": "{{n}} clubs",
+    "noClubsMatch": "No clubs match your search.",
+    "simulatedRegions": "Simulated Regions",
+    "simulatedCompetitions": "Simulated Competitions",
+    "homeBadge": "Home",
+    "yourClub": "your club",
+    "yourClubBadge": "Your Club",
+    "requiresRegions": "Requires {{regions}}",
+    "selectedClub": "Selected Club",
+    "formation": "Formation",
+    "overall": "Overall",
+    "likelyXi": "Likely XI",
+    "competitions": "Competitions",
+    "keyPlayers": "Key Players",
+    "activeCompetitions": "Active Competitions",
+    "clubCompetitionsAlwaysSimulated": "Your club's competitions are always simulated, even if you switch off other regions or tournaments.",
+    "selectClubPrompt": "Select a club to inspect its squad and competitions.",
+    "playersCount": "{{count}} players",
+    "scopeSummary": "{{regionsCount}} simulated regions and {{competitionsCount}} simulated competitions will be loaded.",
+    "regionLabels": {
+      "north-america": "North America",
+      "central-america": "Central America",
+      "south-america": "South America",
+      "europe": "Europe",
+      "asia": "Asia",
+      "oceania": "Oceania"
+    },
+    "scopes": {
+      "Domestic": "Domestic",
+      "Regional": "Regional",
+      "Continental": "Continental",
+      "International": "International"
+    },
+    "kinds": {
+      "League": "League",
+      "Cup": "Cup",
+      "ContinentalClub": "Continental Club",
+      "InternationalClub": "International Club",
+      "InternationalNation": "International Nation",
+      "FriendlyCup": "Friendly Cup"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "Your playable region always stays active.",
+      "regionRequiredByCompetition": "{{competition}} is part of {{club}}'s schedule, so {{region}} must remain active.",
+      "regionRemovedDisablesCompetitions": "{{region}} was removed from the simulation scope, so dependent competitions were switched off too.",
+      "clubCompetitionLocked": "{{competition}} is on {{club}}'s schedule and will always be simulated.",
+      "autoEnabledRegions": "{{competition}} needs {{regions}}, so those regions were enabled automatically."
+    }
   },
   "youthAcademy": {
     "title": "Youth Academy",
@@ -908,6 +992,8 @@
     "subtitle": "Retired legends and past champions",
     "legends": "Retired Legends",
     "pastChampions": "Past Champions",
+    "worldCupChampions": "World Cup Champions",
+    "worldCupEdition": "{{year}} World Cup",
     "noLegends": "No retired legends recorded yet.",
     "noChampions": "No past champions recorded yet.",
     "appearances": "Appearances",
@@ -1021,10 +1107,34 @@
   "schedule": {
     "noSchedule": "No league schedule available.",
     "noLeague": "No league schedule available.",
+    "standingsUnavailable": "Standings are not available for this competition.",
     "fixtures": "Fixtures",
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
-    "season": "Season {{number}}"
+    "season": "Season {{number}}",
+    "international": "International",
+    "internationalDuty": "On International Duty",
+    "promotionZone": "Promotion",
+    "loadMore": "Load more",
+    "relegationZone": "Relegation",
+    "nextMatch": "Next match",
+    "noUpcoming": "No upcoming fixtures.",
+    "pastResults": "Past results",
+    "calendar": {
+      "title": "Calendar",
+      "mon": "Mo",
+      "tue": "Tu",
+      "wed": "We",
+      "thu": "Th",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "Su",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "dayWithFixtures": "{{date}} — has fixtures",
+      "yourMatch": "Your match",
+      "otherFixtures": "Other fixtures"
+    }
   },
   "players": {
     "searchPlaceholder": "Search by name or nationality...",
@@ -1036,6 +1146,9 @@
     "showingRange": "{{from}}–{{to}} of {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Search clubs…",
+    "noResults": "No clubs match your search.",
+    "otherClubs": "Other clubs",
     "yourTeam": "Your Team",
     "squad": "Squad",
     "avgOvr": "Avg OVR",
@@ -1066,6 +1179,17 @@
     "topScorers": "Top Scorers",
     "loadingAwards": "Loading awards...",
     "awardsTab": "Awards",
+    "bracket": "Bracket",
+    "group": "Group {{name}}",
+    "bye": "Bye",
+    "roundComplete": "Complete",
+    "roundInProgress": "In progress",
+    "rounds": {
+      "final": "Final",
+      "semifinal": "Semifinal",
+      "quarterfinal": "Quarterfinal",
+      "roundOf": "Round of {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Golden Boot",
       "goldenBootSubtitle": "Top Scorers",
@@ -1089,9 +1213,20 @@
         "winRate": "win rate"
       },
       "managerOfSeasonTitle": "Manager of the Season",
+      "currentLeaders": "Current leaders — final awards are decided when the season ends.",
       "managerOfSeasonSubtitle": "Best campaign on the touchline"
     },
-    "noGoals": "No goals scored yet."
+    "noGoals": "No goals scored yet.",
+    "worldCupChampion": "World Cup Champion",
+    "competitions": {
+      "title": "All Competitions",
+      "statusNotStarted": "Not Started",
+      "statusInProgress": "In Progress",
+      "statusCompleted": "Completed",
+      "participating": "Participating",
+      "worldCup": "{{year}} World Cup",
+      "worldCupQualifying": "World Cup Qualifying {{year}}"
+    }
   },
   "news": {
     "noNews": "No news articles yet.",
@@ -1262,6 +1397,8 @@
     "matchCommentaryDesc": "Show event commentary during live matches",
     "confirmAdvance": "Confirm Before Advancing",
     "confirmAdvanceDesc": "Ask for confirmation before advancing a day",
+    "continueToNextEvent": "Continue Skips to Next Event",
+    "continueToNextEventDesc": "Continue rolls forward until your next match, a blocker, a transfer deadline, or important news",
     "savesData": "Saves & Data",
     "autoSave": "Auto-Save",
     "autoSaveDesc": "Automatically save your game after each day",
@@ -2045,10 +2182,59 @@
         "playerNotInStartingXi": "Player not in starting XI"
       },
       "worldReadFileFailed": "Failed to read the world database file.",
+      "package": {
+        "invalid": "This world package is invalid and could not be loaded.",
+        "readFailed": "A package file could not be read.",
+        "missingSchema": "A package file is missing its \"schema\" field.",
+        "unknownSchema": "Unknown schema \"{{schema}}\".",
+        "invalidEntity": "A \"{{schema}}\" entry is invalid.",
+        "missingId": "A {{kind}} entry is missing its id.",
+        "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
+        "unknownConfederation": "Country \"{{country}}\" references unknown confederation \"{{confederation}}\".",
+        "unknownCountry": "\"{{entity}}\" references unknown country \"{{country}}\".",
+        "unknownTeam": "Player \"{{player}}\" references unknown club \"{{team}}\"."
+      },
+    "competitionDef": {
+      "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
+      "invalidStandalone": "The selected competition definition file is invalid.",
+      "parseFailed": "The competition definition file could not be read as JSON.",
+      "unsupportedVersion": "Unsupported format version {{version}}; this build supports up to {{supported}}.",
+      "berthUnknownTarget": "A qualification berth points at unknown competition \"{{target}}\".",
+      "berthInvalidRange": "Invalid berth position range {{from}}–{{to}}.",
+      "berthRequiresLeague": "Position and playoff berths can only be awarded by a league table.",
+      "berthRequiresCup": "A cup-winner berth can only be awarded by a knockout competition.",
+      "berthPlayoffTooSmall": "A playoff berth needs at least two contestants.",
+      "emptyId": "A competition is missing its id.",
+      "duplicateId": "Duplicate competition id \"{{id}}\".",
+      "emptyName": "A competition is missing its name.",
+      "unknownRegion": "Unknown region \"{{region}}\".",
+      "unknownCountry": "Unknown country \"{{country}}\".",
+      "groupConfigOnNonGroupFormat": "Group settings only apply to a group-and-knockout format.",
+      "groupSizeTooSmall": "Group size {{groupSize}} is too small (minimum 2).",
+      "zeroLegs": "A competition needs at least one leg.",
+      "noParticipants": "No participants: provide an explicit list or a selector.",
+      "bothParticipantSources": "Provide either an explicit list or a selector, not both.",
+      "tooFewParticipants": "At least two participants are required.",
+      "unknownTeam": "Unknown team \"{{team}}\".",
+      "selectorMissingCountry": "This selector needs a country.",
+      "selectorCountTooSmall": "This selector needs a count of at least 2.",
+      "selectorMissingRegion": "This selector needs a region.",
+      "unknownSourceCompetition": "Unknown source competition \"{{source}}\".",
+      "selectorMissingSource": "This selector needs a source competition.",
+      "unknownExcludedCompetition": "Unknown excluded competition \"{{excluded}}\".",
+      "selectorCycle": "Circular qualification between competitions."
+    },
       "worldParseFailed": "Failed to parse the world database file.",
       "worldWriteFileFailed": "Failed to export the world database file.",
       "worldWriteDatabaseFailed": "Failed to save the imported world database.",
       "worldSerializeFailed": "Failed to export the world database data.",
+      "saveLoad": {
+        "corrupted": "This save file is corrupted and can't be loaded.",
+        "incompatibleVersion": "This save was made by a newer version of the game (save v{{saveVersion}}; this build supports up to v{{supported}}). Update the game to load it.",
+        "missingData": "This save is missing required data and can't be loaded.",
+        "invalidWorld": "This save's world or mod data is invalid and can't be loaded.",
+        "unknown": "This save couldn't be loaded due to an unexpected error."
+      },
       "gameDatabase": {
         "openFailed": "Failed to open save data.",
         "migrationFailed": "Failed to prepare save data.",
@@ -2264,6 +2450,18 @@
           "midTable": "{{team}} finished the season in {{position}}{{suffix}} place with {{points}} points.\n\nA mid-table finish. The board expects improvement next season. We need to be more competitive.",
           "lowerHalf": "A disappointing season for {{team}}. Finishing {{position}}{{suffix}} with only {{points}} points is below expectations.\n\nThe board is concerned. Significant improvement will be needed next season, or your position may come under review."
         }
+      },
+      "promotion": {
+        "subject": "Promoted to the {{division}}!",
+        "body": "Congratulations! The club has earned promotion and will play in the {{division}} in Season {{season}}.\n\nThe board is thrilled with this achievement. Let's make sure we are ready for the step up."
+      },
+      "relegation": {
+        "subject": "Relegated to the {{division}}",
+        "body": "The club has been relegated and will play in the {{division}} in Season {{season}}.\n\nThe board is deeply disappointed. An immediate push for promotion is expected."
+      },
+      "worldCupChampion": {
+        "subject": "{{nation}} win the {{year}} World Cup!",
+        "body": "{{nation}} have been crowned world champions at the {{year}} World Cup.\n\nA generation of players will be remembered for this triumph."
       },
       "newSeasonSchedule": {
         "subject": "Season {{season}} — New Schedule Released",
@@ -2660,6 +2858,11 @@
         "subject": "Incoming Offer for {{player}}",
         "body": "{{team}} have submitted an offer of {{fee}} for {{player}}. Review the bid in the Transfers tab to accept or reject it.",
         "actionReview": "Review Offer"
+      },
+      "transferInterest": {
+        "subject": "Transfer interest in {{player}}",
+        "body": "Clubs with active bids for {{player}}: {{n}}. Latest enquiry: {{team}} ({{fee}}). Review the offers in the Transfers tab to respond.",
+        "actionReview": "Review Offers"
       }
     },
     "news": {
@@ -2735,6 +2938,18 @@
         "headline": "Transfer Roundup — Week of {{weekStart}}",
         "body": "The transfer market stayed busy this week. {{transferCount}} completed deal(s) stood out across the division.\n\n{{deals}}",
         "dealLine": "  {{player}}: {{fromTeam}} -> {{toTeam}} ({{fee}})"
+      },
+      "worldCupQualifying": {
+        "headline": "Road to the {{year}} World Cup Begins",
+        "body": "{{nations}} nations begin their campaign to qualify for the {{year}} World Cup, contested across the international windows this season."
+      },
+      "worldCupKickoff": {
+        "headline": "The {{year}} World Cup Begins",
+        "body": "{{nations}} nations have gathered for the {{year}} World Cup. Football stops for nothing else this summer as the world's best chase the greatest prize in the game."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} Are World Champions",
+        "body": "{{nation}} have won the {{year}} World Cup, etching their names into football history. A nation celebrates a triumph that will be remembered for generations."
       },
       "seasonAwards": {
         "headline": "Season {{season}} Awards",

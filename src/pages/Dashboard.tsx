@@ -46,6 +46,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
+  getPrimaryCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -81,6 +82,7 @@ export default function Dashboard(): JSX.Element {
     hasActiveGame,
     managerName,
     gameState,
+    sessionState,
     setGameState,
     clearGame,
     isDirty,
@@ -230,7 +232,9 @@ export default function Dashboard(): JSX.Element {
     }
   }, [isUnemployed, profileNavigation.activeTab]);
 
-  const seasonComplete = isLeagueSeasonComplete(gameState?.league);
+  const seasonComplete = isLeagueSeasonComplete(
+    gameState ? getPrimaryCompetition(gameState) : null,
+  );
 
   // Advance-time hook
   const {
@@ -243,15 +247,24 @@ export default function Dashboard(): JSX.Element {
     setMatchMode,
     blockerModal,
     setBlockerModal,
+    recapResults,
+    setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
+    digestEntries,
+    digestStopReason,
+    isDigestVisible,
+    isDigestRunning,
+    startDigest,
+    dismissDigest,
   } = useAdvanceTime(
     setGameState,
     hasMatchToday,
     settings.default_match_mode,
     settingsLoaded,
     isUnemployed ?? false,
+    settings.continue_to_next_event,
   );
 
   const handleSave = useCallback(async () => {
@@ -399,7 +412,7 @@ export default function Dashboard(): JSX.Element {
   }
 
   function handleToggleContinueMenu(): void {
-    setShowContinueMenu((currentValue) => !currentValue);
+    setShowContinueMenu(!showContinueMenu);
   }
 
   function handleSelectMatchMode(mode: MatchModeType): void {
@@ -428,7 +441,7 @@ export default function Dashboard(): JSX.Element {
     gameState.clock.current_date,
     settings.language,
   );
-  const unreadMessagesCount = getUnreadMessagesCount(gameState);
+  const unreadMessagesCount = sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);
@@ -476,6 +489,9 @@ export default function Dashboard(): JSX.Element {
       <DashboardOverlays
         blockerModal={blockerModal}
         currentModeMeta={currentModeMeta}
+        isAdvancing={isAdvancing}
+        recapResults={recapResults}
+        onCloseRecap={() => setRecapResults(null)}
         handleConfirmMatch={handleConfirmMatch}
         handleExitToMenu={handleExitToMenu}
         handleNavigate={handleNavigate}
@@ -491,6 +507,15 @@ export default function Dashboard(): JSX.Element {
         showMatchConfirm={showMatchConfirm}
         teams={gameState.teams}
         todayMatchFixture={todayMatchFixture}
+        digestEntries={digestEntries}
+        digestStopReason={digestStopReason}
+        isDigestVisible={isDigestVisible}
+        isDigestRunning={isDigestRunning}
+        onDigestViewBlockers={(blockers) =>
+          setBlockerModal({ blockers })
+        }
+        onDigestContinueAfterBlocker={() => void startDigest()}
+        onDismissDigest={dismissDigest}
       />
       <FiredModal />
 

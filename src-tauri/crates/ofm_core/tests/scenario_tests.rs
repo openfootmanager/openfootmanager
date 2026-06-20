@@ -17,7 +17,9 @@ use domain::league::FixtureStatus;
 use domain::manager::Manager;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
-use ofm_core::generator::{generate_world_data_seeded, repair_opening_youth_academies};
+use ofm_core::generator::{
+    generate_world_data_seeded_with, repair_opening_youth_academies, WorldGenConfig,
+};
 use ofm_core::turn;
 use std::collections::HashSet;
 
@@ -31,7 +33,9 @@ use std::collections::HashSet;
 /// The world is generated from `seed`, so the starting state is reproducible:
 /// a failure in CI can be replayed locally by running with the same seed.
 fn make_scenario_game(seed: u64) -> Game {
-    let world = generate_world_data_seeded(seed, None);
+    // A small, reproducible world keeps the full-season simulation fast; the
+    // invariants under test hold for any world size.
+    let world = generate_world_data_seeded_with(seed, &WorldGenConfig::compact(), None);
 
     let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
     let clock = GameClock::new(start);

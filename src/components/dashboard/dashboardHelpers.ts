@@ -5,6 +5,7 @@ import type {
   TeamData,
 } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
+import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
 import { getTeamFinanceSnapshot } from "../../lib/finance";
 import { buildStartingXIIds } from "../squad/SquadTab.helpers";
 
@@ -26,12 +27,7 @@ type DashboardAlertTranslator = (
 ) => string;
 
 export function getTodayMatchFixture(gameState: GameStateData): FixtureData | null {
-  const fixtures = gameState.league?.fixtures;
-
-  if (!fixtures) {
-    return null;
-  }
-
+  const fixtures = getAllFixturesAcrossCompetitions(gameState);
   const today = gameState.clock.current_date.split("T")[0];
 
   return (

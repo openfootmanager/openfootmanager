@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
@@ -12,18 +12,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import {
-  getTeamName,
-  calcAge,
-  formatVal,
-  getPlayerOvr,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { calcAge, formatVal } from "../../lib/helpers";
+import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
-import {
-  normalisePosition,
-  translatePositionAbbreviation,
-} from "../squad/SquadTab.helpers";
+import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
@@ -31,6 +23,12 @@ import {
   toggleLoanList,
   toggleTransferList,
 } from "../../services/transfersService";
+import {
+  fetchPlayersPage,
+  type PlayerSortKey,
+  type PlayersPage,
+  type PlayersPageQuery,
+} from "../../services/playersService";
 import {
   buildDividerMenuItem,
   buildOfferFreeAgentContractMenuItem,
@@ -53,7 +51,18 @@ interface PlayersListTabProps {
   onSelectTeam: (id: string) => void;
 }
 
-type SortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
+const PAGE_SIZE = 30;
+
+const DEFAULT_QUERY: PlayersPageQuery = {
+  search: null,
+  position: null,
+  team_id: null,
+  status: "all",
+  sort_key: "ovr",
+  sort_asc: false,
+  page: 1,
+  page_size: PAGE_SIZE,
+};
 
 export default function PlayersListTab({
   gameState,
@@ -62,19 +71,52 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
-  const [search, setSearch] = useState("");
-  const [posFilter, setPosFilter] = useState<string | null>(null);
-  const [teamFilter, setTeamFilter] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("ovr");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "transfer" | "loan">(
-    "all",
-  );
-  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState<PlayersPageQuery>(DEFAULT_QUERY);
+  const [slice, setSlice] = useState<PlayersPage | null>(null);
+  const [refetchKey, setRefetchKey] = useState(0);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
-  const pageSize = 30;
   const managerTeamId = gameState.manager.team_id ?? "";
+
+  const patchQuery = useCallback((patch: Partial<PlayersPageQuery>) => {
+    setQuery((q) => {
+      const resetPage = !("page" in patch);
+      return { ...q, ...patch, ...(resetPage ? { page: 1 } : {}) };
+    });
+  }, []);
+
+  const refetchSlice = useCallback(() => setRefetchKey((k) => k + 1), []);
+
+  const handleGameUpdate = useCallback(
+    (game: GameStateData) => {
+      onGameUpdate?.(game);
+      refetchSlice();
+    },
+    [onGameUpdate, refetchSlice],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlayersPage(query)
+      .then((result) => {
+        if (cancelled) return;
+        setSlice(result);
+        setFetchError(null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, refetchKey, t]);
+
+  const findFullPlayer = useCallback(
+    (id: string) => gameState.players.find((p) => p.id === id),
+    [gameState.players],
+  );
   const {
     bidTarget,
     bidAmount,
@@ -93,7 +135,7 @@ export default function PlayersListTab({
     handleMakeBid,
   } = useTransferBidFlow({
     gameState,
-    onGameUpdate,
+    onGameUpdate: handleGameUpdate,
   });
   const {
     freeAgentTarget,
@@ -112,7 +154,7 @@ export default function PlayersListTab({
     submitFreeAgentContract,
   } = useFreeAgentContractFlow({
     gameState,
-    onGameUpdate,
+    onGameUpdate: handleGameUpdate,
   });
   const scouts = gameState.staff.filter(
     (staffMember) =>
@@ -139,7 +181,7 @@ export default function PlayersListTab({
     try {
       const updated = await sendScout(scout.id, playerId);
       setScoutError(null);
-      onGameUpdate?.(updated);
+      handleGameUpdate(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
       setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
@@ -148,76 +190,19 @@ export default function PlayersListTab({
     }
   };
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortAsc(!sortAsc);
-    else {
-      setSortKey(key);
-      setSortAsc(key === "name");
+  const handleSort = (key: PlayerSortKey) => {
+    if (query.sort_key === key) {
+      patchQuery({ sort_asc: !query.sort_asc });
+    } else {
+      patchQuery({ sort_key: key, sort_asc: key === "name" });
     }
   };
 
-  // Reset page when filters change
-  const filterKey = `${search}|${posFilter}|${teamFilter}|${statusFilter}|${sortKey}|${sortAsc}`;
-  useMemo(() => setPage(1), [filterKey]);
-
-  let filtered = gameState.players.filter((p) => {
-    if (search.length >= 2) {
-      const q = search.toLowerCase();
-      if (
-        !p.full_name.toLowerCase().includes(q) &&
-        !p.match_name.toLowerCase().includes(q) &&
-        !p.nationality.toLowerCase().includes(q)
-      )
-        return false;
-    }
-    if (
-      posFilter &&
-      normalisePosition(p.natural_position || p.position) !== posFilter
-    )
-      return false;
-    if (teamFilter && p.team_id !== teamFilter) return false;
-    if (statusFilter === "transfer" && !p.transfer_listed) return false;
-    if (statusFilter === "loan" && !p.loan_listed) return false;
-    return true;
-  });
-
-  const posOrder: Record<string, number> = {
-    Goalkeeper: 1,
-    Defender: 2,
-    Midfielder: 3,
-    Forward: 4,
-  };
-
-  filtered.sort((a, b) => {
-    let cmp = 0;
-    switch (sortKey) {
-      case "name":
-        cmp = a.full_name.localeCompare(b.full_name);
-        break;
-      case "position":
-        cmp =
-          (posOrder[normalisePosition(a.natural_position || a.position)] ||
-            99) -
-          (posOrder[normalisePosition(b.natural_position || b.position)] || 99);
-        break;
-      case "age":
-        cmp = calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
-        break;
-      case "ovr":
-        cmp = getPlayerOvr(a) - getPlayerOvr(b);
-        break;
-      case "value":
-        cmp = (a.market_value || 0) - (b.market_value || 0);
-        break;
-      case "team":
-        cmp = getTeamName(gameState.teams, a.team_id).localeCompare(
-          getTeamName(gameState.teams, b.team_id),
-        );
-        break;
-    }
-    return sortAsc ? cmp : -cmp;
-  });
-
+  const items = slice?.items ?? [];
+  const total = slice?.total ?? 0;
+  const page = query.page;
+  const pageSize = slice?.page_size ?? query.page_size;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
   return (
@@ -229,16 +214,16 @@ export default function PlayersListTab({
           <input
             type="text"
             placeholder={t("players.searchPlaceholder")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={query.search ?? ""}
+            onChange={(e) => patchQuery({ search: e.target.value || null })}
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
           />
         </div>
 
         <div className="flex gap-1.5">
           <button
-            onClick={() => setPosFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter
+            onClick={() => patchQuery({ position: null })}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!query.position
               ? "bg-primary-500 text-white shadow-sm"
               : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
               }`}
@@ -248,8 +233,10 @@ export default function PlayersListTab({
           {positions.map((pos) => (
             <button
               key={pos}
-              onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos
+              onClick={() =>
+                patchQuery({ position: query.position === pos ? null : pos })
+              }
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.position === pos
                 ? "bg-primary-500 text-white shadow-sm"
                 : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
                 }`}
@@ -261,28 +248,28 @@ export default function PlayersListTab({
 
         <div className="flex gap-1.5">
           <button
-            onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${statusFilter === "all" ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+            onClick={() => patchQuery({ status: "all" })}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "all" ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("common.all")}
           </button>
           <button
-            onClick={() => setStatusFilter("transfer")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${statusFilter === "transfer" ? "bg-accent-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+            onClick={() => patchQuery({ status: "transfer" })}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "transfer" ? "bg-accent-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("transfers.transfer")}
           </button>
           <button
-            onClick={() => setStatusFilter("loan")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${statusFilter === "loan" ? "bg-blue-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+            onClick={() => patchQuery({ status: "loan" })}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "loan" ? "bg-blue-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("transfers.loan")}
           </button>
         </div>
 
         <Select
-          value={teamFilter || ""}
-          onChange={(e) => setTeamFilter(e.target.value || null)}
+          value={query.team_id ?? ""}
+          onChange={(e) => patchQuery({ team_id: e.target.value || null })}
           selectSize="sm"
           className="min-w-44 font-heading font-bold uppercase tracking-wider"
         >
@@ -297,8 +284,17 @@ export default function PlayersListTab({
 
       <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 font-heading uppercase tracking-wider">
         <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
-        {t("players.nPlayersFound", { count: filtered.length })}
+        {t("players.nPlayersFound", { count: total })}
       </p>
+
+      {fetchError ? (
+        <p
+          role="alert"
+          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {fetchError}
+        </p>
+      ) : null}
 
       {scoutError ? (
         <p
@@ -319,22 +315,22 @@ export default function PlayersListTab({
                   <SortHeader
                     label={t("common.position")}
                     sortKey="position"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <SortHeader
                     label={t("common.name")}
                     sortKey="name"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <SortHeader
                     label={t("common.age")}
                     sortKey="age"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -343,22 +339,22 @@ export default function PlayersListTab({
                   <SortHeader
                     label={t("common.team")}
                     sortKey="team"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <SortHeader
                     label={t("common.value")}
                     sortKey="value"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <SortHeader
                     label={t("common.ovr")}
                     sortKey="ovr"
-                    current={sortKey}
-                    asc={sortAsc}
+                    current={query.sort_key}
+                    asc={query.sort_asc}
                     onClick={handleSort}
                   />
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -367,238 +363,231 @@ export default function PlayersListTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                {filtered
-                  .slice((page - 1) * pageSize, page * pageSize)
-                  .map((player) => {
-                    const ovr = getPlayerOvr(player);
-                    const age = calcAge(player.date_of_birth);
-                    const scoutState = alreadyScoutingIds.has(player.id)
-                      ? "already-assigned"
-                      : sendingPlayerId === player.id
-                        ? "busy"
-                        : availableScouts.length === 0
-                          ? "unavailable"
-                          : "ready";
-                    const contextItems = [
-                      buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
-                      ...(player.team_id
-                        ? [
-                          buildViewTeamMenuItem(t, () => {
-                            onSelectTeam(player.team_id!);
-                          }),
-                        ]
-                        : []),
-                    ];
+                {items.map((summary) => {
+                  const age = calcAge(summary.date_of_birth);
+                  const scoutState = alreadyScoutingIds.has(summary.id)
+                    ? "already-assigned"
+                    : sendingPlayerId === summary.id
+                      ? "busy"
+                      : availableScouts.length === 0
+                        ? "unavailable"
+                        : "ready";
+                  const contextItems = [
+                    buildViewProfileMenuItem(t, () => onSelectPlayer(summary.id)),
+                    ...(summary.team_id
+                      ? [
+                        buildViewTeamMenuItem(t, () => {
+                          onSelectTeam(summary.team_id!);
+                        }),
+                      ]
+                      : []),
+                  ];
 
-                    if (player.team_id === managerTeamId) {
-                      contextItems.push(buildDividerMenuItem());
-                      contextItems.push(
-                        buildToggleTransferListMenuItem(
-                          t,
-                          player.transfer_listed,
-                          async () => {
-                            try {
-                              const updated = await toggleTransferList(player.id);
-                              onGameUpdate?.(updated);
-                            } catch {
-                              return;
-                            }
-                          },
-                        ),
-                      );
-                      contextItems.push(
-                        buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
+                  if (summary.team_id === managerTeamId) {
+                    contextItems.push(buildDividerMenuItem());
+                    contextItems.push(
+                      buildToggleTransferListMenuItem(
+                        t,
+                        summary.transfer_listed,
+                        async () => {
                           try {
-                            const updated = await toggleLoanList(player.id);
-                            onGameUpdate?.(updated);
+                            const updated = await toggleTransferList(summary.id);
+                            handleGameUpdate(updated);
                           } catch {
                             return;
                           }
+                        },
+                      ),
+                    );
+                    contextItems.push(
+                      buildToggleLoanListMenuItem(t, summary.loan_listed, async () => {
+                        try {
+                          const updated = await toggleLoanList(summary.id);
+                          handleGameUpdate(updated);
+                        } catch {
+                          return;
+                        }
+                      }),
+                    );
+                  } else {
+                    const playerActions = summary.team_id
+                      ? [
+                        buildMakeTransferBidMenuItem(t, () => {
+                          const full = findFullPlayer(summary.id);
+                          if (full) openBidNegotiation(full);
                         }),
-                      );
-                    } else {
-                      const playerActions = player.team_id
-                        ? [
-                          buildMakeTransferBidMenuItem(t, () => {
-                            openBidNegotiation(player);
+                        buildScoutPlayerMenuItem(t, scoutState, () => {
+                          void handleScoutPlayer(summary.id);
+                        }),
+                      ]
+                      : summary.retired
+                        ? []
+                        : [
+                          buildOfferFreeAgentContractMenuItem(t, () => {
+                            const full = findFullPlayer(summary.id);
+                            if (full) openFreeAgentContract(full);
                           }),
                           buildScoutPlayerMenuItem(t, scoutState, () => {
-                            void handleScoutPlayer(player.id);
+                            void handleScoutPlayer(summary.id);
                           }),
-                        ]
-                        : player.retired
-                          ? []
-                          : [
-                            buildOfferFreeAgentContractMenuItem(t, () => {
-                              openFreeAgentContract(player);
-                            }),
-                            buildScoutPlayerMenuItem(t, scoutState, () => {
-                              void handleScoutPlayer(player.id);
-                            }),
-                          ];
+                        ];
 
-                      if (playerActions.length > 0) {
-                        contextItems.push(buildDividerMenuItem());
-                        contextItems.push(...playerActions);
-                      }
+                    if (playerActions.length > 0) {
+                      contextItems.push(buildDividerMenuItem());
+                      contextItems.push(...playerActions);
                     }
+                  }
 
-                    const row = (
-                      <tr
-                        key={player.id}
-                        onClick={() => onSelectPlayer(player.id)}
-                        className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
-                      >
-                        <td className="py-2.5 px-4">
-                          <Badge
-                            variant={positionBadgeVariant(
-                              player.natural_position || player.position,
-                            )}
-                            size="sm"
-                          >
-                            {translatePositionAbbreviation(
-                              t,
-                              player.natural_position || player.position,
-                            )}
-                          </Badge>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <PlayerAvatar player={player} />
-                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                              {player.full_name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {age}
-                        </td>
-                        <td
-                          className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"
-                          title={player.nationality}
+                  const ovr = summary.ovr;
+                  const row = (
+                    <tr
+                      key={summary.id}
+                      onClick={() => onSelectPlayer(summary.id)}
+                      className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
+                    >
+                      <td className="py-2.5 px-4">
+                        <Badge
+                          variant={positionBadgeVariant(
+                            summary.natural_position || summary.position,
+                          )}
+                          size="sm"
                         >
-                          <CountryFlag
-                            code={player.nationality}
-                            className="text-lg leading-none"
-                          />
-                        </td>
-                        <td className="py-2.5 px-4">
-                          {player.team_id ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectTeam(player.team_id!);
-                              }}
-                              className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
-                            >
-                              {getTeamName(gameState.teams, player.team_id)}
-                            </button>
-                          ) : (
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {t("common.freeAgent")}
-                            </span>
+                          {translatePositionAbbreviation(
+                            t,
+                            summary.natural_position || summary.position,
                           )}
-                        </td>
-                        <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 font-medium">
-                          {formatVal(player.market_value)}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <span
-                            className={`font-heading font-bold text-base tabular-nums ${ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                              }`}
-                          >
-                            {ovr}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <PlayerAvatar player={summary} />
+                          <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                            {summary.full_name}
                           </span>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          {player.transfer_listed && (
-                            <Badge variant="accent" size="sm">
-                              {t("transfers.transfer")}
-                            </Badge>
-                          )}
-                          {player.loan_listed && (
-                            <Badge variant="primary" size="sm">
-                              {t("transfers.loan")}
-                            </Badge>
-                          )}
-                          {player.injury && (
-                            <Badge variant="danger" size="sm">
-                              {t("common.injured")}
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                        {age}
+                      </td>
+                      <td
+                        className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"
+                        title={summary.nationality}
+                      >
+                        <CountryFlag
+                          code={summary.nationality}
+                          className="text-lg leading-none"
+                        />
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {summary.team_id ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectTeam(summary.team_id!);
+                            }}
+                            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
+                          >
+                            {summary.team_name ?? ""}
+                          </button>
+                        ) : (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {t("common.freeAgent")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        {formatVal(summary.market_value)}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <span
+                          className={`font-heading font-bold text-base tabular-nums ${ovr >= 75
+                            ? "text-primary-500"
+                            : ovr >= 55
+                              ? "text-accent-500"
+                              : "text-gray-400"
+                            }`}
+                        >
+                          {ovr}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {summary.transfer_listed && (
+                          <Badge variant="accent" size="sm">
+                            {t("transfers.transfer")}
+                          </Badge>
+                        )}
+                        {summary.loan_listed && (
+                          <Badge variant="primary" size="sm">
+                            {t("transfers.loan")}
+                          </Badge>
+                        )}
+                        {summary.injured && (
+                          <Badge variant="danger" size="sm">
+                            {t("common.injured")}
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
 
-                    return (
-                      <ContextMenu items={contextItems} key={player.id}>
-                        {row}
-                      </ContextMenu>
-                    );
-                  })}
+                  return (
+                    <ContextMenu items={contextItems} key={summary.id}>
+                      {row}
+                    </ContextMenu>
+                  );
+                })}
               </tbody>
             </table>
-            {filtered.length === 0 && (
+            {total === 0 && (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                 {t("players.noMatch")}
               </div>
             )}
           </div>
-          {/* Pagination */}
-          {filtered.length > pageSize &&
-            (() => {
-              const totalPages = Math.ceil(filtered.length / pageSize);
-              return (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-navy-600">
-                  <p className="text-xs text-gray-400 dark:text-gray-500 font-heading">
-                    {t("players.showingRange", {
-                      from: (page - 1) * pageSize + 1,
-                      to: Math.min(page * pageSize, filtered.length),
-                      total: filtered.length,
-                    })}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setPage(1)}
-                      disabled={page === 1}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    >
-                      <ChevronsLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="px-3 py-1 text-xs font-heading font-bold text-gray-600 dark:text-gray-300">
-                      {page} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={page === totalPages}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setPage(totalPages)}
-                      disabled={page === totalPages}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    >
-                      <ChevronsRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-navy-600">
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-heading">
+                {t("players.showingRange", {
+                  from: (page - 1) * pageSize + 1,
+                  to: Math.min(page * pageSize, total),
+                  total,
+                })}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => patchQuery({ page: 1 })}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => patchQuery({ page: Math.max(1, page - 1) })}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1 text-xs font-heading font-bold text-gray-600 dark:text-gray-300">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => patchQuery({ page: Math.min(totalPages, page + 1) })}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => patchQuery({ page: totalPages })}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
       {bidTarget && (
@@ -649,10 +638,10 @@ function SortHeader({
   onClick,
 }: {
   label: string;
-  sortKey: SortKey;
-  current: SortKey;
+  sortKey: PlayerSortKey;
+  current: PlayerSortKey;
   asc: boolean;
-  onClick: (k: SortKey) => void;
+  onClick: (k: PlayerSortKey) => void;
 }) {
   const isActive = current === sortKey;
   return (

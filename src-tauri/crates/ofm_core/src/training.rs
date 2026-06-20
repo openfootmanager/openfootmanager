@@ -3,8 +3,10 @@ pub use fitness_warnings::check_squad_fitness_warnings;
 
 use crate::game::Game;
 use crate::player_rating::refresh_player_derived;
+use domain::player::{Player, PlayerAttributes};
 use domain::staff::{CoachingSpecialization, StaffRole};
 use domain::team::{TrainingFocus, TrainingIntensity, TrainingSchedule};
+use rand::Rng;
 
 /// Computed coaching quality for a team's staff.
 pub struct TeamCoachingBonus {
@@ -83,9 +85,13 @@ fn compute_coaching_bonus(game: &Game, team_id: &str, focus: &TrainingFocus) -> 
     }
 }
 
+struct TrainingDay {
+    weekday_num: u32,
+    year: u32,
+}
+
 /// Per-team data collected before mutating players.
 struct TeamTrainingPlan {
-    team_id: String,
     default_focus: TrainingFocus,
     intensity: TrainingIntensity,
     schedule: TrainingSchedule,
@@ -112,8 +118,9 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
         .parse::<u32>()
         .unwrap_or(2026);
 
-    // Collect plans for all teams (immutable borrow)
-    let team_plans: Vec<TeamTrainingPlan> = game
+    // Index each team's plan by id so players are visited once (O(teams + players))
+    // instead of rescanning every player for every team (O(teams * players)).
+    let plans: std::collections::HashMap<String, TeamTrainingPlan> = game
         .teams
         .iter()
         .map(|t| {
@@ -126,146 +133,155 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
                     group_overrides.insert(pid.clone(), group.focus.clone());
                 }
             }
-            TeamTrainingPlan {
-                team_id: t.id.clone(),
-                default_focus: t.training_focus.clone(),
-                intensity: t.training_intensity.clone(),
-                schedule: t.training_schedule.clone(),
-                bonus,
-                medical_facility_mult,
-                group_overrides,
-            }
+            (
+                t.id.clone(),
+                TeamTrainingPlan {
+                    default_focus: t.training_focus.clone(),
+                    intensity: t.training_intensity.clone(),
+                    schedule: t.training_schedule.clone(),
+                    bonus,
+                    medical_facility_mult,
+                    group_overrides,
+                },
+            )
         })
         .collect();
 
-    for plan in &team_plans {
-        let is_training_day = plan.schedule.is_training_day(weekday_num);
-
-        let intensity_mult = match &plan.intensity {
-            TrainingIntensity::Low => 0.5,
-            TrainingIntensity::Medium => 1.0,
-            TrainingIntensity::High => 1.5,
+    let day = TrainingDay {
+        weekday_num,
+        year: current_year,
+    };
+    let mut rng = rand::rng();
+    for player in game.players.iter_mut() {
+        let Some(plan) = player.team_id.as_deref().and_then(|id| plans.get(id)) else {
+            continue;
         };
-
-        for player in game.players.iter_mut() {
-            if player.team_id.as_deref() != Some(&plan.team_id) {
-                continue;
-            }
-
-            // Determine this player's effective focus:
-            // player override > group override > team default
-            let player_focus = player
-                .training_focus
-                .as_ref()
-                .or_else(|| plan.group_overrides.get(&player.id))
-                .unwrap_or(&plan.default_focus);
-
-            // On rest days or Recovery focus: no training cost
-            let condition_cost: u8 = if !is_training_day {
-                0
-            } else {
-                match (player_focus, &plan.intensity) {
-                    (TrainingFocus::Recovery, _) => 0,
-                    (_, TrainingIntensity::Low) => 3,
-                    (_, TrainingIntensity::Medium) => 6,
-                    (_, TrainingIntensity::High) => 10,
-                }
-            };
-
-            // Recovery amount: rest days get boosted recovery (like Recovery focus)
-            let recovery_base: f64 = if !is_training_day {
-                7.0 * plan.bonus.physio_mult * plan.medical_facility_mult
-            } else {
-                match player_focus {
-                    TrainingFocus::Recovery => {
-                        9.0 * plan.bonus.physio_mult * plan.medical_facility_mult
-                    }
-                    _ => 3.0 * plan.bonus.physio_mult * plan.medical_facility_mult,
-                }
-            };
-
-            // Age, morale, and current condition all affect recovery rate.
-            // Older players recover more slowly; high morale aids recovery;
-            // severely fatigued players have a harder time bouncing back.
-            let age = estimate_age(&player.date_of_birth, current_year);
-            let age_rec = recovery_factor_from_age(age);
-            let morale_rec = recovery_factor_from_morale(player.morale);
-            let condition_rec = recovery_factor_from_condition(player.condition);
-            let fitness_rec = recovery_factor_from_fitness(player.fitness);
-
-            // Injured players: half base recovery, scaled by age and morale.
-            // Fitness decays slowly during injury (inactive = losing sharpness).
-            if player.injury.is_some() {
-                let recovery = (recovery_base * 0.5 * age_rec * morale_rec * fitness_rec) as u8;
-                player.condition = (player.condition + recovery).min(100);
-                player.fitness = clamp_fitness(player.fitness as i16 - 1);
-                continue;
-            }
-
-            // On rest days: only recovery, no attribute gains
-            if !is_training_day {
-                let stamina_factor = player.attributes.stamina as f64 / 100.0;
-                let recovery = (recovery_base
-                    * (0.5 + stamina_factor * 0.5)
-                    * age_rec
-                    * morale_rec
-                    * condition_rec
-                    * fitness_rec) as u8;
-                player.condition = (player.condition + recovery).min(100);
-                continue;
-            }
-
-            // Age factor for attribute gains: younger players grow faster, older players slower
-            let age_factor = if age <= 21 {
-                1.5
-            } else if age <= 25 {
-                1.2
-            } else if age <= 29 {
-                1.0
-            } else if age <= 33 {
-                0.6
-            } else {
-                0.3
-            };
-
-            // Base gain per attribute per session, boosted by coaching staff
-            let gain = 0.15
-                * intensity_mult
-                * age_factor
-                * plan.bonus.coaching_mult
-                * plan.bonus.specialization_mult;
-
-            // Apply attribute gains based on player's effective focus
-            apply_focus_gains(&mut player.attributes, player_focus, gain);
-
-            // Apply fitness changes based on training focus.
-            // Physical training builds fitness; non-physical days slowly decay it if peak.
-            // Recovery focus gives a tiny fitness boost.
-            apply_fitness_change(&mut player.fitness, player_focus, intensity_mult);
-
-            // Refresh position-weighted OVR and traits after attribute gains.
-            refresh_player_derived(player, current_year);
-
-            // Apply condition: deplete from training, then recover
-            player.condition = player.condition.saturating_sub(condition_cost);
-            let stamina_factor = player.attributes.stamina as f64 / 100.0;
-            let recovery = (recovery_base
-                * (0.5 + stamina_factor * 0.5)
-                * age_rec
-                * morale_rec
-                * condition_rec
-                * fitness_rec) as u8;
-            player.condition = (player.condition + recovery).min(100);
-        }
+        train_player(player, plan, &day, &mut rng);
     }
+}
+
+fn train_player(
+    player: &mut Player,
+    plan: &TeamTrainingPlan,
+    day: &TrainingDay,
+    rng: &mut impl Rng,
+) {
+    let is_training_day = plan.schedule.is_training_day(day.weekday_num);
+    let intensity_mult = match &plan.intensity {
+        TrainingIntensity::Low => 0.5,
+        TrainingIntensity::Medium => 1.0,
+        TrainingIntensity::High => 1.5,
+    };
+
+    // Determine this player's effective focus:
+    // player override > group override > team default
+    let player_focus = player
+        .training_focus
+        .as_ref()
+        .or_else(|| plan.group_overrides.get(&player.id))
+        .unwrap_or(&plan.default_focus);
+
+    // On rest days or Recovery focus: no training cost
+    let condition_cost: u8 = if !is_training_day {
+        0
+    } else {
+        match (player_focus, &plan.intensity) {
+            (TrainingFocus::Recovery, _) => 0,
+            (_, TrainingIntensity::Low) => 3,
+            (_, TrainingIntensity::Medium) => 6,
+            (_, TrainingIntensity::High) => 10,
+        }
+    };
+
+    // Recovery amount: rest days get boosted recovery (like Recovery focus)
+    let recovery_base: f64 = if !is_training_day {
+        7.0 * plan.bonus.physio_mult * plan.medical_facility_mult
+    } else {
+        match player_focus {
+            TrainingFocus::Recovery => 9.0 * plan.bonus.physio_mult * plan.medical_facility_mult,
+            _ => 3.0 * plan.bonus.physio_mult * plan.medical_facility_mult,
+        }
+    };
+
+    // Age, morale, and current condition all affect recovery rate.
+    // Older players recover more slowly; high morale aids recovery;
+    // severely fatigued players have a harder time bouncing back.
+    let age = estimate_age(&player.date_of_birth, day.year);
+    let age_rec = recovery_factor_from_age(age);
+    let morale_rec = recovery_factor_from_morale(player.morale);
+    let condition_rec = recovery_factor_from_condition(player.condition);
+    let fitness_rec = recovery_factor_from_fitness(player.fitness);
+
+    // Injured players: half base recovery, scaled by age and morale.
+    // Fitness decays slowly during injury (inactive = losing sharpness).
+    if player.injury.is_some() {
+        let recovery = (recovery_base * 0.5 * age_rec * morale_rec * fitness_rec) as u8;
+        player.condition = (player.condition + recovery).min(100);
+        player.fitness = clamp_fitness(player.fitness as i16 - 1);
+        return;
+    }
+
+    // On rest days: only recovery, no attribute gains
+    if !is_training_day {
+        let stamina_factor = player.attributes.stamina as f64 / 100.0;
+        let recovery = (recovery_base
+            * (0.5 + stamina_factor * 0.5)
+            * age_rec
+            * morale_rec
+            * condition_rec
+            * fitness_rec) as u8;
+        player.condition = (player.condition + recovery).min(100);
+        return;
+    }
+
+    // Age factor for attribute gains: younger players grow faster, older players slower
+    let age_factor = if age <= 21 {
+        1.5
+    } else if age <= 25 {
+        1.2
+    } else if age <= 29 {
+        1.0
+    } else if age <= 33 {
+        0.6
+    } else {
+        0.3
+    };
+
+    // Base gain per attribute per session, boosted by coaching staff
+    let gain = 0.15
+        * intensity_mult
+        * age_factor
+        * plan.bonus.coaching_mult
+        * plan.bonus.specialization_mult;
+
+    apply_focus_gains(&mut player.attributes, player_focus, gain, rng);
+    apply_fitness_change(&mut player.fitness, player_focus, intensity_mult, rng);
+
+    // Refresh position-weighted OVR and traits after attribute gains.
+    refresh_player_derived(player, day.year);
+
+    // Apply condition: deplete from training, then recover
+    player.condition = player.condition.saturating_sub(condition_cost);
+    let stamina_factor = player.attributes.stamina as f64 / 100.0;
+    let recovery = (recovery_base
+        * (0.5 + stamina_factor * 0.5)
+        * age_rec
+        * morale_rec
+        * condition_rec
+        * fitness_rec) as u8;
+    player.condition = (player.condition + recovery).min(100);
 }
 
 /// Apply fitness changes based on training focus.
 /// Physical training builds fitness (probabilistic small gains).
 /// Recovery focus gives a tiny boost. Non-physical training slowly decays high fitness.
-fn apply_fitness_change(fitness: &mut u8, focus: &TrainingFocus, intensity_mult: f64) {
+fn apply_fitness_change(
+    fitness: &mut u8,
+    focus: &TrainingFocus,
+    intensity_mult: f64,
+    rng: &mut impl Rng,
+) {
     use rand::RngExt;
-    let mut rng = rand::rng();
     match focus {
         TrainingFocus::Physical => {
             // Physical training is the primary way to build fitness.
@@ -296,12 +312,11 @@ fn apply_fitness_change(fitness: &mut u8, focus: &TrainingFocus, intensity_mult:
     }
 }
 
-fn try_gain(current: &mut u8, gain: f64) {
+fn try_gain(current: &mut u8, gain: f64, rng: &mut impl Rng) {
     use rand::RngExt;
     if *current >= 99 {
         return;
     }
-    let mut rng = rand::rng();
     let roll: f64 = rng.random_range(0.0..1.0);
     if roll < gain {
         *current = (*current + 1).min(99);
@@ -310,38 +325,39 @@ fn try_gain(current: &mut u8, gain: f64) {
 
 /// Apply attribute gains based on training focus.
 fn apply_focus_gains(
-    attrs: &mut domain::player::PlayerAttributes,
+    attrs: &mut PlayerAttributes,
     focus: &TrainingFocus,
     gain: f64,
+    rng: &mut impl Rng,
 ) {
     match focus {
         TrainingFocus::Physical => {
-            try_gain(&mut attrs.pace, gain);
-            try_gain(&mut attrs.stamina, gain);
-            try_gain(&mut attrs.strength, gain);
-            try_gain(&mut attrs.agility, gain);
+            try_gain(&mut attrs.pace, gain, rng);
+            try_gain(&mut attrs.stamina, gain, rng);
+            try_gain(&mut attrs.strength, gain, rng);
+            try_gain(&mut attrs.agility, gain, rng);
         }
         TrainingFocus::Technical => {
-            try_gain(&mut attrs.passing, gain);
-            try_gain(&mut attrs.shooting, gain);
-            try_gain(&mut attrs.dribbling, gain);
+            try_gain(&mut attrs.passing, gain, rng);
+            try_gain(&mut attrs.shooting, gain, rng);
+            try_gain(&mut attrs.dribbling, gain, rng);
         }
         TrainingFocus::Tactical => {
-            try_gain(&mut attrs.positioning, gain);
-            try_gain(&mut attrs.vision, gain);
-            try_gain(&mut attrs.decisions, gain);
-            try_gain(&mut attrs.composure, gain);
+            try_gain(&mut attrs.positioning, gain, rng);
+            try_gain(&mut attrs.vision, gain, rng);
+            try_gain(&mut attrs.decisions, gain, rng);
+            try_gain(&mut attrs.composure, gain, rng);
         }
         TrainingFocus::Defending => {
-            try_gain(&mut attrs.tackling, gain);
-            try_gain(&mut attrs.defending, gain);
-            try_gain(&mut attrs.strength, gain * 0.5);
-            try_gain(&mut attrs.positioning, gain * 0.5);
+            try_gain(&mut attrs.tackling, gain, rng);
+            try_gain(&mut attrs.defending, gain, rng);
+            try_gain(&mut attrs.strength, gain * 0.5, rng);
+            try_gain(&mut attrs.positioning, gain * 0.5, rng);
         }
         TrainingFocus::Attacking => {
-            try_gain(&mut attrs.shooting, gain);
-            try_gain(&mut attrs.dribbling, gain);
-            try_gain(&mut attrs.pace, gain * 0.5);
+            try_gain(&mut attrs.shooting, gain, rng);
+            try_gain(&mut attrs.dribbling, gain, rng);
+            try_gain(&mut attrs.pace, gain * 0.5, rng);
         }
         TrainingFocus::Recovery => {
             // No attribute gains on recovery days
