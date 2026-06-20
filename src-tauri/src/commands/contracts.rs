@@ -167,6 +167,10 @@ pub async fn terminate_contract_now(
     terminate_contract_now_internal(&state, &player_id)
 }
 
+// The functions below cannot use update_game because their ofm_core callees
+// (propose_renewal, offer_free_agent_contract, delegate_renewals) call
+// cool_stale_renewal_session before validation completes, meaning they mutate
+// state before any Err return. Using update_game would persist partial mutations.
 pub fn propose_renewal_internal(
     state: &StateManager,
     player_id: &str,
