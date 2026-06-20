@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -33,7 +34,9 @@ const mockTranslationState = vi.hoisted(function () {
         "inbox.youthProspectSigned": "Signed to academy",
         "finances.marketValue": "Market Value",
         "finances.perWeekSuffix": "/wk",
+        "finances.perYearSuffix": "/yr",
         "finances.wagePerWeek": "Wage/wk",
+        "finances.wagePerYear": "Wage/yr",
         "playerProfile.contractInfo": "Contract",
         "scouting.youthTargetLabel": "Youth target",
         "scouting.youthAnyPosition": "Any position",
@@ -310,44 +313,50 @@ function createProspect(overrides: Partial<GameStateData["players"][number]> = {
   };
 }
 
-function renderInboxTab(options: {
+async function renderInboxTab(options: {
   gameState: GameStateData;
   initialMessageId?: string | null;
   onGameUpdate?: (state: GameStateData) => void;
   onNavigate?: (tab: string, context?: { messageId?: string }) => void;
-}): void {
-  render(
-    <InboxTab
-      gameState={options.gameState}
-      initialMessageId={options.initialMessageId}
-      onGameUpdate={options.onGameUpdate ?? vi.fn()}
-      onNavigate={options.onNavigate}
-    />,
-  );
+}): Promise<void> {
+  // Prime the self-fetch so InboxTab's useEffect gets the same messages as
+  // gameState rather than an undefined result (which would fall back fine, but
+  // any test that uses mockResolvedValue for a mutation would accidentally
+  // serve those mutation results to get_messages_page too).
+  mockedInvoke.mockResolvedValueOnce(options.gameState.messages ?? []);
+
+  await act(async () => {
+    render(
+      <InboxTab
+        gameState={options.gameState}
+        initialMessageId={options.initialMessageId}
+        onGameUpdate={options.onGameUpdate ?? vi.fn()}
+        onNavigate={options.onNavigate}
+      />,
+    );
+  });
 }
 
 describe("InboxTab", function (): void {
-  it("renders each message exactly once in the list", function (): void {
+  it("renders each message exactly once in the list", async function (): Promise<void> {
     const gameState = createGameState([
       createMessage({ id: "m1", subject: "Test Message 1" }),
       createMessage({ id: "m2", subject: "Test Message 2" }),
       createMessage({ id: "m3", subject: "Test Message 3" }),
     ]);
 
-    renderInboxTab({ gameState });
+    await renderInboxTab({ gameState });
 
     expect(screen.getAllByText(/Test Message \d/)).toHaveLength(3);
   });
 
   it("marks an unread message as read when selected", async function (): Promise<void> {
-    const updatedGameState = createGameState([
-      createMessage({ id: "m1", read: true }),
-    ]);
+    const updatedMessages = [createMessage({ id: "m1", read: true })];
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1" })]),
       onGameUpdate,
     });
@@ -360,11 +369,12 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("sorts messages by date when the sort order changes", function (): void {
-    renderInboxTab({
+  it("sorts messages by date when the sort order changes", async function (): Promise<void> {
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "m1",
@@ -405,11 +415,11 @@ describe("InboxTab", function (): void {
 
   it("confirms before deleting a single message", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
-    const updatedGameState = createGameState([]);
+    const updatedMessages: ReturnType<typeof createMessage>[] = [];
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1", read: true })]),
       initialMessageId: "m1",
       onGameUpdate,
@@ -420,7 +430,7 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByTestId("inbox-delete-confirm-modal"),
     ).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_message", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
@@ -430,11 +440,12 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
-  it("opens the context menu on a message row and requests deletion", function (): void {
-    renderInboxTab({
+  it("opens the context menu on a message row and requests deletion", async function (): Promise<void> {
+    await renderInboxTab({
       gameState: createGameState([createMessage({ id: "m1", read: true })]),
     });
 
@@ -448,13 +459,13 @@ describe("InboxTab", function (): void {
 
   it("confirms before deleting selected messages in bulk", async function (): Promise<void> {
     const onGameUpdate = vi.fn();
-    const updatedGameState = createGameState([
+    const updatedMessages = [
       createMessage({ id: "m3", subject: "Keep Me", read: true }),
-    ]);
+    ];
 
-    mockedInvoke.mockResolvedValue(updatedGameState);
+    mockedInvoke.mockResolvedValue(updatedMessages);
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({ id: "m1", subject: "Delete Me 1", read: true }),
         createMessage({ id: "m2", subject: "Delete Me 2", read: true }),
@@ -471,7 +482,7 @@ describe("InboxTab", function (): void {
     expect(
       screen.getByTestId("inbox-delete-confirm-modal"),
     ).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_messages", expect.anything());
 
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
@@ -481,7 +492,8 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+    // Mutations update local fetchedMessages state, not gameState.
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("navigates to a team route without resolving the message action", async function (): Promise<void> {
@@ -493,7 +505,7 @@ describe("InboxTab", function (): void {
       resolved: false,
     };
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({ id: "m1", read: true, actions: [action] }),
       ]),
@@ -509,7 +521,7 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("navigates to a player route without resolving the message action", async function (): Promise<void> {
@@ -521,7 +533,7 @@ describe("InboxTab", function (): void {
       resolved: false,
     };
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({ id: "m1", read: true, actions: [action] }),
       ]),
@@ -537,7 +549,7 @@ describe("InboxTab", function (): void {
       });
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("resolve_message_action", expect.anything());
   });
 
   it("navigates to a dashboard tab and still resolves the action", async function (): Promise<void> {
@@ -555,7 +567,7 @@ describe("InboxTab", function (): void {
 
     mockedInvoke.mockResolvedValue({ game: resolvedGameState, effect: null });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({ id: "m1", read: true, actions: [action] }),
       ]),
@@ -607,7 +619,7 @@ describe("InboxTab", function (): void {
       effect_i18n_params: { delta: "+3" },
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({ id: "happy_player_p1", read: true, actions: [action] }),
       ]),
@@ -659,7 +671,7 @@ describe("InboxTab", function (): void {
     mockTranslationState.language = "pt-BR";
 
     try {
-      renderInboxTab({
+      await renderInboxTab({
         gameState: createGameState([
           createMessage({
             id: "happy_player_p1",
@@ -683,7 +695,7 @@ describe("InboxTab", function (): void {
     }
   });
 
-  it("renders delegated renewal report details with settings-aware money formatting", function (): void {
+  it("renders delegated renewal report details with settings-aware money formatting", async function (): Promise<void> {
     useSettingsStore.setState({
       settings: {
         ...useSettingsStore.getState().settings,
@@ -693,7 +705,7 @@ describe("InboxTab", function (): void {
       currency: { code: "GBP", symbol: "£", exchange_rate: 1 },
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "delegated_renewals_2025-01-01_0",
@@ -765,7 +777,7 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
-  it("opens the linked player profile from a message context button", function (): void {
+  it("opens the linked player profile from a message context button", async function (): Promise<void> {
     const onNavigate = vi.fn();
     const gameState = createGameState([
       createMessage({
@@ -780,27 +792,24 @@ describe("InboxTab", function (): void {
         },
       }),
     ]);
-    gameState.players = [
-      createProspect({ id: "player-1", full_name: "Rui Prospect" }),
-    ];
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState,
       initialMessageId: "injury-player-1",
       onNavigate,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "View profile: Rui Prospect" }));
+    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
 
     expect(onNavigate).toHaveBeenCalledWith("__selectPlayer", {
       messageId: "player-1",
     });
   });
 
-  it("opens the referenced player profile from delegated renewal reports", function (): void {
+  it("opens the referenced player profile from delegated renewal reports", async function (): Promise<void> {
     const onNavigate = vi.fn();
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "delegated_renewals_linked_2025-01-01_0",
@@ -879,7 +888,7 @@ describe("InboxTab", function (): void {
     return state;
   }
 
-  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", function (): void {
+  it("shows the switch-club confirm dialog when an employed manager accepts a job offer", async function (): Promise<void> {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -894,7 +903,7 @@ describe("InboxTab", function (): void {
       },
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: gameStateWithCurrentClub([message], "t1", "Old FC"),
       initialMessageId: "job_offer_team2_2025-01-01",
     });
@@ -908,7 +917,7 @@ describe("InboxTab", function (): void {
     );
   });
 
-  it("does not invoke the action when the switch-club dialog is cancelled", function (): void {
+  it("does not invoke the action when the switch-club dialog is cancelled", async function (): Promise<void> {
     const action = jobOfferAcceptDeclineAction("team2");
     const message = createMessage({
       id: "job_offer_team2_2025-01-01",
@@ -923,7 +932,7 @@ describe("InboxTab", function (): void {
       },
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: gameStateWithCurrentClub([message], "t1"),
       initialMessageId: "job_offer_team2_2025-01-01",
     });
@@ -961,7 +970,7 @@ describe("InboxTab", function (): void {
       effect_i18n_params: null,
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: gameStateWithCurrentClub([message], "t1"),
       initialMessageId: "job_offer_team2_2025-01-01",
     });
@@ -999,7 +1008,7 @@ describe("InboxTab", function (): void {
       effect_i18n_params: null,
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: gameStateWithCurrentClub([message], "t1"),
       initialMessageId: "job_offer_team2_2025-01-01",
     });
@@ -1039,7 +1048,7 @@ describe("InboxTab", function (): void {
       effect_i18n_params: null,
     });
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: gameStateWithCurrentClub([message], null),
       initialMessageId: "job_offer_team2_2025-01-01",
     });
@@ -1069,7 +1078,7 @@ describe("InboxTab", function (): void {
     });
 
     try {
-      renderInboxTab({
+      await renderInboxTab({
         gameState: createGameState([
           createMessage({
             id: "delegated_renewals_locale_2025-01-01_0",
@@ -1125,7 +1134,7 @@ describe("InboxTab", function (): void {
     }
   });
 
-  it("tells the user that player-event response outcomes vary", function (): void {
+  it("tells the user that player-event response outcomes vary", async function (): Promise<void> {
     const action: MessageAction = {
       id: "respond",
       label: "Respond",
@@ -1143,7 +1152,7 @@ describe("InboxTab", function (): void {
       resolved: false,
     };
 
-    renderInboxTab({
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "morale_talk_p1",
@@ -1160,8 +1169,8 @@ describe("InboxTab", function (): void {
     ).toBeInTheDocument();
   });
 
-  it("shows the selected youth scouting target on youth recruitment reports", function (): void {
-    renderInboxTab({
+  it("shows the selected youth scouting target on youth recruitment reports", async function (): Promise<void> {
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "youth-scout-1",
@@ -1185,8 +1194,24 @@ describe("InboxTab", function (): void {
     expect(screen.getByText("Defender")).toBeInTheDocument();
   });
 
-  it("renders translated youth recruitment reports with contract details and signed prospects still visible", function (): void {
-    renderInboxTab({
+  it("renders without crashing when gameState is null", async function (): Promise<void> {
+    mockedInvoke.mockResolvedValueOnce([]);
+
+    await act(async () => {
+      render(
+        <InboxTab
+          gameState={null}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+    });
+
+    // Empty inbox — no message rows.
+    expect(screen.queryByTestId(/inbox-row-/)).not.toBeInTheDocument();
+  });
+
+  it("renders translated youth recruitment reports with contract details and signed prospects still visible", async function (): Promise<void> {
+    await renderInboxTab({
       gameState: createGameState([
         createMessage({
           id: "youth-scout-2",
@@ -1286,7 +1311,7 @@ describe("InboxTab", function (): void {
     expect(screen.getByText("Balanced")).toBeInTheDocument();
     expect(screen.getAllByText("Signed to academy").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "View profile" })).toBeInTheDocument();
-    expect(screen.getAllByText(/Wage\/wk:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Wage\/yr:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Market Value:/).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: "Sign to academy" }),

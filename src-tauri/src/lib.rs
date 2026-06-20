@@ -28,6 +28,7 @@ pub fn run() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -184,12 +185,25 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_world_databases,
             start_new_game,
+            validate_competition_definitions,
+            validate_world_package,
+            inspect_world_package,
             export_world_database,
             write_temp_database,
             select_team,
             get_saves,
             load_game,
             get_active_game,
+            get_players_page,
+            get_teams_directory,
+            get_schedule,
+            get_news_feed,
+            get_messages_page,
+            get_competitions_view,
+            get_session_state,
+            get_squad,
+            get_staff,
+            get_active_save_id,
             advance_time,
             advance_time_with_mode,
             upgrade_facility,
@@ -249,6 +263,8 @@ pub fn run() {
             finish_live_match,
             delete_save,
             skip_to_match_day,
+            advance_to_next_event,
+            advance_one_day,
             check_blocking_actions,
             apply_team_talk,
             submit_press_conference,

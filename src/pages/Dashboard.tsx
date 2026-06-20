@@ -27,6 +27,10 @@ import {
 } from "../components/dashboard/dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "../components/dashboard/dashboardTabContentModel";
 import {
+  DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListSortState,
+} from "../components/squad/SquadRosterView.state";
+import {
   isOnboardingPageTab,
   loadVisitedOnboardingTabs,
   saveVisitedOnboardingTabs,
@@ -42,6 +46,7 @@ import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import {
   formatDateFull,
+  getPrimaryCompetition,
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
@@ -77,6 +82,7 @@ export default function Dashboard(): JSX.Element {
     hasActiveGame,
     managerName,
     gameState,
+    sessionState,
     setGameState,
     clearGame,
     isDirty,
@@ -102,6 +108,27 @@ export default function Dashboard(): JSX.Element {
   const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<
     Set<string>
   >(new Set<string>());
+  const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
+  const [squadListSortState, setSquadListSortState] =
+    useState<SquadListSortState>(DEFAULT_SQUAD_LIST_SORT_STATE);
+  const loadActiveGameState = useCallback(async () => {
+    const [stateResult, saveIdResult] = await Promise.allSettled([
+      invoke<GameStateData>("get_active_game"),
+      invoke<string | null>("get_active_save_id"),
+    ]);
+
+    if (stateResult.status === "rejected") {
+      throw stateResult.reason;
+    }
+
+    setGameState(stateResult.value);
+
+    if (saveIdResult.status === "fulfilled") {
+      setActiveSaveId(saveIdResult.value);
+    } else {
+      setActiveSaveId(null);
+    }
+  }, [setGameState]);
 
   // Fetch initial state
   useEffect(() => {
@@ -112,22 +139,20 @@ export default function Dashboard(): JSX.Element {
 
     const fetchState = async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
-        setGameState(state);
+        await loadActiveGameState();
       } catch (err) {
         console.error("Failed to fetch game state:", err);
       }
     };
 
     fetchState();
-  }, [hasActiveGame, navigate, setGameState]);
+  }, [hasActiveGame, loadActiveGameState, navigate]);
 
   // Refresh state when MCP tools mutate game (backend emits "game-state-changed")
   useEffect(() => {
     const unlisten = listen("game-state-changed", async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
-        setGameState(state);
+        await loadActiveGameState();
       } catch {
         // Game may have been exited — navigate back to menu
         clearGame();
@@ -137,7 +162,7 @@ export default function Dashboard(): JSX.Element {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [setGameState, clearGame, navigate]);
+  }, [loadActiveGameState, clearGame, navigate]);
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
@@ -170,8 +195,14 @@ export default function Dashboard(): JSX.Element {
       return;
     }
 
-    setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState));
-  }, [gameState]);
+    setVisitedOnboardingTabs(
+      loadVisitedOnboardingTabs(gameState, undefined, activeSaveId),
+    );
+  }, [gameState, activeSaveId]);
+
+  useEffect(() => {
+    setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
+  }, [activeSaveId]);
 
   useEffect(() => {
     if (!isOnboardingPageTab(profileNavigation.activeTab)) {
@@ -189,10 +220,10 @@ export default function Dashboard(): JSX.Element {
 
       const nextTabs = new Set(currentTabs);
       nextTabs.add(profileNavigation.activeTab);
-      saveVisitedOnboardingTabs(gameState, nextTabs);
+      saveVisitedOnboardingTabs(gameState, nextTabs, undefined, activeSaveId);
       return nextTabs;
     });
-  }, [gameState, profileNavigation.activeTab]);
+  }, [activeSaveId, gameState, profileNavigation.activeTab]);
 
   // Reset to Home tab if current tab is a club tab and manager is unemployed
   useEffect(() => {
@@ -201,7 +232,9 @@ export default function Dashboard(): JSX.Element {
     }
   }, [isUnemployed, profileNavigation.activeTab]);
 
-  const seasonComplete = isLeagueSeasonComplete(gameState?.league);
+  const seasonComplete = isLeagueSeasonComplete(
+    gameState ? getPrimaryCompetition(gameState) : null,
+  );
 
   // Advance-time hook
   const {
@@ -214,15 +247,24 @@ export default function Dashboard(): JSX.Element {
     setMatchMode,
     blockerModal,
     setBlockerModal,
+    recapResults,
+    setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
+    digestEntries,
+    digestStopReason,
+    isDigestVisible,
+    isDigestRunning,
+    startDigest,
+    dismissDigest,
   } = useAdvanceTime(
     setGameState,
     hasMatchToday,
     settings.default_match_mode,
     settingsLoaded,
     isUnemployed ?? false,
+    settings.continue_to_next_event,
   );
 
   const handleSave = useCallback(async () => {
@@ -370,7 +412,7 @@ export default function Dashboard(): JSX.Element {
   }
 
   function handleToggleContinueMenu(): void {
-    setShowContinueMenu((currentValue) => !currentValue);
+    setShowContinueMenu(!showContinueMenu);
   }
 
   function handleSelectMatchMode(mode: MatchModeType): void {
@@ -399,7 +441,7 @@ export default function Dashboard(): JSX.Element {
     gameState.clock.current_date,
     settings.language,
   );
-  const unreadMessagesCount = getUnreadMessagesCount(gameState);
+  const unreadMessagesCount = sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t);
@@ -412,12 +454,14 @@ export default function Dashboard(): JSX.Element {
     gameState,
     seasonComplete,
     visitedOnboardingTabs,
+    squadListSortState,
     initialMessageId: profileNavigation.initialMessageId,
     handlers: {
       onSelectPlayer: selectPlayer,
       onSelectTeam: selectTeam,
       onGameUpdate: setGameState,
       onNavigate: handleNavigate,
+      onSquadListSortChange: setSquadListSortState,
     },
   });
 
@@ -445,6 +489,9 @@ export default function Dashboard(): JSX.Element {
       <DashboardOverlays
         blockerModal={blockerModal}
         currentModeMeta={currentModeMeta}
+        isAdvancing={isAdvancing}
+        recapResults={recapResults}
+        onCloseRecap={() => setRecapResults(null)}
         handleConfirmMatch={handleConfirmMatch}
         handleExitToMenu={handleExitToMenu}
         handleNavigate={handleNavigate}
@@ -460,6 +507,15 @@ export default function Dashboard(): JSX.Element {
         showMatchConfirm={showMatchConfirm}
         teams={gameState.teams}
         todayMatchFixture={todayMatchFixture}
+        digestEntries={digestEntries}
+        digestStopReason={digestStopReason}
+        isDigestVisible={isDigestVisible}
+        isDigestRunning={isDigestRunning}
+        onDigestViewBlockers={(blockers) =>
+          setBlockerModal({ blockers })
+        }
+        onDigestContinueAfterBlocker={() => void startDigest()}
+        onDismissDigest={dismissDigest}
       />
       <FiredModal />
 

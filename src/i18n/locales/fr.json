@@ -18,6 +18,8 @@
     "deleteSave": "Supprimer la sauvegarde",
     "noResults": "Aucun résultat",
     "importedDescription": "Base de données de monde importée",
+    "importedPackageDescription": "Package de monde importé",
+    "loadGameFailed": "Impossible de charger la sauvegarde : {{error}}",
     "invalidWorldDb": "Fichier de base de données de monde invalide : {{error}}",
     "failedStartGame": "Échec du démarrage du jeu : {{error}}",
     "openDiscord": "Ouvrir la communauté Discord",
@@ -62,12 +64,17 @@
     "title": "Choisir le Monde",
     "scanning": "Recherche de bases de données...",
     "importFile": "Importer un fichier",
+    "importPackage": "Importer un package de monde",
+    "packageErrorsTitle": "Problèmes du package",
+    "importCompetitions": "Ajouter un fichier de compétitions",
+    "removeCompetitions": "Retirer",
+    "competitionsErrorsTitle": "Ce fichier de compétitions ne peut pas être utilisé :",
     "startCareer": "Démarrer la Carrière",
     "creatingWorld": "Création du Monde...",
     "teams": "{{count}} équipes",
     "players": "{{count}} joueurs",
     "randomWorld": "Monde Aléatoire",
-    "randomDescription": "Ligue générée aléatoirement avec des équipes, joueurs et staff",
+    "randomDescription": "Un monde généré de façon procédurale avec des clubs, joueurs et staff",
     "historyMode": {
       "generated": "Historique généré",
       "reference": "Historique de référence",
@@ -117,6 +124,15 @@
     "exitToMenu": "Quitter vers le Menu",
     "continue": "Continuer",
     "simulating": "Simulation...",
+    "simulatingMessage": "Traitement du monde — cela ne prend qu'un instant.",
+    "resultsRecapTitle": "Résultats",
+    "recapAdvancedTo": "Avancé jusqu’au {{date}}",
+    "recapSectionTransfers": "Transferts",
+    "recapSectionNews": "Actualités",
+    "recapSectionInbox": "Messagerie",
+    "recapNothingNotable": "Aucun événement notable.",
+    "recapTransferLine": "{{player}} : {{from}} → {{to}}",
+    "resultsRecapDismiss": "Continuer",
     "loading": "Chargement de l'état du jeu...",
     "noResults": "Aucun résultat trouvé.",
     "searchPlaceholder": "Rechercher joueurs, équipes...",
@@ -141,7 +157,21 @@
       "financeRunway": "Autonomie de trésorerie réduite à {{count}} semaine(s)",
       "wagePressure": "Masse salariale à {{percent}}% du budget"
     },
-    "unemployedBanner": "Vous êtes actuellement sans club. Des offres d'emploi pourraient arriver dans votre boîte de réception."
+    "unemployedBanner": "Vous êtes actuellement sans club. Des offres d'emploi pourraient arriver dans votre boîte de réception.",
+    "digestAdvancing": "Avancement...",
+    "digestDone": "Terminé",
+    "digestClose": "Fermer",
+    "digestEmpty": "Rien ne s'est passé.",
+    "digestQuietDay": "Journée calme.",
+    "digestSimulating": "Simulation...",
+    "digestMatchDay": "Jour de match",
+    "digestMatchDayDesc": "Votre équipe a un match prévu aujourd'hui.",
+    "digestReturnHome": "Retour au tableau de bord",
+    "digestBlocked": "Action requise",
+    "digestBlockedDesc": "Des problèmes nécessitent votre attention avant d'avancer.",
+    "digestViewIssues": "Voir les problèmes",
+    "digestFired": "Vous avez été renvoyé.",
+    "digestContinueAnyway": "Continuer quand même"
   },
   "continueMenu": {
     "goToField": "Aller sur le Terrain",
@@ -266,7 +296,61 @@
     "repStrong": "Solide",
     "repAverage": "Moyen",
     "repDeveloping": "En Développement",
-    "failedToSelectTeam": "Impossible de sélectionner l'équipe : {{error}}"
+    "failedToSelectTeam": "Impossible de sélectionner l'équipe : {{error}}",
+    "homeRegion": "Région d'origine",
+    "homeCountry": "Pays d'origine",
+    "allCountries": "Tous les pays",
+    "simulationScope": "Périmètre de simulation",
+    "otherClubs": "Autres clubs",
+    "searchClubs": "Rechercher des clubs…",
+    "clubCount": "{{n}} clubs",
+    "noClubsMatch": "Aucun club ne correspond à votre recherche.",
+    "simulatedRegions": "Régions simulées",
+    "simulatedCompetitions": "Compétitions simulées",
+    "homeBadge": "Origine",
+    "yourClub": "votre club",
+    "yourClubBadge": "Votre club",
+    "requiresRegions": "Nécessite {{regions}}",
+    "selectedClub": "Club sélectionné",
+    "formation": "Formation",
+    "overall": "Niveau général",
+    "likelyXi": "Onze probable",
+    "competitions": "Compétitions",
+    "keyPlayers": "Joueurs clés",
+    "activeCompetitions": "Compétitions actives",
+    "clubCompetitionsAlwaysSimulated": "Les compétitions de votre club sont toujours simulées, même si vous désactivez d'autres régions ou tournois.",
+    "selectClubPrompt": "Sélectionnez un club pour examiner son effectif et ses compétitions.",
+    "playersCount": "{{count}} joueurs",
+    "scopeSummary": "{{regionsCount}} régions simulées et {{competitionsCount}} compétitions simulées seront chargées.",
+    "regionLabels": {
+      "north-america": "Amérique du Nord",
+      "central-america": "Amérique centrale",
+      "south-america": "Amérique du Sud",
+      "europe": "Europe",
+      "asia": "Asie",
+      "oceania": "Océanie"
+    },
+    "scopes": {
+      "Domestic": "Nationale",
+      "Regional": "Régionale",
+      "Continental": "Continentale",
+      "International": "Internationale"
+    },
+    "kinds": {
+      "League": "Ligue",
+      "Cup": "Coupe",
+      "ContinentalClub": "Compétition continentale de clubs",
+      "InternationalClub": "Compétition internationale de clubs",
+      "InternationalNation": "Compétition internationale de sélections",
+      "FriendlyCup": "Coupe amicale"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "Votre région jouable reste toujours active.",
+      "regionRequiredByCompetition": "{{competition}} fait partie du calendrier de {{club}}, donc {{region}} doit rester active.",
+      "regionRemovedDisablesCompetitions": "{{region}} a été retirée du périmètre de simulation, donc les compétitions dépendantes ont aussi été désactivées.",
+      "clubCompetitionLocked": "{{competition}} figure au calendrier de {{club}} et sera toujours simulée.",
+      "autoEnabledRegions": "{{competition}} nécessite {{regions}}, donc ces régions ont été activées automatiquement."
+    }
   },
   "youthAcademy": {
     "title": "Académie des Jeunes",
@@ -286,12 +370,12 @@
     "youthProspects": "Espoirs",
     "noYouthPlayers": "Aucun joueur jeune (≤21) dans votre effectif.",
     "player": "Joueur",
-    "pos": "Pos",
+    "pos": "Pos.",
     "age": "Âge",
-    "ovr": "OVR",
+    "ovr": "GEN",
     "potential": "Potentiel",
     "growth": "Croissance",
-    "traits": "Traits",
+    "traits": "Attributs",
     "condition": "Condition",
     "potWorldClass": "Classe Mondiale",
     "potExcellent": "Excellent",
@@ -339,9 +423,9 @@
     "matchday": "Journée {{n}}",
     "result": "résultat",
     "results": "résultats",
-    "vs": "vs",
+    "vs": "contre",
     "age": "Âge",
-    "ovr": "OVR",
+    "ovr": "GEN",
     "condition": "Condition",
     "morale": "Moral",
     "value": "Valeur",
@@ -351,7 +435,7 @@
     "viewTeam": "Voir l'équipe",
     "player": "Joueur",
     "actions": "Actions",
-    "position": "Position",
+    "position": "Poste",
     "nationality": "Nationalité",
     "contract": "Contrat",
     "renewContract": "Renouveler le contrat",
@@ -424,7 +508,7 @@
       "HighPress": "Pressing Haut"
     },
     "trainingSchedules": {
-      "Intense": "Intense",
+      "Intense": "Intensif",
       "Balanced": "Équilibré",
       "Light": "Léger"
     },
@@ -520,8 +604,8 @@
     "title": "Effectif de {{team}}",
     "playerCount": "{{count}} Joueurs",
     "noPlayers": "Aucun joueur trouvé dans votre effectif.",
-    "pos": "Pos",
-    "traits": "Traits",
+    "pos": "Pos.",
+    "traits": "Attributs",
     "fullRoster": "Effectif Complet",
     "compare": "Comparer",
     "selected": "sélectionné(s)",
@@ -574,7 +658,7 @@
     }
   },
   "tactics": {
-    "formationStyle": "Formation & Style",
+    "formationStyle": "Formation & style",
     "formation": "Formation",
     "playStyle": "Style de jeu",
     "lineupTab": "Composition",
@@ -780,7 +864,7 @@
     },
     "schedules": {
       "Intense": {
-        "label": "Intense",
+        "label": "Intensif",
         "desc": "6 jours d'entraînement, 1 repos",
         "detail": "Développement maximum. Seulement dimanche libre. Risque d'accumulation de fatigue."
       },
@@ -879,7 +963,9 @@
     "seasonIncome": "Revenus de Saison",
     "seasonExpenses": "Dépenses de Saison",
     "perWeekSuffix": "/sem",
+    "perYearSuffix": "/an",
     "wagePerWeek": "Salaire/sem",
+    "wagePerYear": "Salaire/an",
     "marketValue": "Valeur Marchande",
     "until": "Jusqu'en {{year}}",
     "facilities": "Installations",
@@ -1038,6 +1124,8 @@
     "subtitle": "Légendes retraitées et anciens champions",
     "legends": "Légendes retraitées",
     "pastChampions": "Anciens champions",
+    "worldCupChampions": "Champions du monde",
+    "worldCupEdition": "Coupe du monde {{year}}",
     "noLegends": "Aucune légende retraitée enregistrée pour le moment.",
     "noChampions": "Aucun champion historique enregistré pour le moment.",
     "appearances": "Matchs",
@@ -1151,10 +1239,34 @@
   "schedule": {
     "noSchedule": "Aucun calendrier de ligue disponible.",
     "noLeague": "Aucun calendrier de ligue disponible.",
+    "standingsUnavailable": "Le classement n'est pas disponible pour cette compétition.",
     "fixtures": "Matchs",
     "standings": "Classement",
     "matchday": "Journée {{number}}",
-    "season": "Saison {{number}}"
+    "season": "Saison {{number}}",
+    "international": "International",
+    "internationalDuty": "En sélection nationale",
+    "promotionZone": "Montée",
+    "loadMore": "Charger plus",
+    "relegationZone": "Relégation",
+    "nextMatch": "Prochain match",
+    "noUpcoming": "Aucun match à venir.",
+    "pastResults": "Résultats passés",
+    "calendar": {
+      "title": "Calendrier",
+      "mon": "Lu",
+      "tue": "Ma",
+      "wed": "Me",
+      "thu": "Je",
+      "fri": "Ve",
+      "sat": "Sa",
+      "sun": "Di",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "dayWithFixtures": "{{date}} — a des matchs",
+      "yourMatch": "Votre match",
+      "otherFixtures": "Autres matchs"
+    }
   },
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
@@ -1166,6 +1278,9 @@
     "showingRange": "{{from}}–{{to}} sur {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Rechercher des clubs…",
+    "noResults": "Aucun club ne correspond à la recherche.",
+    "otherClubs": "Autres clubs",
     "yourTeam": "Votre Équipe",
     "squad": "Effectif",
     "avgOvr": "OVR Moyen",
@@ -1180,7 +1295,7 @@
   },
   "teamsList": {
     "yourTeam": "Votre Équipe",
-    "pos": "Pos",
+    "pos": "Pos.",
     "rep": "Rép",
     "est": "Fond. {{year}}"
   },
@@ -1196,6 +1311,17 @@
     "topScorers": "Meilleurs Buteurs",
     "loadingAwards": "Chargement des récompenses...",
     "awardsTab": "Récompenses",
+    "bracket": "Tableau",
+    "group": "Groupe {{name}}",
+    "bye": "Exempt",
+    "roundComplete": "Terminé",
+    "roundInProgress": "En cours",
+    "rounds": {
+      "final": "Finale",
+      "semifinal": "Demi-finale",
+      "quarterfinal": "Quart de finale",
+      "roundOf": "{{size}}es de finale"
+    },
     "awards": {
       "goldenBootTitle": "Soulier d'or",
       "goldenBootSubtitle": "Meilleurs buteurs",
@@ -1219,9 +1345,20 @@
         "winRate": "taux de victoire"
       },
       "managerOfSeasonTitle": "Entraîneur de la Saison",
+      "currentLeaders": "Meneurs actuels — les récompenses finales sont décernées en fin de saison.",
       "managerOfSeasonSubtitle": "La meilleure campagne sur le banc"
     },
-    "noGoals": "Aucun but marqué."
+    "noGoals": "Aucun but marqué.",
+    "worldCupChampion": "Champion du monde",
+    "competitions": {
+      "title": "Toutes les compétitions",
+      "statusNotStarted": "Pas commencé",
+      "statusInProgress": "En cours",
+      "statusCompleted": "Terminé",
+      "participating": "Participant",
+      "worldCup": "Coupe du Monde {{year}}",
+      "worldCupQualifying": "Qualifications Coupe du Monde {{year}}"
+    }
   },
   "news": {
     "noNews": "Pas encore d'actualités.",
@@ -1245,6 +1382,7 @@
     "dateOfBirth": "Date de Naissance",
     "noContract": "Sans contrat",
     "weeklyWage": "Salaire Hebdomadaire",
+    "annualWage": "Salaire Annuel",
     "yearsRemaining": "Années restantes",
     "contractRisk": "Risque contractuel",
     "renewalTitle": "Renouveler le contrat",
@@ -1304,7 +1442,7 @@
     "recentMatchesScore": "Score",
     "recentMatchesGoalsAssists": "B / P",
     "recentMatchesRating": "Note",
-    "vs": "vs",
+    "vs": "c.",
     "noRecentMatches": "Aucune donnée de match récente",
     "apps": "Matchs",
     "goals": "Buts",
@@ -1320,6 +1458,7 @@
     "nGoals": "{{count}} buts",
     "nAssists": "{{count}} passes D.",
     "daysRemaining": "{{count}} jours restants — Joueur indisponible",
+    "injuryDaysShort": "{{count}} j",
     "renewalProjectionTitle": "Impact financier projeté",
     "renewalProjectionWageBill": "Masse salariale hebdomadaire {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Utilisation du budget salarial {{before}}% → {{after}}%",
@@ -1390,6 +1529,8 @@
     "matchCommentaryDesc": "Afficher les commentaires d'événements pendant les matchs",
     "confirmAdvance": "Confirmer Avant d'Avancer",
     "confirmAdvanceDesc": "Demander confirmation avant d'avancer d'un jour",
+    "continueToNextEvent": "Continuer passe à l’événement suivant",
+    "continueToNextEventDesc": "Continuer avance jusqu’à votre prochain match, un blocage, une date limite de transfert ou une actualité importante",
     "savesData": "Sauvegardes et Données",
     "autoSave": "Sauvegarde Auto",
     "autoSaveDesc": "Sauvegarder automatiquement après chaque jour",
@@ -1451,7 +1592,7 @@
     "penaltyTaker": "Tireur de Penalty",
     "freeKickTaker": "Tireur de Coup Franc",
     "cornerTaker": "Tireur de Corner",
-    "fit": "FIT",
+    "fit": "APT",
     "keyStats": "Stats Clés"
   },
   "scouting": {
@@ -1488,7 +1629,7 @@
     "findPlayers": "Trouver des Joueurs à Observer",
     "searchPlaceholder": "Rechercher par nom, nationalité ou équipe...",
     "player": "Joueur",
-    "pos": "Pos",
+    "pos": "Pos.",
     "age": "Âge",
     "team": "Équipe",
     "value": "Valeur",
@@ -1738,7 +1879,7 @@
         "responses": {
           "win": {
             "grateful": {
-              "tone": "Humble",
+              "tone": "Reconnaissant",
               "text": "Les supporters sont incroyables. Ils nous poussent à chaque match et nous leur devons des prestations comme celle d'aujourd'hui."
             },
             "shared": {
@@ -1836,7 +1977,7 @@
       "ExtraTimeSecondHalf": "2e Période Prol.",
       "ExtraTimeEnd": "Fin des Prol.",
       "PenaltyShootout": "Tirs au But",
-      "Finished": "Final"
+      "Finished": "Terminé"
     },
     "eventTypes": {
       "Goal": "But",
@@ -2194,10 +2335,59 @@
         "playerNotInStartingXi": "Le joueur n'est pas dans le onze de départ"
       },
       "worldReadFileFailed": "Impossible de lire le fichier de base de données du monde.",
+      "package": {
+        "invalid": "Ce package de monde est invalide et n’a pas pu être chargé.",
+        "readFailed": "Un fichier du package n’a pas pu être lu.",
+        "missingSchema": "Un fichier du package n’a pas de champ « schema ».",
+        "unknownSchema": "Schéma inconnu « {{schema}} ».",
+        "invalidEntity": "Une entrée « {{schema}} » est invalide.",
+        "missingId": "Une entrée {{kind}} n’a pas d’id.",
+        "duplicateId": "Id {{kind}} en double « {{id}} ».",
+        "unknownConfederation": "Le pays « {{country}} » référence une confédération inconnue « {{confederation}} ».",
+        "unknownCountry": "« {{entity}} » référence un pays inconnu « {{country}} ».",
+        "unknownTeam": "Le joueur « {{player}} » référence un club inconnu « {{team}} »."
+      },
+      "competitionDef": {
+        "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
+        "invalidStandalone": "Le fichier de définition de compétitions sélectionné est invalide.",
+        "parseFailed": "Le fichier de définition de compétitions n'a pas pu être lu en tant que JSON.",
+        "unsupportedVersion": "Version de format {{version}} non prise en charge ; cette version gère jusqu'à {{supported}}.",
+        "berthUnknownTarget": "Une place qualificative pointe vers une compétition inconnue « {{target}} ».",
+        "berthInvalidRange": "Plage de positions invalide {{from}}–{{to}}.",
+        "berthRequiresLeague": "Les places par position ou par barrage ne peuvent être attribuées que par un championnat.",
+        "berthRequiresCup": "Une place de vainqueur de coupe ne peut être attribuée que par une compétition à élimination directe.",
+        "berthPlayoffTooSmall": "Un barrage nécessite au moins deux participants.",
+        "emptyId": "Une compétition n'a pas d'id.",
+        "duplicateId": "Id de compétition en double \"{{id}}\".",
+        "emptyName": "Une compétition n'a pas de nom.",
+        "unknownRegion": "Région inconnue \"{{region}}\".",
+        "unknownCountry": "Pays inconnu \"{{country}}\".",
+        "groupConfigOnNonGroupFormat": "Les réglages de groupe ne s'appliquent qu'à un format groupes et phase finale.",
+        "groupSizeTooSmall": "La taille de groupe {{groupSize}} est trop petite (minimum 2).",
+        "zeroLegs": "Une compétition doit comporter au moins une manche.",
+        "noParticipants": "Aucun participant : fournissez une liste explicite ou un sélecteur.",
+        "bothParticipantSources": "Fournissez soit une liste explicite, soit un sélecteur, pas les deux.",
+        "tooFewParticipants": "Au moins deux participants sont requis.",
+        "unknownTeam": "Équipe inconnue \"{{team}}\".",
+        "selectorMissingCountry": "Ce sélecteur nécessite un pays.",
+        "selectorCountTooSmall": "Ce sélecteur nécessite un nombre d'au moins 2.",
+        "selectorMissingRegion": "Ce sélecteur nécessite une région.",
+        "unknownSourceCompetition": "Compétition source inconnue \"{{source}}\".",
+        "selectorMissingSource": "Ce sélecteur nécessite une compétition source.",
+        "unknownExcludedCompetition": "Compétition exclue inconnue \"{{excluded}}\".",
+        "selectorCycle": "Qualification circulaire entre compétitions."
+      },
       "worldParseFailed": "Impossible d'interpréter le fichier de base de données du monde.",
       "worldWriteFileFailed": "Impossible d'exporter le fichier de base de données du monde.",
       "worldWriteDatabaseFailed": "Impossible d'enregistrer la base de données du monde importée.",
       "worldSerializeFailed": "Impossible d'exporter les données de la base de données du monde.",
+      "saveLoad": {
+        "corrupted": "Ce fichier de sauvegarde est corrompu et ne peut pas être chargé.",
+        "incompatibleVersion": "Cette sauvegarde a été créée avec une version plus récente du jeu (sauvegarde v{{saveVersion}} ; cette version prend en charge jusqu'à la v{{supported}}). Mettez le jeu à jour pour la charger.",
+        "missingData": "Il manque des données requises à cette sauvegarde, elle ne peut pas être chargée.",
+        "invalidWorld": "Les données de monde ou de mod de cette sauvegarde sont invalides et ne peuvent pas être chargées.",
+        "unknown": "Impossible de charger cette sauvegarde en raison d'une erreur inattendue."
+      },
       "gameDatabase": {
         "openFailed": "Impossible d'ouvrir les données de sauvegarde.",
         "migrationFailed": "Impossible de préparer les données de sauvegarde.",
@@ -2431,6 +2621,18 @@
           "lowerHalf": "Une saison décevante pour {{team}}. Terminer à la {{position}}e place avec seulement {{points}} points est en dessous des attentes.\n\nLe conseil est préoccupé. Des améliorations significatives seront nécessaires la saison prochaine, sinon votre poste pourrait être remis en question."
         }
       },
+      "promotion": {
+        "subject": "Promotion en {{division}} !",
+        "body": "Félicitations ! Le club est promu et évoluera en {{division}} pour la saison {{season}}.\n\nLe conseil d'administration est ravi de cette réussite. Préparons-nous pour l'échelon supérieur."
+      },
+      "relegation": {
+        "subject": "Relégation en {{division}}",
+        "body": "Le club est relégué et évoluera en {{division}} pour la saison {{season}}.\n\nLe conseil d'administration est profondément déçu. Une remontée immédiate est attendue."
+      },
+      "worldCupChampion": {
+        "subject": "{{nation}} remporte la Coupe du monde {{year}} !",
+        "body": "{{nation}} a été sacrée championne du monde lors de la Coupe du monde {{year}}.\n\nToute une génération de joueurs restera dans les mémoires grâce à ce triomphe."
+      },
       "newSeasonSchedule": {
         "subject": "Saison {{season}} — Nouveau Calendrier Publié",
         "body": "Le calendrier de la Saison {{season}} a été publié ! La nouvelle campagne commence dans 4 semaines.\n\nProfitez de cette pause pour évaluer votre effectif, effectuer les changements nécessaires et vous préparer aux défis à venir.\n\nBonne chance !"
@@ -2455,8 +2657,8 @@
         "actionAdjust": "Ajuster l'Entraînement"
       },
       "event": {
-        "ack": "Understood",
-        "respond": "Respond"
+        "ack": "Compris",
+        "respond": "Répondre"
       },
       "action": {
         "viewFinances": "Voir les finances"
@@ -2567,7 +2769,7 @@
         }
       },
       "sponsor": {
-        "subject": "Sponsorship Offer — {{sponsor}}",
+        "subject": "Offre de sponsoring — {{sponsor}}",
         "body": "Bonne nouvelle, boss ! {{sponsor}} a manifesté son intérêt pour devenir sponsor de {{team}}.\n\nIls proposent un paiement hebdomadaire de {{amount}} sur les 12 prochaines semaines en échange d'un espace publicitaire au centre d'entraînement.\n\nCela semble être un accord raisonnable, mais la décision vous appartient.",
         "options": {
           "accept": {
@@ -2585,38 +2787,38 @@
         }
       },
       "trainingInjury": {
-        "subject": "Injury — {{player}} ({{injury}})",
-        "body0": "Bad news from the training ground. {{player}} has picked up a {{injury}} during today's session.\n\nThe medical team estimates {{days}} days on the sidelines. We'll monitor the recovery closely.",
-        "body1": "Unfortunately, {{player}} went down in training today with a {{injury}}.\n\nInitial assessment: out for approximately {{days}} days. We'll keep you updated on their progress."
+        "subject": "Blessure — {{player}} ({{injury}})",
+        "body0": "Mauvaise nouvelle depuis le centre d'entraînement. {{player}} s'est blessé ({{injury}}) lors de la séance d'aujourd'hui.\n\nL'équipe médicale estime {{days}} jours d'absence. Nous suivrons la récupération de près.",
+        "body1": "Malheureusement, {{player}} s'est blessé ({{injury}}) à l'entraînement aujourd'hui.\n\nBilan initial : environ {{days}} jours d'absence. Nous vous tiendrons informé de l'évolution."
       },
       "mediaPositive": {
-        "subject": "Positive Press — {{player}}",
-        "body": "The local papers are running a very positive piece on {{player}} today.\n\nThey are highlighting their excellent recent form and commitment to {{team}}. This kind of coverage is great for the player's confidence and the club's image."
+        "subject": "Presse positive — {{player}}",
+        "body": "Les journaux locaux publient aujourd'hui un article très positif sur {{player}}.\n\nIls mettent en valeur son excellente forme récente et son engagement envers {{team}}. Ce type de couverture est formidable pour la confiance du joueur et l'image du club."
       },
       "mediaNegative": {
-        "subject": "Negative Press — {{player}}",
-        "body": "Some unflattering coverage of {{player}} appeared in the tabloids today.\n\nJournalists are questioning their form and commitment to {{team}}. This could affect the player's morale — you might want to have a word."
+        "subject": "Presse négative — {{player}}",
+        "body": "Quelques articles peu flatteurs sur {{player}} sont parus dans la presse à sensation aujourd'hui.\n\nLes journalistes remettent en question sa forme et son engagement envers {{team}}. Cela pourrait affecter le moral du joueur — vous devriez peut-être lui parler."
       },
       "intlCallup": {
-        "subject": "International Call-Up — {{player}}",
-        "body": "{{player}} has been called up to the {{nationality}} national team for an upcoming international window.\n\nThis is a great honor for the player and reflects well on the club. They'll be in good spirits when they return, though keep an eye on their fatigue levels."
+        "subject": "Convocation internationale — {{player}}",
+        "body": "{{player}} a été convoqué en équipe nationale de {{nationality}} pour la prochaine fenêtre internationale.\n\nC'est un grand honneur pour le joueur et cela reflète bien sur le club. Il reviendra de bonne humeur, mais surveillez ses niveaux de fatigue."
       },
       "community": {
-        "subject0": "Community Open Day",
-        "subject1": "Youth Coaching Session",
-        "subject2": "Charity Match Announcement",
-        "body0": "{{team}} hosted a community open day at the training ground today.\n\nFans got to meet the players and watch a training session. The atmosphere was fantastic and it's done wonders for team spirit.",
-        "body1": "Several first-team players from {{team}} volunteered for a youth coaching session at a local school.\n\nGreat PR for the club, and the players seem energized by the experience.",
-        "body2": "The club has organized a charity initiative in partnership with a local foundation.\n\n{{team}} continues to build strong ties with the community. The board is pleased with the positive image."
+        "subject0": "Journée portes ouvertes",
+        "subject1": "Session d'entraînement jeunesse",
+        "subject2": "Annonce du match de charité",
+        "body0": "{{team}} a organisé aujourd'hui une journée portes ouvertes au centre d'entraînement.\n\nLes supporters ont pu rencontrer les joueurs et assister à une séance d'entraînement. L'ambiance était fantastique et cela a fait des merveilles pour l'esprit d'équipe.",
+        "body1": "Plusieurs joueurs de l'équipe première de {{team}} se sont portés volontaires pour une session d'entraînement jeunesse dans une école locale.\n\nBonne image pour le club, et les joueurs semblent revigorés par l'expérience.",
+        "body2": "Le club a organisé une initiative caritative en partenariat avec une fondation locale.\n\n{{team}} continue de tisser des liens forts avec la communauté. Le conseil d'administration est satisfait de l'image positive."
       },
       "moodReport": {
-        "subject": "Dressing Room Report — Mood: {{mood}}",
-        "body": "Here is your weekly dressing room report:\n\n• Overall mood: {{mood}} (avg morale: {{avgMorale}})\n• Players in high spirits (80+): {{highCount}}\n• Players with low morale (<40): {{lowCount}}\n• Total squad: {{total}}"
+        "subject": "Rapport du vestiaire — Ambiance : {{mood}}",
+        "body": "Voici votre rapport hebdomadaire du vestiaire :\n\n• Ambiance générale : {{mood}} (moral moyen : {{avgMorale}})\n• Joueurs de bonne humeur (80+) : {{highCount}}\n• Joueurs avec faible moral (<40) : {{lowCount}}\n• Effectif total : {{total}}"
       },
       "boardConfidence": {
-        "subject": "Board Meeting — Results Under Scrutiny",
-        "body0": "The board has called an urgent meeting. Three consecutive defeats have raised serious concerns about the team's direction.\n\n\"We need to see improvement quickly. The fans are restless and results must change.\"\n\nHow do you respond?",
-        "body1": "After a string of poor results, the chairman has summoned you for a difficult conversation.\n\n\"We backed you with resources and time. The results simply aren't good enough. What's your plan?\"\n\nChoose your response carefully.",
+        "subject": "Réunion du conseil — Résultats sous surveillance",
+        "body0": "Le conseil d'administration a convoqué une réunion urgente. Trois défaites consécutives ont suscité de vives inquiétudes sur la direction de l'équipe.\n\n« Il faut voir des améliorations rapidement. Les supporters s'impatientent et les résultats doivent changer. »\n\nComment répondez-vous ?",
+        "body1": "Après une série de mauvais résultats, le président vous a convoqué pour une conversation difficile.\n\n« Nous vous avons soutenu avec des ressources et du temps. Les résultats ne sont tout simplement pas à la hauteur. Quel est votre plan ? »\n\nChoisissez votre réponse avec soin.",
         "options": {
           "reassureBoard": {
             "label": "Les rassurer avec un plan",
@@ -2638,12 +2840,12 @@
         }
       },
       "fanPetition": {
-        "subject0": "Fan Petition — More Attacking Football",
-        "subject1": "Fan Petition — Give Youth a Chance",
-        "subject2": "Fan Open Letter — Transparency",
-        "body0": "A group of {{team}} supporters has organized a petition calling for more attacking football.\n\n\"We pay good money to watch exciting football. We want to see the team go forward and entertain us!\"\n\nOver 500 signatures so far. How do you respond?",
-        "body1": "Supporters of {{team}} have started a campaign urging you to give more opportunities to young players from the academy.\n\n\"The future of our club depends on developing homegrown talent. Stop overlooking the kids!\"\n\nIt's getting traction on social media. What's your response?",
-        "body2": "An open letter from the {{team}} Supporters Trust has been published, asking for more transparency from the management.\n\n\"We want to understand the club's vision. Where are we heading? What's the long-term plan?\"\n\nThe local press is covering it. How do you handle this?",
+        "subject0": "Pétition des supporters — Plus de football offensif",
+        "subject1": "Pétition des supporters — Donnez leur chance aux jeunes",
+        "subject2": "Lettre ouverte des supporters — Transparence",
+        "body0": "Un groupe de supporters de {{team}} a organisé une pétition réclamant un football plus offensif.\n\n« On paie pour voir du football passionnant. On veut voir l'équipe aller de l'avant et nous divertir ! »\n\nPlus de 500 signatures déjà. Comment répondez-vous ?",
+        "body1": "Les supporters de {{team}} ont lancé une campagne vous demandant de donner plus d'opportunités aux jeunes de l'académie.\n\n« L'avenir de notre club dépend du développement des talents locaux. Arrêtez d'ignorer les jeunes ! »\n\nCela prend de l'ampleur sur les réseaux sociaux. Quelle est votre réponse ?",
+        "body2": "Une lettre ouverte du Comité des supporters de {{team}} a été publiée, demandant plus de transparence à la direction.\n\n« Nous voulons comprendre la vision du club. Où allons-nous ? Quel est le plan à long terme ? »\n\nLa presse locale en parle. Comment gérez-vous cela ?",
         "options": {
           "listenFans": {
             "label": "Écouter les supporters",
@@ -2665,9 +2867,9 @@
         }
       },
       "rivalInterest": {
-        "subject": "Transfer Rumour — {{player}} linked with {{rival}}",
-        "body0": "We've received word that {{rival}} have been making enquiries about {{player}}.\n\nTheir scouts were spotted at our last few matches, and our sources suggest they may approach with a formal offer soon.\n\nHow would you like us to respond if they make contact?",
-        "body1": "The press are reporting that {{player}} is a target for {{rival}}.\n\nAccording to sources, the player has attracted attention after their recent performances. No formal bid yet, but it's only a matter of time.\n\nWhat's your stance?",
+        "subject": "Rumeur de transfert — {{player}} lié à {{rival}}",
+        "body0": "Nous avons eu vent que {{rival}} s'était renseigné sur {{player}}.\n\nLeurs scouts ont été repérés à nos derniers matchs, et nos sources suggèrent qu'ils pourraient approcher avec une offre formelle bientôt.\n\nComment aimeriez-vous que nous répondions s'ils nous contactent ?",
+        "body1": "La presse rapporte que {{player}} est une cible pour {{rival}}.\n\nSelon nos sources, le joueur a attiré l'attention après ses performances récentes. Pas encore d'offre formelle, mais ce n'est qu'une question de temps.\n\nQuelle est votre position ?",
         "options": {
           "notForSale": {
             "label": "Pas à vendre",
@@ -2826,64 +3028,69 @@
         "subject": "Offre reçue pour {{player}}",
         "body": "{{team}} a soumis une offre de {{fee}} pour {{player}}. Consultez l'offre dans l'onglet Transferts pour l'accepter ou la refuser.",
         "actionReview": "Examiner l'offre"
+      },
+      "transferInterest": {
+        "subject": "Intérêt de transfert pour {{player}}",
+        "body": "Clubs avec des offres actives pour {{player}} : {{n}}. Dernière demande : {{team}} ({{fee}}). Consultez les offres dans l’onglet Transferts pour répondre.",
+        "actionReview": "Voir les offres"
       }
     },
     "news": {
       "matchReport": {
         "headline": {
           "homeWin": {
-            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Hosts Triumph",
-            "1": "{{home}} Edge Past {{away}} in Matchday {{matchday}}",
-            "2": "Clinical {{home}} See Off {{away}}"
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Les hôtes triomphent",
+            "1": "{{home}} bat {{away}} à la journée {{matchday}}",
+            "2": "{{home}} efficace écarte {{away}}"
           },
           "awayWin": {
-            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Visitors Strike",
-            "1": "{{away}} Stun {{home}} on the Road",
-            "2": "Away Day Delight for {{away}}"
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Les visiteurs frappent",
+            "1": "{{away}} surprend {{home}} à l'extérieur",
+            "2": "Délice extérieur pour {{away}}"
           },
           "draw": {
-            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Honours Even",
-            "1": "{{home}} and {{away}} Share the Spoils",
-            "2": "Stalemate at {{home}}'s Ground"
+            "0": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Match nul",
+            "1": "{{home}} et {{away}} se partagent les points",
+            "2": "Match nul sur la pelouse de {{home}}"
           }
         },
-        "body0": "In Matchday {{matchday}} action, the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. The result could have implications on the league standings as the season progresses.\n\nGoals: {{scorers}}",
-        "body1": "The match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}} in a Matchday {{matchday}} clash. Both sides gave their all in an engaging contest.\n\nGoals: {{scorers}}",
-        "body2": "Matchday {{matchday}} delivered another exciting encounter as {{home}} faced {{away}} ({{homeGoals}}-{{awayGoals}}). The fans were treated to a competitive fixture.\n\nGoals: {{scorers}}",
-        "body0.noScorers": "In Matchday {{matchday}} action, the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. The result could have implications on the league standings as the season progresses.",
-        "body1.noScorers": "The match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}} in a Matchday {{matchday}} clash. Both sides gave their all in an engaging contest.",
-        "body2.noScorers": "Matchday {{matchday}} delivered another exciting encounter as {{home}} faced {{away}} ({{homeGoals}}-{{awayGoals}}). The fans were treated to a competitive fixture.",
-        "scorer": "{{player}} ({{minute}}', {{team}})",
-        "scorersSection": "\n\nGoals: {{scorers}}",
+        "body0": "À la journée {{matchday}}, le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ce résultat pourrait avoir des conséquences sur le classement au fil de la saison.\n\nButs : {{scorers}}",
+        "body1": "Le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}} lors de cette journée {{matchday}}. Les deux équipes ont tout donné dans un duel engagé.\n\nButs : {{scorers}}",
+        "body2": "La journée {{matchday}} a offert une autre rencontre passionnante entre {{home}} et {{away}} ({{homeGoals}}-{{awayGoals}}). Les supporters ont assisté à un match très compétitif.\n\nButs : {{scorers}}",
+        "body0.noScorers": "À la journée {{matchday}}, le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ce résultat pourrait avoir des conséquences sur le classement au fil de la saison.",
+        "body1.noScorers": "Le match s'est terminé {{home}} {{homeGoals}} - {{awayGoals}} {{away}} lors de cette journée {{matchday}}. Les deux équipes ont tout donné dans un duel engagé.",
+        "body2.noScorers": "La journée {{matchday}} a offert une autre rencontre passionnante entre {{home}} et {{away}} ({{homeGoals}}-{{awayGoals}}). Les supporters ont assisté à un match très compétitif.",
+        "scorer": "{{player}} ({{minute}}e, {{team}})",
+        "scorersSection": "\n\nButs : {{scorers}}",
         "reportFriendly": {
-          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Friendly report",
-          "body": "In friendly action, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Both sides used the fixture to build sharpness before the competitive campaign.{{scorersSection}}"
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Rapport du match amical",
+          "body": "Dans ce match amical, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont profité de la rencontre pour se mettre en jambes avant le début de la saison compétitive.{{scorersSection}}"
         },
         "reportPreseason": {
-          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Preseason tournament report",
-          "body": "In preseason tournament action, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Both sides used the fixture to build sharpness before the competitive campaign.{{scorersSection}}"
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Rapport du tournoi de présaison",
+          "body": "Dans ce tournoi de présaison, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont profité de la rencontre pour se mettre en jambes avant le début de la saison compétitive.{{scorersSection}}"
         }
       },
       "roundup": {
-        "headline0": "Matchday {{matchday}} Round-Up: {{totalGoals}} Goals in Action-Packed Day",
-        "headline1": "Premier Division Matchday {{matchday}}: All the Results",
-        "headline2": "Goals Galore in Matchday {{matchday}} Action",
-        "body": "Matchday {{matchday}} is in the books. Here are the full results:\n\n{{results}}\n\n{{totalGoals}} goals scored across {{matchCount}} matches.{{biggestWinnerLine}}",
+        "headline0": "Résumé de la journée {{matchday}} : {{totalGoals}} buts dans une journée chargée",
+        "headline1": "Division Premier Journée {{matchday}} : Tous les résultats",
+        "headline2": "Buts en pagaille à la journée {{matchday}}",
+        "body": "La journée {{matchday}} est dans les livres. Voici tous les résultats :\n\n{{results}}\n\n{{totalGoals}} buts en {{matchCount}} matchs.{{biggestWinnerLine}}",
         "resultLine": "  {{home}} {{homeGoals}} - {{awayGoals}} {{away}}",
-        "biggestWinnerLine": " {{biggestWinner}} recorded the biggest win of the day."
+        "biggestWinnerLine": " {{biggestWinner}} a remporté la plus large victoire de la journée."
       },
       "standings": {
-        "headline0": "{{leader}} Lead the Way After Matchday {{matchday}}",
-        "headline1": "Premier Division Table: {{leader}} on Top",
-        "headline2": "Standings Update — Matchday {{matchday}}",
-        "body": "After Matchday {{matchday}}, {{leader}} sit at the top of the Premier Division table.\n\nStandings:\n{{standings}}",
-        "entry": "  {{rank}}. {{team}} — {{points}} pts (GD: {{goalDifference}})"
+        "headline0": "{{leader}} en tête après la journée {{matchday}}",
+        "headline1": "Classement Division Premier : {{leader}} en tête",
+        "headline2": "Mise à jour du classement — Journée {{matchday}}",
+        "body": "Après la journée {{matchday}}, {{leader}} trône en tête de la Division Premier.\n\nClassement :\n{{standings}}",
+        "entry": "  {{rank}}. {{team}} — {{points}} pts (DB : {{goalDifference}})"
       },
       "seasonPreview": {
-        "headline0": "Season Preview: {{teamCount}} Teams Battle for Glory",
-        "headline1": "Premier Division Season Set to Begin",
-        "headline2": "Can {{favourite}} Claim the Title? Season Preview",
-        "body": "The Premier Division is set to kick off with {{teamCount}} teams vying for the title.\n\nPre-season predictions have {{favourite}} as the early favourites, but {{darkHorse}} could be the dark horse to watch this campaign.\n\nWith new managers taking the reins at some clubs, this season promises to be one of the most competitive in recent memory. Every point will matter as the race for the title heats up.\n\nTeams: {{teamList}}"
+        "headline0": "Avant-saison : {{teamCount}} équipes en lice pour le titre",
+        "headline1": "La saison de Division Premier va commencer",
+        "headline2": "{{favourite}} peut-il décrocher le titre ? Avant-saison",
+        "body": "La Division Premier s'apprête à démarrer avec {{teamCount}} équipes en lice pour le titre.\n\nLes pronostics d'avant-saison voient {{favourite}} comme le grand favori, mais {{darkHorse}} pourrait être la surprise de la campagne.\n\nAvec de nouveaux entraîneurs à certains clubs, cette saison promet d'être l'une des plus compétitives ces dernières années. Chaque point comptera dans la course au titre.\n\nÉquipes : {{teamList}}"
       },
       "managerialChange": {
         "headline": "{{team}} limoge {{manager}}",
@@ -2901,6 +3108,18 @@
         "headline": "Résumé des Transferts — Semaine du {{weekStart}}",
         "body": "Le marché des transferts est resté animé cette semaine. {{transferCount}} transfert(s) conclu(s) ont marqué la division.\n\n{{deals}}",
         "dealLine": "  {{player}} : de {{fromTeam}} à {{toTeam}} ({{fee}})"
+      },
+      "worldCupQualifying": {
+        "headline": "La route vers la Coupe du monde {{year}} commence",
+        "body": "{{nations}} nations débutent leur qualification pour la Coupe du monde {{year}}, disputée lors des fenêtres internationales cette saison."
+      },
+      "worldCupKickoff": {
+        "headline": "La Coupe du monde {{year}} commence",
+        "body": "{{nations}} nations sont réunies pour la Coupe du monde {{year}}. Cet été, plus rien ne compte tandis que les meilleurs du monde visent le plus beau trophée du football."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} championne du monde",
+        "body": "{{nation}} a remporté la Coupe du monde {{year}} et entre dans l'histoire du football. Toute une nation célèbre un triomphe dont on se souviendra pendant des générations."
       },
       "seasonAwards": {
         "headline": "Prix de la saison {{season}}",
@@ -2967,7 +3186,7 @@
       "desc": "Vitesse exceptionnelle"
     },
     "Tank": {
-      "label": "Tank",
+      "label": "Colosse",
       "desc": "Puissant et infatigable"
     },
     "Agile": {

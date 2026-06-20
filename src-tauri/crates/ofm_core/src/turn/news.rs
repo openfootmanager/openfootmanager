@@ -861,6 +861,7 @@ mod tests {
                 away_scorers: vec![],
                 report: None,
             }),
+            ..Default::default()
         }
     }
 
@@ -960,6 +961,7 @@ mod tests {
             standings: vec![alpha, beta, gamma],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..Default::default()
         });
 
         game

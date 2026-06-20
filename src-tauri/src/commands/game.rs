@@ -2,10 +2,12 @@ use std::sync::Arc;
 use log::info;
 use tauri::State;
 
-use chrono::{Datelike, Duration, TimeZone, Utc};
+use chrono::{Datelike, DateTime, Duration, TimeZone, Utc};
 
 use db::{save_index::SaveEntry, save_manager::SaveManager};
+use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, League};
 use domain::manager::Manager;
+use domain::national_team::NationalTeam;
 use domain::stats::StatsState;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
@@ -15,9 +17,18 @@ use crate::SaveManagerState;
 
 fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::WorldData, String> {
     let path = world_source.strip_prefix("file:").unwrap_or(world_source);
-    let json =
-        std::fs::read_to_string(path).map_err(|_| "be.error.worldReadFileFailed".to_string())?;
-    ofm_core::generator::load_world_from_json(&json)
+    ofm_core::generator::load_world_from_path(std::path::Path::new(path))
+        .map_err(|_| "be.error.worldReadFileFailed".to_string())
+}
+
+/// Load a world from a modular package directory (recursively scanned, schema
+/// typed). Rejects an invalid package so a broken mod never loads half-applied.
+fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldData, String> {
+    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
+    if !errors.is_empty() {
+        return Err("be.error.package.invalid".to_string());
+    }
+    ofm_core::generator::build_world_from_package(&package)
 }
 
 pub(crate) fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
@@ -102,7 +113,10 @@ fn default_history_depth_years() -> u32 {
 }
 
 fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
-    Utc.with_ymd_and_hms(start_year, 7, 1, 0, 0, 0)
+    // Use June 1 in World Cup years so a fresh career opens just before the
+    // tournament, keeping the WC in June rather than scheduling it in July.
+    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) { 6 } else { 7 };
+    Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
         .single()
         .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
 }
@@ -181,7 +195,14 @@ fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOption
 fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::WorldData, String> {
     match world_source {
         None | Some("random") => Ok(ofm_core::generator::generate_world_data(None)),
-        Some(source) => load_world_data_from_path(source),
+        Some(source) => {
+            let raw = source.strip_prefix("file:").unwrap_or(source);
+            if std::path::Path::new(raw).is_dir() {
+                load_world_data_from_package(raw)
+            } else {
+                load_world_data_from_path(source)
+            }
+        }
     }
 }
 
@@ -226,11 +247,43 @@ fn build_game_from_world_data(
     startup_options: &StartupOptions,
     world: ofm_core::generator::WorldData,
 ) -> (Game, StatsState) {
+    // Resolve any authored competition definitions while we still hold the
+    // world (validation already passed at load). These replace the auto-built
+    // foundation competitions.
+    let game_start = clock.start_date;
+    let defined_competitions: Vec<League> = world
+        .competition_definitions
+        .as_ref()
+        .map(|file| {
+            let mut comps = ofm_core::generator::resolve_definitions(
+                file,
+                &world,
+                preseason_league_year(&clock),
+                game_start,
+            );
+            for comp in &mut comps {
+                let (_, is_mid_season) = ofm_core::generator::start_date_at_game_open(
+                    game_start,
+                    comp.season_start_month,
+                    comp.season_start_day,
+                );
+                if is_mid_season {
+                    ofm_core::catchup::simulate_past_fixtures(comp, &world.players, game_start);
+                }
+            }
+            comps
+        })
+        .unwrap_or_default();
+
     let ofm_core::generator::WorldData {
         teams,
         players,
         staff,
         managers,
+        competitions,
+        national_teams,
+        default_active_regions,
+        default_active_competitions,
         league,
         news,
         stats,
@@ -250,6 +303,14 @@ fn build_game_from_world_data(
     }
     ofm_core::generator::repair_opening_youth_academies(&mut game);
 
+    // Authored definitions take precedence over both the snapshot's stored
+    // competitions and the auto-built foundations.
+    let competitions = if defined_competitions.is_empty() {
+        competitions
+    } else {
+        defined_competitions
+    };
+
     match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
             game.managers.extend(
@@ -257,21 +318,646 @@ fn build_game_from_world_data(
                     .into_iter()
                     .filter(|existing_manager| existing_manager.id != game.manager.id),
             );
+            game.competitions = competitions;
+            game.national_teams = national_teams;
+            game.active_region_ids = default_active_regions;
+            game.active_competition_ids = default_active_competitions;
             game.league = league;
+            game.promote_legacy_league();
             game.news = news;
             game.world_history = world_history;
+            ensure_multi_competition_foundations(&mut game);
             ofm_core::season_context::refresh_game_context(&mut game);
             (game, stats)
         }
         ofm_core::generator::WorldDataKind::RosterBaseline => {
+            // Authored definitions, if any, become the world's competitions;
+            // otherwise ensure_multi_competition_foundations auto-builds them.
+            game.competitions = competitions;
+            // Build the league/division foundations *before* generating history so
+            // each club's past seasons are attributed to its real ~20-team
+            // division. Otherwise history runs with no competitions and treats the
+            // whole world as one mega-league (≈880-match seasons).
+            ensure_multi_competition_foundations(&mut game);
             apply_generated_past_history(&mut game, startup_options);
             (game, StatsState::default())
         }
     }
 }
 
+fn infer_region_id(country_code: &str) -> String {
+    ofm_core::nations::region_for_code(country_code).to_string()
+}
+
+fn infer_team_region_id(team: &domain::team::Team) -> String {
+    if !team.football_nation.is_empty() {
+        return infer_region_id(&team.football_nation);
+    }
+    infer_region_id(&team.country)
+}
+
+fn competition_required_region_ids(competition: &League) -> Vec<String> {
+    let mut region_ids = competition.required_region_ids.clone();
+    if matches!(
+        competition.scope,
+        CompetitionScope::Domestic | CompetitionScope::Regional
+    ) {
+        if let Some(region_id) = &competition.region_id {
+            region_ids.push(region_id.clone());
+        }
+    }
+    region_ids.sort();
+    region_ids.dedup();
+    region_ids
+}
+
+fn build_national_teams(game: &Game) -> Vec<NationalTeam> {
+    use std::collections::BTreeMap;
+
+    let mut players_by_nation: BTreeMap<String, Vec<&domain::player::Player>> = BTreeMap::new();
+    for player in &game.players {
+        let nation = if player.football_nation.is_empty() {
+            player.nationality.clone()
+        } else {
+            player.football_nation.clone()
+        };
+        players_by_nation.entry(nation).or_default().push(player);
+    }
+
+    players_by_nation
+        .into_iter()
+        .map(|(nation, mut players)| {
+            players.sort_by(|left, right| right.ovr.cmp(&left.ovr));
+            let nation_label = ofm_core::nations::nation_display_name(&nation);
+            let mut national_team = NationalTeam::new(
+                format!("nt-{}", nation.to_lowercase()),
+                format!("{} National Team", nation_label),
+                nation.clone(),
+                Some(game.region_for_country(&nation)),
+            );
+            national_team.squad_player_ids = players
+                .into_iter()
+                .take(23)
+                .map(|player| player.id.clone())
+                .collect();
+            national_team
+        })
+        .collect()
+}
+
+/// Pick continental-cup entrants: the strongest clubs by reputation from each
+/// region, capped so the bracket stays manageable. Entrants are returned
+/// strongest-first so the top seeds receive any knockout byes.
+fn select_continental_entrants(
+    teams: &[domain::team::Team],
+    per_region: usize,
+    max_entrants: usize,
+) -> Vec<String> {
+    use std::collections::BTreeMap;
+
+    let reputation_then_id = |left: &&domain::team::Team, right: &&domain::team::Team| {
+        right
+            .reputation
+            .cmp(&left.reputation)
+            .then_with(|| left.id.cmp(&right.id))
+    };
+
+    let mut teams_by_region: BTreeMap<String, Vec<&domain::team::Team>> = BTreeMap::new();
+    for team in teams {
+        teams_by_region
+            .entry(infer_team_region_id(team))
+            .or_default()
+            .push(team);
+    }
+
+    let mut entrants: Vec<&domain::team::Team> = Vec::new();
+    for regional_teams in teams_by_region.values_mut() {
+        regional_teams.sort_by(reputation_then_id);
+        entrants.extend(regional_teams.iter().take(per_region).copied());
+    }
+
+    entrants.sort_by(reputation_then_id);
+    entrants
+        .into_iter()
+        .take(max_entrants)
+        .map(|team| team.id.clone())
+        .collect()
+}
+
+/// Target number of clubs in a division. Countries are chunked into divisions
+/// of this size: a 40-club major becomes two 20-club tiers, a 20-club nation a
+/// single league. Smaller imported worlds run a single league per country.
+const TOP_DIVISION_SIZE: usize = 20;
+
+/// Stable id of the generated world's continental club competition.
+const CONTINENTAL_CHAMPIONS_CUP_ID: &str = "continental-champions-cup";
+/// Top finishers of each first division that earn a continental berth — matches
+/// the inferred `CONTINENTAL_LEAGUE_SLOTS` so built-in qualification is unchanged.
+const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
+
+/// Split a country's clubs (passed strongest-first) into divisions of
+/// `division_size`, strongest tier first. A trailing remainder smaller than
+/// half a division is folded up so no tier is left tiny.
+fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec<Vec<String>> {
+    let division_size = division_size.max(2);
+    if sorted_team_ids.len() <= division_size {
+        return vec![sorted_team_ids.to_vec()];
+    }
+    let mut divisions: Vec<Vec<String>> = sorted_team_ids
+        .chunks(division_size)
+        .map(<[String]>::to_vec)
+        .collect();
+    if divisions.len() >= 2 && divisions.last().map(Vec::len).unwrap_or(0) < division_size / 2 {
+        let tail = divisions.pop().expect("len >= 2");
+        divisions.last_mut().expect("len >= 1").extend(tail);
+    }
+    divisions
+}
+
+fn division_tier_name(tier: usize, division_count: usize) -> &'static str {
+    if division_count <= 1 {
+        "League"
+    } else if tier == 0 {
+        "First Division"
+    } else {
+        "Second Division"
+    }
+}
+
+/// Name a division within a country's pyramid.
+fn division_name(country: &str, tier: usize, division_count: usize) -> String {
+    format!("{country} {}", division_tier_name(tier, division_count))
+}
+
+/// Default league-start month for a region. South American leagues start in
+/// March, Asian in February, Oceanian in October; everything else in August.
+fn default_season_month_for_region(region_id: &str) -> u8 {
+    match region_id {
+        "south-america" => 3,
+        "asia" => 2,
+        "oceania" => 10,
+        _ => 8,
+    }
+}
+
+/// Build the generated world's competitions as `CompetitionDefinition`s with
+/// explicit participant lists, paired with their staggered start dates. Built-in
+/// competitions then flow through the same `build_explicit_competition` core as
+/// imported definitions (see [`build_foundation_competitions`]).
+///
+/// `game_start` is the game anchor (July 1 in normal years; June 1 in World Cup
+/// years so the WC opens in June). Each competition's start date is derived from
+/// its region's default season month via
+/// [`ofm_core::generator::start_date_at_game_open`].
+/// When a player picks SeasonStart, find the team's primary competition and
+/// return its actual calendar season-start date. Returns None when the
+/// competition uses the default August start (no clock adjustment needed).
+fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
+    let competition = game
+        .competitions
+        .iter()
+        .find(|c| c.participant_ids.iter().any(|id| id == team_id))?;
+    let month = competition.season_start_month;
+    let day = competition.season_start_day;
+    if month == 8 && day == 1 {
+        return None; // northern-hemisphere default — no adjustment
+    }
+    let year = game.clock.start_date.year();
+    Utc.with_ymd_and_hms(i32::from(year), u32::from(month), u32::from(day), 0, 0, 0)
+        .single()
+}
+
+fn build_foundation_competition_plan(
+    game: &Game,
+    game_start: DateTime<Utc>,
+) -> Vec<(ofm_core::generator::CompetitionDefinition, DateTime<Utc>)> {
+    use domain::league::{Berth, BerthRule};
+    use ofm_core::generator::{CompetitionDefinition, FormatDef, ParticipantSpec};
+    use std::collections::BTreeMap;
+
+    // Default berth into the continental cup; reproduces the inferred field so a
+    // freshly generated world's qualification is unchanged.
+    let continental_berth = |rule: BerthRule| Berth {
+        target: CONTINENTAL_CHAMPIONS_CUP_ID.to_string(),
+        rule,
+        fallback_to: None,
+    };
+
+    let make_format = |kind: CompetitionFormat| FormatDef {
+        kind,
+        legs: None,
+        group_size: None,
+        qualifiers_per_group: None,
+        best_third_qualifiers: None,
+    };
+
+    let mut teams_by_country: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for team in &game.teams {
+        teams_by_country
+            .entry(team.football_nation.clone())
+            .or_default()
+            .push(team.id.clone());
+    }
+
+    let reputation: std::collections::HashMap<&str, u32> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.as_str(), team.reputation))
+        .collect();
+
+    let mut planned: Vec<(CompetitionDefinition, DateTime<Utc>)> = Vec::new();
+    let mut priority = 0u32;
+    for (country, mut team_ids) in teams_by_country {
+        if team_ids.len() < 2 {
+            continue;
+        }
+        // Strongest first so divisions are seeded by quality and cup byes go to
+        // the best clubs.
+        team_ids.sort_by(|left, right| {
+            reputation
+                .get(right.as_str())
+                .cmp(&reputation.get(left.as_str()))
+                .then_with(|| left.cmp(right))
+        });
+        let region_id = infer_region_id(&country);
+        // Human-readable nation name for competition titles ("ES" → "Spain").
+        let country_label = ofm_core::nations::nation_display_name(&country);
+        let country_slug = country.to_lowercase();
+
+        let league_month = default_season_month_for_region(&region_id);
+        let (league_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, league_month, 1);
+
+        // One or two divisions depending on how many clubs the country has.
+        let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
+        let division_count = divisions.len();
+
+        if ofm_core::nations::is_split_season_country(&country) {
+            // Split-season format: Apertura (first half, Feb) + Clausura (second
+            // half, Jul). Only the Clausura carries promotion/relegation berths
+            // since it closes the year.
+            let (apertura_start, _) =
+                ofm_core::generator::start_date_at_game_open(game_start, 2, 1);
+            let (clausura_start, _) =
+                ofm_core::generator::start_date_at_game_open(game_start, 7, 1);
+
+            for (tier, division_ids) in divisions.iter().enumerate() {
+                let clausura_berths = if tier == 0 {
+                    vec![continental_berth(BerthRule::PositionRange {
+                        from: 1,
+                        to: CONTINENTAL_QUALIFYING_POSITIONS,
+                    })]
+                } else {
+                    Vec::new()
+                };
+                let make_def = |id: &str, name: &str, month: u8, berths: Vec<Berth>, p: u32| {
+                    CompetitionDefinition {
+                        id: id.to_string(),
+                        name: name.to_string(),
+                        r#type: CompetitionType::League,
+                        scope: CompetitionScope::Domestic,
+                        region_id: Some(region_id.clone()),
+                        country_id: Some(country.clone()),
+                        required_region_ids: vec![region_id.clone()],
+                        priority: p,
+                        format: make_format(CompetitionFormat::LeagueTable),
+                        participants: ParticipantSpec {
+                            explicit: Some(division_ids.clone()),
+                            selector: None,
+                        },
+                        berths,
+                        season_start_month: Some(month),
+                        season_start_day: Some(1),
+                    }
+                };
+                let tier_suffix = format!("d{}", tier + 1);
+                planned.push((
+                    make_def(
+                        &format!("{country_slug}-{tier_suffix}-apertura"),
+                        &format!(
+                            "{country_label} {} Apertura",
+                            division_tier_name(tier, division_count)
+                        ),
+                        2,
+                        Vec::new(),
+                        priority,
+                    ),
+                    apertura_start,
+                ));
+                priority += 1;
+                planned.push((
+                    make_def(
+                        &format!("{country_slug}-{tier_suffix}-clausura"),
+                        &format!(
+                            "{country_label} {} Clausura",
+                            division_tier_name(tier, division_count)
+                        ),
+                        7,
+                        clausura_berths,
+                        priority,
+                    ),
+                    clausura_start,
+                ));
+                priority += 1;
+            }
+        } else {
+            for (tier, division_ids) in divisions.iter().enumerate() {
+                let berths = if tier == 0 {
+                    vec![continental_berth(BerthRule::PositionRange {
+                        from: 1,
+                        to: CONTINENTAL_QUALIFYING_POSITIONS,
+                    })]
+                } else {
+                    Vec::new()
+                };
+                planned.push((
+                    CompetitionDefinition {
+                        id: format!("{country_slug}-d{}", tier + 1),
+                        name: division_name(&country_label, tier, division_count),
+                        r#type: CompetitionType::League,
+                        scope: CompetitionScope::Domestic,
+                        region_id: Some(region_id.clone()),
+                        country_id: Some(country.clone()),
+                        required_region_ids: vec![region_id.clone()],
+                        priority,
+                        format: make_format(CompetitionFormat::LeagueTable),
+                        participants: ParticipantSpec {
+                            explicit: Some(division_ids.clone()),
+                            selector: None,
+                        },
+                        berths,
+                        season_start_month: Some(league_month),
+                        season_start_day: Some(1),
+                    },
+                    league_start,
+                ));
+                priority += 1;
+            }
+        }
+
+        // National cup contested by every club in the country.
+        let cup_month = if ofm_core::nations::is_split_season_country(&country) { 2 } else { league_month };
+        let (actual_cup_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, cup_month, 1);
+        let cup_actual_start = actual_cup_start + Duration::days(35);
+        planned.push((
+            CompetitionDefinition {
+                id: format!("{country_slug}-cup"),
+                name: format!("{country_label} Cup"),
+                r#type: CompetitionType::Cup,
+                scope: CompetitionScope::Domestic,
+                region_id: Some(region_id.clone()),
+                country_id: Some(country.clone()),
+                required_region_ids: vec![region_id],
+                priority,
+                format: make_format(CompetitionFormat::Knockout),
+                participants: ParticipantSpec {
+                    explicit: Some(team_ids.clone()),
+                    selector: None,
+                },
+                berths: vec![continental_berth(BerthRule::CupWinner)],
+                season_start_month: Some(cup_actual_start.month() as u8),
+                season_start_day: Some(cup_actual_start.day() as u8),
+            },
+            cup_actual_start,
+        ));
+        priority += 1;
+    }
+
+    let continental_team_ids = select_continental_entrants(&game.teams, 2, 16);
+    if continental_team_ids.len() >= 4 {
+        let mut feeder_regions: Vec<String> = game
+            .teams
+            .iter()
+            .filter(|team| continental_team_ids.contains(&team.id))
+            .map(infer_team_region_id)
+            .collect();
+        feeder_regions.sort();
+        feeder_regions.dedup();
+        // With a big enough field, the continental cup opens with a group
+        // stage; smaller fields go straight to a knockout bracket.
+        let format_kind = if continental_team_ids.len() >= 8 {
+            CompetitionFormat::GroupAndKnockout
+        } else {
+            CompetitionFormat::Knockout
+        };
+        // Continental cup starts in October regardless of hemisphere (it draws
+        // from multiple regions and is keyed to the European calendar).
+        let (continental_start, _) =
+            ofm_core::generator::start_date_at_game_open(game_start, 10, 1);
+        planned.push((
+            CompetitionDefinition {
+                id: "continental-champions-cup".to_string(),
+                name: "Continental Champions Cup".to_string(),
+                r#type: CompetitionType::ContinentalClub,
+                scope: CompetitionScope::Continental,
+                region_id: None,
+                country_id: None,
+                required_region_ids: feeder_regions,
+                priority,
+                format: make_format(format_kind),
+                participants: ParticipantSpec {
+                    explicit: Some(continental_team_ids),
+                    selector: None,
+                },
+                berths: Vec::new(),
+                season_start_month: Some(10),
+                season_start_day: Some(1),
+            },
+            continental_start,
+        ));
+    }
+
+    planned
+}
+
+fn build_foundation_competitions(game: &Game) -> Vec<League> {
+    let game_start = game.clock.start_date;
+    let season = preseason_league_year(&game.clock);
+    build_foundation_competition_plan(game, game_start)
+        .iter()
+        .filter_map(|(def, start)| {
+            let mut competition =
+                ofm_core::generator::build_explicit_competition(def, season, *start)?;
+            // FM-style: if this competition's season already began before the game
+            // anchor date, simulate the missing matchdays so the player joins a
+            // living in-progress season rather than a blank table.
+            if *start <= game_start {
+                ofm_core::catchup::simulate_past_fixtures(
+                    &mut competition,
+                    &game.players,
+                    game_start,
+                );
+            }
+            Some(competition)
+        })
+        .collect()
+}
+
+fn ensure_multi_competition_foundations(game: &mut Game) {
+    if game.national_teams.is_empty() {
+        game.national_teams = build_national_teams(game);
+    }
+    if game.competitions.is_empty() {
+        game.competitions = build_foundation_competitions(game);
+    }
+    if game.active_region_ids.is_empty() {
+        game.active_region_ids = game
+            .competitions
+            .iter()
+            .filter_map(|competition| competition.region_id.clone())
+            .collect();
+        game.active_region_ids.sort();
+        game.active_region_ids.dedup();
+    }
+    if game.active_competition_ids.is_empty() {
+        game.active_competition_ids = game
+            .competitions
+            .iter()
+            .map(|competition| competition.id.clone())
+            .collect();
+    }
+    ensure_international_windows(game);
+    game.sync_legacy_league();
+}
+
+/// Schedule national-team friendlies on international windows and keep club
+/// fixtures off those dates, so call-ups never clash with club matches.
+/// Idempotent: existing national-team fixtures (e.g. from a loaded save) are
+/// left untouched, and shifting already-clear club fixtures is a no-op.
+fn ensure_international_windows(game: &mut Game) {
+    // A career that opens during a World Cup summer stages the tournament right
+    // away: the World Cup is otherwise created only at season rollover, which a
+    // fresh save beginning in a cup summer (e.g. mid-2026) never reaches, so the
+    // edition would simply never happen. It fills the summer break, so no window
+    // friendlies/qualifiers are scheduled when it runs.
+    let now = game.clock.current_date;
+    let opens_in_world_cup_summer = ofm_core::world_cup::is_world_cup_summer(now.year())
+        && (6..=8).contains(&now.month());
+    if opens_in_world_cup_summer
+        && ofm_core::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
+    {
+        for national_team in game.national_teams.iter_mut() {
+            national_team.fixtures.clear();
+        }
+        return;
+    }
+
+    let window_dates =
+        ofm_core::national_team::international_window_dates(preseason_season_start(&game.clock));
+    if window_dates.is_empty() {
+        return;
+    }
+
+    let needs_fixtures = game
+        .national_teams
+        .iter()
+        .all(|team| team.fixtures.is_empty());
+    let qualifying_running = game
+        .competitions
+        .iter()
+        .any(ofm_core::world_cup::is_world_cup_qualifying);
+    if needs_fixtures && !qualifying_running {
+        // A career starting the season before a World Cup opens with the
+        // qualifying campaign; any other season opens with friendlies.
+        if ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock)) {
+            ofm_core::world_cup::schedule_world_cup_qualifying(
+                game,
+                preseason_season_start(&game.clock).year() + 1,
+                &window_dates,
+            );
+        } else {
+            ofm_core::national_team::schedule_national_team_friendlies(
+                &mut game.national_teams,
+                &window_dates,
+                &mut rand::rng(),
+            );
+        }
+    }
+
+    for competition in &mut game.competitions {
+        ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+    }
+}
+
+fn resolve_simulation_scope(
+    game: &Game,
+    team_id: &str,
+    requested_region_ids: Option<Vec<String>>,
+    requested_competition_ids: Option<Vec<String>>,
+) -> Result<(Vec<String>, Vec<String>), String> {
+    use std::collections::BTreeSet;
+
+    let managed_team = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .ok_or("be.error.teamNotFound".to_string())?;
+
+    let mut active_region_ids: BTreeSet<String> = requested_region_ids
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    active_region_ids.insert(infer_team_region_id(managed_team));
+
+    let mut active_competition_ids: BTreeSet<String> = requested_competition_ids
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|competition_id| {
+            game.competitions
+                .iter()
+                .any(|competition| competition.id == *competition_id)
+        })
+        .collect();
+
+    for competition in game.competitions.iter().filter(|competition| {
+        competition
+            .participant_ids
+            .iter()
+            .any(|participant_id| participant_id == team_id)
+    }) {
+        active_competition_ids.insert(competition.id.clone());
+    }
+
+    if active_competition_ids.is_empty() {
+        for competition in &game.competitions {
+            let required_regions = competition_required_region_ids(competition);
+            if required_regions.is_empty()
+                || required_regions
+                    .iter()
+                    .all(|region_id| active_region_ids.contains(region_id))
+            {
+                active_competition_ids.insert(competition.id.clone());
+            }
+        }
+    }
+
+    for competition in game.competitions.iter().filter(|competition| {
+        active_competition_ids.contains(&competition.id)
+    }) {
+        for region_id in competition_required_region_ids(competition) {
+            active_region_ids.insert(region_id);
+        }
+    }
+
+    let mut resolved_region_ids: Vec<String> = active_region_ids.into_iter().collect();
+    resolved_region_ids.sort();
+
+    let mut resolved_competition_ids: Vec<String> = active_competition_ids.into_iter().collect();
+    resolved_competition_ids.sort_by_key(|competition_id| {
+        game.competitions
+            .iter()
+            .find(|competition| competition.id == *competition_id)
+            .map(|competition| competition.priority)
+            .unwrap_or(u32::MAX)
+    });
+
+    Ok((resolved_region_ids, resolved_competition_ids))
+}
+
 fn has_existing_world_context(game: &Game, stats_state: &StatsState) -> bool {
-    game.league.is_some()
+    !game.competitions.is_empty()
+        || game.league.is_some()
         || !game.news.is_empty()
         || !stats_state.player_matches.is_empty()
         || !stats_state.team_matches.is_empty()
@@ -484,6 +1170,135 @@ pub(crate) fn bootstrap_team_selection(
 
 /// Step 1: Create manager + generate world. No team assigned yet.
 /// Returns the Game object so the frontend can show team selection.
+/// One validation problem in a competition-definition file, shaped for the UI.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompetitionDefinitionIssue {
+    code: String,
+    competition_id: String,
+    params: std::collections::HashMap<String, String>,
+}
+
+fn parse_competition_definitions(
+    source: &str,
+) -> Result<ofm_core::generator::CompetitionDefinitionFile, String> {
+    // Accept either JSON or YAML so definitions can be hand-authored in either.
+    ofm_core::generator::parse_definition_str(source)
+        .map_err(|_| "be.error.competitionDef.parseFailed".to_string())
+}
+
+fn validate_against_world(
+    file: &ofm_core::generator::CompetitionDefinitionFile,
+    world: &ofm_core::generator::WorldData,
+) -> Vec<CompetitionDefinitionIssue> {
+    let ctx = ofm_core::generator::WorldValidationContext::from_world(world);
+    ofm_core::generator::validate_definitions(file, &ctx)
+        .into_iter()
+        .map(|error| CompetitionDefinitionIssue {
+            code: error.code,
+            competition_id: error.competition_id,
+            params: error.params.into_iter().collect(),
+        })
+        .collect()
+}
+
+/// Validate a standalone competition-definition file against a world. Returns
+/// the full list of problems (empty = valid) so the new-game UI can show them
+/// before the player commits.
+#[tauri::command]
+pub fn validate_competition_definitions(
+    world_source: Option<String>,
+    definitions_json: String,
+) -> Result<Vec<CompetitionDefinitionIssue>, String> {
+    let file = parse_competition_definitions(&definitions_json)?;
+    let world = load_world_data(world_source.as_deref())?;
+    Ok(validate_against_world(&file, &world))
+}
+
+/// One problem found while loading a world package, shaped for the UI.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageIssue {
+    code: String,
+    file: String,
+    params: std::collections::HashMap<String, String>,
+}
+
+/// Validate a modular world-package directory. Returns the full list of problems
+/// (empty = valid) so the new-game UI can show them before the player commits.
+#[tauri::command]
+pub fn validate_world_package(path: String) -> Result<Vec<PackageIssue>, String> {
+    let (_package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    Ok(errors
+        .into_iter()
+        .map(|error| PackageIssue {
+            code: error.code,
+            file: error.file,
+            params: error.params.into_iter().collect(),
+        })
+        .collect())
+}
+
+/// A world package summarised for the import card: a display name (falling back
+/// to the folder name when the package declares none), club/player counts, and
+/// any validation problems (empty = ready to start).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldPackageInspection {
+    name: String,
+    team_count: usize,
+    player_count: usize,
+    issues: Vec<PackageIssue>,
+}
+
+fn package_folder_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "World Package".to_string())
+}
+
+/// Validate and summarise a world package for the new-game picker. On any
+/// validation problem the issues are returned (with a folder-name fallback) and
+/// the world isn't built; otherwise the built world's name and counts come back.
+#[tauri::command]
+pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, String> {
+    let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(&path));
+    let issues: Vec<PackageIssue> = errors
+        .into_iter()
+        .map(|error| PackageIssue {
+            code: error.code,
+            file: error.file,
+            params: error.params.into_iter().collect(),
+        })
+        .collect();
+
+    let fallback_name = package_folder_name(&path);
+    if !issues.is_empty() {
+        return Ok(WorldPackageInspection {
+            name: fallback_name,
+            team_count: 0,
+            player_count: 0,
+            issues,
+        });
+    }
+
+    let world = ofm_core::generator::build_world_from_package(&package)?;
+    let name = if world.name.trim().is_empty() {
+        fallback_name
+    } else {
+        world.name.clone()
+    };
+    Ok(WorldPackageInspection {
+        name,
+        team_count: world.teams.len(),
+        player_count: world.players.len(),
+        issues: Vec::new(),
+    })
+}
+
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
 pub async fn start_new_game(
@@ -494,6 +1309,7 @@ pub async fn start_new_game(
     nationality: String,
     startup_options: Option<RawStartupOptions>,
     world_source: Option<String>,
+    competition_definitions_json: Option<String>,
 ) -> Result<Game, String> {
     // Validate inputs
     let first_name = first_name.trim().to_string();
@@ -515,6 +1331,18 @@ pub async fn start_new_game(
 
     let startup_options = normalize_startup_options(startup_options)?;
     let mut world = load_world_data(world_source.as_deref())?;
+
+    // Layer a user-picked standalone definition file onto the world. It is
+    // validated strictly; the UI has already shown any details via
+    // validate_competition_definitions.
+    if let Some(json) = &competition_definitions_json {
+        let file = parse_competition_definitions(json)?;
+        if !validate_against_world(&file, &world).is_empty() {
+            return Err("be.error.competitionDef.invalidStandalone".to_string());
+        }
+        world.competition_definitions = Some(file);
+    }
+
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     if matches!(world_source.as_deref(), Some(source) if source != "random") {
         ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
@@ -566,6 +1394,8 @@ pub async fn select_team(
     state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,
     team_id: String,
+    active_region_ids: Option<Vec<String>>,
+    active_competition_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
     let mut game = state
@@ -574,6 +1404,32 @@ pub async fn select_team(
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
         .unwrap_or_default();
+    ensure_multi_competition_foundations(&mut game);
+
+    // Hemisphere fix: when the player picks SeasonStart for a southern-
+    // hemisphere (or other non-August-start) club, align the game clock to
+    // that club's actual season-start date and rebuild competitions from that
+    // anchor so the player arrives at the beginning of their season, not July.
+    if start_phase_for_game(&game) == StartPhase::SeasonStart {
+        if let Some(actual_start) = team_season_anchor(&game, &team_id) {
+            if actual_start < game.clock.current_date {
+                game.clock.current_date = actual_start;
+                game.clock.start_date = actual_start;
+                game.competitions.clear();
+                game.national_teams.clear();
+                ensure_multi_competition_foundations(&mut game);
+            }
+        }
+    }
+
+    let (resolved_region_ids, resolved_competition_ids) = resolve_simulation_scope(
+        &game,
+        &team_id,
+        active_region_ids,
+        active_competition_ids,
+    )?;
+    game.active_region_ids = resolved_region_ids;
+    game.active_competition_ids = resolved_competition_ids;
 
     let start_phase = start_phase_for_game(&game);
     let stats_state =
@@ -636,6 +1492,14 @@ pub async fn get_active_game(state: State<'_, Arc<StateManager>>) -> Result<Game
     state
         .get_game(|g: &Game| g.clone())
         .ok_or("be.error.noActiveGameSession".to_string())
+}
+
+#[tauri::command]
+pub async fn get_active_save_id(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Option<String>, String> {
+    log::debug!("[cmd] get_active_save_id");
+    Ok(state.get_save_id())
 }
 
 #[tauri::command]
@@ -805,15 +1669,22 @@ pub fn bootstrap_game_for_mcp(
 mod tests {
     use super::{
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
-        build_game_from_world_data, create_new_save, current_date_for_phase, game_clock_for_world,
+        build_foundation_competitions, build_game_from_world_data, create_new_save,
+        current_date_for_phase, ensure_international_windows, game_clock_for_world,
         load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        preseason_league_year, preseason_season_start, require_active_stats_state,
+        package_folder_name, parse_competition_definitions, preseason_league_year,
+        preseason_season_start, require_active_stats_state,
+        resolve_simulation_scope, select_continental_entrants, split_into_divisions,
         start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
+    use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
     use domain::{
-        league::{FixtureCompetition, League},
+        league::{
+            CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
+        },
+        manager::Manager,
         news::{NewsArticle, NewsCategory},
         stats::{PlayerMatchStatsRecord, TeamMatchStatsRecord},
         world_history::{HistoricalSeasonAwardsRecord, WorldHistoryArchive},
@@ -826,6 +1697,191 @@ mod tests {
         state::StateManager,
     };
     use std::sync::Mutex;
+
+    fn manager_for(team_id: &str) -> Manager {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire(team_id.to_string());
+        manager
+    }
+
+    #[test]
+    fn world_cup_summer_career_stages_and_surfaces_the_tournament() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        // A career opening in the 2026 World Cup summer.
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+        // A non-empty active scope so staging registers the tournament as active.
+        game.active_competition_ids = vec!["dummy".to_string()];
+
+        ensure_international_windows(&mut game);
+
+        let world_cup = game
+            .competitions
+            .iter()
+            .find(|competition| is_world_cup_competition(competition))
+            .expect("a World Cup summer career stages the tournament");
+        assert!(
+            game.active_competition_ids.contains(&world_cup.id),
+            "the World Cup is surfaced in the active scope"
+        );
+        assert!(
+            game.news
+                .iter()
+                .any(|article| article.id.starts_with("world_cup_kickoff_")),
+            "a kickoff news article is published"
+        );
+    }
+
+    #[test]
+    fn non_world_cup_year_career_stages_no_tournament() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        ensure_international_windows(&mut game);
+
+        assert!(
+            !game
+                .competitions
+                .iter()
+                .any(|competition| is_world_cup_competition(competition)),
+            "no World Cup is staged outside a cup summer"
+        );
+    }
+
+    #[test]
+    fn package_folder_name_falls_back_to_the_directory_name() {
+        assert_eq!(package_folder_name("/mods/My World"), "My World");
+        assert_eq!(package_folder_name("turkish-league"), "turkish-league");
+        // No usable component → a sensible default rather than an empty name.
+        assert_eq!(package_folder_name(""), "World Package");
+    }
+
+    fn nation_team(id: &str, nation: &str, reputation: u32) -> domain::team::Team {
+        let mut team = domain::team::Team::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            nation.to_string(),
+            "City".to_string(),
+            "Stadium".to_string(),
+            10_000,
+        );
+        team.football_nation = nation.to_string();
+        team.reputation = reputation;
+        team
+    }
+
+    /// Characterization test: locks the STRUCTURE of the generated foundation
+    /// world (kinds, scopes, regions, countries, priorities, participant and
+    /// fixture counts, formats) so the Phase E "unify built-ins through the
+    /// resolver" refactor can prove it preserves behavior (modulo ids).
+    #[test]
+    fn foundation_competitions_structure_is_stable() {
+        // A 30-club nation (→ two divisions: 20 + 10), a 6-club nation (one
+        // division), and a 1-club nation (skipped). All in one region, so the
+        // continental field stays under four entrants and no continental cup
+        // is created — keeping the structure fully deterministic.
+        let mut teams = Vec::new();
+        for index in 0..30 {
+            teams.push(nation_team(&format!("esp-{index:02}"), "ESP", 1000 - index as u32));
+        }
+        for index in 0..6 {
+            teams.push(nation_team(&format!("fra-{index}"), "FRA", 500 - index as u32));
+        }
+        teams.push(nation_team("and-0", "AND", 100));
+
+        let clock = GameClock::new(start_date_for_year(2032).unwrap());
+        let manager = domain::manager::Manager::new(
+            "mgr".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+
+        let competitions = build_foundation_competitions(&game);
+
+        let summary: Vec<(CompetitionType, CompetitionScope, Option<String>, Option<String>, usize, u32, CompetitionFormat)> =
+            competitions
+                .iter()
+                .map(|competition| {
+                    (
+                        competition.kind.clone(),
+                        competition.scope.clone(),
+                        competition.region_id.clone(),
+                        competition.country_id.clone(),
+                        competition.participant_ids.len(),
+                        competition.priority,
+                        competition.rules.format.clone(),
+                    )
+                })
+                .collect();
+
+        let europe = || Some("europe".to_string());
+        assert_eq!(
+            summary,
+            vec![
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 20, 0, CompetitionFormat::LeagueTable),
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 10, 1, CompetitionFormat::LeagueTable),
+                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 30, 2, CompetitionFormat::Knockout),
+                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 3, CompetitionFormat::LeagueTable),
+                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 4, CompetitionFormat::Knockout),
+            ],
+        );
+
+        // League tables carry a full double round robin and a standings row per
+        // club; the refactor must preserve both.
+        let top_division = &competitions[0];
+        assert_eq!(top_division.standings.len(), 20);
+        assert_eq!(top_division.fixtures.len(), 20 * 19);
+        assert_eq!(competitions[3].fixtures.len(), 6 * 5);
+
+        // No continental cup for a single-region field.
+        assert!(
+            !competitions
+                .iter()
+                .any(|competition| competition.kind == CompetitionType::ContinentalClub)
+        );
+
+        // Default continental berths: first division awards positions 1–4, the
+        // cup awards its winner, the second division awards nothing.
+        use domain::league::BerthRule;
+        let top_division = &competitions[0];
+        assert_eq!(top_division.berths.len(), 1);
+        assert_eq!(top_division.berths[0].target, "continental-champions-cup");
+        assert!(matches!(
+            top_division.berths[0].rule,
+            BerthRule::PositionRange { from: 1, to: 4 }
+        ));
+        assert!(competitions[1].berths.is_empty(), "second division awards no berth");
+        let cup = &competitions[2];
+        assert!(matches!(
+            cup.berths.first().map(|berth| &berth.rule),
+            Some(BerthRule::CupWinner)
+        ));
+    }
 
     fn default_player_attributes() -> domain::player::PlayerAttributes {
         domain::player::PlayerAttributes {
@@ -948,6 +2004,328 @@ mod tests {
         }
 
         Game::new(clock, manager, teams, players, staff, vec![])
+    }
+
+    #[test]
+    fn select_continental_entrants_takes_top_clubs_per_region_by_reputation() {
+        let make = |id: &str, nation: &str, reputation: u32| {
+            let mut team = domain::team::Team::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                "Country".to_string(),
+                "City".to_string(),
+                "Stadium".to_string(),
+                10_000,
+            );
+            team.football_nation = nation.to_string();
+            team.reputation = reputation;
+            team
+        };
+        let teams = vec![
+            make("eng-a", "GB", 900),
+            make("eng-b", "GB", 800),
+            make("eng-c", "GB", 700), // third in Europe -> excluded by per_region
+            make("bra-a", "BR", 850),
+            make("bra-b", "BR", 600),
+        ];
+
+        let entrants = select_continental_entrants(&teams, 2, 16);
+
+        // Top two per region, ordered strongest-first across regions.
+        assert_eq!(
+            entrants,
+            vec![
+                "eng-a".to_string(),
+                "bra-a".to_string(),
+                "eng-b".to_string(),
+                "bra-b".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_competition_definitions_accepts_yaml_and_json() {
+        let yaml = "\
+formatVersion: 1
+competitions:
+  - id: tr-1
+    name: Super Lig
+    type: League
+    scope: Domestic
+    format:
+      kind: LeagueTable
+    participants:
+      selector:
+        kind: allInCountry
+        country: TR
+";
+        let parsed = parse_competition_definitions(yaml).expect("YAML should parse");
+        assert_eq!(parsed.competitions.len(), 1);
+        assert_eq!(parsed.competitions[0].id, "tr-1");
+
+        let json = r#"{"formatVersion":1,"competitions":[{"id":"tr-1","name":"Super Lig","type":"League","scope":"Domestic","format":{"kind":"LeagueTable"},"participants":{"selector":{"kind":"allInCountry","country":"TR"}}}]}"#;
+        let parsed_json = parse_competition_definitions(json).expect("JSON should parse");
+        assert_eq!(parsed_json.competitions[0].id, "tr-1");
+
+        assert!(parse_competition_definitions("not: [valid").is_err());
+    }
+
+    fn temp_pkg_dir(tag: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("ofm-pkg-cmd-{tag}-{nanos}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    #[ignore = "perf harness; run: cargo test -p openfootmanager perf_baseline -- --ignored --nocapture"]
+    fn perf_baseline() {
+        use std::time::Instant;
+
+        let t = Instant::now();
+        let world = ofm_core::generator::generate_world_data(None);
+        let gen = t.elapsed();
+        let teams = world.teams.len();
+        let players = world.players.len();
+
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2026,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let t = Instant::now();
+        let (mut game, _stats) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+        let build = t.elapsed();
+
+        let competitions = game.competitions.len();
+        let active = game.active_competition_ids.len();
+
+        const DAYS: u32 = 30;
+        let t = Instant::now();
+        for _ in 0..DAYS {
+            ofm_core::turn::process_day(&mut game);
+        }
+        let days = t.elapsed();
+
+        eprintln!(
+            "PERF teams={teams} players={players} competitions={competitions} active_competition_ids={active}"
+        );
+        eprintln!("PERF world-gen         = {gen:?}");
+        eprintln!("PERF build-game        = {build:?}  (foundations + history)");
+        eprintln!("PERF {DAYS}x process_day   = {days:?}  ({:?}/day)", days / DAYS);
+    }
+
+    #[test]
+    fn loads_a_world_from_a_package_directory() {
+        let dir = temp_pkg_dir("load");
+        std::fs::write(
+            dir.join("confed.yaml"),
+            "schema: confederation\nid: galaxy\nname: Galaxy\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("country.yaml"),
+            "schema: country\nid: ZZ\nname: Zedland\nconfederation: galaxy\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("teams.yaml"),
+            "schema: team\nitems:\n  - { id: zed-fc, name: Zed FC, city: Zedtown, country: ZZ, colors: { primary: \"#000\", secondary: \"#fff\" } }\n  - { id: zed-utd, name: Zed United, city: Zedford, country: ZZ, colors: { primary: \"#111\", secondary: \"#fff\" } }\n",
+        )
+        .unwrap();
+
+        let world =
+            super::load_world_data(Some(dir.to_string_lossy().as_ref())).expect("package loads");
+        assert!(world.teams.iter().any(|t| t.id == "zed-fc"));
+        assert!(world.teams.iter().any(|t| t.id == "zed-utd"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn validate_world_package_reports_problems_and_passes_clean_packages() {
+        let team = "schema: team\nid: {id}\nname: {name}\ncity: X\ncountry: ES\ncolors: { primary: \"#000\", secondary: \"#fff\" }\n";
+
+        let valid = temp_pkg_dir("valid");
+        std::fs::write(
+            valid.join("team.yaml"),
+            team.replace("{id}", "zed-fc").replace("{name}", "Zed FC"),
+        )
+        .unwrap();
+        let clean = super::validate_world_package(valid.to_string_lossy().to_string()).unwrap();
+        assert!(clean.is_empty(), "a clean package should have no issues");
+
+        let broken = temp_pkg_dir("broken");
+        std::fs::write(
+            broken.join("a.yaml"),
+            team.replace("{id}", "dup").replace("{name}", "A"),
+        )
+        .unwrap();
+        std::fs::write(
+            broken.join("b.yaml"),
+            team.replace("{id}", "dup").replace("{name}", "B"),
+        )
+        .unwrap();
+        let issues = super::validate_world_package(broken.to_string_lossy().to_string()).unwrap();
+        assert!(!issues.is_empty(), "a duplicate id should be reported");
+
+        std::fs::remove_dir_all(&valid).ok();
+        std::fs::remove_dir_all(&broken).ok();
+    }
+
+    #[test]
+    fn split_into_divisions_chunks_a_major_into_two_tiers() {
+        let clubs: Vec<String> = (0..40).map(|i| format!("club-{i:02}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 20);
+
+        assert_eq!(divisions.len(), 2);
+        assert_eq!(divisions[0].len(), 20);
+        assert_eq!(divisions[1].len(), 20);
+        // Strongest tier first; the second tier starts where the first ends.
+        assert_eq!(divisions[0][0], "club-00");
+        assert_eq!(divisions[1][0], "club-20");
+    }
+
+    #[test]
+    fn split_into_divisions_keeps_a_single_league_at_division_size() {
+        let clubs: Vec<String> = (0..20).map(|i| format!("club-{i:02}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 20);
+
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 20);
+    }
+
+    #[test]
+    fn split_into_divisions_keeps_a_single_tier_for_small_countries() {
+        let clubs: Vec<String> = (0..7).map(|i| format!("club-{i}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 20);
+
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 7);
+    }
+
+    #[test]
+    fn split_into_divisions_folds_a_tiny_remainder_up() {
+        // 25 clubs → 20 + 5; the 5-club tail folds up rather than forming a
+        // tiny second division.
+        let clubs: Vec<String> = (0..25).map(|i| format!("club-{i:02}")).collect();
+
+        let divisions = split_into_divisions(&clubs, 20);
+
+        assert_eq!(divisions.len(), 1);
+        assert_eq!(divisions[0].len(), 25);
+    }
+
+    #[test]
+    fn select_continental_entrants_caps_the_field() {
+        let teams: Vec<domain::team::Team> = (0..10)
+            .map(|index| {
+                let mut team = domain::team::Team::new(
+                    format!("eng-{index}"),
+                    format!("Club {index}"),
+                    format!("C{index}"),
+                    "Country".to_string(),
+                    "City".to_string(),
+                    "Stadium".to_string(),
+                    10_000,
+                );
+                team.football_nation = "GB".to_string();
+                team.reputation = 1000 - index as u32;
+                team
+            })
+            .collect();
+
+        let entrants = select_continental_entrants(&teams, 8, 4);
+
+        assert_eq!(entrants.len(), 4);
+        assert_eq!(entrants[0], "eng-0", "strongest club is seeded first");
+    }
+
+    #[test]
+    fn resolve_simulation_scope_auto_enables_required_regions_and_team_competitions() {
+        let mut game = make_bootstrap_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+        game.teams[1].football_nation = "GB".to_string();
+
+        let mut domestic = League::new(
+            "domestic-1".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        domestic.region_id = Some("south-america".to_string());
+        domestic.required_region_ids = vec!["south-america".to_string()];
+        domestic.priority = 0;
+
+        let mut continental = League::new(
+            "continental-1".to_string(),
+            "Continental Champions Cup".to_string(),
+            2032,
+            &["team1".to_string(), "team2".to_string()],
+        );
+        continental.scope = CompetitionScope::Continental;
+        continental.required_region_ids =
+            vec!["south-america".to_string(), "europe".to_string()];
+        continental.priority = 1;
+
+        game.competitions = vec![domestic.clone(), continental.clone()];
+
+        let (active_regions, active_competitions) = resolve_simulation_scope(
+            &game,
+            "team1",
+            Some(vec!["south-america".to_string()]),
+            Some(vec![continental.id.clone()]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            active_regions,
+            vec!["europe".to_string(), "south-america".to_string()]
+        );
+        assert_eq!(
+            active_competitions,
+            vec![domestic.id.clone(), continental.id.clone()]
+        );
+    }
+
+    #[test]
+    fn resolve_simulation_scope_defaults_to_team_region_when_no_scope_is_provided() {
+        let mut game = make_bootstrap_test_game();
+        game.teams[0].football_nation = "BR".to_string();
+
+        let mut domestic = League::new(
+            "domestic-1".to_string(),
+            "Brazil League".to_string(),
+            2032,
+            &["team1".to_string()],
+        );
+        domestic.region_id = Some("south-america".to_string());
+        domestic.required_region_ids = vec!["south-america".to_string()];
+        domestic.priority = 0;
+        game.competitions = vec![domestic.clone()];
+
+        let (active_regions, active_competitions) =
+            resolve_simulation_scope(&game, "team1", None, None).unwrap();
+
+        assert_eq!(active_regions, vec!["south-america".to_string()]);
+        assert_eq!(active_competitions, vec![domestic.id.clone()]);
     }
 
     #[test]
@@ -1095,6 +2473,7 @@ mod tests {
             stats: domain::stats::StatsState::default(),
             world_history: WorldHistoryArchive::default(),
             metadata: WorldDataMetadata::default(),
+            ..Default::default()
         }
     }
 
@@ -1160,6 +2539,12 @@ mod tests {
             players: base_game.players,
             staff: base_game.staff,
             managers: vec![incumbent],
+            competitions: Vec::new(),
+            competition_definitions: None,
+            national_teams: Vec::new(),
+            regions: Vec::new(),
+            default_active_regions: Vec::new(),
+            default_active_competitions: Vec::new(),
             league: Some(league),
             news: vec![NewsArticle::new(
                 "news-1".to_string(),
@@ -1172,6 +2557,8 @@ mod tests {
             stats: sample_stats_state(),
             world_history: archive,
             metadata: WorldDataMetadata {
+                format_version: 2,
+                world_id: "historical-snapshot".to_string(),
                 kind: WorldDataKind::HistoricalSnapshot,
                 base_year: Some(2031),
                 snapshot_date: Some("2031-11-20T00:00:00Z".to_string()),
@@ -1792,6 +3179,74 @@ mod tests {
             });
             assert!(has_assistant);
         }
+    }
+
+    #[test]
+    fn embedded_competition_definitions_replace_the_auto_built_competitions() {
+        use ofm_core::generator::{
+            CompetitionDefinition, CompetitionDefinitionFile, FormatDef, ParticipantSpec,
+        };
+
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::MidSeason,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_historical_snapshot_world();
+        let team_ids: Vec<String> = world.teams.iter().map(|t| t.id.clone()).collect();
+        assert!(team_ids.len() >= 2);
+        world.competition_definitions = Some(CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![CompetitionDefinition {
+                id: "custom-league".to_string(),
+                name: "Custom League".to_string(),
+                r#type: domain::league::CompetitionType::League,
+                scope: domain::league::CompetitionScope::Domestic,
+                region_id: None,
+                country_id: None,
+                required_region_ids: vec![],
+                priority: 0,
+                format: FormatDef {
+                    kind: domain::league::CompetitionFormat::LeagueTable,
+                    legs: None,
+                    group_size: None,
+                    qualifiers_per_group: None,
+                    best_third_qualifiers: None,
+                },
+                participants: ParticipantSpec {
+                    explicit: Some(team_ids.clone()),
+                    selector: None,
+                },
+                berths: Vec::new(),
+                season_start_month: None,
+                season_start_day: None,
+            }],
+        });
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+
+        let (game, _stats) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        let custom = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "custom-league")
+            .expect("authored competition replaces the auto-built ones");
+        assert_eq!(custom.participant_ids, team_ids);
+        assert!(
+            game.competitions
+                .iter()
+                .all(|c| c.id == "custom-league"
+                    || c.kind == domain::league::CompetitionType::InternationalNation),
+            "no auto-generated club competitions when definitions are supplied"
+        );
     }
 
     #[test]

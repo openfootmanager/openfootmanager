@@ -483,6 +483,13 @@ mod tests {
                 vacant_team_days_json: "{}".to_string(),
                 world_history_json: "{}".to_string(),
                 available_staff_market_last_activity_date: None,
+                save_format_version: 2,
+                world_format_version: 2,
+                app_version: String::new(),
+                source_world_id: String::new(),
+                source_world_kind: String::new(),
+                active_region_ids_json: "[]".to_string(),
+                active_competition_ids_json: "[]".to_string(),
             },
         )
         .unwrap();
@@ -597,6 +604,13 @@ mod tests {
                 vacant_team_days_json: "{}".to_string(),
                 world_history_json: "{}".to_string(),
                 available_staff_market_last_activity_date: None,
+                save_format_version: 2,
+                world_format_version: 2,
+                app_version: String::new(),
+                source_world_id: String::new(),
+                source_world_kind: String::new(),
+                active_region_ids_json: "[]".to_string(),
+                active_competition_ids_json: "[]".to_string(),
             },
         )
         .unwrap();

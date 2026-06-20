@@ -12,6 +12,17 @@ use uuid::Uuid;
 const TRANSFER_NEGOTIATION_STALE_DAYS: i64 = 14;
 const MAX_COMPLETED_AI_TRANSFERS_PER_DAY: usize = 2;
 const AWARD_LEADERBOARD_INTEREST_BONUS: i32 = 25;
+/// Only one new club may open talks for a given user player on a single day,
+/// so stars draw steady interest over the window instead of a same-day flood.
+const MAX_NEW_INCOMING_OFFERS_PER_USER_PLAYER_PER_DAY: usize = 1;
+/// Ceiling on brand-new incoming offers across the whole user squad per day.
+const MAX_NEW_INCOMING_USER_OFFERS_PER_DAY: usize = 3;
+/// A club won't pursue a player whose current club out-reputes it by more than
+/// this margin — the player wouldn't realistically drop to a much smaller side.
+const MAX_BUYER_REPUTATION_DEFICIT: i32 = 150;
+/// A club already this deep in a position group has no need to sign another
+/// there, so it looks elsewhere.
+const POSITION_GROUP_SURPLUS_THRESHOLD: usize = 8;
 const ERR_TRANSFER_WINDOW_CLOSED: &str = "be.error.transfers.transferWindowClosed";
 const ERR_CANNOT_BID_ON_OWN_PLAYER: &str = "be.error.transfers.cannotBidOnOwnPlayer";
 const ERR_PLAYER_HAS_NO_TEAM: &str = "be.error.transfers.playerHasNoTeam";
@@ -63,6 +74,62 @@ struct MarketCandidate {
     owner_team_id: String,
     score: i32,
     fee: u64,
+}
+
+/// A player worth pursuing, with buyer-independent appeal precomputed once so
+/// every club can reuse it instead of re-scoring the whole world.
+struct MarketTarget {
+    player_id: String,
+    owner_team_id: String,
+    is_user_owned: bool,
+    score: i32,
+    fee: u64,
+    /// Broad position group (0=GK, 1=DEF, 2=MID, 3=FWD), used to gate buyers
+    /// that are already stacked in that area.
+    position_group_index: usize,
+    /// Reputation of the player's current club, used for reputation-fit gating.
+    owner_reputation: u32,
+    /// Clubs that already hold a pending bid (only tracked for user players,
+    /// the one case where we must avoid duplicate incoming offers).
+    pending_offer_clubs: HashSet<String>,
+}
+
+/// Broad position group index (0=GK, 1=DEF, 2=MID, 3=FWD) for squad-depth maths.
+fn position_group_index(position: &domain::player::Position) -> usize {
+    match position.to_group_position() {
+        domain::player::Position::Goalkeeper => 0,
+        domain::player::Position::Defender => 1,
+        domain::player::Position::Midfielder => 2,
+        _ => 3,
+    }
+}
+
+/// Whether a club has a realistic reason to pursue a target: it isn't far below
+/// the player's current club in stature, and it isn't already overloaded in the
+/// player's position group.
+fn buyer_has_genuine_interest(
+    buyer_reputation: u32,
+    owner_reputation: u32,
+    buyer_position_depth: usize,
+) -> bool {
+    let reputation_deficit = owner_reputation as i32 - buyer_reputation as i32;
+    reputation_deficit <= MAX_BUYER_REPUTATION_DEFICIT
+        && buyer_position_depth < POSITION_GROUP_SURPLUS_THRESHOLD
+}
+
+/// Current squad depth per club and broad position group, computed once so the
+/// market sweep doesn't re-scan every roster.
+fn squad_position_depths(game: &Game) -> std::collections::HashMap<String, [usize; 4]> {
+    let mut depths: std::collections::HashMap<String, [usize; 4]> =
+        std::collections::HashMap::new();
+    for player in &game.players {
+        let Some(team_id) = player.team_id.as_deref() else {
+            continue;
+        };
+        let slot = position_group_index(&player.natural_position);
+        depths.entry(team_id.to_string()).or_default()[slot] += 1;
+    }
+    depths
 }
 
 fn contract_days_remaining(current_date: NaiveDate, contract_end: Option<&str>) -> Option<i64> {
@@ -254,13 +321,6 @@ fn suggested_incoming_fee(current_date: NaiveDate, player: &domain::player::Play
     ((player.market_value as f64) * multiplier).round() as u64
 }
 
-fn has_open_incoming_offer_from_club(player: &domain::player::Player, club_id: &str) -> bool {
-    player
-        .transfer_offers
-        .iter()
-        .any(|offer| offer.from_team_id == club_id && offer.status == TransferOfferStatus::Pending)
-}
-
 fn offer_is_stale(current_date: NaiveDate, offer: &domain::player::TransferOffer) -> bool {
     if offer.status != TransferOfferStatus::Pending {
         return false;
@@ -375,73 +435,133 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let award_leaderboards = award_leaderboard_player_ids(game);
+    let team_reputation: std::collections::HashMap<String, u32> = game
+        .teams
+        .iter()
+        .map(|team| (team.id.clone(), team.reputation))
+        .collect();
+    let position_depths = squad_position_depths(game);
 
+    // In a multi-competition world only the player's active scope shops the
+    // market each day; dormant clubs are handled by lighter periodic passes.
+    // `None` means no scope is configured, so every club is a potential buyer.
+    let active_team_ids = game.active_team_ids();
     let buyer_ids: Vec<String> = game
         .teams
         .iter()
         .filter(|team| Some(team.id.as_str()) != user_team_id.as_deref())
+        .filter(|team| {
+            active_team_ids
+                .as_ref()
+                .is_none_or(|ids| ids.contains(&team.id))
+        })
         .map(|team| team.id.clone())
         .collect();
     let mut completed_ai_transfers = 0_usize;
     let mut moved_player_ids: HashSet<String> = HashSet::new();
+    // New incoming offers opened to user players today, tracked to throttle the
+    // inbox: at most one new club per player and a hard squad-wide ceiling.
+    let mut new_offers_per_player: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    let mut new_user_offers_today = 0_usize;
+
+    // A player's transfer appeal and asking fee don't depend on who's buying, so
+    // score every player once and keep only the genuinely attractive targets.
+    // Each club then scans this short, score-sorted list instead of the whole
+    // world, turning an O(clubs × players) sweep into O(players + clubs × shortlist).
+    let mut shortlist: Vec<MarketTarget> = Vec::new();
+    for player in &game.players {
+        let Some(owner_team_id) = player.team_id.as_deref() else {
+            continue;
+        };
+        let mut score = incoming_interest_score(current_date, player);
+        if award_leaderboards.contains(&player.id) {
+            score += AWARD_LEADERBOARD_INTEREST_BONUS;
+        }
+        if score < 35 {
+            continue;
+        }
+        let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
+        let pending_offer_clubs: HashSet<String> = if is_user_owned {
+            player
+                .transfer_offers
+                .iter()
+                .filter(|offer| offer.status == TransferOfferStatus::Pending)
+                .map(|offer| offer.from_team_id.clone())
+                .collect()
+        } else {
+            HashSet::new()
+        };
+        shortlist.push(MarketTarget {
+            player_id: player.id.clone(),
+            owner_team_id: owner_team_id.to_string(),
+            is_user_owned,
+            score,
+            fee: suggested_incoming_fee(current_date, player),
+            position_group_index: position_group_index(&player.natural_position),
+            owner_reputation: team_reputation.get(owner_team_id).copied().unwrap_or(0),
+            pending_offer_clubs,
+        });
+    }
+    // Highest appeal first; a stable sort preserves the original ordering among
+    // equally appealing targets, so selection is unchanged.
+    shortlist.sort_by(|a, b| b.score.cmp(&a.score));
 
     for buyer_id in buyer_ids {
         let Some(buyer_team) = game.teams.iter().find(|team| team.id == buyer_id).cloned() else {
             continue;
         };
+        let buyer_depths = position_depths.get(&buyer_id).copied().unwrap_or([0; 4]);
 
-        let mut chosen: Option<MarketCandidate> = None;
-
-        for player in &game.players {
-            let Some(owner_team_id) = player.team_id.as_deref() else {
-                continue;
-            };
-
-            if owner_team_id == buyer_id || moved_player_ids.contains(&player.id) {
-                continue;
+        // The list is score-sorted, so the first target clearing this club's
+        // filters is its highest-appeal eligible signing.
+        let chosen = shortlist.iter().find(|target| {
+            if target.owner_team_id == buyer_id || moved_player_ids.contains(&target.player_id) {
+                return false;
             }
-
-            let is_user_owned = Some(owner_team_id) == user_team_id.as_deref();
-            if !is_user_owned && completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
-                continue;
+            if target.is_user_owned {
+                if target.pending_offer_clubs.contains(&buyer_id)
+                    || new_user_offers_today >= MAX_NEW_INCOMING_USER_OFFERS_PER_DAY
+                    || new_offers_per_player
+                        .get(&target.player_id)
+                        .copied()
+                        .unwrap_or(0)
+                        >= MAX_NEW_INCOMING_OFFERS_PER_USER_PLAYER_PER_DAY
+                {
+                    return false;
+                }
+            } else if completed_ai_transfers >= MAX_COMPLETED_AI_TRANSFERS_PER_DAY {
+                return false;
             }
-
-            if is_user_owned && has_open_incoming_offer_from_club(player, &buyer_id) {
-                continue;
+            // Clubs only chase players that fit their stature and a position they
+            // actually need, so a single star doesn't draw the whole division.
+            if !buyer_has_genuine_interest(
+                buyer_team.reputation,
+                target.owner_reputation,
+                buyer_depths[target.position_group_index],
+            ) {
+                return false;
             }
+            buyer_team.transfer_budget >= target.fee as i64
+                && buyer_team.finance >= target.fee as i64
+        });
 
-            let mut score = incoming_interest_score(current_date, player);
-            if award_leaderboards.contains(&player.id) {
-                score += AWARD_LEADERBOARD_INTEREST_BONUS;
-            }
-            if score < 35 {
-                continue;
-            }
-
-            let fee = suggested_incoming_fee(current_date, player);
-            if buyer_team.transfer_budget < fee as i64 || buyer_team.finance < fee as i64 {
-                continue;
-            }
-
-            if chosen
-                .as_ref()
-                .is_none_or(|candidate| score > candidate.score)
-            {
-                chosen = Some(MarketCandidate {
-                    player_id: player.id.clone(),
-                    owner_team_id: owner_team_id.to_string(),
-                    score,
-                    fee,
-                });
-            }
-        }
-
-        let Some(candidate) = chosen else {
+        let Some(target) = chosen else {
             continue;
+        };
+        let candidate = MarketCandidate {
+            player_id: target.player_id.clone(),
+            owner_team_id: target.owner_team_id.clone(),
+            score: target.score,
+            fee: target.fee,
         };
 
         if Some(candidate.owner_team_id.as_str()) == user_team_id.as_deref() {
             create_incoming_user_offer(game, &candidate, &buyer_id, &buyer_team.name, &today);
+            *new_offers_per_player
+                .entry(candidate.player_id.clone())
+                .or_insert(0) += 1;
+            new_user_offers_today += 1;
             continue;
         }
 
@@ -475,38 +595,59 @@ fn create_incoming_user_offer(
     buyer_name: &str,
     today: &str,
 ) {
-    let Some(player) = game
-        .players
-        .iter_mut()
-        .find(|player| player.id == candidate.player_id)
-    else {
-        return;
+    let (player_name, interested_clubs) = {
+        let Some(player) = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == candidate.player_id)
+        else {
+            return;
+        };
+
+        player.transfer_offers.push(domain::player::TransferOffer {
+            id: Uuid::new_v4().to_string(),
+            from_team_id: buyer_id.to_string(),
+            fee: candidate.fee,
+            wage_offered: 0,
+            last_manager_fee: None,
+            negotiation_round: 1,
+            suggested_counter_fee: None,
+            status: TransferOfferStatus::Pending,
+            date: today.to_string(),
+        });
+
+        // Distinct clubs currently holding a live bid — the figure the digest
+        // reports ("N clubs interested").
+        let interested_clubs = player
+            .transfer_offers
+            .iter()
+            .filter(|offer| offer.status == TransferOfferStatus::Pending)
+            .map(|offer| offer.from_team_id.clone())
+            .collect::<HashSet<String>>()
+            .len();
+
+        (player.full_name.clone(), interested_clubs)
     };
 
-    let offer_id = Uuid::new_v4().to_string();
-
-    player.transfer_offers.push(domain::player::TransferOffer {
-        id: offer_id.clone(),
-        from_team_id: buyer_id.to_string(),
-        fee: candidate.fee,
-        wage_offered: 0,
-        last_manager_fee: None,
-        negotiation_round: 1,
-        suggested_counter_fee: None,
-        status: TransferOfferStatus::Pending,
-        date: today.to_string(),
-    });
-
-    let player_name = player.full_name.clone();
-    let message = crate::messages::incoming_transfer_offer_message(
-        &offer_id,
+    // One updating thread per player rather than a fresh message per club, so
+    // repeat interest never floods the inbox.
+    let message = crate::messages::transfer_interest_digest_message(
         &candidate.player_id,
         &player_name,
+        interested_clubs,
         buyer_name,
         candidate.fee,
         today,
     );
-    game.messages.push(message);
+    if let Some(existing) = game
+        .messages
+        .iter_mut()
+        .find(|existing| existing.id == message.id)
+    {
+        *existing = message;
+    } else {
+        game.messages.push(message);
+    }
 }
 
 fn buyer_counter_offer_ceiling(
@@ -1283,6 +1424,55 @@ mod tests {
                 .iter()
                 .any(|message| { message.context.player_id.as_deref() == Some("player-award") }),
             "The incoming bid should surface through the usual inbox flow"
+        );
+    }
+
+    #[test]
+    fn dormant_clubs_outside_the_active_scope_skip_the_market() {
+        use domain::league::{League, StandingEntry};
+
+        let mut game = make_game();
+        // team3 plays in the actively-simulated competition; team2 is moved into
+        // a dormant competition the player isn't simulating in full.
+        game.teams.push(make_team("team3", "Gamma FC", 700));
+
+        let active = League {
+            id: "active-league".to_string(),
+            standings: vec![
+                StandingEntry::new("team1".to_string()),
+                StandingEntry::new("team3".to_string()),
+            ],
+            ..Default::default()
+        };
+        let dormant = League {
+            id: "dormant-league".to_string(),
+            standings: vec![StandingEntry::new("team2".to_string())],
+            ..Default::default()
+        };
+        game.competitions = vec![active, dormant];
+        game.active_competition_ids = vec!["active-league".to_string()];
+
+        evaluate_transfer_market(&mut game);
+
+        let player = game
+            .players
+            .iter()
+            .find(|player| player.id == "player-award")
+            .expect("award leaderboard player should exist");
+
+        assert!(
+            player
+                .transfer_offers
+                .iter()
+                .any(|offer| offer.from_team_id == "team3"),
+            "an active club should still bid on the user's standout player"
+        );
+        assert!(
+            !player
+                .transfer_offers
+                .iter()
+                .any(|offer| offer.from_team_id == "team2"),
+            "a dormant club outside the active simulation scope must not shop the market"
         );
     }
 }

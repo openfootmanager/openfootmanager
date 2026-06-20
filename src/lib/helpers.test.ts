@@ -202,14 +202,16 @@ describe("findNextFixture", () => {
 });
 
 describe("season helpers", () => {
-  it("computes the expected double round-robin fixture count for even-sized leagues", () => {
+  it("computes the expected double round-robin fixture count for any league size", () => {
     expect(expectedFixtureCount(16)).toBe(240);
     expect(expectedFixtureCount(4)).toBe(12);
+    // Odd-sized leagues play the same total via byes.
+    expect(expectedFixtureCount(5)).toBe(20);
+    expect(expectedFixtureCount(3)).toBe(6);
   });
 
-  it("treats odd-sized or undersized leagues as incomplete schedules", () => {
+  it("treats undersized leagues as incomplete schedules", () => {
     expect(expectedFixtureCount(1)).toBeNull();
-    expect(expectedFixtureCount(3)).toBeNull();
   });
 
   it("requires a full plausible schedule before marking the season complete", () => {

@@ -1,16 +1,24 @@
 import type { FixtureData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
+import type { DigestEntry, DigestStopReason } from "../../hooks/useDigestAdvance";
+import type { BlockerData } from "../../services/advanceTimeService";
 import DashboardBlockerModal from "./DashboardBlockerModal";
 import DashboardCloseConfirmModal from "./DashboardCloseConfirmModal";
 import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
 import DashboardExitSavingModal from "./DashboardExitSavingModal";
 import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
+import DashboardResultsRecapModal from "./DashboardResultsRecapModal";
+import DashboardSimulatingModal from "./DashboardSimulatingModal";
+import type { AdvanceRecap } from "./advanceRecap";
 
 interface DashboardOverlaysProps {
   blockerModal: BlockerModal | null;
   currentModeMeta: DashboardMatchModeMeta;
+  isAdvancing: boolean;
+  recapResults: AdvanceRecap | null;
+  onCloseRecap: () => void;
   handleConfirmMatch: () => void;
   handleExitToMenu: () => void | Promise<void>;
   handleNavigate: (tab: string) => void;
@@ -26,11 +34,22 @@ interface DashboardOverlaysProps {
   showMatchConfirm: boolean;
   teams: TeamData[];
   todayMatchFixture: FixtureData | null;
+  // Digest feed props (present when digest mode is active)
+  digestEntries?: DigestEntry[];
+  digestStopReason?: DigestStopReason | null;
+  isDigestVisible?: boolean;
+  isDigestRunning?: boolean;
+  onDigestViewBlockers?: (blockers: BlockerData[]) => void;
+  onDigestContinueAfterBlocker?: () => void;
+  onDismissDigest?: () => void;
 }
 
 export default function DashboardOverlays({
   blockerModal,
   currentModeMeta,
+  isAdvancing,
+  recapResults,
+  onCloseRecap,
   handleConfirmMatch,
   handleExitToMenu,
   handleNavigate,
@@ -46,9 +65,31 @@ export default function DashboardOverlays({
   showMatchConfirm,
   teams,
   todayMatchFixture,
+  digestEntries,
+  digestStopReason,
+  isDigestVisible,
+  isDigestRunning,
+  onDigestViewBlockers,
+  onDigestContinueAfterBlocker,
+  onDismissDigest,
 }: DashboardOverlaysProps) {
   return (
     <>
+      {(isDigestVisible || isAdvancing) ? (
+        <DashboardSimulatingModal
+          digestEntries={digestEntries}
+          isDigestRunning={isDigestRunning}
+          stopReason={digestStopReason}
+          onDismiss={onDismissDigest}
+          onViewBlockers={onDigestViewBlockers}
+          onContinueAfterBlocker={onDigestContinueAfterBlocker}
+        />
+      ) : null}
+
+      {!isAdvancing && recapResults ? (
+        <DashboardResultsRecapModal recap={recapResults} onClose={onCloseRecap} />
+      ) : null}
+
       {isExitingToMenu ? <DashboardExitSavingModal /> : null}
 
       {showExitConfirm ? (

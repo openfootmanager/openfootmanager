@@ -2,6 +2,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::commands::round_summary::{build_round_summary_dto, RoundSummaryDto};
+use ofm_core::advance_results::{collect_advance_results, AdvanceMatchResult};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
 use ofm_core::state::StateManager;
@@ -14,13 +15,16 @@ pub struct AdvanceTimeWithModeResponse {
     pub fixture_index: Option<usize>,
     pub mode: Option<String>,
     pub round_summary: Option<RoundSummaryDto>,
+    /// Matches finished during this advance (user's competitions + nationals).
+    #[serde(default)]
+    pub results: Vec<AdvanceMatchResult>,
 }
 
 fn round_context_for_today(
     game: &Game,
     today: &str,
 ) -> Option<(u32, Vec<domain::league::StandingEntry>)> {
-    let league = game.league.as_ref()?;
+    let league = game.primary_competition()?;
     let matchday = league
         .fixtures
         .iter()
@@ -30,15 +34,15 @@ fn round_context_for_today(
     Some((matchday, league.standings.clone()))
 }
 
-fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<usize> {
+fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usize)> {
     let user_team_id = game.manager.team_id.as_ref()?;
-    let league = game.league.as_ref()?;
-
-    league
-        .fixtures
-        .iter()
-        .enumerate()
-        .find_map(|(index, fixture)| {
+    for (competition_index, competition) in game.competitions.iter().enumerate() {
+        if !game.active_competition_ids.is_empty()
+            && !game.active_competition_ids.contains(&competition.id)
+        {
+            continue;
+        }
+        if let Some(fixture_index) = competition.fixtures.iter().enumerate().find_map(|(index, fixture)| {
             if fixture.date == today
                 && fixture.status == domain::league::FixtureStatus::Scheduled
                 && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
@@ -47,7 +51,21 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<usize> {
             } else {
                 None
             }
-        })
+        }) {
+            return Some((competition_index, fixture_index));
+        }
+    }
+    let league = game.league.as_ref()?;
+    league.fixtures.iter().enumerate().find_map(|(index, fixture)| {
+        if fixture.date == today
+            && fixture.status == domain::league::FixtureStatus::Scheduled
+            && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
+        {
+            Some((0, index))
+        } else {
+            None
+        }
+    })
 }
 
 pub fn advance_time_with_mode(
@@ -61,15 +79,18 @@ pub fn advance_time_with_mode(
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let round_context = round_context_for_today(&game, &today);
-    let user_fixture_idx = scheduled_user_fixture_index(&game, &today);
+    let user_fixture = scheduled_user_fixture_index(&game, &today);
 
     info!(
-        "[cmd] advance_time_with_mode: date={}, user_team_id={:?}, user_fixture_idx={:?}",
-        today, game.manager.team_id, user_fixture_idx
+        "[cmd] advance_time_with_mode: date={}, user_team_id={:?}, user_fixture={:?}",
+        today, game.manager.team_id, user_fixture
     );
 
-    match (mode, user_fixture_idx) {
-        ("live" | "spectator", Some(index)) => {
+    match (mode, user_fixture) {
+        ("live" | "spectator", Some((competition_index, index))) => {
+            if let Some(competition) = game.competitions.get(competition_index).cloned() {
+                game.league = Some(competition);
+            }
             let match_mode = if mode == "live" {
                 MatchMode::Live
             } else {
@@ -93,6 +114,12 @@ pub fn advance_time_with_mode(
                 Some(index),
                 &mut |capture| captures.push(capture),
             );
+            if competition_index < game.competitions.len() {
+                if let Some(updated_competition) = game.league.take() {
+                    game.competitions[competition_index] = updated_competition;
+                    game.sync_legacy_league();
+                }
+            }
             for capture in captures {
                 state.append_stats_state(capture);
             }
@@ -111,9 +138,13 @@ pub fn advance_time_with_mode(
                 fixture_index: Some(index),
                 mode: Some(mode.to_string()),
                 round_summary,
+                results: Vec::new(),
             })
         }
-        ("delegate", Some(index)) => {
+        ("delegate", Some((competition_index, index))) => {
+            if let Some(competition) = game.competitions.get(competition_index).cloned() {
+                game.league = Some(competition);
+            }
             info!(
                 "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
                 index, today
@@ -143,6 +174,12 @@ pub fn advance_time_with_mode(
                 &report,
                 &mut |capture| captures.push(capture),
             );
+            if competition_index < game.competitions.len() {
+                if let Some(updated_competition) = game.league.take() {
+                    game.competitions[competition_index] = updated_competition;
+                    game.sync_legacy_league();
+                }
+            }
 
             for capture in captures {
                 state.append_stats_state(capture);
@@ -156,6 +193,7 @@ pub fn advance_time_with_mode(
                     });
 
             ofm_core::turn::finish_live_match_day(&mut game);
+            let results = collect_advance_results(&game, &today);
             state.set_game(game.clone());
 
             Ok(AdvanceTimeWithModeResponse {
@@ -165,6 +203,7 @@ pub fn advance_time_with_mode(
                 fixture_index: None,
                 mode: None,
                 round_summary,
+                results,
             })
         }
         _ => {
@@ -185,6 +224,7 @@ pub fn advance_time_with_mode(
                     .and_then(|(matchday, previous_standings)| {
                         build_round_summary_dto(&game, *matchday, previous_standings)
                     });
+            let results = collect_advance_results(&game, &today);
             state.set_game(game.clone());
 
             Ok(AdvanceTimeWithModeResponse {
@@ -194,6 +234,7 @@ pub fn advance_time_with_mode(
                 fixture_index: None,
                 mode: None,
                 round_summary,
+                results,
             })
         }
     }

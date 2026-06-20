@@ -1,7 +1,9 @@
+pub mod competition_repo;
 pub mod league_repo;
 pub mod manager_repo;
 pub mod message_repo;
 pub mod meta_repo;
+pub mod national_team_repo;
 pub mod news_repo;
 pub mod objective_repo;
 pub mod player_repo;

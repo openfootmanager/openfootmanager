@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { GameStateData, StaffData } from "../../store/gameStore";
+import { useEffect, useState } from "react";
+import { GameStateData, StaffData, useGameStore } from "../../store/gameStore";
+import { getStaff, type StaffSlice } from "../../services/staffService";
 import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
 import {
   UserCog,
@@ -25,7 +26,7 @@ import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 
 interface StaffTabProps {
-  gameState: GameStateData;
+  gameState: GameStateData | null;
   onGameUpdate?: (state: GameStateData) => void;
   onNavigate?: (tab: string, context?: DashboardNavigateContext) => void;
 }
@@ -65,22 +66,42 @@ function ovrRating(s: StaffData): number {
 
 export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffTabProps) {
   const { t, i18n } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
-  const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
-  const userTeamId = gameState.manager.team_id;
+  const { sessionState } = useGameStore();
+  const [fetchedStaff, setFetchedStaff] = useState<StaffSlice | null>(null);
   const [view, setView] = useState<"mystaff" | "available">("mystaff");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const myStaff = gameState.staff.filter((s) => s.team_id === userTeamId);
-  const availableStaff = gameState.staff.filter((s) => !s.team_id);
+  const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+
+  useEffect(() => {
+    if (!teamId) return;
+    void getStaff(teamId).then(setFetchedStaff).catch(() => {});
+  }, [teamId]);
+
+  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
+
+  const myStaff = fetchedStaff?.team_staff ?? gameState?.staff.filter((s) => s.team_id === teamId) ?? [];
+  const availableStaff = fetchedStaff?.available_staff ?? gameState?.staff.filter((s) => !s.team_id) ?? [];
+  const assignments = fetchedStaff?.scouting_assignments ?? gameState?.scouting_assignments ?? [];
+  const youthAssignments = fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
+
+  const applyStaffUpdate = (updated: GameStateData) => {
+    onGameUpdate?.(updated);
+    setFetchedStaff({
+      team_staff: updated.staff.filter((s) => s.team_id === teamId),
+      available_staff: updated.staff.filter((s) => !s.team_id),
+      scouting_assignments: updated.scouting_assignments,
+      youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
+    });
+  };
 
   const handleHire = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      const updated = await hireStaff(staffId);
-      onGameUpdate?.(updated);
+      applyStaffUpdate(await hireStaff(staffId));
     } catch (err) {
       console.error("Failed to hire staff:", err);
     } finally {
@@ -91,8 +112,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const handleRelease = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      const updated = await releaseStaff(staffId);
-      onGameUpdate?.(updated);
+      applyStaffUpdate(await releaseStaff(staffId));
     } catch (err) {
       console.error("Failed to release staff:", err);
     } finally {
@@ -197,15 +217,9 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             const best = bestAttr(staff);
             const isLoading = actionLoading === staff.id;
             const scoutingLoad =
-              gameState.scouting_assignments.filter(
-                (assignment) => assignment.scout_id === staff.id,
-              ).length +
-              (gameState.youth_scouting_assignments || []).filter(
-                (assignment) => assignment.scout_id === staff.id,
-              ).length;
-            const youthLoad = (gameState.youth_scouting_assignments || []).filter(
-              (assignment) => assignment.scout_id === staff.id,
-            ).length;
+              assignments.filter((a) => a.scout_id === staff.id).length +
+              youthAssignments.filter((a) => a.scout_id === staff.id).length;
+            const youthLoad = youthAssignments.filter((a) => a.scout_id === staff.id).length;
             const scoutingLoadLabel = `${scoutingLoad} ${t(
               scoutingLoad === 1 ? "staff.activeAssignment" : "staff.activeAssignments",
             )}`;
@@ -281,7 +295,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           </span>
                           {staff.team_id && view === "available" && (
                             <span className="ml-1.5">
-                              @ {getTeamName(gameState.teams, staff.team_id)}
+                              @ {getTeamName(gameState?.teams ?? [], staff.team_id)}
                             </span>
                           )}
                         </p>

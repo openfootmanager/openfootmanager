@@ -7,7 +7,9 @@ import type {
   PlayerSelectionOptions,
   TeamMatchRolesData,
 } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
+import { getSquad } from "../../services/squadService";
 import {
   applyLineupDrop,
   applyLineupSwap,
@@ -54,7 +56,7 @@ import TacticsCommandBar, {
 } from "./TacticsCommandBar";
 
 interface TacticsTabProps {
-  gameState: GameStateData;
+  gameState: GameStateData | null;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onGameUpdate: (g: GameStateData) => void;
 }
@@ -71,13 +73,14 @@ export default function TacticsTab({
   onGameUpdate,
 }: TacticsTabProps): JSX.Element {
   const { t } = useTranslation();
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
-  );
-  const initialPreset = myTeam
+  const { sessionState } = useGameStore();
+  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
+  const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
+  const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
-        myTeam.formation || "4-4-2",
-        myTeam.play_style || "Balanced",
+        initialTeam.formation || "4-4-2",
+        initialTeam.play_style || "Balanced",
       )
     : null;
   const [playerSearch, setPlayerSearch] = useState("");
@@ -101,7 +104,7 @@ export default function TacticsTab({
   const [activeTab, setActiveTab] = useState<"lineup" | "roles">("lineup");
   const [tableMode, setTableMode] = useState<TacticsTableMode>("lineup");
   const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
-    loadCustomTactics(gameState),
+    gameState ? loadCustomTactics(gameState) : [],
   );
   const [activeTacticId, setActiveTacticId] = useState<string | null>(
     initialPreset ? `preset:${initialPreset.id}` : null,
@@ -116,12 +119,19 @@ export default function TacticsTab({
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
-  const roster = buildTacticsRoster(gameState.players, myTeam?.id ?? "");
-  const customTacticsStorageKey = buildCustomTacticsStorageKey(gameState);
+  useEffect(() => {
+    if (!teamId) return;
+    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
+  }, [teamId]);
 
-  const formation = myTeam?.formation || "4-4-2";
-  const activePlayStyle = myTeam?.play_style || "Balanced";
-  const savedStartingXiKey = (myTeam?.starting_xi_ids || []).join(",");
+  const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
+  const players = fetchedSquad ?? gameState?.players ?? [];
+  const roster = team ? buildTacticsRoster(players, team.id) : [];
+  const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
+
+  const formation = team?.formation || "4-4-2";
+  const activePlayStyle = team?.play_style || "Balanced";
+  const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
   const playersById = useMemo(
     () => new Map(roster.map((player) => [player.id, player])),
     [roster],
@@ -136,12 +146,12 @@ export default function TacticsTab({
         formation,
         pendingStartingXiIds,
         playersById,
-        savedStartingXiIds: myTeam?.starting_xi_ids || [],
+        savedStartingXiIds: team?.starting_xi_ids || [],
       }),
     [
       available.map((player) => player.id).join(","),
       formation,
-      (myTeam?.starting_xi_ids || []).join(","),
+      (team?.starting_xi_ids || []).join(","),
       (pendingStartingXiIds || []).join(","),
       roster.map((player) => player.id).join(","),
     ],
@@ -198,11 +208,13 @@ export default function TacticsTab({
   );
 
   useEffect(() => {
+    if (!gameState || !customTacticsStorageKey) return;
     hydratedCustomTacticsScopeRef.current = null;
     setCustomTactics(loadCustomTactics(gameState));
   }, [customTacticsStorageKey, gameState]);
 
   useEffect(() => {
+    if (!gameState || !customTacticsStorageKey) return;
     if (hydratedCustomTacticsScopeRef.current !== customTacticsStorageKey) {
       hydratedCustomTacticsScopeRef.current = customTacticsStorageKey;
       return;
@@ -312,8 +324,8 @@ export default function TacticsTab({
     xiActivePosition,
   );
   const effectiveMatchRoles = useMemo(
-    () => resolveEffectiveMatchRoles(startingXI, myTeam?.match_roles),
-    [myTeam?.match_roles, startingXI],
+    () => resolveEffectiveMatchRoles(startingXI, team?.match_roles),
+    [team?.match_roles, startingXI],
   );
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
@@ -477,7 +489,7 @@ export default function TacticsTab({
   function handleSaveTactic(): void {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
-    if (isActiveCustomTactic && activeTactic) {
+    if (isActiveCustomTactic && activeTactic && customTactics.some((e) => e.id === activeTactic.id)) {
       setCustomTactics((current) =>
         current.map((entry) =>
           entry.id === activeTactic.id
@@ -989,10 +1001,13 @@ export default function TacticsTab({
     </div>
   );
 
-  return (
-    !myTeam ? (
+  if (!team) {
+    return (
       <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
-    ) : (
+    );
+  }
+
+  return (
     <div className="mx-auto flex w-full max-w-[118rem] flex-col gap-5">
       <div
         ref={dragPreviewRef}
@@ -1057,12 +1072,11 @@ export default function TacticsTab({
       ) : (
         <TacticsRolesPanel
           allSquad={roster}
-          matchRoles={myTeam.match_roles}
+          matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
           startingPlayers={startingXI}
         />
       )}
     </div>
-    )
   );
 }

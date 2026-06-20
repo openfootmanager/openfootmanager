@@ -289,6 +289,7 @@ mod tests {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         };
 
         let league = League {
@@ -302,6 +303,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..Default::default()
         };
 
         let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);

@@ -414,3 +414,234 @@ pub(super) fn generate_random_staff_unattached_from_def(
     s.nationality = nationality.to_string();
     s
 }
+
+// ---------------------------------------------------------------------------
+// Authored players (world packages)
+// ---------------------------------------------------------------------------
+
+fn jitter(base: i32, spread: i32, lo: u8, hi: u8, rng: &mut impl Rng) -> u8 {
+    (base + rng.random_range(-spread..=spread)).clamp(lo as i32, hi as i32) as u8
+}
+
+/// Build a realistic attribute spread centred on a target `overall`, shaped by
+/// position so a goalkeeper's keeping attributes and a defender's defending sit
+/// high. Used when a hand-authored player gives an `overall` rather than a full
+/// `attributes` block; the resulting position-weighted OVR lands near `overall`.
+pub(super) fn attributes_for_overall(
+    overall: u8,
+    position: &Position,
+    rng: &mut impl Rng,
+) -> PlayerAttributes {
+    let base = overall as i32;
+    let group = position.to_group_position();
+    let is_gk = matches!(group, Position::Goalkeeper);
+    let is_def = matches!(group, Position::Defender);
+    let is_fwd = matches!(group, Position::Forward);
+
+    PlayerAttributes {
+        pace: jitter(base, 8, 30, 97, rng),
+        stamina: jitter(base, 8, 30, 97, rng),
+        strength: jitter(base, 8, 30, 97, rng),
+        agility: jitter(base, 8, 30, 97, rng),
+        passing: jitter(base, 8, 30, 97, rng),
+        shooting: if is_gk {
+            rng.random_range(20..50)
+        } else {
+            jitter(base, 8, 30, 97, rng)
+        },
+        tackling: if is_gk || is_fwd {
+            jitter(base - 15, 8, 20, 80, rng)
+        } else {
+            jitter(base, 8, 30, 97, rng)
+        },
+        dribbling: if is_gk {
+            rng.random_range(20..50)
+        } else {
+            jitter(base, 8, 30, 97, rng)
+        },
+        defending: if is_gk {
+            rng.random_range(25..55)
+        } else if is_def {
+            jitter(base + 3, 6, 40, 97, rng)
+        } else {
+            jitter(base, 8, 30, 97, rng)
+        },
+        positioning: jitter(base, 8, 30, 97, rng),
+        vision: jitter(base, 8, 30, 97, rng),
+        decisions: jitter(base, 8, 30, 97, rng),
+        composure: jitter(base, 8, 30, 97, rng),
+        aggression: jitter(base - 10, 10, 30, 90, rng),
+        teamwork: jitter(base, 8, 40, 97, rng),
+        leadership: jitter(base - 10, 12, 25, 90, rng),
+        handling: if is_gk {
+            jitter(base, 8, 40, 97, rng)
+        } else {
+            rng.random_range(10..35)
+        },
+        reflexes: if is_gk {
+            jitter(base, 8, 40, 97, rng)
+        } else {
+            rng.random_range(20..50)
+        },
+        aerial: if is_gk {
+            jitter(base, 8, 40, 97, rng)
+        } else if is_def {
+            jitter(base, 8, 40, 95, rng)
+        } else {
+            jitter(base - 10, 10, 30, 80, rng)
+        },
+    }
+}
+
+fn resolve_def_name(
+    def: &super::package::PlayerDef,
+    nationality: &str,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> (String, String) {
+    if !def.first_name.is_empty() || !def.last_name.is_empty() {
+        (def.first_name.clone(), def.last_name.clone())
+    } else if !def.name.is_empty() {
+        let mut parts = def.name.splitn(2, ' ');
+        let first = parts.next().unwrap_or("").to_string();
+        let last = parts.next().unwrap_or("").to_string();
+        (first, last)
+    } else {
+        pick_name_from_def(nationality, names_def, rng)
+    }
+}
+
+fn resolve_birth_year(def: &super::package::PlayerDef, rng: &mut impl Rng) -> u32 {
+    if let Some(dob) = &def.date_of_birth {
+        dob.get(0..4)
+            .and_then(|year| year.parse::<u32>().ok())
+            .unwrap_or(2026 - 24)
+    } else if let Some(age) = def.age {
+        2026u32.saturating_sub(age)
+    } else {
+        2026 - rng.random_range(18..34)
+    }
+}
+
+/// Convert a hand-authored [`PlayerDef`](super::package::PlayerDef) into a full
+/// player for `team_id`. Ability comes from an explicit `attributes` block or is
+/// generated around `overall`; identity falls back to the name pools when not
+/// given.
+pub(super) fn generate_player_from_def(
+    def: &super::package::PlayerDef,
+    team_id: &str,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> Player {
+    let nationality = canonicalize_generated_nationality(&def.nationality);
+    let (first_name, last_name) = resolve_def_name(def, &nationality, names_def, rng);
+    let full_name = format!("{first_name} {last_name}").trim().to_string();
+    let match_name = if last_name.is_empty() {
+        full_name.clone()
+    } else {
+        last_name
+    };
+
+    let current_year: u32 = 2026;
+    let birth_year = resolve_birth_year(def, rng);
+    let dob = def
+        .date_of_birth
+        .clone()
+        .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
+    let age = current_year.saturating_sub(birth_year);
+
+    let attributes = def.attributes.clone().unwrap_or_else(|| {
+        attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng)
+    });
+
+    let approx_ovr = (attributes.pace as u32
+        + attributes.stamina as u32
+        + attributes.strength as u32
+        + attributes.passing as u32
+        + attributes.shooting as u32
+        + attributes.tackling as u32
+        + attributes.dribbling as u32
+        + attributes.defending as u32
+        + attributes.positioning as u32
+        + attributes.vision as u32
+        + attributes.decisions as u32)
+        / 11;
+    let age_factor = if age <= 23 {
+        1.5
+    } else if age <= 28 {
+        1.2
+    } else if age <= 32 {
+        0.8
+    } else {
+        0.4
+    };
+    let market_value = ((approx_ovr as f64).powi(2) * 500.0 * age_factor) as u64;
+    let wage = (market_value / 200).max(500) as u32;
+    let contract_years = if age <= 27 {
+        rng.random_range(2..6)
+    } else {
+        rng.random_range(1..4)
+    };
+    let contract_end = format!("{}-06-30", 2026 + contract_years);
+
+    let id = if def.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        def.id.clone()
+    };
+    let mut player = Player::new(
+        id,
+        match_name,
+        full_name,
+        dob,
+        nationality,
+        def.position.clone(),
+        attributes,
+    );
+    player.team_id = Some(team_id.to_string());
+    player.market_value = market_value;
+    player.wage = wage;
+    player.contract_end = Some(contract_end);
+    player.condition = rng.random_range(75..100);
+    player.morale = rng.random_range(40..76);
+
+    let temp_ovr = {
+        use crate::player_rating::natural_ovr;
+        natural_ovr(&player).round() as u8
+    };
+    player.potential = generate_potential(temp_ovr, age);
+    refresh_player_derived(&mut player, current_year);
+    player
+}
+
+/// Generate a random unemployed manager (no team) using the provided name pool.
+/// Used to top up the unemployed manager market when below the seasonal floor.
+pub(super) fn generate_random_unemployed_manager(
+    nationality: &str,
+    names_def: &NamesDefinition,
+    current_year: u32,
+    rng: &mut impl Rng,
+) -> domain::manager::Manager {
+    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
+    let age: u32 = rng.random_range(35..65);
+    let birth_year = current_year.saturating_sub(age);
+    let dob = format!(
+        "{:04}-{:02}-{:02}",
+        birth_year,
+        rng.random_range(1u32..13u32),
+        rng.random_range(1u32..29u32)
+    );
+    let reputation = rng.random_range(200u32..=700u32);
+
+    let mut mgr = domain::manager::Manager::new(
+        Uuid::new_v4().to_string(),
+        first_name,
+        last_name,
+        dob,
+        nationality.to_string(),
+    );
+    mgr.reputation = reputation;
+    mgr.satisfaction = 50;
+    mgr.fan_approval = 50;
+    mgr
+}

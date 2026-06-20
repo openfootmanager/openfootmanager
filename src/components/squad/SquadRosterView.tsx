@@ -4,8 +4,9 @@ import type {
   GameStateData,
   PlayerData,
   PlayerSelectionOptions,
+  TeamData,
 } from "../../store/gameStore";
-import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar } from "../ui";
+import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
   ChevronDown,
@@ -18,8 +19,7 @@ import {
 } from "lucide-react";
 import {
   calcAge,
-  formatExactMoney,
-  formatWeeklyAmount,
+  formatAnnualAmount,
   formatVal,
   getPlayerOvr,
   getContractRiskBadgeVariant,
@@ -65,12 +65,20 @@ import {
   buildToggleTransferListMenuItem,
   buildViewProfileMenuItem,
 } from "../playerActions/playerContextMenuItems";
+import {
+  DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListSortKey,
+  type SquadListSortState,
+} from "./SquadRosterView.state";
 
 interface SquadRosterViewProps {
-  gameState: GameStateData;
-  managerId: string;
-  onGameUpdate?: (g: GameStateData) => void;
+  players: PlayerData[];
+  team: TeamData;
+  clockDate: string;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
+  onMutationComplete?: (g: GameStateData) => void;
+  sortState?: SquadListSortState;
+  onSortStateChange?: (sortState: SquadListSortState) => void;
 }
 
 type FilterScope =
@@ -81,36 +89,30 @@ type FilterScope =
   | "needsCover"
   | "outOfPosition"
   | "injured";
-type SortKey = "pos" | "name" | "age" | "condition" | "morale" | "ovr";
 
 export default function SquadRosterView({
-  gameState,
-  managerId,
-  onGameUpdate,
+  players,
+  team,
+  clockDate,
   onSelectPlayer,
+  onMutationComplete,
+  sortState,
+  onSortStateChange,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix");
-  const myTeam = gameState.teams.find((team) => team.manager_id === managerId);
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("pos");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [localSortState, setLocalSortState] = useState<SquadListSortState>(
+    DEFAULT_SQUAD_LIST_SORT_STATE,
+  );
   const [contractActionPlayerId, setContractActionPlayerId] = useState<
     string | null
   >(null);
   const [contractActionError, setContractActionError] = useState<string | null>(
     null,
   );
-
-  if (!myTeam) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">
-        {t("common.unemployed")}
-      </p>
-    );
-  }
 
   const posOrder: Record<string, number> = {
     Goalkeeper: 1,
@@ -119,10 +121,8 @@ export default function SquadRosterView({
     Forward: 4,
   };
 
-  const roster = gameState.players
-    .filter(
-      (player) => player.team_id === myTeam.id && isSeniorSquadPlayer(player),
-    )
+  const roster = players
+    .filter((player) => isSeniorSquadPlayer(player))
     .sort(
       (a, b) =>
         (posOrder[normalisePosition(a.position)] || 99) -
@@ -136,12 +136,12 @@ export default function SquadRosterView({
   );
 
   const available = roster.filter((player) => !player.injury);
-  const formation = myTeam.formation || "4-4-2";
-  const activePlayStyle = myTeam.play_style || "Balanced";
+  const formation = team.formation || "4-4-2";
+  const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = buildStartingXIIds(
     available,
-    myTeam.starting_xi_ids || [],
+    team.starting_xi_ids || [],
     formation,
   );
   const pitchSlotRows = buildPitchSlotRows(
@@ -164,14 +164,32 @@ export default function SquadRosterView({
       ),
     [roleCoverage],
   );
+  const activeSortState = sortState ?? localSortState;
+  const sortKey = activeSortState.sortKey;
+  const sortDir = activeSortState.sortDir;
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+  const updateSortState = (nextSortState: SquadListSortState) => {
+    if (onSortStateChange) {
+      onSortStateChange(nextSortState);
       return;
     }
-    setSortKey(key);
-    setSortDir(key === "ovr" ? "desc" : "asc");
+
+    setLocalSortState(nextSortState);
+  };
+
+  const toggleSort = (key: SquadListSortKey) => {
+    if (sortKey === key) {
+      updateSortState({
+        sortKey,
+        sortDir: sortDir === "asc" ? "desc" : "asc",
+      });
+      return;
+    }
+
+    updateSortState({
+      sortKey: key,
+      sortDir: key === "ovr" ? "desc" : "asc",
+    });
   };
 
   const isOutOfPosition = (player: PlayerData): boolean => {
@@ -313,7 +331,7 @@ export default function SquadRosterView({
     const updated = await invoke<GameStateData>("set_starting_xi", {
       playerIds,
     });
-    onGameUpdate?.(updated);
+    onMutationComplete?.(updated);
   };
 
   const updateContractExitIntent = async (
@@ -327,7 +345,7 @@ export default function SquadRosterView({
       const result = shouldLetExpire
         ? await setContractExitIntent(playerId, "manager_squad_action")
         : await clearContractExitIntent(playerId);
-      onGameUpdate?.(result.game);
+      onMutationComplete?.(result.game);
     } catch (error) {
       setContractActionError(String(error));
     } finally {
@@ -400,7 +418,7 @@ export default function SquadRosterView({
     );
   };
 
-  const SortHeader = ({ col, label }: { col: SortKey; label: string }) => (
+  const SortHeader = ({ col, label }: { col: SquadListSortKey; label: string }) => (
     <th
       className={`py-2.5 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${sortKey === col ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
       onClick={() => toggleSort(col)}
@@ -534,7 +552,7 @@ export default function SquadRosterView({
         <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
           <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
             <Users className="w-4 h-4 text-accent-400" />
-            {t("squad.title", { team: myTeam.name })}
+            {t("squad.title", { team: team.name })}
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {filteredRoster.length} / {roster.length}{" "}
@@ -611,7 +629,7 @@ export default function SquadRosterView({
                   {t("common.value")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("finances.wagePerWeek")}
+                  {t("finances.wagePerYear")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("playerProfile.yearsRemaining")}
@@ -637,7 +655,7 @@ export default function SquadRosterView({
                 const tacticalFit = getTacticalFit(player);
                 const contractRiskLevel = getContractRiskLevel(
                   player.contract_end,
-                  gameState.clock.current_date,
+                  clockDate,
                 );
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
@@ -718,7 +736,7 @@ export default function SquadRosterView({
                     async () => {
                       try {
                         const updated = await toggleTransferList(player.id);
-                        onGameUpdate?.(updated);
+                        onMutationComplete?.(updated);
                       } catch {
                         return;
                       }
@@ -727,7 +745,7 @@ export default function SquadRosterView({
                   buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
                     try {
                       const updated = await toggleLoanList(player.id);
-                      onGameUpdate?.(updated);
+                      onMutationComplete?.(updated);
                     } catch {
                       return;
                     }
@@ -740,7 +758,7 @@ export default function SquadRosterView({
                             player.id,
                             "Youth",
                           );
-                          onGameUpdate?.(updated);
+                          onMutationComplete?.(updated);
                         } catch {
                           return;
                         }
@@ -776,12 +794,15 @@ export default function SquadRosterView({
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">
                           <PlayerAvatar player={player} />
-                          <div>
+                          <div className="min-w-0">
                             <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                               {player.full_name}
                             </div>
                             {renderPreferredPositionMeta(player)}
                             {renderRoleAndStyleMeta(player)}
+                            {player.injury ? (
+                              <InjuryBadge injury={player.injury} />
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -835,17 +856,14 @@ export default function SquadRosterView({
                         {formatVal(player.market_value)}
                       </td>
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                        {formatWeeklyAmount(
-                          formatExactMoney(player.wage),
-                          weeklySuffix,
-                        )}
+                        {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                       </td>
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
                         <div className="space-y-1">
                           <div className="font-medium text-gray-700 dark:text-gray-300">
                             {getContractYearsRemaining(
                               player.contract_end,
-                              gameState.clock.current_date,
+                              clockDate,
                             )}
                           </div>
                           <div>

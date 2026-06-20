@@ -12,8 +12,8 @@ use ofm_core::game::{
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    league_repo, manager_repo, message_repo, meta_repo, news_repo, objective_repo, player_repo,
-    scouting_repo, staff_repo, stats_repo, team_repo,
+    competition_repo, league_repo, manager_repo, message_repo, meta_repo, national_team_repo,
+    news_repo, objective_repo, player_repo, scouting_repo, staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -110,6 +110,21 @@ fn write_game_to_connection(
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
+            save_format_version: meta_repo::CURRENT_SAVE_FORMAT_VERSION,
+            world_format_version: 2,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            source_world_id: game
+                .primary_competition()
+                .map(|competition| competition.id.clone())
+                .unwrap_or_default(),
+            source_world_kind: game
+                .primary_competition()
+                .map(|competition| format!("{:?}", competition.kind))
+                .unwrap_or_default(),
+            active_region_ids_json: serde_json::to_string(&game.active_region_ids)
+                .map_err(|_| game_persistence_write_error())?,
+            active_competition_ids_json: serde_json::to_string(&game.active_competition_ids)
+                .map_err(|_| game_persistence_write_error())?,
         },
     )?;
 
@@ -125,6 +140,8 @@ fn write_game_to_connection(
     if let Some(ref league) = game.league {
         league_repo::upsert_league(conn, league)?;
     }
+    competition_repo::replace_competitions(conn, &game.competitions)?;
+    national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 
     let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
         .board_objectives
@@ -235,6 +252,11 @@ impl GamePersistenceReader {
         let messages = message_repo::load_all_messages(conn)?;
         let news = news_repo::load_all_news(conn)?;
         let league = league_repo::load_league(conn)?;
+        let mut competitions = competition_repo::load_competitions(conn)?;
+        let national_teams = national_team_repo::load_national_teams(conn)?;
+        if competitions.is_empty() && let Some(existing_league) = league.clone() {
+            competitions.push(existing_league);
+        }
 
         let objective_rows = objective_repo::load_all_objectives(conn)?;
         let board_objectives: Vec<BoardObjective> = objective_rows
@@ -285,6 +307,12 @@ impl GamePersistenceReader {
             staff,
             messages,
             news,
+            competitions,
+            national_teams,
+            active_region_ids: serde_json::from_str(&meta.active_region_ids_json)
+                .unwrap_or_default(),
+            active_competition_ids: serde_json::from_str(&meta.active_competition_ids_json)
+                .unwrap_or_default(),
             league,
             scouting_assignments,
             youth_scouting_assignments,
@@ -297,6 +325,7 @@ impl GamePersistenceReader {
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
         };
+        game.promote_legacy_league();
         ofm_core::season_context::refresh_game_context(&mut game);
 
         Ok(game)
@@ -331,6 +360,13 @@ mod tests {
             vacant_team_days_json: "{}".to_string(),
             world_history_json: "{}".to_string(),
             available_staff_market_last_activity_date: Some("2026-07-01".to_string()),
+            save_format_version: 2,
+            world_format_version: 2,
+            app_version: String::new(),
+            source_world_id: String::new(),
+            source_world_kind: String::new(),
+            active_region_ids_json: "[]".to_string(),
+            active_competition_ids_json: "[]".to_string(),
         }
     }
 

@@ -1,8 +1,14 @@
-import { findNextFixture, getPlayerOvr } from "../../lib/helpers";
+import {
+  getPlayerOvr,
+  getUserCompetition,
+  getUserCompetitions,
+  getUserNextFixture,
+} from "../../lib/helpers";
 import { hasCompetitiveStandings } from "../../lib/seasonContext";
 import type {
   FixtureData,
   GameStateData,
+  LeagueData,
   NewsArticle,
   PlayerData,
   TeamData,
@@ -57,15 +63,9 @@ export interface HomeRecentResult {
 }
 
 function getStandingPosition(
-  gameState: GameStateData,
+  league: LeagueData,
   teamId: string,
 ): number | null {
-  const league = gameState.league;
-
-  if (!league) {
-    return null;
-  }
-
   const sortedStandings = [...league.standings].sort((leftEntry, rightEntry) => {
     return (
       rightEntry.points - leftEntry.points ||
@@ -88,14 +88,13 @@ function getStandingPosition(
 export function getNextOpponentWidgetData(
   gameState: GameStateData,
 ): NextOpponentWidgetData | null {
-  const league = gameState.league;
   const userTeamId = gameState.manager.team_id;
 
-  if (!league || !userTeamId) {
+  if (!userTeamId) {
     return null;
   }
 
-  const nextFixture = findNextFixture(league.fixtures, userTeamId);
+  const nextFixture = getUserNextFixture(gameState);
 
   if (!nextFixture) {
     return null;
@@ -109,11 +108,15 @@ export function getNextOpponentWidgetData(
     return null;
   }
 
+  const league = getUserCompetition(gameState);
   const canShowStandings =
-    hasCompetitiveStandings(gameState) && nextFixture.competition === "League";
-  const standingEntry = canShowStandings
-    ? league.standings.find((entry) => entry.team_id === opponentId)
-    : null;
+    league !== null &&
+    hasCompetitiveStandings(gameState) &&
+    nextFixture.competition === "League";
+  const standingEntry =
+    canShowStandings && league
+      ? league.standings.find((entry) => entry.team_id === opponentId)
+      : null;
 
   return {
     fixture: nextFixture,
@@ -121,9 +124,10 @@ export function getNextOpponentWidgetData(
     opponent,
     recentForm: opponent.form.slice(-5),
     standingPoints: standingEntry?.points ?? null,
-    standingPosition: canShowStandings
-      ? getStandingPosition(gameState, opponentId)
-      : null,
+    standingPosition:
+      canShowStandings && league
+        ? getStandingPosition(league, opponentId)
+        : null,
   };
 }
 
@@ -197,30 +201,39 @@ export function getRecentResultsForTeam(
   teamId: string | null,
   limit = 5,
 ): HomeRecentResult[] {
-  const league = gameState.league;
-
-  if (!league || !teamId) {
+  if (!teamId) {
     return [];
   }
 
-  const recentResults: HomeRecentResult[] = [];
+  // Pull completed fixtures from every competition the manager plays in (the
+  // same source as the Schedule tab) rather than the legacy `game.league`.
+  const completedFixtures = getUserCompetitions(gameState)
+    .flatMap((competition) => competition.fixtures)
+    .filter(
+      (fixture) =>
+        fixture.status === "Completed" &&
+        fixture.result !== null &&
+        (fixture.home_team_id === teamId || fixture.away_team_id === teamId),
+    )
+    .sort((leftFixture, rightFixture) => {
+      if (leftFixture.date !== rightFixture.date) {
+        return rightFixture.date.localeCompare(leftFixture.date);
+      }
+      if (leftFixture.matchday !== rightFixture.matchday) {
+        return rightFixture.matchday - leftFixture.matchday;
+      }
+      return rightFixture.id.localeCompare(leftFixture.id);
+    })
+    .slice(0, limit)
+    .reverse();
 
-  for (const fixture of [...league.fixtures].reverse()) {
-    if (
-      fixture.status !== "Completed" ||
-      !fixture.result ||
-      (fixture.home_team_id !== teamId && fixture.away_team_id !== teamId)
-    ) {
-      continue;
-    }
-
+  return completedFixtures.map((fixture) => {
+    const result = fixture.result as NonNullable<FixtureData["result"]>;
     const isHome = fixture.home_team_id === teamId;
-    const myGoals = isHome ? fixture.result.home_goals : fixture.result.away_goals;
-    const opponentGoals = isHome
-      ? fixture.result.away_goals
-      : fixture.result.home_goals;
+    const myGoals = isHome ? result.home_goals : result.away_goals;
+    const opponentGoals = isHome ? result.away_goals : result.home_goals;
 
-    recentResults.push({
+    return {
       fixture: fixture as FixtureData & {
         result: NonNullable<FixtureData["result"]>;
       },
@@ -229,22 +242,23 @@ export function getRecentResultsForTeam(
       opponentGoals,
       opponentId: isHome ? fixture.away_team_id : fixture.home_team_id,
       resultCode: myGoals > opponentGoals ? "W" : myGoals < opponentGoals ? "L" : "D",
-    });
-
-    if (recentResults.length >= limit) {
-      break;
-    }
-  }
-
-  return recentResults.reverse();
+    };
+  });
 }
 
 export function isOnboardingPageTab(tab: string): boolean {
   return ONBOARDING_PAGE_TABS.has(tab);
 }
 
-function getOnboardingStorageKey(gameState: GameStateData): string {
-  return `${ONBOARDING_STORAGE_KEY_PREFIX}:${gameState.manager.id}:${gameState.clock.start_date}`;
+function getOnboardingStorageKey(
+  gameState: GameStateData,
+  activeSaveId?: string | null,
+): string {
+  if (activeSaveId) {
+    return `${ONBOARDING_STORAGE_KEY_PREFIX}:save:${activeSaveId}`;
+  }
+
+  return `${ONBOARDING_STORAGE_KEY_PREFIX}:legacy:${gameState.manager.id}:${gameState.clock.start_date}`;
 }
 
 function getDefaultStorage(): StorageLike | null {
@@ -258,12 +272,15 @@ function getDefaultStorage(): StorageLike | null {
 export function loadVisitedOnboardingTabs(
   gameState: GameStateData,
   storage: StorageLike | null = getDefaultStorage(),
+  activeSaveId?: string | null,
 ): Set<string> {
   if (!storage) {
     return new Set<string>();
   }
 
-  const storedValue = storage.getItem(getOnboardingStorageKey(gameState));
+  const storedValue = storage.getItem(
+    getOnboardingStorageKey(gameState, activeSaveId),
+  );
 
   if (!storedValue) {
     return new Set<string>();
@@ -290,6 +307,7 @@ export function saveVisitedOnboardingTabs(
   gameState: GameStateData,
   visitedTabs: ReadonlySet<string>,
   storage: StorageLike | null = getDefaultStorage(),
+  activeSaveId?: string | null,
 ): void {
   if (!storage) {
     return;
@@ -300,7 +318,7 @@ export function saveVisitedOnboardingTabs(
   );
 
   storage.setItem(
-    getOnboardingStorageKey(gameState),
+    getOnboardingStorageKey(gameState, activeSaveId),
     JSON.stringify(persistedTabs),
   );
 }

@@ -1,5 +1,8 @@
 use chrono::{TimeZone, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+use domain::league::{
+    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus,
+    KnockoutRoundState, League, StandingEntry,
+};
 use domain::manager::Manager;
 use domain::news::NewsCategory;
 use domain::player::{
@@ -195,6 +198,7 @@ fn make_game_with_match() -> Game {
             competition: FixtureCompetition::League,
             status: FixtureStatus::Scheduled,
             result: None,
+            ..Default::default()
         }],
         standings: vec![
             StandingEntry::new("team1".to_string()),
@@ -202,11 +206,115 @@ fn make_game_with_match() -> Game {
         ],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(clock, manager, vec![team1, team2], players, vec![], vec![]);
     game.league = Some(league);
     game
+}
+
+#[test]
+fn process_day_simulates_due_national_team_fixture() {
+    use domain::national_team::NationalTeam;
+
+    // No club match today (the helper shifts the club fixture to 2025-06-16).
+    let mut game = make_game_without_match_today();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let home_squad: Vec<String> = vec!["t1_fwd0".into(), "t1_mid0".into(), "t1_def0".into()];
+    let away_squad: Vec<String> = vec!["t2_fwd0".into(), "t2_mid0".into()];
+
+    let mut home = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
+    home.squad_player_ids = home_squad;
+    home.fixtures.push(Fixture {
+        id: "ntf-x".into(),
+        competition_id: "international-friendlies".into(),
+        matchday: 1,
+        date: today,
+        home_team_id: "nt-eng".into(),
+        away_team_id: "nt-bra".into(),
+        competition: FixtureCompetition::InternationalNation,
+        status: FixtureStatus::Scheduled,
+        result: None,
+        ..Default::default()
+    });
+    let mut away = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
+    away.squad_player_ids = away_squad;
+    game.national_teams = vec![home, away];
+
+    turn::process_day(&mut game);
+
+    let fixture = &game.national_teams[0].fixtures[0];
+    assert_eq!(
+        fixture.status,
+        FixtureStatus::Completed,
+        "process_day should simulate a national-team fixture due today"
+    );
+    assert!(fixture.result.is_some());
+}
+
+#[test]
+fn process_day_routes_world_cup_fixtures_to_the_national_team_engine() {
+    use domain::national_team::NationalTeam;
+
+    let mut game = make_game_without_match_today();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    let mut england = NationalTeam::new("nt-eng".into(), "England".into(), "ENG".into(), None);
+    england.squad_player_ids = vec!["t1_fwd0".into(), "t1_mid0".into()];
+    let mut brazil = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BR".into(), None);
+    brazil.squad_player_ids = vec!["t2_fwd0".into()];
+    game.national_teams = vec![england, brazil];
+
+    let mut cup = League::new(
+        "wc".to_string(),
+        "World Cup 2026".to_string(),
+        2026,
+        &["nt-eng".to_string(), "nt-bra".to_string()],
+    );
+    cup.kind = CompetitionType::InternationalNation;
+    cup.scope = CompetitionScope::International;
+    cup.rules.format = domain::league::CompetitionFormat::Knockout;
+    cup.standings.clear();
+    cup.fixtures.push(Fixture {
+        id: "wc-final".to_string(),
+        competition_id: "wc".to_string(),
+        matchday: 1,
+        date: today,
+        home_team_id: "nt-eng".to_string(),
+        away_team_id: "nt-bra".to_string(),
+        competition: FixtureCompetition::InternationalNation,
+        status: FixtureStatus::Scheduled,
+        result: None,
+    });
+    cup.knockout_rounds.push(KnockoutRoundState {
+        id: "wc-round-1".to_string(),
+        name: "Final".to_string(),
+        fixture_ids: vec!["wc-final".to_string()],
+        ..Default::default()
+    });
+    game.competitions.push(cup);
+
+    turn::process_day(&mut game);
+
+    let cup = game.competitions.iter().find(|c| c.id == "wc").unwrap();
+    assert_eq!(
+        cup.fixtures[0].status,
+        FixtureStatus::Completed,
+        "the national-team engine must simulate the World Cup fixture"
+    );
+    assert!(cup.fixtures[0].result.is_some());
+    // The club league (no match today) is untouched by the tournament.
+    assert!(
+        game.league
+            .as_ref()
+            .unwrap()
+            .fixtures
+            .iter()
+            .all(|f| f.status == FixtureStatus::Scheduled),
+        "club fixtures must not be dragged into the national-team matchday"
+    );
 }
 
 fn make_game_without_match_today() -> Game {
@@ -1543,6 +1651,7 @@ fn make_round_summary_game() -> Game {
                     }],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "fix2".to_string(),
@@ -1568,6 +1677,7 @@ fn make_round_summary_game() -> Game {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ],
         standings: vec![
@@ -1578,6 +1688,7 @@ fn make_round_summary_game() -> Game {
         ],
         transfer_log: vec![],
         transfer_rumours: vec![],
+        ..Default::default()
     };
 
     let mut game = Game::new(

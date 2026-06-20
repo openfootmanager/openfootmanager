@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { collectMissingKeys, type LocaleTree } from "./i18nTestHelpers";
+import {
+  collectMissingKeys,
+  collectUntranslatedKeys,
+  type LocaleTree,
+} from "./i18nTestHelpers";
+import INTENTIONAL_SAME from "./INTENTIONAL_SAME.json";
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
@@ -37,5 +42,28 @@ describe("locale coverage", () => {
     }, {});
 
     expect(missingKeysByLocale).toEqual({});
+  });
+
+  it("has no untranslated strings (only explicitly allowed same-language exceptions)", () => {
+    const intentionalSame = INTENTIONAL_SAME as Record<string, string[]>;
+    const globalExceptions = new Set(intentionalSame["global"] ?? []);
+
+    const violationsByLocale = Object.entries(LOCALES).reduce<
+      Record<string, string[]>
+    >((accumulator, [localeCode, translations]) => {
+      const localeExceptions = new Set(intentionalSame[localeCode] ?? []);
+      const untranslated = collectUntranslatedKeys(en, translations);
+      const violations = untranslated.filter(
+        (key) => !globalExceptions.has(key) && !localeExceptions.has(key),
+      );
+
+      if (violations.length > 0) {
+        accumulator[localeCode] = violations;
+      }
+
+      return accumulator;
+    }, {});
+
+    expect(violationsByLocale).toEqual({});
   });
 });

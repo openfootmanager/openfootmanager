@@ -1,4 +1,4 @@
-import { Medal, Trophy, UserRound } from "lucide-react";
+import { Globe, Medal, Trophy, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
@@ -24,6 +24,7 @@ export default function HallOfFameWorldTab({
   const { t, i18n } = useTranslation();
   const legends = deriveHallOfFameLegends(gameState);
   const champions = derivePastChampions(gameState);
+  const worldCupChampions = gameState.world_history?.world_cup_champions ?? [];
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -51,6 +52,46 @@ export default function HallOfFameWorldTab({
           </div>
         </CardBody>
       </Card>
+
+      {worldCupChampions.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
+              {t("hallOfFameWorld.worldCupChampions")}
+            </h3>
+            <Badge variant="accent" size="md">{worldCupChampions.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {worldCupChampions.map((champion) => (
+              <Card key={champion.year} accent="accent">
+                <CardBody className="flex items-center justify-between gap-4">
+                  <div data-testid={`world-cup-champion-${champion.year}`}>
+                    <p className="text-xs font-heading font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">
+                      {t("hallOfFameWorld.worldCupEdition", { year: champion.year })}
+                    </p>
+                    <p className="mt-1 text-xl font-heading font-bold uppercase tracking-wide text-accent-500">
+                      {champion.nation_name}
+                    </p>
+                    {champion.nation_code ? (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <CountryFlag
+                          code={champion.nation_code}
+                          locale={i18n.language}
+                          className="text-sm leading-none"
+                        />
+                        <span>{countryName(champion.nation_code, i18n.language)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-xl bg-accent-100 p-3 text-accent-600 dark:bg-accent-900/40 dark:text-accent-300">
+                    <Globe className="h-6 w-6" />
+                  </div>
+                </CardBody>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">

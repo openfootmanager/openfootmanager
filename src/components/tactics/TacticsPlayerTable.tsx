@@ -17,7 +17,7 @@ import type {
   TeamMatchRolesData,
 } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { Badge, Card, Select } from "../ui";
+import { Badge, Card, InjuryBadge, Select } from "../ui";
 import {
   getPlayStyleFit,
   getSquadTacticalFit,
@@ -577,6 +577,13 @@ function TacticsTableRow({
             {overallRating}
           </span>
         </td>
+        <td className="px-4 py-3 align-top">
+          {player.injury ? (
+            <InjuryBadge injury={player.injury} />
+          ) : (
+            <span className="text-xs text-gray-500 dark:text-gray-400">—</span>
+          )}
+        </td>
       </tr>
     </ContextMenu>
   );
@@ -705,6 +712,9 @@ export default function TacticsPlayerTable({
                 sortKey={sortKey}
                 toggleSort={toggleSort}
               />
+              <th className="px-4 py-2.5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {t("common.status")}
+              </th>
             </tr>
           </thead>
 

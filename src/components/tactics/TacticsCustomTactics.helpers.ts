@@ -10,7 +10,11 @@ function getDefaultStorage(): StorageLike | null {
     return null;
   }
 
-  return window.localStorage;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 export function buildCustomTacticsStorageKey(
@@ -49,13 +53,13 @@ export function loadCustomTactics(
     return [];
   }
 
-  const storedValue = storage.getItem(buildCustomTacticsStorageKey(gameState));
-
-  if (!storedValue) {
-    return [];
-  }
-
   try {
+    const storedValue = storage.getItem(buildCustomTacticsStorageKey(gameState));
+
+    if (!storedValue) {
+      return [];
+    }
+
     const parsedValue: unknown = JSON.parse(storedValue);
 
     if (!Array.isArray(parsedValue)) {
@@ -81,8 +85,12 @@ export function saveCustomTactics(
     (entry): entry is TacticsLibraryEntry => entry.type === "custom",
   );
 
-  storage.setItem(
-    buildCustomTacticsStorageKey(gameState),
-    JSON.stringify(persistedTactics),
-  );
+  try {
+    storage.setItem(
+      buildCustomTacticsStorageKey(gameState),
+      JSON.stringify(persistedTactics),
+    );
+  } catch {
+    // Storage quota exceeded or access denied — skip persist
+  }
 }

@@ -455,6 +455,7 @@ mod tests {
                 }),
                 ..Fixture::default()
             }],
+            ..Default::default()
         };
         rivalry_game.league = Some(league);
 
@@ -629,15 +630,7 @@ mod tests {
             )
             .with_context(MessageContext {
                 team_id: Some("team2".to_string()),
-                player_id: None,
-                fixture_id: None,
-                match_result: None,
-                youth_target_position: None,
-                youth_search_region: None,
-                youth_search_objective: None,
-                youth_prospects: None,
-                scout_report: None,
-                delegated_renewal_report: None,
+                ..Default::default()
             })
             .with_action(MessageAction {
                 id: "respond_team2".to_string(),

@@ -486,11 +486,20 @@ fn does_not_duplicate_pending_incoming_offer_from_same_club() {
 
 #[test]
 fn incoming_offer_messages_from_multiple_clubs_get_unique_ids() {
-    let mut player = make_user_player("player-message-ids");
-    player.contract_end = Some("2026-09-01".to_string());
-    player.market_value = 1_200_000;
+    // Each user player may attract at most one new club per day, so two unique
+    // messages require two different targets.
+    let mut first = make_user_player("player-message-ids-1");
+    first.contract_end = Some("2026-09-01".to_string());
+    first.market_value = 1_200_000;
+    first.natural_position = Position::Forward;
 
-    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    let mut second = make_user_player("player-message-ids-2");
+    second.contract_end = Some("2026-09-01".to_string());
+    second.market_value = 1_200_000;
+    second.natural_position = Position::Defender;
+
+    let mut game = make_game_with_player(first, vec![], 5_000_000, 2_000_000);
+    game.players.push(second);
     game.teams[1].finance = 6_000_000;
     game.teams[1].transfer_budget = 3_000_000;
 
@@ -518,6 +527,143 @@ fn incoming_offer_messages_from_multiple_clubs_get_unique_ids() {
 
     assert_eq!(message_ids.len(), 2);
     assert_eq!(unique_message_ids.len(), 2);
+}
+
+#[test]
+fn at_most_one_new_club_bids_on_a_user_player_per_day() {
+    let mut player = make_user_player("player-flood");
+    player.contract_end = Some("2026-09-01".to_string());
+    player.market_value = 1_200_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    // Many wealthy suitors that could all afford the player.
+    for index in 2..10 {
+        game.teams.push(make_ai_team(
+            &format!("team-{index}"),
+            &format!("Buyer {index}"),
+            10_000_000,
+            5_000_000,
+        ));
+    }
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-flood")
+        .unwrap();
+    let pending_offers = player
+        .transfer_offers
+        .iter()
+        .filter(|offer| offer.status == TransferOfferStatus::Pending)
+        .count();
+
+    assert_eq!(pending_offers, 1);
+    assert_eq!(game.messages.len(), 1);
+}
+
+#[test]
+fn repeat_interest_in_a_user_player_collapses_into_one_digest_message() {
+    let mut player = make_user_player("player-digest");
+    player.contract_end = Some("2026-09-01".to_string());
+    player.market_value = 1_200_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams
+        .push(make_ai_team("team-3", "Buyer C", 10_000_000, 5_000_000));
+    game.teams
+        .push(make_ai_team("team-4", "Buyer D", 10_000_000, 5_000_000));
+
+    // Day one: one club opens talks. Day two: a different club enquires.
+    generate_incoming_transfer_offers(&mut game);
+    game.clock.current_date += chrono::Duration::days(1);
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-digest")
+        .unwrap();
+    let pending = player
+        .transfer_offers
+        .iter()
+        .filter(|offer| offer.status == TransferOfferStatus::Pending)
+        .count();
+    assert_eq!(pending, 2, "two distinct clubs should hold pending bids");
+
+    let digests: Vec<_> = game
+        .messages
+        .iter()
+        .filter(|message| message.id == "transfer_interest_player-digest")
+        .collect();
+    assert_eq!(
+        digests.len(),
+        1,
+        "repeat interest must collapse into a single digest thread"
+    );
+    assert_eq!(game.messages.len(), 1);
+    assert_eq!(
+        digests[0].i18n_params.get("n").map(String::as_str),
+        Some("2")
+    );
+    assert!(!digests[0].read, "an updated digest re-surfaces as unread");
+}
+
+#[test]
+fn squad_wide_incoming_offers_are_capped_per_day() {
+    let positions = [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+        Position::Striker,
+    ];
+    let mut game = make_game_with_player(
+        {
+            let mut player = make_user_player("player-squad-0");
+            player.contract_end = Some("2026-09-01".to_string());
+            player.market_value = 1_200_000;
+            player.natural_position = positions[0].clone();
+            player
+        },
+        vec![],
+        5_000_000,
+        2_000_000,
+    );
+    for (index, position) in positions.iter().enumerate().skip(1) {
+        let mut player = make_user_player(&format!("player-squad-{index}"));
+        player.contract_end = Some("2026-09-01".to_string());
+        player.market_value = 1_200_000;
+        player.natural_position = position.clone();
+        game.players.push(player);
+    }
+    for index in 2..12 {
+        game.teams.push(make_ai_team(
+            &format!("team-{index}"),
+            &format!("Buyer {index}"),
+            10_000_000,
+            5_000_000,
+        ));
+    }
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let new_pending_offers: usize = game
+        .players
+        .iter()
+        .filter(|player| player.id.starts_with("player-squad"))
+        .map(|player| {
+            player
+                .transfer_offers
+                .iter()
+                .filter(|offer| offer.status == TransferOfferStatus::Pending)
+                .count()
+        })
+        .sum();
+
+    assert_eq!(new_pending_offers, 3);
+    assert_eq!(game.messages.len(), 3);
 }
 
 #[test]

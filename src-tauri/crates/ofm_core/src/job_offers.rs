@@ -355,15 +355,8 @@ fn send_job_offer(game: &mut Game, opportunity: &JobOpportunity, _rng: &mut impl
     .with_sender_role("")
     .with_context(MessageContext {
         team_id: Some(opportunity.team_id.clone()),
-        player_id: None,
-        fixture_id: None,
-        match_result: None,
-        youth_target_position: None,
-        youth_search_region: None,
-        youth_search_objective: None,
-        youth_prospects: None,
-        scout_report: None,
-        delegated_renewal_report: None,
+        team_name: Some(opportunity.team_name.clone()),
+        ..Default::default()
     })
     .with_i18n(
         "be.msg.jobOffer.subject",
@@ -747,15 +740,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team2".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team2".to_string(),
@@ -922,15 +907,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team2".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team2".to_string(),
@@ -987,15 +964,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team2".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team2".to_string(),
@@ -1056,15 +1025,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team3".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team3".to_string(),
@@ -1130,15 +1091,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team1".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team1".to_string(),
@@ -1414,15 +1367,7 @@ mod tests {
         )
         .with_context(MessageContext {
             team_id: Some("team2".to_string()),
-            player_id: None,
-            fixture_id: None,
-            match_result: None,
-            youth_target_position: None,
-            youth_search_region: None,
-            youth_search_objective: None,
-            youth_prospects: None,
-            scout_report: None,
-            delegated_renewal_report: None,
+            ..Default::default()
         })
         .with_action(MessageAction {
             id: "respond_team2".to_string(),

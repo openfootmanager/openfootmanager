@@ -328,6 +328,16 @@ export default function Settings() {
               onChange={(v) => handleUpdate({ confirm_advance: v })}
             />
           </SettingRow>
+
+          <SettingRow
+            label={t("settings.continueToNextEvent")}
+            description={t("settings.continueToNextEventDesc")}
+          >
+            <Toggle
+              checked={settings.continue_to_next_event}
+              onChange={(v) => handleUpdate({ continue_to_next_event: v })}
+            />
+          </SettingRow>
         </Section>
 
         {/* ─── Saves & Data ─── */}

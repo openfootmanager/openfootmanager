@@ -12,8 +12,18 @@ import TacticsTab from "./TacticsTab";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string | Record<string, unknown>) =>
-      typeof fallback === "string" ? fallback : key,
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
+      if (key === "playerProfile.daysRemaining") {
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
+      }
+      if (key === "playerProfile.injuryDaysShort") {
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")}d`;
+      }
+      if (key.startsWith("common.injuries.")) {
+        return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
+      }
+      return typeof fallback === "string" ? fallback : key;
+    },
     i18n: { language: "en" },
   }),
 }));
@@ -241,7 +251,14 @@ describe("TacticsTab", () => {
   beforeEach(() => {
     localStorage.clear();
     mockedInvoke.mockReset();
-    mockedInvoke.mockResolvedValue(makeGameState());
+    const defaultGameState = makeGameState();
+    const defaultRoster = defaultGameState.players.filter(
+      (p) => p.team_id === "team1",
+    );
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return defaultRoster;
+      return defaultGameState;
+    });
   });
 
   it("renders the top tactical controls plus bench cards inside the pitch view", () => {
@@ -334,23 +351,26 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByRole("option", { name: /high-press/i }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_formation", {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
         formation: "3-4-3",
       });
-      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "set_play_style", {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
         playStyle: "HighPress",
       });
     });
   });
 
-  it("keeps youth academy players out of first-team tactics selection", () => {
+  it("shows injured players under a Status column with progressive injury details", () => {
     const gameState = makeGameState();
-    gameState.players.push(
-      makePlayer("y1", "Forward", {
-        full_name: "Academy Prospect",
-        squad_role: "Youth",
-      }),
+    const injuredBenchPlayer = gameState.players.find(
+      (player) => player.id === "d5",
     );
+    if (injuredBenchPlayer) {
+      injuredBenchPlayer.injury = {
+        name: "Ankle sprain",
+        days_remaining: 6,
+      };
+    }
 
     render(
       <TacticsTab
@@ -360,7 +380,38 @@ describe("TacticsTab", () => {
       />,
     );
 
-    expect(screen.queryByText("Academy Prospect")).not.toBeInTheDocument();
+    expect(screen.getAllByText("common.status").length).toBeGreaterThan(0);
+    expect(screen.getByText("Ankle sprain")).toBeInTheDocument();
+    expect(screen.getByText("6d")).toBeInTheDocument();
+  });
+
+  it("keeps youth academy players out of first-team tactics selection", async () => {
+    const gameState = makeGameState();
+    gameState.players.push(
+      makePlayer("y1", "Forward", {
+        full_name: "Academy Prospect",
+        squad_role: "Youth",
+      }),
+    );
+    // Override so get_squad returns the full roster including the youth player,
+    // exercising the client-side isSeniorSquadPlayer filter.
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Academy Prospect")).not.toBeInTheDocument();
+    });
   });
 
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
@@ -419,7 +470,7 @@ describe("TacticsTab", () => {
     );
   });
 
-  it("shows a bench player's natural position on the pitch bench cards when it differs from position", () => {
+  it("shows a bench player's natural position on the pitch bench cards when it differs from position", async () => {
     const gameState = makeGameState();
     gameState.players = gameState.players.map((player) =>
       player.id === "d5"
@@ -430,6 +481,13 @@ describe("TacticsTab", () => {
         }
         : player,
     );
+    // Override so get_squad returns the modified players (d5 with Midfielder
+    // position), ensuring the natural position display is tested post-fetch.
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
 
     render(
       <TacticsTab
@@ -439,7 +497,7 @@ describe("TacticsTab", () => {
       />,
     );
 
-    const benchCard = screen.getByTestId("pitch-bench-player-d5");
+    const benchCard = await screen.findByTestId("pitch-bench-player-d5");
 
     expect(
       within(benchCard).getByText("common.posAbbr.Defender"),
@@ -566,12 +624,17 @@ describe("TacticsTab", () => {
   });
 
   it("does not mark a preset as active when applying it fails", async () => {
+    const gameState = makeGameState();
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "set_formation") {
         throw new Error("boom");
       }
 
-      return makeGameState();
+      if (command === "get_squad") {
+        return gameState.players.filter((p) => p.team_id === "team1");
+      }
+
+      return gameState;
     });
 
     render(
@@ -633,7 +696,7 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
     expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
 
     fireEvent.click(
@@ -679,7 +742,7 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
     expect(screen.getByText("tactics.comparePlayer")).toBeInTheDocument();
 
     fireEvent.click(
@@ -799,7 +862,7 @@ describe("TacticsTab", () => {
     expect(
       screen.queryByRole("button", { name: "tactics.promoteToLineup" }),
     ).not.toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
   });
 
   it("does not allow swapping an injured bench player into the starting XI", () => {

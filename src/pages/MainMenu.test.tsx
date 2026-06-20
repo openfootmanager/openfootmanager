@@ -117,7 +117,21 @@ vi.mock("../components/ui/ThemeToggle", () => ({
 }));
 
 vi.mock("../components/menu/SavesList", () => ({
-  default: () => <div data-testid="saves-list" />,
+  default: ({
+    saves,
+    onLoad,
+  }: {
+    saves?: Array<{ id: string; name: string }>;
+    onLoad?: (id: string) => void;
+  }) => (
+    <div data-testid="saves-list">
+      {(saves ?? []).map((save) => (
+        <button key={save.id} type="button" onClick={() => onLoad?.(save.id)}>
+          {save.name}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("../components/menu/WorldSelect", () => ({
@@ -619,6 +633,45 @@ describe("MainMenu", () => {
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("write_temp_database", expect.anything());
     expect(navigateMock).toHaveBeenCalledWith("/select-team");
+  });
+
+  it("surfaces a message when a save fails to load", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => { });
+
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_world_databases") {
+        return [];
+      }
+      if (command === "get_saves") {
+        return [
+          {
+            id: "save-1",
+            name: "My Save",
+            manager_name: "Ada Lovelace",
+            db_filename: "save-1.db",
+            checksum: "abc",
+            created_at: "2026-01-01T00:00:00Z",
+            last_played_at: "2026-02-01T00:00:00Z",
+          },
+        ];
+      }
+      if (command === "load_game") {
+        throw "be.error.saveLoad.incompatibleVersion?saveVersion=99&supported=29";
+      }
+      return null;
+    });
+
+    render(<MainMenu />);
+
+    fireEvent.click(screen.getByText("menu.loadGame"));
+
+    const saveButton = await screen.findByText("My Save");
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith("menu.loadGameFailed");
+    });
+    expect(navigateMock).not.toHaveBeenCalledWith("/dashboard");
   });
 
   it("passes the selected generated history depth when starting a new career", async () => {

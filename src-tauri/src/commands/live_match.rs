@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use log::info;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tauri::State;
 
 pub use crate::application::live_match::FinishLiveMatchResponse;
@@ -90,7 +90,9 @@ pub fn apply_match_command(
 
 /// Get current match snapshot without advancing time.
 #[tauri::command]
-pub fn get_match_snapshot(state: State<'_, Arc<StateManager>>) -> Result<engine::MatchSnapshot, String> {
+pub fn get_match_snapshot(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<engine::MatchSnapshot, String> {
     get_match_snapshot_service(&state)
 }
 
@@ -112,14 +114,11 @@ pub fn apply_team_talk(
     context: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
     let seed = rand::rng().random::<u64>();
-    let results = apply_team_talk_internal(&mut game, &tone, &context, seed)?;
-
-    state.set_game(game);
-    Ok(results)
+    // apply_team_talk validates (team assigned) before mutating morale.
+    state
+        .update_game(|game| apply_team_talk_internal(game, &tone, &context, seed))
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
@@ -140,133 +139,135 @@ pub fn submit_press_conference(
         "[cmd] submit_press_conference: {} {} - {} {}",
         home_team, home_score, away_score, away_team
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
+    // No fallible step after load, so mutate the live game in place and let the
+    // response serialize it (no whole-world clone).
+    state
+        .update_game(|game| {
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let mut rng = rand::rng();
 
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let mut rng = rand::rng();
+            // Build news article from press conference answers
+            let mut quotes: Vec<String> = Vec::new();
+            let mut localized_quotes: Vec<LocalizedPressQuote> = Vec::new();
+            let mut morale_delta: i16 = 0;
+            let mut mentioned_player_ids: Vec<String> = Vec::new();
 
-    // Build news article from press conference answers
-    let mut quotes: Vec<String> = Vec::new();
-    let mut localized_quotes: Vec<LocalizedPressQuote> = Vec::new();
-    let mut morale_delta: i16 = 0;
-    let mut mentioned_player_ids: Vec<String> = Vec::new();
+            for answer in &answers {
+                let rid = answer.response_id.as_str();
+                let text = answer.response_text.as_str();
+                let qid = answer.question_id.as_str();
 
-    for answer in &answers {
-        let rid = answer.response_id.as_str();
-        let text = answer.response_text.as_str();
-        let qid = answer.question_id.as_str();
+                let _ = &answer.question_text;
 
-        let _ = &answer.question_text;
+                if !text.is_empty() {
+                    quotes.push(format!("\"{}\"", text));
+                    localized_quotes.push(LocalizedPressQuote {
+                        key: answer.response_text_key.clone(),
+                        fallback: text.to_string(),
+                        params: answer.response_text_params.clone(),
+                    });
+                }
 
-        if !text.is_empty() {
-            quotes.push(format!("\"{}\"", text));
-            localized_quotes.push(LocalizedPressQuote {
-                key: answer.response_text_key.clone(),
-                fallback: text.to_string(),
-                params: answer.response_text_params.clone(),
-            });
-        }
+                // Track player mentions
+                if !answer.player_id.is_empty() {
+                    mentioned_player_ids.push(answer.player_id.clone());
+                }
 
-        // Track player mentions
-        if !answer.player_id.is_empty() {
-            mentioned_player_ids.push(answer.player_id.clone());
-        }
+                // Morale effects based on stable response identifiers.
+                match rid {
+                    "humble" | "fair" | "positive" | "focused" | "grateful" | "patience"
+                    | "appreciate" | "understand" => morale_delta += rng.random_range(1..=3),
+                    "confident" | "ambitious" | "shared" => morale_delta += rng.random_range(2..=5),
+                    "defiant" | "frustrated" => morale_delta += rng.random_range(-2..=2),
+                    "curt" | "evasive" => morale_delta += rng.random_range(-3..=0),
+                    "accept" | "detailed" | "apologize" => morale_delta += rng.random_range(0..=2),
+                    "deflect" => morale_delta += rng.random_range(-1..=1),
+                    "praise" => morale_delta += rng.random_range(3..=6),
+                    "demanding" => morale_delta += rng.random_range(-2..=3),
+                    _ => {}
+                }
 
-        // Morale effects based on stable response identifiers.
-        match rid {
-            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate"
-            | "understand" => morale_delta += rng.random_range(1..=3),
-            "confident" | "ambitious" | "shared" => morale_delta += rng.random_range(2..=5),
-            "defiant" | "frustrated" => morale_delta += rng.random_range(-2..=2),
-            "curt" | "evasive" => morale_delta += rng.random_range(-3..=0),
-            "accept" | "detailed" | "apologize" => morale_delta += rng.random_range(0..=2),
-            "deflect" => morale_delta += rng.random_range(-1..=1),
-            "praise" => morale_delta += rng.random_range(3..=6),
-            "demanding" => morale_delta += rng.random_range(-2..=3),
-            _ => {}
-        }
-
-        // Player-focused question effects
-        if qid == "player_focus" {
-            if !answer.player_id.is_empty() {
-                let player_delta: i16 = match rid {
-                    "praise" => rng.random_range(4..=8),
-                    "demanding" => rng.random_range(-3..=4),
-                    "deflect" => rng.random_range(-2..=1),
-                    _ => rng.random_range(0..=3),
-                };
-                if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
-                    p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                // Player-focused question effects
+                if qid == "player_focus" {
+                    if !answer.player_id.is_empty() {
+                        let player_delta: i16 = match rid {
+                            "praise" => rng.random_range(4..=8),
+                            "demanding" => rng.random_range(-3..=4),
+                            "deflect" => rng.random_range(-2..=1),
+                            _ => rng.random_range(0..=3),
+                        };
+                        if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id)
+                        {
+                            p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    // Apply squad-wide morale effect
-    morale_delta = morale_delta.clamp(-8, 8);
-    if morale_delta != 0 {
-        for p in game.players.iter_mut() {
-            if p.team_id.as_deref() == Some(&user_team_id) {
-                p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+            // Apply squad-wide morale effect
+            morale_delta = morale_delta.clamp(-8, 8);
+            if morale_delta != 0 {
+                for p in game.players.iter_mut() {
+                    if p.team_id.as_deref() == Some(&user_team_id) {
+                        p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+                    }
+                }
             }
-        }
-    }
 
-    // Generate news article
-    let result_str = format!(
-        "{} {} - {} {}",
-        home_team, home_score, away_score, away_team
-    );
-    let headline_key = if quotes.is_empty() {
-        ("be.news.pressConference.headlinePostMatch",)
-    } else if rng.random::<bool>() {
-        ("be.news.pressConference.headlineManagerQuote",)
-    } else {
-        ("be.news.pressConference.headlinePressConf",)
-    }
-    .0;
+            // Generate news article
+            let result_str = format!(
+                "{} {} - {} {}",
+                home_team, home_score, away_score, away_team
+            );
+            let headline_key = if quotes.is_empty() {
+                ("be.news.pressConference.headlinePostMatch",)
+            } else if rng.random::<bool>() {
+                ("be.news.pressConference.headlineManagerQuote",)
+            } else {
+                ("be.news.pressConference.headlinePressConf",)
+            }
+            .0;
 
-    let body_key = if quotes.len() > 1 {
-        ("be.news.pressConference.bodyMultiple",)
-    } else if quotes.len() == 1 {
-        ("be.news.pressConference.bodySingle",)
-    } else {
-        ("be.news.pressConference.bodyNone",)
-    }
-    .0;
+            let body_key = if quotes.len() > 1 {
+                ("be.news.pressConference.bodyMultiple",)
+            } else if quotes.len() == 1 {
+                ("be.news.pressConference.bodySingle",)
+            } else {
+                ("be.news.pressConference.bodyNone",)
+            }
+            .0;
 
-    let mut i18n_params = HashMap::new();
-    i18n_params.insert("team".to_string(), user_team_name.clone());
-    i18n_params.insert("result".to_string(), result_str.clone());
-    if !localized_quotes.is_empty() {
-        if let Ok(serialized_quotes) = serde_json::to_string(&localized_quotes) {
-            i18n_params.insert("quotesData".to_string(), serialized_quotes);
-        }
-        i18n_params.insert("quote".to_string(), quotes[0].trim_matches('"').to_string());
-    }
+            let mut i18n_params = HashMap::new();
+            i18n_params.insert("team".to_string(), user_team_name.clone());
+            i18n_params.insert("result".to_string(), result_str.clone());
+            if !localized_quotes.is_empty() {
+                if let Ok(serialized_quotes) = serde_json::to_string(&localized_quotes) {
+                    i18n_params.insert("quotesData".to_string(), serialized_quotes);
+                }
+                i18n_params.insert("quote".to_string(), quotes[0].trim_matches('"').to_string());
+            }
 
-    let article_id = format!("press_conf_{}", today);
-    let article = domain::news::NewsArticle::new(
-        article_id,
-        String::new(),
-        String::new(),
-        String::new(),
-        today.clone(),
-        domain::news::NewsCategory::MatchReport,
-    )
-    .with_teams(vec![user_team_id.clone()])
-    .with_players(mentioned_player_ids)
-    .with_i18n(headline_key, body_key, "be.source.sportsDaily", i18n_params);
+            let article_id = format!("press_conf_{}", today);
+            let article = domain::news::NewsArticle::new(
+                article_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                today.clone(),
+                domain::news::NewsCategory::MatchReport,
+            )
+            .with_teams(vec![user_team_id.clone()])
+            .with_players(mentioned_player_ids)
+            .with_i18n(headline_key, body_key, "be.source.sportsDaily", i18n_params);
 
-    game.news.push(article);
-    state.set_game(game.clone());
+            game.news.push(article);
 
-    Ok(serde_json::json!({
-        "game": game,
-        "morale_delta": morale_delta
-    }))
+            serde_json::json!({
+                "game": game,
+                "morale_delta": morale_delta
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 #[cfg(test)]
@@ -400,6 +401,7 @@ mod tests {
             fixtures: vec![
                 Fixture {
                     id: "fix1".to_string(),
+                    competition_id: "league1".to_string(),
                     matchday: 1,
                     date: "2025-06-15".to_string(),
                     home_team_id: "team1".to_string(),
@@ -410,6 +412,7 @@ mod tests {
                 },
                 Fixture {
                     id: "fix2".to_string(),
+                    competition_id: "league1".to_string(),
                     matchday: 1,
                     date: "2025-06-15".to_string(),
                     home_team_id: "team3".to_string(),
@@ -427,6 +430,7 @@ mod tests {
             ],
             transfer_log: vec![],
             transfer_rumours: vec![],
+            ..League::default()
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);

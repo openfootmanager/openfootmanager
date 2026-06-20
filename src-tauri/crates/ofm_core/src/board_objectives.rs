@@ -118,7 +118,20 @@ pub fn generate_objectives(game: &mut Game) {
         None => return,
     };
 
-    let num_teams = game.teams.len() as u32;
+    // Scale targets by the user's *league* size, not the whole world — otherwise
+    // a 440-club world yields absurd objectives ("win 526 matches" a season).
+    let num_teams = game
+        .league
+        .as_ref()
+        .map(|league| {
+            if league.participant_ids.is_empty() {
+                league.standings.len()
+            } else {
+                league.participant_ids.len()
+            }
+        })
+        .filter(|&count| count > 1)
+        .unwrap_or_else(|| game.teams.len()) as u32;
     let reputation = team.reputation;
     let targets = objective_targets(reputation, num_teams);
 
@@ -506,6 +519,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -522,6 +536,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -589,6 +604,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -605,6 +621,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -677,6 +694,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
             Fixture {
                 id: "f2".to_string(),
@@ -693,6 +711,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             },
         ];
         game.league = Some(league);
@@ -740,6 +759,7 @@ mod tests {
                     away_scorers: vec![],
                     report: None,
                 }),
+                ..Default::default()
             }
         };
         league.standings = vec![

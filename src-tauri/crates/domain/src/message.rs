@@ -94,6 +94,8 @@ pub struct InboxMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MessageContext {
     pub team_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_name: Option<String>,
     pub player_id: Option<String>,
     pub fixture_id: Option<String>,
     pub match_result: Option<ContextMatchResult>,
@@ -165,6 +167,11 @@ pub struct ScoutReportData {
 pub struct ContextMatchResult {
     pub home_team_id: String,
     pub away_team_id: String,
+    /// Names populated at message creation time; empty string on old saves.
+    #[serde(default)]
+    pub home_team_name: String,
+    #[serde(default)]
+    pub away_team_name: String,
     pub home_goals: u8,
     pub away_goals: u8,
 }

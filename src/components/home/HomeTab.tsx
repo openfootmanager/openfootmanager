@@ -1,6 +1,6 @@
 import type { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
-import { formatDateShort } from "../../lib/helpers";
+import { formatDateShort, getUserCompetition } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
@@ -72,7 +72,7 @@ export default function HomeTab({
   const myTeam = gameState.teams.find(
     (tm) => tm.id === gameState.manager.team_id,
   );
-  const league = gameState.league;
+  const league = getUserCompetition(gameState);
   const roster = myTeam
     ? gameState.players.filter(
       (p) => p.team_id === myTeam.id && isSeniorSquadPlayer(p),

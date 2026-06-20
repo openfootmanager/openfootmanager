@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, PlayerData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import SquadTab from "./SquadTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -21,8 +21,16 @@ vi.mock("react-i18next", () => ({
       if (key === "finances.contractRisk") return "Contract Risk";
       if (key === "finances.contractRiskCritical") return "Critical";
       if (key === "finances.contractRiskWarning") return "Warning";
+      if (key === "finances.wagePerYear") return "Wage/yr";
+      if (key === "finances.perYearSuffix") return "/yr";
       if (key === "finances.contractExpiresOn")
         return `Expires ${String((fallback as Record<string, unknown> | undefined)?.date ?? "")}`;
+      if (key === "playerProfile.daysRemaining")
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
+      if (key === "playerProfile.injuryDaysShort")
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")}d`;
+      if (key.startsWith("common.injuries."))
+        return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
       return typeof fallback === "string" ? fallback : key;
     },
     i18n: { language: "en" },
@@ -205,15 +213,32 @@ describe("SquadTab", () => {
     mockedInvoke.mockReset();
   });
 
-  it("renders only the full roster table and not the moved tactics controls", () => {
+  function renderSquadTab(
+    gameState: GameStateData,
+    opts: {
+      onGameUpdate?: (g: GameStateData) => void;
+      onSelectPlayer?: (id: string, options?: PlayerSelectionOptions) => void;
+    } = {},
+  ) {
+    // Prime the initial get_squad fetch so that mockResolvedValue overrides set
+    // up by mutation tests don't accidentally serve non-PlayerData[] to the squad
+    // loader on mount.
+    mockedInvoke.mockResolvedValueOnce(
+      gameState.players.filter((p) => p.team_id === "team1"),
+    );
+
     render(
       <SquadTab
-        gameState={makeGameState()}
+        gameState={gameState}
         managerId="mgr1"
-        onSelectPlayer={vi.fn()}
-        onGameUpdate={vi.fn()}
+        onSelectPlayer={opts.onSelectPlayer ?? vi.fn()}
+        onGameUpdate={opts.onGameUpdate ?? vi.fn()}
       />,
     );
+  }
+
+  it("renders only the full roster table and not the moved tactics controls", () => {
+    renderSquadTab(makeGameState());
 
     expect(screen.getByText("squad.title")).toBeInTheDocument();
     expect(screen.getByText("Player d5")).toBeInTheDocument();
@@ -231,20 +256,84 @@ describe("SquadTab", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("shows annual wages and progressive injury details in the roster", () => {
+    const gameState = makeGameState();
+    gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
+      full_name: "Injured Keeper",
+      wage: 14000,
+      injury: {
+        name: "Knee bruise",
+        days_remaining: 10,
+      },
+    });
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Wage/yr")).toBeInTheDocument();
+    expect(screen.getByText(/14K\/yr/)).toBeInTheDocument();
+    expect(screen.getByText("Knee bruise")).toBeInTheDocument();
+    expect(screen.getByText("10d")).toBeInTheDocument();
+  });
+
+  it("honors a persisted OVR sort state from the dashboard", () => {
+    const gameState = makeGameState();
+    gameState.players = [
+      makePlayer("low", "Forward", {
+        full_name: "Low OVR",
+        attributes: {
+          ...makePlayer("base-low", "Forward").attributes,
+          pace: 30,
+          shooting: 30,
+          passing: 30,
+          dribbling: 30,
+        },
+      }),
+      makePlayer("high", "Forward", {
+        full_name: "High OVR",
+        attributes: {
+          ...makePlayer("base-high", "Forward").attributes,
+          pace: 90,
+          shooting: 90,
+          passing: 90,
+          dribbling: 90,
+        },
+      }),
+    ];
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "ovr", sortDir: "desc" }}
+        onSortStateChange={vi.fn()}
+      />,
+    );
+
+    const rowTexts = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    const highIndex = rowTexts.findIndex((text) => text.includes("High OVR"));
+    const lowIndex = rowTexts.findIndex((text) => text.includes("Low OVR"));
+
+    expect(highIndex).toBeGreaterThan(-1);
+    expect(lowIndex).toBeGreaterThan(-1);
+    expect(highIndex).toBeLessThan(lowIndex);
+  });
+
   it("shows contract inspection columns and renew entry points for expiring players", () => {
     const onSelectPlayer = vi.fn();
     const gameState = makeGameState();
     gameState.clock.current_date = "2026-08-01";
     gameState.players[0].contract_end = "2026-10-15";
 
-    render(
-      <SquadTab
-        gameState={gameState}
-        managerId="mgr1"
-        onSelectPlayer={onSelectPlayer}
-        onGameUpdate={vi.fn()}
-      />,
-    );
+    renderSquadTab(gameState, { onSelectPlayer });
 
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.getByText("Contract Risk")).toBeInTheDocument();
@@ -263,16 +352,8 @@ describe("SquadTab", () => {
     const gameState = makeGameState();
     const onGameUpdate = vi.fn();
     const onSelectPlayer = vi.fn();
+    renderSquadTab(gameState, { onGameUpdate, onSelectPlayer });
     mockedInvoke.mockResolvedValue({ game: gameState });
-
-    render(
-      <SquadTab
-        gameState={gameState}
-        managerId="mgr1"
-        onSelectPlayer={onSelectPlayer}
-        onGameUpdate={onGameUpdate}
-      />,
-    );
 
     const playerRow = screen.getByText("Player gk1").closest("tr");
     expect(playerRow).not.toBeNull();
@@ -314,16 +395,8 @@ describe("SquadTab", () => {
         },
       },
     };
+    renderSquadTab(gameState);
     mockedInvoke.mockResolvedValue({ game: gameState });
-
-    render(
-      <SquadTab
-        gameState={gameState}
-        managerId="mgr1"
-        onSelectPlayer={vi.fn()}
-        onGameUpdate={vi.fn()}
-      />,
-    );
 
     const playerRow = screen.getByText("Player gk1").closest("tr");
     expect(playerRow).not.toBeNull();
@@ -351,16 +424,8 @@ describe("SquadTab", () => {
       })),
     };
     const onGameUpdate = vi.fn();
+    renderSquadTab(gameState, { onGameUpdate });
     mockedInvoke.mockResolvedValue(updatedGameState);
-
-    render(
-      <SquadTab
-        gameState={gameState}
-        managerId="mgr1"
-        onSelectPlayer={vi.fn()}
-        onGameUpdate={onGameUpdate}
-      />,
-    );
 
     const playerRow = screen.getByText("Player gk1").closest("tr");
     expect(playerRow).not.toBeNull();
@@ -400,16 +465,8 @@ describe("SquadTab", () => {
       })),
     };
     const onGameUpdate = vi.fn();
+    renderSquadTab(gameState, { onGameUpdate });
     mockedInvoke.mockResolvedValue(updatedGameState);
-
-    render(
-      <SquadTab
-        gameState={gameState}
-        managerId="mgr1"
-        onSelectPlayer={vi.fn()}
-        onGameUpdate={onGameUpdate}
-      />,
-    );
 
     const benchRow = screen.getByText("Player d5").closest("tr");
     expect(benchRow).not.toBeNull();
