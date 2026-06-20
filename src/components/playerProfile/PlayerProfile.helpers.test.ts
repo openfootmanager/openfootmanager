@@ -4,6 +4,7 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import {
     buildPlayerAdvancedStats,
+    formatPlayerAnnualWage,
     formatPlayerMarketValue,
     formatPlayerWage,
     getAttributeColorClass,
@@ -172,6 +173,10 @@ describe("PlayerProfile.helpers", function (): void {
         expect(formatPlayerWage(52000, "/wk")).toMatch(/^€1[.,]000\/wk$/);
     });
 
+    it("formats current player wages as annual display values", function (): void {
+        expect(formatPlayerAnnualWage(52000, "/yr")).toBe("€52K/yr");
+    });
+
     it("respects the selected settings currency for market values and wages", function (): void {
         useSettingsStore.setState({
             settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
@@ -182,11 +187,11 @@ describe("PlayerProfile.helpers", function (): void {
         expect(formatPlayerWage(52000, "/wk")).toBe("£860/wk");
     });
 
-    it("maps attribute values to the expected color classes", function (): void {
-        expect(getAttributeColorClass(85)).toContain("text-primary-500");
-        expect(getAttributeColorClass(65)).toContain("text-accent-600");
-        expect(getAttributeColorClass(45)).toContain("text-gray-600");
-        expect(getAttributeColorClass(20)).toContain("text-red-500");
+    it("maps attribute values to readable shared color classes", function (): void {
+        expect(getAttributeColorClass(85)).toContain("text-primary-600");
+        expect(getAttributeColorClass(65)).toContain("text-accent-700");
+        expect(getAttributeColorClass(45)).toContain("text-gray-700");
+        expect(getAttributeColorClass(20)).toContain("text-red-600");
     });
 
     it("resolves injury names for explicit keys and plain injuries", function (): void {

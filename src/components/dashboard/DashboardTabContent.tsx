@@ -43,12 +43,14 @@ export default function DashboardTabContent({
     initialMessageId,
     managerId,
     seasonComplete,
+    squadListSortState,
     visitedOnboardingTabs,
     handlers: {
       onGameUpdate,
       onNavigate,
       onSelectPlayer,
       onSelectTeam,
+      onSquadListSortChange,
     },
   } = viewModel;
 
@@ -82,6 +84,8 @@ export default function DashboardTabContent({
         managerId={managerId}
         onSelectPlayer={onSelectPlayer}
         onGameUpdate={onGameUpdate}
+        sortState={squadListSortState}
+        onSortStateChange={onSquadListSortChange}
       />
     );
   } else if (activeTab === "Tactics") {

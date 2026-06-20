@@ -12,8 +12,18 @@ import TacticsTab from "./TacticsTab";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string | Record<string, unknown>) =>
-      typeof fallback === "string" ? fallback : key,
+    t: (key: string, fallback?: string | Record<string, unknown>) => {
+      if (key === "playerProfile.daysRemaining") {
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")} days remaining`;
+      }
+      if (key === "playerProfile.injuryDaysShort") {
+        return `${String((fallback as Record<string, unknown> | undefined)?.count ?? "")}d`;
+      }
+      if (key.startsWith("common.injuries.")) {
+        return String((fallback as Record<string, unknown> | undefined)?.defaultValue ?? key);
+      }
+      return typeof fallback === "string" ? fallback : key;
+    },
     i18n: { language: "en" },
   }),
 }));
@@ -263,6 +273,31 @@ describe("TacticsTab", () => {
     );
     expect(screen.getByTestId("bench-player-d5")).toBeInTheDocument();
     expect(screen.getByTestId("pitch-bench-player-d5")).toBeInTheDocument();
+  });
+
+  it("shows injured players under a Status column with progressive injury details", () => {
+    const gameState = makeGameState();
+    const injuredBenchPlayer = gameState.players.find(
+      (player) => player.id === "d5",
+    );
+    if (injuredBenchPlayer) {
+      injuredBenchPlayer.injury = {
+        name: "Ankle sprain",
+        days_remaining: 6,
+      };
+    }
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("common.status").length).toBeGreaterThan(0);
+    expect(screen.getByText("Ankle sprain")).toBeInTheDocument();
+    expect(screen.getByText("6d")).toBeInTheDocument();
   });
 
   it("keeps youth academy players out of first-team tactics selection", () => {

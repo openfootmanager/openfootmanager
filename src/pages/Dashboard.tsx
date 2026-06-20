@@ -27,6 +27,10 @@ import {
 } from "../components/dashboard/dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "../components/dashboard/dashboardTabContentModel";
 import {
+  DEFAULT_SQUAD_LIST_SORT_STATE,
+  type SquadListSortState,
+} from "../components/squad/SquadRosterView.state";
+import {
   isOnboardingPageTab,
   loadVisitedOnboardingTabs,
   saveVisitedOnboardingTabs,
@@ -102,6 +106,27 @@ export default function Dashboard(): JSX.Element {
   const [visitedOnboardingTabs, setVisitedOnboardingTabs] = useState<
     Set<string>
   >(new Set<string>());
+  const [activeSaveId, setActiveSaveId] = useState<string | null>(null);
+  const [squadListSortState, setSquadListSortState] =
+    useState<SquadListSortState>(DEFAULT_SQUAD_LIST_SORT_STATE);
+  const loadActiveGameState = useCallback(async () => {
+    const [stateResult, saveIdResult] = await Promise.allSettled([
+      invoke<GameStateData>("get_active_game"),
+      invoke<string | null>("get_active_save_id"),
+    ]);
+
+    if (stateResult.status === "rejected") {
+      throw stateResult.reason;
+    }
+
+    setGameState(stateResult.value);
+
+    if (saveIdResult.status === "fulfilled") {
+      setActiveSaveId(saveIdResult.value);
+    } else {
+      setActiveSaveId(null);
+    }
+  }, [setGameState]);
 
   // Fetch initial state
   useEffect(() => {
@@ -112,22 +137,20 @@ export default function Dashboard(): JSX.Element {
 
     const fetchState = async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
-        setGameState(state);
+        await loadActiveGameState();
       } catch (err) {
         console.error("Failed to fetch game state:", err);
       }
     };
 
     fetchState();
-  }, [hasActiveGame, navigate, setGameState]);
+  }, [hasActiveGame, loadActiveGameState, navigate]);
 
   // Refresh state when MCP tools mutate game (backend emits "game-state-changed")
   useEffect(() => {
     const unlisten = listen("game-state-changed", async () => {
       try {
-        const state = await invoke<GameStateData>("get_active_game");
-        setGameState(state);
+        await loadActiveGameState();
       } catch {
         // Game may have been exited — navigate back to menu
         clearGame();
@@ -137,7 +160,7 @@ export default function Dashboard(): JSX.Element {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [setGameState, clearGame, navigate]);
+  }, [loadActiveGameState, clearGame, navigate]);
 
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
@@ -170,8 +193,14 @@ export default function Dashboard(): JSX.Element {
       return;
     }
 
-    setVisitedOnboardingTabs(loadVisitedOnboardingTabs(gameState));
-  }, [gameState]);
+    setVisitedOnboardingTabs(
+      loadVisitedOnboardingTabs(gameState, undefined, activeSaveId),
+    );
+  }, [gameState, activeSaveId]);
+
+  useEffect(() => {
+    setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
+  }, [activeSaveId]);
 
   useEffect(() => {
     if (!isOnboardingPageTab(profileNavigation.activeTab)) {
@@ -189,10 +218,10 @@ export default function Dashboard(): JSX.Element {
 
       const nextTabs = new Set(currentTabs);
       nextTabs.add(profileNavigation.activeTab);
-      saveVisitedOnboardingTabs(gameState, nextTabs);
+      saveVisitedOnboardingTabs(gameState, nextTabs, undefined, activeSaveId);
       return nextTabs;
     });
-  }, [gameState, profileNavigation.activeTab]);
+  }, [activeSaveId, gameState, profileNavigation.activeTab]);
 
   // Reset to Home tab if current tab is a club tab and manager is unemployed
   useEffect(() => {
@@ -412,12 +441,14 @@ export default function Dashboard(): JSX.Element {
     gameState,
     seasonComplete,
     visitedOnboardingTabs,
+    squadListSortState,
     initialMessageId: profileNavigation.initialMessageId,
     handlers: {
       onSelectPlayer: selectPlayer,
       onSelectTeam: selectTeam,
       onGameUpdate: setGameState,
       onNavigate: handleNavigate,
+      onSquadListSortChange: setSquadListSortState,
     },
   });
 

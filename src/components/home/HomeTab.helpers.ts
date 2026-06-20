@@ -243,8 +243,15 @@ export function isOnboardingPageTab(tab: string): boolean {
   return ONBOARDING_PAGE_TABS.has(tab);
 }
 
-function getOnboardingStorageKey(gameState: GameStateData): string {
-  return `${ONBOARDING_STORAGE_KEY_PREFIX}:${gameState.manager.id}:${gameState.clock.start_date}`;
+function getOnboardingStorageKey(
+  gameState: GameStateData,
+  activeSaveId?: string | null,
+): string {
+  if (activeSaveId) {
+    return `${ONBOARDING_STORAGE_KEY_PREFIX}:save:${activeSaveId}`;
+  }
+
+  return `${ONBOARDING_STORAGE_KEY_PREFIX}:legacy:${gameState.manager.id}:${gameState.clock.start_date}`;
 }
 
 function getDefaultStorage(): StorageLike | null {
@@ -258,12 +265,15 @@ function getDefaultStorage(): StorageLike | null {
 export function loadVisitedOnboardingTabs(
   gameState: GameStateData,
   storage: StorageLike | null = getDefaultStorage(),
+  activeSaveId?: string | null,
 ): Set<string> {
   if (!storage) {
     return new Set<string>();
   }
 
-  const storedValue = storage.getItem(getOnboardingStorageKey(gameState));
+  const storedValue = storage.getItem(
+    getOnboardingStorageKey(gameState, activeSaveId),
+  );
 
   if (!storedValue) {
     return new Set<string>();
@@ -290,6 +300,7 @@ export function saveVisitedOnboardingTabs(
   gameState: GameStateData,
   visitedTabs: ReadonlySet<string>,
   storage: StorageLike | null = getDefaultStorage(),
+  activeSaveId?: string | null,
 ): void {
   if (!storage) {
     return;
@@ -300,7 +311,7 @@ export function saveVisitedOnboardingTabs(
   );
 
   storage.setItem(
-    getOnboardingStorageKey(gameState),
+    getOnboardingStorageKey(gameState, activeSaveId),
     JSON.stringify(persistedTabs),
   );
 }

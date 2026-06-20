@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 
 import {
   calcAge,
+  formatAnnualAmount,
   formatDateFull,
   formatVal,
-  formatWeeklyAmount,
   getTeamName,
 } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
@@ -109,7 +109,7 @@ export default function InboxMessageDetailPane({
     );
     setPendingSwitch({ messageId, actionId, optionId, newClubName });
   };
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
 
   if (!selectedMessage) {
     return (
@@ -362,7 +362,7 @@ export default function InboxMessageDetailPane({
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
                                 <Badge variant="neutral" size="sm">
-                                  {t("finances.wagePerWeek")}: {formatWeeklyAmount(formatVal(prospect.wage ?? 0), weeklySuffix)}
+                                  {t("finances.wagePerYear")}: {formatAnnualAmount(formatVal(prospect.wage ?? 0), annualSuffix)}
                                 </Badge>
                                 {prospect.contract_end ? (
                                   <Badge variant="neutral" size="sm">

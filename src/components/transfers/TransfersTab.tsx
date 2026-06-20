@@ -24,6 +24,7 @@ import {
   calcAge,
   formatVal,
   formatWeeklyAmount,
+  formatAnnualAmount,
   getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
@@ -61,6 +62,7 @@ import {
   deriveTransferCollections,
   filterTransferPlayers,
   getCurrentTransferList,
+  getMyListedPlayers,
   type TransferTabView,
 } from "./TransfersTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
@@ -100,6 +102,7 @@ export default function TransfersTab({
 }: TransfersTabProps) {
   const { t, i18n } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const userTeamId = gameState.manager.team_id;
   const [view, setView] = useState<TransferTabView>("my_list");
   const [search, setSearch] = useState("");
@@ -251,13 +254,12 @@ export default function TransfersTab({
 
   const transferCollections = deriveTransferCollections(gameState, userTeamId);
   const {
-    myTransferList,
-    myLoanList,
     marketPlayers,
     freeAgentPlayers,
     loanPlayers,
     playersWithOffers,
   } = transferCollections;
+  const myListedPlayers = getMyListedPlayers(transferCollections);
   const isMarketView = view === "market";
   const isFreeAgentView = view === "free_agents";
   const isLoanView = view === "loans";
@@ -275,7 +277,7 @@ export default function TransfersTab({
         id: "my_list",
         label: t("transfers.myTransferList"),
         icon: <ShoppingCart className="w-4 h-4" />,
-        count: myTransferList.length + myLoanList.length,
+        count: myListedPlayers.length,
       },
       {
         id: "market",
@@ -398,7 +400,7 @@ export default function TransfersTab({
                   {t("transfers.listed")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {myTransferList.length + myLoanList.length}
+                  {myListedPlayers.length}
                 </p>
               </div>
             </div>
@@ -673,7 +675,7 @@ export default function TransfersTab({
                           {formatVal(player.market_value)}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {formatVal(player.wage)}/yr
+                          {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                         </td>
                         <td className="py-2.5 px-4">
                           <span
