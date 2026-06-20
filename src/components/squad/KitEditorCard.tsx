@@ -18,14 +18,14 @@ interface KitEditorCardProps {
   primaryColor: string;
   secondaryColor: string;
   currentPattern: KitPattern;
-  onGameUpdate?: (g: GameStateData) => void;
+  onMutationComplete?: (g: GameStateData) => void;
 }
 
 export default function KitEditorCard({
   primaryColor,
   secondaryColor,
   currentPattern,
-  onGameUpdate,
+  onMutationComplete,
 }: KitEditorCardProps) {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
@@ -37,7 +37,7 @@ export default function KitEditorCard({
     setError(null);
     try {
       const updated = await setTeamKitPattern(pattern);
-      onGameUpdate?.(updated);
+      onMutationComplete?.(updated);
     } catch (err) {
       setError(resolveTranslatedErrorMessage(err, t));
     } finally {

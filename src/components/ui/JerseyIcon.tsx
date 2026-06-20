@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { KitPattern } from "../../store/types";
 
 interface JerseyIconProps {
@@ -20,7 +21,8 @@ export default function JerseyIcon({
   className,
 }: JerseyIconProps) {
   const px = SIZE_MAP[size];
-  const id = `jersey-${pattern}-${primaryColor.replace("#", "")}-${secondaryColor.replace("#", "")}`;
+  const uid = useId();
+  const id = `jersey-${uid.replace(/:/g, "")}`;
 
   // Shirt silhouette path (viewBox 0 0 100 100):
   // V-neck collar, short sleeves, straight body

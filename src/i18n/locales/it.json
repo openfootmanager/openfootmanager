@@ -625,6 +625,8 @@
     "noPlayers": "Nessun giocatore trovato nella tua rosa.",
     "jerseyNumber": "#",
     "jerseyNumberFull": "Numero di Maglia",
+    "jerseyNumberClickToChange": "#{{number}} — clicca per cambiare",
+    "jerseyNumberClickToAssign": "Clicca per assegnare il numero di maglia",
     "teamKit": "Divisa della Squadra",
     "kitPattern": "Design della Divisa",
     "kitPatterns": {

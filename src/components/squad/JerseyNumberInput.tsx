@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import JerseyIcon from "../ui/JerseyIcon";
 import type { KitPattern } from "../../store/types";
 
@@ -19,6 +20,7 @@ export default function JerseyNumberInput({
   onCommit,
   disabled,
 }: JerseyNumberInputProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -97,7 +99,7 @@ export default function JerseyNumberInput({
       type="button"
       onClick={startEdit}
       disabled={disabled || saving}
-      title={value != null ? `#${value} — click to change` : "Click to assign jersey number"}
+      title={value != null ? t("squad.jerseyNumberClickToChange", { number: value }) : t("squad.jerseyNumberClickToAssign")}
       className="flex items-center justify-center cursor-pointer disabled:cursor-default
                  rounded hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary-500/30"
     >

@@ -606,6 +606,8 @@
     "noPlayers": "Keine Spieler in deinem Kader gefunden.",
     "jerseyNumber": "#",
     "jerseyNumberFull": "Trikotnummer",
+    "jerseyNumberClickToChange": "#{{number}} — klicken zum Ändern",
+    "jerseyNumberClickToAssign": "Klicken, um Trikotnummer zuzuweisen",
     "teamKit": "Teamtrikot",
     "kitPattern": "Trikotvariante",
     "kitPatterns": {

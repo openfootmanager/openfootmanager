@@ -606,6 +606,8 @@
     "noPlayers": "你的阵容中未找到球员。",
     "jerseyNumber": "#",
     "jerseyNumberFull": "球衣号码",
+    "jerseyNumberClickToChange": "#{{number}} — 点击更改",
+    "jerseyNumberClickToAssign": "点击分配球衣号码",
     "teamKit": "球队球衣",
     "kitPattern": "球衣图案",
     "kitPatterns": {

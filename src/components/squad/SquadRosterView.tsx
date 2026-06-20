@@ -36,6 +36,7 @@ import {
   setContractExitIntent,
 } from "../../services/contractService";
 import { assignJerseyNumber, setPlayerSquadRole } from "../../services/squadService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import JerseyNumberInput from "./JerseyNumberInput";
 import KitEditorCard from "./KitEditorCard";
 import {
@@ -442,10 +443,10 @@ export default function SquadRosterView({
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-4">
       <KitEditorCard
-        primaryColor={myTeam.colors.primary}
-        secondaryColor={myTeam.colors.secondary}
-        currentPattern={myTeam.kit_pattern ?? "Solid"}
-        onGameUpdate={onGameUpdate}
+        primaryColor={team.colors.primary}
+        secondaryColor={team.colors.secondary}
+        currentPattern={team.kit_pattern ?? "Solid"}
+        onMutationComplete={onMutationComplete}
       />
       <Card>
         <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
@@ -791,16 +792,16 @@ export default function SquadRosterView({
                       >
                         <JerseyNumberInput
                           value={player.jersey_number ?? null}
-                          primaryColor={myTeam.colors.primary}
-                          secondaryColor={myTeam.colors.secondary}
-                          pattern={myTeam.kit_pattern ?? "Solid"}
+                          primaryColor={team.colors.primary}
+                          secondaryColor={team.colors.secondary}
+                          pattern={team.kit_pattern ?? "Solid"}
                           onCommit={async (num) => {
                             setJerseyError(null);
                             try {
                               const updated = await assignJerseyNumber(player.id, num);
-                              onGameUpdate?.(updated);
+                              onMutationComplete?.(updated);
                             } catch (err) {
-                              setJerseyError(String(err));
+                              setJerseyError(resolveTranslatedErrorMessage(err, t));
                             }
                           }}
                         />

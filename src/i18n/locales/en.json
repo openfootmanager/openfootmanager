@@ -606,6 +606,8 @@
     "noPlayers": "No players found in your squad.",
     "jerseyNumber": "#",
     "jerseyNumberFull": "Jersey Number",
+    "jerseyNumberClickToChange": "#{{number}} — click to change",
+    "jerseyNumberClickToAssign": "Click to assign jersey number",
     "teamKit": "Team Kit",
     "kitPattern": "Kit Pattern",
     "kitPatterns": {

@@ -636,6 +636,8 @@
     "noPlayers": "No se encontraron jugadores en tu plantilla.",
     "jerseyNumber": "#",
     "jerseyNumberFull": "Número de Camiseta",
+    "jerseyNumberClickToChange": "#{{number}} — clic para cambiar",
+    "jerseyNumberClickToAssign": "Clic para asignar número de camiseta",
     "teamKit": "Equipación del Equipo",
     "kitPattern": "Diseño de Equipación",
     "kitPatterns": {

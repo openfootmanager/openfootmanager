@@ -606,6 +606,8 @@
     "noPlayers": "Игроки в составе не найдены.",
     "jerseyNumber": "#",
     "jerseyNumberFull": "Номер футболки",
+    "jerseyNumberClickToChange": "#{{number}} — нажмите для изменения",
+    "jerseyNumberClickToAssign": "Нажмите, чтобы назначить номер футболки",
     "teamKit": "Форма команды",
     "kitPattern": "Узор формы",
     "kitPatterns": {
