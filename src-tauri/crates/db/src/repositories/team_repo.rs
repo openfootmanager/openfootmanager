@@ -1,5 +1,5 @@
 use domain::team::{
-    Facilities, FinancialTransaction, KitPattern, PlayStyle, Sponsorship, Team, TeamColors,
+    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors,
     TeamMedia, TrainingFocus, TrainingIntensity, TrainingSchedule,
 };
 use rusqlite::{Connection, params};
@@ -142,9 +142,7 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
     let training_intensity_str: String = row.get(18)?;
     let training_schedule_str: String = row.get(19)?;
     let media_json: String = row.get(31).unwrap_or_else(|_| "{}".to_string());
-    let kit_pattern_str: String = row
-        .get::<_, String>(32)
-        .unwrap_or_else(|_| "Solid".to_string());
+    let kit_pattern_str: String = row.get::<_, String>(32)?;
 
     Ok(Team {
         id: row.get(0)?,

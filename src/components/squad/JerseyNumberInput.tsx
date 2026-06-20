@@ -24,7 +24,7 @@ export default function JerseyNumberInput({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const committingRef = useRef(false);
 
   function startEdit() {
     if (disabled) return;
@@ -34,15 +34,17 @@ export default function JerseyNumberInput({
   }
 
   async function commit() {
-    if (saving) return;
+    if (committingRef.current) return;
+    committingRef.current = true;
     const trimmed = draft.trim();
     let next: number | null;
     if (trimmed === "") {
       next = null;
     } else {
       const parsed = parseInt(trimmed, 10);
-      if (isNaN(parsed) || parsed < 1 || parsed > 99) {
-        // Revert invalid entry
+      if (isNaN(parsed)) {
+        // Revert non-numeric entry
+        committingRef.current = false;
         setEditing(false);
         return;
       }
@@ -51,6 +53,7 @@ export default function JerseyNumberInput({
 
     // No change
     if (next === value) {
+      committingRef.current = false;
       setEditing(false);
       return;
     }
@@ -59,6 +62,7 @@ export default function JerseyNumberInput({
     try {
       await onCommit(next);
     } finally {
+      committingRef.current = false;
       setSaving(false);
       setEditing(false);
     }
@@ -76,8 +80,8 @@ export default function JerseyNumberInput({
   if (editing) {
     return (
       <input
-        ref={inputRef}
         type="number"
+        aria-label={t("squad.jerseyNumber")}
         min={1}
         max={99}
         autoFocus

@@ -211,11 +211,20 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
     let ovr: u8 = row.get::<_, i64>(31).unwrap_or(0) as u8; // default 0 for saves before V20
     let potential: u8 = row.get::<_, i64>(32).unwrap_or(0) as u8; // default 0 for saves before V20
     let media_json: String = row.get(33).unwrap_or_else(|_| "{}".to_string());
-    let jersey_number: Option<u8> = row
-        .get::<_, Option<i64>>(34)
-        .ok()
-        .flatten()
-        .map(|n| n as u8);
+    let jersey_number: Option<u8> = match row.get::<_, Option<i64>>(34)? {
+        Some(n) if (1..=99).contains(&n) => Some(n as u8),
+        Some(_) => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                34,
+                rusqlite::types::Type::Integer,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "invalid players.jersey_number: expected NULL or 1..=99",
+                )),
+            ))
+        }
+        None => None,
+    };
     let transfer_listed_int: i32 = row.get(20)?;
     let loan_listed_int: i32 = row.get(21)?;
     let market_value_i64: i64 = row.get(17)?;
