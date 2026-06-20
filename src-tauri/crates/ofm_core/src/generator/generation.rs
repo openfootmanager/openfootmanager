@@ -414,3 +414,35 @@ pub(super) fn generate_random_staff_unattached_from_def(
     s.nationality = nationality.to_string();
     s
 }
+
+/// Generate a random unemployed manager (no team) using the provided name pool.
+/// Used to top up the unemployed manager market when below the seasonal floor.
+pub(super) fn generate_random_unemployed_manager(
+    nationality: &str,
+    names_def: &NamesDefinition,
+    current_year: u32,
+    rng: &mut impl Rng,
+) -> domain::manager::Manager {
+    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
+    let age: u32 = rng.random_range(35..65);
+    let birth_year = current_year.saturating_sub(age);
+    let dob = format!(
+        "{:04}-{:02}-{:02}",
+        birth_year,
+        rng.random_range(1u32..13u32),
+        rng.random_range(1u32..29u32)
+    );
+    let reputation = rng.random_range(200u32..=700u32);
+
+    let mut mgr = domain::manager::Manager::new(
+        Uuid::new_v4().to_string(),
+        first_name,
+        last_name,
+        dob,
+        nationality.to_string(),
+    );
+    mgr.reputation = reputation;
+    mgr.satisfaction = 50;
+    mgr.fan_approval = 50;
+    mgr
+}

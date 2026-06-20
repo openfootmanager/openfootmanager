@@ -3,8 +3,10 @@ use crate::schedule::{append_fixtures, generate_league, generate_preseason_frien
 use crate::season_awards::compute_season_awards;
 use chrono::Duration;
 use domain::league::{FixtureStatus, League};
+use domain::manager::Manager;
 use domain::message::*;
 use domain::player::PlayerSeasonStats;
+use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 pub fn expected_fixture_count(team_count: usize) -> Option<usize> {
@@ -263,6 +265,11 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         player.stats = PlayerSeasonStats::default();
     }
 
+    // 5b. Convert retired players to unemployed manager/scout candidates, then
+    //     ensure the unemployed pools meet the season-end floor.
+    convert_retired_players_to_candidates(game);
+    crate::generator::replenish_manager_and_scout_market(game);
+
     // 6. Update manager career stats
     if let Some(standing) = &user_standing {
         let total_matches = standing.won + standing.drawn + standing.lost;
@@ -458,6 +465,124 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     crate::season_context::refresh_game_context(game);
 
     summary
+}
+
+// ---------------------------------------------------------------------------
+// Retiree conversion
+// ---------------------------------------------------------------------------
+
+/// For every retired, unattached player with at least one career entry:
+/// * Creates an unemployed manager candidate with deterministic ID `mgr_retired_{player_id}`.
+/// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`.
+///
+/// Both checks are idempotent — if the ID already exists the entry is not duplicated.
+fn convert_retired_players_to_candidates(game: &mut Game) {
+    // Snapshot eligible players (avoid holding borrows across mutations).
+    struct RetiredSnapshot {
+        player_id: String,
+        first_name: String,
+        last_name: String,
+        date_of_birth: String,
+        nationality: String,
+        ovr: u8,
+        career_len: usize,
+        vision: u8,
+        decisions: u8,
+        positioning: u8,
+        teamwork: u8,
+        leadership: u8,
+    }
+
+    let retirees: Vec<RetiredSnapshot> = game
+        .players
+        .iter()
+        .filter(|p| p.retired && p.team_id.is_none() && !p.career.is_empty())
+        .map(|p| {
+            let mut name_parts = p.full_name.splitn(2, ' ');
+            let first_name = name_parts.next().unwrap_or(&p.full_name).to_string();
+            let last_name = name_parts.next().unwrap_or("").to_string();
+            RetiredSnapshot {
+            player_id: p.id.clone(),
+            first_name,
+            last_name,
+            date_of_birth: p.date_of_birth.clone(),
+            nationality: p.nationality.clone(),
+            ovr: p.ovr,
+            career_len: p.career.len(),
+            vision: p.attributes.vision,
+            decisions: p.attributes.decisions,
+            positioning: p.attributes.positioning,
+            teamwork: p.attributes.teamwork,
+            leadership: p.attributes.leadership,
+            }
+        })
+        .collect();
+
+    if retirees.is_empty() {
+        return;
+    }
+
+    let existing_mgr_ids: std::collections::HashSet<String> =
+        game.managers.iter().map(|m| m.id.clone()).collect();
+    let existing_staff_ids: std::collections::HashSet<String> =
+        game.staff.iter().map(|s| s.id.clone()).collect();
+
+    let mut new_managers: Vec<Manager> = Vec::new();
+    let mut new_scouts: Vec<Staff> = Vec::new();
+
+    for r in &retirees {
+        // Manager candidate
+        let mgr_id = format!("mgr_retired_{}", r.player_id);
+        if !existing_mgr_ids.contains(&mgr_id) {
+            let reputation = (200u32)
+                .saturating_add((r.ovr as u32) * 6)
+                .saturating_add(r.career_len as u32 * 30)
+                .clamp(200, 900);
+
+            let mut mgr = Manager::new(
+                mgr_id,
+                r.first_name.clone(),
+                r.last_name.clone(),
+                r.date_of_birth.clone(),
+                r.nationality.clone(),
+            );
+            mgr.reputation = reputation;
+            mgr.satisfaction = 50;
+            mgr.fan_approval = 50;
+            // team_id stays None (unemployed)
+            new_managers.push(mgr);
+        }
+
+        // Scout candidate
+        let scout_id = format!("staff_retired_scout_{}", r.player_id);
+        if !existing_staff_ids.contains(&scout_id) {
+            let judging_ability =
+                ((r.vision as u16 + r.decisions as u16) / 2).min(100) as u8;
+            let judging_potential =
+                ((r.positioning as u16 + r.teamwork as u16) / 2).min(100) as u8;
+            let coaching = (r.leadership / 2).max(10);
+
+            let mut scout = Staff::new(
+                scout_id,
+                r.first_name.clone(),
+                r.last_name.clone(),
+                r.date_of_birth.clone(),
+                StaffRole::Scout,
+                StaffAttributes {
+                    coaching,
+                    judging_ability,
+                    judging_potential,
+                    physiotherapy: 10,
+                },
+            );
+            scout.nationality = r.nationality.clone();
+            // team_id stays None (unattached market candidate)
+            new_scouts.push(scout);
+        }
+    }
+
+    game.managers.extend(new_managers);
+    game.staff.extend(new_scouts);
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]

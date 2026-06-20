@@ -1,5 +1,6 @@
 pub mod aging;
 pub mod ai_hiring;
+pub mod ai_training;
 pub mod board_objectives;
 pub mod clock;
 pub mod club;

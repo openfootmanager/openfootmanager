@@ -59,6 +59,7 @@ where
         simulate_matchday_with_capture(game, &today, on_capture);
     } else {
         let weekday_num = game.clock.current_date.weekday().num_days_from_monday();
+        crate::ai_training::apply_ai_training_policies(game, weekday_num);
         training::process_training(game, weekday_num);
         training::check_squad_fitness_warnings(game);
     }
