@@ -1,6 +1,6 @@
 name: "💬 Feedback / Vorschlag (Deutsch)"
 description: "Teile Feedback oder Verbesserungsvorschläge auf Deutsch"
-labels: ["feedback", "alpha"]
+labels: ["feedback", "beta"]
 body:
   - type: markdown
     attributes:

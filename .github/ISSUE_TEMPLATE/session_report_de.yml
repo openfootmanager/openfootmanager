@@ -1,6 +1,6 @@
 name: "🎮 Sitzungsbericht (Deutsch)"
 description: "Teile eine Zusammenfassung deiner Spielsitzung auf Deutsch"
-labels: ["session-report", "alpha"]
+labels: ["session-report", "beta"]
 body:
   - type: markdown
     attributes:

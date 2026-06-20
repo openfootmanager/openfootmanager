@@ -1,6 +1,6 @@
-# Openfoot Manager — Guia para Testadores Alpha
+# Openfoot Manager — Guia para Testadores Beta
 
-E aí, tudo bem? Seja muito bem-vindo ao alpha do **Openfoot Manager**! Antes de mais nada — muito obrigado por estar aqui. De verdade. O fato de você topar jogar um jogo inacabado e nos ajudar a melhorá-lo significa muito pra gente.
+E aí, tudo bem? Seja muito bem-vindo ao beta do **Openfoot Manager**! Antes de mais nada — muito obrigado por estar aqui. De verdade. O fato de você topar jogar um jogo inacabado e nos ajudar a melhorá-lo significa muito pra gente.
 
 Este guia vai te explicar o que é o jogo, o que funciona, o que ainda não funciona, e como você pode nos ajudar da melhor forma.
 
@@ -12,7 +12,7 @@ O Openfoot Manager é um **jogo de simulação de gerenciamento de futebol open-
 
 Ele é construído como um app desktop usando [Tauri](https://tauri.app/) (backend em Rust + frontend em React), o que significa que roda nativamente no Windows, macOS e Linux sem precisar de navegador ou conexão com a internet.
 
-### O que tem neste alpha
+### O que tem neste beta
 
 Aqui está o que você pode fazer agora:
 
@@ -29,7 +29,7 @@ Aqui está o que você pode fazer agora:
 - **Acompanhar as finanças** — salários, orçamentos, receitas
 - **Completar uma temporada inteira** e avançar para a próxima
 
-### O que NÃO tem neste alpha
+### O que NÃO tem neste beta
 
 Pra alinhar expectativas — aqui estão coisas planejadas mas ainda não implementadas:
 
@@ -149,7 +149,7 @@ Aqui estão coisas que a gente já sabe — você não precisa reportar essas (m
 - **Sem som ou música** — o jogo é completamente silencioso por enquanto
 - **Escala da interface** pode não ficar perfeita em todos os tamanhos de tela — veja Configurações → Display → UI Scale se algo parecer estranho
 - **Parte do texto não está traduzido** — a internacionalização é um trabalho em progresso
-- **Saves deste alpha podem não ser compatíveis** com versões futuras. Não se apegue muito aos seus saves!
+- **Saves deste beta podem não ser compatíveis** com versões futuras. Não se apegue muito aos seus saves!
 - **Performance** pode cair levemente ao simular muitos dias seguidos
 
 ---
@@ -158,7 +158,7 @@ Aqui estão coisas que a gente já sabe — você não precisa reportar essas (m
 
 Esse é um projeto de paixão. Não tem um grande estúdio ou um orçamento gordo por trás. É feito por gente que ama futebol e ama jogos, no tempo livre.
 
-Seu feedback durante esse alpha não é só "legal de ter" — ele está literalmente moldando o que esse jogo vai se tornar. Cada bug que você reportar, cada "isso me confundiu", cada "não seria legal se..." — tudo isso importa.
+Seu feedback durante esse beta não é só "legal de ter" — ele está literalmente moldando o que esse jogo vai se tornar. Cada bug que você reportar, cada "isso me confundiu", cada "não seria legal se..." — tudo isso importa.
 
 Então jogue, divirta-se (esperamos!), e não segure o feedback. Não existe pergunta boba e nenhum feedback é pequeno demais.
 
@@ -168,4 +168,4 @@ Obrigado por fazer parte disso. Vamos construir algo incrível juntos.
 
 ---
 
-*Versão alpha 0.2.1*
+*Versão beta 0.3.0*

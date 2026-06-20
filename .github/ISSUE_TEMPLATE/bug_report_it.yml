@@ -1,6 +1,6 @@
 name: "🐛 Segnalazione Bug (Italiano)"
 description: "Segnala un bug o un crash in italiano"
-labels: ["bug", "alpha"]
+labels: ["bug", "beta"]
 body:
   - type: markdown
     attributes:
