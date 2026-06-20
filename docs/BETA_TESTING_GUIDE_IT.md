@@ -1,6 +1,6 @@
-# Openfoot Manager — Guida all'Beta Testing
+# Openfoot Manager — Guida al Beta Testing
 
-Ciao e benvenuto nell'beta di **Openfoot Manager**! Prima di tutto — grazie davvero per essere qui. Sul serio. Il fatto che tu voglia giocare a un gioco ancora incompleto e aiutarci a migliorarlo significa tantissimo per noi.
+Ciao e benvenuto nella beta di **Openfoot Manager**! Prima di tutto — grazie davvero per essere qui. Sul serio. Il fatto che tu voglia giocare a un gioco ancora incompleto e aiutarci a migliorarlo significa tantissimo per noi.
 
 Questa guida ti accompagnerà attraverso cos'è il gioco, cosa funziona, cosa non funziona ancora, e come puoi aiutarci nel modo più utile possibile.
 
