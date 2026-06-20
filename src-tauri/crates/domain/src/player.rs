@@ -84,6 +84,10 @@ pub struct Player {
     pub transfer_offers: Vec<TransferOffer>,
     #[serde(default)]
     pub morale_core: PlayerMoraleCore,
+
+    /// Jersey/squad number (1–99). None means unassigned.
+    #[serde(default)]
+    pub jersey_number: Option<u8>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -571,6 +575,7 @@ impl Player {
             loan_listed: false,
             transfer_offers: Vec::new(),
             morale_core: PlayerMoraleCore::default(),
+            jersey_number: None,
         }
     }
 }

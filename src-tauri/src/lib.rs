@@ -229,6 +229,8 @@ pub fn run() {
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,
+            assign_jersey_number,
+            set_team_kit_pattern,
             hire_staff,
             release_staff,
             mark_message_read,

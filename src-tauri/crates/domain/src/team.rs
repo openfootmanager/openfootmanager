@@ -45,6 +45,8 @@ pub struct Team {
     pub founded_year: u32,
     pub colors: TeamColors,
     #[serde(default)]
+    pub kit_pattern: KitPattern,
+    #[serde(default)]
     pub media: TeamMedia,
 
     // Training groups: allow per-group focus overrides for subsets of players
@@ -145,6 +147,16 @@ pub struct TrainingGroup {
 pub struct TeamColors {
     pub primary: String,
     pub secondary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub enum KitPattern {
+    #[default]
+    Solid,
+    Stripes,
+    Hoops,
+    HalfAndHalf,
+    Diagonal,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -289,6 +301,7 @@ impl Team {
                 primary: "#10b981".to_string(),
                 secondary: "#ffffff".to_string(),
             },
+            kit_pattern: KitPattern::default(),
             media: TeamMedia::default(),
             starting_xi_ids: Vec::new(),
             match_roles: MatchRoles::default(),

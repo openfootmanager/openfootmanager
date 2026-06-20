@@ -126,6 +126,7 @@ export default function PlayerProfile({
     useState(false);
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
+  const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const teamName = getPlayerTeamName(
     gameState.teams,
     player.team_id,
@@ -669,6 +670,7 @@ export default function PlayerProfile({
           })();
         }}
         onSelectTeam={onSelectTeam}
+        team={playerTeam}
         t={t}
       />
 
