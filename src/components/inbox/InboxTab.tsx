@@ -27,6 +27,8 @@ import {
   sortInboxMessages,
 } from "./inboxHelpers";
 
+const EMPTY_MESSAGES: MessageData[] = [];
+
 interface InboxTabProps {
   gameState: GameStateData | null;
   onGameUpdate: (g: GameStateData) => void;
@@ -59,7 +61,7 @@ export default function InboxTab({
     return () => { cancelled = true; };
   }, [clockDate]);
 
-  const messages = (fetchedMessages ?? gameState?.messages) ?? [];
+  const messages = fetchedMessages ?? gameState?.messages ?? EMPTY_MESSAGES;
   const allMessages = useMemo(() => messages.map(resolveMessage), [messages]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     initialMessageId ?? null,
@@ -123,6 +125,12 @@ export default function InboxTab({
     }
   }, [allMessages, selectedMessageId]);
 
+  useEffect(() => {
+    if (effectFeedback === null) return;
+    const id = setTimeout(() => setEffectFeedback(null), 4000);
+    return () => clearTimeout(id);
+  }, [effectFeedback]);
+
   async function handleSelectMessage(messageId: string): Promise<void> {
     setSelectedMessageId(messageId);
     const message = allMessages.find(
@@ -181,7 +189,6 @@ export default function InboxTab({
           effectParams,
         );
         setEffectFeedback(resolvedEffect);
-        setTimeout(() => setEffectFeedback(null), 4000);
       }
     } catch { }
   }
