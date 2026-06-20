@@ -1,6 +1,6 @@
 name: "💬 Feedback / Suggerimento (Italiano)"
 description: "Condividi feedback o suggerimenti in italiano"
-labels: ["feedback", "alpha"]
+labels: ["feedback", "beta"]
 body:
   - type: markdown
     attributes:

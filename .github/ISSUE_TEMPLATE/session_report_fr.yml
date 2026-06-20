@@ -1,6 +1,6 @@
 name: "🎮 Rapport de Session (Français)"
 description: "Partager un résumé de votre session de jeu en français"
-labels: ["session-report", "alpha"]
+labels: ["session-report", "beta"]
 body:
   - type: markdown
     attributes:

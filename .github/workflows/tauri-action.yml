@@ -70,7 +70,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Openfoot Manager v__VERSION__"
-          releaseBody: "Download the installer for your platform below. For feedback and bug reports, please refer to the [Alpha Testing Guide](https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE.md)."
+          releaseBody: "Download the installer for your platform below. For feedback and bug reports, please refer to the [Beta Testing Guide](https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE.md)."
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}

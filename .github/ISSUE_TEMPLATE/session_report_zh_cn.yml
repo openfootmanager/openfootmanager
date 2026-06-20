@@ -1,6 +1,6 @@
 name: "🎮 游戏会话报告（简体中文）"
 description: "用简体中文分享一次游玩会话的总结"
-labels: ["session-report", "alpha"]
+labels: ["session-report", "beta"]
 body:
   - type: markdown
     attributes:

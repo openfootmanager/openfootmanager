@@ -1,6 +1,6 @@
 name: "🎮 Reporte de Sesión (Español)"
 description: "Comparte un resumen de tu sesión de juego en español"
-labels: ["session-report", "alpha"]
+labels: ["session-report", "beta"]
 body:
   - type: markdown
     attributes:

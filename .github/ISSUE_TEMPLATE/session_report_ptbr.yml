@@ -1,6 +1,6 @@
 name: "🎮 Relatório de Sessão (Português BR)"
 description: "Compartilhe um resumo da sua sessão de jogo em português do Brasil"
-labels: ["session-report", "alpha"]
+labels: ["session-report", "beta"]
 body:
   - type: markdown
     attributes:

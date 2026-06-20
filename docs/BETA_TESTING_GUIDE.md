@@ -1,6 +1,6 @@
-# Openfoot Manager — Alpha Testing Guide
+# Openfoot Manager — Beta Testing Guide
 
-Hey there, and welcome to the **Openfoot Manager** alpha! First off — thank you so much for being here. Seriously. The fact that you're willing to play an unfinished game and help us make it better means the world to us.
+Hey there, and welcome to the **Openfoot Manager** beta! First off — thank you so much for being here. Seriously. The fact that you're willing to play an unfinished game and help us make it better means the world to us.
 
 This guide will walk you through what the game is, what works, what doesn't (yet), and how you can help us the most.
 
@@ -12,7 +12,7 @@ Openfoot Manager is an **open-source football management simulation game**. Thin
 
 It's built as a desktop app using [Tauri](https://tauri.app/) (Rust backend + React frontend), which means it runs natively on Windows, macOS, and Linux with no browser or internet connection needed.
 
-### What's in this alpha
+### What's in this beta
 
 Here's what you can actually do right now:
 
@@ -29,7 +29,7 @@ Here's what you can actually do right now:
 - **Track finances** — wages, budgets, income
 - **Complete a full season** and advance to the next one
 
-### What's NOT in this alpha
+### What's NOT in this beta
 
 To set expectations — here are things that are planned but not implemented yet:
 
@@ -152,7 +152,7 @@ Here are things we already know about — you don't need to report these (but fe
 - **No sound or music** — the game is completely silent for now
 - **UI scaling** may not be perfect on all screen sizes — check Settings → Display → UI Scale if things look off
 - **Some text is not translated** — i18n is a work in progress
-- **Save files from this alpha may not be compatible** with future versions. Don't get too attached to your saves!
+- **Save files from this beta may not be compatible** with future versions. Don't get too attached to your saves!
 - **Performance** may slow down slightly when simulating many days in a row
 
 ---
@@ -161,7 +161,7 @@ Here are things we already know about — you don't need to report these (but fe
 
 This is a passion project. It's not backed by a big studio or a fat budget. It's built by people who love football and love games, in their spare time.
 
-Your feedback during this alpha isn't just "nice to have" — it's literally shaping what this game becomes. Every bug you report, every "this confused me" comment, every "wouldn't it be cool if..." suggestion — it all matters.
+Your feedback during this beta isn't just "nice to have" — it's literally shaping what this game becomes. Every bug you report, every "this confused me" comment, every "wouldn't it be cool if..." suggestion — it all matters.
 
 So play the game, have fun with it (we hope!), and don't hold back on the feedback. There are no dumb questions and no feedback too small.
 
@@ -171,4 +171,4 @@ Thanks for being part of this. Let's build something great together.
 
 ---
 
-Alpha version 0.2.1
+Beta version 0.3.0

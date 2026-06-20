@@ -1,26 +1,26 @@
 blank_issues_enabled: false
 contact_links:
-  - name: "\U0001F4D6 Alpha Testing Guide (English)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE.md
-    about: "Read the full alpha testing guide before submitting feedback."
-  - name: "\U0001F4D6 Alpha 测试指南（简体中文）"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_ZH-CN.md
-    about: "提交反馈前，请先阅读完整的 Alpha 测试指南。"
-  - name: "\U0001F4D6 Guida Alpha (Italiano)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_IT.md
-    about: "Leggi la guida completa per i tester alpha."
-  - name: "\U0001F4D6 Guia Alpha (Português BR)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_PTBR.md
-    about: "Leia o guia completo para testadores alpha."
-  - name: "\U0001F4D6 Guia Alpha (Português PT)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_PT.md
-    about: "Leia o guia completo para testadores alpha."
-  - name: "\U0001F4D6 Guía Alpha (Español)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_ES.md
-    about: "Lee la guía completa para testers alpha."
-  - name: "\U0001F4D6 Guide Alpha (Français)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_FR.md
-    about: "Lis le guide complet pour les testeurs alpha."
-  - name: "\U0001F4D6 Alpha-Leitfaden (Deutsch)"
-    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/ALPHA_TESTING_GUIDE_DE.md
-    about: "Lies den vollständigen Alpha-Tester-Leitfaden."
+  - name: "\U0001F4D6 Beta Testing Guide (English)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE.md
+    about: "Read the full beta testing guide before submitting feedback."
+  - name: "\U0001F4D6 Beta 测试指南（简体中文）"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_ZH-CN.md
+    about: "提交反馈前，请先阅读完整的 Beta 测试指南。"
+  - name: "\U0001F4D6 Guida Beta (Italiano)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_IT.md
+    about: "Leggi la guida completa per i tester beta."
+  - name: "\U0001F4D6 Guia Beta (Português BR)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_PTBR.md
+    about: "Leia o guia completo para testadores beta."
+  - name: "\U0001F4D6 Guia Beta (Português PT)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_PT.md
+    about: "Leia o guia completo para testadores beta."
+  - name: "\U0001F4D6 Guía Beta (Español)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_ES.md
+    about: "Lee la guía completa para testers beta."
+  - name: "\U0001F4D6 Guide Beta (Français)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_FR.md
+    about: "Lis le guide complet pour les testeurs beta."
+  - name: "\U0001F4D6 Beta-Leitfaden (Deutsch)"
+    url: https://github.com/openfootmanager/openfootmanager/blob/develop/docs/BETA_TESTING_GUIDE_DE.md
+    about: "Lies den vollständigen Beta-Tester-Leitfaden."
