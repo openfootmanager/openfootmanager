@@ -4,137 +4,100 @@ use std::collections::HashSet;
 use log::info;
 use tauri::State;
 
-use domain::message::InboxMessage;
+use ofm_core::game::Game;
 use ofm_core::state::StateManager;
-
-// These commands only ever touch the inbox, so they mutate the game in place
-// (no upfront whole-world clone) and return just the updated message list. The
-// frontend patches its message slice rather than replacing the entire game —
-// which is what made opening/deleting messages hitch.
 
 #[tauri::command]
 pub fn mark_message_read(
     state: State<'_, Arc<StateManager>>,
     message_id: String,
-) -> Result<Vec<InboxMessage>, String> {
+) -> Result<Game, String> {
     mark_message_read_internal(&state, &message_id)
 }
 
-pub fn mark_message_read_internal(
-    state: &StateManager,
-    message_id: &str,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn mark_message_read_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
     log::debug!("[cmd] mark_message_read: {}", message_id);
-    state
-        .update_game(|game| {
-            if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
-                msg.read = true;
-            }
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game(|game| {
+        if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
+            msg.read = true;
+        }
+        game.clone()
+    }).ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
-pub fn delete_message(
-    state: State<'_, Arc<StateManager>>,
-    message_id: String,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn delete_message(state: State<'_, Arc<StateManager>>, message_id: String) -> Result<Game, String> {
     delete_message_internal(&state, &message_id)
 }
 
-pub fn delete_message_internal(
-    state: &StateManager,
-    message_id: &str,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn delete_message_internal(state: &StateManager, message_id: &str) -> Result<Game, String> {
     log::debug!("[cmd] delete_message: {}", message_id);
-    state
-        .update_game(|game| {
-            game.messages.retain(|message| message.id != message_id);
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game(|game| {
+        game.messages.retain(|message| message.id != message_id);
+        game.clone()
+    }).ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
 pub fn delete_messages(
     state: State<'_, Arc<StateManager>>,
     message_ids: Vec<String>,
-) -> Result<Vec<InboxMessage>, String> {
+) -> Result<Game, String> {
     delete_messages_internal(&state, message_ids)
 }
 
 pub fn delete_messages_internal(
     state: &StateManager,
     message_ids: Vec<String>,
-) -> Result<Vec<InboxMessage>, String> {
+) -> Result<Game, String> {
     log::debug!("[cmd] delete_messages: {}", message_ids.len());
     let message_ids: HashSet<String> = message_ids.into_iter().collect();
-    state
-        .update_game(|game| {
-            game.messages
-                .retain(|message| !message_ids.contains(&message.id));
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game(|game| {
+        game.messages.retain(|message| !message_ids.contains(&message.id));
+        game.clone()
+    }).ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
-pub fn mark_all_messages_read(
-    state: State<'_, Arc<StateManager>>,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn mark_all_messages_read(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     mark_all_messages_read_internal(&state)
 }
 
-pub fn mark_all_messages_read_internal(
-    state: &StateManager,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn mark_all_messages_read_internal(state: &StateManager) -> Result<Game, String> {
     log::debug!("[cmd] mark_all_messages_read");
-    state
-        .update_game(|game| {
-            for msg in game.messages.iter_mut() {
-                msg.read = true;
-            }
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game(|game| {
+        for msg in game.messages.iter_mut() {
+            msg.read = true;
+        }
+        game.clone()
+    }).ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
-pub fn clear_old_messages(
-    state: State<'_, Arc<StateManager>>,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn clear_old_messages(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     clear_old_messages_internal(&state)
 }
 
-pub fn clear_old_messages_internal(
-    state: &StateManager,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn clear_old_messages_internal(state: &StateManager) -> Result<Game, String> {
     log::debug!("[cmd] clear_old_messages");
-    state
-        .update_game(|game| {
-            let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
-            // Keep only: unread messages, messages with unresolved actions, and messages from recent 14 days
-            game.messages.retain(|m| {
-                if !m.read {
-                    return true;
+    state.update_game(|game| {
+        let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.messages.retain(|m| {
+            if !m.read {
+                return true;
+            }
+            if m.actions.iter().any(|a| !a.resolved) {
+                return true;
+            }
+            if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d") {
+                if let Ok(cur_date) = chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d") {
+                    return (cur_date - msg_date).num_days() <= 14;
                 }
-                if m.actions.iter().any(|a| !a.resolved) {
-                    return true;
-                }
-                // Keep recent messages (within 14 days)
-                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d") {
-                    if let Ok(cur_date) =
-                        chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
-                    {
-                        return (cur_date - msg_date).num_days() <= 14;
-                    }
-                }
-                false
-            });
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+            }
+            false
+        });
+        game.clone()
+    }).ok_or("be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
@@ -157,64 +120,62 @@ pub fn resolve_message_action_internal(
         "[cmd] resolve_message_action: msg={}, action={}, option={:?}",
         message_id, action_id, option_id
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    // Try to apply player conversation or random event response
-    let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
-        // Try player events first, then random events
-        let player_effect =
-            ofm_core::player_events::apply_player_response(&mut game, message_id, action_id, opt);
-        if let Some(player_effect) = player_effect {
-            (
-                Some(player_effect.message),
-                Some(player_effect.i18n_key),
-                Some(player_effect.i18n_params),
-            )
-        } else {
-            let random_effect = ofm_core::random_events::apply_event_response(
-                &mut game, message_id, action_id, opt,
-            );
-            if let Some(effect) = random_effect {
+    let result = state.update_game(|game| {
+        let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
+            let player_effect =
+                ofm_core::player_events::apply_player_response(game, message_id, action_id, opt);
+            if let Some(player_effect) = player_effect {
                 (
-                    Some(effect.message),
-                    Some(effect.i18n_key),
-                    Some(effect.i18n_params),
+                    Some(player_effect.message),
+                    Some(player_effect.i18n_key),
+                    Some(player_effect.i18n_params),
                 )
             } else {
-                match ofm_core::job_offers::apply_job_offer_response(
-                    &mut game, message_id, action_id, opt,
-                ) {
-                    Some(effect) => (
+                let random_effect = ofm_core::random_events::apply_event_response(
+                    game, message_id, action_id, opt,
+                );
+                if let Some(effect) = random_effect {
+                    (
                         Some(effect.message),
                         Some(effect.i18n_key),
                         Some(effect.i18n_params),
-                    ),
-                    None => match ofm_core::scouting::apply_youth_recruitment_response(
-                        &mut game, message_id, action_id, opt,
+                    )
+                } else {
+                    match ofm_core::job_offers::apply_job_offer_response(
+                        game, message_id, action_id, opt,
                     ) {
                         Some(effect) => (
                             Some(effect.message),
                             Some(effect.i18n_key),
                             Some(effect.i18n_params),
                         ),
-                        None => (None, None, None),
-                    },
+                        None => match ofm_core::scouting::apply_youth_recruitment_response(
+                            game, message_id, action_id, opt,
+                        ) {
+                            Some(effect) => (
+                                Some(effect.message),
+                                Some(effect.i18n_key),
+                                Some(effect.i18n_params),
+                            ),
+                            None => (None, None, None),
+                        },
+                    }
                 }
             }
-        }
-    } else {
-        // Standard resolve — just mark action as resolved
-        if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
-            if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
-                action.resolved = true;
+        } else {
+            if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
+                if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
+                    action.resolved = true;
+                }
             }
-        }
-        (None, None, None)
-    };
+            (None, None, None)
+        };
 
-    state.set_game(game.clone());
+        (game.clone(), effect, effect_i18n_key, effect_i18n_params)
+    })
+    .ok_or("be.error.noActiveGameSession".to_string())?;
+
+    let (game, effect, effect_i18n_key, effect_i18n_params) = result;
     Ok(serde_json::json!({
         "game": game,
         "effect": effect,
@@ -339,6 +300,7 @@ mod tests {
 
         let response = clear_old_messages_internal(&state).expect("response");
         let message_ids: Vec<&str> = response
+            .messages
             .iter()
             .map(|message| message.id.as_str())
             .collect();
@@ -431,6 +393,7 @@ mod tests {
         let response = mark_message_read_internal(&state, "keep-unread").expect("response");
 
         let message = response
+            .messages
             .iter()
             .find(|message| message.id == "keep-unread")
             .expect("message should exist");
@@ -454,7 +417,7 @@ mod tests {
 
         let response = mark_all_messages_read_internal(&state).expect("response");
 
-        assert!(response.iter().all(|message| message.read));
+        assert!(response.messages.iter().all(|message| message.read));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert!(stored_game.messages.iter().all(|message| message.read));
@@ -468,6 +431,7 @@ mod tests {
         let response = delete_message_internal(&state, "remove-stale").expect("response");
 
         assert!(!response
+            .messages
             .iter()
             .any(|message| message.id == "remove-stale"));
 
@@ -490,9 +454,11 @@ mod tests {
         .expect("response");
 
         assert!(!response
+            .messages
             .iter()
             .any(|message| message.id == "keep-unread"));
         assert!(!response
+            .messages
             .iter()
             .any(|message| message.id == "remove-stale"));
 
