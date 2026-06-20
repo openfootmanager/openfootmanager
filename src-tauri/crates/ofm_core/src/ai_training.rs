@@ -566,6 +566,7 @@ mod tests {
         // today is 2026-06-15 (Mon); fixtures on +3 and +5 days
         let fix1 = Fixture {
             id: "f1".to_string(),
+            competition_id: "league1".to_string(),
             matchday: 1,
             date: "2026-06-18".to_string(),
             home_team_id: "ai".to_string(),
@@ -576,6 +577,7 @@ mod tests {
         };
         let fix2 = Fixture {
             id: "f2".to_string(),
+            competition_id: "league1".to_string(),
             matchday: 2,
             date: "2026-06-20".to_string(),
             home_team_id: "ai".to_string(),
