@@ -4,9 +4,15 @@ import {
   applyLineupDrop,
   applyLineupSwap,
   buildActivePositionMap,
+  buildDemoteFromStartingXi,
+  buildRoleCoverageSummary,
+  getBestRoleForFormation,
+  getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
+  buildPromoteToStartingXi,
   buildStartingXIIds,
+  getSquadTacticalFit,
   getPitchSlotWidth,
   getPreferredPositions,
   isPlayerOutOfPosition,
@@ -402,5 +408,230 @@ describe("SquadTab helpers", () => {
     expect(translatePositionAbbreviation(translate, "Striker")).toBe(
       "common.posAbbr.Striker",
     );
+  });
+
+  it("classifies tactical fit as natural, adapted, or out", () => {
+    expect(
+      getSquadTacticalFit(
+        makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
+        "LeftBack",
+      ),
+    ).toBe("natural");
+
+    expect(
+      getSquadTacticalFit(
+        makePlayer("def", "Defender", { natural_position: "Defender" }),
+        "CenterBack",
+      ),
+    ).toBe("adapted");
+
+    expect(
+      getSquadTacticalFit(
+        makePlayer("fwd", "Forward", { natural_position: "Forward" }),
+        "CenterBack",
+      ),
+    ).toBe("out");
+  });
+
+  it("promotes a bench player into the slot that fits them best", () => {
+    const players = [
+      makePlayer("gk", "Goalkeeper"),
+      makePlayer("d1", "Defender"),
+      makePlayer("d2", "Defender"),
+      makePlayer("d3", "Defender"),
+      makePlayer("d4", "Defender"),
+      makePlayer("m1", "Midfielder"),
+      makePlayer("m2", "Midfielder"),
+      makePlayer("m3", "Midfielder"),
+      makePlayer("m4", "Midfielder"),
+      makePlayer("f1", "Forward"),
+      makePlayer("f2", "Forward"),
+      makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
+    ];
+    const playersById = new Map(players.map((player) => [player.id, player]));
+
+    expect(
+      buildPromoteToStartingXi(
+        ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        playersById,
+        "4-4-2",
+        "lb",
+      ),
+    ).toEqual([
+      "gk",
+      "lb",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "f1",
+      "f2",
+    ]);
+  });
+
+  it("demotes a starter by replacing them with the best bench fit for the slot", () => {
+    const players = [
+      makePlayer("gk", "Goalkeeper"),
+      makePlayer("d1", "Defender"),
+      makePlayer("d2", "Defender"),
+      makePlayer("d3", "Defender"),
+      makePlayer("d4", "Defender"),
+      makePlayer("m1", "Midfielder"),
+      makePlayer("m2", "Midfielder"),
+      makePlayer("m3", "Midfielder"),
+      makePlayer("m4", "Midfielder"),
+      makePlayer("f1", "Forward"),
+      makePlayer("f2", "Forward"),
+      makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
+    ];
+
+    expect(
+      buildDemoteFromStartingXi(
+        ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        players,
+        "4-4-2",
+        "d1",
+      ),
+    ).toEqual([
+      "gk",
+      "lb",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "f1",
+      "f2",
+    ]);
+  });
+
+  it("suggests a best role within the current formation shape", () => {
+    expect(
+      getBestRoleForFormation(
+        makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
+        "4-4-2",
+      ),
+    ).toBe("LeftBack");
+
+    expect(
+      getBestRoleForFormation(
+        makePlayer("mid", "Midfielder", { natural_position: "Midfielder" }),
+        "4-2-3-1",
+      ),
+    ).toBe("CentralMidfielder");
+  });
+
+  it("scores play-style fit using relevant attribute mixes", () => {
+    expect(
+      getPlayStyleFit(
+        makePlayer("press", "Midfielder", {
+          attributes: {
+            pace: 78,
+            stamina: 80,
+            strength: 60,
+            agility: 65,
+            passing: 62,
+            shooting: 58,
+            tackling: 77,
+            dribbling: 61,
+            defending: 63,
+            positioning: 66,
+            vision: 60,
+            decisions: 68,
+            composure: 62,
+            aggression: 79,
+            teamwork: 81,
+            leadership: 60,
+            handling: 10,
+            reflexes: 10,
+            aerial: 60,
+          },
+        }),
+        "HighPress",
+      ),
+    ).toBe("strong");
+
+    expect(
+      getPlayStyleFit(
+        makePlayer("low", "Forward", {
+          attributes: {
+            pace: 45,
+            stamina: 48,
+            strength: 50,
+            agility: 52,
+            passing: 46,
+            shooting: 49,
+            tackling: 44,
+            dribbling: 47,
+            defending: 42,
+            positioning: 48,
+            vision: 46,
+            decisions: 45,
+            composure: 44,
+            aggression: 40,
+            teamwork: 43,
+            leadership: 39,
+            handling: 10,
+            reflexes: 10,
+            aerial: 55,
+          },
+        }),
+        "Possession",
+      ),
+    ).toBe("risky");
+  });
+
+  it("summarises role coverage for the active shape", () => {
+    const players = [
+      makePlayer("gk", "Goalkeeper"),
+      makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
+      makePlayer("cb1", "Center Back", { natural_position: "Center Back" }),
+      makePlayer("cb2", "Center Back", { natural_position: "Center Back" }),
+      makePlayer("rb", "Right Back", { natural_position: "Right Back" }),
+      makePlayer("lm", "Left Midfielder", { natural_position: "Left Midfielder" }),
+      makePlayer("cm1", "Central Midfielder", {
+        natural_position: "Central Midfielder",
+      }),
+      makePlayer("cm2", "Central Midfielder", {
+        natural_position: "Central Midfielder",
+      }),
+      makePlayer("rm", "Right Midfielder", { natural_position: "Right Midfielder" }),
+      makePlayer("st1", "Striker", { natural_position: "Striker" }),
+      makePlayer("st2", "Striker", { natural_position: "Striker" }),
+      makePlayer("gk2", "Goalkeeper", { natural_position: "Goalkeeper" }),
+      makePlayer("cb3", "Center Back", { natural_position: "Center Back" }),
+    ];
+
+    const coverage = buildRoleCoverageSummary(
+      players,
+      ["gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2"],
+      "4-4-2",
+    );
+
+    expect(coverage.find((role) => role.role === "Goalkeeper")).toMatchObject({
+      requiredSlots: 1,
+      naturalStarters: 1,
+      benchOptions: 1,
+      status: "covered",
+    });
+
+    expect(coverage.find((role) => role.role === "LeftBack")).toMatchObject({
+      requiredSlots: 1,
+      naturalStarters: 1,
+      benchOptions: 0,
+      status: "thin",
+    });
+
+    expect(coverage.find((role) => role.role === "RightMidfielder")).toMatchObject({
+      requiredSlots: 1,
+      naturalStarters: 1,
+      benchOptions: 0,
+      status: "thin",
+    });
   });
 });

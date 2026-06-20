@@ -15,6 +15,8 @@
     "common.posAbbr.Striker"
   ],
   "de": [
+    "squad.planStatus",
+    "tactics.moraleLevels.okay",
     "schedule.calendar.mon",
     "schedule.calendar.fri",
     "schedule.calendar.sat",
@@ -71,6 +73,9 @@
     "traits.Dribbler.label"
   ],
   "fr": [
+    "squad.planStatus",
+    "tactics.phaseLabels.transitions",
+    "match.fitExact",
     "manager.club",
     "common.attributes.leadership",
     "transfers.negotiationPatience",
@@ -174,6 +179,9 @@
     "training.groups.groupFocus"
   ],
   "es": [
+    "squad.planStatus",
+    "tactics.inspector",
+    "tactics.tableModes.roles",
     "dashboard.recapTransferLine",
     "be.news.preseasonDigest.resultLine",
     "be.news.roundup.resultLine",

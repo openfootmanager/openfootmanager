@@ -580,7 +580,11 @@
       "goalkeeper": "门将"
     },
     "retry": "重试",
-    "score": "比分"
+    "score": "比分",
+    "teamLogoAlt": "{{team}} 队徽",
+    "left": "左侧",
+    "center": "中路",
+    "right": "右侧"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -630,6 +634,27 @@
       "Possession": "鼓励球队耐心传导,控制节奏,寻找更干净的机会。",
       "Counter": "鼓励球队在夺回球权后迅速推进,在对手重整前攻击空间。",
       "HighPress": "要求球队提早压迫,在更高位置赢得球权,并持续给对手施压。"
+    },
+    "currentPlan": "当前计划",
+    "planStatus": "计划",
+    "tacticalFit": "战术适配",
+    "coverageTitle": "角色覆盖",
+    "coverageStable": "角色覆盖情况良好",
+    "coverageNeedsAttention": "{{count}} 个角色组需要补强",
+    "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
+    "bestRole": "最佳角色",
+    "styleFit": "风格适配",
+    "starter": "首发",
+    "benchOption": "替补",
+    "naturalFit": "自然适配",
+    "adaptedFit": "适应角色",
+    "needsCover": "需要轮换",
+    "makeStarter": "设为首发",
+    "sendToBench": "放到替补席",
+    "styleFitValues": {
+      "strong": "风格适配：强",
+      "good": "风格适配：良好",
+      "risky": "风格适配：有风险"
     }
   },
   "tactics": {
@@ -646,14 +671,121 @@
     "noStartersForRoles": "先设置首发十一人,再分配球队角色与定位球。",
     "startingXI": "首发十一人 — {{formation}}",
     "fullSquad": "全队阵容",
-    "pitchInteractionHint": "在球场与替补之间拖动球员,点击一名球员查看详情,点击第二名球员进行对比,然后在对比面板中确认互换。",
+    "pitchInteractionHint": "在球场与替补之间拖动球员，点击可查看详情，点击第二名球员可进行对比，或使用右键执行快速战术操作。",
     "selectedPlayer": "已选球员",
     "comparePlayer": "对比球员",
     "selectSecondPlayer": "在首发视图中选择第二名球员以对比属性并准备互换。",
     "compareSelectionHint": "查看下方两名球员,准备好后确认互换。",
     "confirmSwap": "确认互换",
     "selectPitchPlayer": "在首发视图中选择一名球员以查看其属性。",
-    "selectAnotherToSwap": "选择第二名球员进行对比并确认互换。"
+    "selectAnotherToSwap": "选择第二名球员进行对比并确认互换。",
+    "teamIdentity": "球队风格身份",
+    "presetTactics": "预设战术",
+    "presets": "预设",
+    "tacticLibrary": "战术库",
+    "chooseTactic": "选择战术",
+    "searchTactics": "搜索战术...",
+    "myTactics": "我的战术",
+    "newTactic": "新建战术",
+    "duplicateTactic": "复制",
+    "saveAsTactic": "保存为战术",
+    "updateTactic": "更新战术",
+    "tacticName": "战术名称",
+    "identitySummary": "风格摘要",
+    "synced": "已同步",
+    "unsavedChanges": "未保存的更改",
+    "currentPlanCard": "当前计划",
+    "phaseBlueprint": "阶段蓝图",
+    "phaseLabels": {
+      "withBall": "有球",
+      "withoutBall": "无球",
+      "transitions": "转换"
+    },
+    "phaseSummaries": {
+      "withBall": "先定义球队风格：阵形、宽度、节奏，以及哪些角色支撑进攻。",
+      "withoutBall": "通过防线高度、整体紧凑度和压迫意图，定义球队在无球时的侵略性。",
+      "transitions": "下一层应描述球队在失误或夺回球权后，多快发起推进、反抢或重新落位。"
+    },
+    "customTacticDescription": "将任意阵型与最适合你阵容的比赛风格组合，打造自定义战术。",
+    "customTacticNumber": "自定义战术 {{count}}",
+    "copyOfTactic": "{{name}} 副本",
+    "modifiedPreset": "已修改的预设",
+    "activePreset": "当前预设",
+    "customTactic": "自定义战术",
+    "layoutModes": {
+      "pitch": "球场聚焦",
+      "balanced": "平衡视图",
+      "analysis": "分析视图"
+    },
+    "presetNames": {
+      "balanced-control": "均衡控制",
+      "wing-play": "边路进攻",
+      "high-press": "高位压迫",
+      "counter-attack": "防守反击",
+      "low-block": "低位防守"
+    },
+    "tableInteractionHint": "右键点击球员可使用快速操作。",
+    "makeCaptain": "设为队长",
+    "makeViceCaptain": "设为副队长",
+    "setPenaltyTaker": "指定点球手",
+    "setFreeKickTaker": "指定任意球手",
+    "setCornerTaker": "指定角球手",
+    "inspector": "检视面板",
+    "inspectorEmptyTitle": "未选择任何内容",
+    "naturalFit": "自然适配",
+    "adaptedFit": "适应角色",
+    "tokenStates": {
+      "ready": "就绪",
+      "adjusted": "调整中",
+      "risk": "风险"
+    },
+    "presetDescriptions": {
+      "balanced-control": "更稳定的站位、更可靠的覆盖，以及适合大多数阵容的直接结构。",
+      "wing-play": "提供自然宽度、更早靠近禁区的支援，以及更多前插跑动。",
+      "high-press": "将防线整体前提，要求更激进的压迫，并投入更多前场人数。",
+      "counter-attack": "在重新获得球权后，依靠更稳妥的中场基础快速发动反击。",
+      "low-block": "为后防线提供更多保护，并在承受压力时保持更紧凑的形态。"
+    },
+    "clearSelection": "清除选择",
+    "compareWithSelected": "与已选球员比较",
+    "selectForSwap": "选择用于交换",
+    "assignBestFit": "分配到最佳位置",
+    "moveToBench": "移到替补席",
+    "promoteToLineup": "提入首发",
+    "tableView": "表格视图",
+    "tableModeHints": {
+      "lineup": "查看战术位置、体能、士气和可胜任的位置。",
+      "roles": "聚焦适配信号和当前比赛职责。"
+    },
+    "tableModes": {
+      "lineup": "阵容",
+      "roles": "角色"
+    },
+    "positionSelector": "战术位置",
+    "playablePositions": "可踢位置",
+    "slotFit": "位置适配",
+    "styleFit": "风格适配",
+    "responsibilities": "职责",
+    "noSpecialRoles": "没有特殊角色",
+    "moraleLevels": {
+      "superb": "极佳",
+      "veryGood": "很好",
+      "good": "良好",
+      "okay": "一般",
+      "poor": "较差",
+      "veryPoor": "很差"
+    },
+    "conditionLevels": {
+      "ready": "就绪",
+      "sharp": "状态上佳",
+      "managing": "需要管理",
+      "risk": "风险"
+    },
+    "styleFitLevels": {
+      "strong": "高度适配",
+      "good": "适配良好",
+      "risky": "适配风险高"
+    }
   },
   "training": {
     "weeklySchedule": "每周日程",
@@ -2093,6 +2225,40 @@
           "0": "就是这样——全场结束！",
           "1": "裁判吹响终场哨声。"
         }
+      }
+    },
+    "recommendedPlan": "推荐方案",
+    "recommendedChanges": "推荐调整",
+    "noRecommendedChanges": "目前还没有特别明显的调整方向。",
+    "quickTacticalTweaks": "快速战术微调",
+    "roleFit": "角色适配",
+    "fitExact": "完全适配",
+    "fitAdjusted": "调整适配",
+    "subRecommendationReasons": {
+      "low-fitness": "体能偏低",
+      "yellow-risk": "黄牌风险",
+      "fresh-legs": "生力军",
+      "upgrade": "实力提升",
+      "role-match": "角色匹配",
+      "attacking-boost": "增强进攻",
+      "defensive-cover": "防守补位"
+    },
+    "subScenario": {
+      "steady": {
+        "title": "稳健管理",
+        "description": "暂时不需要强行提速。优先考虑平稳恢复体能，以及同位置的直接轮换。"
+      },
+      "protect-lead": {
+        "title": "守住领先",
+        "description": "当前首要目标是控制比赛并确保防守稳定。新鲜体能和更稳妥的球员类型现在最重要。"
+      },
+      "find-winner": {
+        "title": "争取制胜球",
+        "description": "这场比赛仍有机会拿下。寻找体能更充沛、侵略性更强的选择。"
+      },
+      "chase-goal": {
+        "title": "全力追球",
+        "description": "你需要更多威胁。优先考虑进攻能量、承担风险，以及能够改变节奏的球员。"
       }
     }
   },

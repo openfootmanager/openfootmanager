@@ -580,7 +580,11 @@
       "goalkeeper": "Goleiro"
     },
     "retry": "Tentar novamente",
-    "score": "Placar"
+    "score": "Placar",
+    "teamLogoAlt": "Escudo do {{team}}",
+    "left": "Esquerda",
+    "center": "Centro",
+    "right": "Direita"
   },
   "teamSelection": {
     "title": "Escolha Seu Clube",
@@ -630,6 +634,27 @@
       "Possession": "Incentiva sua equipe a circular a bola com paciência, controlar o ritmo e buscar espaços com mais clareza.",
       "Counter": "Convida sua equipe a acelerar logo após recuperar a bola, atacando os espaços antes que o adversário se reorganize.",
       "HighPress": "Pede que sua equipe pressione mais cedo, recupere a bola em zonas altas e mantenha o adversário sob pressão."
+    },
+    "currentPlan": "Plano atual",
+    "planStatus": "Plano",
+    "tacticalFit": "Encaixe tático",
+    "coverageTitle": "Cobertura de funções",
+    "coverageStable": "A cobertura parece sólida",
+    "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
+    "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
+    "bestRole": "Melhor função",
+    "styleFit": "Encaixe com o estilo",
+    "starter": "Titular",
+    "benchOption": "Banco",
+    "naturalFit": "Encaixe natural",
+    "adaptedFit": "Função adaptada",
+    "needsCover": "Precisa de cobertura",
+    "makeStarter": "Colocar como titular",
+    "sendToBench": "Mandar para o banco",
+    "styleFitValues": {
+      "strong": "Encaixe com o estilo: Forte",
+      "good": "Encaixe com o estilo: Bom",
+      "risky": "Encaixe com o estilo: Arriscado"
     }
   },
   "tactics": {
@@ -646,14 +671,121 @@
     "noStartersForRoles": "Defina sua escalação titular para atribuir funções do time e bolas paradas.",
     "startingXI": "Onze Inicial — {{formation}}",
     "fullSquad": "Elenco Completo",
-    "pitchInteractionHint": "Arraste jogadores entre o campo e o banco, clique em um jogador para analisá-lo, clique em um segundo para compará-los e então confirme a troca no painel de comparação.",
+    "pitchInteractionHint": "Arraste jogadores entre o campo e o banco, clique para inspecionar, clique em um segundo para comparar ou use o clique direito para ações táticas rápidas.",
     "selectedPlayer": "Jogador selecionado",
     "comparePlayer": "Jogador de comparação",
     "selectSecondPlayer": "Selecione um segundo jogador na visão da escalação para comparar atributos e preparar a troca.",
     "compareSelectionHint": "Analise os dois jogadores abaixo e confirme a troca quando estiver pronto.",
     "confirmSwap": "Confirmar troca",
     "selectPitchPlayer": "Selecione um jogador na visão da escalação para analisar seus atributos.",
-    "selectAnotherToSwap": "Selecione um segundo jogador para compará-los e confirmar a troca."
+    "selectAnotherToSwap": "Selecione um segundo jogador para compará-los e confirmar a troca.",
+    "teamIdentity": "Identidade do time",
+    "presetTactics": "Táticas predefinidas",
+    "presets": "Predefinições",
+    "tacticLibrary": "Biblioteca de táticas",
+    "chooseTactic": "Escolher tática",
+    "searchTactics": "Buscar táticas...",
+    "myTactics": "Minhas táticas",
+    "newTactic": "Nova tática",
+    "duplicateTactic": "Duplicar",
+    "saveAsTactic": "Salvar como tática",
+    "updateTactic": "Atualizar tática",
+    "tacticName": "Nome da tática",
+    "identitySummary": "Resumo de identidade",
+    "synced": "Sincronizado",
+    "unsavedChanges": "Alterações não salvas",
+    "currentPlanCard": "Plano atual",
+    "phaseBlueprint": "Plano por fases",
+    "phaseLabels": {
+      "withBall": "Com a bola",
+      "withoutBall": "Sem a bola",
+      "transitions": "Transições"
+    },
+    "phaseSummaries": {
+      "withBall": "Defina primeiro a identidade do time: forma, largura, ritmo e quais funções apoiam o ataque.",
+      "withoutBall": "Use altura do bloco, compactação e intenção de pressão para definir o quão agressivo o time será sem a bola.",
+      "transitions": "A próxima camada deve descrever quão rápido o time acelera, pressiona após a perda ou se reorganiza após os turnovers."
+    },
+    "customTacticDescription": "Monte uma configuração personalizada combinando qualquer formação com o estilo de jogo que melhor se encaixa no seu elenco.",
+    "customTacticNumber": "Tática personalizada {{count}}",
+    "copyOfTactic": "Cópia de {{name}}",
+    "modifiedPreset": "Predefinição modificada",
+    "activePreset": "Predefinição ativa",
+    "customTactic": "Tática personalizada",
+    "layoutModes": {
+      "pitch": "Foco no campo",
+      "balanced": "Visão equilibrada",
+      "analysis": "Visão de análise"
+    },
+    "presetNames": {
+      "balanced-control": "Controle equilibrado",
+      "wing-play": "Jogo pelos lados",
+      "high-press": "Pressão alta",
+      "counter-attack": "Contra-ataque",
+      "low-block": "Bloco baixo"
+    },
+    "tableInteractionHint": "Clique com o botão direito nos jogadores para ações rápidas.",
+    "makeCaptain": "Definir como capitão",
+    "makeViceCaptain": "Definir como vice-capitão",
+    "setPenaltyTaker": "Definir pênaltis",
+    "setFreeKickTaker": "Definir faltas",
+    "setCornerTaker": "Definir escanteios",
+    "inspector": "Inspetor",
+    "inspectorEmptyTitle": "Nada selecionado",
+    "naturalFit": "Encaixe natural",
+    "adaptedFit": "Função adaptada",
+    "tokenStates": {
+      "ready": "Pronto",
+      "adjusted": "Ajustado",
+      "risk": "Risco"
+    },
+    "presetDescriptions": {
+      "balanced-control": "Linhas estáveis, cobertura confiável e uma estrutura direta para a maioria dos elencos.",
+      "wing-play": "Amplitude natural, apoio mais cedo perto da área e mais corridas à frente da bola.",
+      "high-press": "Empurra o bloco para frente, exige pressão agressiva e coloca mais gente no ataque.",
+      "counter-attack": "Prioriza transições rápidas a partir de uma base de meio-campo mais segura depois da retomada da posse.",
+      "low-block": "Mais proteção na última linha e uma forma mais compacta ao absorver pressão."
+    },
+    "clearSelection": "Limpar seleção",
+    "compareWithSelected": "Comparar com selecionado",
+    "selectForSwap": "Selecionar para troca",
+    "assignBestFit": "Atribuir ao melhor encaixe",
+    "moveToBench": "Mover para o banco",
+    "promoteToLineup": "Promover para o time titular",
+    "tableView": "Visão de tabela",
+    "tableModeHints": {
+      "lineup": "Veja slots táticos, condição, moral e posições que o jogador pode exercer.",
+      "roles": "Foque nos sinais de encaixe e nas responsabilidades atuais da partida."
+    },
+    "tableModes": {
+      "lineup": "Escalação",
+      "roles": "Funções"
+    },
+    "positionSelector": "Slot tático",
+    "playablePositions": "Posições",
+    "slotFit": "Encaixe no slot",
+    "styleFit": "Encaixe com o estilo",
+    "responsibilities": "Responsabilidades",
+    "noSpecialRoles": "Sem funções especiais",
+    "moraleLevels": {
+      "superb": "Excelente",
+      "veryGood": "Muito boa",
+      "good": "Boa",
+      "okay": "Ok",
+      "poor": "Baixa",
+      "veryPoor": "Muito baixa"
+    },
+    "conditionLevels": {
+      "ready": "Pronto",
+      "sharp": "Afiado",
+      "managing": "Gerenciando",
+      "risk": "Risco"
+    },
+    "styleFitLevels": {
+      "strong": "Ótimo encaixe",
+      "good": "Bom encaixe",
+      "risky": "Encaixe arriscado"
+    }
   },
   "training": {
     "weeklySchedule": "Calendário Semanal",
@@ -2036,6 +2168,40 @@
           "0": "É isso — fim de jogo!",
           "1": "O árbitro encerra a partida."
         }
+      }
+    },
+    "recommendedPlan": "Plano recomendado",
+    "recommendedChanges": "Mudanças recomendadas",
+    "noRecommendedChanges": "Ainda não existe uma mudança clara que se destaque.",
+    "quickTacticalTweaks": "Ajustes táticos rápidos",
+    "roleFit": "Encaixe da função",
+    "fitExact": "Exato",
+    "fitAdjusted": "Ajustado",
+    "subRecommendationReasons": {
+      "low-fitness": "Baixa condição",
+      "yellow-risk": "Risco de cartão",
+      "fresh-legs": "Pernas frescas",
+      "upgrade": "Ganho de qualidade",
+      "role-match": "Encaixe de função",
+      "attacking-boost": "Impulso ofensivo",
+      "defensive-cover": "Cobertura defensiva"
+    },
+    "subScenario": {
+      "steady": {
+        "title": "Gestão Estável",
+        "description": "Ainda não há necessidade de forçar o jogo. Priorize ganhos limpos de energia e trocas posição por posição."
+      },
+      "protect-lead": {
+        "title": "Proteger A Vantagem",
+        "description": "A prioridade é controle e segurança defensiva. Pernas frescas e perfis mais seguros importam mais neste momento."
+      },
+      "find-winner": {
+        "title": "Buscar A Vitória",
+        "description": "O jogo ainda pode ser ganho. Procure pernas mais vivas e opções mais agressivas."
+      },
+      "chase-goal": {
+        "title": "Buscar O Gol",
+        "description": "Você precisa de mais ameaça. Priorize energia ofensiva, risco e jogadores capazes de mudar o ritmo."
       }
     }
   },
