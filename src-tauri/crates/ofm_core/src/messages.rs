@@ -243,7 +243,11 @@ pub fn transfer_interest_digest_message(
     let fee_display =
         crate::currency::format_compact_money(latest_fee, crate::currency::DEFAULT_CURRENCY_CODE)
             .unwrap_or_else(|| {
-                format!("{}{}", crate::currency::default_currency_symbol(), latest_fee)
+                format!(
+                    "{}{}",
+                    crate::currency::default_currency_symbol(),
+                    latest_fee
+                )
             });
 
     InboxMessage::new(
@@ -279,4 +283,139 @@ pub fn transfer_interest_digest_message(
         ]),
     )
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
+}
+
+pub fn incoming_loan_offer_message(
+    offer_id: &str,
+    player_id: &str,
+    player_name: &str,
+    borrowing_team_name: &str,
+    wage_contribution_pct: u8,
+    buy_option_fee: Option<u64>,
+    end_date: &str,
+    date: &str,
+) -> InboxMessage {
+    let buy_option_display = buy_option_fee
+        .and_then(|fee| {
+            crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
+        })
+        .unwrap_or_else(|| "—".to_string());
+
+    InboxMessage::new(
+        format!("loan_offer_{}", offer_id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_action(action(
+        "view_transfers",
+        "",
+        "be.msg.loanOffer.actionReview",
+        ActionType::NavigateTo {
+            route: "/dashboard?tab=Transfers".to_string(),
+        },
+    ))
+    .with_context(MessageContext {
+        player_id: Some(player_id.to_string()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.loanOffer.subject",
+        "be.msg.loanOffer.body",
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("team".to_string(), borrowing_team_name.to_string()),
+            (
+                "wageContribution".to_string(),
+                wage_contribution_pct.to_string(),
+            ),
+            ("endDate".to_string(), end_date.to_string()),
+            ("buyOption".to_string(), buy_option_display),
+        ]),
+    )
+    .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
+}
+
+pub fn loan_development_report_message(
+    message_id: &str,
+    player_id: &str,
+    player_name: &str,
+    loan_team_name: &str,
+    days_on_loan: i64,
+    ovr_before: u8,
+    ovr_after: u8,
+    attribute_gains: u8,
+    final_report: bool,
+    date: &str,
+) -> InboxMessage {
+    InboxMessage::new(
+        message_id.to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Training)
+    .with_priority(MessagePriority::Normal)
+    .with_sender_role("")
+    .with_context(MessageContext {
+        player_id: Some(player_id.to_string()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.loanDevelopmentReport.subject",
+        if final_report {
+            "be.msg.loanDevelopmentReport.bodyFinal"
+        } else {
+            "be.msg.loanDevelopmentReport.body"
+        },
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("team".to_string(), loan_team_name.to_string()),
+            ("days".to_string(), days_on_loan.to_string()),
+            ("ovrBefore".to_string(), ovr_before.to_string()),
+            ("ovrAfter".to_string(), ovr_after.to_string()),
+            ("attributeGains".to_string(), attribute_gains.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
+}
+
+pub fn loan_buy_option_exercised_message(
+    player_id: &str,
+    player_name: &str,
+    fee: u64,
+    date: &str,
+) -> InboxMessage {
+    let fee_display =
+        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
+            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
+
+    InboxMessage::new(
+        format!("loan_buy_option_{}_{}", player_id, date),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_context(MessageContext {
+        player_id: Some(player_id.to_string()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.loanBuyOptionExercised.subject",
+        "be.msg.loanBuyOptionExercised.body",
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("fee".to_string(), fee_display),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
 }

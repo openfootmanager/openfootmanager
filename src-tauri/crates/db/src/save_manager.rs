@@ -17,9 +17,9 @@ use ofm_core::player_rating::{
 use crate::game_database::GameDatabase;
 use crate::game_persistence::{GamePersistenceReader, GamePersistenceWriter};
 use crate::repositories::{league_repo, meta_repo};
-use crate::save_load_error::SaveLoadError;
 use crate::save_index::{SaveEntry, compute_checksum, save_entry_metadata_from_game};
 use crate::save_index_manager::SaveIndexManager;
+use crate::save_load_error::SaveLoadError;
 
 /// Manages save sessions: creating, loading, saving, deleting, and listing.
 pub struct SaveManager {
@@ -560,6 +560,13 @@ impl SaveManager {
             player.transfer_listed = false;
             player.loan_listed = false;
             player.transfer_offers.clear();
+            player.loan_offers.clear();
+            if let Some(loan) = player.active_loan.take() {
+                for team in &mut game.teams {
+                    team.remove_player_references(&player.id);
+                }
+                player.team_id = Some(loan.parent_team_id);
+            }
         }
 
         // Clear league (will be regenerated)

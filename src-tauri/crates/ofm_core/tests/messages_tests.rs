@@ -463,7 +463,10 @@ fn transfer_interest_digest_message_uses_i18n_keys_and_stable_id() {
         msg.subject_key.as_deref(),
         Some("be.msg.transferInterest.subject")
     );
-    assert_eq!(msg.body_key.as_deref(), Some("be.msg.transferInterest.body"));
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.transferInterest.body")
+    );
     assert_eq!(
         msg.context.player_id.as_deref(),
         Some("player-1"),
@@ -478,9 +481,113 @@ fn transfer_interest_digest_message_uses_i18n_keys_and_stable_id() {
         msg.i18n_params.get("team").map(String::as_str),
         Some("Rival FC")
     );
-    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("€1.2M"));
+    assert_eq!(
+        msg.i18n_params.get("fee").map(String::as_str),
+        Some("€1.2M")
+    );
     assert!(msg.actions.iter().any(|action| {
         action.id == "view_transfers"
             && action.label_key.as_deref() == Some("be.msg.transferInterest.actionReview")
     }));
+}
+
+#[test]
+fn incoming_loan_offer_message_uses_i18n_keys_and_params() {
+    let msg = messages::incoming_loan_offer_message(
+        "loan-offer-1",
+        "player-1",
+        "John Star",
+        "Rival FC",
+        75,
+        Some(1_200_000),
+        "2026-12-31",
+        "2025-08-01",
+    );
+
+    assert_eq!(msg.id, "loan_offer_loan-offer-1");
+    assert!(msg.subject.is_empty());
+    assert!(msg.body.is_empty());
+    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.loanOffer.subject"));
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.loanOffer.body"));
+    assert_eq!(
+        msg.i18n_params.get("player").map(String::as_str),
+        Some("John Star")
+    );
+    assert_eq!(
+        msg.i18n_params.get("team").map(String::as_str),
+        Some("Rival FC")
+    );
+    assert_eq!(
+        msg.i18n_params.get("wageContribution").map(String::as_str),
+        Some("75")
+    );
+    assert_eq!(
+        msg.i18n_params.get("endDate").map(String::as_str),
+        Some("2026-12-31")
+    );
+    assert_eq!(
+        msg.i18n_params.get("buyOption").map(String::as_str),
+        Some("€1.2M")
+    );
+    assert!(msg.actions.iter().any(|action| {
+        action.id == "view_transfers"
+            && action.label.is_empty()
+            && action.label_key.as_deref() == Some("be.msg.loanOffer.actionReview")
+    }));
+}
+
+#[test]
+fn loan_development_report_message_uses_i18n_keys_and_params() {
+    let msg = messages::loan_development_report_message(
+        "loan_development_player-1_2025-09-01",
+        "player-1",
+        "John Star",
+        "Rival FC",
+        30,
+        62,
+        63,
+        3,
+        false,
+        "2025-09-01",
+    );
+
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.loanDevelopmentReport.subject")
+    );
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.loanDevelopmentReport.body")
+    );
+    assert_eq!(msg.category, domain::message::MessageCategory::Training);
+    assert_eq!(msg.context.player_id.as_deref(), Some("player-1"));
+    assert_eq!(
+        msg.i18n_params.get("attributeGains").map(String::as_str),
+        Some("3")
+    );
+}
+
+#[test]
+fn loan_buy_option_exercised_message_uses_i18n_keys_and_params() {
+    let msg = messages::loan_buy_option_exercised_message(
+        "player-1",
+        "John Star",
+        1_200_000,
+        "2025-09-01",
+    );
+
+    assert_eq!(msg.id, "loan_buy_option_player-1_2025-09-01");
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.loanBuyOptionExercised.subject")
+    );
+    assert_eq!(
+        msg.body_key.as_deref(),
+        Some("be.msg.loanBuyOptionExercised.body")
+    );
+    assert_eq!(msg.context.player_id.as_deref(), Some("player-1"));
+    assert_eq!(
+        msg.i18n_params.get("fee").map(String::as_str),
+        Some("€1.2M")
+    );
 }

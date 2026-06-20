@@ -205,6 +205,22 @@ describe("TransfersTab.model", () => {
         },
       ],
     });
+    const loanOfferedPlayer = createPlayer({
+      id: "loan-offered-player",
+      transfer_offers: [],
+      loan_offers: [
+        {
+          id: "loan-offer-1",
+          from_team_id: "team-1",
+          parent_team_id: "team-2",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          status: "Pending",
+          date: "2026-08-01",
+        },
+      ],
+    });
     const gameState = createGameState([
       userListed,
       userLoanListed,
@@ -213,6 +229,7 @@ describe("TransfersTab.model", () => {
       retiredFreeAgent,
       loanPlayer,
       offeredPlayer,
+      loanOfferedPlayer,
     ]);
 
     const collections = deriveTransferCollections(gameState, "team-1");
@@ -234,6 +251,7 @@ describe("TransfersTab.model", () => {
     ]);
     expect(collections.playersWithOffers.map((player) => player.id)).toEqual([
       "offered-player",
+      "loan-offered-player",
     ]);
   });
 

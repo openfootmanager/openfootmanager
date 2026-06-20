@@ -25,9 +25,11 @@ vi.mock("react-i18next", () => ({
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.transferMarket") return "Transfer Market";
+      if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.freeAgents") return "Free Agents";
       if (key === "transfers.transfer") return "TRANSFER";
       if (key === "transfers.loan") return "LOAN";
+      if (key === "transfers.loanMarket") return "Loan Market";
       if (key === "transfers.offers") return "Offers";
       if (key === "transfers.noFreeAgents") return "No free agents available.";
       if (key === "transfers.counterOffer") return "Counter Offer";
@@ -37,8 +39,49 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.counter") return "Counter";
       if (key === "transfers.offerContract") return "Offer Contract";
       if (key === "transfers.bid") return "Bid";
+      if (key === "transfers.loanOffer") return "Loan Offer";
+      if (key === "transfers.counterLoanOffer") return "Counter Loan Offer";
       if (key === "transfers.makeBid") return "Make Transfer Bid";
+      if (key === "transfers.makeLoanOffer") return "Make Loan Offer";
       if (key === "transfers.bidAmount") return "Bid Amount (€M)";
+      if (key === "transfers.loanEndDate") return "Loan End Date";
+      if (key === "transfers.loanPeriod") return "Loan Length";
+      if (key === "transfers.loanPeriodThreeMonths") return "3 months";
+      if (key === "transfers.loanPeriodJanuaryWindow") return "Until January window";
+      if (key === "transfers.loanPeriodEndOfSeason") return "Until end of season";
+      if (key === "transfers.loanPeriodTwelveMonths") return "12 months";
+      if (key === "transfers.loanPeriodCurrentOffer") return "Current offer date";
+      if (key === "transfers.loanEndsOn") return `Loan ends on ${params?.endDate}`;
+      if (key === "transfers.noLoanPeriodAvailable") return "No valid loan length.";
+      if (key === "transfers.loanPeriodUnavailableRules") return "outside loan rules";
+      if (key === "transfers.loanPeriodUnavailableContract") return "contract expires first";
+      if (key === "transfers.loanWageContribution") return "Wage Contribution (%)";
+      if (key === "transfers.loanWageContributionManual") return "Manual percentage";
+      if (key === "transfers.loanWageSummary")
+        return `${params?.percent}% wages: ${params?.wage}`;
+      if (key === "transfers.loanToBuyOption") return "Loan-to-buy option";
+      if (key === "transfers.loanToBuyOptionDesc") return "Include a permanent purchase clause.";
+      if (key === "transfers.buyOptionFee") return "Buy Option Fee";
+      if (key === "transfers.buyOptionFeeShort") return `Option ${params?.fee}`;
+      if (key === "transfers.loanBuyOptionSummary")
+        return `Permanent option at ${params?.fee}`;
+      if (key === "transfers.exerciseBuyOption") return "Exercise Option";
+      if (key === "transfers.submitLoanOffer") return "Submit Loan Offer";
+      if (key === "transfers.submitLoanCounter") return "Submit Counter";
+      if (key === "transfers.loanOfferAccepted") return "Loan accepted";
+      if (key === "transfers.loanOfferRejected") return "Loan rejected";
+      if (key === "transfers.loanCounterAccepted") return "Loan counter accepted";
+      if (key === "transfers.loanCounterRejected") return "Loan counter rejected";
+      if (key === "transfers.loanCounterCountered")
+        return "They pushed back with adjusted loan terms.";
+      if (key === "transfers.loanCounterSuggestedTerms")
+        return `Suggested terms: ${params?.percent}% wages until ${params?.endDate}`;
+      if (key === "transfers.loanCounterSuggestedBuyOption")
+        return `Suggested buy option: ${params?.fee}`;
+      if (key === "transfers.loanOfferTerms")
+        return `Loan ${params?.percent}% wages until ${params?.endDate}`;
+      if (key === "transfers.acceptLoanOffer") return "Accept Loan";
+      if (key === "transfers.rejectLoanOffer") return "Reject Loan";
       if (key === "transfers.submitBid") return "Submit Bid";
       if (key === "transfers.bidImpactTitle") return "Projected impact";
       if (key === "transfers.bidImpactTransferBudget")
@@ -707,6 +750,318 @@ describe("TransfersTab", function (): void {
     });
   });
 
+  it("submits a loan offer from the loan market", async function (): Promise<void> {
+    const initialState = createGameState([
+      createPlayer({
+        id: "loan-target",
+        team_id: "team-2",
+        loan_listed: true,
+        transfer_offers: [],
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "loan-target",
+        team_id: "team-1",
+        loan_listed: false,
+        transfer_offers: [],
+        active_loan: {
+          parent_team_id: "team-2",
+          loan_team_id: "team-1",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+        },
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce({
+      decision: "accepted",
+      offer_id: "loan-offer-1",
+      game: updatedState,
+    });
+
+    render(
+      <TransfersTab
+        gameState={initialState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    expect(screen.getByLabelText(/loan length/i)).toHaveValue("january_window");
+    fireEvent.change(screen.getByLabelText(/wage contribution/i), {
+      target: { value: "75" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit loan offer/i }));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        playerId: "loan-target",
+        endDate: "2027-01-01",
+        wageContributionPct: 75,
+        buyOptionFee: null,
+      });
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("submits a loan offer with a buy option", async function (): Promise<void> {
+    const initialState = createGameState([
+      createPlayer({
+        id: "loan-buy-target",
+        team_id: "team-2",
+        loan_listed: true,
+        transfer_offers: [],
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "loan-buy-target",
+        team_id: "team-1",
+        loan_listed: false,
+        transfer_offers: [],
+        active_loan: {
+          parent_team_id: "team-2",
+          loan_team_id: "team-1",
+          start_date: "2026-08-01",
+          end_date: "2027-06-30",
+          wage_contribution_pct: 75,
+          buy_option_fee: 1250000,
+        },
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce({
+      decision: "accepted",
+      offer_id: "loan-offer-1",
+      game: updatedState,
+    });
+
+    render(
+      <TransfersTab
+        gameState={initialState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.change(screen.getByLabelText(/loan length/i), {
+      target: { value: "end_of_season" },
+    });
+    fireEvent.change(screen.getByLabelText(/wage contribution/i), {
+      target: { value: "75" },
+    });
+    fireEvent.click(screen.getByLabelText(/loan-to-buy option/i));
+    fireEvent.change(screen.getByLabelText(/buy option fee/i), {
+      target: { value: "1250000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit loan offer/i }));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        playerId: "loan-buy-target",
+        endDate: "2027-06-30",
+        wageContributionPct: 75,
+        buyOptionFee: 1250000,
+      });
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("accepts an incoming loan offer from the offers view", async function (): Promise<void> {
+    const initialState = createGameState([
+      createPlayer({
+        id: "loan-owned",
+        transfer_offers: [],
+        loan_offers: [
+          {
+            id: "loan-offer-1",
+            from_team_id: "team-2",
+            parent_team_id: "team-1",
+            start_date: "2026-08-01",
+            end_date: "2027-01-01",
+            wage_contribution_pct: 75,
+            status: "Pending",
+            date: "2026-08-01",
+          },
+        ],
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "loan-owned",
+        team_id: "team-2",
+        transfer_offers: [],
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce(updatedState);
+
+    render(
+      <TransfersTab
+        gameState={initialState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    expect(
+      screen.getByText("Loan 75% wages until 2027-01-01 — Live"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Accept Loan"));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
+        playerId: "loan-owned",
+        offerId: "loan-offer-1",
+        accept: true,
+      });
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("submits a counter offer for an incoming loan offer", async function (): Promise<void> {
+    const initialState = createGameState([
+      createPlayer({
+        id: "loan-counter-owned",
+        transfer_offers: [],
+        loan_offers: [
+          {
+            id: "loan-offer-counter",
+            from_team_id: "team-2",
+            parent_team_id: "team-1",
+            start_date: "2026-08-01",
+            end_date: "2027-01-28",
+            wage_contribution_pct: 65,
+            buy_option_fee: null,
+            status: "Pending",
+            date: "2026-08-01",
+          },
+        ],
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "loan-counter-owned",
+        team_id: "team-2",
+        transfer_offers: [],
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce({
+      decision: "accepted",
+      offer_id: "loan-offer-counter",
+      suggested_wage_contribution_pct: null,
+      suggested_end_date: null,
+      suggested_buy_option_fee: null,
+      is_terminal: true,
+      game: updatedState,
+    });
+
+    render(
+      <TransfersTab
+        gameState={initialState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /counter loan offer/i }),
+    );
+    fireEvent.change(screen.getByLabelText(/wage contribution/i), {
+      target: { value: "85" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit counter/i }));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("counter_loan_offer", {
+        playerId: "loan-counter-owned",
+        offerId: "loan-offer-counter",
+        endDate: "2027-01-28",
+        wageContributionPct: 85,
+        buyOptionFee: null,
+      });
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("exercises an accepted loan buy option from the offers view", async function (): Promise<void> {
+    const initialState = createGameState([
+      createPlayer({
+        id: "loan-buy-player",
+        team_id: "team-1",
+        transfer_offers: [],
+        active_loan: {
+          parent_team_id: "team-2",
+          loan_team_id: "team-1",
+          start_date: "2026-08-01",
+          end_date: "2027-01-01",
+          wage_contribution_pct: 75,
+          buy_option_fee: 1250000,
+        },
+        loan_offers: [
+          {
+            id: "loan-offer-1",
+            from_team_id: "team-1",
+            parent_team_id: "team-2",
+            start_date: "2026-08-01",
+            end_date: "2027-01-01",
+            wage_contribution_pct: 75,
+            buy_option_fee: 1250000,
+            status: "Accepted",
+            date: "2026-08-01",
+          },
+        ],
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "loan-buy-player",
+        team_id: "team-1",
+        transfer_offers: [],
+        active_loan: null,
+      }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockResolvedValueOnce(updatedState);
+
+    render(
+      <TransfersTab
+        gameState={initialState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+    fireEvent.click(screen.getByRole("button", { name: /exercise option/i }));
+
+    await waitFor(function (): void {
+      expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
+        playerId: "loan-buy-player",
+      });
+    });
+    expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
   it("offers transfer-list actions from the my-list context menu", async function (): Promise<void> {
     const gameState = createGameState([
       createPlayer({ transfer_listed: true }),
@@ -760,13 +1115,31 @@ describe("TransfersTab", function (): void {
 
     const wkElements = document.querySelectorAll("*");
     const hasWeeklySuffix = Array.from(wkElements).some(
-      (el) =>
-        el.children.length === 0 &&
-        el.textContent?.includes("/wk"),
+      (el) => el.children.length === 0 && el.textContent?.includes("/wk"),
     );
     expect(hasWeeklySuffix).toBe(false);
 
     const wageBudgetCard = screen.getByTestId("wage-budget-card");
     expect(wageBudgetCard.textContent).toContain("/yr");
+  });
+
+  it("shows a dual-listed player once in the my-list view", function (): void {
+    const gameState = createGameState([
+      createPlayer({ transfer_listed: true, loan_listed: true }),
+    ]);
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /my transfer list \(1\)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("John Smith")).toHaveLength(1);
   });
 });

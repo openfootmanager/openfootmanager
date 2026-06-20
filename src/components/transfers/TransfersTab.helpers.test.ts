@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { PlayerData, TransferOfferData } from "../../store/gameStore";
 import {
+  buildLoanPeriodOptions,
   buildResumedBidFeedback,
   buildResumedCounterFeedback,
   formatTransferFeeInput,
+  getDefaultLoanPeriodId,
+  getLoanPeriodIdForEndDate,
   getOutgoingNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
@@ -134,6 +137,64 @@ describe("TransfersTab.helpers", () => {
     expect(formatTransferFeeInput(691920)).toBe("691920");
     expect(parseTransferFeeInput("691920")).toBe(691920);
     expect(parseTransferFeeInput("€691,920")).toBe(691920);
+  });
+
+  it("builds loan period presets from the current game date", () => {
+    const options = buildLoanPeriodOptions(
+      "2026-08-01T12:00:00Z",
+      "2028-06-30",
+    );
+
+    expect(options.map((option) => [option.id, option.endDate])).toEqual([
+      ["three_months", "2026-10-30"],
+      ["january_window", "2027-01-01"],
+      ["end_of_season", "2027-06-30"],
+      ["twelve_months", "2027-08-01"],
+    ]);
+    expect(options.every((option) => !option.disabled)).toBe(true);
+    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2028-06-30")).toBe(
+      "january_window",
+    );
+  });
+
+  it("disables loan period presets that outlive the player contract", () => {
+    const options = buildLoanPeriodOptions(
+      "2026-08-01T12:00:00Z",
+      "2026-11-15",
+    );
+
+    expect(options.find((option) => option.id === "three_months")).toMatchObject({
+      disabled: false,
+    });
+    expect(options.find((option) => option.id === "january_window")).toMatchObject({
+      disabled: true,
+      disabledReasonKey: "transfers.loanPeriodUnavailableContract",
+    });
+    expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2026-11-15")).toBe(
+      "three_months",
+    );
+  });
+
+  it("preserves unmatched incoming loan offer dates as counter periods", () => {
+    const options = buildLoanPeriodOptions(
+      "2026-08-01T12:00:00Z",
+      "2028-06-30",
+      "2027-01-28",
+    );
+
+    expect(options[0]).toMatchObject({
+      id: "current_offer",
+      labelKey: "transfers.loanPeriodCurrentOffer",
+      endDate: "2027-01-28",
+      disabled: false,
+    });
+    expect(
+      getLoanPeriodIdForEndDate(
+        "2026-08-01T12:00:00Z",
+        "2028-06-30",
+        "2027-01-28",
+      ),
+    ).toBe("current_offer");
   });
 
   it("normalizes transfer feedback fee params for display", () => {

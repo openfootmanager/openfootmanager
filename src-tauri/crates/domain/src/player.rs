@@ -70,6 +70,8 @@ pub struct Player {
 
     // Career history
     pub career: Vec<CareerEntry>,
+    #[serde(default)]
+    pub movement_history: Vec<PlayerMovementEntry>,
 
     // Individual training focus override (takes priority over group and team default)
     #[serde(default)]
@@ -82,6 +84,10 @@ pub struct Player {
     pub loan_listed: bool,
     #[serde(default)]
     pub transfer_offers: Vec<TransferOffer>,
+    #[serde(default)]
+    pub loan_offers: Vec<LoanOffer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_loan: Option<ActiveLoan>,
     #[serde(default)]
     pub morale_core: PlayerMoraleCore,
 
@@ -363,6 +369,18 @@ fn default_transfer_offer_round() -> u8 {
     0
 }
 
+fn default_loan_offer_round() -> u8 {
+    0
+}
+
+fn default_loan_offer_status() -> LoanOfferStatus {
+    LoanOfferStatus::Pending
+}
+
+fn default_loan_offer_date() -> String {
+    String::new()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct PlayerSeasonStats {
@@ -393,6 +411,35 @@ pub struct CareerEntry {
     pub assists: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerMovementKind {
+    PermanentTransfer,
+    LoanStart,
+    LoanReturn,
+    LoanToBuy,
+    FreeAgentSigning,
+    Released,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PlayerMovementEntry {
+    pub date: String,
+    pub kind: PlayerMovementKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_team_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_team_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_team_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_team_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fee: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loan_end_date: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransferOffer {
     pub id: String,
@@ -417,6 +464,63 @@ pub enum TransferOfferStatus {
     Accepted,
     Rejected,
     Withdrawn,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoanOffer {
+    pub id: String,
+    pub from_team_id: String,
+    pub parent_team_id: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub wage_contribution_pct: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buy_option_fee: Option<u64>,
+    #[serde(default)]
+    pub last_manager_wage_contribution_pct: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_manager_end_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_manager_buy_option_fee: Option<u64>,
+    #[serde(default = "default_loan_offer_round")]
+    pub negotiation_round: u8,
+    #[serde(default)]
+    pub suggested_wage_contribution_pct: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_end_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_buy_option_fee: Option<u64>,
+    #[serde(default = "default_loan_offer_status")]
+    pub status: LoanOfferStatus,
+    #[serde(default = "default_loan_offer_date")]
+    pub date: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum LoanOfferStatus {
+    Pending,
+    Accepted,
+    Rejected,
+    Withdrawn,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ActiveLoan {
+    pub parent_team_id: String,
+    pub loan_team_id: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub wage_contribution_pct: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buy_option_fee: Option<u64>,
+    #[serde(default)]
+    pub loan_start_minutes: u32,
+    #[serde(default)]
+    pub loan_start_appearances: u32,
+    #[serde(default)]
+    pub development_reported_minutes: u32,
+    #[serde(default)]
+    pub development_reported_appearances: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -570,10 +674,13 @@ impl Player {
             market_value: 0,
             stats: PlayerSeasonStats::default(),
             career: Vec::new(),
+            movement_history: Vec::new(),
             training_focus: None,
             transfer_listed: false,
             loan_listed: false,
             transfer_offers: Vec::new(),
+            loan_offers: Vec::new(),
+            active_loan: None,
             morale_core: PlayerMoraleCore::default(),
             jersey_number: None,
         }
@@ -669,5 +776,6 @@ mod tests {
         assert_eq!(player.weak_foot, 2);
         assert_eq!(player.natural_position, Position::Midfielder);
         assert!(!player.retired);
+        assert!(player.movement_history.is_empty());
     }
 }

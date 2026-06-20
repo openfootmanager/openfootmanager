@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use log::info;
 use serde::Serialize;
+use std::sync::Arc;
 use tauri::State;
 
 use domain::negotiation::NegotiationFeedback;
@@ -385,7 +385,9 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
     use domain::manager::Manager;
-    use domain::player::{Player, PlayerAttributes, Position, RenewalSessionStatus};
+    use domain::player::{
+        Player, PlayerAttributes, PlayerMovementKind, Position, RenewalSessionStatus,
+    };
     use domain::season::TransferWindowStatus;
     use domain::staff::{Staff, StaffAttributes, StaffRole};
     use domain::team::Team;
@@ -765,9 +767,20 @@ mod tests {
             response.game.players[0].contract_end.as_deref(),
             Some("2029-08-01")
         );
+        assert!(response.game.players[0]
+            .movement_history
+            .iter()
+            .any(|entry| {
+                entry.kind == PlayerMovementKind::FreeAgentSigning
+                    && entry.to_team_id.as_deref() == Some("team-1")
+            }));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.players[0].team_id.as_deref(), Some("team-1"));
+        assert!(stored_game.players[0].movement_history.iter().any(|entry| {
+            entry.kind == PlayerMovementKind::FreeAgentSigning
+                && entry.to_team_name.as_deref() == Some("Alpha FC")
+        }));
     }
 
     #[test]
@@ -885,6 +898,10 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("player should exist");
         assert_eq!(player.team_id, None);
+        assert!(player.movement_history.iter().any(|entry| {
+            entry.kind == PlayerMovementKind::Released
+                && entry.from_team_id.as_deref() == Some("team-1")
+        }));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         let stored_player = stored_game
@@ -893,5 +910,9 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert_eq!(stored_player.team_id, None);
+        assert!(stored_player.movement_history.iter().any(|entry| {
+            entry.kind == PlayerMovementKind::Released
+                && entry.from_team_name.as_deref() == Some("Alpha FC")
+        }));
     }
 }

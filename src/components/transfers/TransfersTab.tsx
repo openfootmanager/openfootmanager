@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   GameStateData,
+  LoanOfferData,
   PlayerData,
   PlayerSelectionOptions,
   TransferOfferData,
@@ -36,20 +37,30 @@ import { resolveSeasonContext } from "../../lib/seasonContext";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
+import LoanOfferModal from "./LoanOfferModal";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
+  counterLoanOffer,
   counterOffer,
+  exerciseLoanBuyOption,
+  makeLoanOffer,
   respondToOffer,
+  respondToLoanOffer,
   toggleLoanList,
   toggleTransferList,
   type TransferNegotiationResponseData,
+  type LoanOfferResponseData,
 } from "../../services/transfersService";
 import { sendScout } from "../../services/scoutingService";
 import {
+  buildLoanPeriodOptions,
   buildResumedCounterFeedback,
   formatTransferFeeInput,
+  getDefaultLoanPeriodId,
+  getLoanPeriodIdForEndDate,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
+  type LoanPeriodOptionId,
   mapTransferNegotiationError,
   normalizeTransferNegotiationFeedback,
   parseTransferFeeInput,
@@ -90,6 +101,11 @@ type CounterTarget = {
   fee: number;
 };
 
+type LoanCounterTarget = {
+  player: PlayerData;
+  offer: LoanOfferData;
+};
+
 export default function TransfersTab({
   gameState,
   onSelectPlayer,
@@ -115,6 +131,103 @@ export default function TransfersTab({
     useState<NegotiationFeedbackPanelData | null>(null);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
+  const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
+  const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
+    getDefaultLoanPeriodId(gameState.clock.current_date, null),
+  );
+  const [loanWageContributionPct, setLoanWageContributionPct] = useState(100);
+  const [loanBuyOptionEnabled, setLoanBuyOptionEnabled] = useState(false);
+  const [loanBuyOptionFee, setLoanBuyOptionFee] = useState("");
+  const [loanLoading, setLoanLoading] = useState(false);
+  const [loanError, setLoanError] = useState<string | null>(null);
+  const [loanResult, setLoanResult] = useState<
+    LoanOfferResponseData["decision"] | "error" | null
+  >(null);
+  const [loanCounterTarget, setLoanCounterTarget] =
+    useState<LoanCounterTarget | null>(null);
+  const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
+    LoanPeriodOptionId | ""
+  >(getDefaultLoanPeriodId(gameState.clock.current_date, null));
+  const [loanCounterWageContributionPct, setLoanCounterWageContributionPct] =
+    useState(100);
+  const [loanCounterBuyOptionEnabled, setLoanCounterBuyOptionEnabled] =
+    useState(false);
+  const [loanCounterBuyOptionFee, setLoanCounterBuyOptionFee] = useState("");
+  const [loanCounterLoading, setLoanCounterLoading] = useState(false);
+  const [loanCounterError, setLoanCounterError] = useState<string | null>(null);
+  const [loanCounterResult, setLoanCounterResult] = useState<
+    LoanOfferResponseData["decision"] | "error" | null
+  >(null);
+  const [loanCounterSuggestedTerms, setLoanCounterSuggestedTerms] = useState<{
+    wageContributionPct: number;
+    endDate: string;
+    buyOptionFee?: number | null;
+  } | null>(null);
+
+  const openLoanOffer = (player: PlayerData) => {
+    setLoanTarget(player);
+    setLoanPeriodId(
+      getDefaultLoanPeriodId(gameState.clock.current_date, player.contract_end),
+    );
+    setLoanWageContributionPct(100);
+    setLoanBuyOptionEnabled(false);
+    setLoanBuyOptionFee("");
+    setLoanError(null);
+    setLoanResult(null);
+  };
+
+  const closeLoanOffer = () => {
+    setLoanTarget(null);
+    setLoanPeriodId(getDefaultLoanPeriodId(gameState.clock.current_date, null));
+    setLoanWageContributionPct(100);
+    setLoanBuyOptionEnabled(false);
+    setLoanBuyOptionFee("");
+    setLoanError(null);
+    setLoanResult(null);
+  };
+
+  const openLoanCounterOffer = (player: PlayerData, offer: LoanOfferData) => {
+    setLoanCounterTarget({ player, offer });
+    setLoanCounterPeriodId(
+      getLoanPeriodIdForEndDate(
+        gameState.clock.current_date,
+        player.contract_end,
+        offer.suggested_end_date ?? offer.end_date,
+      ),
+    );
+    setLoanCounterWageContributionPct(
+      Math.min(
+        100,
+        Math.max(
+          offer.suggested_wage_contribution_pct ??
+          offer.wage_contribution_pct,
+          offer.wage_contribution_pct,
+        ),
+      ),
+    );
+    const buyOptionFee =
+      offer.suggested_buy_option_fee ?? offer.buy_option_fee ?? null;
+    setLoanCounterBuyOptionEnabled(Boolean(buyOptionFee));
+    setLoanCounterBuyOptionFee(
+      buyOptionFee ? formatTransferFeeInput(buyOptionFee) : "",
+    );
+    setLoanCounterError(null);
+    setLoanCounterResult(null);
+    setLoanCounterSuggestedTerms(null);
+  };
+
+  const closeLoanCounterOffer = () => {
+    setLoanCounterTarget(null);
+    setLoanCounterPeriodId(
+      getDefaultLoanPeriodId(gameState.clock.current_date, null),
+    );
+    setLoanCounterWageContributionPct(100);
+    setLoanCounterBuyOptionEnabled(false);
+    setLoanCounterBuyOptionFee("");
+    setLoanCounterError(null);
+    setLoanCounterResult(null);
+    setLoanCounterSuggestedTerms(null);
+  };
 
   const openCounterNegotiation = (
     player: PlayerData,
@@ -145,6 +258,123 @@ export default function TransfersTab({
       if (onGameUpdate) onGameUpdate(game);
     } catch (err) {
       console.error("Failed to respond to offer:", err);
+    }
+  };
+
+  const handleRespondLoanOffer = async (
+    playerId: string,
+    offerId: string,
+    accept: boolean,
+  ) => {
+    try {
+      const game = await respondToLoanOffer(playerId, offerId, accept);
+      if (onGameUpdate) onGameUpdate(game);
+    } catch (err) {
+      console.error("Failed to respond to loan offer:", err);
+    }
+  };
+
+  const handleMakeLoanOffer = async () => {
+    if (!loanTarget || !selectedLoanPeriodOption) return;
+
+    setLoanLoading(true);
+    setLoanError(null);
+    setLoanResult(null);
+
+    try {
+      const response = await makeLoanOffer(
+        loanTarget.id,
+        selectedLoanPeriodOption.endDate,
+        Math.max(0, Math.min(100, Math.round(loanWageContributionPct))),
+        loanBuyOptionEnabled ? parseTransferFeeInput(loanBuyOptionFee) : null,
+      );
+      setLoanResult(response.decision);
+      if (onGameUpdate) onGameUpdate(response.game);
+
+      if (response.decision === "accepted") {
+        setTimeout(() => {
+          closeLoanOffer();
+        }, 1500);
+      }
+    } catch (err: any) {
+      setLoanResult("error");
+      setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+    } finally {
+      setLoanLoading(false);
+    }
+  };
+
+  const handleCounterLoanOffer = async () => {
+    if (!loanCounterTarget || !selectedLoanCounterPeriodOption) return;
+
+    setLoanCounterLoading(true);
+    setLoanCounterError(null);
+    setLoanCounterResult(null);
+    setLoanCounterSuggestedTerms(null);
+
+    try {
+      const response = await counterLoanOffer(
+        loanCounterTarget.player.id,
+        loanCounterTarget.offer.id,
+        selectedLoanCounterPeriodOption.endDate,
+        Math.max(0, Math.min(100, Math.round(loanCounterWageContributionPct))),
+        loanCounterBuyOptionEnabled
+          ? parseTransferFeeInput(loanCounterBuyOptionFee)
+          : null,
+      );
+      setLoanCounterResult(response.decision);
+      if (response.decision === "counter_offer") {
+        setLoanCounterSuggestedTerms({
+          wageContributionPct:
+            response.suggested_wage_contribution_pct ??
+            loanCounterWageContributionPct,
+          endDate:
+            response.suggested_end_date ??
+            selectedLoanCounterPeriodOption.endDate,
+          buyOptionFee: response.suggested_buy_option_fee,
+        });
+        if (response.suggested_wage_contribution_pct !== null) {
+          setLoanCounterWageContributionPct(
+            response.suggested_wage_contribution_pct,
+          );
+        }
+        if (response.suggested_end_date) {
+          setLoanCounterPeriodId(
+            getLoanPeriodIdForEndDate(
+              gameState.clock.current_date,
+              loanCounterTarget.player.contract_end,
+              response.suggested_end_date,
+            ),
+          );
+        }
+        if (response.suggested_buy_option_fee) {
+          setLoanCounterBuyOptionEnabled(true);
+          setLoanCounterBuyOptionFee(
+            formatTransferFeeInput(response.suggested_buy_option_fee),
+          );
+        }
+      }
+      if (onGameUpdate) onGameUpdate(response.game);
+
+      if (response.decision === "accepted") {
+        setTimeout(() => {
+          closeLoanCounterOffer();
+        }, 1500);
+      }
+    } catch (err: any) {
+      setLoanCounterResult("error");
+      setLoanCounterError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
+    } finally {
+      setLoanCounterLoading(false);
+    }
+  };
+
+  const handleExerciseLoanBuyOption = async (playerId: string) => {
+    try {
+      const game = await exerciseLoanBuyOption(playerId);
+      if (onGameUpdate) onGameUpdate(game);
+    } catch (err) {
+      console.error("Failed to exercise loan buy option:", err);
     }
   };
 
@@ -259,6 +489,48 @@ export default function TransfersTab({
   const isFreeAgentView = view === "free_agents";
   const isLoanView = view === "loans";
   const isScoutingView = isMarketView || isFreeAgentView || isLoanView;
+  const parsedLoanBuyOptionFee = loanBuyOptionEnabled
+    ? parseTransferFeeInput(loanBuyOptionFee)
+    : null;
+  const parsedLoanCounterBuyOptionFee = loanCounterBuyOptionEnabled
+    ? parseTransferFeeInput(loanCounterBuyOptionFee)
+    : null;
+  const loanPeriodOptions = loanTarget
+    ? buildLoanPeriodOptions(gameState.clock.current_date, loanTarget.contract_end)
+    : [];
+  const selectedLoanPeriodOption =
+    loanPeriodOptions.find(
+      (option) => option.id === loanPeriodId && !option.disabled,
+    ) ?? null;
+  const loanSubmitDisabled =
+    loanLoading ||
+    !selectedLoanPeriodOption ||
+    loanResult === "accepted" ||
+    (loanBuyOptionEnabled &&
+      (parsedLoanBuyOptionFee === null || parsedLoanBuyOptionFee <= 0));
+  const loanCounterReferenceEndDate =
+    loanCounterSuggestedTerms?.endDate ??
+    loanCounterTarget?.offer.suggested_end_date ??
+    loanCounterTarget?.offer.end_date ??
+    null;
+  const loanCounterPeriodOptions = loanCounterTarget
+    ? buildLoanPeriodOptions(
+      gameState.clock.current_date,
+      loanCounterTarget.player.contract_end,
+      loanCounterReferenceEndDate,
+    )
+    : [];
+  const selectedLoanCounterPeriodOption =
+    loanCounterPeriodOptions.find(
+      (option) => option.id === loanCounterPeriodId && !option.disabled,
+    ) ?? null;
+  const loanCounterSubmitDisabled =
+    loanCounterLoading ||
+    !selectedLoanCounterPeriodOption ||
+    loanCounterResult === "accepted" ||
+    (loanCounterBuyOptionEnabled &&
+      (parsedLoanCounterBuyOptionFee === null ||
+        parsedLoanCounterBuyOptionFee <= 0));
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -538,7 +810,12 @@ export default function TransfersTab({
                   {filteredList.map((player) => {
                     const ovr = getPlayerOvr(player);
                     const age = calcAge(player.date_of_birth);
-                    const offersForThisPlayer = player.transfer_offers;
+                    const transferOffersForThisPlayer = player.transfer_offers ?? [];
+                    const loanOffersForThisPlayer: LoanOfferData[] =
+                      player.loan_offers ?? [];
+                    const hasOffersForThisPlayer =
+                      transferOffersForThisPlayer.length > 0 ||
+                      loanOffersForThisPlayer.length > 0;
                     const scoutState = alreadyScoutingIds.has(player.id)
                       ? "already-assigned"
                       : scoutingPlayerId === player.id
@@ -597,6 +874,12 @@ export default function TransfersTab({
                           ? buildOfferFreeAgentContractMenuItem(t, () => {
                             openFreeAgentContract(player);
                           })
+                          : isLoanView
+                            ? {
+                              label: t("transfers.loanOffer"),
+                              icon: <ArrowRightLeft className="w-4 h-4" />,
+                              onClick: () => openLoanOffer(player),
+                            }
                           : {
                             label: t("transfers.bid"),
                             icon: <Gavel className="w-4 h-4" />,
@@ -699,77 +982,185 @@ export default function TransfersTab({
                         {view === "offers" && (
                           <td className="py-2.5 px-4">
                             <div className="flex flex-col gap-1">
-                              {offersForThisPlayer.length === 0 ? (
+                              {!hasOffersForThisPlayer ? (
                                 <span className="text-xs text-gray-400">
                                   {t("transfers.none")}
                                 </span>
                               ) : (
-                                offersForThisPlayer.map((offer) => (
-                                  <div
-                                    key={offer.id}
-                                    className="flex items-center gap-2"
-                                  >
-                                    <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                      {getTeamName(
-                                        gameState.teams,
-                                        offer.from_team_id,
-                                      )}
-                                    </span>
-                                    <Badge
-                                      variant={getTransferOfferBadgeVariant(
-                                        offer.status,
-                                      )}
-                                      size="sm"
+                                <>
+                                  {transferOffersForThisPlayer.map((offer) => (
+                                    <div
+                                      key={offer.id}
+                                      className="flex items-center gap-2"
                                     >
-                                      {formatVal(offer.fee)} — {getTransferOfferStatusLabel(t, offer.status)}
-                                    </Badge>
-                                    {offer.status === "Pending" &&
-                                      player.team_id === userTeamId && (
-                                        <div className="flex gap-1 ml-1">
+                                      <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                                        {getTeamName(
+                                          gameState.teams,
+                                          offer.from_team_id,
+                                        )}
+                                      </span>
+                                      <Badge
+                                        variant={getTransferOfferBadgeVariant(
+                                          offer.status,
+                                        )}
+                                        size="sm"
+                                      >
+                                        {formatVal(offer.fee)} — {getTransferOfferStatusLabel(t, offer.status)}
+                                      </Badge>
+                                      {offer.status === "Pending" &&
+                                        player.team_id === userTeamId && (
+                                          <div className="flex gap-1 ml-1">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRespondOffer(
+                                                  player.id,
+                                                  offer.id,
+                                                  true,
+                                                );
+                                              }}
+                                              className="p-1 rounded bg-green-500/20 hover:bg-green-500/30 text-green-500"
+                                              title={t("transfers.acceptOffer")}
+                                            >
+                                              <Check className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRespondOffer(
+                                                  player.id,
+                                                  offer.id,
+                                                  false,
+                                                );
+                                              }}
+                                              className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-500"
+                                              title={t("transfers.rejectOffer")}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openCounterNegotiation(player, offer);
+                                              }}
+                                              aria-label={t("transfers.counterOffer")}
+                                              className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-xs font-heading font-bold uppercase tracking-wider"
+                                              title={t("transfers.counterOffer")}
+                                            >
+                                              <Gavel className="w-3 h-3" />{" "}
+                                              {t("transfers.counter")}
+                                            </button>
+                                          </div>
+                                        )}
+                                    </div>
+                                  ))}
+                                  {loanOffersForThisPlayer.map((offer) => {
+                                    const offerBuyOptionFee =
+                                      offer.buy_option_fee ??
+                                      player.active_loan?.buy_option_fee ??
+                                      null;
+                                    const canExerciseBuyOption =
+                                      offer.status === "Accepted" &&
+                                      offer.from_team_id === userTeamId &&
+                                      player.active_loan?.loan_team_id === userTeamId &&
+                                      offerBuyOptionFee !== null &&
+                                      offerBuyOptionFee > 0;
+
+                                    return (
+                                      <div
+                                        key={`loan-${offer.id}`}
+                                        className="flex items-center gap-2"
+                                      >
+                                        <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                                          {getTeamName(
+                                            gameState.teams,
+                                            offer.from_team_id,
+                                          )}
+                                        </span>
+                                        <Badge
+                                          variant={getTransferOfferBadgeVariant(
+                                            offer.status,
+                                          )}
+                                          size="sm"
+                                        >
+                                          {t("transfers.loanOfferTerms", {
+                                            percent: offer.wage_contribution_pct,
+                                            endDate: offer.end_date,
+                                          })}
+                                          {offerBuyOptionFee ? (
+                                            <>
+                                              {" "}
+                                              •{" "}
+                                              {t("transfers.buyOptionFeeShort", {
+                                                fee: formatVal(offerBuyOptionFee),
+                                              })}
+                                            </>
+                                          ) : null}{" "}
+                                          — {getTransferOfferStatusLabel(t, offer.status)}
+                                        </Badge>
+                                        {offer.status === "Pending" &&
+                                          player.team_id === userTeamId &&
+                                          offer.from_team_id !== userTeamId && (
+                                            <div className="flex gap-1 ml-1">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRespondLoanOffer(
+                                                    player.id,
+                                                    offer.id,
+                                                    true,
+                                                  );
+                                                }}
+                                                className="p-1 rounded bg-green-500/20 hover:bg-green-500/30 text-green-500"
+                                                title={t("transfers.acceptLoanOffer")}
+                                              >
+                                                <Check className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRespondLoanOffer(
+                                                    player.id,
+                                                    offer.id,
+                                                    false,
+                                                  );
+                                                }}
+                                                className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-500"
+                                                title={t("transfers.rejectLoanOffer")}
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openLoanCounterOffer(player, offer);
+                                                }}
+                                                aria-label={t("transfers.counterLoanOffer")}
+                                                className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-xs font-heading font-bold uppercase tracking-wider"
+                                                title={t("transfers.counterLoanOffer")}
+                                              >
+                                                <Gavel className="w-3 h-3" />{" "}
+                                                {t("transfers.counter")}
+                                              </button>
+                                            </div>
+                                          )}
+                                        {canExerciseBuyOption ? (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              handleRespondOffer(
-                                                player.id,
-                                                offer.id,
-                                                true,
-                                              );
+                                              void handleExerciseLoanBuyOption(player.id);
                                             }}
-                                            className="p-1 rounded bg-green-500/20 hover:bg-green-500/30 text-green-500"
-                                            title={t("transfers.acceptOffer")}
+                                            className="flex items-center gap-1 px-2 py-1 rounded bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 text-xs font-heading font-bold uppercase tracking-wider"
+                                            title={t("transfers.exerciseBuyOption")}
                                           >
-                                            <Check className="w-3 h-3" />
+                                            <ShoppingCart className="w-3 h-3" />{" "}
+                                            {t("transfers.exerciseBuyOption")}
                                           </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleRespondOffer(
-                                                player.id,
-                                                offer.id,
-                                                false,
-                                              );
-                                            }}
-                                            className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-500"
-                                            title={t("transfers.rejectOffer")}
-                                          >
-                                            <X className="w-3 h-3" />
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              openCounterNegotiation(player, offer);
-                                            }}
-                                            aria-label={t("transfers.counterOffer")}
-                                            className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-xs font-heading font-bold uppercase tracking-wider"
-                                            title={t("transfers.counterOffer")}
-                                          >
-                                            <Gavel className="w-3 h-3" />{" "}
-                                            {t("transfers.counter")}
-                                          </button>
-                                        </div>
-                                      )}
-                                  </div>
-                                ))
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })}
+                                </>
                               )}
                             </div>
                           </td>
@@ -783,6 +1174,10 @@ export default function TransfersTab({
                                   openFreeAgentContract(player);
                                   return;
                                 }
+                                if (isLoanView) {
+                                  openLoanOffer(player);
+                                  return;
+                                }
                                 openBidNegotiation(player);
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
@@ -790,6 +1185,10 @@ export default function TransfersTab({
                               {isFreeAgentView ? (
                                 <>
                                   <UserPlus className="w-3 h-3" /> {t("transfers.offerContract")}
+                                </>
+                              ) : isLoanView ? (
+                                <>
+                                  <ArrowRightLeft className="w-3 h-3" /> {t("transfers.loanOffer")}
                                 </>
                               ) : (
                                 <>
@@ -888,6 +1287,56 @@ export default function TransfersTab({
           submitDisabled={contractSubmitDisabled}
           onSubmit={submitFreeAgentContract}
           onClose={closeFreeAgentContract}
+        />
+      )}
+      {loanTarget && (
+        <LoanOfferModal
+          loanTarget={loanTarget}
+          teams={gameState.teams}
+          periodId={loanPeriodId}
+          periodOptions={loanPeriodOptions}
+          selectedEndDate={selectedLoanPeriodOption?.endDate ?? ""}
+          onPeriodChange={setLoanPeriodId}
+          wageContributionPct={loanWageContributionPct}
+          onWageContributionChange={setLoanWageContributionPct}
+          buyOptionEnabled={loanBuyOptionEnabled}
+          buyOptionFee={loanBuyOptionFee}
+          onBuyOptionEnabledChange={setLoanBuyOptionEnabled}
+          onBuyOptionFeeChange={setLoanBuyOptionFee}
+          result={loanResult}
+          error={loanError}
+          loading={loanLoading}
+          submitDisabled={loanSubmitDisabled}
+          onSubmit={handleMakeLoanOffer}
+          onClose={closeLoanOffer}
+        />
+      )}
+      {loanCounterTarget && (
+        <LoanOfferModal
+          loanTarget={loanCounterTarget.player}
+          teams={gameState.teams}
+          periodId={loanCounterPeriodId}
+          periodOptions={loanCounterPeriodOptions}
+          selectedEndDate={selectedLoanCounterPeriodOption?.endDate ?? ""}
+          onPeriodChange={setLoanCounterPeriodId}
+          wageContributionPct={loanCounterWageContributionPct}
+          onWageContributionChange={setLoanCounterWageContributionPct}
+          buyOptionEnabled={loanCounterBuyOptionEnabled}
+          buyOptionFee={loanCounterBuyOptionFee}
+          onBuyOptionEnabledChange={setLoanCounterBuyOptionEnabled}
+          onBuyOptionFeeChange={setLoanCounterBuyOptionFee}
+          result={loanCounterResult}
+          titleKey="transfers.counterLoanOffer"
+          submitLabelKey="transfers.submitLoanCounter"
+          acceptedLabelKey="transfers.loanCounterAccepted"
+          rejectedLabelKey="transfers.loanCounterRejected"
+          counteredLabelKey="transfers.loanCounterCountered"
+          suggestedTerms={loanCounterSuggestedTerms}
+          error={loanCounterError}
+          loading={loanCounterLoading}
+          submitDisabled={loanCounterSubmitDisabled}
+          onSubmit={handleCounterLoanOffer}
+          onClose={closeLoanCounterOffer}
         />
       )}
     </div>

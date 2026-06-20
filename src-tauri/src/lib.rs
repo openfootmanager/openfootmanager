@@ -92,91 +92,92 @@ pub fn run() {
             #[cfg(feature = "mcp")]
             match mcp_server::config::parse_mcp_config_from_args() {
                 Ok(Some(mcp_config)) => {
-                use tauri::Manager as TauriManager;
-                use tauri::Emitter;
+                    use tauri::Emitter;
+                    use tauri::Manager as TauriManager;
 
-                let sm: Arc<StateManager> = app.state::<Arc<StateManager>>().inner().clone();
-                let save_mgr: Arc<SaveManagerState> = app.state::<Arc<SaveManagerState>>().inner().clone();
-                let app_handle = app.handle().clone();
+                    let sm: Arc<StateManager> = app.state::<Arc<StateManager>>().inner().clone();
+                    let save_mgr: Arc<SaveManagerState> =
+                        app.state::<Arc<SaveManagerState>>().inner().clone();
+                    let app_handle = app.handle().clone();
 
-                // --no-gui: hide the window
-                if mcp_config.no_gui {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.hide();
-                        log::info!("[mcp] GUI window hidden (--no-gui)");
-                    }
-                }
-
-                // --mcp-auto-start: bootstrap game
-                if let Some(ref auto_start) = mcp_config.auto_start {
-                    log::info!(
-                        "[mcp] Auto-starting: world={}, team={:?}",
-                        auto_start.world_path, auto_start.team_id
-                    );
-
-                    let mgr_name = mcp_config.manager_name
-                        .as_deref()
-                        .unwrap_or("Agent")
-                        .to_string();
-                    let mgr_last = mcp_config.manager_last_name
-                        .as_deref()
-                        .unwrap_or("Manager")
-                        .to_string();
-                    let mgr_nat = mcp_config.manager_nationality
-                        .as_deref()
-                        .unwrap_or("England")
-                        .to_string();
-
-                    match crate::commands::game::bootstrap_game_for_mcp(
-                        &sm,
-                        &save_mgr,
-                        &auto_start.world_path,
-                        auto_start.team_id.as_deref(),
-                        &mgr_name,
-                        &mgr_last,
-                        &mgr_nat,
-                    ) {
-                        Ok(save_id) => {
-                            log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
-                            // Notify GUI that a game is now active
-                            let _ = app_handle.emit("game-state-changed", ());
-                        }
-                        Err(e) => {
-                            log::error!("[mcp] Bootstrap failed: {}", e);
-                            return Err(Box::new(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("MCP auto-start failed: {}", e),
-                            )) as Box<dyn std::error::Error + Send + Sync>);
+                    // --no-gui: hide the window
+                    if mcp_config.no_gui {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.hide();
+                            log::info!("[mcp] GUI window hidden (--no-gui)");
                         }
                     }
-                }
 
-                // Spawn MCP server on the tokio runtime
-                let mcp_port = mcp_config.port;
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = mcp_server::start_mcp_server(
-                        mcp_config,
-                        sm,
-                        save_mgr,
-                        app_handle,
-                    )
-                    .await
-                    {
-                        log::error!("[mcp] MCP server failed: {}", e);
+                    // --mcp-auto-start: bootstrap game
+                    if let Some(ref auto_start) = mcp_config.auto_start {
+                        log::info!(
+                            "[mcp] Auto-starting: world={}, team={:?}",
+                            auto_start.world_path,
+                            auto_start.team_id
+                        );
+
+                        let mgr_name = mcp_config
+                            .manager_name
+                            .as_deref()
+                            .unwrap_or("Agent")
+                            .to_string();
+                        let mgr_last = mcp_config
+                            .manager_last_name
+                            .as_deref()
+                            .unwrap_or("Manager")
+                            .to_string();
+                        let mgr_nat = mcp_config
+                            .manager_nationality
+                            .as_deref()
+                            .unwrap_or("England")
+                            .to_string();
+
+                        match crate::commands::game::bootstrap_game_for_mcp(
+                            &sm,
+                            &save_mgr,
+                            &auto_start.world_path,
+                            auto_start.team_id.as_deref(),
+                            &mgr_name,
+                            &mgr_last,
+                            &mgr_nat,
+                        ) {
+                            Ok(save_id) => {
+                                log::info!("[mcp] Bootstrap complete, save_id={}", save_id);
+                                // Notify GUI that a game is now active
+                                let _ = app_handle.emit("game-state-changed", ());
+                            }
+                            Err(e) => {
+                                log::error!("[mcp] Bootstrap failed: {}", e);
+                                return Err(Box::new(std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    format!("MCP auto-start failed: {}", e),
+                                ))
+                                    as Box<dyn std::error::Error + Send + Sync>);
+                            }
+                        }
                     }
-                });
 
-                log::info!("[mcp] Starting MCP server on port {}", mcp_port);
+                    // Spawn MCP server on the tokio runtime
+                    let mcp_port = mcp_config.port;
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) =
+                            mcp_server::start_mcp_server(mcp_config, sm, save_mgr, app_handle).await
+                        {
+                            log::error!("[mcp] MCP server failed: {}", e);
+                        }
+                    });
+
+                    log::info!("[mcp] Starting MCP server on port {}", mcp_port);
                 }
                 Ok(None) => {
                     // No --mcp-port, MCP server not requested
                 }
                 Err(e) => {
                     log::error!("[mcp-config] {}", e);
-                    return Err(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        e,
-                    )) as Box<dyn std::error::Error + Send + Sync>);
+                    return Err(
+                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                            as Box<dyn std::error::Error + Send + Sync>,
+                    );
                 }
             }
 
@@ -243,8 +244,12 @@ pub fn run() {
             toggle_transfer_list,
             toggle_loan_list,
             make_transfer_bid,
+            make_loan_offer,
+            exercise_loan_buy_option,
             preview_transfer_bid_financial_impact,
             respond_to_offer,
+            respond_to_loan_offer,
+            counter_loan_offer,
             counter_offer,
             send_scout,
             start_youth_scouting,

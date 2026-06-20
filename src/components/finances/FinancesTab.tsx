@@ -277,9 +277,19 @@ export default function FinancesTab({
     myTeam.sponsorship?.sponsor_name ?? "",
     myTeam.sponsorship?.base_value ?? 0,
     myTeam.sponsorship?.remaining_weeks ?? 0,
-    roster
+    gameState.players
       .map(
-        (player) => `${player.id}:${player.wage}:${player.contract_end ?? ""}`,
+        (player) =>
+          [
+            player.id,
+            player.team_id ?? "",
+            player.wage,
+            player.contract_end ?? "",
+            player.active_loan?.parent_team_id ?? "",
+            player.active_loan?.loan_team_id ?? "",
+            player.active_loan?.wage_contribution_pct ?? "",
+            player.active_loan?.end_date ?? "",
+          ].join(":"),
       )
       .join("|"),
     teamStaff
@@ -295,7 +305,7 @@ export default function FinancesTab({
     myTeam,
     getTeamFinanceSnapshot(
       myTeam,
-      roster,
+      gameState.players,
       teamStaff,
       gameState.clock.current_date,
     ),

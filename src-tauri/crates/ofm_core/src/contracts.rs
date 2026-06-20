@@ -5,14 +5,14 @@ use crate::contract_wage_policy::{
 };
 use crate::delegated_renewals::delegate_renewals as delegate_renewals_service;
 use crate::game::Game;
-use crate::squad_safety::{project_user_team_release_safety, SquadSafetyReport};
+use crate::squad_safety::{SquadSafetyReport, project_user_team_release_safety};
 use chrono::{Datelike, Days, Months, NaiveDate};
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
 use domain::player::{
-    ContractExitIntent, ContractRenewalState, Player, RenewalSessionOutcome, RenewalSessionStatus,
+    ContractExitIntent, ContractRenewalState, Player, PlayerMovementEntry, PlayerMovementKind,
+    RenewalSessionOutcome, RenewalSessionStatus,
 };
-use domain::season::TransferWindowStatus;
 use domain::team::{FinancialTransaction, FinancialTransactionKind, Team};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,12 +25,12 @@ const MINIMUM_DEFAULT_WAGE: u64 = 500;
 const ERR_NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
 const ERR_MANAGED_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";
 const ERR_PLAYER_NOT_FOUND: &str = "be.error.playerNotFound";
-const ERR_TRANSFER_WINDOW_CLOSED: &str = "be.error.transfers.transferWindowClosed";
 const ERR_PLAYER_NOT_OWNED_BY_CLUB: &str = "be.error.contracts.playerNotOwnedByClub";
 const ERR_PLAYER_NOT_FREE_AGENT: &str = "be.error.contracts.playerNotFreeAgent";
 const ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE: &str =
     "be.error.contracts.unableToCalculateContractEndDate";
 const ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT: &str = "be.error.contracts.playerHasNoActiveContract";
+const ERR_PLAYER_ON_ACTIVE_LOAN: &str = "be.error.contracts.playerOnActiveLoan";
 const ERR_TERMINATION_WOULD_LEAVE_MATCHDAY_SQUAD_SHORT: &str =
     "be.error.contracts.terminationWouldLeaveMatchdaySquadShort";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,6 +181,7 @@ pub fn project_renewal_financial_impact(
     player_id: &str,
     offered_wage: u32,
 ) -> Result<RenewalFinancialProjection, String> {
+    owned_player(game, player_id)?;
     project_renewal_financial_impact_service(game, player_id, offered_wage)
 }
 
@@ -357,7 +358,7 @@ pub fn propose_renewal(
         .position(|candidate| candidate.id == player_id)
         .ok_or("be.error.playerNotFound".to_string())?;
 
-    if game.players[player_index].team_id.as_deref() != Some(team.id.as_str()) {
+    if contract_owner_team_id(&game.players[player_index]) != Some(team.id.as_str()) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
@@ -679,6 +680,16 @@ pub fn offer_free_agent_contract(
         player.transfer_listed = false;
         player.loan_listed = false;
         player.transfer_offers.clear();
+        player.movement_history.push(PlayerMovementEntry {
+            date: today.clone(),
+            kind: PlayerMovementKind::FreeAgentSigning,
+            from_team_id: None,
+            from_team_name: None,
+            to_team_id: Some(team.id.clone()),
+            to_team_name: Some(team.name.clone()),
+            fee: None,
+            loan_end_date: None,
+        });
         if matches!(
             player
                 .morale_core
@@ -820,6 +831,10 @@ pub fn preview_contract_termination(
         return Err(ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT.to_string());
     }
 
+    if player.active_loan.is_some() {
+        return Err(ERR_PLAYER_ON_ACTIVE_LOAN.to_string());
+    }
+
     let current_date = game.clock.current_date.date_naive();
     Ok(ContractTerminationPreview {
         player_id: player.id.clone(),
@@ -840,10 +855,9 @@ pub fn terminate_contract_now(
     }
 
     let player_index = owned_player_index(game, player_id)?;
-    let team_id = game.players[player_index]
-        .team_id
-        .clone()
-        .ok_or(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string())?;
+    let team_id = contract_owner_team_id(&game.players[player_index])
+        .ok_or(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string())?
+        .to_string();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     if let Some(team) = game
@@ -952,7 +966,7 @@ fn owned_player<'a>(game: &'a Game, player_id: &str) -> Result<&'a Player, Strin
         .find(|candidate| candidate.id == player_id)
         .ok_or("be.error.playerNotFound".to_string())?;
 
-    if player.team_id.as_deref() != Some(manager_team_id) {
+    if contract_owner_team_id(player) != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
@@ -971,11 +985,19 @@ fn owned_player_index(game: &Game, player_id: &str) -> Result<usize, String> {
         .position(|candidate| candidate.id == player_id)
         .ok_or("be.error.playerNotFound".to_string())?;
 
-    if game.players[player_index].team_id.as_deref() != Some(manager_team_id) {
+    if contract_owner_team_id(&game.players[player_index]) != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
     Ok(player_index)
+}
+
+fn contract_owner_team_id(player: &Player) -> Option<&str> {
+    player
+        .active_loan
+        .as_ref()
+        .map(|loan| loan.parent_team_id.as_str())
+        .or(player.team_id.as_deref())
 }
 
 fn termination_severance_cost(player: &Player, current_date: NaiveDate) -> i64 {
@@ -1291,13 +1313,6 @@ fn contract_days_remaining(contract_end: Option<&str>, current_date: NaiveDate) 
     Some((contract_end_date - current_date).num_days())
 }
 
-fn transfer_window_is_open(game: &Game) -> bool {
-    matches!(
-        game.season_context.transfer_window.status,
-        TransferWindowStatus::Open | TransferWindowStatus::DeadlineDay
-    )
-}
-
 fn remove_player_from_team_references(team: &mut Team, player_id: &str) {
     team.remove_player_references(player_id);
 }
@@ -1306,30 +1321,48 @@ fn release_player_contract(game: &mut Game, player_index: usize, reason: Contrac
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let player_id = game.players[player_index].id.clone();
     let player_name = game.players[player_index].match_name.clone();
-    let team_id = game.players[player_index].team_id.clone();
+    let team_id = game.players[player_index]
+        .active_loan
+        .as_ref()
+        .map(|loan| loan.parent_team_id.clone())
+        .or_else(|| game.players[player_index].team_id.clone());
 
     let Some(team_id) = team_id.as_deref() else {
         return;
     };
-    let Some(team) = game
+    let Some(team_name) = game
         .teams
-        .iter_mut()
+        .iter()
         .find(|candidate| candidate.id == team_id)
+        .map(|team| team.name.clone())
     else {
         return;
     };
 
-    let team_name = team.name.clone();
-    remove_player_from_team_references(team, &player_id);
+    for team in &mut game.teams {
+        remove_player_from_team_references(team, &player_id);
+    }
 
     let player = &mut game.players[player_index];
     player.team_id = None;
+    player.active_loan = None;
     player.contract_end = None;
     player.wage = 0;
     player.transfer_listed = false;
     player.loan_listed = false;
     player.transfer_offers.clear();
+    player.loan_offers.clear();
     player.morale_core.renewal_state = None;
+    player.movement_history.push(PlayerMovementEntry {
+        date: today.clone(),
+        kind: PlayerMovementKind::Released,
+        from_team_id: Some(team_id.to_string()),
+        from_team_name: Some(team_name.clone()),
+        to_team_id: None,
+        to_team_name: None,
+        fee: None,
+        loan_end_date: None,
+    });
 
     let message = match reason {
         ContractReleaseReason::Expired => {

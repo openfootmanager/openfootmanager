@@ -19,12 +19,20 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
         serde_json::to_string(&p.stats).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let career_json =
         serde_json::to_string(&p.career).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let movement_history_json = serde_json::to_string(&p.movement_history)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let offers_json = serde_json::to_string(&p.transfer_offers)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let loan_offers_json = serde_json::to_string(&p.loan_offers)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let active_loan_json = p
+        .active_loan
+        .as_ref()
+        .map(|loan| serde_json::to_string(loan).unwrap_or_default());
     let morale_core_json = serde_json::to_string(&p.morale_core)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let media_json = serde_json::to_string(&p.media)
-        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let media_json =
+        serde_json::to_string(&p.media).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let position_str = format!("{:?}", p.position);
     let natural_position_str = format!("{:?}", p.natural_position);
     let alt_positions_json = serde_json::to_string(&p.alternate_positions)
@@ -39,8 +47,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
           contract_end, wage, market_value, stats, career,
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
           natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
-          ovr, potential, media_json, jersey_number)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)",
+          ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)",
         params![
             p.id,
             p.match_name,
@@ -77,6 +85,9 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             p.potential as i64,
             media_json,
             p.jersey_number.map(|n| n as i64),
+            loan_offers_json,
+            active_loan_json,
+            movement_history_json,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -150,7 +161,9 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
                     natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
-                    ovr, potential, COALESCE(media_json, '{}'), jersey_number
+                    ovr, potential, COALESCE(media_json, '{}'), jersey_number,
+                    COALESCE(loan_offers, '[]'), active_loan,
+                    COALESCE(movement_history, '[]')
              FROM players",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -175,7 +188,9 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
                     contract_end, wage, market_value, stats, career,
                     transfer_listed, loan_listed, transfer_offers, alternate_positions,
                     natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
-                    ovr, potential, COALESCE(media_json, '{}'), jersey_number
+                    ovr, potential, COALESCE(media_json, '{}'), jersey_number,
+                    COALESCE(loan_offers, '[]'), active_loan,
+                    COALESCE(movement_history, '[]')
              FROM players WHERE team_id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -225,6 +240,9 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         }
         None => None,
     };
+    let loan_offers_json: String = row.get(35).unwrap_or_else(|_| "[]".to_string());
+    let active_loan_json: Option<String> = row.get(36).unwrap_or(None);
+    let movement_history_json: String = row.get(37).unwrap_or_else(|_| "[]".to_string());
     let transfer_listed_int: i32 = row.get(20)?;
     let loan_listed_int: i32 = row.get(21)?;
     let market_value_i64: i64 = row.get(17)?;
@@ -286,10 +304,13 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         market_value: market_value_i64 as u64,
         stats: serde_json::from_str(&stats_json).unwrap_or_default(),
         career: serde_json::from_str(&career_json).unwrap_or_default(),
+        movement_history: serde_json::from_str(&movement_history_json).unwrap_or_default(),
         training_focus: training_focus_str.and_then(|s| parse_training_focus(&s)),
         transfer_listed: transfer_listed_int != 0,
         loan_listed: loan_listed_int != 0,
         transfer_offers: serde_json::from_str(&offers_json).unwrap_or_default(),
+        loan_offers: serde_json::from_str(&loan_offers_json).unwrap_or_default(),
+        active_loan: active_loan_json.and_then(|json| serde_json::from_str(&json).ok()),
         morale_core: serde_json::from_str(&morale_core_json).unwrap_or_default(),
         jersey_number,
     })
@@ -299,7 +320,10 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
 mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
-    use domain::player::{Injury, PlayerIssue, PlayerIssueCategory, PlayerMoraleCore};
+    use domain::player::{
+        ActiveLoan, Injury, LoanOffer, LoanOfferStatus, PlayerIssue, PlayerIssueCategory,
+        PlayerMoraleCore, PlayerMovementEntry, PlayerMovementKind,
+    };
     use rusqlite::Connection;
 
     fn test_db() -> GameDatabase {
@@ -422,6 +446,129 @@ mod tests {
 
         assert_eq!(stored.ovr, 78);
         assert_eq!(stored.potential, 85);
+    }
+
+    #[test]
+    fn test_player_loan_state_roundtrip() {
+        let db = test_db();
+        let mut player = sample_player("p-loan", Some("team-loan"));
+        player.loan_offers.push(LoanOffer {
+            id: "loan-offer-1".to_string(),
+            from_team_id: "team-loan".to_string(),
+            parent_team_id: "team-parent".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: Some(1_250_000),
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::Accepted,
+            date: "2026-08-01".to_string(),
+        });
+        player.active_loan = Some(ActiveLoan {
+            parent_team_id: "team-parent".to_string(),
+            loan_team_id: "team-loan".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: Some(1_250_000),
+            loan_start_minutes: 120,
+            loan_start_appearances: 2,
+            development_reported_minutes: 360,
+            development_reported_appearances: 4,
+        });
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded
+            .iter()
+            .find(|candidate| candidate.id == "p-loan")
+            .expect("stored player should exist");
+
+        assert_eq!(stored.loan_offers.len(), 1);
+        assert_eq!(stored.loan_offers[0].status, LoanOfferStatus::Accepted);
+        assert_eq!(stored.loan_offers[0].buy_option_fee, Some(1_250_000));
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .map(|loan| loan.parent_team_id.as_str()),
+            Some("team-parent")
+        );
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .and_then(|loan| loan.buy_option_fee),
+            Some(1_250_000)
+        );
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .map(|loan| loan.loan_start_minutes),
+            Some(120)
+        );
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .map(|loan| loan.loan_start_appearances),
+            Some(2)
+        );
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .map(|loan| loan.development_reported_minutes),
+            Some(360)
+        );
+        assert_eq!(
+            stored
+                .active_loan
+                .as_ref()
+                .map(|loan| loan.development_reported_appearances),
+            Some(4)
+        );
+    }
+
+    #[test]
+    fn test_player_movement_history_roundtrip() {
+        let db = test_db();
+        let mut player = sample_player("p-move", Some("team-002"));
+        player.movement_history.push(PlayerMovementEntry {
+            date: "2026-08-01".to_string(),
+            kind: PlayerMovementKind::PermanentTransfer,
+            from_team_id: Some("team-001".to_string()),
+            from_team_name: Some("Alpha FC".to_string()),
+            to_team_id: Some("team-002".to_string()),
+            to_team_name: Some("Beta FC".to_string()),
+            fee: Some(1_250_000),
+            loan_end_date: None,
+        });
+
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded
+            .iter()
+            .find(|candidate| candidate.id == "p-move")
+            .expect("stored player should exist");
+
+        assert_eq!(stored.movement_history.len(), 1);
+        assert_eq!(
+            stored.movement_history[0].kind,
+            PlayerMovementKind::PermanentTransfer
+        );
+        assert_eq!(
+            stored.movement_history[0].from_team_name.as_deref(),
+            Some("Alpha FC")
+        );
+        assert_eq!(stored.movement_history[0].fee, Some(1_250_000));
     }
 
     #[test]
