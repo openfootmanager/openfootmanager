@@ -50,30 +50,27 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
             team.formation = formation.to_string();
         }
 
-        // Reassign positions for outfield players on this team
-        let player_ids: Vec<String> = game
-            .players
-            .iter()
-            .filter(|p| {
-                p.team_id.as_deref() == Some(&team_id)
-                    && p.position != domain::player::Position::Goalkeeper
-            })
-            .map(|p| p.id.clone())
-            .collect();
-
-        // Sort by defensive ability (most defensive first)
-        let mut sorted_ids = player_ids.clone();
-        sorted_ids.sort_by(|a_id, b_id| {
-            let pa = game.players.iter().find(|p| p.id == *a_id).unwrap();
-            let pb = game.players.iter().find(|p| p.id == *b_id).unwrap();
-            let def_a = pa.attributes.defending as u16
-                + pa.attributes.tackling as u16
-                + pa.attributes.strength as u16;
-            let def_b = pb.attributes.defending as u16
-                + pb.attributes.tackling as u16
-                + pb.attributes.strength as u16;
-            def_b.cmp(&def_a)
-        });
+        // Reassign positions for outfield players on this team, sorted by defensive ability
+        let sorted_ids: Vec<String> = {
+            let mut outfield: Vec<&_> = game
+                .players
+                .iter()
+                .filter(|p| {
+                    p.team_id.as_deref() == Some(&team_id)
+                        && p.position != domain::player::Position::Goalkeeper
+                })
+                .collect();
+            outfield.sort_by(|pa, pb| {
+                let def_a = pa.attributes.defending as u16
+                    + pa.attributes.tackling as u16
+                    + pa.attributes.strength as u16;
+                let def_b = pb.attributes.defending as u16
+                    + pb.attributes.tackling as u16
+                    + pb.attributes.strength as u16;
+                def_b.cmp(&def_a)
+            });
+            outfield.iter().map(|p| p.id.clone()).collect()
+        };
 
         // Assign positions
         for (slot, pid) in sorted_ids.iter().enumerate() {

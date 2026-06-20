@@ -240,8 +240,9 @@ pub fn match_press_conference(
         let away = game.teams.iter().find(|t| t.id == last_match.away_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.away_team_id.clone());
         (home, away)
     };
-    let home_score = last_match.result.as_ref().unwrap().home_goals;
-    let away_score = last_match.result.as_ref().unwrap().away_goals;
+    let last_result = last_match.result.as_ref().ok_or("Match result unexpectedly missing")?;
+    let home_score = last_result.home_goals;
+    let away_score = last_result.away_goals;
 
     let mut morale_delta: i16 = 0;
     let mut mentioned_player_ids: Vec<String> = Vec::new();
