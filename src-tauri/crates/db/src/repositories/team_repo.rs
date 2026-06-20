@@ -28,7 +28,7 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
     let media_json = serde_json::to_string(&t.media)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
-    let kit_pattern_str = format!("{:?}", t.kit_pattern);
+    let kit_pattern_str = t.kit_pattern.to_string();
     let training_focus_str = format!("{:?}", t.training_focus);
     let training_intensity_str = format!("{:?}", t.training_intensity);
     let training_schedule_str = format!("{:?}", t.training_schedule);
@@ -120,16 +120,6 @@ fn parse_training_intensity(s: &str) -> TrainingIntensity {
     }
 }
 
-fn parse_kit_pattern(s: &str) -> KitPattern {
-    match s {
-        "Stripes" => KitPattern::Stripes,
-        "Hoops" => KitPattern::Hoops,
-        "HalfAndHalf" => KitPattern::HalfAndHalf,
-        "Diagonal" => KitPattern::Diagonal,
-        _ => KitPattern::Solid,
-    }
-}
-
 fn parse_training_schedule(s: &str) -> TrainingSchedule {
     match s {
         "Intense" => TrainingSchedule::Intense,
@@ -188,7 +178,7 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
             primary: row.get(21)?,
             secondary: row.get(22)?,
         },
-        kit_pattern: parse_kit_pattern(&kit_pattern_str),
+        kit_pattern: kit_pattern_str.parse().unwrap_or_default(),
         media: serde_json::from_str(&media_json).unwrap_or_else(|_| TeamMedia::default()),
         starting_xi_ids: serde_json::from_str(&starting_xi_json).unwrap_or_default(),
         match_roles: serde_json::from_str(&match_roles_json).unwrap_or_default(),

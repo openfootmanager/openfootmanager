@@ -213,7 +213,8 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
     let media_json: String = row.get(33).unwrap_or_else(|_| "{}".to_string());
     let jersey_number: Option<u8> = row
         .get::<_, Option<i64>>(34)
-        .unwrap_or(None)
+        .ok()
+        .flatten()
         .map(|n| n as u8);
     let transfer_listed_int: i32 = row.get(20)?;
     let loan_listed_int: i32 = row.get(21)?;

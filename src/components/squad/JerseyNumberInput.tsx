@@ -34,6 +34,7 @@ export default function JerseyNumberInput({
   }
 
   async function commit() {
+    if (saving) return;
     const trimmed = draft.trim();
     let next: number | null;
     if (trimmed === "") {

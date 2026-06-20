@@ -447,40 +447,36 @@ pub fn assign_jersey_number_internal(
     player_id: &str,
     jersey_number: Option<u8>,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
-
-    if let Some(n) = jersey_number {
-        if !(1..=99).contains(&n) {
-            return Err("be.error.jerseyNumberOutOfRange".to_string());
+        if let Some(n) = jersey_number {
+            if !(1..=99).contains(&n) {
+                return Err("be.error.jerseyNumberOutOfRange".to_string());
+            }
+            let conflict = game.players.iter().any(|p| {
+                p.id != player_id
+                    && p.team_id.as_deref() == Some(team_id.as_str())
+                    && p.jersey_number == Some(n)
+            });
+            if conflict {
+                return Err("be.error.jerseyNumberTaken".to_string());
+            }
         }
-        let conflict = game.players.iter().any(|p| {
-            p.id != player_id
-                && p.team_id.as_deref() == Some(team_id.as_str())
-                && p.jersey_number == Some(n)
-        });
-        if conflict {
-            return Err("be.error.jerseyNumberTaken".to_string());
-        }
-    }
 
-    let player = game
-        .players
-        .iter_mut()
-        .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
-        .ok_or("be.error.playerNotFound".to_string())?;
+        let player = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
+            .ok_or("be.error.playerNotFound".to_string())?;
 
-    player.jersey_number = jersey_number;
-
-    state.set_game(game.clone());
-    Ok(game)
+        player.jersey_number = jersey_number;
+        Ok(())
+    })
 }
 
 #[tauri::command]
@@ -498,42 +494,33 @@ pub fn assign_jersey_number(
 
 pub fn set_team_kit_pattern_internal(
     state: &StateManager,
-    kit_pattern: &str,
+    kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
 
-    let team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned".to_string())?;
+        let team = game
+            .teams
+            .iter_mut()
+            .find(|t| t.id == team_id)
+            .ok_or("be.error.teamNotFound".to_string())?;
 
-    let pattern = match kit_pattern {
-        "Stripes" => domain::team::KitPattern::Stripes,
-        "Hoops" => domain::team::KitPattern::Hoops,
-        "HalfAndHalf" => domain::team::KitPattern::HalfAndHalf,
-        "Diagonal" => domain::team::KitPattern::Diagonal,
-        "Solid" => domain::team::KitPattern::Solid,
-        _ => return Err("be.error.invalidKitPattern".to_string()),
-    };
-
-    if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
-        team.kit_pattern = pattern;
-    }
-
-    state.set_game(game.clone());
-    Ok(game)
+        team.kit_pattern = kit_pattern;
+        Ok(())
+    })
 }
 
 #[tauri::command]
 pub fn set_team_kit_pattern(
     state: State<'_, Arc<StateManager>>,
-    kit_pattern: String,
+    kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
-    info!("[cmd] set_team_kit_pattern: {}", kit_pattern);
-    set_team_kit_pattern_internal(&state, &kit_pattern)
+    info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
+    set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
 #[cfg(test)]

@@ -159,6 +159,33 @@ pub enum KitPattern {
     Diagonal,
 }
 
+impl std::fmt::Display for KitPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            KitPattern::Solid => "Solid",
+            KitPattern::Stripes => "Stripes",
+            KitPattern::Hoops => "Hoops",
+            KitPattern::HalfAndHalf => "HalfAndHalf",
+            KitPattern::Diagonal => "Diagonal",
+        };
+        f.write_str(s)
+    }
+}
+
+impl std::str::FromStr for KitPattern {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Solid" => Ok(KitPattern::Solid),
+            "Stripes" => Ok(KitPattern::Stripes),
+            "Hoops" => Ok(KitPattern::Hoops),
+            "HalfAndHalf" => Ok(KitPattern::HalfAndHalf),
+            "Diagonal" => Ok(KitPattern::Diagonal),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TeamMedia {
     #[serde(default, skip_serializing_if = "Option::is_none")]
