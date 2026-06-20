@@ -18,12 +18,16 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "finances.perWeekSuffix") return "/wk";
+      if (key === "finances.perYearSuffix") return "/yr";
       if (key === "common.nResults") return `${params?.count} results`;
       if (key === "common.action") return "Action";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.transferMarket") return "Transfer Market";
       if (key === "transfers.freeAgents") return "Free Agents";
+      if (key === "transfers.transfer") return "TRANSFER";
+      if (key === "transfers.loan") return "LOAN";
       if (key === "transfers.offers") return "Offers";
       if (key === "transfers.noFreeAgents") return "No free agents available.";
       if (key === "transfers.counterOffer") return "Counter Offer";
@@ -340,6 +344,29 @@ describe("TransfersTab", function (): void {
         return {};
       },
     );
+  });
+
+  it("renders a dual transfer and loan listed player once with both status badges", function (): void {
+    render(
+      <TransfersTab
+        gameState={createGameState([
+          createPlayer({
+            id: "dual-listed",
+            full_name: "Dual Listed",
+            transfer_listed: true,
+            loan_listed: true,
+          }),
+        ])}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("Dual Listed")).toHaveLength(1);
+    expect(screen.getByText("TRANSFER")).toBeInTheDocument();
+    expect(screen.getByText("LOAN")).toBeInTheDocument();
+    expect(screen.getByText(/My Transfer List \(1\)/)).toBeInTheDocument();
   });
 
   it("submits a counter offer for a pending incoming bid and publishes the updated game", async function (): Promise<void> {

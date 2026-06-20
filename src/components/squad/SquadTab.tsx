@@ -8,12 +8,15 @@ import {
 import type { PlayerSelectionOptions } from "../../store/gameStore";
 import { getSquad } from "../../services/squadService";
 import SquadRosterView from "./SquadRosterView";
+import type { SquadListSortState } from "./SquadRosterView.state";
 
 interface SquadTabProps {
   gameState: GameStateData | null;
   managerId: string;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onGameUpdate?: (g: GameStateData) => void;
+  sortState?: SquadListSortState;
+  onSortStateChange?: (sortState: SquadListSortState) => void;
 }
 
 export default function SquadTab({
@@ -21,6 +24,8 @@ export default function SquadTab({
   managerId,
   onSelectPlayer,
   onGameUpdate,
+  sortState,
+  onSortStateChange,
 }: SquadTabProps) {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
@@ -69,6 +74,8 @@ export default function SquadTab({
       clockDate={clockDate}
       onSelectPlayer={onSelectPlayer}
       onMutationComplete={handleMutationComplete}
+      sortState={sortState}
+      onSortStateChange={onSortStateChange}
     />
   );
 }

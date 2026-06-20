@@ -676,6 +676,24 @@ describe("HomeTab.helpers", function (): void {
     );
   });
 
+  it("isolates visited onboarding tabs by active save id", function (): void {
+    const gameState = createGameState();
+
+    saveVisitedOnboardingTabs(
+      gameState,
+      new Set<string>(["Squad", "Training"]),
+      localStorage,
+      "save-a",
+    );
+
+    expect(
+      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-a")),
+    ).toEqual(["Squad", "Training"]);
+    expect(
+      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-b")),
+    ).toEqual([]);
+  });
+
   it("keeps onboarding completed after reloading persisted progress", function (): void {
     const gameState = createGameState({
       messages: [

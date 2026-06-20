@@ -1,8 +1,9 @@
 pub mod advance_results;
 pub mod aging;
 pub mod ai_hiring;
-pub mod catchup;
+pub mod ai_training;
 pub mod board_objectives;
+pub mod catchup;
 pub mod clock;
 pub mod club;
 pub mod contract_wage_policy;

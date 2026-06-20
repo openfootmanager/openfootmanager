@@ -203,6 +203,7 @@ pub fn run() {
             get_session_state,
             get_squad,
             get_staff,
+            get_active_save_id,
             advance_time,
             advance_time_with_mode,
             upgrade_facility,

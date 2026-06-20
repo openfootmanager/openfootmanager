@@ -23,6 +23,7 @@ use rand::RngExt;
 use uuid::Uuid;
 
 use generation::*;
+use chrono::Datelike;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
@@ -400,6 +401,79 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     replace_available_staff_market(&mut game.staff, &game.teams);
     game.available_staff_market_last_activity_date = Some(today);
     true
+}
+
+/// Ensure the unemployed manager and scout pools each meet a floor of `team_count * 2`.
+///
+/// Called at the end of every season after retiree conversion so there are always
+/// enough candidates for the player to consider hiring.  The function only adds
+/// entries — it never removes any.
+pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
+    let team_count = game.teams.len();
+    let floor = team_count * 2;
+
+    let user_manager_id = if game.manager_id.is_empty() {
+        game.manager.id.clone()
+    } else {
+        game.manager_id.clone()
+    };
+
+    // --- Managers ---
+    let unemployed_mgr_count = game
+        .managers
+        .iter()
+        .filter(|m| m.id != user_manager_id && m.team_id.is_none())
+        .count();
+
+    if unemployed_mgr_count < floor {
+        let needed = floor - unemployed_mgr_count;
+        let (names_def, country_codes) = create_staff_generator_context();
+        let current_year = game.clock.current_date.year() as u32;
+        let mut rng = rand::rng();
+        for _ in 0..needed {
+            let nationality = if country_codes.is_empty() {
+                "ENG".to_string()
+            } else {
+                let idx = rng.random_range(0..country_codes.len());
+                country_codes[idx].clone()
+            };
+            let mgr = generation::generate_random_unemployed_manager(
+                &nationality,
+                &names_def,
+                current_year,
+                &mut rng,
+            );
+            game.managers.push(mgr);
+        }
+    }
+
+    // --- Scouts ---
+    let unemployed_scout_count = game
+        .staff
+        .iter()
+        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
+        .count();
+
+    if unemployed_scout_count < floor {
+        let needed = floor - unemployed_scout_count;
+        let (names_def, country_codes) = create_staff_generator_context();
+        let mut rng = rand::rng();
+        for _ in 0..needed {
+            let nationality = if country_codes.is_empty() {
+                "ENG".to_string()
+            } else {
+                let idx = rng.random_range(0..country_codes.len());
+                country_codes[idx].clone()
+            };
+            let scout = generate_random_staff_unattached_from_def(
+                StaffRole::Scout,
+                &nationality,
+                &names_def,
+                &mut rng,
+            );
+            game.staff.push(scout);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

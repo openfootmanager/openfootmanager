@@ -81,6 +81,7 @@ export default function PlayerProfile({
 }: PlayerProfileProps) {
   const { t, i18n } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const primaryPosition = player.natural_position || player.position;
   const footednessLabel = t(
     `common.footedness.${player.footedness || "Right"}`,
@@ -632,13 +633,13 @@ export default function PlayerProfile({
 
       <PlayerProfileHeroCard
         player={player}
-        ovr={ovr}
+            ovr={ovr}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
         footednessLabel={footednessLabel}
         weakFootValue={weakFootValue}
-        weeklySuffix={weeklySuffix}
+            annualSuffix={annualSuffix}
         language={i18n.language}
         isOwnClub={isOwnClub || !onGameUpdate}
         scoutAvailability={scoutAvailability}
@@ -684,9 +685,9 @@ export default function PlayerProfile({
           currentDate={gameState.clock.current_date}
           condition={player.condition}
           morale={player.morale}
-          marketValue={player.market_value}
-          wage={player.wage}
-          weeklySuffix={weeklySuffix}
+              marketValue={player.market_value}
+              wage={player.wage}
+              annualSuffix={annualSuffix}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}

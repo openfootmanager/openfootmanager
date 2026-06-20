@@ -47,6 +47,7 @@ export type { ContractRiskLevel } from "./contractUtils";
 export {
   calcAge,
   calcAgeOnDate,
+  formatAnnualAmount,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,

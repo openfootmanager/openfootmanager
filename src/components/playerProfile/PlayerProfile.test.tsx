@@ -11,9 +11,8 @@ import type {
 } from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
 
-function hasWeeklyWage(text: string, amount: number): boolean {
-  const numberPortion = amount.toLocaleString();
-  return text.replace(/\s+/g, "").includes(`€${numberPortion}/wk`);
+function hasAnnualWage(text: string, amount: string): boolean {
+  return text.replace(/\s+/g, "").includes(`€${amount}/yr`);
 }
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -42,6 +41,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "common.unknown") return "Unknown";
       if (key === "finances.perWeekSuffix") return "/wk";
+      if (key === "finances.perYearSuffix") return "/yr";
       if (key === "finances.marketValue") return "Market Value";
       if (key === "finances.contractRiskCritical") return "Critical";
       if (key === "finances.contractRiskWarning") return "Warning";
@@ -51,6 +51,7 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.contractInfo") return "Contract Info";
       if (key === "playerProfile.dateOfBirth") return "Date of Birth";
       if (key === "playerProfile.weeklyWage") return "Weekly Wage";
+      if (key === "playerProfile.annualWage") return "Annual Wage";
       if (key === "playerProfile.noContract") return "No Contract";
       if (key === "playerProfile.yearsRemaining") return "Years Remaining";
       if (key === "playerProfile.contractRisk") return "Contract Risk";
@@ -394,9 +395,10 @@ describe("PlayerProfile contract surfaces", () => {
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.getByText("Contract Risk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
+    expect(screen.getByText("Annual Wage")).toBeInTheDocument();
     expect(
       screen.getAllByText((_, element) =>
-        hasWeeklyWage(element?.textContent ?? "", 230),
+        hasAnnualWage(element?.textContent ?? "", "12K"),
       ).length,
     ).toBeGreaterThan(0);
   });
@@ -707,7 +709,7 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("Expires 2029-08-01")).toBeInTheDocument();
       expect(
         screen.getAllByText((_, element) =>
-          hasWeeklyWage(element?.textContent ?? "", 288),
+          hasAnnualWage(element?.textContent ?? "", "15K"),
         ).length,
       ).toBeGreaterThan(0);
       expect(screen.getByText("Stable")).toBeInTheDocument();

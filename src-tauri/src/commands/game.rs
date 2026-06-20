@@ -1495,6 +1495,14 @@ pub async fn get_active_game(state: State<'_, Arc<StateManager>>) -> Result<Game
 }
 
 #[tauri::command]
+pub async fn get_active_save_id(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Option<String>, String> {
+    log::debug!("[cmd] get_active_save_id");
+    Ok(state.get_save_id())
+}
+
+#[tauri::command]
 pub async fn save_game(
     state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,

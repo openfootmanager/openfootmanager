@@ -2148,3 +2148,216 @@ fn season_end_board_message_top_four_uses_correct_body_key() {
         "topFour key must include suffix param"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Retiree conversion and pool replenishment
+// ---------------------------------------------------------------------------
+
+fn make_retired_player(id: &str) -> domain::player::Player {
+    use domain::player::{CareerEntry, PlayerAttributes, Position};
+    let attrs = PlayerAttributes {
+        pace: 55,
+        stamina: 55,
+        strength: 55,
+        agility: 55,
+        passing: 70,
+        shooting: 60,
+        tackling: 65,
+        dribbling: 60,
+        defending: 65,
+        positioning: 72,
+        vision: 74,
+        decisions: 70,
+        composure: 65,
+        aggression: 50,
+        teamwork: 68,
+        leadership: 60,
+        handling: 20,
+        reflexes: 20,
+        aerial: 55,
+    };
+    let mut p = domain::player::Player::new(
+        id.to_string(),
+        format!("{} Ret", id),
+        format!("Full {}", id),
+        "1988-01-01".to_string(),
+        "ENG".to_string(),
+        Position::Midfielder,
+        attrs,
+    );
+    p.team_id = None;
+    p.retired = true;
+    p.career.push(CareerEntry {
+        season: 1,
+        team_id: "team1".to_string(),
+        team_name: "Test FC".to_string(),
+        appearances: 30,
+        goals: 5,
+        assists: 8,
+    });
+    p
+}
+
+#[test]
+fn retired_player_creates_manager_candidate_with_deterministic_id() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("retiree1"));
+
+    process_end_of_season(&mut game);
+
+    let mgr_id = "mgr_retired_retiree1";
+    assert!(
+        game.managers.iter().any(|m| m.id == mgr_id),
+        "unemployed manager with id '{}' should exist after season end",
+        mgr_id
+    );
+}
+
+#[test]
+fn retired_player_creates_scout_candidate_with_deterministic_id() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("retiree2"));
+
+    process_end_of_season(&mut game);
+
+    let scout_id = "staff_retired_scout_retiree2";
+    assert!(
+        game.staff
+            .iter()
+            .any(|s| s.id == scout_id
+                && matches!(s.role, domain::staff::StaffRole::Scout)
+                && s.team_id.is_none()),
+        "unattached scout '{}' should exist after season end",
+        scout_id
+    );
+}
+
+#[test]
+fn retiree_conversion_is_idempotent() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("idem1"));
+
+    process_end_of_season(&mut game);
+    // Build a fresh completed-season state and re-trigger (simulates second season)
+    // Manually reset enough state so process_end_of_season can run again
+    if let Some(league) = &mut game.league {
+        // Mark new season fixtures as completed for the guard check
+        for f in league.fixtures.iter_mut() {
+            f.status = domain::league::FixtureStatus::Completed;
+            f.result = Some(domain::league::MatchResult {
+                home_goals: 1,
+                away_goals: 0,
+                home_scorers: vec![],
+                away_scorers: vec![],
+                report: None,
+            });
+        }
+    }
+    process_end_of_season(&mut game);
+
+    let mgr_count = game
+        .managers
+        .iter()
+        .filter(|m| m.id == "mgr_retired_idem1")
+        .count();
+    assert_eq!(mgr_count, 1, "duplicate manager must not be created on second call");
+
+    let scout_count = game
+        .staff
+        .iter()
+        .filter(|s| s.id == "staff_retired_scout_idem1")
+        .count();
+    assert_eq!(scout_count, 1, "duplicate scout must not be created on second call");
+}
+
+#[test]
+fn retired_player_with_no_career_is_not_converted() {
+    let mut game = make_completed_season_game();
+    let mut p = make_retired_player("no_career");
+    p.career.clear(); // ineligible
+    game.players.push(p);
+
+    process_end_of_season(&mut game);
+
+    assert!(
+        !game.managers.iter().any(|m| m.id == "mgr_retired_no_career"),
+        "players with no career entries must not become manager candidates"
+    );
+}
+
+#[test]
+fn manager_pool_is_topped_up_to_floor_after_season() {
+    let mut game = make_completed_season_game();
+    let team_count = game.teams.len(); // 2 teams → floor = 4
+
+    process_end_of_season(&mut game);
+
+    let user_mgr_id = game.manager.id.clone();
+    let unemployed = game
+        .managers
+        .iter()
+        .filter(|m| m.id != user_mgr_id && m.team_id.is_none())
+        .count();
+    assert!(
+        unemployed >= team_count * 2,
+        "unemployed manager pool ({}) should be >= floor ({})",
+        unemployed,
+        team_count * 2
+    );
+}
+
+#[test]
+fn scout_pool_is_topped_up_to_floor_after_season() {
+    let mut game = make_completed_season_game();
+    let team_count = game.teams.len(); // 2 teams → floor = 4
+
+    process_end_of_season(&mut game);
+
+    let unemployed_scouts = game
+        .staff
+        .iter()
+        .filter(|s| s.team_id.is_none() && matches!(s.role, domain::staff::StaffRole::Scout))
+        .count();
+    assert!(
+        unemployed_scouts >= team_count * 2,
+        "unemployed scout pool ({}) should be >= floor ({})",
+        unemployed_scouts,
+        team_count * 2
+    );
+}
+
+#[test]
+fn retiree_manager_reputation_is_derived_from_ovr_and_career() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("ovr_test"));
+
+    process_end_of_season(&mut game);
+
+    let mgr = game
+        .managers
+        .iter()
+        .find(|m| m.id == "mgr_retired_ovr_test")
+        .expect("manager should exist");
+    assert!(mgr.reputation >= 200, "reputation should be >= 200");
+    assert!(mgr.reputation <= 900, "reputation should be <= 900");
+    assert_eq!(mgr.satisfaction, 50);
+    assert_eq!(mgr.fan_approval, 50);
+}
+
+#[test]
+fn retiree_scout_judging_attributes_derived_from_player_attrs() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("attr_test"));
+
+    process_end_of_season(&mut game);
+
+    let scout = game
+        .staff
+        .iter()
+        .find(|s| s.id == "staff_retired_scout_attr_test")
+        .expect("scout should exist");
+    // vision=74, decisions=70 → judging_ability = (74+70)/2 = 72
+    assert_eq!(scout.attributes.judging_ability, 72);
+    // positioning=72, teamwork=68 → judging_potential = (72+68)/2 = 70
+    assert_eq!(scout.attributes.judging_potential, 70);
+}
