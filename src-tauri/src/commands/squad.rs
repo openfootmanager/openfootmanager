@@ -1,12 +1,10 @@
+use std::sync::Arc;
 use chrono::Datelike;
 use log::info;
-use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
-
-use crate::commands::util::mutate_active_game;
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -28,7 +26,7 @@ fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option
 }
 
 pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -88,15 +86,14 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
             }
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
-pub fn set_starting_xi_internal(
-    state: &StateManager,
-    player_ids: Vec<String>,
-) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+pub fn set_starting_xi_internal(state: &StateManager, player_ids: Vec<String>) -> Result<Game, String> {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -107,15 +104,14 @@ pub fn set_starting_xi_internal(
             team.starting_xi_ids = player_ids;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
-pub fn set_formation(
-    state: State<'_, Arc<StateManager>>,
-    formation: String,
-) -> Result<Game, String> {
+pub fn set_formation(state: State<'_, Arc<StateManager>>, formation: String) -> Result<Game, String> {
     info!("[cmd] set_formation: {}", formation);
     set_formation_internal(&state, &formation)
 }
@@ -130,16 +126,13 @@ pub fn set_starting_xi(
 }
 
 #[tauri::command]
-pub fn set_play_style(
-    state: State<'_, Arc<StateManager>>,
-    play_style: String,
-) -> Result<Game, String> {
+pub fn set_play_style(state: State<'_, Arc<StateManager>>, play_style: String) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
     set_play_style_internal(&state, &play_style)
 }
 
 pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -159,8 +152,10 @@ pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result
             team.play_style = style;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -176,7 +171,7 @@ pub fn set_team_match_roles_internal(
     state: &StateManager,
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -187,8 +182,10 @@ pub fn set_team_match_roles_internal(
             team.match_roles = match_roles;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -209,7 +206,7 @@ pub fn set_training_internal(
     focus: &str,
     intensity: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -238,8 +235,10 @@ pub fn set_training_internal(
             team.training_intensity = training_intensity;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -255,7 +254,7 @@ pub fn set_training_schedule_internal(
     state: &StateManager,
     schedule: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -273,8 +272,10 @@ pub fn set_training_schedule_internal(
             team.training_schedule = training_schedule;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -290,7 +291,7 @@ pub fn set_training_groups_internal(
     state: &StateManager,
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -301,8 +302,10 @@ pub fn set_training_groups_internal(
             team.training_groups = groups;
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -323,7 +326,7 @@ pub fn set_player_training_focus_internal(
         "[cmd] set_player_training_focus: player={}, focus={:?}",
         player_id, focus
     );
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -350,8 +353,10 @@ pub fn set_player_training_focus_internal(
             return Err("be.error.playerNotFound".to_string());
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -372,7 +377,7 @@ pub fn set_player_squad_role_internal(
         "[cmd] set_player_squad_role: player={}, squad_role={}",
         player_id, squad_role
     );
-    mutate_active_game(state, |game| {
+    state.update_game(|game| {
         let team_id = game
             .manager
             .team_id
@@ -408,8 +413,10 @@ pub fn set_player_squad_role_internal(
             }
         }
 
-        Ok(())
+        Ok(game.clone())
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -425,99 +432,19 @@ pub fn auto_select_set_pieces_internal(
     state: &StateManager,
     player_ids: &[String],
 ) -> Result<serde_json::Value, String> {
-    state
-        .get_game(|game| {
-            let (captain, penalty, free_kick, corner) =
-                ofm_core::live_match_manager::auto_select_set_pieces(game, player_ids);
-            serde_json::json!({
-                "captain": captain,
-                "penalty_taker": penalty,
-                "free_kick_taker": free_kick,
-                "corner_taker": corner,
-            })
-        })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
-}
+    let game = state
+        .get_game(|g| g.clone())
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
-pub fn assign_jersey_number_internal(
-    state: &StateManager,
-    player_id: &str,
-    jersey_number: Option<u8>,
-) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
+    let (captain, penalty, free_kick, corner) =
+        ofm_core::live_match_manager::auto_select_set_pieces(&game, player_ids);
 
-        if let Some(n) = jersey_number {
-            if !(1..=99).contains(&n) {
-                return Err("be.error.jerseyNumberOutOfRange".to_string());
-            }
-            let conflict = game.players.iter().any(|p| {
-                p.id != player_id
-                    && p.team_id.as_deref() == Some(team_id.as_str())
-                    && p.jersey_number == Some(n)
-            });
-            if conflict {
-                return Err("be.error.jerseyNumberTaken".to_string());
-            }
-        }
-
-        let player = game
-            .players
-            .iter_mut()
-            .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
-            .ok_or("be.error.playerNotFound".to_string())?;
-
-        player.jersey_number = jersey_number;
-        Ok(())
-    })
-}
-
-#[tauri::command]
-pub fn assign_jersey_number(
-    state: State<'_, Arc<StateManager>>,
-    player_id: String,
-    jersey_number: Option<u8>,
-) -> Result<Game, String> {
-    info!(
-        "[cmd] assign_jersey_number: player={}, number={:?}",
-        player_id, jersey_number
-    );
-    assign_jersey_number_internal(&state, &player_id, jersey_number)
-}
-
-pub fn set_team_kit_pattern_internal(
-    state: &StateManager,
-    kit_pattern: domain::team::KitPattern,
-) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
-        let team_id = game
-            .manager
-            .team_id
-            .clone()
-            .ok_or("be.error.noTeamAssigned".to_string())?;
-
-        let team = game
-            .teams
-            .iter_mut()
-            .find(|t| t.id == team_id)
-            .ok_or("be.error.teamNotFound".to_string())?;
-
-        team.kit_pattern = kit_pattern;
-        Ok(())
-    })
-}
-
-#[tauri::command]
-pub fn set_team_kit_pattern(
-    state: State<'_, Arc<StateManager>>,
-    kit_pattern: domain::team::KitPattern,
-) -> Result<Game, String> {
-    info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
-    set_team_kit_pattern_internal(&state, kit_pattern)
+    Ok(serde_json::json!({
+        "captain": captain,
+        "penalty_taker": penalty,
+        "free_kick_taker": free_kick,
+        "corner_taker": corner,
+    }))
 }
 
 #[cfg(test)]
