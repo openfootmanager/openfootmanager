@@ -5,4 +5,5 @@ pub mod players;
 pub mod schedule;
 pub mod session;
 pub mod squad;
+pub mod staff;
 pub mod teams;

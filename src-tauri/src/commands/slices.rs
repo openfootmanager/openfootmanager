@@ -9,6 +9,7 @@ use ofm_core::slices::players::{PlayersPage, PlayersPageQuery, query_page};
 use ofm_core::slices::schedule::{ScheduleQuery, ScheduleSlice, query_schedule};
 use ofm_core::slices::session::{SessionState, SessionStateQuery, project_session};
 use ofm_core::slices::squad::query_squad;
+use ofm_core::slices::staff::{StaffSlice, query_staff};
 use ofm_core::slices::teams::{
     TeamsDirectory, TeamsDirectoryQuery, query_directory,
 };
@@ -95,5 +96,15 @@ pub async fn get_squad(
 ) -> Result<Vec<domain::player::Player>, String> {
     state
         .get_game(|game| query_squad(game, &team_id))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
+pub async fn get_staff(
+    state: State<'_, Arc<StateManager>>,
+    team_id: String,
+) -> Result<StaffSlice, String> {
+    state
+        .get_game(|game| query_staff(game, &team_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
