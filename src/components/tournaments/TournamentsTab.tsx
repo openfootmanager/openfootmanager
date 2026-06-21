@@ -16,7 +16,7 @@ import {
   type CompetitionsView,
 } from "../../services/competitionsService";
 import ContextMenu from "../ContextMenu";
-import { Card, CardHeader, CardBody, Badge } from "../ui";
+import { Card, CardHeader, CardBody, Badge, Select } from "../ui";
 import {
   Trophy,
   Calendar,
@@ -462,23 +462,22 @@ export default function TournamentsTab({
               </p>
             </div>
             {activeCompetitions.length > 1 && (
-              <select
+              <Select
                 value={league.id}
                 onChange={(event) => setSelectedCompetitionId(event.target.value)}
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none"
+                variant="ghost"
               >
                 {activeCompetitions.map((competition) => (
                   <option
                     key={competition.id}
                     value={competition.id}
-                    className="text-gray-900"
                   >
                     {competition.name_key
                       ? t(competition.name_key, { year: competition.season })
                       : competition.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
             <div className="hidden md:flex gap-4">
               <div className="bg-white/5 rounded-xl px-4 py-2 text-center">

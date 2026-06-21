@@ -473,7 +473,8 @@ describe("TournamentsTab", () => {
     ];
 
     render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "wc-2026" } });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "World Cup 2026" }));
 
     expect(screen.getByText("Brazil")).toBeInTheDocument();
     expect(screen.getByText("France")).toBeInTheDocument();
@@ -502,7 +503,8 @@ describe("TournamentsTab", () => {
     ];
 
     render(<TournamentsTab gameState={state} onSelectTeam={vi.fn()} />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "wc-2026" } });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "World Cup 2026" }));
 
     expect(screen.getByText("Brazil")).toBeInTheDocument();
     expect(screen.getByText("tournaments.worldCupChampion:")).toBeInTheDocument();
@@ -647,7 +649,7 @@ describe("TournamentsTab", () => {
 
     fireEvent.click(screen.getByTestId("competitions-overview-row-cup-1"));
 
-    expect(screen.getByRole("combobox")).toHaveValue("cup-1");
+    expect(screen.getByRole("combobox")).toHaveTextContent("Champions Cup");
   });
 
   it("renders manager of the season in the awards view", async () => {
