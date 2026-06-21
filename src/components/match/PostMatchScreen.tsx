@@ -269,22 +269,7 @@ export default function PostMatchScreen({
       {/* Sticky Action Bar */}
       <div className="sticky top-0 z-10 bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 shadow-sm transition-colors duration-300">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-center gap-3">
-          <button
-            onClick={onFinish}
-            className="flex items-center gap-2 px-5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
-          >
-            {t("match.skip")}
-          </button>
-          {!isSpectator && (
-            <button
-              onClick={onContinue}
-              className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
-            >
-              {t("match.continue")}
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
-          {isSpectator && (
+          {isSpectator ? (
             <button
               onClick={onFinish}
               className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
@@ -292,6 +277,22 @@ export default function PostMatchScreen({
               {t("match.continueDashboard")}
               <ChevronRight className="w-4 h-4" />
             </button>
+          ) : (
+            <>
+              <button
+                onClick={onFinish}
+                className="flex items-center gap-2 px-5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                {t("match.skip")}
+              </button>
+              <button
+                onClick={onContinue}
+                className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
+              >
+                {t("match.continue")}
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
           )}
         </div>
       </div>

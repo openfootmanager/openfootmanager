@@ -325,8 +325,8 @@ export default function RoundDigestScreen({
 
           {/* Main content grid */}
           <div className="grid grid-cols-3 gap-6">
-            {/* Other Results (2 cols) */}
-            <div className="col-span-2 flex flex-col gap-3">
+            {/* Other Results — 2 cols for league (leaves room for table), full width for friendly */}
+            <div className={`flex flex-col gap-3 ${isLeagueFixture ? "col-span-2" : "col-span-3"}`}>
               <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                 {isLeagueFixture
                   ? t("match.otherMatchesToday")
@@ -490,7 +490,12 @@ export default function RoundDigestScreen({
 
       {/* Other Match Detail Modal */}
       {selectedOtherFixture && selectedOtherFixtureReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("match.matchDetails")}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+        >
           <div className="w-full max-w-3xl rounded-2xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 shadow-2xl transition-colors duration-300">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-navy-700 px-5 py-4">
               <div>

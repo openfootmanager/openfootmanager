@@ -33,8 +33,19 @@ vi.mock("../store/gameStore", () => ({
 }));
 
 vi.mock("../components/match/PreMatchSetup", () => ({
-  default: ({ snapshot }: { snapshot: { home_team: { name: string } } }) => (
-    <div data-testid="prematch">{snapshot.home_team.name}</div>
+  default: ({
+    snapshot,
+    onStart,
+  }: {
+    snapshot: { home_team: { name: string } };
+    onStart?: () => void;
+  }) => (
+    <div data-testid="prematch">
+      {snapshot.home_team.name}
+      <button data-testid="prematch-start" onClick={onStart}>
+        Start
+      </button>
+    </div>
   ),
 }));
 
@@ -498,9 +509,9 @@ describe("MatchSimulation", function (): void {
     });
   });
 
-  it("routes a friendly match through the digest screen with isLeagueFixture=false", async function (): Promise<void> {
+  it("routes a manager's friendly through digest with isLeagueFixture=false", async function (): Promise<void> {
     locationState = {
-      mode: "spectator",
+      mode: "live",
       fixtureIndex: 0,
       snapshot: makeSnapshot(),
     };
@@ -518,6 +529,13 @@ describe("MatchSimulation", function (): void {
       });
 
     render(<MatchSimulation />);
+
+    // Manager sees prematch; click Start to advance to first_half
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("prematch-start"));
 
     await waitFor(function (): void {
       expect(screen.getByTestId("match-live")).toBeInTheDocument();
