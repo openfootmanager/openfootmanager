@@ -264,13 +264,20 @@ fn classify_file(
 /// every problem found. Collections are sorted by id so the result is
 /// independent of file-discovery order (and therefore of folder layout).
 /// Extract the locale code from a translation file name of the form
-/// `translations.{locale}.json` (case-insensitive extension). Returns `None`
-/// for file names that don't match the pattern.
+/// `translations.{locale}.json`. The locale must be non-empty and must not
+/// contain dots (BCP 47 subtags use hyphens, e.g. `pt-BR`). Returns `None`
+/// for any name that doesn't match this exact pattern.
 fn translation_locale_from_filename(name: &str) -> Option<&str> {
     let lower = name.to_ascii_lowercase();
     let stem = lower.strip_suffix(".json")?;
-    stem.strip_prefix("translations.")
-        .map(|_| &name[name.find('.').map(|i| i + 1).unwrap_or(0)..name.rfind('.').unwrap_or(name.len())])
+    let locale_lower = stem.strip_prefix("translations.")?;
+    if locale_lower.is_empty() || locale_lower.contains('.') {
+        return None;
+    }
+    // Return the original-cased locale slice.
+    let start = "translations.".len();
+    let end = name.len() - ".json".len();
+    Some(&name[start..end])
 }
 
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
@@ -296,10 +303,12 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
         if let Some(locale) = translation_locale_from_filename(file_name) {
             match std::fs::read_to_string(path) {
                 Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(value) => {
-                        package.extra_translations.insert(locale.to_string(), value);
+                    Ok(serde_json::Value::Object(map)) => {
+                        package
+                            .extra_translations
+                            .insert(locale.to_string(), serde_json::Value::Object(map));
                     }
-                    Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+                    Ok(_) | Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
                 },
                 Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
             }
@@ -848,5 +857,26 @@ colors:
         );
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn translation_locale_from_filename_valid() {
+        assert_eq!(translation_locale_from_filename("translations.en.json"), Some("en"));
+        assert_eq!(translation_locale_from_filename("translations.pt-BR.json"), Some("pt-BR"));
+        assert_eq!(translation_locale_from_filename("translations.zh-CN.json"), Some("zh-CN"));
+    }
+
+    #[test]
+    fn translation_locale_from_filename_rejects_invalid() {
+        // Empty locale between the two dots
+        assert_eq!(translation_locale_from_filename("translations..json"), None);
+        // Locale itself contains a dot (would create ambiguous multi-part names)
+        assert_eq!(translation_locale_from_filename("translations.pt-BR.extra.json"), None);
+        // No "translations." prefix
+        assert_eq!(translation_locale_from_filename("en.json"), None);
+        // Not a JSON file
+        assert_eq!(translation_locale_from_filename("translations.en.yaml"), None);
+        // Completely wrong name
+        assert_eq!(translation_locale_from_filename("competition.json"), None);
     }
 }

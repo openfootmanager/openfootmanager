@@ -18,7 +18,7 @@ import type {
   WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
-import i18n from "../i18n";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
   FolderOpen,
@@ -27,15 +27,6 @@ import {
   ChevronRight,
   Power,
 } from "lucide-react";
-
-function applyExtraTranslations(
-  extra: Record<string, Record<string, unknown>> | undefined,
-): void {
-  if (!extra) return;
-  for (const [locale, bundle] of Object.entries(extra)) {
-    i18n.addResourceBundle(locale, "translation", bundle, true, true);
-  }
-}
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
 const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";

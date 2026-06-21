@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import i18n from "../i18n";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
@@ -123,11 +123,7 @@ export default function Dashboard(): JSX.Element {
     }
 
     const activeState = stateResult.value;
-    if (activeState.extra_translations) {
-      for (const [locale, bundle] of Object.entries(activeState.extra_translations)) {
-        i18n.addResourceBundle(locale, "translation", bundle, true, true);
-      }
-    }
+    applyExtraTranslations(activeState.extra_translations);
     setGameState(activeState);
 
     if (saveIdResult.status === "fulfilled") {
