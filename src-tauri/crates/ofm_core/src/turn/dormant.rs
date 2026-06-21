@@ -22,7 +22,9 @@ pub(super) fn simulate_dormant_competition_day(
         .fixtures
         .iter()
         .enumerate()
-        .filter(|(_, fixture)| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
+        .filter(|(_, fixture)| {
+            fixture.date == today && fixture.status == FixtureStatus::Scheduled
+        })
         .map(|(index, fixture)| {
             (
                 index,
@@ -54,10 +56,12 @@ mod tests {
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
-    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+    use domain::league::{
+        Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
+    };
     use domain::manager::Manager;
     use domain::team::Team;
-    use rand::{SeedableRng, rngs::StdRng};
+    use rand::{rngs::StdRng, SeedableRng};
 
     fn make_team(id: &str) -> Team {
         Team::new(
@@ -123,10 +127,7 @@ mod tests {
         let competition = &game.competitions[0];
         let fixture = &competition.fixtures[0];
         assert_eq!(fixture.status, FixtureStatus::Completed);
-        let result = fixture
-            .result
-            .as_ref()
-            .expect("fixture should have a result");
+        let result = fixture.result.as_ref().expect("fixture should have a result");
         // Cheap path: scoreline only, no per-minute report.
         assert!(result.report.is_none());
         assert!(result.home_scorers.is_empty());

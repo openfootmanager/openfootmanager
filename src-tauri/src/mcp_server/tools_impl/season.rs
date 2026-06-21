@@ -1,9 +1,9 @@
 //! MCP tool implementations: season
 
-use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
-use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
+use crate::mcp_server::context::McpContext;
+use crate::mcp_server::tools_impl::helpers::{require_game};
+use crate::mcp_server::formatting::translate_error;
 
 // ─── season_check_complete ──────────────────────────────────────────────────
 
@@ -11,18 +11,13 @@ pub fn season_check_complete(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
     if let Some(league) = &game.league {
-        let incomplete = league
-            .fixtures
-            .iter()
+        let incomplete = league.fixtures.iter()
             .filter(|f| f.status != domain::league::FixtureStatus::Completed)
             .count();
         if incomplete == 0 && !league.fixtures.is_empty() {
             return Ok("## Season Status: Complete ✅\n\nAll fixtures played. Use `season_advance` to proceed.".to_string());
         }
-        return Ok(format!(
-            "## Season Status: In Progress\n\n**Remaining fixtures**: {}",
-            incomplete
-        ));
+        return Ok(format!("## Season Status: In Progress\n\n**Remaining fixtures**: {}", incomplete));
     }
 
     Ok("## Season Status: No league active.".to_string())
@@ -51,10 +46,7 @@ pub fn season_advance(ctx: Arc<McpContext>) -> Result<String, String> {
             return Ok("## Season Advance\n\n**⚠️ You have been fired!** Use `jobs_available` to find a new position.".to_string());
         }
 
-        Ok(format!(
-            "## Day Advanced\n\nDate: {}. Continue advancing to reach next season.",
-            game.clock.current_date.format("%d %B %Y")
-        ))
+        Ok(format!("## Day Advanced\n\nDate: {}. Continue advancing to reach next season.", game.clock.current_date.format("%d %B %Y")))
     } else {
         Ok("## Season Advance\n\nGame state lost during advance.".to_string())
     }
@@ -81,18 +73,9 @@ pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<String, String> {
 
     for (title, entries) in &categories {
         if !entries.is_empty() {
-            output.push_str(&format!(
-                "### {}\n\n| # | Player | Team | Value |\n|---|--------|------|-------|\n",
-                title
-            ));
+            output.push_str(&format!("### {}\n\n| # | Player | Team | Value |\n|---|--------|------|-------|\n", title));
             for (i, e) in entries.iter().enumerate() {
-                output.push_str(&format!(
-                    "| {} | {} | {} | {:.1} |\n",
-                    i + 1,
-                    e.player_name,
-                    e.team_name,
-                    e.value
-                ));
+                output.push_str(&format!("| {} | {} | {} | {:.1} |\n", i + 1, e.player_name, e.team_name, e.value));
             }
             output.push('\n');
         }
@@ -101,13 +84,7 @@ pub fn season_get_awards(ctx: Arc<McpContext>) -> Result<String, String> {
     if !awards.manager_of_season.is_empty() {
         output.push_str("### 👔 Manager of the Season\n\n| # | Manager | Team | Value |\n|---|---------|------|-------|\n");
         for (i, e) in awards.manager_of_season.iter().enumerate() {
-            output.push_str(&format!(
-                "| {} | {} | {} | {:.1} |\n",
-                i + 1,
-                e.manager_name,
-                e.team_name,
-                e.value
-            ));
+            output.push_str(&format!("| {} | {} | {} | {:.1} |\n", i + 1, e.manager_name, e.team_name, e.value));
         }
     }
 
@@ -128,19 +105,9 @@ pub fn jobs_available(ctx: Arc<McpContext>) -> Result<String, String> {
 
     let mut output = format!("## Available Jobs ({} openings)\n\n| # | Team | City | Reputation | Last Position |\n|---|------|------|------------|---------------|\n", jobs.len());
     for (i, j) in jobs.iter().enumerate() {
-        let pos = j
-            .last_league_position
-            .map(|p| p.to_string())
-            .unwrap_or_else(|| "-".to_string());
-        output.push_str(&format!(
-            "| {} | {} ({}) | {} | {} | {} |\n",
-            i + 1,
-            j.team_name,
-            j.team_id,
-            j.city,
-            j.reputation,
-            pos
-        ));
+        let pos = j.last_league_position.map(|p| p.to_string()).unwrap_or_else(|| "-".to_string());
+        output.push_str(&format!("| {} | {} ({}) | {} | {} | {} |\n",
+            i + 1, j.team_name, j.team_id, j.city, j.reputation, pos));
     }
 
     Ok(output)

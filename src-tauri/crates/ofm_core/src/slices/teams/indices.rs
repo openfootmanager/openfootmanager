@@ -1,5 +1,7 @@
 use crate::game::Game;
-use domain::league::{CompetitionScope, CompetitionType, League, StandingEntry};
+use domain::league::{
+    CompetitionScope, CompetitionType, League, StandingEntry,
+};
 use domain::player::Player;
 use std::collections::HashMap;
 
@@ -20,7 +22,9 @@ pub(super) fn domestic_leagues(game: &Game) -> Vec<&League> {
     let filtered: Vec<&League> = game
         .competitions
         .iter()
-        .filter(|c| c.kind == CompetitionType::League && c.scope == CompetitionScope::Domestic)
+        .filter(|c| {
+            c.kind == CompetitionType::League && c.scope == CompetitionScope::Domestic
+        })
         .collect();
     if !filtered.is_empty() {
         return filtered;
@@ -57,11 +61,7 @@ fn league_member_ids(league: &League) -> Vec<&str> {
     if !league.participant_ids.is_empty() {
         league.participant_ids.iter().map(String::as_str).collect()
     } else {
-        league
-            .standings
-            .iter()
-            .map(|e| e.team_id.as_str())
-            .collect()
+        league.standings.iter().map(|e| e.team_id.as_str()).collect()
     }
 }
 

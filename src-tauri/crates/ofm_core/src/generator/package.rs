@@ -238,10 +238,7 @@ fn classify_file(
         errors.push(PackageError::new(MISSING_SCHEMA, file));
         return;
     };
-    let schema = map
-        .get("schema")
-        .and_then(Value::as_str)
-        .map(str::to_string);
+    let schema = map.get("schema").and_then(Value::as_str).map(str::to_string);
     let Some(schema) = schema else {
         errors.push(PackageError::new(MISSING_SCHEMA, file));
         return;
@@ -328,7 +325,11 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
     errors
 }
 
-fn check_ids<'a>(ids: impl Iterator<Item = &'a str>, kind: &str, errors: &mut Vec<PackageError>) {
+fn check_ids<'a>(
+    ids: impl Iterator<Item = &'a str>,
+    kind: &str,
+    errors: &mut Vec<PackageError>,
+) {
     let mut seen: HashSet<&str> = HashSet::new();
     for id in ids {
         if id.is_empty() {
@@ -354,11 +355,8 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
 
     let team_ids: HashSet<&str> = package.teams.iter().map(|t| t.id.as_str()).collect();
     let country_ids: HashSet<&str> = package.countries.iter().map(|c| c.id.as_str()).collect();
-    let confederation_ids: HashSet<&str> = package
-        .confederations
-        .iter()
-        .map(|c| c.id.as_str())
-        .collect();
+    let confederation_ids: HashSet<&str> =
+        package.confederations.iter().map(|c| c.id.as_str()).collect();
 
     let known_confederation =
         |id: &str| confederation_ids.contains(id) || crate::nations::is_builtin_region(id);
@@ -418,11 +416,8 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
 
     let mut country_codes: HashSet<&str> =
         package.countries.iter().map(|c| c.id.as_str()).collect();
-    let mut region_ids: HashSet<&str> = package
-        .confederations
-        .iter()
-        .map(|c| c.id.as_str())
-        .collect();
+    let mut region_ids: HashSet<&str> =
+        package.confederations.iter().map(|c| c.id.as_str()).collect();
     for nation in crate::nations::NATION_CATALOG {
         country_codes.insert(nation.code);
         region_ids.insert(nation.region_id);
@@ -612,10 +607,7 @@ colors:
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
         assert_eq!(package.competitions.len(), 1);
         assert_eq!(package.competitions[0].id, "es-1");
-        assert_eq!(
-            package.competitions[0].r#type,
-            domain::league::CompetitionType::League
-        );
+        assert_eq!(package.competitions[0].r#type, domain::league::CompetitionType::League);
 
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -623,11 +615,7 @@ colors:
     #[test]
     fn a_fully_cross_referenced_package_is_valid() {
         let dir = temp_package();
-        write(
-            &dir,
-            "confed.yaml",
-            "schema: confederation\nid: galaxy\nname: Galaxy\n",
-        );
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
         write(
             &dir,
             "country.yaml",
@@ -650,10 +638,7 @@ colors:
         );
 
         let (_package, errors) = load_world_package(&dir);
-        assert!(
-            errors.is_empty(),
-            "expected a valid package, got: {errors:?}"
-        );
+        assert!(errors.is_empty(), "expected a valid package, got: {errors:?}");
 
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -704,7 +689,11 @@ colors:
         assert!(codes.contains(&UNKNOWN_CONFEDERATION), "{errors:?}");
         assert!(codes.contains(&UNKNOWN_TEAM), "{errors:?}");
         assert!(
-            errors.iter().filter(|e| e.code == UNKNOWN_COUNTRY).count() >= 2,
+            errors
+                .iter()
+                .filter(|e| e.code == UNKNOWN_COUNTRY)
+                .count()
+                >= 2,
             "both the team's and player's unknown country should be reported: {errors:?}"
         );
 
@@ -714,16 +703,8 @@ colors:
     #[test]
     fn builds_a_playable_world_from_a_package() {
         let dir = temp_package();
-        write(
-            &dir,
-            "world.yaml",
-            "schema: world\nname: Zed World\ndescription: A tiny world\n",
-        );
-        write(
-            &dir,
-            "confed.yaml",
-            "schema: confederation\nid: galaxy\nname: Galaxy\n",
-        );
+        write(&dir, "world.yaml", "schema: world\nname: Zed World\ndescription: A tiny world\n");
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
         write(
             &dir,
             "country.yaml",
@@ -746,11 +727,7 @@ colors:
         let world = crate::generator::build_world_data_from_package(&package);
         assert_eq!(world.name, "Zed World");
         let team_ids: Vec<&str> = world.teams.iter().map(|t| t.id.as_str()).collect();
-        assert_eq!(
-            team_ids,
-            vec!["zed-fc", "zed-utd"],
-            "stable authored ids are kept"
-        );
+        assert_eq!(team_ids, vec!["zed-fc", "zed-utd"], "stable authored ids are kept");
         assert_eq!(world.players.len(), 44, "22 players per club are generated");
 
         let galaxy = world
@@ -773,11 +750,7 @@ colors:
     #[test]
     fn authored_players_are_placed_in_their_clubs() {
         let dir = temp_package();
-        write(
-            &dir,
-            "confed.yaml",
-            "schema: confederation\nid: galaxy\nname: Galaxy\n",
-        );
+        write(&dir, "confed.yaml", "schema: confederation\nid: galaxy\nname: Galaxy\n");
         write(
             &dir,
             "country.yaml",

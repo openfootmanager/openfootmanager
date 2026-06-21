@@ -1,11 +1,9 @@
 //! MCP tool implementations: squad
 
-use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
-use crate::mcp_server::tools_impl::helpers::{
-    age_from_dob, format_position, require_game, user_team,
-};
 use std::sync::Arc;
+use crate::mcp_server::context::McpContext;
+use crate::mcp_server::tools_impl::helpers::{require_game, user_team, format_position, age_from_dob};
+use crate::mcp_server::formatting::translate_error;
 
 // ─── squad_get ──────────────────────────────────────────────────────────────
 
@@ -33,11 +31,7 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
 
     let mut rows = String::new();
     for p in &squad {
-        let in_xi = if team.starting_xi_ids.contains(&p.id) {
-            "★"
-        } else {
-            ""
-        };
+        let in_xi = if team.starting_xi_ids.contains(&p.id) { "★" } else { "" };
         let pos = format_position(&p.position);
         let inj = if p.injury.is_some() { "⚠" } else { "" };
         rows.push_str(&format!(
@@ -57,9 +51,7 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     // Starting XI summary
-    let xi_names: Vec<String> = team
-        .starting_xi_ids
-        .iter()
+    let xi_names: Vec<String> = team.starting_xi_ids.iter()
         .filter_map(|id| game.players.iter().find(|p| p.id == *id))
         .map(|p| format!("{} {}", format_position(&p.position), p.match_name))
         .collect();
@@ -81,10 +73,7 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── squad_set_starting_xi ─────────────────────────────────────────────────
 
-pub fn squad_set_starting_xi(
-    ctx: Arc<McpContext>,
-    player_ids: Vec<String>,
-) -> Result<String, String> {
+pub fn squad_set_starting_xi(ctx: Arc<McpContext>, player_ids: Vec<String>) -> Result<String, String> {
     // Call the internal function from commands/squad.rs
     crate::commands::squad::set_starting_xi_internal(&ctx.state_manager, player_ids.clone())
         .map_err(|e| translate_error(&e))?;
@@ -93,11 +82,9 @@ pub fn squad_set_starting_xi(
     let team = user_team(&game)?;
 
     // Format the starting XI
-    let xi_names: Vec<String> = player_ids
-        .iter()
+    let xi_names: Vec<String> = player_ids.iter()
         .map(|id| {
-            game.players
-                .iter()
+            game.players.iter()
                 .find(|p| p.id == *id)
                 .map(|p| format!("{} {}", format_position(&p.position), p.match_name))
                 .unwrap_or_else(|| id.clone())
@@ -110,11 +97,7 @@ pub fn squad_set_starting_xi(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Starting XI Updated\n\n{}\n**Formation**: {}",
-        xi_names.join(", "),
-        team.formation
-    ))
+    Ok(format!("## Starting XI Updated\n\n{}\n**Formation**: {}", xi_names.join(", "), team.formation))
 }
 
 // ─── squad_set_formation ────────────────────────────────────────────────────
@@ -153,10 +136,7 @@ pub fn squad_set_play_style(ctx: Arc<McpContext>, play_style: String) -> Result<
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Play Style Changed\n\n**New Style**: {:?}",
-        team.play_style
-    ))
+    Ok(format!("## Play Style Changed\n\n**New Style**: {:?}", team.play_style))
 }
 
 // ─── squad_set_match_roles ───────────────────────────────────────────────────
@@ -206,23 +186,11 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
 
     // Apply the auto-selected roles
     let match_roles = domain::team::MatchRoles {
-        captain: result
-            .get("captain")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        captain: result.get("captain").and_then(|v| v.as_str()).map(|s| s.to_string()),
         vice_captain: team.match_roles.vice_captain.clone(),
-        penalty_taker: result
-            .get("penalty_taker")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        free_kick_taker: result
-            .get("free_kick_taker")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        corner_taker: result
-            .get("corner_taker")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        penalty_taker: result.get("penalty_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        free_kick_taker: result.get("free_kick_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        corner_taker: result.get("corner_taker").and_then(|v| v.as_str()).map(|s| s.to_string()),
     };
 
     crate::commands::squad::set_team_match_roles_internal(&ctx.state_manager, match_roles)
@@ -232,50 +200,22 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
 
     // Format the result
     let mut names = Vec::new();
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .captain
-    {
+    if let Some(ref id) = game.teams.iter().find(|t| t.id == team.id).unwrap().match_roles.captain {
         if let Some(p) = game.players.iter().find(|p| p.id == *id) {
             names.push(format!("Captain: {}", p.match_name));
         }
     }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .penalty_taker
-    {
+    if let Some(ref id) = game.teams.iter().find(|t| t.id == team.id).unwrap().match_roles.penalty_taker {
         if let Some(p) = game.players.iter().find(|p| p.id == *id) {
             names.push(format!("Penalties: {}", p.match_name));
         }
     }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .free_kick_taker
-    {
+    if let Some(ref id) = game.teams.iter().find(|t| t.id == team.id).unwrap().match_roles.free_kick_taker {
         if let Some(p) = game.players.iter().find(|p| p.id == *id) {
             names.push(format!("Free Kicks: {}", p.match_name));
         }
     }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .corner_taker
-    {
+    if let Some(ref id) = game.teams.iter().find(|t| t.id == team.id).unwrap().match_roles.corner_taker {
         if let Some(p) = game.players.iter().find(|p| p.id == *id) {
             names.push(format!("Corners: {}", p.match_name));
         }
@@ -286,32 +226,19 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Auto-Assigned Set Pieces\n\n{}",
-        names.join("\n")
-    ))
+    Ok(format!("## Auto-Assigned Set Pieces\n\n{}", names.join("\n")))
 }
 
 // ─── squad_set_player_role ──────────────────────────────────────────────────
 
 // ─── squad_set_player_role ──────────────────────────────────────────────────
 
-pub fn squad_set_player_role(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    squad_role: String,
-) -> Result<String, String> {
-    crate::commands::squad::set_player_squad_role_internal(
-        &ctx.state_manager,
-        &player_id,
-        &squad_role,
-    )
-    .map_err(|e| translate_error(&e))?;
+pub fn squad_set_player_role(ctx: Arc<McpContext>, player_id: String, squad_role: String) -> Result<String, String> {
+    crate::commands::squad::set_player_squad_role_internal(&ctx.state_manager, &player_id, &squad_role)
+        .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
+    let player_name = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or(player_id);
@@ -321,10 +248,7 @@ pub fn squad_set_player_role(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Player Role Updated\n\n**{}**: {}",
-        player_name, squad_role
-    ))
+    Ok(format!("## Player Role Updated\n\n**{}**: {}", player_name, squad_role))
 }
 
 // ─── training_get ───────────────────────────────────────────────────────────

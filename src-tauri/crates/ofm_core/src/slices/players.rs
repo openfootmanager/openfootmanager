@@ -97,15 +97,14 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .map(|player| project_summary(player, &teams))
         .collect();
 
-    PlayersPage {
-        items,
-        total,
-        page,
-        page_size: query.page_size,
-    }
+    PlayersPage { items, total, page, page_size: query.page_size }
 }
 
-fn matches_filters(player: &Player, query: &PlayersPageQuery, needle: Option<&str>) -> bool {
+fn matches_filters(
+    player: &Player,
+    query: &PlayersPageQuery,
+    needle: Option<&str>,
+) -> bool {
     if let Some(needle) = needle
         && !matches_search(player, needle)
     {
@@ -140,24 +139,24 @@ fn matches_search(player: &Player, needle: &str) -> bool {
 fn sort_matches(matches: &mut [&Player], query: &PlayersPageQuery, teams: &TeamLookup) {
     matches.sort_by(|a, b| {
         let primary = compare_by_key(a, b, query.sort_key, teams);
-        if query.sort_asc {
-            primary
-        } else {
-            primary.reverse()
-        }
+        if query.sort_asc { primary } else { primary.reverse() }
     });
 }
 
-fn compare_by_key(a: &Player, b: &Player, sort_key: PlayerSortKey, teams: &TeamLookup) -> Ordering {
+fn compare_by_key(
+    a: &Player,
+    b: &Player,
+    sort_key: PlayerSortKey,
+    teams: &TeamLookup,
+) -> Ordering {
     match sort_key {
         PlayerSortKey::Name => a.full_name.cmp(&b.full_name),
         PlayerSortKey::Position => {
             position_rank(&a.natural_position).cmp(&position_rank(&b.natural_position))
         }
         // Ascending age = youngest first, equivalent to ascending by NEGATED birth year.
-        PlayerSortKey::Age => {
-            parse_birth_year(&b.date_of_birth).cmp(&parse_birth_year(&a.date_of_birth))
-        }
+        PlayerSortKey::Age => parse_birth_year(&b.date_of_birth)
+            .cmp(&parse_birth_year(&a.date_of_birth)),
         PlayerSortKey::Ovr => a.ovr.cmp(&b.ovr),
         PlayerSortKey::Value => a.market_value.cmp(&b.market_value),
         PlayerSortKey::Team => team_name_for(a, teams).cmp(team_name_for(b, teams)),
@@ -209,8 +208,12 @@ fn position_rank(pos: &Position) -> u8 {
     match pos {
         Goalkeeper => 1,
         Defender | RightBack | CenterBack | LeftBack | RightWingBack | LeftWingBack => 2,
-        Midfielder | DefensiveMidfielder | CentralMidfielder | AttackingMidfielder
-        | RightMidfielder | LeftMidfielder => 3,
+        Midfielder
+        | DefensiveMidfielder
+        | CentralMidfielder
+        | AttackingMidfielder
+        | RightMidfielder
+        | LeftMidfielder => 3,
         Forward | RightWinger | LeftWinger | Striker => 4,
     }
 }

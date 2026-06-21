@@ -37,11 +37,14 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
     let club_team_ids: BTreeSet<&str> = competitions
         .iter()
         .flat_map(|c| {
-            c.participant_ids.iter().map(String::as_str).chain(
-                c.fixtures
-                    .iter()
-                    .flat_map(|f| [f.home_team_id.as_str(), f.away_team_id.as_str()]),
-            )
+            c.participant_ids
+                .iter()
+                .map(String::as_str)
+                .chain(
+                    c.fixtures
+                        .iter()
+                        .flat_map(|f| [f.home_team_id.as_str(), f.away_team_id.as_str()]),
+                )
         })
         .collect();
 

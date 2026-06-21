@@ -10,7 +10,9 @@ const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
 
 fn infer_region_id(country_code: &str) -> &'static str {
     match country_code {
-        "BR" | "AR" | "UY" | "CL" | "CO" | "PE" | "EC" | "VE" | "PY" | "BO" => "south-america",
+        "BR" | "AR" | "UY" | "CL" | "CO" | "PE" | "EC" | "VE" | "PY" | "BO" => {
+            "south-america"
+        }
         "US" | "CA" | "MX" => "north-america",
         "CR" | "PA" | "HN" | "GT" | "SV" | "NI" => "central-america",
         "AU" | "NZ" => "oceania",
@@ -79,9 +81,7 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         &mut world.staff,
     );
     crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
-    if world.competitions.is_empty()
-        && let Some(league) = world.league.clone()
-    {
+    if world.competitions.is_empty() && let Some(league) = world.league.clone() {
         world.competitions.push(league);
     }
     if world.metadata.world_id.is_empty() {
@@ -218,10 +218,7 @@ pub fn export_world_to_json(world: &WorldData) -> Result<String, String> {
     serde_json::to_string_pretty(&normalized).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())
 }
 
-fn load_world_from_manifest_path(
-    path: &Path,
-    manifest: WorldManifestV2,
-) -> Result<WorldData, String> {
+fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Result<WorldData, String> {
     fn read_json_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
         let json =
             std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
@@ -237,7 +234,8 @@ fn load_world_from_manifest_path(
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
     let news = read_json_file(&manifest_shard_path(path, &manifest.shards.news))?;
     let stats = read_json_file(&manifest_shard_path(path, &manifest.shards.stats))?;
-    let world_history = read_json_file(&manifest_shard_path(path, &manifest.shards.world_history))?;
+    let world_history =
+        read_json_file(&manifest_shard_path(path, &manifest.shards.world_history))?;
 
     Ok(normalize_world(WorldData {
         name: manifest.name,
@@ -256,13 +254,11 @@ fn load_world_from_manifest_path(
         news,
         stats,
         world_history,
-        metadata: manifest
-            .compatibility
-            .unwrap_or_else(|| super::definitions::WorldDataMetadata {
-                format_version: manifest.format_version,
-                world_id: manifest.world_id,
-                ..Default::default()
-            }),
+        metadata: manifest.compatibility.unwrap_or_else(|| super::definitions::WorldDataMetadata {
+            format_version: manifest.format_version,
+            world_id: manifest.world_id,
+            ..Default::default()
+        }),
     }))
 }
 
@@ -299,20 +295,11 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     write_json(&shard_dir.join("players.json"), &normalized.players)?;
     write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
     write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
-    write_json(
-        &shard_dir.join("competitions.json"),
-        &normalized.competitions,
-    )?;
-    write_json(
-        &shard_dir.join("national_teams.json"),
-        &normalized.national_teams,
-    )?;
+    write_json(&shard_dir.join("competitions.json"), &normalized.competitions)?;
+    write_json(&shard_dir.join("national_teams.json"), &normalized.national_teams)?;
     write_json(&shard_dir.join("news.json"), &normalized.news)?;
     write_json(&shard_dir.join("stats.json"), &normalized.stats)?;
-    write_json(
-        &shard_dir.join("world_history.json"),
-        &normalized.world_history,
-    )?;
+    write_json(&shard_dir.join("world_history.json"), &normalized.world_history)?;
 
     let manifest = WorldManifestV2 {
         format_version: 2,

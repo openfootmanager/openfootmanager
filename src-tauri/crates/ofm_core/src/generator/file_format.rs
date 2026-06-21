@@ -13,8 +13,9 @@ use std::path::Path;
 pub fn parse_definition_str<T: DeserializeOwned>(text: &str) -> Result<T, String> {
     match serde_json::from_str::<T>(text) {
         Ok(value) => Ok(value),
-        Err(json_error) => serde_yaml::from_str::<T>(text)
-            .map_err(|yaml_error| format!("not valid JSON ({json_error}) or YAML ({yaml_error})")),
+        Err(json_error) => serde_yaml::from_str::<T>(text).map_err(|yaml_error| {
+            format!("not valid JSON ({json_error}) or YAML ({yaml_error})")
+        }),
     }
 }
 
@@ -31,8 +32,8 @@ pub fn load_definition_file<T: DeserializeOwned>(path: &Path) -> Option<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::CompetitionDefinitionFile;
     use super::*;
+    use super::super::CompetitionDefinitionFile;
 
     const JSON: &str = r#"{
         "formatVersion": 1,

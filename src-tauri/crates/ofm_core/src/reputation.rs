@@ -126,7 +126,8 @@ mod tests {
         // division it is expected to finish last — so finishing last there is
         // meeting expectations (no positional gain), and the bottom-finish
         // penalty applies.
-        let mut game = make_game_with_reputations(&[("giant", 900), ("mid", 500), ("minnow", 100)]);
+        let mut game =
+            make_game_with_reputations(&[("giant", 900), ("mid", 500), ("minnow", 100)]);
         let division_standings = vec![
             StandingEntry::new("mid".to_string()),
             StandingEntry::new("minnow".to_string()),
@@ -142,10 +143,7 @@ mod tests {
             minnow.reputation
         );
         let giant = game.teams.iter().find(|t| t.id == "giant").unwrap();
-        assert_eq!(
-            giant.reputation, 900,
-            "teams outside the division are untouched"
-        );
+        assert_eq!(giant.reputation, 900, "teams outside the division are untouched");
     }
 
     #[test]

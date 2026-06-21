@@ -1,17 +1,15 @@
 //! MCP tool implementations: transfers
 
-use crate::mcp_server::context::McpContext;
-use crate::mcp_server::formatting::translate_error;
-use crate::mcp_server::tools_impl::helpers::{age_from_dob, format_position, require_game};
 use std::sync::Arc;
+use crate::mcp_server::context::McpContext;
+use crate::mcp_server::tools_impl::helpers::{require_game, format_position, age_from_dob};
+use crate::mcp_server::formatting::translate_error;
 
 // ─── transfer_toggle_listed ────────────────────────────────────────────────
 
 pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
+    let player_name = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
@@ -20,9 +18,7 @@ pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result
         .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let is_listed = game
-        .players
-        .iter()
+    let is_listed = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.transfer_listed)
         .unwrap_or(false);
@@ -32,15 +28,8 @@ pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let status = if is_listed {
-        "Transfer Listed ✓"
-    } else {
-        "Not Listed"
-    };
-    Ok(format!(
-        "## Transfer Status Updated\n\n**{}**: {}",
-        player_name, status
-    ))
+    let status = if is_listed { "Transfer Listed ✓" } else { "Not Listed" };
+    Ok(format!("## Transfer Status Updated\n\n**{}**: {}", player_name, status))
 }
 
 // ─── transfer_toggle_loan ──────────────────────────────────────────────────
@@ -49,9 +38,7 @@ pub fn transfer_toggle_listed(ctx: Arc<McpContext>, player_id: String) -> Result
 
 pub fn transfer_toggle_loan(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
+    let player_name = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
@@ -60,9 +47,7 @@ pub fn transfer_toggle_loan(ctx: Arc<McpContext>, player_id: String) -> Result<S
         .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let is_loaned = game
-        .players
-        .iter()
+    let is_loaned = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.loan_listed)
         .unwrap_or(false);
@@ -72,37 +57,27 @@ pub fn transfer_toggle_loan(ctx: Arc<McpContext>, player_id: String) -> Result<S
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let status = if is_loaned {
-        "Loan Listed ✓"
-    } else {
-        "Not Listed"
-    };
-    Ok(format!(
-        "## Loan Status Updated\n\n**{}**: {}",
-        player_name, status
-    ))
+    let status = if is_loaned { "Loan Listed ✓" } else { "Not Listed" };
+    Ok(format!("## Loan Status Updated\n\n**{}**: {}", player_name, status))
 }
 
 // ─── transfer_make_bid ──────────────────────────────────────────────────────
 
 // ─── transfer_make_bid ──────────────────────────────────────────────────────
 
-pub fn transfer_make_bid(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    fee: u64,
-) -> Result<String, String> {
+pub fn transfer_make_bid(ctx: Arc<McpContext>, player_id: String, fee: u64) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
+    let player_name = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
 
-    let response =
-        crate::commands::transfers::make_transfer_bid_internal(&ctx.state_manager, &player_id, fee)
-            .map_err(|e| translate_error(&e))?;
+    let response = crate::commands::transfers::make_transfer_bid_internal(
+        &ctx.state_manager,
+        &player_id,
+        fee,
+    )
+    .map_err(|e| translate_error(&e))?;
 
     let mut output = format!("## Transfer Bid: {} — {} 💰\n\n", player_name, fee);
 
@@ -113,10 +88,7 @@ pub fn transfer_make_bid(
     output.push_str(&format!("**Terminal**: {}\n", response.is_terminal));
     output.push_str(&format!("**Mood**: {:?}\n", response.feedback.mood));
     output.push_str(&format!("**Tension**: {}/100\n", response.feedback.tension));
-    output.push_str(&format!(
-        "**Patience**: {}/100\n",
-        response.feedback.patience
-    ));
+    output.push_str(&format!("**Patience**: {}/100\n", response.feedback.patience));
     output.push_str(&format!("**Round**: {}\n", response.feedback.round));
 
     if response.is_terminal {
@@ -137,15 +109,9 @@ pub fn transfer_make_bid(
 
 // ─── transfer_preview_bid ──────────────────────────────────────────────────
 
-pub fn transfer_preview_bid(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    fee: u64,
-) -> Result<String, String> {
+pub fn transfer_preview_bid(ctx: Arc<McpContext>, player_id: String, fee: u64) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
+    let player_name = game.players.iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
@@ -174,12 +140,7 @@ pub fn transfer_preview_bid(
 
 // ─── transfer_respond_to_offer ──────────────────────────────────────────────
 
-pub fn transfer_respond_to_offer(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    offer_id: String,
-    accept: bool,
-) -> Result<String, String> {
+pub fn transfer_respond_to_offer(ctx: Arc<McpContext>, player_id: String, offer_id: String, accept: bool) -> Result<String, String> {
     crate::commands::transfers::respond_to_offer_internal(
         &ctx.state_manager,
         &player_id,
@@ -194,22 +155,14 @@ pub fn transfer_respond_to_offer(
     }
 
     let action = if accept { "accepted" } else { "rejected" };
-    Ok(format!(
-        "## Offer {}\n\nOffer {} for player {}.",
-        action, offer_id, player_id
-    ))
+    Ok(format!("## Offer {}\n\nOffer {} for player {}.", action, offer_id, player_id))
 }
 
 // ─── transfer_counter_offer ─────────────────────────────────────────────────
 
 // ─── transfer_counter_offer ─────────────────────────────────────────────────
 
-pub fn transfer_counter_offer(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    offer_id: String,
-    requested_fee: u64,
-) -> Result<String, String> {
+pub fn transfer_counter_offer(ctx: Arc<McpContext>, player_id: String, offer_id: String, requested_fee: u64) -> Result<String, String> {
     let response = crate::commands::transfers::counter_offer_internal(
         &ctx.state_manager,
         &player_id,
@@ -237,22 +190,11 @@ pub fn transfer_counter_offer(
 
 // ─── transfer_market_browse ─────────────────────────────────────────────────
 
-pub fn transfer_market_browse(
-    ctx: Arc<McpContext>,
-    position: Option<String>,
-    max_price: Option<u64>,
-    listed_only: Option<bool>,
-) -> Result<String, String> {
+pub fn transfer_market_browse(ctx: Arc<McpContext>, position: Option<String>, max_price: Option<u64>, listed_only: Option<bool>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let team_id = game
-        .manager
-        .team_id
-        .as_deref()
-        .ok_or("be.error.noTeamAssigned")?;
+    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
 
-    let players: Vec<_> = game
-        .players
-        .iter()
+    let players: Vec<_> = game.players.iter()
         .filter(|p| {
             // Exclude own players
             p.team_id.as_deref() != Some(team_id)
@@ -290,19 +232,11 @@ pub fn transfer_market_browse(
 
     let mut output = format!("## Transfer Market ({} players)\n\n| ID | Name | Pos | Age | OVR | Team | Listed | Wage |\n|----|------|-----|-----|-----|------|--------|------|\n", players.len());
     for p in players.iter().take(30) {
-        let team_name = p
-            .team_id
-            .as_deref()
+        let team_name = p.team_id.as_deref()
             .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
             .map(|t| t.name.clone())
             .unwrap_or_else(|| "Free".to_string());
-        let listed = if p.transfer_listed {
-            "T"
-        } else if p.loan_listed {
-            "L"
-        } else {
-            "-"
-        };
+        let listed = if p.transfer_listed { "T" } else if p.loan_listed { "L" } else { "-" };
         output.push_str(&format!(
             "| {} | {} | {} | {} | {} | {} | {} | {} |\n",
             p.id,
@@ -316,10 +250,7 @@ pub fn transfer_market_browse(
         ));
     }
     if players.len() > 30 {
-        output.push_str(&format!(
-            "\n... and {} more. Use filters to narrow results.",
-            players.len() - 30
-        ));
+        output.push_str(&format!("\n... and {} more. Use filters to narrow results.", players.len() - 30));
     }
 
     Ok(output)
@@ -329,12 +260,7 @@ pub fn transfer_market_browse(
 
 // ─── transfer_free_agent_offer ───────────────────────────────────────────────
 
-pub fn transfer_free_agent_offer(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    weekly_wage: u32,
-    contract_years: u32,
-) -> Result<String, String> {
+pub fn transfer_free_agent_offer(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32, contract_years: u32) -> Result<String, String> {
     let response = crate::commands::contracts::offer_free_agent_contract_internal(
         &ctx.state_manager,
         &player_id,
@@ -348,21 +274,14 @@ pub fn transfer_free_agent_offer(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Free Agent Offer\n\n**Wage**: {}/wk × {}yr\n**Outcome**: {:?}",
-        weekly_wage, contract_years, response.outcome
-    ))
+    Ok(format!("## Free Agent Offer\n\n**Wage**: {}/wk × {}yr\n**Outcome**: {:?}", weekly_wage, contract_years, response.outcome))
 }
 
 // ─── transfer_free_agent_preview ────────────────────────────────────────────
 
 // ─── transfer_free_agent_preview ────────────────────────────────────────────
 
-pub fn transfer_free_agent_preview(
-    ctx: Arc<McpContext>,
-    player_id: String,
-    weekly_wage: u32,
-) -> Result<String, String> {
+pub fn transfer_free_agent_preview(ctx: Arc<McpContext>, player_id: String, weekly_wage: u32) -> Result<String, String> {
     let response = crate::commands::contracts::preview_free_agent_contract_impact_internal(
         &ctx.state_manager,
         &player_id,

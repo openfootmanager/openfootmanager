@@ -1,5 +1,5 @@
-use log::info;
 use std::sync::Arc;
+use log::info;
 use tauri::State;
 
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
@@ -79,9 +79,7 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
 }
 
 #[tauri::command]
-pub fn check_blocking_actions(
-    state: State<'_, Arc<StateManager>>,
-) -> Result<serde_json::Value, String> {
+pub fn check_blocking_actions(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
     log::debug!("[cmd] check_blocking_actions");
     let game = state
         .get_game(|g| g.clone())
@@ -104,7 +102,9 @@ pub async fn skip_to_match_day(
     run_off_thread(move || skip_to_match_day_internal(&state)).await
 }
 
-pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn skip_to_match_day_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
     info!("[cmd] skip_to_match_day");
     let mut game = state
         .get_game(|g| g.clone())
@@ -216,7 +216,9 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
 ///   - `blocked`    — action-required blocker exists; game state unchanged
 ///   - `fired`      — manager was dismissed during today's processing
 ///   - `advanced`   — quiet day processed successfully; game state updated
-pub fn advance_one_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_one_day_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
     let mut game = state
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession")?;
@@ -328,7 +330,9 @@ pub async fn advance_to_next_event(
 /// opening, or a new high-priority inbox item (capped at 60 days). Mirrors
 /// `skip_to_match_day` but with the broader stop conditions of an opt-in
 /// "smart Continue".
-pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_event_internal(
+    state: &StateManager,
+) -> Result<serde_json::Value, String> {
     info!("[cmd] advance_to_next_event");
     let mut game = state
         .get_game(|g| g.clone())
@@ -422,8 +426,10 @@ pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json
 #[cfg(test)]
 mod tests {
     use super::{
-        advance_time_with_mode_internal, compute_blocking_actions, continue_reached_attention_event,
+        advance_time_with_mode_internal, compute_blocking_actions,
+        continue_reached_attention_event,
     };
+    use domain::season::TransferWindowStatus;
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
     use domain::manager::Manager;
@@ -432,7 +438,6 @@ mod tests {
         ContractExitIntent, ContractRenewalState, Injury, Player, PlayerAttributes, Position,
         RenewalSessionStatus,
     };
-    use domain::season::TransferWindowStatus;
     use domain::stats::StatsState;
     use domain::team::Team;
     use ofm_core::clock::GameClock;
@@ -1277,15 +1282,13 @@ mod tests {
         // checks game.competitions, not the legacy game.league mirror.
         state.set_game(make_game_with_competition_matchday());
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
 
-        assert_eq!(
-            result.get("action").and_then(Value::as_str),
-            Some("match_day")
-        );
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("match_day"));
         // Clock must not have advanced — the match should be played interactively.
-        let game: ofm_core::game::Game =
-            serde_json::from_value(result["game"].clone()).expect("game deserializable");
+        let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
+            .expect("game deserializable");
         assert_eq!(
             game.clock.current_date.date_naive().to_string(),
             "2025-06-15",
@@ -1299,7 +1302,11 @@ mod tests {
         let mut game = make_game(11);
         // Inject two injured starters to trigger the injured_xi blocker.
         for player_id in ["p2", "p5"] {
-            let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+            let player = game
+                .players
+                .iter_mut()
+                .find(|p| p.id == player_id)
+                .unwrap();
             player.injury = Some(Injury {
                 name: "Hamstring".to_string(),
                 days_remaining: 7,
@@ -1307,12 +1314,10 @@ mod tests {
         }
         state.set_game(game);
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
 
-        assert_eq!(
-            result.get("action").and_then(Value::as_str),
-            Some("blocked")
-        );
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("blocked"));
         let blockers = result.get("blockers").and_then(Value::as_array).unwrap();
         assert!(!blockers.is_empty(), "blockers array must be populated");
     }
@@ -1323,20 +1328,18 @@ mod tests {
         // No match today, no blockers.
         state.set_game(make_game(11));
 
-        let result = super::advance_one_day_internal(&state).expect("advance_one_day result");
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
 
-        assert_eq!(
-            result.get("action").and_then(Value::as_str),
-            Some("advanced")
-        );
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("advanced"));
         assert_eq!(
             result.get("date").and_then(Value::as_str),
             Some("2025-06-15"),
             "returned date must be the day that was processed"
         );
         // Game clock should now be 2025-06-16.
-        let game: ofm_core::game::Game =
-            serde_json::from_value(result["game"].clone()).expect("game deserializable");
+        let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
+            .expect("game deserializable");
         assert_eq!(
             game.clock.current_date.date_naive().to_string(),
             "2025-06-16"

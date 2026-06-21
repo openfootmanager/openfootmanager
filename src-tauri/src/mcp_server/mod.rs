@@ -29,8 +29,12 @@ pub async fn start_mcp_server(
     let port = config.port;
     let allowed_hosts = config.allowed_hosts.clone();
 
-    let mcp_handler =
-        server::OfmMcpHandler::new(config, state_manager, save_manager_state, app_handle);
+    let mcp_handler = server::OfmMcpHandler::new(
+        config,
+        state_manager,
+        save_manager_state,
+        app_handle,
+    );
 
     let session_manager =
         rmcp::transport::streamable_http_server::session::local::LocalSessionManager::default();
@@ -65,7 +69,10 @@ pub async fn start_mcp_server(
         .await
         .map_err(|e| format!("Failed to bind MCP server to 127.0.0.1:{}: {}", port, e))?;
 
-    log::info!("[mcp] MCP SSE server listening on 127.0.0.1:{}", port);
+    log::info!(
+        "[mcp] MCP SSE server listening on 127.0.0.1:{}",
+        port
+    );
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

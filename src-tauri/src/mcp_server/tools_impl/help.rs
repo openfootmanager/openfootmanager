@@ -1,8 +1,8 @@
 //! MCP tool implementations: help
 
+use std::sync::Arc;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools::tool_catalog;
-use std::sync::Arc;
 
 // ─── help_find_tool ─────────────────────────────────────────────────────────
 
@@ -10,11 +10,8 @@ pub fn help_find_tool(_ctx: Arc<McpContext>, query: String) -> Result<String, St
     let query_lower = query.to_lowercase();
     let catalog = tool_catalog();
 
-    let matches: Vec<_> = catalog
-        .iter()
-        .filter(|(name, desc, _cat)| {
-            name.contains(&query_lower) || desc.to_lowercase().contains(&query_lower)
-        })
+    let matches: Vec<_> = catalog.iter()
+        .filter(|(name, desc, _cat)| name.contains(&query_lower) || desc.to_lowercase().contains(&query_lower))
         .collect();
 
     if matches.is_empty() {
@@ -46,12 +43,7 @@ pub fn help_list_categories() -> String {
 
     let mut output = String::from("## Tool Categories\n\n");
     for (cat, tools) in &categories {
-        output.push_str(&format!(
-            "**{}** ({} tools): {}\n\n",
-            cat,
-            tools.len(),
-            tools.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ")
-        ));
+        output.push_str(&format!("**{}** ({} tools): {}\n\n", cat, tools.len(), tools.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ")));
     }
 
     output
