@@ -399,6 +399,7 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
                 reflexes: p.attributes.reflexes,
                 aerial: p.attributes.aerial,
                 traits: p.traits.iter().map(|t| format!("{:?}", t)).collect(),
+                role: engine::PlayerRole::Standard,
             }
         })
         .collect();
