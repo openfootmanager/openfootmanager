@@ -532,12 +532,14 @@ pub fn set_team_kit_pattern(
 
 #[cfg(test)]
 mod tests {
-    use super::{set_player_squad_role_internal, set_player_training_focus_internal};
+    use super::{
+        assign_jersey_number_internal, set_player_squad_role_internal,
+        set_player_training_focus_internal, set_team_kit_pattern_internal,
+    };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position, SquadRole};
-    use domain::team::Team;
-    use domain::team::TrainingFocus;
+    use domain::team::{KitPattern, Team, TrainingFocus};
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
     use ofm_core::state::StateManager;
@@ -693,5 +695,109 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("user player");
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
+    }
+
+    #[test]
+    fn assign_jersey_number_internal_assigns_and_persists() {
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("2000-01-01")));
+
+        let response = assign_jersey_number_internal(&state, "player-1", Some(10)).expect("response");
+
+        let player = response.players.iter().find(|p| p.id == "player-1").expect("player");
+        assert_eq!(player.jersey_number, Some(10));
+
+        let stored = state.get_game(|g| g.clone()).expect("stored game");
+        assert_eq!(stored.players[0].jersey_number, Some(10));
+    }
+
+    #[test]
+    fn assign_jersey_number_internal_rejects_out_of_range() {
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("2000-01-01")));
+
+        let err = assign_jersey_number_internal(&state, "player-1", Some(0)).expect_err("error");
+        assert_eq!(err, "be.error.jerseyNumberOutOfRange");
+
+        let err = assign_jersey_number_internal(&state, "player-1", Some(100)).expect_err("error");
+        assert_eq!(err, "be.error.jerseyNumberOutOfRange");
+    }
+
+    #[test]
+    fn assign_jersey_number_internal_rejects_conflict_with_teammate() {
+        let state = StateManager::new();
+        let mut player1 = make_player("2000-01-01");
+        player1.jersey_number = Some(7);
+        let mut player2 = make_player_for_team("player-2", "team-1", "2001-01-01");
+        player2.jersey_number = None;
+
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "manager-1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team-1".to_string());
+        let game = Game::new(clock, manager, vec![make_user_team()], vec![player1, player2], vec![], vec![]);
+        state.set_game(game);
+
+        let err = assign_jersey_number_internal(&state, "player-2", Some(7)).expect_err("conflict");
+        assert_eq!(err, "be.error.jerseyNumberTaken");
+    }
+
+    #[test]
+    fn assign_jersey_number_internal_allows_reassign_same_number_to_same_player() {
+        let state = StateManager::new();
+        let mut player = make_player("2000-01-01");
+        player.jersey_number = Some(7);
+        state.set_game(make_game(player));
+
+        let response = assign_jersey_number_internal(&state, "player-1", Some(7)).expect("response");
+        assert_eq!(response.players[0].jersey_number, Some(7));
+    }
+
+    #[test]
+    fn assign_jersey_number_internal_rejects_player_on_other_team() {
+        let state = StateManager::new();
+        let other_player = make_player_for_team("player-2", "team-2", "2001-01-01");
+
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "manager-1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("team-1".to_string());
+        let game = Game::new(
+            clock,
+            manager,
+            vec![make_user_team(), make_team("team-2", "Rivals FC", "RIV")],
+            vec![make_player("2000-01-01"), other_player],
+            vec![],
+            vec![],
+        );
+        state.set_game(game);
+
+        let err = assign_jersey_number_internal(&state, "player-2", Some(5)).expect_err("error");
+        assert_eq!(err, "be.error.playerNotFound");
+    }
+
+    #[test]
+    fn set_team_kit_pattern_internal_updates_and_persists() {
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("2000-01-01")));
+
+        let response = set_team_kit_pattern_internal(&state, KitPattern::Stripes).expect("response");
+
+        let team = response.teams.iter().find(|t| t.id == "team-1").expect("team");
+        assert_eq!(team.kit_pattern, KitPattern::Stripes);
+
+        let stored = state.get_game(|g| g.clone()).expect("stored game");
+        let stored_team = stored.teams.iter().find(|t| t.id == "team-1").expect("team");
+        assert_eq!(stored_team.kit_pattern, KitPattern::Stripes);
     }
 }

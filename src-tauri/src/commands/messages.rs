@@ -113,7 +113,7 @@ pub fn clear_old_messages_internal(
     log::debug!("[cmd] clear_old_messages");
     state
         .update_game(|game| {
-            let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let current_date = game.clock.current_date.date_naive();
             game.messages.retain(|m| {
                 if !m.read {
                     return true;
@@ -122,11 +122,7 @@ pub fn clear_old_messages_internal(
                     return true;
                 }
                 if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d") {
-                    if let Ok(cur_date) =
-                        chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
-                    {
-                        return (cur_date - msg_date).num_days() <= 14;
-                    }
+                    return (current_date - msg_date).num_days() <= 14;
                 }
                 false
             });
