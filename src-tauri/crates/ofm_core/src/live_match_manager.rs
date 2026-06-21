@@ -11,7 +11,7 @@ use crate::game::Game;
 
 use domain::league::StandingEntry;
 use domain::team::MatchRoles;
-use engine::ai::{self, AiProfile};
+use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{LiveMatchState, MatchCommand, MatchConfig, MatchSnapshot, MinuteResult, Side};
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
@@ -278,10 +278,12 @@ pub fn create_live_match(
     let ai_home = AiProfile {
         reputation: home_rep,
         experience: (home_rep / 10).min(100) as u8,
+        personality: derive_personality(home_rep, &game.manager),
     };
     let ai_away = AiProfile {
         reputation: away_rep,
         experience: (away_rep / 10).min(100) as u8,
+        personality: derive_personality(away_rep, &game.manager),
     };
 
     Ok(LiveMatchSession {
@@ -297,4 +299,23 @@ pub fn create_live_match(
         ai_home,
         ai_away,
     })
+}
+
+/// Derive an AI personality from reputation and career statistics.
+/// - Visionary: high reputation (700+) with substantial matches managed (50+)
+/// - Reactive: moderate reputation with a winning record (win rate ≥ 55 %)
+/// - Pragmatist: default
+fn derive_personality(rep: u32, manager: &domain::manager::Manager) -> AiPersonality {
+    let stats = &manager.career_stats;
+    let total = stats.matches_managed;
+    if rep >= 700 && total >= 50 {
+        return AiPersonality::Visionary;
+    }
+    if total >= 20 {
+        let win_rate = stats.wins as f64 / total as f64;
+        if win_rate >= 0.55 {
+            return AiPersonality::Reactive;
+        }
+    }
+    AiPersonality::Pragmatist
 }
