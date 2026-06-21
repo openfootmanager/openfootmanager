@@ -148,9 +148,9 @@ fn validate_probability(name: &str, value: f64) -> Result<(), String> {
 /// Run a batch of headless simulations and return aggregate statistics.
 #[tauri::command]
 pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> {
-    if config.games == 0 || config.games > 10_000 {
+    if config.games == 0 || config.games > 100_000 {
         return Err(format!(
-            "games must be between 1 and 10000, got {}",
+            "games must be between 1 and 100000, got {}",
             config.games
         ));
     }

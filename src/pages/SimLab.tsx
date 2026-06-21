@@ -192,19 +192,23 @@ export default function SimLab() {
           </Section>
 
           <Section title="Simulation">
-            <Label htmlFor="games-select">Games</Label>
-            <select
-              id="games-select"
+            <Label htmlFor="games-input">Games (1 – 100,000)</Label>
+            <input
+              id="games-input"
+              type="number"
+              min={1}
+              max={100000}
+              step={1}
               value={cfg.games}
-              onChange={(e) => update("games", Number(e.target.value))}
+              onChange={(e) => {
+                const v = Math.max(1, Math.min(100000, Math.floor(Number(e.target.value))));
+                if (!isNaN(v)) update("games", v);
+              }}
               className={inputCls}
-            >
-              {[100, 500, 1000, 2000, 5000, 10000].map((n) => (
-                <option key={n} value={n}>
-                  {n.toLocaleString()}
-                </option>
-              ))}
-            </select>
+            />
+            {cfg.games > 10000 && (
+              <p className="text-xs text-amber-400 mt-1">Large runs may take several seconds.</p>
+            )}
             <Label htmlFor="seed-input">Seed (blank = random)</Label>
             <input
               id="seed-input"
