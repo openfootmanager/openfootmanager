@@ -466,6 +466,7 @@ export default function TournamentsTab({
                 value={league.id}
                 onChange={(event) => setSelectedCompetitionId(event.target.value)}
                 variant="ghost"
+                aria-label={t("common.competition")}
               >
                 {activeCompetitions.map((competition) => (
                   <option

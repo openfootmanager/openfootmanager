@@ -144,6 +144,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
       value={selectedCompetition?.id ?? ""}
       onChange={(e) => setSelectedCompetitionId(e.target.value)}
       wrapperClassName="ml-auto"
+      aria-label={t("common.competition")}
     >
       {activeCompetitions.map((c) => (
         <option key={c.id} value={c.id}>

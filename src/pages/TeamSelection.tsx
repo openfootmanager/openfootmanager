@@ -656,6 +656,7 @@ export default function TeamSelection() {
                   setSelectedCountryCode(event.target.value || null)
                 }
                 fullWidth
+                aria-label={t("teamSelect.homeCountry")}
               >
                 <option value="">{t("teamSelect.allCountries")}</option>
                 {regionCountries.map((countryCode) => (
@@ -678,7 +679,15 @@ export default function TeamSelection() {
                   return (
                     <div
                       key={region.id}
+                      role="button"
+                      tabIndex={isLocked ? -1 : 0}
                       onClick={() => !isLocked && handleRegionToggle(region.id)}
+                      onKeyDown={(e) => {
+                        if (!isLocked && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          handleRegionToggle(region.id);
+                        }
+                      }}
                       className={`flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800 ${!isLocked ? "cursor-pointer" : ""}`}
                     >
                       <span className="flex items-center gap-2">
@@ -690,7 +699,10 @@ export default function TeamSelection() {
                           </Badge>
                         )}
                       </span>
-                      <span onClick={(e) => e.stopPropagation()}>
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
                         <Checkbox
                           checked={enabled}
                           disabled={isLocked}
@@ -722,7 +734,15 @@ export default function TeamSelection() {
                   return (
                     <div
                       key={competition.id}
+                      role="button"
+                      tabIndex={isLocked ? -1 : 0}
                       onClick={() => !isLocked && handleCompetitionToggle(competition)}
+                      onKeyDown={(e) => {
+                        if (!isLocked && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          handleCompetitionToggle(competition);
+                        }
+                      }}
                       className={`block rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800 ${!isLocked ? "cursor-pointer" : ""}`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -730,7 +750,10 @@ export default function TeamSelection() {
                           <Trophy className="h-4 w-4 shrink-0 text-accent-500" />
                           <span className="truncate">{competition.name}</span>
                         </span>
-                        <span onClick={(e) => e.stopPropagation()}>
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
                           <Checkbox
                             checked={enabled}
                             disabled={isLocked}
