@@ -179,6 +179,18 @@ mod tests {
             "missing game_meta.extra_translations_json"
         );
 
+        let national_team_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(national_teams)")
+            .unwrap()
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .filter_map(|row| row.ok())
+            .collect();
+        assert!(
+            national_team_columns.contains(&"name_key".to_string()),
+            "missing national_teams.name_key"
+        );
+
         let team_columns: Vec<String> = conn
             .prepare("PRAGMA table_info(teams)")
             .unwrap()

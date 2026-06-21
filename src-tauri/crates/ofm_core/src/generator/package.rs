@@ -301,16 +301,20 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
             .and_then(|n| n.to_str())
             .unwrap_or_default();
         if let Some(locale) = translation_locale_from_filename(file_name) {
-            match std::fs::read_to_string(path) {
-                Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                    Ok(serde_json::Value::Object(map)) => {
-                        package
-                            .extra_translations
-                            .insert(locale.to_string(), serde_json::Value::Object(map));
-                    }
-                    Ok(_) | Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
-                },
-                Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+            if package.extra_translations.contains_key(locale) {
+                errors.push(PackageError::new(READ_FAILED, &file));
+            } else {
+                match std::fs::read_to_string(path) {
+                    Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                        Ok(serde_json::Value::Object(map)) => {
+                            package
+                                .extra_translations
+                                .insert(locale.to_string(), serde_json::Value::Object(map));
+                        }
+                        Ok(_) | Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+                    },
+                    Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+                }
             }
             continue;
         }
