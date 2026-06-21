@@ -280,7 +280,9 @@ pub fn run() {
             save_manager_profile,
             update_manager_profile,
             delete_manager_profile,
-            touch_manager_profile
+            touch_manager_profile,
+            run_sim_batch,
+            run_single_seeded_match
         ])
         .run(tauri::generate_context!());
 
