@@ -523,6 +523,104 @@ pub fn set_team_kit_pattern(
     set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
+fn role_valid_for_position(
+    role: &domain::team::PlayerRole,
+    pos: &domain::player::Position,
+) -> bool {
+    use domain::player::Position as P;
+    use domain::team::PlayerRole as R;
+    match pos {
+        P::Goalkeeper => matches!(role, R::Standard | R::BallPlayingKeeper | R::SweeperKeeper),
+        P::CenterBack => matches!(role, R::Standard | R::Stopper | R::CoverCB | R::BallPlayingCB),
+        P::RightBack | P::LeftBack | P::RightWingBack | P::LeftWingBack => {
+            matches!(role, R::Standard | R::AttackingFB | R::DefensiveFB | R::InvertedFB | R::WingBack)
+        }
+        P::DefensiveMidfielder => {
+            matches!(role, R::Standard | R::AnchorMan | R::BallWinner | R::DeepLyingPlaymaker)
+        }
+        P::CentralMidfielder => {
+            matches!(role, R::Standard | R::BoxToBox | R::Carrilero | R::Mezzala)
+        }
+        P::AttackingMidfielder => {
+            matches!(role, R::Standard | R::AdvancedPlaymaker | R::ShadowStriker)
+        }
+        P::RightMidfielder | P::LeftMidfielder | P::RightWinger | P::LeftWinger => {
+            matches!(role, R::Standard | R::WideForward | R::InsideForward | R::InvertedWinger)
+        }
+        P::Striker => matches!(
+            role,
+            R::Standard
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        // Legacy coarse-bucket positions: allow all roles in the broad group
+        P::Defender => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::AnchorMan
+                | R::BallWinner
+                | R::DeepLyingPlaymaker
+                | R::BoxToBox
+                | R::Carrilero
+                | R::Mezzala
+                | R::AdvancedPlaymaker
+                | R::ShadowStriker
+                | R::WideForward
+                | R::InsideForward
+                | R::InvertedWinger
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        P::Midfielder => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::Stopper
+                | R::CoverCB
+                | R::BallPlayingCB
+                | R::AttackingFB
+                | R::DefensiveFB
+                | R::InvertedFB
+                | R::WingBack
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        P::Forward => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::Stopper
+                | R::CoverCB
+                | R::BallPlayingCB
+                | R::AttackingFB
+                | R::DefensiveFB
+                | R::InvertedFB
+                | R::WingBack
+                | R::AnchorMan
+                | R::BallWinner
+                | R::DeepLyingPlaymaker
+                | R::BoxToBox
+                | R::Carrilero
+                | R::Mezzala
+                | R::AdvancedPlaymaker
+                | R::ShadowStriker
+        ),
+    }
+}
+
 #[tauri::command]
 pub fn set_player_role(
     state: State<'_, Arc<StateManager>>,
@@ -550,16 +648,7 @@ pub fn set_player_role(
                     let role_enum = r
                         .parse::<domain::team::PlayerRole>()
                         .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
-                    let group = player_position.to_group_position();
-                    let role_valid = match role_enum {
-                        domain::team::PlayerRole::Standard => true,
-                        domain::team::PlayerRole::BallPlayingKeeper
-                        | domain::team::PlayerRole::SweeperKeeper => {
-                            matches!(group, domain::player::Position::Goalkeeper)
-                        }
-                        _ => !matches!(group, domain::player::Position::Goalkeeper),
-                    };
-                    if !role_valid {
+                    if !role_valid_for_position(&role_enum, &player_position) {
                         return Err("be.error.roleNotValidForPosition".to_string());
                     }
                     team.player_roles.insert(player_id.clone(), role_enum);
