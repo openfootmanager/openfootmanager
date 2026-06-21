@@ -13,6 +13,8 @@ interface PlayerProfileAttributesCardProps {
     averageLabel: string;
     hiddenTitle: string;
     hiddenBody: string;
+    listLabel: string;
+    radarLabel: string;
 }
 
 export default function PlayerProfileAttributesCard({
@@ -23,6 +25,8 @@ export default function PlayerProfileAttributesCard({
     averageLabel,
     hiddenTitle,
     hiddenBody,
+    listLabel,
+    radarLabel,
 }: PlayerProfileAttributesCardProps) {
     const [view, setView] = useState<"list" | "radar">("list");
 
@@ -36,13 +40,13 @@ export default function PlayerProfileAttributesCard({
                                 onClick={() => setView("list")}
                                 className={`px-3 py-1 transition-colors ${view === "list" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
                             >
-                                List
+                                {listLabel}
                             </button>
                             <button
                                 onClick={() => setView("radar")}
                                 className={`px-3 py-1 transition-colors ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
                             >
-                                Radar
+                                {radarLabel}
                             </button>
                         </div>
                     ) : null

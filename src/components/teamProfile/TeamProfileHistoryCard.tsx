@@ -25,6 +25,7 @@ export default function TeamProfileHistoryCard({
           wonLabel={t("common.won")}
           drawnLabel={t("common.drawn")}
           lostLabel={t("common.lost")}
+          positionLabel={t("common.position")}
         />
       </CardBody>
       <CardBody className="p-0">

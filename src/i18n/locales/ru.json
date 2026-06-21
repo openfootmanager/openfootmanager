@@ -497,7 +497,10 @@
     },
     "retry": "Повторить",
     "score": "Счёт",
-    "noChartData": "Нет данных"
+    "noChartData": "Нет данных",
+    "statsView": "Статы",
+    "listView": "Список",
+    "radarView": "Радар"
   },
   "teamSelection": {
     "title": "Выберите клуб",

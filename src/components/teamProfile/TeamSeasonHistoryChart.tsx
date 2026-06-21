@@ -18,6 +18,7 @@ interface TeamSeasonHistoryChartProps {
   wonLabel: string;
   drawnLabel: string;
   lostLabel: string;
+  positionLabel: string;
 }
 
 export function TeamSeasonHistoryChart({
@@ -25,6 +26,7 @@ export function TeamSeasonHistoryChart({
   wonLabel,
   drawnLabel,
   lostLabel,
+  positionLabel,
 }: TeamSeasonHistoryChartProps) {
   const theme = useChartTheme();
 
@@ -84,9 +86,9 @@ export function TeamSeasonHistoryChart({
           <Legend
             wrapperStyle={{ fontSize: 10, paddingTop: 4, fontFamily: "var(--font-heading)" }}
           />
-          <Bar yAxisId="left" dataKey="won" stackId="a" fill="#22c55e" name={wonLabel} radius={[0, 0, 0, 0]} />
+          <Bar yAxisId="left" dataKey="won" stackId="a" fill={theme.success} name={wonLabel} radius={[0, 0, 0, 0]} />
           <Bar yAxisId="left" dataKey="drawn" stackId="a" fill={theme.axisColor} name={drawnLabel} />
-          <Bar yAxisId="left" dataKey="lost" stackId="a" fill="#ef4444" name={lostLabel} radius={[2, 2, 0, 0]} />
+          <Bar yAxisId="left" dataKey="lost" stackId="a" fill={theme.danger} name={lostLabel} radius={[2, 2, 0, 0]} />
           <Line
             yAxisId="right"
             type="monotone"
@@ -94,7 +96,7 @@ export function TeamSeasonHistoryChart({
             stroke={theme.secondary}
             strokeWidth={2}
             dot={{ fill: theme.secondary, r: 3 }}
-            name="Pos"
+            name={positionLabel}
           />
         </ComposedChart>
       </ResponsiveContainer>

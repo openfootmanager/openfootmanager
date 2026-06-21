@@ -73,9 +73,9 @@ export function ManagerCareerChart({
             labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullName ?? _label}
           />
           <Legend wrapperStyle={{ fontSize: 10, fontFamily: "var(--font-heading)" }} />
-          <Bar dataKey="won" stackId="a" fill="#22c55e" name={wonLabel} />
+          <Bar dataKey="won" stackId="a" fill={theme.success} name={wonLabel} />
           <Bar dataKey="drawn" stackId="a" fill={theme.axisColor} name={drawnLabel} />
-          <Bar dataKey="lost" stackId="a" fill="#ef4444" name={lostLabel} radius={[2, 2, 0, 0]} />
+          <Bar dataKey="lost" stackId="a" fill={theme.danger} name={lostLabel} radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>

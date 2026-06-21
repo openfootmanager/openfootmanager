@@ -527,7 +527,10 @@
     },
     "retry": "Reintentar",
     "score": "Marcador",
-    "noChartData": "Sin datos aún"
+    "noChartData": "Sin datos aún",
+    "statsView": "Stats",
+    "listView": "Lista",
+    "radarView": "Radar"
   },
   "teamSelection": {
     "title": "Elige Tu Club",

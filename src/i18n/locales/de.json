@@ -497,7 +497,10 @@
     },
     "retry": "Erneut versuchen",
     "score": "Ergebnis",
-    "noChartData": "Noch keine Daten"
+    "noChartData": "Noch keine Daten",
+    "statsView": "Stats",
+    "listView": "Liste",
+    "radarView": "Radar"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",

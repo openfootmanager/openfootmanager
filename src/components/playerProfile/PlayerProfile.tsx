@@ -716,6 +716,8 @@ export default function PlayerProfile({
           averageLabel={t("common.average")}
           hiddenTitle={t("playerProfile.attributesHidden")}
           hiddenBody={t("playerProfile.scoutToView")}
+          listLabel={t("common.listView")}
+          radarLabel={t("common.radarView")}
         />
 
         <PlayerProfileSeasonStatsCard stats={player.stats} t={t} />

@@ -497,7 +497,10 @@
     },
     "retry": "重试",
     "score": "比分",
-    "noChartData": "暂无数据"
+    "noChartData": "暂无数据",
+    "statsView": "统计",
+    "listView": "列表",
+    "radarView": "雷达图"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",

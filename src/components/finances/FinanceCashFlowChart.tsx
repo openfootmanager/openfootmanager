@@ -31,13 +31,13 @@ function aggregateByWeek(ledger: FinancialTransactionData[]): WeeklyBucket[] {
   for (const tx of ledger) {
     const d = new Date(tx.date);
     const year = d.getUTCFullYear();
-    const weekNum = Math.ceil(
-      ((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000 + 1) / 7,
-    );
-    const key = `W${weekNum}`;
+    const jan1 = Date.UTC(year, 0, 1);
+    const weekNum = Math.ceil((d.getTime() - jan1) / (7 * 86400000) + 1);
+    const key = `${year}-W${String(weekNum).padStart(2, "0")}`;
+    const label = `W${weekNum}`;
 
     if (!buckets[key]) {
-      buckets[key] = { week: key, income: 0, expenses: 0 };
+      buckets[key] = { week: label, income: 0, expenses: 0 };
     }
 
     if (tx.amount >= 0) {
@@ -47,7 +47,10 @@ function aggregateByWeek(ledger: FinancialTransactionData[]): WeeklyBucket[] {
     }
   }
 
-  return Object.values(buckets).slice(-12);
+  return Object.keys(buckets)
+    .sort()
+    .slice(-12)
+    .map((k) => buckets[k]);
 }
 
 export function FinanceCashFlowChart({

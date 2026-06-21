@@ -131,7 +131,7 @@ export default function TeamProfileAdvancedStatsCard({
               onClick={() => setView("stats")}
               className={`px-3 py-1 transition-colors ${view === "stats" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
             >
-              Stats
+              {t("common.statsView")}
             </button>
             <button
               onClick={() => setView("radar")}
