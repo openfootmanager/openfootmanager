@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import type {
   BoardObjective,
   FixtureData,
@@ -49,6 +48,3 @@ export interface SessionState {
   user_competition: UserCompetitionSummary | null;
 }
 
-export async function fetchSessionState(): Promise<SessionState> {
-  return invoke<SessionState>("get_session_state", { query: {} });
-}
