@@ -306,6 +306,14 @@ pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
 
 // ── Section generators ────────────────────────────────────────────────────────
 
+fn esc(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
 fn setup_section(cfg: &RunConfig) -> String {
     format!(
         r#"<div class="card">
@@ -327,14 +335,14 @@ fn setup_section(cfg: &RunConfig) -> String {
     </tr>
   </table>
 </div>"#,
-        home_style = cfg.home_style,
-        home_formation = cfg.home_formation,
+        home_style = esc(cfg.home_style),
+        home_formation = esc(cfg.home_formation),
         home_rating = cfg.home_rating,
-        home_name = cfg.home_name,
-        away_style = cfg.away_style,
-        away_formation = cfg.away_formation,
+        home_name = esc(cfg.home_name),
+        away_style = esc(cfg.away_style),
+        away_formation = esc(cfg.away_formation),
         away_rating = cfg.away_rating,
-        away_name = cfg.away_name,
+        away_name = esc(cfg.away_name),
     )
 }
 

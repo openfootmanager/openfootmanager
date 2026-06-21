@@ -138,6 +138,13 @@ pub struct SingleMatchResult {
 // Tauri commands
 // ---------------------------------------------------------------------------
 
+fn validate_probability(name: &str, value: f64) -> Result<(), String> {
+    if !(0.0..=1.0).contains(&value) {
+        return Err(format!("{name} must be between 0.0 and 1.0, got {value}"));
+    }
+    Ok(())
+}
+
 /// Run a batch of headless simulations and return aggregate statistics.
 #[tauri::command]
 pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> {
@@ -147,6 +154,13 @@ pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> 
             config.games
         ));
     }
+    if let Some(v) = config.shot_accuracy_base { validate_probability("shot_accuracy_base", v)?; }
+    if let Some(v) = config.goal_conversion_base { validate_probability("goal_conversion_base", v)?; }
+    if let Some(v) = config.foul_probability { validate_probability("foul_probability", v)?; }
+    if let Some(v) = config.yellow_card_probability { validate_probability("yellow_card_probability", v)?; }
+    if let Some(v) = config.red_card_probability { validate_probability("red_card_probability", v)?; }
+    if let Some(v) = config.penalty_probability { validate_probability("penalty_probability", v)?; }
+    if let Some(v) = config.injury_probability { validate_probability("injury_probability", v)?; }
 
     let match_config = build_match_config(&config);
     let base_seed = config.seed.unwrap_or_else(system_seed);
@@ -493,14 +507,19 @@ fn build_team(id: &str, avg_ovr: u8, play_style: PlayStyle, formation: &str, rng
 fn parse_formation(formation: &str) -> (u8, u8, u8) {
     let parts: Vec<u8> = formation
         .split('-')
-        .filter_map(|s| s.parse().ok())
+        .filter_map(|s| s.parse::<u8>().ok())
         .collect();
-    match parts.len() {
+    let result = match parts.len() {
         2 => (parts[0], 0, parts[1]),
         3 => (parts[0], parts[1], parts[2]),
         4 => (parts[0], parts[1] + parts[2], parts[3]),
         _ => (4, 4, 2),
+    };
+    // Ensure exactly 10 outfield players; fall back to 4-4-2 if not
+    if result.0 + result.1 + result.2 != 10 {
+        return (4, 4, 2);
     }
+    result
 }
 
 fn make_player(

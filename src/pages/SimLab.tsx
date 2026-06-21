@@ -192,8 +192,9 @@ export default function SimLab() {
           </Section>
 
           <Section title="Simulation">
-            <Label>Games</Label>
+            <Label htmlFor="games-select">Games</Label>
             <select
+              id="games-select"
               value={cfg.games}
               onChange={(e) => update("games", Number(e.target.value))}
               className={inputCls}
@@ -204,13 +205,16 @@ export default function SimLab() {
                 </option>
               ))}
             </select>
-            <Label>Seed (blank = random)</Label>
+            <Label htmlFor="seed-input">Seed (blank = random)</Label>
             <input
+              id="seed-input"
               type="number"
+              min={0}
+              step={1}
               placeholder="e.g. 42"
               value={cfg.seed ?? ""}
               onChange={(e) =>
-                update("seed", e.target.value === "" ? null : Number(e.target.value))
+                update("seed", e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))))
               }
               className={inputCls}
             />
@@ -279,6 +283,15 @@ export default function SimLab() {
               step={0.01}
               defaultVal={0.08}
               onChange={(v) => update("penalty_probability", v)}
+            />
+            <ConfigSlider
+              label="Injury probability"
+              value={cfg.injury_probability ?? 0.03}
+              min={0.0}
+              max={0.15}
+              step={0.005}
+              defaultVal={0.03}
+              onChange={(v) => update("injury_probability", v)}
             />
             <button
               onClick={() => setCfg(defaultConfig())}
@@ -357,8 +370,9 @@ function TeamConfig({
   return (
     <div>
       <p className="text-xs font-semibold text-blue-400 mb-2">{side}</p>
-      <Label>Style</Label>
+      <Label htmlFor={`${prefix}-style`}>Style</Label>
       <select
+        id={`${prefix}-style`}
         value={cfg[`${prefix}_style`]}
         onChange={(e) => onChange(`${prefix}_style`, e.target.value as PlayStyleDto)}
         className={inputCls}
@@ -369,8 +383,9 @@ function TeamConfig({
           </option>
         ))}
       </select>
-      <Label>Formation</Label>
+      <Label htmlFor={`${prefix}-formation`}>Formation</Label>
       <select
+        id={`${prefix}-formation`}
         value={cfg[`${prefix}_formation`]}
         onChange={(e) => onChange(`${prefix}_formation`, e.target.value)}
         className={inputCls}
@@ -381,8 +396,9 @@ function TeamConfig({
           </option>
         ))}
       </select>
-      <Label>Overall Rating: {cfg[`${prefix}_rating`]}</Label>
+      <Label htmlFor={`${prefix}-rating`}>Overall Rating: {cfg[`${prefix}_rating`]}</Label>
       <input
+        id={`${prefix}-rating`}
         type="range"
         min={40}
         max={95}
@@ -743,8 +759,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-slate-500 mb-1 mt-2">{children}</p>;
+function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+  return <label htmlFor={htmlFor} className="text-xs text-slate-500 mb-1 mt-2 block">{children}</label>;
 }
 
 function StatCard({

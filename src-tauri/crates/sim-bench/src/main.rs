@@ -22,7 +22,7 @@ use stats::BenchStats;
 )]
 struct Cli {
     /// Number of games to simulate
-    #[arg(short = 'n', long, default_value_t = 1000)]
+    #[arg(short = 'n', long, default_value_t = 1000, value_parser = clap::value_parser!(u32).range(1..))]
     games: u32,
 
     /// RNG seed for reproducible runs (each game gets seed+i)
@@ -132,11 +132,6 @@ impl StyleArg {
 
 fn main() {
     let cli = Cli::parse();
-
-    if cli.games == 0 {
-        eprintln!("error: --games must be at least 1");
-        std::process::exit(1);
-    }
 
     let mut config = MatchConfig::default();
     if let Some(v) = cli.home_advantage {

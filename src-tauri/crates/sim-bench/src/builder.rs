@@ -37,15 +37,21 @@ pub fn build_team(
 fn parse_formation(formation: &str) -> (u8, u8, u8) {
     let parts: Vec<u8> = formation
         .split('-')
-        .filter_map(|s| s.parse().ok())
+        .filter_map(|s| s.parse::<u8>().ok())
         .collect();
 
-    match parts.len() {
+    let result = match parts.len() {
         2 => (parts[0], 0, parts[1]),
         3 => (parts[0], parts[1], parts[2]),
         4 => (parts[0], parts[1] + parts[2], parts[3]),
         _ => (4, 4, 2),
+    };
+
+    // Ensure exactly 10 outfield players; fall back to 4-4-2 if not
+    if result.0 + result.1 + result.2 != 10 {
+        return (4, 4, 2);
     }
+    result
 }
 
 fn make_player(
