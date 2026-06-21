@@ -166,6 +166,9 @@ function createGameState(): GameStateData {
     league: null,
     scouting_assignments: [],
     board_objectives: [],
+    extra_translations: {
+      en: { tournaments: { customCup: "Custom Cup" } },
+    },
   };
 }
 

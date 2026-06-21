@@ -301,7 +301,8 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
             .and_then(|n| n.to_str())
             .unwrap_or_default();
         if let Some(locale) = translation_locale_from_filename(file_name) {
-            if package.extra_translations.contains_key(locale) {
+            let canonical = locale.to_ascii_lowercase();
+            if package.extra_translations.contains_key(&canonical) {
                 errors.push(PackageError::new(READ_FAILED, &file));
             } else {
                 match std::fs::read_to_string(path) {
@@ -309,7 +310,7 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
                         Ok(serde_json::Value::Object(map)) => {
                             package
                                 .extra_translations
-                                .insert(locale.to_string(), serde_json::Value::Object(map));
+                                .insert(canonical, serde_json::Value::Object(map));
                         }
                         Ok(_) | Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
                     },
