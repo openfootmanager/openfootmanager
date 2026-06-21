@@ -36,12 +36,45 @@ import {
   initialHistoryDepthYears,
   buildStartupOptions,
   dobValidationMessage,
-  focusFirstCreateManagerError,
-  deferFocusToNextPaint,
 } from "./MainMenu.helpers";
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
 const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
+
+const CREATE_MANAGER_FIELD_ORDER = [
+  "firstName",
+  "lastName",
+  "dob",
+  "startYear",
+  "startPhase",
+  "nationality",
+] as const satisfies ReadonlyArray<keyof CreateManagerFormData>;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function deferFocusToNextPaint(callback: () => void): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(callback);
+  });
+}
+
+function focusFirstCreateManagerError(
+  errors: Partial<Record<keyof CreateManagerFormData, string>>,
+): void {
+  const first = CREATE_MANAGER_FIELD_ORDER.find((k) => errors[k]);
+  if (!first) return;
+  const root = document.getElementById(`create-manager-field-${first}`);
+  root?.scrollIntoView?.({
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+    block: "center",
+  });
+  const focusable = root?.querySelector<HTMLElement>(
+    "input:not([type=hidden]), button:not([disabled]), select, textarea",
+  );
+  focusable?.focus({ preventScroll: true });
+}
 
 function DiscordIcon({ className }: { className?: string }) {
   return (

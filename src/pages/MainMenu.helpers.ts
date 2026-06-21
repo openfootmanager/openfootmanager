@@ -178,38 +178,3 @@ export function dobValidationMessage(
   return null;
 }
 
-export const CREATE_MANAGER_FIELD_ORDER = [
-  "firstName",
-  "lastName",
-  "dob",
-  "startYear",
-  "startPhase",
-  "nationality",
-] as const satisfies ReadonlyArray<keyof CreateManagerFormData>;
-
-export function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-export function deferFocusToNextPaint(callback: () => void): void {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(callback);
-  });
-}
-
-export function focusFirstCreateManagerError(
-  errors: Partial<Record<keyof CreateManagerFormData, string>>,
-): void {
-  const first = CREATE_MANAGER_FIELD_ORDER.find((k) => errors[k]);
-  if (!first) return;
-  const root = document.getElementById(`create-manager-field-${first}`);
-  root?.scrollIntoView?.({
-    behavior: prefersReducedMotion() ? "auto" : "smooth",
-    block: "center",
-  });
-  const focusable = root?.querySelector<HTMLElement>(
-    "input:not([type=hidden]), button:not([disabled]), select, textarea",
-  );
-  focusable?.focus({ preventScroll: true });
-}
