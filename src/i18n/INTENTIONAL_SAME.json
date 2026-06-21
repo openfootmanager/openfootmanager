@@ -13,7 +13,9 @@
     "common.posAbbr.LeftWingBack",
     "common.posAbbr.RightMidfielder",
     "common.posAbbr.RightWinger",
-    "common.posAbbr.Striker"
+    "common.posAbbr.Striker",
+    "common.statsView",
+    "common.radarView"
   ],
   "de": [
     "nations.eng",
