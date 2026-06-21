@@ -633,6 +633,8 @@ type ArticleParamNormalizer = (
   params?: Record<string, string>,
 ) => Record<string, string> | undefined;
 
+// Each normalizer reads only from the original i18n_params keys — none consumes
+// output written by another normalizer — so array order is currently inconsequential.
 const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
   normalizePreseasonDigestParams,
   normalizeRoundupParams,
