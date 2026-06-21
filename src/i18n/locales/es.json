@@ -2432,6 +2432,7 @@
         "teamNotVacant": "Este club ya no busca entrenador."
       },
       "noTeamAssigned": "No hay ningún equipo asignado",
+      "playerNotOnTeam": "El jugador no pertenece a tu equipo",
       "playerNotFound": "Jugador no encontrado",
       "invalidSquadRole": "Rol de plantilla no válido",
       "jerseyNumberOutOfRange": "El número de camiseta debe estar entre 1 y 99",

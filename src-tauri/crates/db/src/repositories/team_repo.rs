@@ -198,10 +198,13 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
         media: serde_json::from_str(&media_json).unwrap_or_else(|_| TeamMedia::default()),
         starting_xi_ids: serde_json::from_str(&starting_xi_json).unwrap_or_default(),
         match_roles: serde_json::from_str(&match_roles_json).unwrap_or_default(),
-        player_roles: serde_json::from_str::<std::collections::HashMap<String, PlayerRole>>(
+        player_roles: serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
             &player_roles_json,
         )
-        .unwrap_or_default(),
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(k, v)| serde_json::from_value::<PlayerRole>(v).ok().map(|r| (k, r)))
+        .collect(),
         tactics_phase: serde_json::from_str::<TacticsPhaseSettings>(&tactics_phase_json)
             .unwrap_or_default(),
         form: serde_json::from_str(&form_json).unwrap_or_default(),

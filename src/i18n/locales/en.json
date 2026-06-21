@@ -2415,6 +2415,7 @@
         "teamNotVacant": "This club is no longer looking for a manager."
       },
       "noTeamAssigned": "No team assigned",
+      "playerNotOnTeam": "Player does not belong to your team",
       "playerNotFound": "Player not found",
       "invalidSquadRole": "Invalid squad role",
       "jerseyNumberOutOfRange": "Jersey number must be between 1 and 99",

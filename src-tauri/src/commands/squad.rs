@@ -537,12 +537,18 @@ pub fn set_player_role(
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
+        let player_on_team = game
+            .players
+            .iter()
+            .any(|p| p.id == player_id && p.team_id.as_deref() == Some(&team_id));
+        if !player_on_team {
+            return Err("be.error.playerNotOnTeam".to_string());
+        }
+
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             match role {
                 Some(r) => {
-                    let role_enum = r
-                        .parse::<domain::team::PlayerRole>()
-                        .map_err(|e| e)?;
+                    let role_enum = r.parse::<domain::team::PlayerRole>().map_err(|e| e)?;
                     team.player_roles.insert(player_id.clone(), role_enum);
                 }
                 None => {
