@@ -1,0 +1,124 @@
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useChartTheme } from "../ui/charts/chartTheme";
+import { ChartContainer } from "../ui/charts/ChartContainer";
+import type { FinancialTransactionData } from "../../store/types";
+
+interface FinanceCashFlowChartProps {
+  ledger: FinancialTransactionData[];
+  incomeLabel: string;
+  expensesLabel: string;
+}
+
+function formatShortAmount(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}${abs}`;
+}
+
+interface WeeklyBucket {
+  week: string;
+  income: number;
+  expenses: number;
+}
+
+function aggregateByWeek(ledger: FinancialTransactionData[]): WeeklyBucket[] {
+  if (ledger.length === 0) return [];
+
+  const buckets: Record<string, WeeklyBucket> = {};
+
+  for (const tx of ledger) {
+    const d = new Date(tx.date);
+    const year = d.getUTCFullYear();
+    const weekNum = Math.ceil(
+      ((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000 + 1) / 7,
+    );
+    const key = `W${weekNum}`;
+
+    if (!buckets[key]) {
+      buckets[key] = { week: key, income: 0, expenses: 0 };
+    }
+
+    if (tx.amount >= 0) {
+      buckets[key].income += tx.amount;
+    } else {
+      buckets[key].expenses += Math.abs(tx.amount);
+    }
+  }
+
+  return Object.values(buckets).slice(-12);
+}
+
+export function FinanceCashFlowChart({
+  ledger,
+  incomeLabel,
+  expensesLabel,
+}: FinanceCashFlowChartProps) {
+  const theme = useChartTheme();
+  const data = aggregateByWeek(ledger);
+
+  if (data.length === 0) {
+    return <ChartContainer isEmpty height={180} />;
+  }
+
+  return (
+    <ChartContainer height={180}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={theme.primary} stopOpacity={0.02} />
+            </linearGradient>
+            <linearGradient id="expensesGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke={theme.gridColor} vertical={false} />
+          <XAxis
+            dataKey="week"
+            tick={{ fill: theme.axisColor, fontSize: 9, fontFamily: "var(--font-heading)" }}
+            axisLine={{ stroke: theme.gridColor }}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={formatShortAmount}
+            tick={{ fill: theme.axisColor, fontSize: 9 }}
+            axisLine={false}
+            tickLine={false}
+            width={36}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: theme.tooltipBg,
+              border: `1px solid ${theme.tooltipBorder}`,
+              borderRadius: 8,
+              fontSize: 11,
+              color: theme.tooltipText,
+            }}
+            formatter={(value, name) => [typeof value === "number" ? formatShortAmount(value) : String(value ?? ""), String(name ?? "")]}
+          />
+          <Legend wrapperStyle={{ fontSize: 10, fontFamily: "var(--font-heading)" }} />
+          <Area
+            type="monotone"
+            dataKey="income"
+            name={incomeLabel}
+            stroke={theme.primary}
+            fill="url(#incomeGrad)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="expenses"
+            name={expensesLabel}
+            stroke="#ef4444"
+            fill="url(#expensesGrad)"
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
+}

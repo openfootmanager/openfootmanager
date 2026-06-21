@@ -496,7 +496,8 @@
       "goalkeeper": "门将"
     },
     "retry": "重试",
-    "score": "比分"
+    "score": "比分",
+    "noChartData": "暂无数据"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -1191,7 +1192,8 @@
     "renewalProjectionTitle": "预计财务影响",
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "现金储备 {{before}} → {{after}}"
+    "renewalProjectionRunway": "现金储备 {{before}} → {{after}}",
+    "ratingTrend": "评分趋势"
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",
@@ -1217,7 +1219,8 @@
     "foulsCommitted": "犯规",
     "perMatch": "场均",
     "passAccuracy": "传球成功率",
-    "recentMatches": "近期比赛"
+    "recentMatches": "近期比赛",
+    "teamStyle": "球队风格"
   },
   "settings": {
     "title": "设置",

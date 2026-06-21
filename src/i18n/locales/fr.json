@@ -496,7 +496,8 @@
       "goalkeeper": "Gardien"
     },
     "retry": "Réessayer",
-    "score": "Score"
+    "score": "Score",
+    "noChartData": "Aucune donnée"
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
@@ -1191,7 +1192,8 @@
     "renewalProjectionTitle": "Impact financier projeté",
     "renewalProjectionWageBill": "Masse salariale hebdomadaire {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Utilisation du budget salarial {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Réserve de trésorerie {{before}} → {{after}}"
+    "renewalProjectionRunway": "Réserve de trésorerie {{before}} → {{after}}",
+    "ratingTrend": "Tendance de note"
   },
   "teamProfile": {
     "clubInfo": "Informations du Club",
@@ -1217,7 +1219,8 @@
     "foulsCommitted": "Fautes commises",
     "perMatch": "Par match",
     "passAccuracy": "Précision de passe",
-    "recentMatches": "Matchs récents"
+    "recentMatches": "Matchs récents",
+    "teamStyle": "Style de jeu"
   },
   "settings": {
     "title": "Paramètres",

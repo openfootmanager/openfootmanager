@@ -711,6 +711,7 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           isOwnClub={isOwnClub}
+          isGk={primaryPosition === "Goalkeeper"}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
           hiddenTitle={t("playerProfile.attributesHidden")}

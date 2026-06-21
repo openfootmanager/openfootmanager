@@ -8,7 +8,7 @@ interface ThemeContextValue {
   isDark: boolean;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem("ofm-theme");

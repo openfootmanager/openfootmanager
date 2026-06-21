@@ -1,5 +1,6 @@
 import { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, ProgressBar, CountryFlag } from "../ui";
+import { ManagerCareerChart } from "./ManagerCareerChart";
 import { formatDate } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
@@ -111,6 +112,14 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
       {mgr.career_history.length > 0 && (
         <Card className="md:col-span-3">
           <CardHeader>{t('manager.careerHistory')}</CardHeader>
+          <CardBody>
+            <ManagerCareerChart
+              history={mgr.career_history}
+              wonLabel={t('manager.wins')}
+              drawnLabel={t('manager.draws')}
+              lostLabel={t('manager.losses')}
+            />
+          </CardBody>
           <CardBody className="p-0">
             <table className="w-full text-left border-collapse">
               <thead>
