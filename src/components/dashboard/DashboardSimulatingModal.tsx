@@ -265,6 +265,7 @@ export default function DashboardSimulatingModal({
           </h3>
           {isRunning && onStop && (
             <button
+              type="button"
               onClick={onStop}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
             >
@@ -300,6 +301,7 @@ export default function DashboardSimulatingModal({
         {!isRunning && !stopReason && digestEntries && digestEntries.length > 0 && (
           <div className="border-t border-gray-200 dark:border-navy-700 pt-4 shrink-0">
             <button
+              type="button"
               onClick={onDismiss}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
             >
@@ -323,6 +325,7 @@ export default function DashboardSimulatingModal({
                   {t("dashboard.digestMatchDayDesc")}
                 </p>
                 <button
+                  type="button"
                   onClick={onDismiss}
                   className="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
                 >
@@ -344,18 +347,21 @@ export default function DashboardSimulatingModal({
                 </p>
                 <div className="flex flex-col gap-2">
                   <button
+                    type="button"
                     onClick={() => onViewBlockers?.(stopReason.blockers)}
                     className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                   >
                     {t("dashboard.digestViewIssues")}
                   </button>
                   <button
+                    type="button"
                     onClick={onContinueAfterBlocker}
                     className="w-full rounded-lg border border-amber-400 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/40"
                   >
                     {t("dashboard.digestContinueAnyway")}
                   </button>
                   <button
+                    type="button"
                     onClick={onDismiss}
                     className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
                   >
@@ -371,6 +377,22 @@ export default function DashboardSimulatingModal({
                   {t("dashboard.digestFired")}
                 </p>
                 <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
+                >
+                  {t("dashboard.digestClose")}
+                </button>
+              </div>
+            )}
+
+            {stopReason.kind === "stopped" && (
+              <div className="bg-gray-50 rounded-lg px-4 py-3 dark:bg-navy-700/60">
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  {t("dashboard.digestStopped")}
+                </p>
+                <button
+                  type="button"
                   onClick={onDismiss}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
                 >
@@ -382,9 +404,10 @@ export default function DashboardSimulatingModal({
             {stopReason.kind === "error" && (
               <div className="bg-gray-50 rounded-lg px-4 py-3 dark:bg-navy-700/60">
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  {t("dashboard.digestStopped")}
+                  {t("dashboard.digestError")}
                 </p>
                 <button
+                  type="button"
                   onClick={onDismiss}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
                 >

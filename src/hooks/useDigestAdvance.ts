@@ -15,6 +15,7 @@ export type DigestStopReason =
   | { kind: "match_day" }
   | { kind: "blocked"; blockers: BlockerData[] }
   | { kind: "fired" }
+  | { kind: "stopped" }
   | { kind: "error" };
 
 const MAX_DIGEST_DAYS = 60;
@@ -39,11 +40,17 @@ export function useDigestAdvance(
 
     try {
       while (daysProcessed < MAX_DIGEST_DAYS) {
-        if (abortRef.current) break;
+        if (abortRef.current) {
+          setStopReason({ kind: "stopped" });
+          return;
+        }
 
         const result = await advanceOneDay();
 
-        if (abortRef.current) break;
+        if (abortRef.current) {
+          setStopReason({ kind: "stopped" });
+          return;
+        }
 
         if (result.action === "fired") {
           if (result.game) setGameState(result.game as GameStateData);

@@ -173,7 +173,8 @@
     "digestFired": "Sei stato licenziato.",
     "digestContinueAnyway": "Continua comunque",
     "digestStop": "Ferma simulazione",
-    "digestStopped": "Simulazione fermata"
+    "digestStopped": "Simulazione fermata",
+    "digestError": "Errore di simulazione"
   },
   "continueMenu": {
     "goToField": "Vai in campo",

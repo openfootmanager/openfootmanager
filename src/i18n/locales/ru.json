@@ -173,7 +173,8 @@
     "digestFired": "Вас уволили.",
     "digestContinueAnyway": "Продолжить в любом случае",
     "digestStop": "Остановить симуляцию",
-    "digestStopped": "Симуляция остановлена"
+    "digestStopped": "Симуляция остановлена",
+    "digestError": "Ошибка симуляции"
   },
   "continueMenu": {
     "goToField": "Перейти на поле",

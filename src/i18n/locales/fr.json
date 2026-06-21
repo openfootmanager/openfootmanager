@@ -173,7 +173,8 @@
     "digestFired": "Vous avez été renvoyé.",
     "digestContinueAnyway": "Continuer quand même",
     "digestStop": "Arrêter la simulation",
-    "digestStopped": "Simulation arrêtée"
+    "digestStopped": "Simulation arrêtée",
+    "digestError": "Erreur de simulation"
   },
   "continueMenu": {
     "goToField": "Aller sur le Terrain",

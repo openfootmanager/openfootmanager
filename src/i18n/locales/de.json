@@ -173,7 +173,8 @@
     "digestFired": "Sie wurden entlassen.",
     "digestContinueAnyway": "Trotzdem fortfahren",
     "digestStop": "Simulation stoppen",
-    "digestStopped": "Simulation gestoppt"
+    "digestStopped": "Simulation gestoppt",
+    "digestError": "Simulationsfehler"
   },
   "continueMenu": {
     "goToField": "Aufs Spielfeld",

@@ -203,7 +203,8 @@
     "digestFired": "Has sido despedido.",
     "digestContinueAnyway": "Continuar de todas formas",
     "digestStop": "Detener simulación",
-    "digestStopped": "Simulación detenida"
+    "digestStopped": "Simulación detenida",
+    "digestError": "Error de simulación"
   },
   "continueMenu": {
     "goToField": "Ir al Campo",

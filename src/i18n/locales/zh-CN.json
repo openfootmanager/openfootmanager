@@ -173,7 +173,8 @@
     "digestFired": "您已被解雇。",
     "digestContinueAnyway": "仍然继续",
     "digestStop": "停止模拟",
-    "digestStopped": "模拟已停止"
+    "digestStopped": "模拟已停止",
+    "digestError": "模拟出错"
   },
   "continueMenu": {
     "goToField": "进入球场",
