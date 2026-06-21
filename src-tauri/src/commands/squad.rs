@@ -523,6 +523,36 @@ pub fn set_team_kit_pattern(
     set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
+#[tauri::command]
+pub fn set_player_role(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+    role: Option<String>,
+) -> Result<Game, String> {
+    info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
+    mutate_active_game(&state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            match role {
+                Some(r) => {
+                    team.player_roles
+                        .insert(player_id.clone(), domain::team::PlayerRole::from_str(&r));
+                }
+                None => {
+                    team.player_roles.remove(&player_id);
+                }
+            }
+        }
+
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{set_player_squad_role_internal, set_player_training_focus_internal};

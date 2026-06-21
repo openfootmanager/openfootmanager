@@ -16,9 +16,11 @@ import type {
   PlayerData,
   TeamMatchRolesData,
 } from "../../store/gameStore";
+import type { PlayerRole } from "../../store/types";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, InjuryBadge, Select } from "../ui";
 import {
+  canonicalPosition,
   getPlayStyleFit,
   getSquadTacticalFit,
   getPreferredPositions,
@@ -43,6 +45,8 @@ interface TacticsPlayerTableProps {
   highlightedPlayerId: string | null;
   matchRoles?: TeamMatchRolesData;
   onAssignBestFit?: (playerId: string) => void;
+  onSetPlayerRole?: (playerId: string, role: PlayerRole | null) => void;
+  playerRoles?: Record<string, PlayerRole>;
   onAssignMatchRole?: (
     role: keyof TeamMatchRolesData,
     playerId: string,
@@ -280,6 +284,38 @@ function buildResponsibilityChips(
   return responsibilities;
 }
 
+const ROLE_OPTIONS_BY_POSITION: Record<string, PlayerRole[]> = {
+  Goalkeeper: ["Standard", "BallPlayingKeeper", "SweeperKeeper"],
+  CenterBack: ["Standard", "Stopper", "CoverCB", "BallPlayingCB"],
+  RightBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
+  LeftBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
+  RightWingBack: ["Standard", "WingBack", "AttackingFB"],
+  LeftWingBack: ["Standard", "WingBack", "AttackingFB"],
+  DefensiveMidfielder: ["Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker", "BoxToBox"],
+  CentralMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "DeepLyingPlaymaker", "AdvancedPlaymaker"],
+  RightMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "WideForward", "InsideForward"],
+  LeftMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "WideForward", "InsideForward"],
+  AttackingMidfielder: ["Standard", "AdvancedPlaymaker", "ShadowStriker", "Mezzala"],
+  RightWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
+  LeftWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
+  Striker: ["Standard", "Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward"],
+};
+
+const ALL_ROLES: PlayerRole[] = [
+  "Standard", "BallPlayingKeeper", "SweeperKeeper",
+  "Stopper", "CoverCB", "BallPlayingCB",
+  "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack",
+  "AnchorMan", "BallWinner", "DeepLyingPlaymaker",
+  "BoxToBox", "Carrilero", "Mezzala",
+  "AdvancedPlaymaker", "ShadowStriker",
+  "WideForward", "InsideForward", "InvertedWinger",
+  "Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward",
+];
+
+function getRolesForPosition(position: string): PlayerRole[] {
+  return ROLE_OPTIONS_BY_POSITION[position] ?? ALL_ROLES;
+}
+
 function TacticsTableRow({
   activePlayStyle,
   comparePlayerId,
@@ -292,8 +328,10 @@ function TacticsTableRow({
   onDemoteStarter,
   onPromoteBench,
   onSelectPlayer,
+  onSetPlayerRole,
   onTacticalSelect,
   player,
+  playerRole,
   section,
   slotOptions,
   tableMode,
@@ -314,8 +352,10 @@ function TacticsTableRow({
   onDemoteStarter?: (playerId: string) => void;
   onPromoteBench?: (playerId: string) => void;
   onSelectPlayer: (playerId: string) => void;
+  onSetPlayerRole?: (playerId: string, role: PlayerRole | null) => void;
   onTacticalSelect?: (playerId: string, section: SquadSection) => void;
   player: PlayerData;
+  playerRole?: PlayerRole;
   section: SquadSection;
   slotOptions: TacticsFormationSlotOption[];
   tableMode: TacticsTableMode;
@@ -535,6 +575,22 @@ function TacticsTableRow({
             </td>
 
             <td className="px-4 py-3 align-top">
+              <Select
+                value={playerRole ?? "Standard"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onSetPlayerRole?.(player.id, val === "Standard" ? null : (val as PlayerRole));
+                }}
+              >
+                {getRolesForPosition(canonicalPosition(activePosition)).map((role) => (
+                  <option key={role} value={role}>
+                    {t(`tactics.playerRoles.${role}`, role)}
+                  </option>
+                ))}
+              </Select>
+            </td>
+
+            <td className="px-4 py-3 align-top">
               {responsibilities.length > 0 ? (
                 <div className="flex max-w-[16rem] flex-wrap gap-1.5">
                   {responsibilities.map((responsibility) => (
@@ -591,7 +647,9 @@ export default function TacticsPlayerTable({
   onDemoteStarter,
   onPromoteBench,
   onSelectPlayer,
+  onSetPlayerRole,
   onTacticalSelect,
+  playerRoles,
   players,
   section,
   slotOptions,
@@ -643,7 +701,7 @@ export default function TacticsPlayerTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] border-collapse text-left">
+        <table className="w-full min-w-[52rem] border-collapse text-left">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50 text-xs dark:border-navy-600 dark:bg-navy-800">
               <SortHeader
@@ -689,6 +747,9 @@ export default function TacticsPlayerTable({
                     {t("tactics.styleFit")}
                   </th>
                   <th className="px-4 py-2.5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {t("tactics.playerRoleLabel")}
+                  </th>
+                  <th className="px-4 py-2.5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t("tactics.responsibilities")}
                   </th>
                 </>
@@ -721,8 +782,10 @@ export default function TacticsPlayerTable({
                 onDemoteStarter={onDemoteStarter}
                 onPromoteBench={onPromoteBench}
                 onSelectPlayer={onSelectPlayer}
+                onSetPlayerRole={onSetPlayerRole}
                 onTacticalSelect={onTacticalSelect}
                 player={player}
+                playerRole={playerRoles?.[player.id]}
                 section={section}
                 slotOptions={slotOptions}
                 tableMode={tableMode}

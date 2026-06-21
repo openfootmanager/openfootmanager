@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,10 @@ pub struct Team {
     // Tactical
     pub formation: String,
     pub play_style: PlayStyle,
+    /// Per-player tactical role assignments. Keyed by player ID.
+    /// Missing entries default to the position's standard role.
+    #[serde(default)]
+    pub player_roles: HashMap<String, PlayerRole>,
 
     // Training
     #[serde(default)]
@@ -75,6 +80,82 @@ pub struct MatchRoles {
     pub penalty_taker: Option<String>,
     pub free_kick_taker: Option<String>,
     pub corner_taker: Option<String>,
+}
+
+/// Tactical role for a player within the team's formation.
+/// Each role biases attribute weighting in match resolution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PlayerRole {
+    // Goalkeeper
+    #[default]
+    Standard,
+    BallPlayingKeeper,
+    SweeperKeeper,
+    // Center Back
+    Stopper,
+    CoverCB,
+    BallPlayingCB,
+    // Full Back / Wing Back
+    AttackingFB,
+    DefensiveFB,
+    InvertedFB,
+    WingBack,
+    // Defensive Midfielder
+    AnchorMan,
+    BallWinner,
+    DeepLyingPlaymaker,
+    // Central Midfielder
+    BoxToBox,
+    Carrilero,
+    Mezzala,
+    // Attacking Midfielder
+    AdvancedPlaymaker,
+    ShadowStriker,
+    // Wide
+    WideForward,
+    InsideForward,
+    InvertedWinger,
+    // Striker
+    Poacher,
+    TargetMan,
+    DeepLyingForward,
+    False9,
+    PressingForward,
+    CompleteForward,
+}
+
+impl PlayerRole {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "BallPlayingKeeper" => Self::BallPlayingKeeper,
+            "SweeperKeeper" => Self::SweeperKeeper,
+            "Stopper" => Self::Stopper,
+            "CoverCB" => Self::CoverCB,
+            "BallPlayingCB" => Self::BallPlayingCB,
+            "AttackingFB" => Self::AttackingFB,
+            "DefensiveFB" => Self::DefensiveFB,
+            "InvertedFB" => Self::InvertedFB,
+            "WingBack" => Self::WingBack,
+            "AnchorMan" => Self::AnchorMan,
+            "BallWinner" => Self::BallWinner,
+            "DeepLyingPlaymaker" => Self::DeepLyingPlaymaker,
+            "BoxToBox" => Self::BoxToBox,
+            "Carrilero" => Self::Carrilero,
+            "Mezzala" => Self::Mezzala,
+            "AdvancedPlaymaker" => Self::AdvancedPlaymaker,
+            "ShadowStriker" => Self::ShadowStriker,
+            "WideForward" => Self::WideForward,
+            "InsideForward" => Self::InsideForward,
+            "InvertedWinger" => Self::InvertedWinger,
+            "Poacher" => Self::Poacher,
+            "TargetMan" => Self::TargetMan,
+            "DeepLyingForward" => Self::DeepLyingForward,
+            "False9" => Self::False9,
+            "PressingForward" => Self::PressingForward,
+            "CompleteForward" => Self::CompleteForward,
+            _ => Self::Standard,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -319,6 +400,7 @@ impl Team {
             facilities: Facilities::default(),
             formation: "4-4-2".to_string(),
             play_style: PlayStyle::Balanced,
+            player_roles: HashMap::new(),
             training_focus: TrainingFocus::default(),
             training_intensity: TrainingIntensity::default(),
             training_schedule: TrainingSchedule::default(),
@@ -339,6 +421,7 @@ impl Team {
 
     pub fn remove_player_references(&mut self, player_id: &str) {
         self.starting_xi_ids.retain(|id| id != player_id);
+        self.player_roles.remove(player_id);
 
         for group in &mut self.training_groups {
             group.player_ids.retain(|id| id != player_id);

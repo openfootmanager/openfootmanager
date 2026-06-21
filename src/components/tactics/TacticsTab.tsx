@@ -9,7 +9,8 @@ import type {
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { getSquad } from "../../services/squadService";
+import { getSquad, setPlayerRole as setPlayerRoleService } from "../../services/squadService";
+import type { PlayerRole } from "../../store/types";
 import {
   applyLineupDrop,
   applyLineupSwap,
@@ -131,6 +132,7 @@ export default function TacticsTab({
 
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
+  const playerRoles = team?.player_roles ?? {};
   const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
   const playersById = useMemo(
     () => new Map(roster.map((player) => [player.id, player])),
@@ -840,6 +842,18 @@ export default function TacticsTab({
     );
   }
 
+  async function handleSetPlayerRole(
+    playerId: string,
+    role: PlayerRole | null,
+  ): Promise<void> {
+    try {
+      const updated = await setPlayerRoleService(playerId, role);
+      onGameUpdate(updated);
+    } catch (error) {
+      console.error("Failed to set player role:", error);
+    }
+  }
+
   const lineupWorkspace = (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(38rem,1.1fr)] xl:items-start 2xl:gap-8">
       <div className="flex flex-col gap-5">
@@ -903,9 +917,13 @@ export default function TacticsTab({
             void handleDemoteStarter(playerId);
           }}
           onSelectPlayer={onSelectPlayer}
+          onSetPlayerRole={(playerId, role) => {
+            void handleSetPlayerRole(playerId, role);
+          }}
           onTacticalSelect={(playerId, section) => {
             void handleLineupPlayerClick(playerId, section);
           }}
+          playerRoles={playerRoles}
           players={filteredStartingXI}
           section="xi"
           sortDir={sortDir}
@@ -930,12 +948,16 @@ export default function TacticsTab({
             void handleAssignMatchRole(role, playerId);
           }}
           onSelectPlayer={onSelectPlayer}
+          onSetPlayerRole={(playerId, role) => {
+            void handleSetPlayerRole(playerId, role);
+          }}
           onPromoteBench={(playerId) => {
             void handlePromoteBenchPlayer(playerId);
           }}
           onTacticalSelect={(playerId, section) => {
             void handleLineupPlayerClick(playerId, section);
           }}
+          playerRoles={playerRoles}
           players={filteredBench}
           section="bench"
           sortDir={sortDir}
