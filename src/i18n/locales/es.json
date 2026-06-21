@@ -2304,7 +2304,13 @@
         "title": "Ir A Por El Gol",
         "description": "Necesitas más amenaza. Prioriza energía ofensiva, riesgo y jugadores capaces de cambiar el ritmo."
       }
-    }
+    },
+    "matchReport": "Informe del partido",
+    "playerRatings": "Valoraciones",
+    "yourResult": "Tu resultado",
+    "continue": "Continuar",
+    "notableUpset": "Sorpresa notable",
+    "pts": "pts."
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Completa",

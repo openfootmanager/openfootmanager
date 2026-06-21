@@ -14,6 +14,7 @@ import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
 import PostMatchScreen from "../components/match/PostMatchScreen";
+import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +223,11 @@ export default function MatchSimulation() {
     })();
   }, [finalizeMatch]);
 
+  const handlePostMatchContinue = useCallback(() => {
+    console.info("[MatchSimulation] handlePostMatchContinue");
+    setStage("digest");
+  }, []);
+
   const handlePressConference = useCallback(() => {
     console.info("[MatchSimulation] handlePressConference");
     setStage("press");
@@ -325,15 +331,31 @@ export default function MatchSimulation() {
         <PostMatchScreen
           snapshot={snapshot}
           gameState={gameState}
-          currentFixture={currentFixture}
           userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
+          onContinue={handlePostMatchContinue}
+          onFinish={handleFinishMatch}
+        />
+      );
+
+    case "digest": {
+      const isLeagueFixture =
+        currentFixture?.competition !== "Friendly" &&
+        currentFixture?.competition !== "PreseasonTournament";
+      return (
+        <RoundDigestScreen
+          snapshot={snapshot}
+          gameState={gameState}
+          currentFixture={currentFixture}
+          userSide={userSide}
+          isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
           onPressConference={handlePressConference}
           onFinish={handleFinishMatch}
         />
       );
+    }
 
     case "press":
       if (!userSide) return null;

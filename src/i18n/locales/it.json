@@ -2293,7 +2293,13 @@
         "title": "Inseguire Il Gol",
         "description": "Serve più pericolosità. Dai priorità a energia offensiva, rischio e giocatori capaci di cambiare il ritmo."
       }
-    }
+    },
+    "matchReport": "Rapporto partita",
+    "playerRatings": "Valutazioni",
+    "yourResult": "Il tuo risultato",
+    "continue": "Continua",
+    "notableUpset": "Sorpresa del turno",
+    "pts": "pts."
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

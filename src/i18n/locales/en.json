@@ -2274,7 +2274,13 @@
           "1": "The referee brings the match to an end."
         }
       }
-    }
+    },
+    "matchReport": "Match Report",
+    "playerRatings": "Player Ratings",
+    "yourResult": "Your Result",
+    "continue": "Continue",
+    "notableUpset": "Notable Upset",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

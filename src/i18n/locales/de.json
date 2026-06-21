@@ -2274,7 +2274,13 @@
         "title": "Tor Erzwingen",
         "description": "Du brauchst mehr Durchschlagskraft. Bevorzuge offensive Energie, Risiko und Spieler, die das Tempo verändern können."
       }
-    }
+    },
+    "matchReport": "Spielbericht",
+    "playerRatings": "Spielerbewertungen",
+    "yourResult": "Dein Ergebnis",
+    "continue": "Weiter",
+    "notableUpset": "Überraschungsergebnis",
+    "pts": "Pkt."
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",

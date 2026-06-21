@@ -2217,7 +2217,13 @@
         "title": "Buscar O Gol",
         "description": "Você precisa de mais ameaça. Priorize energia ofensiva, risco e jogadores capazes de mudar o ritmo."
       }
-    }
+    },
+    "matchReport": "Relatório da partida",
+    "playerRatings": "Avaliações",
+    "yourResult": "Seu resultado",
+    "continue": "Continuar",
+    "notableUpset": "Grande surpresa",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",

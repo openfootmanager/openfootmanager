@@ -58,18 +58,47 @@ vi.mock("../components/match/HalfTimeBreak", () => ({
 
 vi.mock("../components/match/PostMatchScreen", () => ({
   default: ({
+    onContinue,
     onFinish,
-    roundSummary,
   }: {
+    onContinue?: () => void;
     onFinish?: () => void;
-    roundSummary?: unknown;
   }) => (
     <div>
-      <div data-testid="postmatch-round-summary">
-        {roundSummary ? JSON.stringify(roundSummary) : "null"}
-      </div>
+      <button data-testid="postmatch-continue" onClick={onContinue}>
+        Continue
+      </button>
       <button data-testid="postmatch-finish" onClick={onFinish}>
         Finish Match
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("../components/match/RoundDigestScreen", () => ({
+  default: ({
+    roundSummary,
+    isLeagueFixture,
+    onPressConference,
+    onFinish,
+  }: {
+    roundSummary?: unknown;
+    isLeagueFixture?: boolean;
+    onPressConference?: () => void;
+    onFinish?: () => void;
+  }) => (
+    <div>
+      <div data-testid="digest-round-summary">
+        {roundSummary ? JSON.stringify(roundSummary) : "null"}
+      </div>
+      <div data-testid="digest-is-league">
+        {isLeagueFixture ? "true" : "false"}
+      </div>
+      <button data-testid="digest-press" onClick={onPressConference}>
+        Press Conference
+      </button>
+      <button data-testid="digest-finish" onClick={onFinish}>
+        Skip
       </button>
     </div>
   ),
@@ -256,6 +285,32 @@ function makeGameState(): Record<string, unknown> {
   };
 }
 
+function makeGameStateWithFriendly() {
+  const base = makeGameState();
+  return {
+    ...base,
+    league: {
+      id: "league1",
+      name: "Test League",
+      fixtures: [
+        {
+          id: "fix1",
+          competition: "Friendly",
+          home_team_id: "home1",
+          away_team_id: "away1",
+          date: "2026-08-01",
+          status: "Scheduled",
+          result: null,
+          round: 1,
+          matchday: null,
+        },
+      ],
+      standings: [],
+      top_scorers: [],
+    },
+  };
+}
+
 describe("MatchSimulation", function (): void {
   beforeEach(function resetState(): void {
     mockedInvoke.mockReset();
@@ -389,7 +444,7 @@ describe("MatchSimulation", function (): void {
     });
   });
 
-  it("finalizes the match on full time and passes the round summary into postmatch", async function (): Promise<void> {
+  it("finalizes the match on full time and passes the round summary into the digest screen", async function (): Promise<void> {
     locationState = {
       mode: "spectator",
       snapshot: makeSnapshot(),
@@ -425,14 +480,59 @@ describe("MatchSimulation", function (): void {
 
     expect(setGameStateMock).toHaveBeenCalledWith(finishedGame);
 
-    expect(screen.getByTestId("postmatch-round-summary")).toHaveTextContent(
+    // Continue from PostMatch → goes to digest (fixture is null → treated as league)
+    fireEvent.click(screen.getByTestId("postmatch-continue"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("digest-round-summary")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent(
       '"matchday":1',
     );
 
-    fireEvent.click(screen.getByTestId("postmatch-finish"));
+    fireEvent.click(screen.getByTestId("digest-finish"));
 
     await waitFor(function (): void {
       expect(navigateMock).toHaveBeenCalledWith("/dashboard");
+    });
+  });
+
+  it("routes a friendly match through the digest screen with isLeagueFixture=false", async function (): Promise<void> {
+    locationState = {
+      mode: "spectator",
+      fixtureIndex: 0,
+      snapshot: makeSnapshot(),
+    };
+
+    gameStoreState = {
+      gameState: makeGameStateWithFriendly(),
+      setGameState: setGameStateMock,
+    };
+
+    mockedInvoke
+      .mockResolvedValueOnce(makeSnapshot())
+      .mockResolvedValueOnce({
+        game: makeGameState(),
+        round_summary: null,
+      });
+
+    render(<MatchSimulation />);
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("match-live"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("postmatch-continue"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
     });
   });
 });

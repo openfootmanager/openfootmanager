@@ -2274,7 +2274,13 @@
         "title": "Forcer Le But",
         "description": "Il vous faut davantage de menace. Privilégiez l'énergie offensive, la prise de risque et les joueurs capables de changer le rythme."
       }
-    }
+    },
+    "matchReport": "Rapport de match",
+    "playerRatings": "Évaluations",
+    "yourResult": "Votre résultat",
+    "continue": "Continuer",
+    "notableUpset": "Résultat surprise",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",

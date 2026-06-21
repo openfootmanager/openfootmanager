@@ -2274,7 +2274,13 @@
         "title": "全力追球",
         "description": "你需要更多威胁。优先考虑进攻能量、承担风险，以及能够改变节奏的球员。"
       }
-    }
+    },
+    "matchReport": "比赛报告",
+    "playerRatings": "球员评分",
+    "yourResult": "你的成绩",
+    "continue": "继续",
+    "notableUpset": "重大爆冷",
+    "pts": "分"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
