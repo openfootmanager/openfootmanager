@@ -2404,6 +2404,7 @@
       "noTeamAssigned": "Nenhuma equipa atribuída",
       "playerNotOnTeam": "O jogador não pertence à tua equipa",
       "roleNotValidForPosition": "Este papel não é válido para a posição do jogador",
+      "invalidPlayerRole": "Papel de jogador inválido",
       "playerNotFound": "Jogador não encontrado",
       "invalidSquadRole": "Função de plantel inválida",
       "jerseyNumberOutOfRange": "O número da camisola deve estar entre 1 e 99",

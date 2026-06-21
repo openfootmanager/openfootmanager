@@ -547,7 +547,9 @@ pub fn set_player_role(
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             match role {
                 Some(r) => {
-                    let role_enum = r.parse::<domain::team::PlayerRole>().map_err(|e| e)?;
+                    let role_enum = r
+                        .parse::<domain::team::PlayerRole>()
+                        .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
                     let group = player_position.to_group_position();
                     let role_valid = match role_enum {
                         domain::team::PlayerRole::Standard => true,

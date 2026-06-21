@@ -2404,6 +2404,7 @@
       "noTeamAssigned": "Aucune équipe assignée",
       "playerNotOnTeam": "Ce joueur n'appartient pas à votre équipe",
       "roleNotValidForPosition": "Ce rôle n'est pas valide pour la position du joueur",
+      "invalidPlayerRole": "Rôle de joueur invalide",
       "playerNotFound": "Joueur introuvable",
       "invalidSquadRole": "Rôle d'effectif invalide",
       "jerseyNumberOutOfRange": "Le numéro de maillot doit être compris entre 1 et 99",
