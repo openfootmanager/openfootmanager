@@ -105,6 +105,16 @@
   color: #e2e8f0;
 }
 
+/* Hide native spin buttons on number inputs — consistent look across platforms */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* Dark mode readability: boost low-contrast gray text on navy backgrounds */
 .dark .text-gray-500 {
   color: #8d99ae;

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { formatDateShort } from "../../lib/helpers";
 import type { MessageData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
+import { Checkbox } from "../ui";
 import {
   buildDeleteMessageMenuItem,
   buildMarkMessageReadMenuItem,
@@ -91,15 +92,13 @@ export default function InboxMessageListPane({
                       className="mt-1 flex shrink-0 items-center"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedMessageIds.includes(message.id)}
                         onChange={() => onToggleMessageSelection(message.id)}
                         aria-label={t("inbox.selectMessageForDeletion", {
                           subject: message.subject,
                         })}
                         data-testid={`inbox-select-message-${message.id}`}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500/30"
                       />
                     </div>
                   ) : null}
