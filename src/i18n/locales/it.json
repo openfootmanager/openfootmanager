@@ -2403,6 +2403,7 @@
       },
       "noTeamAssigned": "Nessuna squadra assegnata",
       "playerNotOnTeam": "Il giocatore non appartiene alla tua squadra",
+      "roleNotValidForPosition": "Questo ruolo non è valido per la posizione del giocatore",
       "playerNotFound": "Giocatore non trovato",
       "invalidSquadRole": "Ruolo della rosa non valido",
       "jerseyNumberOutOfRange": "Il numero di maglia deve essere compreso tra 1 e 99",

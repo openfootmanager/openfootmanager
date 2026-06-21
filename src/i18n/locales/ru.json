@@ -2416,6 +2416,7 @@
       },
       "noTeamAssigned": "Команда не назначена",
       "playerNotOnTeam": "Игрок не принадлежит вашей команде",
+      "roleNotValidForPosition": "Эта роль недопустима для позиции игрока",
       "playerNotFound": "Игрок не найден",
       "invalidSquadRole": "Неверная роль в составе",
       "jerseyNumberOutOfRange": "Номер футболки должен быть от 1 до 99",

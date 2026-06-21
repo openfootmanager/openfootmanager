@@ -2403,6 +2403,7 @@
       },
       "noTeamAssigned": "Nenhum time atribuído",
       "playerNotOnTeam": "O jogador não pertence ao seu time",
+      "roleNotValidForPosition": "Esta função não é válida para a posição do jogador",
       "playerNotFound": "Jogador não encontrado",
       "invalidSquadRole": "Função de elenco inválida",
       "jerseyNumberOutOfRange": "O número da camisa deve estar entre 1 e 99",

@@ -2433,6 +2433,7 @@
       },
       "noTeamAssigned": "No hay ningún equipo asignado",
       "playerNotOnTeam": "El jugador no pertenece a tu equipo",
+      "roleNotValidForPosition": "Este rol no es válido para la posición del jugador",
       "playerNotFound": "Jugador no encontrado",
       "invalidSquadRole": "Rol de plantilla no válido",
       "jerseyNumberOutOfRange": "El número de camiseta debe estar entre 1 y 99",

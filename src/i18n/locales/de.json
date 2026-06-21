@@ -2403,6 +2403,7 @@
       },
       "noTeamAssigned": "Kein Team zugewiesen",
       "playerNotOnTeam": "Der Spieler gehört nicht zu deiner Mannschaft",
+      "roleNotValidForPosition": "Diese Rolle ist für die Position des Spielers nicht gültig",
       "playerNotFound": "Spieler nicht gefunden",
       "invalidSquadRole": "Ungültige Kaderrolle",
       "jerseyNumberOutOfRange": "Die Trikotnummer muss zwischen 1 und 99 liegen",

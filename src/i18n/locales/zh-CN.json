@@ -2403,6 +2403,7 @@
       },
       "noTeamAssigned": "尚未分配球队",
       "playerNotOnTeam": "该球员不属于您的球队",
+      "roleNotValidForPosition": "该角色对球员的位置无效",
       "playerNotFound": "未找到球员",
       "invalidSquadRole": "无效的阵容角色",
       "jerseyNumberOutOfRange": "球衣号码必须在 1 到 99 之间",

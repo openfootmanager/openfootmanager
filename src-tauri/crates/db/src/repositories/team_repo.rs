@@ -205,8 +205,44 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
         .into_iter()
         .filter_map(|(k, v)| serde_json::from_value::<PlayerRole>(v).ok().map(|r| (k, r)))
         .collect(),
-        tactics_phase: serde_json::from_str::<TacticsPhaseSettings>(&tactics_phase_json)
-            .unwrap_or_default(),
+        tactics_phase: {
+            let raw: serde_json::Value =
+                serde_json::from_str(&tactics_phase_json).unwrap_or_default();
+            TacticsPhaseSettings {
+                build_up_style: serde_json::from_value(
+                    raw.get("build_up_style").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                width: serde_json::from_value(raw.get("width").cloned().unwrap_or_default())
+                    .unwrap_or_default(),
+                tempo: serde_json::from_value(raw.get("tempo").cloned().unwrap_or_default())
+                    .unwrap_or_default(),
+                defensive_line: serde_json::from_value(
+                    raw.get("defensive_line").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                pressing_intensity: serde_json::from_value(
+                    raw.get("pressing_intensity").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                defensive_shape: serde_json::from_value(
+                    raw.get("defensive_shape").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                marking_style: serde_json::from_value(
+                    raw.get("marking_style").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                counter_press_duration: serde_json::from_value(
+                    raw.get("counter_press_duration").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                break_speed: serde_json::from_value(
+                    raw.get("break_speed").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+            }
+        },
         form: serde_json::from_str(&form_json).unwrap_or_default(),
         history: serde_json::from_str(&history_json).unwrap_or_default(),
     })
