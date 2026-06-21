@@ -393,7 +393,10 @@ describe("ScheduleTab", () => {
     });
 
     await act(async () => {
-      fireEvent.change(screen.getByRole("combobox"), { target: { value: "bra-1" } });
+      fireEvent.click(screen.getByRole("combobox"));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: "Brazil First Division" }));
     });
 
     await waitFor(() => {

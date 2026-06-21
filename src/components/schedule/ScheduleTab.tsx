@@ -25,7 +25,7 @@ import {
 } from "../../services/scheduleService";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
-import { Badge, Card, CardBody } from "../ui";
+import { Badge, Card, CardBody, Select } from "../ui";
 import ScheduleCalendarGrid from "./ScheduleCalendarGrid";
 
 interface ScheduleTabProps {
@@ -140,17 +140,18 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
   }
 
   const competitionSwitcher = activeCompetitions.length > 1 && (
-    <select
+    <Select
       value={selectedCompetition?.id ?? ""}
       onChange={(e) => setSelectedCompetitionId(e.target.value)}
-      className="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
+      wrapperClassName="ml-auto"
+      aria-label={t("common.competition")}
     >
       {activeCompetitions.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}
         </option>
       ))}
-    </select>
+    </Select>
   );
 
   return (

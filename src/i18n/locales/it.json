@@ -603,7 +603,8 @@
     "teamLogoAlt": "Logo di {{team}}",
     "left": "Sinistra",
     "center": "Centro",
-    "right": "Destra"
+    "right": "Destra",
+    "competition": "Competizione"
   },
   "teamSelection": {
     "title": "Scegli il tuo club",

@@ -584,7 +584,8 @@
     "teamLogoAlt": "Логотип {{team}}",
     "left": "Левый",
     "center": "Центр",
-    "right": "Правый"
+    "right": "Правый",
+    "competition": "Соревнование"
   },
   "teamSelection": {
     "title": "Выберите клуб",

@@ -584,7 +584,8 @@
     "teamLogoAlt": "Emblema do {{team}}",
     "left": "Esquerda",
     "center": "Centro",
-    "right": "Direita"
+    "right": "Direita",
+    "competition": "Competição"
   },
   "teamSelection": {
     "title": "Escolhe o Teu Clube",

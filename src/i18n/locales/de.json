@@ -584,7 +584,8 @@
     "teamLogoAlt": "{{team}}-Logo",
     "left": "Links",
     "center": "Zentrum",
-    "right": "Rechts"
+    "right": "Rechts",
+    "competition": "Wettbewerb"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",

@@ -19,7 +19,7 @@ import {
 import { countryName } from "../lib/countries";
 import { formatVal, getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
-import { Badge, Card, CardBody, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
+import { Badge, Card, CardBody, Checkbox, Select, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
 import {
   ArrowLeft,
   ChevronRight,
@@ -650,12 +650,13 @@ export default function TeamSelection() {
               <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
                 {t("teamSelect.homeCountry")}
               </p>
-              <select
+              <Select
                 value={selectedCountryCode ?? ""}
                 onChange={(event) =>
                   setSelectedCountryCode(event.target.value || null)
                 }
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
+                fullWidth
+                aria-label={t("teamSelect.homeCountry")}
               >
                 <option value="">{t("teamSelect.allCountries")}</option>
                 {regionCountries.map((countryCode) => (
@@ -663,7 +664,7 @@ export default function TeamSelection() {
                     {countryName(countryCode, i18n.language)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div>
@@ -676,9 +677,20 @@ export default function TeamSelection() {
                     region.id === selectedHomeRegionId || Boolean(regionSelection[region.id]);
                   const isLocked = region.id === selectedHomeRegionId;
                   return (
-                    <label
+                    <div
                       key={region.id}
-                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800"
+                      role="button"
+                      aria-pressed={enabled}
+                      aria-disabled={isLocked}
+                      tabIndex={isLocked ? -1 : 0}
+                      onClick={() => !isLocked && handleRegionToggle(region.id)}
+                      onKeyDown={(e) => {
+                        if (!isLocked && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          handleRegionToggle(region.id);
+                        }
+                      }}
+                      className={`flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800 ${!isLocked ? "cursor-pointer" : ""}`}
                     >
                       <span className="flex items-center gap-2">
                         <Globe className="h-4 w-4 text-primary-500" />
@@ -689,13 +701,18 @@ export default function TeamSelection() {
                           </Badge>
                         )}
                       </span>
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        disabled={isLocked}
-                        onChange={() => handleRegionToggle(region.id)}
-                      />
-                    </label>
+                      <span
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={enabled}
+                          disabled={isLocked}
+                          onChange={() => handleRegionToggle(region.id)}
+                          aria-label={buildRegionLabel(t, region.id, region.name)}
+                        />
+                      </span>
+                    </div>
                   );
                 })}
               </div>
@@ -717,21 +734,37 @@ export default function TeamSelection() {
                   );
 
                   return (
-                    <label
+                    <div
                       key={competition.id}
-                      className="block rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800"
+                      role="button"
+                      aria-pressed={enabled}
+                      aria-disabled={isLocked}
+                      tabIndex={isLocked ? -1 : 0}
+                      onClick={() => !isLocked && handleCompetitionToggle(competition)}
+                      onKeyDown={(e) => {
+                        if (!isLocked && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          handleCompetitionToggle(competition);
+                        }
+                      }}
+                      className={`block rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-navy-600 dark:bg-navy-800 ${!isLocked ? "cursor-pointer" : ""}`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="flex min-w-0 items-center gap-2">
                           <Trophy className="h-4 w-4 shrink-0 text-accent-500" />
                           <span className="truncate">{competition.name}</span>
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          disabled={isLocked}
-                          onChange={() => handleCompetitionToggle(competition)}
-                        />
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={enabled}
+                            disabled={isLocked}
+                            onChange={() => handleCompetitionToggle(competition)}
+                            aria-label={competition.name}
+                          />
+                        </span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {competitionScopeLabel(t, competition.scope) && (
@@ -761,7 +794,7 @@ export default function TeamSelection() {
                           })}
                         </p>
                       )}
-                    </label>
+                    </div>
                   );
                 })}
               </div>
