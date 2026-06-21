@@ -133,6 +133,11 @@ impl StyleArg {
 fn main() {
     let cli = Cli::parse();
 
+    if cli.games == 0 {
+        eprintln!("error: --games must be at least 1");
+        std::process::exit(1);
+    }
+
     let mut config = MatchConfig::default();
     if let Some(v) = cli.home_advantage {
         config.home_advantage = v;

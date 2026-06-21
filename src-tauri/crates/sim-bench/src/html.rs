@@ -709,10 +709,8 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
         ("Clean sheet %", stats.clean_sheet_home_pct(), 22.0, 35.0, "pct"),
         ("Penalties/game", stats.penalties_pg(), 0.20, 0.50, "f64"),
         ("Pen. conversion %", stats.penalty_conversion_pct(), 65.0, 85.0, "pct"),
-        ("Pass accuracy %", stats.pass_accuracy_pct(), 75.0, 85.0, "pct"),
         ("BTTS %", stats.btts_pct(), 50.0, 55.0, "pct"),
         ("xG/game (proxy)", xg, 0.0, 9999.0, "f64"),
-        // Note: pass accuracy omitted — engine only tracks buildup-phase interceptions
     ];
 
     let mut body = String::new();
@@ -724,6 +722,8 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
         };
         let target_str = if *hi >= 9000.0 {
             "—".to_string()
+        } else if *fmt == "pct" {
+            format!("{lo}–{hi}%")
         } else {
             format!("{lo}–{hi}")
         };

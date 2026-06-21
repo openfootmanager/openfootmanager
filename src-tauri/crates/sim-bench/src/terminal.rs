@@ -64,19 +64,19 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
         Cell::new(format!("Home Win  ({})", cfg.home_name)),
         Cell::new(stats.home_wins.to_string()),
         Cell::new(format!("{:.1}%", hw)),
-        Cell::new(ascii_bar(hw, 50.0, 20)),
+        Cell::new(ascii_bar(hw, 100.0, 20)),
     ]);
     table.add_row(vec![
         Cell::new("Draw"),
         Cell::new(stats.draws.to_string()),
         Cell::new(format!("{:.1}%", dp)),
-        Cell::new(ascii_bar(dp, 50.0, 20)),
+        Cell::new(ascii_bar(dp, 100.0, 20)),
     ]);
     table.add_row(vec![
         Cell::new(format!("Away Win  ({})", cfg.away_name)),
         Cell::new(stats.away_wins.to_string()),
         Cell::new(format!("{:.1}%", aw)),
-        Cell::new(ascii_bar(aw, 50.0, 20)),
+        Cell::new(ascii_bar(aw, 100.0, 20)),
     ]);
     println!("{table}\n");
 
@@ -114,7 +114,9 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     for ((hg, ag), count) in &scorelines {
         let pct = *count as f64 / stats.games as f64 * 100.0;
         let bar = ascii_bar(*count as f64, max_sl as f64, 18);
-        println!("  {hg}-{ag}  {bar}  {:>5.1}%", pct);
+        let hg_label = if *hg >= 6 { "6+".to_string() } else { hg.to_string() };
+        let ag_label = if *ag >= 6 { "6+".to_string() } else { ag.to_string() };
+        println!("  {hg_label}-{ag_label}  {bar}  {:>5.1}%", pct);
     }
     println!();
 
