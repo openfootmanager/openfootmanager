@@ -271,6 +271,7 @@ export default function PostMatchScreen({
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-center gap-3">
           {isSpectator ? (
             <button
+              type="button"
               onClick={onFinish}
               className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
             >
@@ -280,12 +281,14 @@ export default function PostMatchScreen({
           ) : (
             <>
               <button
+                type="button"
                 onClick={onFinish}
                 className="flex items-center gap-2 px-5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
               >
                 {t("match.skip")}
               </button>
               <button
+                type="button"
                 onClick={onContinue}
                 className="flex items-center gap-2 px-6 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
               >
@@ -304,6 +307,7 @@ export default function PostMatchScreen({
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-heading font-bold uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === tab.id
@@ -342,6 +346,7 @@ export default function PostMatchScreen({
                       return (
                         <button
                           key={opt.id}
+                          type="button"
                           onClick={() => setSelectedTalk(opt.id)}
                           className={`flex items-center gap-3 p-4 rounded-xl text-left transition-all ${
                             selectedTalk === opt.id
@@ -377,6 +382,7 @@ export default function PostMatchScreen({
                   </div>
                   {selectedTalk && (
                     <button
+                      type="button"
                       onClick={handleDeliverTalk}
                       className="w-full py-3 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-xl font-heading font-bold text-sm uppercase tracking-wider transition-colors"
                     >

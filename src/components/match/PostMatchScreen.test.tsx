@@ -465,4 +465,70 @@ describe("PostMatchScreen", function (): void {
 
     expect(screen.getByText("match.scorers")).toBeInTheDocument();
   });
+
+  it("calls onContinue when manager clicks Continue", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.continue"));
+    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("calls onFinish when spectator clicks Continue to Dashboard", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide={null}
+          isSpectator={true}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.continueDashboard"));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it("calls onFinish when manager clicks Skip", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.skip"));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onContinue).not.toHaveBeenCalled();
+  });
 });

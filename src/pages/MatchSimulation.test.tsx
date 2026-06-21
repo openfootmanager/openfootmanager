@@ -457,7 +457,7 @@ describe("MatchSimulation", function (): void {
 
   it("finalizes the match on full time and passes the round summary into the digest screen", async function (): Promise<void> {
     locationState = {
-      mode: "spectator",
+      mode: "live",
       snapshot: makeSnapshot(),
     };
 
@@ -478,6 +478,13 @@ describe("MatchSimulation", function (): void {
 
     render(<MatchSimulation />);
 
+    // Manager sees prematch; advance to live match
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
     await waitFor(function (): void {
       expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
     });
@@ -491,7 +498,7 @@ describe("MatchSimulation", function (): void {
 
     expect(setGameStateMock).toHaveBeenCalledWith(finishedGame);
 
-    // Continue from PostMatch → goes to digest (fixture is null → treated as league)
+    // Manager clicks Continue → goes to digest
     fireEvent.click(screen.getByTestId("postmatch-continue"));
 
     await waitFor(function (): void {

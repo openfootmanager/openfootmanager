@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixtureData, GameStateData } from "../../store/gameStore";
 import type { CompactMatchEventData } from "../../store/types";
@@ -41,6 +41,17 @@ export default function RoundDigestScreen({
   const [selectedOtherFixtureId, setSelectedOtherFixtureId] = useState<
     string | null
   >(null);
+  const modalCloseRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedOtherFixtureId) return;
+    modalCloseRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedOtherFixtureId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedOtherFixtureId]);
 
   const userTeamId = gameState.manager.team_id;
 
@@ -198,12 +209,14 @@ export default function RoundDigestScreen({
           </div>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={onFinish}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-gray-700 dark:text-gray-300 transition-colors"
             >
               {t("match.skip")}
             </button>
             <button
+              type="button"
               onClick={onPressConference}
               className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-lg font-heading font-bold uppercase tracking-wider text-sm text-white shadow-md shadow-primary-500/20 transition-all"
             >
@@ -353,6 +366,7 @@ export default function RoundDigestScreen({
                           </span>
                           {entry.fixture.result?.report && (
                             <button
+                              type="button"
                               onClick={() =>
                                 setSelectedOtherFixtureId(entry.fixture.id)
                               }
@@ -495,8 +509,12 @@ export default function RoundDigestScreen({
           aria-modal="true"
           aria-label={t("match.matchDetails")}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setSelectedOtherFixtureId(null)}
         >
-          <div className="w-full max-w-3xl rounded-2xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 shadow-2xl transition-colors duration-300">
+          <div
+            className="w-full max-w-3xl rounded-2xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 shadow-2xl transition-colors duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-navy-700 px-5 py-4">
               <div>
                 <p className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
@@ -510,6 +528,8 @@ export default function RoundDigestScreen({
                 </p>
               </div>
               <button
+                ref={modalCloseRef}
+                type="button"
                 onClick={() => setSelectedOtherFixtureId(null)}
                 className="rounded-lg px-3 py-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-800 dark:hover:text-white transition-colors"
               >

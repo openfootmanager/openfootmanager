@@ -223,16 +223,6 @@ export default function MatchSimulation() {
     })();
   }, [finalizeMatch]);
 
-  const handlePostMatchContinue = useCallback(() => {
-    console.info("[MatchSimulation] handlePostMatchContinue");
-    setStage("digest");
-  }, []);
-
-  const handlePressConference = useCallback(() => {
-    console.info("[MatchSimulation] handlePressConference");
-    setStage("press");
-  }, []);
-
   const handleFinishMatch = useCallback(async () => {
     console.info("[MatchSimulation] handleFinishMatch:start");
     const finalized = await finalizeMatch();
@@ -240,6 +230,20 @@ export default function MatchSimulation() {
       navigate("/dashboard");
     }
   }, [finalizeMatch, navigate]);
+
+  const handlePostMatchContinue = useCallback(() => {
+    if (isSpectator) {
+      void handleFinishMatch();
+      return;
+    }
+    console.info("[MatchSimulation] handlePostMatchContinue");
+    setStage("digest");
+  }, [isSpectator, handleFinishMatch]);
+
+  const handlePressConference = useCallback(() => {
+    console.info("[MatchSimulation] handlePressConference");
+    setStage("press");
+  }, []);
 
   const handleSnapshotUpdate = useCallback((snap: MatchSnapshot) => {
     console.info("[MatchSimulation] handleSnapshotUpdate", {
