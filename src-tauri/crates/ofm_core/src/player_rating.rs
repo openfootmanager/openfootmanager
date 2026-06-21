@@ -589,8 +589,16 @@ mod tests {
         );
         // 1 deep midfielder
         assert_eq!(slots[5], Position::DefensiveMidfielder);
-        // 4 attacking midfielders
-        assert_eq!(slots[6..10].len(), 4);
+        // 4 attacking midfielders (attacking_midfield_line wildcard arm: all AM)
+        assert_eq!(
+            &slots[6..10],
+            &[
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+            ]
+        );
         // 1 forward
         assert_eq!(slots[10], Position::Striker);
     }

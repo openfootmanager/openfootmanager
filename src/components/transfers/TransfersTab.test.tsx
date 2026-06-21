@@ -766,9 +766,8 @@ describe("TransfersTab", function (): void {
     );
     expect(hasWeeklySuffix).toBe(false);
 
-    const hasAnnualBudget = Array.from(wkElements).some(
-      (el) => el.children.length === 0 && el.textContent?.includes("/yr"),
-    );
-    expect(hasAnnualBudget).toBe(true);
+    const wageBudgetLabel = screen.getByText("finances.wageBudget");
+    const wageBudgetCard = wageBudgetLabel.closest("div");
+    expect(wageBudgetCard?.textContent).toContain("/yr");
   });
 });

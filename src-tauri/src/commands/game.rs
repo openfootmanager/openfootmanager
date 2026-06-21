@@ -3410,12 +3410,13 @@ competitions:
         }));
     }
 
-    /// Regression test for issue #225: select_team must upgrade generic bucket positions
-    /// (Defender/Midfielder/Forward) to granular positions (LeftBack/CentralMidfielder/etc.)
-    /// immediately, so the frontend sees the same positions on first load that it would
-    /// see after a save/reload cycle (where load_game applies the same upgrade).
+    /// Regression test for issue #225: verifies that bootstrap_team_selection followed by
+    /// upgrade_game_player_identities converts generic bucket positions
+    /// (Defender/Midfielder/Forward) to granular positions (LeftBack/CentralMidfielder/etc.).
+    /// select_team calls both in sequence; it cannot be called directly here because it
+    /// requires Tauri App state, so this test exercises the same in-memory operations.
     #[test]
-    fn select_team_upgrades_generic_positions_to_granular() {
+    fn bootstrap_and_upgrade_sets_granular_positions() {
         let startup_options = StartupOptions {
             start_year: 2032,
             start_phase: StartPhase::SeasonStart,
