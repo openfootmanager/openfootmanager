@@ -766,8 +766,7 @@ describe("TransfersTab", function (): void {
     );
     expect(hasWeeklySuffix).toBe(false);
 
-    const wageBudgetLabel = screen.getByText("finances.wageBudget");
-    const wageBudgetCard = wageBudgetLabel.closest("div");
-    expect(wageBudgetCard?.textContent).toContain("/yr");
+    const wageBudgetCard = screen.getByTestId("wage-budget-card");
+    expect(wageBudgetCard.textContent).toContain("/yr");
   });
 });

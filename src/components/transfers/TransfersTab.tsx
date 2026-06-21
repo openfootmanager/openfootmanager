@@ -377,7 +377,7 @@ export default function TransfersTab({
                   {formatVal(myTeam.transfer_budget)}
                 </p>
               </div>
-              <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
+              <div data-testid="wage-budget-card" className="bg-white/5 rounded-xl px-4 py-2 text-center">
                 <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">
                   {t("finances.wageBudget")}
                 </p>
