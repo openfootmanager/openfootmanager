@@ -171,8 +171,9 @@ fn auto_select_starting_xi<'a>(
     starting_xi
 }
 
-fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePlayerRole {
+pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePlayerRole {
     match role {
+        domain::team::PlayerRole::Standard => EnginePlayerRole::Standard,
         domain::team::PlayerRole::BallPlayingKeeper => EnginePlayerRole::BallPlayingKeeper,
         domain::team::PlayerRole::SweeperKeeper => EnginePlayerRole::SweeperKeeper,
         domain::team::PlayerRole::Stopper => EnginePlayerRole::Stopper,
@@ -199,7 +200,6 @@ fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePlayerRole {
         domain::team::PlayerRole::False9 => EnginePlayerRole::False9,
         domain::team::PlayerRole::PressingForward => EnginePlayerRole::PressingForward,
         domain::team::PlayerRole::CompleteForward => EnginePlayerRole::CompleteForward,
-        _ => EnginePlayerRole::Standard,
     }
 }
 

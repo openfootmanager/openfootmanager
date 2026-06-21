@@ -126,36 +126,39 @@ pub enum PlayerRole {
     CompleteForward,
 }
 
-impl PlayerRole {
-    pub fn from_str(s: &str) -> Self {
+impl std::str::FromStr for PlayerRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "BallPlayingKeeper" => Self::BallPlayingKeeper,
-            "SweeperKeeper" => Self::SweeperKeeper,
-            "Stopper" => Self::Stopper,
-            "CoverCB" => Self::CoverCB,
-            "BallPlayingCB" => Self::BallPlayingCB,
-            "AttackingFB" => Self::AttackingFB,
-            "DefensiveFB" => Self::DefensiveFB,
-            "InvertedFB" => Self::InvertedFB,
-            "WingBack" => Self::WingBack,
-            "AnchorMan" => Self::AnchorMan,
-            "BallWinner" => Self::BallWinner,
-            "DeepLyingPlaymaker" => Self::DeepLyingPlaymaker,
-            "BoxToBox" => Self::BoxToBox,
-            "Carrilero" => Self::Carrilero,
-            "Mezzala" => Self::Mezzala,
-            "AdvancedPlaymaker" => Self::AdvancedPlaymaker,
-            "ShadowStriker" => Self::ShadowStriker,
-            "WideForward" => Self::WideForward,
-            "InsideForward" => Self::InsideForward,
-            "InvertedWinger" => Self::InvertedWinger,
-            "Poacher" => Self::Poacher,
-            "TargetMan" => Self::TargetMan,
-            "DeepLyingForward" => Self::DeepLyingForward,
-            "False9" => Self::False9,
-            "PressingForward" => Self::PressingForward,
-            "CompleteForward" => Self::CompleteForward,
-            _ => Self::Standard,
+            "Standard" => Ok(Self::Standard),
+            "BallPlayingKeeper" => Ok(Self::BallPlayingKeeper),
+            "SweeperKeeper" => Ok(Self::SweeperKeeper),
+            "Stopper" => Ok(Self::Stopper),
+            "CoverCB" => Ok(Self::CoverCB),
+            "BallPlayingCB" => Ok(Self::BallPlayingCB),
+            "AttackingFB" => Ok(Self::AttackingFB),
+            "DefensiveFB" => Ok(Self::DefensiveFB),
+            "InvertedFB" => Ok(Self::InvertedFB),
+            "WingBack" => Ok(Self::WingBack),
+            "AnchorMan" => Ok(Self::AnchorMan),
+            "BallWinner" => Ok(Self::BallWinner),
+            "DeepLyingPlaymaker" => Ok(Self::DeepLyingPlaymaker),
+            "BoxToBox" => Ok(Self::BoxToBox),
+            "Carrilero" => Ok(Self::Carrilero),
+            "Mezzala" => Ok(Self::Mezzala),
+            "AdvancedPlaymaker" => Ok(Self::AdvancedPlaymaker),
+            "ShadowStriker" => Ok(Self::ShadowStriker),
+            "WideForward" => Ok(Self::WideForward),
+            "InsideForward" => Ok(Self::InsideForward),
+            "InvertedWinger" => Ok(Self::InvertedWinger),
+            "Poacher" => Ok(Self::Poacher),
+            "TargetMan" => Ok(Self::TargetMan),
+            "DeepLyingForward" => Ok(Self::DeepLyingForward),
+            "False9" => Ok(Self::False9),
+            "PressingForward" => Ok(Self::PressingForward),
+            "CompleteForward" => Ok(Self::CompleteForward),
+            _ => Err(format!("unknown PlayerRole: {}", s)),
         }
     }
 }

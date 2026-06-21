@@ -336,8 +336,10 @@ fn consider_tactic_change<R: Rng>(
         .iter()
         .filter(|z| defensive_zones_for_side.contains(z))
         .count();
-    // 6+ of the last 10 minutes under defensive pressure → consider going defensive
+    // 6+ of the last 10 minutes under defensive pressure → consider going defensive.
+    // Guard: only when not already losing (a losing team should be attacking, not absorbing).
     if pressure_ticks >= 6
+        && goal_diff >= 0
         && team.play_style != PlayStyle::Defensive
         && rng.random_range(0.0..1.0f64) < base_chance * 2.5
     {

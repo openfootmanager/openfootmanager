@@ -540,8 +540,10 @@ pub fn set_player_role(
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             match role {
                 Some(r) => {
-                    team.player_roles
-                        .insert(player_id.clone(), domain::team::PlayerRole::from_str(&r));
+                    let role_enum = r
+                        .parse::<domain::team::PlayerRole>()
+                        .map_err(|e| e)?;
+                    team.player_roles.insert(player_id.clone(), role_enum);
                 }
                 None => {
                     team.player_roles.remove(&player_id);

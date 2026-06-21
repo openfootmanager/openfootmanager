@@ -376,6 +376,8 @@ export default function TacticsCommandBar({
               <div className="rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
                 <button
                   type="button"
+                  aria-expanded={isPhaseOpen}
+                  aria-controls="phase-blueprint-panel"
                   className="flex w-full items-center justify-between text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400"
                   onClick={() => setIsPhaseOpen((prev) => !prev)}
                 >
@@ -384,7 +386,7 @@ export default function TacticsCommandBar({
                 </button>
 
                 {isPhaseOpen ? (
-                  <div className="mt-3 space-y-4">
+                  <div id="phase-blueprint-panel" className="mt-3 space-y-4">
                     <div>
                       <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
                         {t("tactics.phaseLabels.withBall")}
