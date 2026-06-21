@@ -320,7 +320,38 @@ pub(super) fn generate_random_player_from_def(
     player.potential = generate_potential(temp_ovr, player_age);
     refresh_player_derived(&mut player, current_year);
 
+    player.jersey_number = jersey_number_for_slot(index);
+
     player
+}
+
+fn jersey_number_for_slot(index: usize) -> Option<u8> {
+    let n: u8 = match index {
+        0 => 1,
+        1 => 13,
+        2 => 2,
+        3 => 5,
+        4 => 6,
+        5 => 3,
+        6 => 4,
+        7 => 12,
+        8 => 22,
+        9 => 8,
+        10 => 7,
+        11 => 10,
+        12 => 14,
+        13 => 11,
+        14 => 16,
+        15 => 23,
+        16 => 9,
+        17 => 17,
+        18 => 18,
+        19 => 19,
+        20 => 20,
+        21 => 24,
+        _ => return None,
+    };
+    Some(n)
 }
 
 pub(super) fn generate_random_staff_from_def(

@@ -12,7 +12,8 @@ import type {
 } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
-import { Badge, Card, CountryFlag, PlayerAvatar } from "../ui";
+import { Badge, Card, CountryFlag, JerseyIcon, PlayerAvatar } from "../ui";
+import type { TeamData } from "../../store/types";
 
 type TranslateFn = (
     key: string,
@@ -35,6 +36,7 @@ interface PlayerProfileHeroCardProps {
     scoutError: string | null;
     onScout: () => void;
     onSelectTeam?: (id: string) => void;
+    team?: TeamData;
     t: TranslateFn;
 }
 
@@ -54,6 +56,7 @@ export default function PlayerProfileHeroCard({
     scoutError,
     onScout,
     onSelectTeam,
+    team,
     t,
 }: PlayerProfileHeroCardProps) {
     const teamContextItems = player.team_id && onSelectTeam
@@ -74,6 +77,16 @@ export default function PlayerProfileHeroCard({
                             }`}
                         fallback={<span>{ovr}</span>}
                     />
+                    {player.jersey_number != null && team != null && (
+                        <JerseyIcon
+                            primaryColor={team.colors.primary}
+                            secondaryColor={team.colors.secondary}
+                            pattern={team.kit_pattern ?? "Solid"}
+                            number={player.jersey_number}
+                            size="lg"
+                            className="flex-shrink-0 self-center"
+                        />
+                    )}
                     <div className="flex-1">
                         <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide">
                             {player.full_name}

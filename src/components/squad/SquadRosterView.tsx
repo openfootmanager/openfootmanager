@@ -35,7 +35,10 @@ import {
   clearContractExitIntent,
   setContractExitIntent,
 } from "../../services/contractService";
-import { setPlayerSquadRole } from "../../services/squadService";
+import { assignJerseyNumber, setPlayerSquadRole } from "../../services/squadService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
+import JerseyNumberInput from "./JerseyNumberInput";
+import KitEditorCard from "./KitEditorCard";
 import {
   toggleLoanList,
   toggleTransferList,
@@ -113,6 +116,7 @@ export default function SquadRosterView({
   const [contractActionError, setContractActionError] = useState<string | null>(
     null,
   );
+  const [jerseyError, setJerseyError] = useState<string | null>(null);
 
   const posOrder: Record<string, number> = {
     Goalkeeper: 1,
@@ -438,6 +442,12 @@ export default function SquadRosterView({
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-4">
+      <KitEditorCard
+        primaryColor={team.colors.primary}
+        secondaryColor={team.colors.secondary}
+        currentPattern={team.kit_pattern ?? "Solid"}
+        onMutationComplete={onMutationComplete}
+      />
       <Card>
         <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
           <div>
@@ -611,6 +621,9 @@ export default function SquadRosterView({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
+                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  {t("squad.jerseyNumber")}
+                </th>
                 <SortHeader col="pos" label={t("squad.pos")} />
                 <SortHeader col="name" label={t("common.name")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -773,6 +786,26 @@ export default function SquadRosterView({
                       onClick={() => onSelectPlayer(player.id)}
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors group cursor-pointer"
                     >
+                      <td
+                        className="py-2.5 px-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <JerseyNumberInput
+                          value={player.jersey_number ?? null}
+                          primaryColor={team.colors.primary}
+                          secondaryColor={team.colors.secondary}
+                          pattern={team.kit_pattern ?? "Solid"}
+                          onCommit={async (num) => {
+                            setJerseyError(null);
+                            try {
+                              const updated = await assignJerseyNumber(player.id, num);
+                              onMutationComplete?.(updated);
+                            } catch (err) {
+                              setJerseyError(resolveTranslatedErrorMessage(err, t));
+                            }
+                          }}
+                        />
+                      </td>
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5">
                           <Badge
@@ -935,6 +968,11 @@ export default function SquadRosterView({
       {contractActionError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {contractActionError}
+        </div>
+      ) : null}
+      {jerseyError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          {jerseyError}
         </div>
       ) : null}
     </div>

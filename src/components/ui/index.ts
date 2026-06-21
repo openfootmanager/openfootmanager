@@ -11,3 +11,4 @@ export { Checkbox } from "./Checkbox";
 export { PlayerAvatar } from "./PlayerAvatar";
 export { TeamLogo } from "./TeamLogo";
 export { InjuryBadge } from "./InjuryBadge";
+export { default as JerseyIcon } from "./JerseyIcon";

@@ -3,6 +3,8 @@ export interface TeamColors {
   secondary: string;
 }
 
+export type KitPattern = "Solid" | "Stripes" | "Hoops" | "HalfAndHalf" | "Diagonal";
+
 export interface FacilitiesData {
   training: number;
   medical: number;
@@ -77,6 +79,7 @@ export interface TeamData {
   training_schedule: string;
   founded_year: number;
   colors: TeamColors;
+  kit_pattern?: KitPattern;
   media?: TeamMediaData;
   facilities?: FacilitiesData;
   sponsorship?: SponsorshipData | null;
@@ -197,6 +200,8 @@ export interface PlayerData {
   ovr?: number;
   /** Player's potential ceiling (1–99). Set at generation; higher than ovr for young players. */
   potential?: number;
+  /** Jersey/squad number (1–99). Null if unassigned. */
+  jersey_number?: number | null;
 }
 
 export interface TransferOfferData {

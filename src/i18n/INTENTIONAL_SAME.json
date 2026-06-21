@@ -5,6 +5,7 @@
     "app.version",
     "date.day",
     "match.pen",
+    "squad.jerseyNumber",
     "common.posAbbr.Goalkeeper",
     "common.posAbbr.Defender",
     "common.posAbbr.DefensiveMidfielder",
@@ -70,7 +71,8 @@
     "match.eventTypes.Foul",
     "match.commentary.Foul.headline",
     "be.sender.scout",
-    "traits.Dribbler.label"
+    "traits.Dribbler.label",
+    "squad.kitPatterns.Diagonal"
   ],
   "fr": [
     "squad.planStatus",
@@ -145,7 +147,8 @@
     "match.press.result.responses.win.humble.tone",
     "news.nArticles",
     "training.groups.groupFocus",
-    "playerProfile.renewalTension"
+    "playerProfile.renewalTension",
+    "squad.kitPatterns.Diagonal"
   ],
   "it": [
     "manager.club",
@@ -205,7 +208,8 @@
     "settings.uiScaleOptions.normal",
     "match.normal",
     "match.phases.Finished",
-    "sacked.teamLabel"
+    "sacked.teamLabel",
+    "squad.kitPatterns.Diagonal"
   ],
   "pt-BR": [
     "dashboard.recapTransferLine",
@@ -229,7 +233,8 @@
     "settings.uiScaleOptions.normal",
     "match.normal",
     "match.phases.Finished",
-    "match.commentary.Goal.hattrick.headline"
+    "match.commentary.Goal.hattrick.headline",
+    "squad.kitPatterns.Diagonal"
   ],
   "pt": [
     "dashboard.recapTransferLine",
@@ -251,7 +256,8 @@
     "settings.uiScaleOptions.normal",
     "match.normal",
     "match.phases.Finished",
-    "match.commentary.Goal.hattrick.headline"
+    "match.commentary.Goal.hattrick.headline",
+    "squad.kitPatterns.Diagonal"
   ],
   "ru": [
     "dashboard.recapTransferLine"
