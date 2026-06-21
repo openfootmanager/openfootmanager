@@ -2,11 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
-  PlayerData,
   ScoutingAssignment,
-  StaffData,
-  TeamData,
 } from "../../store/gameStore";
+import { createPlayer, createStaff, createTeam } from "../../test-utils/factories";
 import ScoutingAssignmentsList from "./ScoutingAssignmentsList";
 
 vi.mock("react-i18next", () => ({
@@ -35,117 +33,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "GB",
-    city: "London",
-    stadium_name: "Alpha Ground",
-    stadium_capacity: 30000,
-    finance: 500000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 50000,
-    transfer_budget: 250000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "General",
-    training_intensity: "Balanced",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: { primary: "#000000", secondary: "#ffffff" },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
-
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
-  return {
-    id: "player-1",
-    match_name: "J. Smith",
-    full_name: "John Smith",
-    date_of_birth: "2000-01-01",
-    nationality: "GB",
-    position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 20,
-      reflexes: 20,
-      aerial: 60,
-    },
-    condition: 80,
-    morale: 75,
-    injury: null,
-    team_id: "team-2",
-    retired: false,
-    contract_end: "2027-06-30",
-    wage: 12000,
-    market_value: 350000,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [],
-    traits: [],
-    ...overrides,
-  };
-}
-
-function createScout(overrides: Partial<StaffData> = {}): StaffData {
-  return {
-    id: "staff-1",
-    first_name: "Sam",
-    last_name: "Scout",
-    date_of_birth: "1985-01-01",
-    nationality: "GB",
-    role: "Scout",
-    attributes: {
-      coaching: 20,
-      judging_ability: 65,
-      judging_potential: 70,
-      physiotherapy: 10,
-    },
-    team_id: "team-1",
-    specialization: null,
-    wage: 1000,
-    contract_end: "2027-06-30",
-    ...overrides,
-  };
-}
-
 function createAssignment(
   overrides: Partial<ScoutingAssignment> = {},
 ): ScoutingAssignment {
@@ -165,8 +52,8 @@ describe("ScoutingAssignmentsList", () => {
     render(
       <ScoutingAssignmentsList
         assignments={[createAssignment()]}
-        scouts={[createScout()]}
-        players={[createPlayer()]}
+        scouts={[createStaff()]}
+        players={[createPlayer({ team_id: "team-2" })]}
         teams={[
           createTeam(),
           createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
@@ -191,8 +78,8 @@ describe("ScoutingAssignmentsList", () => {
     render(
       <ScoutingAssignmentsList
         assignments={[createAssignment()]}
-        scouts={[createScout()]}
-        players={[createPlayer()]}
+        scouts={[createStaff()]}
+        players={[createPlayer({ team_id: "team-2" })]}
         teams={[
           createTeam(),
           createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),

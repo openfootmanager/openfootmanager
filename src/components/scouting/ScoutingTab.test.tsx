@@ -8,7 +8,7 @@ import type {
   StaffData,
   YouthScoutingAssignment,
 } from "../../store/gameStore";
-import { createStaff, createTeam } from "../../test-utils/factories";
+import { createPlayer, createStaff, createTeam } from "../../test-utils/factories";
 import ScoutingTab from "./ScoutingTab";
 
 const invokeMock = vi.fn();
@@ -108,65 +108,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
-  return {
-    id: "player-1",
-    match_name: "J. Smith",
-    full_name: "John Smith",
-    date_of_birth: "2000-01-01",
-    nationality: "GB",
-    position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 20,
-      reflexes: 20,
-      aerial: 60,
-    },
-    condition: 80,
-    morale: 75,
-    injury: null,
-    team_id: "team-2",
-    retired: false,
-    contract_end: "2027-06-30",
-    wage: 12000,
-    market_value: 350000,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [],
-    traits: [],
-    ...overrides,
-  };
-}
-
 function createGameState(options?: {
   scouts?: StaffData[];
   assignments?: ScoutingAssignment[];
@@ -202,7 +143,7 @@ function createGameState(options?: {
       createTeam(),
       createTeam({ id: "team-2", name: "Beta FC", short_name: "BET", manager_id: "manager-2" }),
     ],
-    players: options?.players ?? [createPlayer()],
+    players: options?.players ?? [createPlayer({ team_id: "team-2" })],
     staff: options?.scouts ?? [],
     messages: [],
     news: [],
