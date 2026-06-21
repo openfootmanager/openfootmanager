@@ -8,10 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
-import type {
-  CareerStartPhase,
-  CreateManagerFormData,
-} from "../components/menu/CreateManagerForm";
+import type { CreateManagerFormData } from "../components/menu/CreateManagerForm";
 import type {
   CompetitionDefinitionIssue,
   PackageIssue,

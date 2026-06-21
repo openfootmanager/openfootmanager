@@ -186,19 +186,20 @@ describe("isPendingSponsorOffer", () => {
       subject: "Sponsor offer",
       body: "Details",
       sender: "Finance",
+      sender_role: "board",
       date: "2025-07-01",
       read: false,
       category: "Finance",
+      priority: "normal",
       actions: [
         {
           id: "act-1",
           label: "Accept",
           action_type: { ChooseOption: { options: [{ id: "accept", label: "Accept", description: "" }] } },
           resolved: false,
-          label_key: null,
         },
       ],
-      context: { team_id: null, player_id: null },
+      context: { team_id: null, player_id: null, fixture_id: null, match_result: null },
       ...overrides,
     };
   }

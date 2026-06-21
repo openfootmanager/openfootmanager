@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
   MAX_GENERATED_HISTORY_DEPTH_YEARS,
   MANAGER_MINIMUM_AGE,
   historyModeFromMetadata,
