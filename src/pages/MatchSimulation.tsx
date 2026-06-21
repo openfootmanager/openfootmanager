@@ -340,9 +340,10 @@ export default function MatchSimulation() {
       );
 
     case "digest": {
-      const isLeagueFixture =
-        currentFixture?.competition !== "Friendly" &&
-        currentFixture?.competition !== "PreseasonTournament";
+      const isLeagueFixture = currentFixture
+        ? currentFixture.competition !== "Friendly" &&
+          currentFixture.competition !== "PreseasonTournament"
+        : roundSummary !== null;
       return (
         <RoundDigestScreen
           snapshot={snapshot}
