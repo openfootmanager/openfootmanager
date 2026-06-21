@@ -11,6 +11,13 @@ interface CheckboxProps {
   id?: string;
 }
 
+/**
+ * Custom styled checkbox that replaces the native browser element.
+ *
+ * Renders a visually-hidden native input (for keyboard and screen-reader
+ * support) alongside a Tailwind-styled indicator that shows the game's
+ * primary colour when checked. Avoids OS-native appearance on Linux/WebKit.
+ */
 export function Checkbox({
   checked,
   onChange,
