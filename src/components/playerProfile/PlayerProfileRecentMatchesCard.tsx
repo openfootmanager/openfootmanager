@@ -1,6 +1,7 @@
 import { Card, CardBody, CardHeader } from "../ui";
+import { PlayerRatingTrendChart } from "./PlayerRatingTrendChart";
 
-type TranslateFn = (key: string) => string;
+type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
 
 export interface PlayerRecentMatchEntry {
     fixture_id: string;
@@ -20,8 +21,7 @@ export interface PlayerRecentMatchEntry {
 }
 
 function resolveLabel(t: TranslateFn, key: string, fallback: string): string {
-    const translated = t(key);
-    return translated === key ? fallback : translated;
+    return t(key, { defaultValue: fallback });
 }
 
 interface PlayerProfileRecentMatchesCardProps {
@@ -34,6 +34,8 @@ export default function PlayerProfileRecentMatchesCard({
     t,
 }: PlayerProfileRecentMatchesCardProps) {
     const title = resolveLabel(t, "playerProfile.recentMatches", "Recent Matches");
+    const ratingTrendLabel = resolveLabel(t, "playerProfile.ratingTrend", "Rating Trend");
+    const ratingLabel = resolveLabel(t, "playerProfile.recentMatchesRating", "Rating");
 
     if (matches.length === 0) {
         return null;
@@ -43,6 +45,12 @@ export default function PlayerProfileRecentMatchesCard({
         <Card className="lg:col-span-3">
             <CardHeader>{title}</CardHeader>
             <CardBody>
+                <div className="mb-4">
+                    <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-heading mb-2">
+                        {ratingTrendLabel}
+                    </p>
+                    <PlayerRatingTrendChart matches={matches} ratingLabel={ratingLabel} />
+                </div>
                 <div className="space-y-3">
                     {matches.map((match) => (
                         <div

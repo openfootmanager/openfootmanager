@@ -171,7 +171,10 @@
     "digestBlockedDesc": "Es gibt Probleme, die Ihre Aufmerksamkeit erfordern.",
     "digestViewIssues": "Probleme anzeigen",
     "digestFired": "Sie wurden entlassen.",
-    "digestContinueAnyway": "Trotzdem fortfahren"
+    "digestContinueAnyway": "Trotzdem fortfahren",
+    "digestStop": "Simulation stoppen",
+    "digestStopped": "Simulation gestoppt",
+    "digestError": "Simulationsfehler"
   },
   "continueMenu": {
     "goToField": "Aufs Spielfeld",
@@ -581,6 +584,10 @@
     },
     "retry": "Erneut versuchen",
     "score": "Ergebnis",
+    "noChartData": "Noch keine Daten",
+    "statsView": "Stats",
+    "listView": "Liste",
+    "radarView": "Radar",
     "teamLogoAlt": "{{team}}-Logo",
     "left": "Links",
     "center": "Zentrum",
@@ -1538,7 +1545,8 @@
     "renewalProjectionTitle": "Projizierter finanzieller Einfluss",
     "renewalProjectionWageBill": "Wöchentliche Lohnkosten {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Gehaltsbudget-Nutzung {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Kassenreserve {{before}} → {{after}}"
+    "renewalProjectionRunway": "Kassenreserve {{before}} → {{after}}",
+    "ratingTrend": "Bewertungstrend"
   },
   "teamProfile": {
     "clubInfo": "Vereinsinformationen",
@@ -1564,7 +1572,8 @@
     "foulsCommitted": "Begangene Fouls",
     "perMatch": "Pro Spiel",
     "passAccuracy": "Passgenauigkeit",
-    "recentMatches": "Letzte Spiele"
+    "recentMatches": "Letzte Spiele",
+    "teamStyle": "Spielstil"
   },
   "settings": {
     "title": "Einstellungen",

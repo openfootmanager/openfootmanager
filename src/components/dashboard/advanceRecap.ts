@@ -2,6 +2,11 @@ import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
 
+/** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
+export interface RecapMatch extends AdvanceMatchResultData {
+  userResult?: "win" | "draw" | "loss";
+}
+
 /** A completed transfer surfaced in the post-advance recap. */
 export interface RecapTransfer {
   player: string;
@@ -19,12 +24,14 @@ export interface RecapHeadline {
   text: string;
   textKey?: string;
   params?: Record<string, string>;
+  /** Message category (inbox items only) — used to resolve the icon. */
+  category?: string;
 }
 
 export interface AdvanceRecap {
   /** New current date (YYYY-MM-DD) the game advanced to. */
   advancedTo: string;
-  matches: AdvanceMatchResultData[];
+  matches: RecapMatch[];
   transfers: RecapTransfer[];
   news: RecapHeadline[];
   inbox: RecapHeadline[];
@@ -83,6 +90,17 @@ export function buildAdvanceRecap(
     ]),
   );
 
+  const userTeamName = userTeamId ? (teamName.get(userTeamId) ?? null) : null;
+  const recapMatches: RecapMatch[] = matches.map((match) => {
+    if (!match.involves_user || !userTeamName) return match;
+    const isHome = match.home_team === userTeamName;
+    const userGoals = isHome ? match.home_goals : match.away_goals;
+    const oppGoals = isHome ? match.away_goals : match.home_goals;
+    const userResult: RecapMatch["userResult"] =
+      userGoals > oppGoals ? "win" : userGoals < oppGoals ? "loss" : "draw";
+    return { ...match, userResult };
+  });
+
   const userCompetition = getUserCompetition(game);
   const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
     .filter((entry) => entry.date >= sinceDate)
@@ -124,13 +142,14 @@ export function buildAdvanceRecap(
       text: message.subject,
       textKey: message.subject_key,
       params: message.i18n_params,
+      category: message.category,
     }));
 
   const hasEvents =
-    matches.length > 0 ||
+    recapMatches.length > 0 ||
     transfers.length > 0 ||
     news.length > 0 ||
     inbox.length > 0;
 
-  return { advancedTo, matches, transfers, news, inbox, hasEvents };
+  return { advancedTo, matches: recapMatches, transfers, news, inbox, hasEvents };
 }

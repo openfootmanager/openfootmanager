@@ -171,7 +171,10 @@
     "digestBlockedDesc": "Some issues need your attention before advancing.",
     "digestViewIssues": "View Issues",
     "digestFired": "You have been dismissed.",
-    "digestContinueAnyway": "Continue Anyway"
+    "digestContinueAnyway": "Continue Anyway",
+    "digestStop": "Stop Simulation",
+    "digestStopped": "Simulation stopped",
+    "digestError": "Simulation error"
   },
   "continueMenu": {
     "goToField": "Go to the Field",
@@ -585,6 +588,10 @@
     },
     "retry": "Retry",
     "score": "Score",
+    "noChartData": "No data yet",
+    "statsView": "Stats",
+    "listView": "List",
+    "radarView": "Radar",
     "competition": "Competition"
   },
   "teamSelection": {
@@ -1507,6 +1514,7 @@
     "recentMatchesRating": "Rating",
     "vs": "vs",
     "noRecentMatches": "No recent match data",
+    "ratingTrend": "Rating Trend",
     "apps": "Apps",
     "goals": "Goals",
     "assists": "Assists",
@@ -1564,7 +1572,8 @@
     "foulsCommitted": "Fouls Committed",
     "perMatch": "Per Match",
     "passAccuracy": "Pass Accuracy",
-    "recentMatches": "Recent Matches"
+    "recentMatches": "Recent Matches",
+    "teamStyle": "Team Style"
   },
   "settings": {
     "title": "Settings",

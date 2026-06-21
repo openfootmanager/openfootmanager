@@ -171,7 +171,10 @@
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
     "digestViewIssues": "Посмотреть проблемы",
     "digestFired": "Вас уволили.",
-    "digestContinueAnyway": "Продолжить в любом случае"
+    "digestContinueAnyway": "Продолжить в любом случае",
+    "digestStop": "Остановить симуляцию",
+    "digestStopped": "Симуляция остановлена",
+    "digestError": "Ошибка симуляции"
   },
   "continueMenu": {
     "goToField": "Перейти на поле",
@@ -581,6 +584,10 @@
     },
     "retry": "Повторить",
     "score": "Счёт",
+    "noChartData": "Нет данных",
+    "statsView": "Статы",
+    "listView": "Список",
+    "radarView": "Радар",
     "teamLogoAlt": "Логотип {{team}}",
     "left": "Левый",
     "center": "Центр",
@@ -1538,7 +1545,8 @@
     "renewalProjectionTitle": "Прогноз финансового влияния",
     "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Финансовый запас {{before}} → {{after}}"
+    "renewalProjectionRunway": "Финансовый запас {{before}} → {{after}}",
+    "ratingTrend": "Динамика рейтинга"
   },
   "teamProfile": {
     "clubInfo": "Информация о клубе",
@@ -1564,7 +1572,8 @@
     "foulsCommitted": "Фолы",
     "perMatch": "За матч",
     "passAccuracy": "Точность передач",
-    "recentMatches": "Последние матчи"
+    "recentMatches": "Последние матчи",
+    "teamStyle": "Стиль игры"
   },
   "settings": {
     "title": "Настройки",
