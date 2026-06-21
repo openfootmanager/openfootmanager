@@ -176,6 +176,14 @@ function createGameState(withTeam: boolean): GameStateData {
 describe("TrainingTab", () => {
   beforeEach(() => {
     invokeMock.mockReset();
+    const defaultState = createGameState(true);
+    const defaultRoster = defaultState.players.filter(
+      (p) => p.team_id === "team-1",
+    );
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return defaultRoster;
+      return defaultState;
+    });
   });
 
   it("renders the no-team state when the manager has no club", () => {
@@ -186,8 +194,14 @@ describe("TrainingTab", () => {
 
   it("updates the weekly schedule and forwards the refreshed state", async () => {
     const updatedState = createGameState(true);
+    const defaultRoster = updatedState.players.filter(
+      (p) => p.team_id === "team-1",
+    );
     const onGameUpdate = vi.fn();
-    invokeMock.mockResolvedValue(updatedState);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return defaultRoster;
+      return updatedState;
+    });
 
     render(
       <TrainingTab gameState={createGameState(true)} onGameUpdate={onGameUpdate} />,
@@ -203,7 +217,7 @@ describe("TrainingTab", () => {
     });
   });
 
-  it("renders the critical staff advice banner for an exhausted squad", () => {
+  it("renders the critical staff advice banner for an exhausted squad", async () => {
     const exhaustedState = createGameState(true);
     exhaustedState.players = [
       createPlayer({ id: "p1", condition: 18 }),
@@ -211,22 +225,36 @@ describe("TrainingTab", () => {
       createPlayer({ id: "p3", condition: 24 }),
       createPlayer({ id: "p4", condition: 55 }),
     ];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return exhaustedState.players.filter((p) => p.team_id === "team-1");
+      return exhaustedState;
+    });
 
     render(<TrainingTab gameState={exhaustedState} />);
 
-    expect(screen.getByText("Staff alert")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Staff alert")).toBeInTheDocument();
+    });
     expect(screen.getByText(/Critical advice/)).toBeInTheDocument();
   });
 
-  it("ignores youth academy players in first-team training summaries", () => {
+  it("ignores youth academy players in first-team training summaries", async () => {
     const state = createGameState(true);
     state.players = [
       createPlayer({ id: "senior-1", condition: 80 }),
       createPlayer({ id: "youth-1", condition: 10, squad_role: "Youth" }),
     ];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return state.players.filter((p) => p.team_id === "team-1");
+      return state;
+    });
 
     render(<TrainingTab gameState={state} />);
 
-    expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
+    });
   });
 });

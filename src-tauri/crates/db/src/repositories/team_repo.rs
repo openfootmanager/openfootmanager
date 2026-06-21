@@ -1,6 +1,6 @@
 use domain::team::{
-    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors, TeamMedia,
-    TrainingFocus, TrainingIntensity, TrainingSchedule,
+    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors,
+    TeamMedia, TrainingFocus, TrainingIntensity, TrainingSchedule,
 };
 use rusqlite::{Connection, params};
 
@@ -28,6 +28,7 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
     let media_json = serde_json::to_string(&t.media)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
+    let kit_pattern_str = t.kit_pattern.to_string();
     let training_focus_str = format!("{:?}", t.training_focus);
     let training_intensity_str = format!("{:?}", t.training_intensity);
     let training_schedule_str = format!("{:?}", t.training_schedule);
@@ -39,8 +40,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
          season_income, season_expenses, formation, play_style,
          training_focus, training_intensity, training_schedule,
          founded_year, colors_primary, colors_secondary,
-         starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
+         starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json, kit_pattern)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)",
         params![
             t.id,
             t.name,
@@ -74,6 +75,7 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
             sponsorship_json,
             facilities_json,
             media_json,
+            kit_pattern_str,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -140,6 +142,7 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
     let training_intensity_str: String = row.get(18)?;
     let training_schedule_str: String = row.get(19)?;
     let media_json: String = row.get(31).unwrap_or_else(|_| "{}".to_string());
+    let kit_pattern_str: String = row.get::<_, String>(32)?;
 
     Ok(Team {
         id: row.get(0)?,
@@ -173,6 +176,16 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
             primary: row.get(21)?,
             secondary: row.get(22)?,
         },
+        kit_pattern: kit_pattern_str.parse().map_err(|_| {
+            rusqlite::Error::FromSqlConversionFailure(
+                32,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "invalid teams.kit_pattern",
+                )),
+            )
+        })?,
         media: serde_json::from_str(&media_json).unwrap_or_else(|_| TeamMedia::default()),
         starting_xi_ids: serde_json::from_str(&starting_xi_json).unwrap_or_default(),
         match_roles: serde_json::from_str(&match_roles_json).unwrap_or_default(),
@@ -191,7 +204,7 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
                     training_focus, training_intensity, training_schedule,
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
-                    COALESCE(media_json, '{}')
+                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid')
              FROM teams",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -217,7 +230,7 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
                     training_focus, training_intensity, training_schedule,
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
-                    COALESCE(media_json, '{}')
+                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid')
              FROM teams WHERE id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

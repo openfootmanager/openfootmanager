@@ -1,7 +1,8 @@
 use crate::clock::GameClock;
-use domain::league::League;
+use domain::league::{CompetitionType, FixtureStatus, League};
 use domain::manager::Manager;
 use domain::message::InboxMessage;
+use domain::national_team::NationalTeam;
 use domain::news::NewsArticle;
 use domain::player::{Player, Position};
 use domain::season::SeasonContext;
@@ -10,7 +11,7 @@ use domain::team::Team;
 use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ObjectiveType {
@@ -78,6 +79,22 @@ pub struct Game {
     pub messages: Vec<InboxMessage>,
     #[serde(default)]
     pub news: Vec<NewsArticle>,
+    #[serde(default)]
+    pub competitions: Vec<League>,
+    #[serde(default)]
+    pub national_teams: Vec<NationalTeam>,
+    #[serde(default)]
+    pub active_region_ids: Vec<String>,
+    #[serde(default)]
+    pub active_competition_ids: Vec<String>,
+    /// DEPRECATED (legacy, back-compat only). Superseded by `competitions`, which
+    /// is the single source of truth. Retained for two reasons: loading saves
+    /// written before the multi-competition system (see
+    /// [`Game::promote_legacy_league`], run on load to populate `competitions`
+    /// from it), and as the turn loop's working buffer (`sync_legacy_league`
+    /// mirrors the user's competition here). Do not add new readers; it will be
+    /// removed once the save-format gate has migrated all saves off it.
+    #[serde(default)]
     pub league: Option<League>,
     #[serde(default)]
     pub scouting_assignments: Vec<ScoutingAssignment>,
@@ -118,6 +135,10 @@ impl Game {
             staff,
             messages,
             news: vec![],
+            competitions: vec![],
+            national_teams: vec![],
+            active_region_ids: vec![],
+            active_competition_ids: vec![],
             league: None,
             scouting_assignments: vec![],
             youth_scouting_assignments: vec![],
@@ -128,6 +149,7 @@ impl Game {
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
         };
+        game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);
         crate::season_context::refresh_game_context(&mut game);
         game
@@ -144,5 +166,132 @@ impl Game {
         } else {
             self.managers.push(self.manager.clone());
         }
+    }
+
+    pub fn promote_legacy_league(&mut self) {
+        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+            self.competitions.push(league);
+        }
+        self.sync_legacy_league();
+    }
+
+    pub fn sync_legacy_league(&mut self) {
+        // The legacy `league` field backs the home dashboard (next match, league
+        // position, etc.), so it must mirror the competition the user's club
+        // actually plays in — not just the first competition in the world.
+        self.league = self
+            .user_competition_index()
+            .map(|index| self.competitions[index].clone())
+            .or_else(|| self.competitions.first().cloned());
+    }
+
+    /// Whether the user's club has a scheduled fixture on `date` in ANY of its
+    /// competitions (league or cup). This is the source of truth for "is today a
+    /// match day" — the legacy `league` mirror misses cups and isn't reliable
+    /// while the turn loop swaps competitions through it.
+    pub fn user_has_scheduled_match_on(&self, date: &str) -> bool {
+        let Some(team_id) = self.manager.team_id.as_deref() else {
+            return false;
+        };
+        self.competitions.iter().any(|competition| {
+            competition.fixtures.iter().any(|fixture| {
+                fixture.date == date
+                    && fixture.status == FixtureStatus::Scheduled
+                    && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+            })
+        })
+    }
+
+    /// Index of the competition the user's club plays in, preferring its
+    /// domestic league. `None` when unemployed or no competition lists the club.
+    fn user_competition_index(&self) -> Option<usize> {
+        let team_id = self.manager.team_id.as_deref()?;
+        let contains = |competition: &League| {
+            competition
+                .standings
+                .iter()
+                .any(|entry| entry.team_id == team_id)
+                || competition.participant_ids.iter().any(|id| id == team_id)
+        };
+        self.competitions
+            .iter()
+            .position(|competition| {
+                competition.kind == CompetitionType::League && contains(competition)
+            })
+            .or_else(|| self.competitions.iter().position(contains))
+    }
+
+    pub fn primary_competition(&self) -> Option<&League> {
+        self.competitions.first().or(self.league.as_ref())
+    }
+
+    /// Confederation/region id for a country code. Prefers the world's own
+    /// data — a domestic competition's declared region — so data-defined
+    /// confederations are respected at runtime, falling back to the built-in
+    /// nation catalog for countries the world doesn't place itself.
+    pub fn region_for_country(&self, country_code: &str) -> String {
+        self.competitions
+            .iter()
+            .filter(|competition| competition.country_id.as_deref() == Some(country_code))
+            .find_map(|competition| competition.region_id.clone())
+            .unwrap_or_else(|| crate::nations::region_for_code(country_code).to_string())
+    }
+
+    /// Whether a competition falls within the player's active simulation scope.
+    /// Empty scope sets mean "everything is active" (the legacy, unscoped game),
+    /// so this stays backward compatible with worlds that never set a scope.
+    pub fn competition_in_active_scope(&self, competition: &League) -> bool {
+        let competition_selected = self.active_competition_ids.is_empty()
+            || self.active_competition_ids.contains(&competition.id);
+        let region_selected = self.active_region_ids.is_empty()
+            || competition
+                .region_id
+                .as_ref()
+                .is_none_or(|region_id| self.active_region_ids.contains(region_id));
+        competition_selected && region_selected
+    }
+
+    /// The set of team ids participating in an actively-simulated competition,
+    /// or `None` when no scope is configured (every team is simulated in full).
+    ///
+    /// Used to keep expensive daily subsystems (e.g. the transfer market) to the
+    /// teams the player actually follows; dormant clubs are handled by lighter,
+    /// periodic approximations rather than the full daily pass.
+    pub fn active_team_ids(&self) -> Option<HashSet<String>> {
+        if self.active_competition_ids.is_empty() && self.active_region_ids.is_empty() {
+            return None;
+        }
+        let mut ids = HashSet::new();
+        for competition in &self.competitions {
+            if self.competition_in_active_scope(competition) {
+                for entry in &competition.standings {
+                    ids.insert(entry.team_id.clone());
+                }
+            }
+        }
+        // The player's own club is always simulated in full.
+        if let Some(team_id) = &self.manager.team_id {
+            ids.insert(team_id.clone());
+        }
+        Some(ids)
+    }
+
+    pub fn primary_competition_mut(&mut self) -> Option<&mut League> {
+        if self.competitions.is_empty() && let Some(league) = self.league.clone() {
+            self.competitions.push(league);
+        }
+        self.competitions.first_mut()
+    }
+
+    pub fn competition_by_id(&self, competition_id: &str) -> Option<&League> {
+        self.competitions
+            .iter()
+            .find(|competition| competition.id == competition_id)
+    }
+
+    pub fn competition_by_id_mut(&mut self, competition_id: &str) -> Option<&mut League> {
+        self.competitions
+            .iter_mut()
+            .find(|competition| competition.id == competition_id)
     }
 }

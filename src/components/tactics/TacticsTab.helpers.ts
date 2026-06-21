@@ -1,45 +1,82 @@
-import { calcAge, getPlayerOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
   buildStartingXIIds,
+  type PitchSlotRow,
+  canonicalPosition,
   isPlayerExactForSlot,
   getPreferredPositions,
   isPlayerOutOfPosition,
   normalisePosition,
   positionCode,
+  translatePositionAbbreviation,
+  translatePositionLabel,
   type SquadSection,
 } from "../squad/SquadTab.helpers";
+export { FORMATIONS } from "../match/types";
 
-export const FORMATIONS = [
-  "4-4-2",
-  "4-3-3",
-  "3-5-2",
-  "4-5-1",
-  "4-2-3-1",
-  "3-4-3",
-  "5-3-2",
-  "4-1-4-1",
-];
-
-export const PLAY_STYLE_DESCRIPTION_FALLBACKS: Record<string, string> = {
-  Balanced:
-    "Keeps your team measured in and out of possession, with a steady shape and fewer extremes.",
-  Attacking:
-    "Pushes more bodies forward, creates extra support around the box, and asks your team to take more initiative.",
-  Defensive:
-    "Makes your team protect space first, stay compact, and reduce the risk of getting exposed behind the ball.",
-  Possession:
-    "Encourages your team to circulate the ball patiently, control the tempo, and look for cleaner openings.",
-  Counter:
-    "Invites your team to break forward quickly after regaining the ball, attacking space before the opponent resets.",
-  HighPress:
-    "Asks your team to close down earlier, win the ball higher up the pitch, and keep opponents under pressure.",
-};
-
+export type TacticsLayoutMode = "balanced" | "pitch" | "analysis";
+export type TacticsTableMode = "lineup" | "roles";
 export type SortDirection = "asc" | "desc";
-export type SortKey = "pos" | "name" | "age" | "condition" | "morale" | "ovr";
+export type SortKey = "pos" | "name" | "condition" | "morale" | "ovr";
+
+export interface TacticsPresetDefinition {
+  descriptionKey: string;
+  formation: string;
+  id: string;
+  playStyle: string;
+}
+
+export interface TacticsPitchSlot {
+  index: number;
+  player: PlayerData | null;
+  position: string;
+  rowLabel: string;
+  x: number;
+  y: number;
+}
+
+export interface TacticsFormationSlotOption {
+  index: number;
+  label: string;
+  position: string;
+  shortLabel: string;
+}
+
+export const TACTICS_PRESETS: TacticsPresetDefinition[] = [
+  {
+    id: "balanced-control",
+    formation: "4-4-2",
+    playStyle: "Balanced",
+    descriptionKey: "tactics.presetDescriptions.balanced-control",
+  },
+  {
+    id: "wing-play",
+    formation: "4-3-3",
+    playStyle: "Attacking",
+    descriptionKey: "tactics.presetDescriptions.wing-play",
+  },
+  {
+    id: "high-press",
+    formation: "3-4-3",
+    playStyle: "HighPress",
+    descriptionKey: "tactics.presetDescriptions.high-press",
+  },
+  {
+    id: "counter-attack",
+    formation: "4-2-3-1",
+    playStyle: "Counter",
+    descriptionKey: "tactics.presetDescriptions.counter-attack",
+  },
+  {
+    id: "low-block",
+    formation: "5-3-2",
+    playStyle: "Defensive",
+    descriptionKey: "tactics.presetDescriptions.low-block",
+  },
+];
 
 const POSITION_ORDER: Record<string, number> = {
   Goalkeeper: 1,
@@ -169,8 +206,6 @@ export function sortTacticsPlayers(
         );
       case "name":
         return leftPlayer.full_name.localeCompare(rightPlayer.full_name);
-      case "age":
-        return calcAge(leftPlayer.date_of_birth) - calcAge(rightPlayer.date_of_birth);
       case "condition":
         return leftPlayer.condition - rightPlayer.condition;
       case "morale":
@@ -270,6 +305,147 @@ export function getSelectedAndComparePlayers(
     comparePlayer,
     selectedPlayer,
   };
+}
+
+function parseCoordinateValue(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 50;
+}
+
+function getSlotXCoordinates(slotCount: number): number[] {
+  return Array.from({ length: slotCount }, (_, index) =>
+    Math.round((((index + 1) / (slotCount + 1)) * 100) * 10) / 10,
+  );
+}
+
+export function buildTacticsPitchSlots(rows: PitchSlotRow[]): TacticsPitchSlot[] {
+  return rows.flatMap((row) => {
+    const rowY = parseCoordinateValue(row.y);
+    const rowXCoordinates = getSlotXCoordinates(row.slots.length);
+
+    return row.slots.map((slot, slotIndex) => ({
+      index: slot.index,
+      player: slot.player,
+      position: slot.position,
+      rowLabel: row.label,
+      x: rowXCoordinates[slotIndex] ?? 50,
+      y: rowY,
+    }));
+  });
+}
+
+function getDuplicatedSlotShortLabel(
+  position: string,
+  duplicateIndex: number,
+  duplicateCount: number,
+): string {
+  const canonical = canonicalPosition(position);
+
+  if (canonical === "CenterBack") {
+    if (duplicateCount === 2) return duplicateIndex === 0 ? "LCB" : "RCB";
+    if (duplicateCount === 3) {
+      return ["LCB", "CB", "RCB"][duplicateIndex] ?? "CB";
+    }
+  }
+
+  if (canonical === "CentralMidfielder") {
+    if (duplicateCount === 2) return duplicateIndex === 0 ? "LCM" : "RCM";
+    if (duplicateCount === 3) {
+      return ["LCM", "CM", "RCM"][duplicateIndex] ?? "CM";
+    }
+  }
+
+  if (canonical === "Striker") {
+    if (duplicateCount === 2) return duplicateIndex === 0 ? "LS" : "RS";
+    if (duplicateCount === 3) {
+      return ["LF", "ST", "RF"][duplicateIndex] ?? "ST";
+    }
+  }
+
+  return `${positionCode(position)} ${duplicateIndex + 1}`;
+}
+
+function getDuplicatedSlotLabel(
+  translate: (key: string) => string,
+  position: string,
+  duplicateIndex: number,
+  duplicateCount: number,
+): string {
+  const positionLabel = translatePositionLabel(translate, position);
+
+  if (duplicateCount === 2) {
+    return duplicateIndex === 0
+      ? `${translate("common.left")} ${positionLabel}`
+      : `${translate("common.right")} ${positionLabel}`;
+  }
+
+  if (duplicateCount === 3) {
+    const descriptors = [
+      translate("common.left"),
+      translate("common.center"),
+      translate("common.right"),
+    ];
+
+    return `${descriptors[duplicateIndex] ?? duplicateIndex + 1} ${positionLabel}`;
+  }
+
+  return `${positionLabel} ${duplicateIndex + 1}`;
+}
+
+export function buildFormationSlotOptions(
+  formation: string,
+  translate: (key: string) => string,
+): TacticsFormationSlotOption[] {
+  const positions = buildPitchRows(formation).flatMap((row) => row.positions);
+  const duplicateCounts = new Map<string, number>();
+  const duplicateIndexes = new Map<string, number>();
+
+  positions.forEach((position) => {
+    duplicateCounts.set(position, (duplicateCounts.get(position) ?? 0) + 1);
+  });
+
+  return positions.map((position, index) => {
+    const duplicateIndex = duplicateIndexes.get(position) ?? 0;
+    const duplicateCount = duplicateCounts.get(position) ?? 1;
+    duplicateIndexes.set(position, duplicateIndex + 1);
+
+    if (duplicateCount === 1) {
+      return {
+        index,
+        label: translatePositionLabel(translate, position),
+        position,
+        shortLabel: translatePositionAbbreviation(translate, position),
+      };
+    }
+
+    return {
+      index,
+      label: getDuplicatedSlotLabel(
+        translate,
+        position,
+        duplicateIndex,
+        duplicateCount,
+      ),
+      position,
+      shortLabel: getDuplicatedSlotShortLabel(
+        position,
+        duplicateIndex,
+        duplicateCount,
+      ),
+    };
+  });
+}
+
+export function findTacticsPresetBySetup(
+  formation: string,
+  playStyle: string,
+): TacticsPresetDefinition | null {
+  return (
+    TACTICS_PRESETS.find(
+      (preset) =>
+        preset.formation === formation && preset.playStyle === playStyle,
+    ) ?? null
+  );
 }
 
 export function getOverallRatingClassName(overallRating: number): string {

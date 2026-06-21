@@ -200,6 +200,35 @@ describe("dashboardHelpers", function (): void {
     expect(getTodayMatchFixture(gameState)).toEqual(fixture);
   });
 
+  it("finds today's fixture from competitions when league mirror is absent", function (): void {
+    const fixture = {
+      id: "fixture-2",
+      matchday: 1,
+      date: "2025-01-10",
+      home_team_id: "team-1",
+      away_team_id: "team-2",
+      competition: "League" as const,
+      status: "Scheduled" as const,
+      result: null,
+    };
+    const gameState = createGameState({
+      competitions: [
+        {
+          id: "comp-1",
+          name: "League",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [fixture],
+          standings: [],
+        },
+      ],
+      active_competition_ids: ["comp-1"],
+      league: null,
+    } as unknown as Partial<GameStateData>);
+
+    expect(getTodayMatchFixture(gameState)).toEqual(fixture);
+  });
+
   it("returns null when no fixture matches today", function (): void {
     const gameState = createGameState();
 

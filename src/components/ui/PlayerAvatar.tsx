@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { resolveLocalMediaPath } from "../../lib/mediaAssets";
 import AssetImage from "./AssetImage";
+import GeneratedAvatar from "./GeneratedAvatar";
 
 interface PlayerAvatarPlayer {
   full_name: string;
@@ -34,7 +35,15 @@ export function PlayerAvatar({
         src={resolveLocalMediaPath(player.media?.face)}
         alt={player.full_name}
         className={imageClassName}
-        fallback={fallback ?? <span>{playerInitials(player)}</span>}
+        fallback={
+          fallback ?? (
+            <GeneratedAvatar
+              name={player.full_name || player.match_name}
+              initials={playerInitials(player)}
+              className="h-full w-full"
+            />
+          )
+        }
       />
     </div>
   );

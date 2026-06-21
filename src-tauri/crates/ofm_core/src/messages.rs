@@ -228,3 +228,55 @@ pub fn incoming_transfer_offer_message(
     )
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
 }
+
+/// A single per-player inbox thread that collapses repeated incoming interest
+/// into one updating digest instead of one message per club, capping spam.
+/// The stable id (`transfer_interest_<player_id>`) lets callers upsert it.
+pub fn transfer_interest_digest_message(
+    player_id: &str,
+    player_name: &str,
+    interested_club_count: usize,
+    latest_team_name: &str,
+    latest_fee: u64,
+    date: &str,
+) -> InboxMessage {
+    let fee_display =
+        crate::currency::format_compact_money(latest_fee, crate::currency::DEFAULT_CURRENCY_CODE)
+            .unwrap_or_else(|| {
+                format!("{}{}", crate::currency::default_currency_symbol(), latest_fee)
+            });
+
+    InboxMessage::new(
+        format!("transfer_interest_{}", player_id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_action(action(
+        "view_transfers",
+        "",
+        "be.msg.transferInterest.actionReview",
+        ActionType::NavigateTo {
+            route: "/dashboard?tab=Transfers".to_string(),
+        },
+    ))
+    .with_context(MessageContext {
+        player_id: Some(player_id.to_string()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.transferInterest.subject",
+        "be.msg.transferInterest.body",
+        HashMap::from([
+            ("player".to_string(), player_name.to_string()),
+            ("n".to_string(), interested_club_count.to_string()),
+            ("team".to_string(), latest_team_name.to_string()),
+            ("fee".to_string(), fee_display),
+        ]),
+    )
+    .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
+}

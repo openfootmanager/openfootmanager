@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GameStateData, NewsArticle } from "../../store/gameStore";
-import { getTeamName, formatMatchDate as fmtMatchDate } from "../../lib/helpers";
 import {
   Newspaper,
   Trophy,
@@ -20,6 +19,8 @@ import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import AwardsCeremonyScreen from "../season/AwardsCeremonyScreen";
 import { Select } from "../ui";
+import { fetchNewsFeed, type NewsFeed } from "../../services/newsService";
+import { formatMatchDate as fmtMatchDate } from "../../lib/helpers";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
   MatchReport: <Newspaper className="w-4 h-4" />,
@@ -65,7 +66,7 @@ const PAGE_SIZE = 13; // 1 hero + 12 grid (4x3)
 function buildArticleTeamMenuItems(
   t: ReturnType<typeof useTranslation>["t"],
   article: NewsArticle,
-  gameState: GameStateData,
+  teamNames: Record<string, string>,
   onSelectTeam?: (id: string) => void,
 ): ContextMenuItem[] {
   if (!onSelectTeam) {
@@ -74,7 +75,7 @@ function buildArticleTeamMenuItems(
 
   return (article.team_ids ?? []).map((teamId) => ({
     ...buildViewTeamMenuItem(t, () => onSelectTeam(teamId)),
-    label: `${t("common.viewTeam")}: ${getTeamName(gameState.teams, teamId)}`,
+    label: `${t("common.viewTeam")}: ${teamNames[teamId] ?? teamId}`,
   }));
 }
 
@@ -102,8 +103,31 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   const [filterTeamId, setFilterTeamId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [feed, setFeed] = useState<NewsFeed | null>(null);
 
-  const news = (gameState.news || []).map(resolveNewsArticle);
+  const currentDate = gameState.clock?.current_date;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNewsFeed()
+      .then((result) => {
+        if (!cancelled) setFeed(result);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDate]);
+
+  // Use slice data when available; fall back to gameState while loading.
+  const rawArticles = feed?.articles ?? gameState.news ?? [];
+  const fallbackTeamNames: Record<string, string> = Object.fromEntries(
+    (gameState.teams ?? []).map((t) => [t.id, t.name]),
+  );
+  const teamNames: Record<string, string> = feed?.team_names ?? fallbackTeamNames;
+  const leagueName = feed?.league_name ?? gameState.league?.name ?? "";
+
+  const news = rawArticles.map(resolveNewsArticle);
   const sortedNews = [...news].sort((a, b) => b.date.localeCompare(a.date));
   const categories = Array.from(new Set(sortedNews.map((n) => n.category)));
 
@@ -112,7 +136,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     new Set(sortedNews.flatMap((n) => n.team_ids || [])),
   );
   const teamsInNews = newsTeamIds
-    .map((id) => ({ id, name: getTeamName(gameState.teams, id) }))
+    .map((id) => ({ id, name: teamNames[id] ?? id }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   let filtered = sortedNews;
@@ -148,13 +172,13 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     );
   }
 
-  // Article detail view (replaces list on mobile, shown inline on desktop)
+  // Article detail view
   if (selectedArticle) {
     if (isSeasonAwardsArticle(selectedArticle)) {
       return (
         <AwardsCeremonyScreen
           season={seasonFromArticle(selectedArticle)}
-          leagueName={gameState.league?.name ?? ""}
+          leagueName={leagueName}
           gameState={gameState}
           article={selectedArticle}
           onBack={() => setSelectedId(null)}
@@ -166,7 +190,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     return (
       <ArticleDetail
         article={selectedArticle}
-        gameState={gameState}
+        teamNames={teamNames}
         onBack={() => setSelectedId(null)}
         onSelectTeam={onSelectTeam}
       />
@@ -241,7 +265,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
       {pageArticles.length > 0 && (
         <HeroArticle
           article={pageArticles[0]}
-          gameState={gameState}
+          teamNames={teamNames}
           onSelect={() => setSelectedId(pageArticles[0].id)}
           onSelectTeam={onSelectTeam}
         />
@@ -254,7 +278,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
             <ArticleCard
               key={article.id}
               article={article}
-              gameState={gameState}
+              teamNames={teamNames}
               onSelect={() => setSelectedId(article.id)}
               onSelectTeam={onSelectTeam}
             />
@@ -290,23 +314,18 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
 
 function HeroArticle({
   article,
-  gameState,
+  teamNames,
   onSelect,
   onSelectTeam,
 }: {
   article: NewsArticle;
-  gameState: GameStateData;
+  teamNames: Record<string, string>;
   onSelect: () => void;
   onSelectTeam?: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const formatNewsDate = (d: string) => fmtMatchDate(d, i18n.language);
-  const contextItems = buildArticleTeamMenuItems(
-    t,
-    article,
-    gameState,
-    onSelectTeam,
-  );
+  const contextItems = buildArticleTeamMenuItems(t, article, teamNames, onSelectTeam);
   const meta = {
     icon: CAT_ICONS[article.category] || <FileText className="w-4 h-4" />,
     color: CAT_COLORS[article.category] || "text-gray-500",
@@ -342,14 +361,14 @@ function HeroArticle({
         {article.match_score && (
           <div className="flex items-center gap-3 mb-3 p-3 bg-gray-50 dark:bg-navy-700/50 rounded-lg">
             <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
-              {getTeamName(gameState.teams, article.match_score.home_team_id)}
+              {teamNames[article.match_score.home_team_id] ?? article.match_score.home_team_id}
             </span>
             <span className="text-lg font-heading font-bold text-primary-500 bg-primary-500/10 px-3 py-1 rounded-lg">
               {article.match_score.home_goals} –{" "}
               {article.match_score.away_goals}
             </span>
             <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
-              {getTeamName(gameState.teams, article.match_score.away_team_id)}
+              {teamNames[article.match_score.away_team_id] ?? article.match_score.away_team_id}
             </span>
           </div>
         )}
@@ -373,7 +392,7 @@ function HeroArticle({
                   }}
                   className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 bg-primary-500/5 hover:bg-primary-500/10 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
                 >
-                  {getTeamName(gameState.teams, tid)}
+                  {teamNames[tid] ?? tid}
                 </span>
               ))}
             </div>
@@ -392,23 +411,18 @@ function HeroArticle({
 
 function ArticleCard({
   article,
-  gameState,
+  teamNames,
   onSelect,
   onSelectTeam,
 }: {
   article: NewsArticle;
-  gameState: GameStateData;
+  teamNames: Record<string, string>;
   onSelect: () => void;
   onSelectTeam?: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const formatNewsDate = (d: string) => fmtMatchDate(d, i18n.language);
-  const contextItems = buildArticleTeamMenuItems(
-    t,
-    article,
-    gameState,
-    onSelectTeam,
-  );
+  const contextItems = buildArticleTeamMenuItems(t, article, teamNames, onSelectTeam);
   const meta = {
     icon: CAT_ICONS[article.category] || <FileText className="w-4 h-4" />,
     color: CAT_COLORS[article.category] || "text-gray-500",
@@ -439,14 +453,14 @@ function ArticleCard({
         {article.match_score && (
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              {getTeamName(gameState.teams, article.match_score.home_team_id)}
+              {teamNames[article.match_score.home_team_id] ?? article.match_score.home_team_id}
             </span>
             <span className="text-xs font-heading font-bold text-primary-500 bg-primary-500/10 px-1.5 py-0.5 rounded">
               {article.match_score.home_goals} –{" "}
               {article.match_score.away_goals}
             </span>
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              {getTeamName(gameState.teams, article.match_score.away_team_id)}
+              {teamNames[article.match_score.away_team_id] ?? article.match_score.away_team_id}
             </span>
           </div>
         )}
@@ -477,12 +491,12 @@ function ArticleCard({
 
 function ArticleDetail({
   article,
-  gameState,
+  teamNames,
   onBack,
   onSelectTeam,
 }: {
   article: NewsArticle;
-  gameState: GameStateData;
+  teamNames: Record<string, string>;
   onBack: () => void;
   onSelectTeam?: (id: string) => void;
 }) {
@@ -531,10 +545,7 @@ function ArticleDetail({
             <div className="flex items-center justify-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-navy-700/50 rounded-xl">
               <div className="text-center">
                 <p className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
-                  {getTeamName(
-                    gameState.teams,
-                    article.match_score.home_team_id,
-                  )}
+                  {teamNames[article.match_score.home_team_id] ?? article.match_score.home_team_id}
                 </p>
               </div>
               <div className="text-2xl font-heading font-bold text-primary-500 bg-primary-500/10 px-4 py-2 rounded-xl">
@@ -543,10 +554,7 @@ function ArticleDetail({
               </div>
               <div className="text-center">
                 <p className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300">
-                  {getTeamName(
-                    gameState.teams,
-                    article.match_score.away_team_id,
-                  )}
+                  {teamNames[article.match_score.away_team_id] ?? article.match_score.away_team_id}
                 </p>
               </div>
             </div>
@@ -570,7 +578,7 @@ function ArticleDetail({
                     onClick={() => onSelectTeam(tid)}
                     className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 bg-primary-500/5 hover:bg-primary-500/10 px-2.5 py-1 rounded-md transition-colors"
                   >
-                    {getTeamName(gameState.teams, tid)}
+                    {teamNames[tid] ?? tid}
                   </button>
                 ))}
               </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PlayerData } from "../../store/gameStore";
+import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { normalisePosition } from "../squad/SquadTab.helpers";
 import { Badge } from "../ui";
 import { ArrowUpDown, Check } from "lucide-react";
@@ -22,18 +23,6 @@ function getStatAttributeKey(label: string): string | null {
     default:
       return null;
   }
-}
-
-function getStatColorClassName(value: number): string {
-  if (value >= 70) {
-    return "text-primary-300";
-  }
-
-  if (value >= 50) {
-    return "text-gray-100";
-  }
-
-  return "text-gray-400";
 }
 
 export function getSetPieceStats(
@@ -168,7 +157,7 @@ export default function SetPieceSelector({
                  <span className="text-gray-600 dark:text-gray-300">
                   {getTranslatedStatLabel(s.label)}
                 </span>
-                <span className={getStatColorClassName(s.value)}>
+                <span className={getAttributeValueClassName(s.value)}>
                   {s.value}
                 </span>
               </span>
@@ -208,19 +197,15 @@ export default function SetPieceSelector({
                     title={getTranslatedStatLabel(s.label)}
                      className="w-10 rounded-md bg-gray-100 dark:bg-navy-800/80 px-1.5 py-1 text-center text-xs font-heading font-bold transition-colors duration-300"
                   >
-                    <span className={getStatColorClassName(s.value)}>
+                    <span className={getAttributeValueClassName(s.value)}>
                       {s.value}
                     </span>
                   </span>
                 ))}
                 <span
-                  className={`text-xs font-heading font-bold w-8 text-right ${
-                    p.spStats.score >= 70
-                      ? "text-primary-300"
-                      : p.spStats.score >= 50
-                        ? "text-gray-100"
-                        : "text-gray-400"
-                  }`}
+                  className={`text-xs font-heading font-bold w-8 text-right ${getAttributeValueClassName(
+                    p.spStats.score,
+                  )}`}
                 >
                   {p.spStats.score}
                 </span>

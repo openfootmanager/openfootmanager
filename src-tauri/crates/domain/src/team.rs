@@ -45,6 +45,8 @@ pub struct Team {
     pub founded_year: u32,
     pub colors: TeamColors,
     #[serde(default)]
+    pub kit_pattern: KitPattern,
+    #[serde(default)]
     pub media: TeamMedia,
 
     // Training groups: allow per-group focus overrides for subsets of players
@@ -145,6 +147,43 @@ pub struct TrainingGroup {
 pub struct TeamColors {
     pub primary: String,
     pub secondary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub enum KitPattern {
+    #[default]
+    Solid,
+    Stripes,
+    Hoops,
+    HalfAndHalf,
+    Diagonal,
+}
+
+impl std::fmt::Display for KitPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            KitPattern::Solid => "Solid",
+            KitPattern::Stripes => "Stripes",
+            KitPattern::Hoops => "Hoops",
+            KitPattern::HalfAndHalf => "HalfAndHalf",
+            KitPattern::Diagonal => "Diagonal",
+        };
+        f.write_str(s)
+    }
+}
+
+impl std::str::FromStr for KitPattern {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Solid" => Ok(KitPattern::Solid),
+            "Stripes" => Ok(KitPattern::Stripes),
+            "Hoops" => Ok(KitPattern::Hoops),
+            "HalfAndHalf" => Ok(KitPattern::HalfAndHalf),
+            "Diagonal" => Ok(KitPattern::Diagonal),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -289,6 +328,7 @@ impl Team {
                 primary: "#10b981".to_string(),
                 secondary: "#ffffff".to_string(),
             },
+            kit_pattern: KitPattern::default(),
             media: TeamMedia::default(),
             starting_xi_ids: Vec::new(),
             match_roles: MatchRoles::default(),

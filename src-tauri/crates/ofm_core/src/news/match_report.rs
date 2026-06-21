@@ -117,6 +117,14 @@ pub fn match_report_article(
                 "be.news.matchReport.reportPreseason.title",
                 "be.news.matchReport.reportPreseason.body",
             ),
+            FixtureCompetition::Cup
+            | FixtureCompetition::ContinentalClub
+            | FixtureCompetition::InternationalClub
+            | FixtureCompetition::InternationalNation
+            | FixtureCompetition::FriendlyCup => (
+                "be.news.matchReport.reportFriendly.title",
+                "be.news.matchReport.reportFriendly.body",
+            ),
             FixtureCompetition::League => unreachable!(),
         };
 

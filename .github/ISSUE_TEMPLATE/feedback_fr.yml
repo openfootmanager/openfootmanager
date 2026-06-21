@@ -1,6 +1,6 @@
 name: "💬 Feedback / Suggestion (Français)"
 description: "Partager un retour ou une suggestion en français"
-labels: ["feedback", "alpha"]
+labels: ["feedback", "beta"]
 body:
   - type: markdown
     attributes:

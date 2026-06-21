@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
 import { Badge, Button, Card, CountryFlag } from "../ui";
-import { GitCompareArrows } from "lucide-react";
+import { Eye, GitCompareArrows } from "lucide-react";
 import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
 
@@ -276,8 +276,8 @@ export default function TacticsPlayerFocusPanel({
     <Card>
       <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
         <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
-          <GitCompareArrows className="w-4 h-4 text-accent-400" />
-          {t("squadCompare.compare")}
+          <Eye className="w-4 h-4 text-accent-400" />
+          {t("tactics.inspector")}
         </h3>
       </div>
       <div className="p-4">
@@ -302,9 +302,12 @@ export default function TacticsPlayerFocusPanel({
             </div>
           )
         ) : (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-8 text-center">
-            <GitCompareArrows className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center dark:border-navy-600 dark:bg-navy-800/70">
+            <GitCompareArrows className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-navy-600" />
+            <p className="text-sm font-heading font-bold uppercase tracking-[0.18em] text-gray-700 dark:text-gray-200">
+              {t("tactics.inspectorEmptyTitle")}
+            </p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {t("tactics.selectPitchPlayer")}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">

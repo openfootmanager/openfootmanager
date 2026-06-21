@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.1-alpha"
+    "version": "v0.3.0-beta"
   },
   "menu": {
     "newGame": "新游戏",
@@ -18,6 +18,8 @@
     "deleteSave": "删除存档",
     "noResults": "无结果",
     "importedDescription": "已导入的世界数据库",
+    "importedPackageDescription": "已导入的世界包",
+    "loadGameFailed": "无法加载存档：{{error}}",
     "invalidWorldDb": "无效的世界数据库文件：{{error}}",
     "failedStartGame": "启动游戏失败：{{error}}",
     "openDiscord": "打开 Discord 社区",
@@ -62,12 +64,17 @@
     "title": "选择世界",
     "scanning": "正在扫描数据库...",
     "importFile": "从文件导入",
+    "importPackage": "导入世界包",
+    "packageErrorsTitle": "世界包问题",
+    "importCompetitions": "添加赛事文件",
+    "removeCompetitions": "移除",
+    "competitionsErrorsTitle": "无法使用此赛事文件：",
     "startCareer": "开始生涯",
     "creatingWorld": "正在创建世界...",
     "teams": "{{count}} 支球队",
     "players": "{{count}} 名球员",
     "randomWorld": "随机世界",
-    "randomDescription": "随机生成的联赛，包含 8 支球队、球员和员工",
+    "randomDescription": "程序化生成的足球世界，包含俱乐部、球员和职员",
     "historyMode": {
       "generated": "生成历史",
       "reference": "参考历史",
@@ -117,6 +124,15 @@
     "exitToMenu": "返回主菜单",
     "continue": "继续",
     "simulating": "模拟中...",
+    "simulatingMessage": "正在处理世界——只需片刻。",
+    "resultsRecapTitle": "比赛结果",
+    "recapAdvancedTo": "已推进至 {{date}}",
+    "recapSectionTransfers": "转会",
+    "recapSectionNews": "新闻",
+    "recapSectionInbox": "收件箱",
+    "recapNothingNotable": "没有值得注意的事件。",
+    "recapTransferLine": "{{player}}：{{from}} → {{to}}",
+    "resultsRecapDismiss": "继续",
     "loading": "正在加载游戏状态...",
     "noResults": "未找到结果。",
     "searchPlaceholder": "搜索球员、球队...",
@@ -141,7 +157,21 @@
       "financeRunway": "现金续航仅剩 {{count}} 周",
       "wagePressure": "工资支出已达预算的 {{percent}}%"
     },
-    "unemployedBanner": "您目前没有俱乐部。工作邀请可能会送达您的收件箱。"
+    "unemployedBanner": "您目前没有俱乐部。工作邀请可能会送达您的收件箱。",
+    "digestAdvancing": "推进中...",
+    "digestDone": "完成",
+    "digestClose": "关闭",
+    "digestEmpty": "什么都没发生。",
+    "digestQuietDay": "平静的一天。",
+    "digestSimulating": "模拟中...",
+    "digestMatchDay": "比赛日",
+    "digestMatchDayDesc": "您的球队今天有一场比赛。",
+    "digestReturnHome": "返回主页",
+    "digestBlocked": "需要操作",
+    "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
+    "digestViewIssues": "查看问题",
+    "digestFired": "您已被解雇。",
+    "digestContinueAnyway": "仍然继续"
   },
   "continueMenu": {
     "goToField": "进入球场",
@@ -266,7 +296,61 @@
     "repStrong": "强队",
     "repAverage": "中游",
     "repDeveloping": "发展中",
-    "failedToSelectTeam": "选择球队失败：{{error}}"
+    "failedToSelectTeam": "选择球队失败：{{error}}",
+    "homeRegion": "所属地区",
+    "homeCountry": "所属国家",
+    "allCountries": "所有国家",
+    "simulationScope": "模拟范围",
+    "otherClubs": "其他俱乐部",
+    "searchClubs": "搜索俱乐部…",
+    "clubCount": "{{n}} 家俱乐部",
+    "noClubsMatch": "没有匹配的俱乐部。",
+    "simulatedRegions": "已模拟地区",
+    "simulatedCompetitions": "已模拟赛事",
+    "homeBadge": "所属",
+    "yourClub": "你的俱乐部",
+    "yourClubBadge": "你的俱乐部",
+    "requiresRegions": "需要 {{regions}}",
+    "selectedClub": "已选俱乐部",
+    "formation": "阵型",
+    "overall": "综合实力",
+    "likelyXi": "预计首发",
+    "competitions": "赛事",
+    "keyPlayers": "关键球员",
+    "activeCompetitions": "激活赛事",
+    "clubCompetitionsAlwaysSimulated": "你的俱乐部所参加的赛事始终会被模拟，即使你关闭了其他地区或赛事。",
+    "selectClubPrompt": "选择一家俱乐部以查看它的阵容和参赛赛事。",
+    "playersCount": "{{count}} 名球员",
+    "scopeSummary": "将加载 {{regionsCount}} 个模拟地区和 {{competitionsCount}} 项模拟赛事。",
+    "regionLabels": {
+      "north-america": "北美洲",
+      "central-america": "中美洲",
+      "south-america": "南美洲",
+      "europe": "欧洲",
+      "asia": "亚洲",
+      "oceania": "大洋洲"
+    },
+    "scopes": {
+      "Domestic": "国内",
+      "Regional": "地区",
+      "Continental": "洲际",
+      "International": "国际"
+    },
+    "kinds": {
+      "League": "联赛",
+      "Cup": "杯赛",
+      "ContinentalClub": "洲际俱乐部赛事",
+      "InternationalClub": "国际俱乐部赛事",
+      "InternationalNation": "国际国家队赛事",
+      "FriendlyCup": "友谊杯"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "你的可玩地区会始终保持激活。",
+      "regionRequiredByCompetition": "{{competition}} 属于 {{club}} 的赛程，因此 {{region}} 必须保持激活。",
+      "regionRemovedDisablesCompetitions": "{{region}} 已从模拟范围中移除，因此依赖它的赛事也一并关闭。",
+      "clubCompetitionLocked": "{{competition}} 已在 {{club}} 的赛程中，因此始终会被模拟。",
+      "autoEnabledRegions": "{{competition}} 需要 {{regions}}，因此这些地区已自动启用。"
+    }
   },
   "youthAcademy": {
     "title": "青训营",
@@ -500,7 +584,12 @@
     "noChartData": "暂无数据",
     "statsView": "统计",
     "listView": "列表",
-    "radarView": "雷达图"
+    "radarView": "雷达图",
+    "teamLogoAlt": "{{team}} 队徽",
+    "left": "左侧",
+    "center": "中路",
+    "right": "右侧",
+    "competition": "赛事"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -520,6 +609,19 @@
     "title": "{{team}} 阵容",
     "playerCount": "{{count}} 名球员",
     "noPlayers": "你的阵容中未找到球员。",
+    "jerseyNumber": "#",
+    "jerseyNumberFull": "球衣号码",
+    "jerseyNumberClickToChange": "#{{number}} — 点击更改",
+    "jerseyNumberClickToAssign": "点击分配球衣号码",
+    "teamKit": "球队球衣",
+    "kitPattern": "球衣图案",
+    "kitPatterns": {
+      "Solid": "纯色",
+      "Stripes": "条纹",
+      "Hoops": "环形",
+      "HalfAndHalf": "两色各半",
+      "Diagonal": "斜线"
+    },
     "pos": "位置",
     "traits": "特质",
     "fullRoster": "全部名单",
@@ -550,6 +652,27 @@
       "Possession": "鼓励球队耐心传导,控制节奏,寻找更干净的机会。",
       "Counter": "鼓励球队在夺回球权后迅速推进,在对手重整前攻击空间。",
       "HighPress": "要求球队提早压迫,在更高位置赢得球权,并持续给对手施压。"
+    },
+    "currentPlan": "当前计划",
+    "planStatus": "计划",
+    "tacticalFit": "战术适配",
+    "coverageTitle": "角色覆盖",
+    "coverageStable": "角色覆盖情况良好",
+    "coverageNeedsAttention": "{{count}} 个角色组需要补强",
+    "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
+    "bestRole": "最佳角色",
+    "styleFit": "风格适配",
+    "starter": "首发",
+    "benchOption": "替补",
+    "naturalFit": "自然适配",
+    "adaptedFit": "适应角色",
+    "needsCover": "需要轮换",
+    "makeStarter": "设为首发",
+    "sendToBench": "放到替补席",
+    "styleFitValues": {
+      "strong": "风格适配：强",
+      "good": "风格适配：良好",
+      "risky": "风格适配：有风险"
     }
   },
   "tactics": {
@@ -566,14 +689,121 @@
     "noStartersForRoles": "先设置首发十一人,再分配球队角色与定位球。",
     "startingXI": "首发十一人 — {{formation}}",
     "fullSquad": "全队阵容",
-    "pitchInteractionHint": "在球场与替补之间拖动球员,点击一名球员查看详情,点击第二名球员进行对比,然后在对比面板中确认互换。",
+    "pitchInteractionHint": "在球场与替补之间拖动球员，点击可查看详情，点击第二名球员可进行对比，或使用右键执行快速战术操作。",
     "selectedPlayer": "已选球员",
     "comparePlayer": "对比球员",
     "selectSecondPlayer": "在首发视图中选择第二名球员以对比属性并准备互换。",
     "compareSelectionHint": "查看下方两名球员,准备好后确认互换。",
     "confirmSwap": "确认互换",
     "selectPitchPlayer": "在首发视图中选择一名球员以查看其属性。",
-    "selectAnotherToSwap": "选择第二名球员进行对比并确认互换。"
+    "selectAnotherToSwap": "选择第二名球员进行对比并确认互换。",
+    "teamIdentity": "球队风格身份",
+    "presetTactics": "预设战术",
+    "presets": "预设",
+    "tacticLibrary": "战术库",
+    "chooseTactic": "选择战术",
+    "searchTactics": "搜索战术...",
+    "myTactics": "我的战术",
+    "newTactic": "新建战术",
+    "duplicateTactic": "复制",
+    "saveAsTactic": "保存为战术",
+    "updateTactic": "更新战术",
+    "tacticName": "战术名称",
+    "identitySummary": "风格摘要",
+    "synced": "已同步",
+    "unsavedChanges": "未保存的更改",
+    "currentPlanCard": "当前计划",
+    "phaseBlueprint": "阶段蓝图",
+    "phaseLabels": {
+      "withBall": "有球",
+      "withoutBall": "无球",
+      "transitions": "转换"
+    },
+    "phaseSummaries": {
+      "withBall": "先定义球队风格：阵形、宽度、节奏，以及哪些角色支撑进攻。",
+      "withoutBall": "通过防线高度、整体紧凑度和压迫意图，定义球队在无球时的侵略性。",
+      "transitions": "下一层应描述球队在失误或夺回球权后，多快发起推进、反抢或重新落位。"
+    },
+    "customTacticDescription": "将任意阵型与最适合你阵容的比赛风格组合，打造自定义战术。",
+    "customTacticNumber": "自定义战术 {{count}}",
+    "copyOfTactic": "{{name}} 副本",
+    "modifiedPreset": "已修改的预设",
+    "activePreset": "当前预设",
+    "customTactic": "自定义战术",
+    "layoutModes": {
+      "pitch": "球场聚焦",
+      "balanced": "平衡视图",
+      "analysis": "分析视图"
+    },
+    "presetNames": {
+      "balanced-control": "均衡控制",
+      "wing-play": "边路进攻",
+      "high-press": "高位压迫",
+      "counter-attack": "防守反击",
+      "low-block": "低位防守"
+    },
+    "tableInteractionHint": "右键点击球员可使用快速操作。",
+    "makeCaptain": "设为队长",
+    "makeViceCaptain": "设为副队长",
+    "setPenaltyTaker": "指定点球手",
+    "setFreeKickTaker": "指定任意球手",
+    "setCornerTaker": "指定角球手",
+    "inspector": "检视面板",
+    "inspectorEmptyTitle": "未选择任何内容",
+    "naturalFit": "自然适配",
+    "adaptedFit": "适应角色",
+    "tokenStates": {
+      "ready": "就绪",
+      "adjusted": "调整中",
+      "risk": "风险"
+    },
+    "presetDescriptions": {
+      "balanced-control": "更稳定的站位、更可靠的覆盖，以及适合大多数阵容的直接结构。",
+      "wing-play": "提供自然宽度、更早靠近禁区的支援，以及更多前插跑动。",
+      "high-press": "将防线整体前提，要求更激进的压迫，并投入更多前场人数。",
+      "counter-attack": "在重新获得球权后，依靠更稳妥的中场基础快速发动反击。",
+      "low-block": "为后防线提供更多保护，并在承受压力时保持更紧凑的形态。"
+    },
+    "clearSelection": "清除选择",
+    "compareWithSelected": "与已选球员比较",
+    "selectForSwap": "选择用于交换",
+    "assignBestFit": "分配到最佳位置",
+    "moveToBench": "移到替补席",
+    "promoteToLineup": "提入首发",
+    "tableView": "表格视图",
+    "tableModeHints": {
+      "lineup": "查看战术位置、体能、士气和可胜任的位置。",
+      "roles": "聚焦适配信号和当前比赛职责。"
+    },
+    "tableModes": {
+      "lineup": "阵容",
+      "roles": "角色"
+    },
+    "positionSelector": "战术位置",
+    "playablePositions": "可踢位置",
+    "slotFit": "位置适配",
+    "styleFit": "风格适配",
+    "responsibilities": "职责",
+    "noSpecialRoles": "没有特殊角色",
+    "moraleLevels": {
+      "superb": "极佳",
+      "veryGood": "很好",
+      "good": "良好",
+      "okay": "一般",
+      "poor": "较差",
+      "veryPoor": "很差"
+    },
+    "conditionLevels": {
+      "ready": "就绪",
+      "sharp": "状态上佳",
+      "managing": "需要管理",
+      "risk": "风险"
+    },
+    "styleFitLevels": {
+      "strong": "高度适配",
+      "good": "适配良好",
+      "risky": "适配风险高"
+    }
   },
   "training": {
     "weeklySchedule": "每周日程",
@@ -751,7 +981,9 @@
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
     "perWeekSuffix": "/周",
+    "perYearSuffix": "/年",
     "wagePerWeek": "周薪",
+    "wagePerYear": "年薪",
     "marketValue": "市场身价",
     "until": "至 {{year}} 年",
     "facilities": "设施",
@@ -910,6 +1142,8 @@
     "subtitle": "退役传奇与历届冠军",
     "legends": "退役传奇",
     "pastChampions": "历届冠军",
+    "worldCupChampions": "世界杯冠军",
+    "worldCupEdition": "{{year}}年世界杯",
     "noLegends": "暂无已记录的退役传奇。",
     "noChampions": "暂无已记录的历届冠军。",
     "appearances": "出场",
@@ -1023,10 +1257,34 @@
   "schedule": {
     "noSchedule": "暂无联赛赛程。",
     "noLeague": "暂无联赛赛程。",
+    "standingsUnavailable": "这项赛事暂无积分榜。",
     "fixtures": "赛程",
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",
-    "season": "第 {{number}} 赛季"
+    "season": "第 {{number}} 赛季",
+    "international": "国际",
+    "internationalDuty": "国家队征召",
+    "promotionZone": "升级区",
+    "loadMore": "加载更多",
+    "relegationZone": "降级区",
+    "nextMatch": "下一场比赛",
+    "noUpcoming": "没有即将到来的比赛。",
+    "pastResults": "过去结果",
+    "calendar": {
+      "title": "日历",
+      "mon": "一",
+      "tue": "二",
+      "wed": "三",
+      "thu": "四",
+      "fri": "五",
+      "sat": "六",
+      "sun": "日",
+      "prevMonth": "上个月",
+      "nextMonth": "下个月",
+      "dayWithFixtures": "{{date}} — 有比赛",
+      "yourMatch": "您的比赛",
+      "otherFixtures": "其他比赛"
+    }
   },
   "players": {
     "searchPlaceholder": "按姓名或国籍搜索...",
@@ -1038,6 +1296,9 @@
     "showingRange": "{{from}}–{{to}} / {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "搜索俱乐部…",
+    "noResults": "没有匹配的俱乐部。",
+    "otherClubs": "其他俱乐部",
     "yourTeam": "您的球队",
     "squad": "阵容",
     "avgOvr": "平均综合",
@@ -1068,6 +1329,17 @@
     "topScorers": "射手榜",
     "loadingAwards": "正在加载奖项...",
     "awardsTab": "奖项",
+    "bracket": "对阵表",
+    "group": "{{name}}组",
+    "bye": "轮空",
+    "roundComplete": "已结束",
+    "roundInProgress": "进行中",
+    "rounds": {
+      "final": "决赛",
+      "semifinal": "半决赛",
+      "quarterfinal": "四分之一决赛",
+      "roundOf": "{{size}}强赛"
+    },
     "awards": {
       "goldenBootTitle": "金靴奖",
       "goldenBootSubtitle": "最佳射手",
@@ -1091,9 +1363,20 @@
         "winRate": "胜率"
       },
       "managerOfSeasonTitle": "赛季最佳主教练",
+      "currentLeaders": "当前领先者 —— 最终奖项将在赛季结束时颁发。",
       "managerOfSeasonSubtitle": "场边表现最出色的赛季"
     },
-    "noGoals": "暂无进球。"
+    "noGoals": "暂无进球。",
+    "worldCupChampion": "世界杯冠军",
+    "competitions": {
+      "title": "所有赛事",
+      "statusNotStarted": "未开始",
+      "statusInProgress": "进行中",
+      "statusCompleted": "已完成",
+      "participating": "参与中",
+      "worldCup": "{{year}} 世界杯",
+      "worldCupQualifying": "世界杯预选赛 {{year}}"
+    }
   },
   "news": {
     "noNews": "暂无新闻报道。",
@@ -1117,6 +1400,7 @@
     "dateOfBirth": "出生日期",
     "noContract": "无合同",
     "weeklyWage": "周薪",
+    "annualWage": "年薪",
     "yearsRemaining": "剩余年限",
     "contractRisk": "合同风险",
     "renewalTitle": "续约",
@@ -1192,6 +1476,7 @@
     "nGoals": "{{count}} 粒进球",
     "nAssists": "{{count}} 次助攻",
     "daysRemaining": "剩余 {{count}} 天 — 球员无法入选",
+    "injuryDaysShort": "{{count}}天",
     "renewalProjectionTitle": "预计财务影响",
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
@@ -1264,6 +1549,8 @@
     "matchCommentaryDesc": "在实时比赛中显示事件解说",
     "confirmAdvance": "推进前确认",
     "confirmAdvanceDesc": "推进一天前请求确认",
+    "continueToNextEvent": "继续将跳至下一个事件",
+    "continueToNextEventDesc": "继续会推进到你的下一场比赛、需要处理的事项、转会截止日或重要新闻",
     "savesData": "存档与数据",
     "autoSave": "自动存档",
     "autoSaveDesc": "每天结束后自动保存游戏",
@@ -1959,6 +2246,40 @@
           "1": "裁判吹响终场哨声。"
         }
       }
+    },
+    "recommendedPlan": "推荐方案",
+    "recommendedChanges": "推荐调整",
+    "noRecommendedChanges": "目前还没有特别明显的调整方向。",
+    "quickTacticalTweaks": "快速战术微调",
+    "roleFit": "角色适配",
+    "fitExact": "完全适配",
+    "fitAdjusted": "调整适配",
+    "subRecommendationReasons": {
+      "low-fitness": "体能偏低",
+      "yellow-risk": "黄牌风险",
+      "fresh-legs": "生力军",
+      "upgrade": "实力提升",
+      "role-match": "角色匹配",
+      "attacking-boost": "增强进攻",
+      "defensive-cover": "防守补位"
+    },
+    "subScenario": {
+      "steady": {
+        "title": "稳健管理",
+        "description": "暂时不需要强行提速。优先考虑平稳恢复体能，以及同位置的直接轮换。"
+      },
+      "protect-lead": {
+        "title": "守住领先",
+        "description": "当前首要目标是控制比赛并确保防守稳定。新鲜体能和更稳妥的球员类型现在最重要。"
+      },
+      "find-winner": {
+        "title": "争取制胜球",
+        "description": "这场比赛仍有机会拿下。寻找体能更充沛、侵略性更强的选择。"
+      },
+      "chase-goal": {
+        "title": "全力追球",
+        "description": "你需要更多威胁。优先考虑进攻能量、承担风险，以及能够改变节奏的球员。"
+      }
     }
   },
   "endOfSeason": {
@@ -2011,6 +2332,9 @@
       "noTeamAssigned": "尚未分配球队",
       "playerNotFound": "未找到球员",
       "invalidSquadRole": "无效的阵容角色",
+      "jerseyNumberOutOfRange": "球衣号码必须在 1 到 99 之间",
+      "jerseyNumberTaken": "该球衣号码已被阵容中的另一名球员使用",
+      "invalidKitPattern": "无效的球衣图案",
       "staffMemberNotFound": "未找到职员",
       "staffMemberAlreadyEmployed": "该职员已受雇于某支球队",
       "playerNotInSquad": "球员不在你的阵容中",
@@ -2034,10 +2358,59 @@
         "playerNotInStartingXi": "球员不在首发阵容中"
       },
       "worldReadFileFailed": "读取世界数据库文件失败。",
+      "package": {
+        "invalid": "此世界包无效，无法加载。",
+        "readFailed": "无法读取某个包文件。",
+        "missingSchema": "某个包文件缺少 \"schema\" 字段。",
+        "unknownSchema": "未知的 schema \"{{schema}}\"。",
+        "invalidEntity": "\"{{schema}}\" 条目无效。",
+        "missingId": "某个 {{kind}} 条目缺少 id。",
+        "duplicateId": "重复的 {{kind}} id \"{{id}}\"。",
+        "unknownConfederation": "国家 \"{{country}}\" 引用了未知的足联 \"{{confederation}}\"。",
+        "unknownCountry": "\"{{entity}}\" 引用了未知的国家 \"{{country}}\"。",
+        "unknownTeam": "球员 \"{{player}}\" 引用了未知的俱乐部 \"{{team}}\"。"
+      },
+      "competitionDef": {
+        "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
+        "invalidStandalone": "所选的赛事定义文件无效。",
+        "parseFailed": "无法将赛事定义文件解析为 JSON。",
+        "unsupportedVersion": "不支持的格式版本 {{version}}；此版本最高支持 {{supported}}。",
+        "berthUnknownTarget": "参赛资格指向未知的赛事 \"{{target}}\"。",
+        "berthInvalidRange": "无效的名次范围 {{from}}–{{to}}。",
+        "berthRequiresLeague": "按名次或附加赛产生的资格只能由联赛授予。",
+        "berthRequiresCup": "杯赛冠军资格只能由淘汰赛赛事授予。",
+        "berthPlayoffTooSmall": "附加赛至少需要两支参赛队。",
+        "emptyId": "某项赛事缺少 id。",
+        "duplicateId": "重复的赛事 id“{{id}}”。",
+        "emptyName": "某项赛事缺少名称。",
+        "unknownRegion": "未知地区“{{region}}”。",
+        "unknownCountry": "未知国家“{{country}}”。",
+        "groupConfigOnNonGroupFormat": "分组设置仅适用于小组赛加淘汰赛格式。",
+        "groupSizeTooSmall": "小组规模 {{groupSize}} 太小（至少 2）。",
+        "zeroLegs": "赛事至少需要一回合。",
+        "noParticipants": "没有参赛者：请提供明确列表或选择器。",
+        "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",
+        "tooFewParticipants": "至少需要两个参赛者。",
+        "unknownTeam": "未知球队“{{team}}”。",
+        "selectorMissingCountry": "该选择器需要一个国家。",
+        "selectorCountTooSmall": "该选择器的数量至少为 2。",
+        "selectorMissingRegion": "该选择器需要一个地区。",
+        "unknownSourceCompetition": "未知的来源赛事“{{source}}”。",
+        "selectorMissingSource": "该选择器需要一个来源赛事。",
+        "unknownExcludedCompetition": "未知的排除赛事“{{excluded}}”。",
+        "selectorCycle": "赛事之间存在循环资格依赖。"
+      },
       "worldParseFailed": "解析世界数据库文件失败。",
       "worldWriteFileFailed": "导出世界数据库文件失败。",
       "worldWriteDatabaseFailed": "保存导入的世界数据库失败。",
       "worldSerializeFailed": "导出世界数据库数据失败。",
+      "saveLoad": {
+        "corrupted": "该存档文件已损坏，无法加载。",
+        "incompatibleVersion": "该存档由更新版本的游戏创建（存档 v{{saveVersion}}；当前版本最高支持 v{{supported}}）。请更新游戏后再加载。",
+        "missingData": "该存档缺少必要数据，无法加载。",
+        "invalidWorld": "该存档的世界或模组数据无效，无法加载。",
+        "unknown": "由于发生意外错误，无法加载该存档。"
+      },
       "gameDatabase": {
         "openFailed": "打开存档数据失败。",
         "migrationFailed": "准备存档数据失败。",
@@ -2267,6 +2640,18 @@
           "midTable": "{{team}}本赛季以{{points}}积分排名第{{position}}{{suffix}}位。\n\n中游收官。董事会期望下赛季有所进步。我们需要更具竞争力。",
           "lowerHalf": "{{team}}度过了令人失望的一个赛季。仅以{{points}}积分排名第{{position}}{{suffix}}位,低于预期。\n\n董事会表示关切。下赛季需要大幅改进,否则您的职位可能受到审视。"
         }
+      },
+      "promotion": {
+        "subject": "升入{{division}}！",
+        "body": "祝贺！俱乐部成功升级，将在第 {{season}} 赛季征战{{division}}。\n\n董事会对这一成就感到非常高兴。让我们为更高水平的比赛做好准备。"
+      },
+      "relegation": {
+        "subject": "降入{{division}}",
+        "body": "俱乐部不幸降级，将在第 {{season}} 赛季征战{{division}}。\n\n董事会深感失望。球队需要立即向升级发起冲击。"
+      },
+      "worldCupChampion": {
+        "subject": "{{nation}}夺得{{year}}年世界杯冠军！",
+        "body": "{{nation}}在{{year}}年世界杯上加冕世界冠军。\n\n这一代球员将因这一伟业被铭记。"
       },
       "newSeasonSchedule": {
         "subject": "{{season}}赛季——新赛程发布",
@@ -2663,6 +3048,11 @@
         "subject": "收到对{{player}}的报价",
         "body": "{{team}}为{{player}}提交了一份{{fee}}的报价。请在转会标签页中查看该报价并决定接受或拒绝。",
         "actionReview": "查看报价"
+      },
+      "transferInterest": {
+        "subject": "对 {{player}} 的转会兴趣",
+        "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
+        "actionReview": "查看报价"
       }
     },
     "news": {
@@ -2738,6 +3128,18 @@
         "headline": "转会综述——{{weekStart}}当周",
         "body": "本周转会市场依旧活跃,联赛中共有{{transferCount}}笔已完成的交易最受关注。\n\n{{deals}}",
         "dealLine": "  {{player}}：从{{fromTeam}}转会至{{toTeam}}（{{fee}}）"
+      },
+      "worldCupQualifying": {
+        "headline": "通往{{year}}年世界杯之路开启",
+        "body": "{{nations}}支球队开启{{year}}年世界杯预选赛征程，本赛季将在各个国际比赛日进行。"
+      },
+      "worldCupKickoff": {
+        "headline": "{{year}}年世界杯拉开帷幕",
+        "body": "{{nations}}支球队齐聚{{year}}年世界杯。这个夏天，世界顶尖球员追逐足球界最高荣誉，其他一切都为之让路。"
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}}加冕世界冠军",
+        "body": "{{nation}}赢得了{{year}}年世界杯，载入足球史册。整个国家欢庆这一将被世代铭记的伟大胜利。"
       },
       "seasonAwards": {
         "headline": "第{{season}}赛季奖项",

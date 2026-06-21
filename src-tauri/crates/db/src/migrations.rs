@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 28;
+pub const MIGRATION_COUNT: usize = 36;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -63,6 +63,22 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v027_available_staff_market_activity.sql")),
         // V28: Persist optional local media paths for teams and players
         M::up(include_str!("sql/v028_entity_media.sql")),
+        // V29: Save metadata for world package versions and active simulation scope
+        M::up(include_str!("sql/v029_competition_save_metadata.sql")),
+        // V30: Persist multi-competition and national-team state
+        M::up(include_str!("sql/v030_competitions_and_national_teams.sql")),
+        // V31: Persist group stages for group-and-knockout competitions
+        M::up(include_str!("sql/v031_competition_groups.sql")),
+        // V32: Persist qualification berths on competitions
+        M::up(include_str!("sql/v032_competition_berths.sql")),
+        // V33: Season start month and day per competition for hemisphere-aware scheduling
+        M::up(include_str!("sql/v033_competition_season_start.sql")),
+        // V34: Optional jersey/squad number per player (1-99, NULL = unassigned)
+        M::up(include_str!("sql/v034_player_jersey_number.sql")),
+        // V35: Kit pattern for team jersey visual (Solid, Stripes, Hoops, HalfAndHalf, Diagonal)
+        M::up(include_str!("sql/v035_team_kit_pattern.sql")),
+        // V36: Enforce per-team jersey number uniqueness at DB level
+        M::up(include_str!("sql/v036_player_jersey_number_unique.sql")),
     ])
 }
 

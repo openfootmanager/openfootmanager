@@ -13,6 +13,8 @@ use ofm_core::game::Game;
 use ofm_core::squad_safety::SquadSafetyReport;
 use ofm_core::state::StateManager;
 
+use crate::commands::util::mutate_active_game;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct RenewalCommandResponse {
     pub outcome: RenewalDecision,
@@ -178,31 +180,29 @@ pub fn propose_renewal_internal(
         player_id, weekly_wage, contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let outcome = ofm_core::contracts::propose_renewal(
-        &mut game,
-        player_id,
-        RenewalOffer {
-            weekly_wage,
-            contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(RenewalCommandResponse {
-        outcome: outcome.decision,
-        game,
-        suggested_wage: outcome.suggested_wage,
-        suggested_years: outcome.suggested_years,
-        session_status: serialize_session_status(outcome.session_status),
-        is_terminal: outcome.is_terminal,
-        cooled_off: outcome.cooled_off,
-        feedback: outcome.feedback,
-    })
+    // propose_renewal validates (team/player) before mutating wage/contract.
+    state
+        .update_game(|game| {
+            let outcome = ofm_core::contracts::propose_renewal(
+                game,
+                player_id,
+                RenewalOffer {
+                    weekly_wage,
+                    contract_years,
+                },
+            )?;
+            Ok(RenewalCommandResponse {
+                outcome: outcome.decision,
+                game: game.clone(),
+                suggested_wage: outcome.suggested_wage,
+                suggested_years: outcome.suggested_years,
+                session_status: serialize_session_status(outcome.session_status),
+                is_terminal: outcome.is_terminal,
+                cooled_off: outcome.cooled_off,
+                feedback: outcome.feedback,
+            })
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 pub fn delegate_renewals_internal(
@@ -216,22 +216,24 @@ pub fn delegate_renewals_internal(
         player_ids, max_wage_increase_pct, max_contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let report = ofm_core::contracts::delegate_renewals(
-        &mut game,
-        DelegatedRenewalOptions {
-            player_ids,
-            max_wage_increase_pct,
-            max_contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(DelegatedRenewalCommandResponse { game, report })
+    // delegate_renewals collects per-player results into a report rather than
+    // erroring mid-iteration, so in-place mutation is safe.
+    state
+        .update_game(|game| {
+            let report = ofm_core::contracts::delegate_renewals(
+                game,
+                DelegatedRenewalOptions {
+                    player_ids,
+                    max_wage_increase_pct,
+                    max_contract_years,
+                },
+            )?;
+            Ok(DelegatedRenewalCommandResponse {
+                game: game.clone(),
+                report,
+            })
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 pub fn preview_renewal_financial_impact_internal(
@@ -244,12 +246,11 @@ pub fn preview_renewal_financial_impact_internal(
         player_id, weekly_wage
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let projection =
-        ofm_core::contracts::project_renewal_financial_impact(&game, player_id, weekly_wage)?;
+    let projection = state
+        .get_game(|game| {
+            ofm_core::contracts::project_renewal_financial_impact(game, player_id, weekly_wage)
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     Ok(RenewalFinancialProjectionCommandResponse { projection })
 }
@@ -265,31 +266,29 @@ pub fn offer_free_agent_contract_internal(
         player_id, weekly_wage, contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let outcome = ofm_core::contracts::offer_free_agent_contract(
-        &mut game,
-        player_id,
-        RenewalOffer {
-            weekly_wage,
-            contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(FreeAgentContractCommandResponse {
-        outcome: outcome.decision,
-        game,
-        suggested_wage: outcome.suggested_wage,
-        suggested_years: outcome.suggested_years,
-        session_status: serialize_session_status(outcome.session_status),
-        is_terminal: outcome.is_terminal,
-        cooled_off: outcome.cooled_off,
-        feedback: outcome.feedback,
-    })
+    // offer_free_agent_contract validates (team/player/free-agent) before mutating.
+    state
+        .update_game(|game| {
+            let outcome = ofm_core::contracts::offer_free_agent_contract(
+                game,
+                player_id,
+                RenewalOffer {
+                    weekly_wage,
+                    contract_years,
+                },
+            )?;
+            Ok(FreeAgentContractCommandResponse {
+                outcome: outcome.decision,
+                game: game.clone(),
+                suggested_wage: outcome.suggested_wage,
+                suggested_years: outcome.suggested_years,
+                session_status: serialize_session_status(outcome.session_status),
+                is_terminal: outcome.is_terminal,
+                cooled_off: outcome.cooled_off,
+                feedback: outcome.feedback,
+            })
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 pub fn preview_free_agent_contract_impact_internal(
@@ -302,12 +301,11 @@ pub fn preview_free_agent_contract_impact_internal(
         player_id, weekly_wage
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let projection =
-        ofm_core::contracts::project_free_agent_contract_impact(&game, player_id, weekly_wage)?;
+    let projection = state
+        .get_game(|game| {
+            ofm_core::contracts::project_free_agent_contract_impact(game, player_id, weekly_wage)
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
@@ -319,14 +317,10 @@ pub fn set_contract_exit_intent_internal(
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] set_contract_exit_intent: player_id={}", player_id);
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::contracts::set_contract_exit_intent(&mut game, player_id, reason)?;
-    state.set_game(game.clone());
-
-    Ok(ContractExitIntentCommandResponse { game })
+    mutate_active_game(state, |game| {
+        ofm_core::contracts::set_contract_exit_intent(game, player_id, reason)
+    })
+    .map(|game| ContractExitIntentCommandResponse { game })
 }
 
 pub fn clear_contract_exit_intent_internal(
@@ -335,14 +329,10 @@ pub fn clear_contract_exit_intent_internal(
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] clear_contract_exit_intent: player_id={}", player_id);
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::contracts::clear_contract_exit_intent(&mut game, player_id)?;
-    state.set_game(game.clone());
-
-    Ok(ContractExitIntentCommandResponse { game })
+    mutate_active_game(state, |game| {
+        ofm_core::contracts::clear_contract_exit_intent(game, player_id)
+    })
+    .map(|game| ContractExitIntentCommandResponse { game })
 }
 
 pub fn preview_contract_termination_internal(
@@ -354,10 +344,9 @@ pub fn preview_contract_termination_internal(
         player_id
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-    let preview = ofm_core::contracts::preview_contract_termination(&game, player_id)?;
+    let preview = state
+        .get_game(|game| ofm_core::contracts::preview_contract_termination(game, player_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
 
     Ok(ContractTerminationPreviewCommandResponse { preview })
 }
@@ -368,22 +357,20 @@ pub fn terminate_contract_now_internal(
 ) -> Result<ContractTerminationCommandResponse, String> {
     info!("[cmd] terminate_contract_now: player_id={}", player_id);
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let ContractTerminationResult {
-        severance_cost,
-        squad_safety,
-    } = ofm_core::contracts::terminate_contract_now(&mut game, player_id)?;
-
-    state.set_game(game.clone());
-
-    Ok(ContractTerminationCommandResponse {
-        game,
-        severance_cost,
-        squad_safety,
-    })
+    // terminate_contract_now previews and checks squad safety before mutating.
+    state
+        .update_game(|game| {
+            let ContractTerminationResult {
+                severance_cost,
+                squad_safety,
+            } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
+            Ok(ContractTerminationCommandResponse {
+                game: game.clone(),
+                severance_cost,
+                squad_safety,
+            })
+        })
+        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
 }
 
 #[cfg(test)]

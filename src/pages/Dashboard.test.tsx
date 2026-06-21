@@ -3,6 +3,18 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
 import Dashboard from "./Dashboard";
 
+const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+
+  return {
+    listenMock: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+      handlers.set(event, handler);
+      return Promise.resolve(vi.fn());
+    }),
+    registeredEventHandlers: handlers,
+  };
+});
+
 const navigateMock = vi.fn();
 const invokeMock = vi.fn();
 const setGameStateMock = vi.fn();
@@ -174,7 +186,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn(() => Promise.resolve(vi.fn())),
+  listen: listenMock,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -310,12 +322,15 @@ vi.mock("../components/dashboard/DashboardMatchConfirmModal", () => ({
 
 describe("Dashboard", () => {
   beforeEach(() => {
+    registeredEventHandlers.clear();
+    listenMock.mockClear();
     invokeMock.mockReset();
     setGameStateMock.mockReset();
     clearGameMock.mockReset();
     markCleanMock.mockReset();
     loadSettingsMock.mockReset();
     navigateMock.mockReset();
+    window.localStorage.clear();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
         return gameState;
@@ -349,5 +364,69 @@ describe("Dashboard", () => {
 
     fireEvent.click(screen.getByText("nav-managers"));
     expect(screen.getByText("Header Managers")).toBeInTheDocument();
+  });
+
+  it("loads game state when the active save id fetch fails", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") {
+        return gameState;
+      }
+
+      if (command === "get_active_save_id") {
+        throw new Error("save id unavailable");
+      }
+
+      return null;
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(setGameStateMock).toHaveBeenCalledWith(gameState);
+    });
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(clearGameMock).not.toHaveBeenCalled();
+  });
+
+  it("clears a stale active save id when a later refresh cannot load it", async () => {
+    const saveStorageKey = "ofm-onboarding-visited-tabs:save:save-1";
+    const legacyStorageKey = `ofm-onboarding-visited-tabs:legacy:${gameState.manager.id}:${gameState.clock.start_date}`;
+    const getItemSpy = vi.spyOn(Storage.prototype, "getItem");
+    let saveIdRequestCount = 0;
+
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") {
+        return gameState;
+      }
+
+      if (command === "get_active_save_id") {
+        saveIdRequestCount += 1;
+        if (saveIdRequestCount === 1) {
+          return "save-1";
+        }
+
+        throw new Error("save id unavailable");
+      }
+
+      return null;
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(getItemSpy).toHaveBeenCalledWith(saveStorageKey);
+    });
+
+    getItemSpy.mockClear();
+    const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
+    expect(gameStateChangedHandler).toBeTypeOf("function");
+
+    await gameStateChangedHandler?.();
+
+    await waitFor(() => {
+      expect(getItemSpy).toHaveBeenCalledWith(legacyStorageKey);
+    });
+
+    getItemSpy.mockRestore();
   });
 });

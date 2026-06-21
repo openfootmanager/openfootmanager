@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
-use super::data::{NATIONALITY_POOLS, TEAM_TEMPLATES};
+use super::data::NATIONALITY_POOLS;
+#[cfg(test)]
+use super::data::TEAM_TEMPLATES;
 
 // ---------------------------------------------------------------------------
 // Definition file types (JSON-serialisable)
@@ -34,22 +37,27 @@ pub struct TeamsDefinition {
     pub teams: Vec<TeamDef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TeamDef {
-    pub name: String,
+    /// Stable id used to reference this club (e.g. from player or competition
+    /// files). Empty for procedurally generated clubs, which get a UUID.
     #[serde(default)]
+    pub id: String,
+    pub name: String,
+    #[serde(default, alias = "short_name")]
     pub short_name: String,
     pub city: String,
-    /// ISO 3166-1 alpha-2 country code.
+    /// ISO 3166-1 alpha-2 / football country code.
     pub country: String,
     pub colors: TeamColorsDef,
-    #[serde(default = "default_play_style")]
+    #[serde(default = "default_play_style", alias = "play_style")]
     pub play_style: String,
-    #[serde(default)]
+    #[serde(default, alias = "stadium_name")]
     pub stadium_name: String,
-    #[serde(default)]
+    #[serde(default, alias = "reputation_range")]
     pub reputation_range: Option<[u32; 2]>,
-    #[serde(default)]
+    #[serde(default, alias = "finance_range")]
     pub finance_range: Option<[i64; 2]>,
 }
 
@@ -57,22 +65,22 @@ fn default_play_style() -> String {
     "Balanced".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TeamColorsDef {
     pub primary: String,
     pub secondary: String,
 }
 
-/// Try to load a names definition from a file, returning None on any error.
+/// Try to load a names definition from a JSON or YAML file, returning None on
+/// any error.
 pub fn load_names_definition(path: &std::path::Path) -> Option<NamesDefinition> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
+    super::file_format::load_definition_file(path)
 }
 
-/// Try to load a teams definition from a file, returning None on any error.
+/// Try to load a teams definition from a JSON or YAML file, returning None on
+/// any error.
 pub fn load_teams_definition(path: &std::path::Path) -> Option<TeamsDefinition> {
-    let contents = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&contents).ok()
+    super::file_format::load_definition_file(path)
 }
 
 /// Build the hardcoded names definition as fallback.
@@ -94,7 +102,9 @@ pub(super) fn default_names_definition() -> NamesDefinition {
     }
 }
 
-/// Build the hardcoded teams definition as fallback.
+/// Build the hardcoded teams definition. Retained as a test fixture now that
+/// the shipped world is generated procedurally.
+#[cfg(test)]
 pub(super) fn default_teams_definition() -> TeamsDefinition {
     TeamsDefinition {
         version: 1,
@@ -102,6 +112,7 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
         teams: TEAM_TEMPLATES
             .iter()
             .map(|t| TeamDef {
+                id: String::new(),
                 name: t.name.to_string(),
                 short_name: t
                     .name
@@ -139,6 +150,10 @@ pub enum WorldDataKind {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorldDataMetadata {
     #[serde(default)]
+    pub format_version: u32,
+    #[serde(default)]
+    pub world_id: String,
+    #[serde(default)]
     pub kind: WorldDataKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_year: Option<i32>,
@@ -149,11 +164,54 @@ pub struct WorldDataMetadata {
 impl Default for WorldDataMetadata {
     fn default() -> Self {
         Self {
+            format_version: 1,
+            world_id: Uuid::new_v4().to_string(),
             kind: WorldDataKind::RosterBaseline,
             base_year: None,
             snapshot_date: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldRegionDefinition {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub country_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldShardRefs {
+    pub teams: String,
+    pub players: String,
+    pub staff: String,
+    pub managers: String,
+    pub competitions: String,
+    pub national_teams: String,
+    pub news: String,
+    pub stats: String,
+    pub world_history: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldManifestV2 {
+    pub format_version: u32,
+    pub world_id: String,
+    pub name: String,
+    pub description: String,
+    #[serde(default)]
+    pub regions: Vec<WorldRegionDefinition>,
+    #[serde(default)]
+    pub default_active_regions: Vec<String>,
+    #[serde(default)]
+    pub default_active_competitions: Vec<String>,
+    pub shards: WorldShardRefs,
+    #[serde(default)]
+    pub compatibility: Option<WorldDataMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +223,18 @@ pub struct WorldData {
     pub players: Vec<domain::player::Player>,
     pub staff: Vec<domain::staff::Staff>,
     pub managers: Vec<domain::manager::Manager>,
+    pub competitions: Vec<domain::league::CompetitionState>,
+    /// Optional authored competition definitions resolved at game creation.
+    #[serde(
+        default,
+        rename = "competitionDefinitions",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub competition_definitions: Option<super::competition_def::CompetitionDefinitionFile>,
+    pub national_teams: Vec<domain::national_team::NationalTeam>,
+    pub regions: Vec<WorldRegionDefinition>,
+    pub default_active_regions: Vec<String>,
+    pub default_active_competitions: Vec<String>,
     pub league: Option<domain::league::League>,
     pub news: Vec<domain::news::NewsArticle>,
     pub stats: domain::stats::StatsState,
@@ -181,6 +251,12 @@ impl Default for WorldData {
             players: Vec::new(),
             staff: Vec::new(),
             managers: Vec::new(),
+            competitions: Vec::new(),
+            competition_definitions: None,
+            national_teams: Vec::new(),
+            regions: Vec::new(),
+            default_active_regions: Vec::new(),
+            default_active_competitions: Vec::new(),
             league: None,
             news: Vec::new(),
             stats: domain::stats::StatsState::default(),

@@ -1,6 +1,6 @@
 name: "🐛 Relatório de Bug (Português PT)"
 description: "Reportar um bug ou crash em português europeu"
-labels: ["bug", "alpha"]
+labels: ["bug", "beta"]
 body:
   - type: markdown
     attributes:

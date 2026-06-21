@@ -1,6 +1,6 @@
 name: "🐛 Bug 报告（简体中文）"
 description: "用简体中文报告 bug 或崩溃问题"
-labels: ["bug", "alpha"]
+labels: ["bug", "beta"]
 body:
   - type: markdown
     attributes:

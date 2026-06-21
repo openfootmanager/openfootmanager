@@ -110,6 +110,16 @@ describe("getCommentary", () => {
     expect(result!.line.toLowerCase()).toMatch(/hat-trick|three/);
   });
 
+  it("only uses the hat-trick variant on the third goal", () => {
+    const g1 = goal(10, "p1");
+    const g2 = goal(40, "p1");
+    const g3 = goal(70, "p1");
+    const g4 = goal(82, "p1");
+    const result = getCommentary(g4, snapshot([g1, g2, g3, g4]), i18n.t.bind(i18n));
+    expect(result!.headline).not.toBe("HAT-TRICK!");
+    expect(result!.line.toLowerCase()).not.toContain("hat-trick");
+  });
+
   it("falls back from a missing variant key to the base key", () => {
     // ShotBlocked has a "bigChance" variant in en.json but NO "speculative"
     // variant, so a Speculative-danger blocked shot must fall back to the base
