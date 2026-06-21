@@ -6,6 +6,8 @@ use tauri::State;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
+use crate::commands::util::mutate_active_game;
+
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
         "Senior" => Some(domain::player::SquadRole::Senior),
@@ -445,6 +447,87 @@ pub fn auto_select_set_pieces_internal(
         "free_kick_taker": free_kick,
         "corner_taker": corner,
     }))
+}
+
+pub fn assign_jersey_number_internal(
+    state: &StateManager,
+    player_id: &str,
+    jersey_number: Option<u8>,
+) -> Result<Game, String> {
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        if let Some(n) = jersey_number {
+            if !(1..=99).contains(&n) {
+                return Err("be.error.jerseyNumberOutOfRange".to_string());
+            }
+            let conflict = game.players.iter().any(|p| {
+                p.id != player_id
+                    && p.team_id.as_deref() == Some(team_id.as_str())
+                    && p.jersey_number == Some(n)
+            });
+            if conflict {
+                return Err("be.error.jerseyNumberTaken".to_string());
+            }
+        }
+
+        let player = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == player_id && p.team_id.as_deref() == Some(team_id.as_str()))
+            .ok_or("be.error.playerNotFound".to_string())?;
+
+        player.jersey_number = jersey_number;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn assign_jersey_number(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+    jersey_number: Option<u8>,
+) -> Result<Game, String> {
+    info!(
+        "[cmd] assign_jersey_number: player={}, number={:?}",
+        player_id, jersey_number
+    );
+    assign_jersey_number_internal(&state, &player_id, jersey_number)
+}
+
+pub fn set_team_kit_pattern_internal(
+    state: &StateManager,
+    kit_pattern: domain::team::KitPattern,
+) -> Result<Game, String> {
+    mutate_active_game(state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        let team = game
+            .teams
+            .iter_mut()
+            .find(|t| t.id == team_id)
+            .ok_or("be.error.teamNotFound".to_string())?;
+
+        team.kit_pattern = kit_pattern;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn set_team_kit_pattern(
+    state: State<'_, Arc<StateManager>>,
+    kit_pattern: domain::team::KitPattern,
+) -> Result<Game, String> {
+    info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
+    set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
 #[cfg(test)]
