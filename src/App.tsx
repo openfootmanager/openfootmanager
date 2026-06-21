@@ -1,7 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useSettingsStore } from "./store/settingsStore";
-import { resolveThemePreference, useTheme } from "./context/ThemeContext";
 import i18n, { changeAppLanguage } from "./i18n";
 import "./App.css";
 
@@ -28,41 +27,10 @@ const SCALE_MAP: Record<string, string> = {
 
 function App() {
   const { settings, loaded, loadSettings } = useSettingsStore();
-  const { setTheme } = useTheme();
 
   useEffect(() => {
     if (!loaded) loadSettings();
   }, [loaded, loadSettings]);
-
-  useEffect(() => {
-    if (!loaded) {
-      return;
-    }
-
-    setTheme(resolveThemePreference(settings.theme));
-  }, [loaded, setTheme, settings.theme]);
-
-  useEffect(() => {
-    if (
-      !loaded ||
-      settings.theme !== "system" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const syncSystemTheme = () => {
-      setTheme(mediaQuery.matches ? "dark" : "light");
-    };
-
-    syncSystemTheme();
-    mediaQuery.addEventListener("change", syncSystemTheme);
-
-    return () => {
-      mediaQuery.removeEventListener("change", syncSystemTheme);
-    };
-  }, [loaded, setTheme, settings.theme]);
 
   useEffect(() => {
     const size = SCALE_MAP[settings.ui_scale] || "16px";

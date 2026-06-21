@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, AppSettings } from "../store/settingsStore";
-import { resolveThemePreference, useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext";
 import { ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import {
@@ -38,7 +38,7 @@ export default function Settings() {
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const { settings, loaded, loadSettings, updateSettings } = useSettingsStore();
-  const { setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
@@ -80,7 +80,13 @@ export default function Settings() {
 
     // Sync theme with ThemeContext
     if (partial.theme) {
-      setTheme(resolveThemePreference(partial.theme));
+      const desired =
+        partial.theme === "system"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : partial.theme;
+      if (desired !== theme) toggleTheme();
     }
 
     // Sync language with i18n

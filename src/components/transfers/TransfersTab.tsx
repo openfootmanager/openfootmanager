@@ -334,6 +334,34 @@ export default function TransfersTab({
         loanBuyOptionEnabled ? parseTransferFeeInput(loanBuyOptionFee) : null,
       );
       setLoanResult(response.decision);
+      if (response.decision === "counter_offer") {
+        if (response.suggested_wage_contribution_pct !== null) {
+          setLoanWageContributionPct(
+            Math.max(
+              0,
+              Math.min(100, Math.round(response.suggested_wage_contribution_pct)),
+            ),
+          );
+        }
+        if (response.suggested_end_date) {
+          setLoanPeriodId(
+            getLoanPeriodIdForEndDate(
+              loanRegistrationDate,
+              loanTarget.contract_end,
+              response.suggested_end_date,
+            ),
+          );
+        }
+        if (response.suggested_buy_option_fee !== null) {
+          setLoanBuyOptionEnabled(true);
+          setLoanBuyOptionFee(
+            formatTransferFeeInput(response.suggested_buy_option_fee),
+          );
+        } else {
+          setLoanBuyOptionEnabled(false);
+          setLoanBuyOptionFee("");
+        }
+      }
       if (onGameUpdate) onGameUpdate(response.game);
 
       if (response.decision === "accepted") {
@@ -742,6 +770,7 @@ export default function TransfersTab({
       <div className="flex gap-2 mb-4 flex-wrap">
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab.id}
             onClick={() => setView(tab.id)}
             className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === tab.id
@@ -768,6 +797,7 @@ export default function TransfersTab({
         </div>
         <div className="flex gap-1.5">
           <button
+            type="button"
             onClick={() => setPosFilter(null)}
             className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
@@ -775,6 +805,7 @@ export default function TransfersTab({
           </button>
           {positions.map((pos) => (
             <button
+              type="button"
               key={pos}
               onClick={() => setPosFilter(posFilter === pos ? null : pos)}
               className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
@@ -998,6 +1029,7 @@ export default function TransfersTab({
                         <td className="py-2.5 px-4">
                           {player.team_id ? (
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onSelectTeam(player.team_id!);
@@ -1076,6 +1108,7 @@ export default function TransfersTab({
                                         player.team_id === userTeamId && (
                                           <div className="flex gap-1 ml-1">
                                             <button
+                                              type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleRespondOffer(
@@ -1090,6 +1123,7 @@ export default function TransfersTab({
                                               <Check className="w-3 h-3" />
                                             </button>
                                             <button
+                                              type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleRespondOffer(
@@ -1104,6 +1138,7 @@ export default function TransfersTab({
                                               <X className="w-3 h-3" />
                                             </button>
                                             <button
+                                              type="button"
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 openCounterNegotiation(player, offer);
@@ -1168,6 +1203,7 @@ export default function TransfersTab({
                                           offer.from_team_id !== userTeamId && (
                                             <div className="flex gap-1 ml-1">
                                               <button
+                                                type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   handleRespondLoanOffer(
@@ -1182,6 +1218,7 @@ export default function TransfersTab({
                                                 <Check className="w-3 h-3" />
                                               </button>
                                               <button
+                                                type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   handleRespondLoanOffer(
@@ -1196,6 +1233,7 @@ export default function TransfersTab({
                                                 <X className="w-3 h-3" />
                                               </button>
                                               <button
+                                                type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   openLoanCounterOffer(player, offer);
@@ -1211,6 +1249,7 @@ export default function TransfersTab({
                                           )}
                                         {canExerciseBuyOption ? (
                                           <button
+                                            type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               void handleExerciseLoanBuyOption(player.id);
@@ -1233,6 +1272,7 @@ export default function TransfersTab({
                         {isScoutingView && (
                           <td className="py-2.5 px-4">
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (isFreeAgentView) {

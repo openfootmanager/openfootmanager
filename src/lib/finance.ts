@@ -79,6 +79,10 @@ export function getAnnualWageBill(
     return sum + getPlayerAnnualWageCommitment(player, teamId);
   }, 0);
   const staffWages = staff.reduce((sum, staffMember) => {
+    if (teamId && staffMember.team_id !== teamId) {
+      return sum;
+    }
+
     return sum + Math.max(0, staffMember.wage);
   }, 0);
 
@@ -99,7 +103,11 @@ export function getWeeklyWageSpend(
     );
   }, 0);
   const staffWages = staff.reduce((sum, staffMember) => {
-    return sum + annualAmountToWeeklyCommitment(staffMember.wage);
+    if (teamId && staffMember.team_id !== teamId) {
+      return sum;
+    }
+
+    return sum + annualAmountToWeeklyCommitment(Math.max(0, staffMember.wage));
   }, 0);
 
   return playerWages + staffWages;

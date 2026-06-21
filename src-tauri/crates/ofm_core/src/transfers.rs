@@ -555,6 +555,15 @@ fn expire_stale_transfer_offers(game: &mut Game) {
     }
 }
 
+fn withdraw_pending_transfer_offers(player: &mut domain::player::Player) {
+    for offer in &mut player.transfer_offers {
+        if offer.status == TransferOfferStatus::Pending {
+            offer.status = TransferOfferStatus::Withdrawn;
+            offer.suggested_counter_fee = None;
+        }
+    }
+}
+
 fn expire_stale_loan_offers(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
 
@@ -564,6 +573,37 @@ fn expire_stale_loan_offers(game: &mut Game) {
                 offer.status = LoanOfferStatus::Withdrawn;
             }
         }
+    }
+}
+
+fn competition_contains_team(competition: &domain::league::League, team_id: &str) -> bool {
+    competition
+        .participant_ids
+        .iter()
+        .any(|participant_id| participant_id == team_id)
+        || competition
+            .standings
+            .iter()
+            .any(|entry| entry.team_id == team_id)
+}
+
+fn log_completed_transfer(game: &mut Game, transfer: CompletedTransfer) {
+    let target_competition_index = game
+        .competitions
+        .iter()
+        .position(|competition| competition_contains_team(competition, &transfer.to_team_id))
+        .or_else(|| {
+            game.competitions.iter().position(|competition| {
+                competition_contains_team(competition, &transfer.from_team_id)
+            })
+        })
+        .or_else(|| (game.competitions.len() == 1).then_some(0));
+
+    if let Some(index) = target_competition_index {
+        game.competitions[index].transfer_log.push(transfer);
+        game.sync_legacy_league();
+    } else if let Some(league) = &mut game.league {
+        league.transfer_log.push(transfer);
     }
 }
 
@@ -762,7 +802,10 @@ pub fn evaluate_transfer_market(game: &mut Game) {
     // inbox: at most one new club per player and a hard squad-wide ceiling.
     let mut new_offers_per_player: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
+    let mut new_loan_offers_per_player: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     let mut new_user_offers_today = 0_usize;
+    let mut new_user_loan_offers_today = 0_usize;
 
     // A player's transfer appeal and asking fee don't depend on who's buying, so
     // score every player once and keep only the genuinely attractive targets.
@@ -815,21 +858,37 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         };
         let buyer_depths = position_depths.get(&buyer_id).copied().unwrap_or([0; 4]);
 
-        if let Some(user_team_id) = user_team_id.as_deref() {
-            create_incoming_user_loan_offer_if_any(
-                game,
-                user_team_id,
-                &buyer_id,
-                &buyer_team.name,
-                &today,
-                current_date,
-            );
+        let loan_offer_player_id = if let Some(user_team_id) = user_team_id.as_deref() {
+            if new_user_loan_offers_today < MAX_NEW_INCOMING_USER_OFFERS_PER_DAY {
+                create_incoming_user_loan_offer_if_any(
+                    game,
+                    user_team_id,
+                    &buyer_id,
+                    &buyer_team.name,
+                    &today,
+                    current_date,
+                    &new_loan_offers_per_player,
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(player_id) = loan_offer_player_id.as_ref() {
+            *new_loan_offers_per_player
+                .entry(player_id.clone())
+                .or_insert(0) += 1;
+            new_user_loan_offers_today += 1;
         }
 
         // The list is score-sorted, so the first target clearing this club's
         // filters is its highest-appeal eligible signing.
         let chosen = shortlist.iter().find(|target| {
             if target.owner_team_id == buyer_id || moved_player_ids.contains(&target.player_id) {
+                return false;
+            }
+            if loan_offer_player_id.as_deref() == Some(target.player_id.as_str()) {
                 return false;
             }
             if target.is_user_owned {
@@ -970,12 +1029,20 @@ fn create_incoming_user_loan_offer_if_any(
     buyer_name: &str,
     today: &str,
     current_date: NaiveDate,
-) -> bool {
+    new_loan_offers_per_player: &std::collections::HashMap<String, usize>,
+) -> Option<String> {
     let candidate = game
         .players
         .iter()
         .filter(|player| player.team_id.as_deref() == Some(user_team_id))
         .filter(|player| !has_open_loan_offer_from_club(player, buyer_id))
+        .filter(|player| {
+            new_loan_offers_per_player
+                .get(&player.id)
+                .copied()
+                .unwrap_or(0)
+                < MAX_NEW_INCOMING_OFFERS_PER_USER_PLAYER_PER_DAY
+        })
         .filter_map(|player| {
             let score = incoming_loan_interest_score(player);
             if score >= 45 {
@@ -992,20 +1059,14 @@ fn create_incoming_user_loan_offer_if_any(
         })
         .max_by_key(|candidate| candidate.score);
 
-    let Some(candidate) = candidate else {
-        return false;
-    };
+    let candidate = candidate?;
+    let candidate_player_id = candidate.player_id.clone();
 
-    let Some(player) = game
+    let player = game
         .players
         .iter_mut()
-        .find(|player| player.id == candidate.player_id)
-    else {
-        return false;
-    };
-    let Some(loan_end_date) = default_loan_end_date(current_date, player) else {
-        return false;
-    };
+        .find(|player| player.id == candidate_player_id)?;
+    let loan_end_date = default_loan_end_date(current_date, player)?;
 
     let offer_id = upsert_loan_offer(
         player,
@@ -1022,7 +1083,7 @@ fn create_incoming_user_loan_offer_if_any(
 
     let message = crate::messages::incoming_loan_offer_message(
         &offer_id,
-        &candidate.player_id,
+        &candidate_player_id,
         &player_name,
         buyer_name,
         candidate.wage_contribution_pct,
@@ -1031,7 +1092,7 @@ fn create_incoming_user_loan_offer_if_any(
         today,
     );
     game.messages.push(message);
-    true
+    Some(candidate_player_id)
 }
 
 fn buyer_counter_offer_ceiling(
@@ -1433,11 +1494,13 @@ pub fn make_transfer_bid(
         .find(|t| t.id == user_team_id)
         .ok_or("be.error.managedTeamNotFound")?;
 
-    if (my_team.finance as u64) < fee {
+    let fee_i64 = i64::try_from(fee).map_err(|_| ERR_INSUFFICIENT_FUNDS.to_string())?;
+
+    if my_team.finance < fee_i64 {
         return Err(ERR_INSUFFICIENT_FUNDS.into());
     }
 
-    if my_team.transfer_budget < fee as i64 {
+    if my_team.transfer_budget < fee_i64 {
         return Err(ERR_TRANSFER_BUDGET_TOO_LOW.into());
     }
 
@@ -2241,6 +2304,8 @@ fn execute_loan(
         loan_end_date: Some(end_date.to_string()),
     });
 
+    withdraw_pending_transfer_offers(player);
+
     for offer in &mut player.loan_offers {
         if matches!(
             offer.status,
@@ -2288,6 +2353,7 @@ fn reserve_player_for_pending_loan(
 
     player.transfer_listed = false;
     player.loan_listed = false;
+    withdraw_pending_transfer_offers(player);
     for offer in &mut player.loan_offers {
         if offer.id != accepted_offer_id && offer.status == LoanOfferStatus::Pending {
             offer.status = LoanOfferStatus::Withdrawn;
@@ -2429,10 +2495,11 @@ fn complete_loan_buy_option_transfer(
         .iter()
         .find(|team| team.id == buying_team_id)
         .ok_or("be.error.teamNotFound")?;
-    if buying_team.finance < fee as i64 {
+    let fee_i64 = i64::try_from(fee).map_err(|_| ERR_INSUFFICIENT_FUNDS.to_string())?;
+    if buying_team.finance < fee_i64 {
         return Err(ERR_INSUFFICIENT_FUNDS.into());
     }
-    if buying_team.transfer_budget < fee as i64 {
+    if buying_team.transfer_budget < fee_i64 {
         return Err(ERR_TRANSFER_BUDGET_TOO_LOW.into());
     }
 
@@ -2456,9 +2523,10 @@ fn complete_loan_buy_option_transfer(
 
     for team in &mut game.teams {
         if team.id == buying_team_id {
-            team.finance -= fee as i64;
+            team.finance -= fee_i64;
+            team.transfer_budget -= fee_i64;
         } else if team.id == parent_team_id {
-            team.finance += fee as i64;
+            team.finance += fee_i64;
             team.remove_player_references(player_id);
         } else {
             team.remove_player_references(player_id);
@@ -2506,15 +2574,16 @@ fn complete_loan_buy_option_transfer(
         }
     }
 
-    if let Some(league) = &mut game.league {
-        league.transfer_log.push(CompletedTransfer {
+    log_completed_transfer(
+        game,
+        CompletedTransfer {
             date: today.clone(),
             from_team_id: parent_team_id.to_string(),
             to_team_id: buying_team_id.to_string(),
             player_id: player_id.to_string(),
             fee,
-        });
-    }
+        },
+    );
 
     if notify_user {
         game.messages

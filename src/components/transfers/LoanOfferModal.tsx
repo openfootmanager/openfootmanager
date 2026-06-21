@@ -78,14 +78,21 @@ export default function LoanOfferModal({
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="loan-offer-modal-title"
         className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-md"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+        <h3
+          id="loan-offer-modal-title"
+          className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3"
+        >
           {t(titleKey)}
         </h3>
         <div className="flex items-center gap-3 mb-4">
@@ -308,6 +315,7 @@ export default function LoanOfferModal({
 
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={onSubmit}
             disabled={submitDisabled}
             className="flex-1 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
@@ -315,6 +323,7 @@ export default function LoanOfferModal({
             {loading ? t("transfers.submitting") : t(submitLabelKey)}
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-300 rounded-lg font-heading font-bold text-sm uppercase tracking-wider hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
           >

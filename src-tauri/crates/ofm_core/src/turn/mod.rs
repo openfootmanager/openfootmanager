@@ -188,10 +188,10 @@ where
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::job_offers::check_job_offers(game);
 
+    transfers::process_pending_loan_registrations(game);
     debug!("[turn] process_day {}: complete, advancing clock", today);
     game.clock.advance_days(1);
     crate::season_context::refresh_game_context(game);
-    transfers::process_pending_loan_registrations(game);
 }
 
 /// Called after a live match finishes to complete the day:
@@ -223,10 +223,10 @@ pub fn finish_live_match_day(game: &mut Game) {
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::job_offers::check_job_offers(game);
 
+    transfers::process_pending_loan_registrations(game);
     game.clock.advance_days(1);
     game.sync_legacy_league();
     crate::season_context::refresh_game_context(game);
-    transfers::process_pending_loan_registrations(game);
 }
 
 #[cfg(test)]

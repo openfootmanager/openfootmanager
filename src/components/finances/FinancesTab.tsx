@@ -260,6 +260,12 @@ export default function FinancesTab({
   } | null>(null);
 
   const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
+  const financePlayers = gameState.players.filter(
+    (player) =>
+      player.team_id === myTeam.id ||
+      player.active_loan?.parent_team_id === myTeam.id ||
+      player.active_loan?.loan_team_id === myTeam.id,
+  );
   const teamStaff = gameState.staff.filter(
     (staffMember) => staffMember.team_id === myTeam.id,
   );
@@ -277,7 +283,7 @@ export default function FinancesTab({
     myTeam.sponsorship?.sponsor_name ?? "",
     myTeam.sponsorship?.base_value ?? 0,
     myTeam.sponsorship?.remaining_weeks ?? 0,
-    gameState.players
+    financePlayers
       .map(
         (player) =>
           [
@@ -305,7 +311,7 @@ export default function FinancesTab({
     myTeam,
     getTeamFinanceSnapshot(
       myTeam,
-      gameState.players,
+      financePlayers,
       teamStaff,
       gameState.clock.current_date,
     ),

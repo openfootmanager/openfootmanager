@@ -198,6 +198,11 @@ export default function PlayerProfile({
   const isManagerOwnedProfile = player.active_loan
     ? isContractOwnerClub
     : isOwnClub || isContractOwnerClub;
+  const isManagerLoanClub = Boolean(
+    managerTeamId && player.active_loan?.loan_team_id === managerTeamId,
+  );
+  const isManagerSquadProfile =
+    isManagerOwnedProfile || isOwnClub || isManagerLoanClub;
   const hasAssistantManager = managerTeamId
     ? gameState.staff.some(
       (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
@@ -652,7 +657,7 @@ export default function PlayerProfile({
         weakFootValue={weakFootValue}
             annualSuffix={annualSuffix}
         language={i18n.language}
-        isOwnClub={isManagerOwnedProfile || !onGameUpdate}
+        isOwnClub={isManagerSquadProfile || !onGameUpdate}
         scoutAvailability={scoutAvailability}
         scoutStatus={scoutStatus}
         scoutError={scoutError}
@@ -733,7 +738,7 @@ export default function PlayerProfile({
 
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
-          isOwnClub={isManagerOwnedProfile}
+          isOwnClub={isManagerSquadProfile}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
           hiddenTitle={t("playerProfile.attributesHidden")}

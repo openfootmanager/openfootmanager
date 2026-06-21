@@ -1057,6 +1057,46 @@ fn incoming_loan_offer_is_generated_for_loan_listed_user_player() {
 }
 
 #[test]
+fn incoming_loan_offers_are_capped_per_user_player_per_day() {
+    let mut player = make_user_player("player-user-loan-flood");
+    player.loan_listed = true;
+    player.ovr = 68;
+    player.potential = 80;
+    player.stats.appearances = 0;
+    player.wage = 260_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams
+        .push(make_ai_team("team-3", "Buyer C", 10_000_000, 5_000_000));
+    game.teams
+        .push(make_ai_team("team-4", "Buyer D", 10_000_000, 5_000_000));
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-user-loan-flood")
+        .unwrap();
+    let pending_offers = player
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.status == LoanOfferStatus::Pending)
+        .count();
+    let loan_messages = game
+        .messages
+        .iter()
+        .filter(|message| {
+            message.id.starts_with("loan_offer_")
+                && message.context.player_id.as_deref() == Some("player-user-loan-flood")
+        })
+        .count();
+
+    assert_eq!(pending_offers, 1);
+    assert_eq!(loan_messages, 1);
+}
+
+#[test]
 fn incoming_loan_offer_does_not_block_permanent_transfer_interest() {
     let mut loan_player = make_user_player("player-user-loan-mixed-market");
     loan_player.loan_listed = true;
