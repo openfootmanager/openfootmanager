@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
@@ -32,7 +33,8 @@ function aggregateByWeek(ledger: FinancialTransactionData[]): WeeklyBucket[] {
     const d = new Date(tx.date);
     const year = d.getUTCFullYear();
     const jan1 = Date.UTC(year, 0, 1);
-    const weekNum = Math.ceil((d.getTime() - jan1) / (7 * 86400000) + 1);
+    const dayOfYear = Math.floor((d.getTime() - jan1) / 86400000);
+    const weekNum = Math.floor(dayOfYear / 7) + 1;
     const key = `${year}-W${String(weekNum).padStart(2, "0")}`;
     const label = `W${weekNum}`;
 
@@ -58,8 +60,11 @@ export function FinanceCashFlowChart({
   incomeLabel,
   expensesLabel,
 }: FinanceCashFlowChartProps) {
+  const id = useId();
   const theme = useChartTheme();
   const data = aggregateByWeek(ledger);
+  const incomeGradId = `incomeGrad-${id}`;
+  const expensesGradId = `expensesGrad-${id}`;
 
   if (data.length === 0) {
     return <ChartContainer isEmpty height={180} />;
@@ -70,13 +75,13 @@ export function FinanceCashFlowChart({
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={incomeGradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={theme.primary} stopOpacity={0.3} />
               <stop offset="95%" stopColor={theme.primary} stopOpacity={0.02} />
             </linearGradient>
-            <linearGradient id="expensesGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+            <linearGradient id={expensesGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={theme.danger} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={theme.danger} stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.gridColor} vertical={false} />
@@ -109,15 +114,15 @@ export function FinanceCashFlowChart({
             dataKey="income"
             name={incomeLabel}
             stroke={theme.primary}
-            fill="url(#incomeGrad)"
+            fill={`url(#${incomeGradId})`}
             strokeWidth={2}
           />
           <Area
             type="monotone"
             dataKey="expenses"
             name={expensesLabel}
-            stroke="#ef4444"
-            fill="url(#expensesGrad)"
+            stroke={theme.danger}
+            fill={`url(#${expensesGradId})`}
             strokeWidth={2}
           />
         </AreaChart>

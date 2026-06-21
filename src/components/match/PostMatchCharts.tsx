@@ -21,9 +21,12 @@ export function PossessionDonut({
   label,
 }: PossessionDonutProps) {
   const theme = useChartTheme();
+  const total = homePct + awayPct;
+  const normalizedHome = total > 0 ? (homePct / total) * 100 : 50;
+  const normalizedAway = total > 0 ? (awayPct / total) * 100 : 50;
   const data = [
-    { name: homeTeamName, value: Math.round(homePct) },
-    { name: awayTeamName, value: Math.round(awayPct) },
+    { name: homeTeamName, value: Math.round(normalizedHome) },
+    { name: awayTeamName, value: Math.round(normalizedAway) },
   ];
 
   return (
@@ -60,13 +63,13 @@ export function PossessionDonut({
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="text-[10px] font-heading font-bold text-gray-700 dark:text-gray-300 tabular-nums">
-            {Math.round(homePct)}%
+            {Math.round(normalizedHome)}%
           </span>
         </div>
       </div>
       <div className="flex gap-3 text-[9px] font-heading uppercase tracking-wider">
-        <span style={{ color: homeColor }}>{Math.round(homePct)}%</span>
-        <span style={{ color: awayColor }}>{Math.round(awayPct)}%</span>
+        <span style={{ color: homeColor }}>{Math.round(normalizedHome)}%</span>
+        <span style={{ color: awayColor }}>{Math.round(normalizedAway)}%</span>
       </div>
     </div>
   );

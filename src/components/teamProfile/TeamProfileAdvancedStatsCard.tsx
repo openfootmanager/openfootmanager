@@ -128,12 +128,16 @@ export default function TeamProfileAdvancedStatsCard({
         action={
           <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-navy-600 text-[10px] font-heading font-bold uppercase tracking-wider">
             <button
+              type="button"
+              aria-pressed={view === "stats"}
               onClick={() => setView("stats")}
               className={`px-3 py-1 transition-colors ${view === "stats" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
             >
               {t("common.statsView")}
             </button>
             <button
+              type="button"
+              aria-pressed={view === "radar"}
               onClick={() => setView("radar")}
               className={`px-3 py-1 transition-colors ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
             >
