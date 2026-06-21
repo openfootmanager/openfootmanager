@@ -6,9 +6,9 @@ import type {
   PlayerData,
   ScoutingAssignment,
   StaffData,
-  TeamData,
   YouthScoutingAssignment,
 } from "../../store/gameStore";
+import { createStaff, createTeam } from "../../test-utils/factories";
 import ScoutingTab from "./ScoutingTab";
 
 const invokeMock = vi.fn();
@@ -108,36 +108,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "GB",
-    city: "London",
-    stadium_name: "Alpha Ground",
-    stadium_capacity: 30000,
-    finance: 500000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 50000,
-    transfer_budget: 250000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "General",
-    training_intensity: "Balanced",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: { primary: "#000000", secondary: "#ffffff" },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
-
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
     id: "player-1",
@@ -193,28 +163,6 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     loan_listed: false,
     transfer_offers: [],
     traits: [],
-    ...overrides,
-  };
-}
-
-function createScout(overrides: Partial<StaffData> = {}): StaffData {
-  return {
-    id: "staff-1",
-    first_name: "Sam",
-    last_name: "Scout",
-    date_of_birth: "1985-01-01",
-    nationality: "GB",
-    role: "Scout",
-    attributes: {
-      coaching: 20,
-      judging_ability: 65,
-      judging_potential: 70,
-      physiotherapy: 10,
-    },
-    team_id: "team-1",
-    specialization: null,
-    wage: 1000,
-    contract_end: "2027-06-30",
     ...overrides,
   };
 }
@@ -282,7 +230,7 @@ describe("ScoutingTab", () => {
   it("renders the youth recruitment card when scouts are available", () => {
     render(
       <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
+        gameState={createGameState({ scouts: [createStaff()] })}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -298,7 +246,7 @@ describe("ScoutingTab", () => {
 
     render(
       <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
+        gameState={createGameState({ scouts: [createStaff()] })}
         onGameUpdate={onGameUpdate}
       />,
     );
@@ -324,7 +272,7 @@ describe("ScoutingTab", () => {
     try {
       render(
         <ScoutingTab
-          gameState={createGameState({ scouts: [createScout()] })}
+          gameState={createGameState({ scouts: [createStaff()] })}
           onGameUpdate={vi.fn()}
         />,
       );
@@ -343,7 +291,7 @@ describe("ScoutingTab", () => {
 
   it("starts a youth scouting search and forwards the updated state", async () => {
     const updatedState = createGameState({
-      scouts: [createScout()],
+      scouts: [createStaff()],
       youthAssignments: [{ id: "ysa-1", scout_id: "staff-1", region: "Domestic", objective: "Balanced", target_position: "Defender", days_remaining: 5 }],
     });
     const onGameUpdate = vi.fn();
@@ -351,7 +299,7 @@ describe("ScoutingTab", () => {
 
     render(
       <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
+        gameState={createGameState({ scouts: [createStaff()] })}
         onGameUpdate={onGameUpdate}
       />,
     );
@@ -374,7 +322,7 @@ describe("ScoutingTab", () => {
 
   it("cancels an active youth scouting assignment", async () => {
     const updatedState = createGameState({
-      scouts: [createScout()],
+      scouts: [createStaff()],
       youthAssignments: [
         {
           id: "ysa-1",
@@ -392,7 +340,7 @@ describe("ScoutingTab", () => {
     render(
       <ScoutingTab
         gameState={createGameState({
-          scouts: [createScout()],
+          scouts: [createStaff()],
           youthAssignments: [
             {
               id: "ysa-1",
@@ -422,7 +370,7 @@ describe("ScoutingTab", () => {
     render(
       <ScoutingTab
         gameState={createGameState({
-          scouts: [createScout(), createScout({ id: "staff-2", first_name: "Alex" })],
+          scouts: [createStaff(), createStaff({ id: "staff-2", first_name: "Alex" })],
           assignments: [
             {
               id: "assignment-1",
@@ -496,7 +444,7 @@ describe("ScoutingTab", () => {
 
     render(
       <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
+        gameState={createGameState({ scouts: [createStaff()] })}
         onGameUpdate={onGameUpdate}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}

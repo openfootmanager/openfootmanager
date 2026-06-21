@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, TeamData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
+import { createTeam } from "../../test-utils/factories";
 import ManagerTab from "./ManagerTab";
 
 vi.mock("react-i18next", () => ({
@@ -43,36 +44,6 @@ vi.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
-
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "GB",
-    city: "London",
-    stadium_name: "Alpha Ground",
-    stadium_capacity: 30000,
-    finance: 500000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 50000,
-    transfer_budget: 250000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "General",
-    training_intensity: "Balanced",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: { primary: "#000000", secondary: "#ffffff" },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
 
 function createGameState(withHistory: boolean): GameStateData {
   return {
