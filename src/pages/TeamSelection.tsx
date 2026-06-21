@@ -680,6 +680,8 @@ export default function TeamSelection() {
                     <div
                       key={region.id}
                       role="button"
+                      aria-pressed={enabled}
+                      aria-disabled={isLocked}
                       tabIndex={isLocked ? -1 : 0}
                       onClick={() => !isLocked && handleRegionToggle(region.id)}
                       onKeyDown={(e) => {
@@ -735,6 +737,8 @@ export default function TeamSelection() {
                     <div
                       key={competition.id}
                       role="button"
+                      aria-pressed={enabled}
+                      aria-disabled={isLocked}
                       tabIndex={isLocked ? -1 : 0}
                       onClick={() => !isLocked && handleCompetitionToggle(competition)}
                       onKeyDown={(e) => {
