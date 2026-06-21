@@ -634,6 +634,8 @@
     "currentPlan": "Current plan",
     "planStatus": "Plan",
     "tacticalFit": "Tactical fit",
+    "slotLabel": "Slot",
+    "hasLabel": "Has",
     "coverageTitle": "Role coverage",
     "coverageStable": "Coverage looks healthy",
     "coverageNeedsAttention": "{{count}} role groups need cover",

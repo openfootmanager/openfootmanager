@@ -689,6 +689,8 @@
     "currentPlan": "Plan actual",
     "planStatus": "Plan",
     "tacticalFit": "Encaje táctico",
+    "slotLabel": "Posición",
+    "hasLabel": "Tiene",
     "coverageTitle": "Cobertura de roles",
     "coverageStable": "La cobertura se ve sólida",
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",

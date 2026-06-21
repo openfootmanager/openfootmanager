@@ -204,29 +204,6 @@ function getConditionState(
   };
 }
 
-function getFitBadge(
-  fit: ReturnType<typeof getSquadTacticalFit>,
-  translate: (key: string, fallback?: string) => string,
-): { label: string; variant: "success" | "accent" | "danger" } {
-  switch (fit) {
-    case "natural":
-      return {
-        label: translate("tactics.naturalFit"),
-        
-        variant: "success",
-      };
-    case "adapted":
-      return {
-        label: translate("tactics.adaptedFit"),
-        variant: "accent",
-      };
-    default:
-      return {
-        label: translate("squad.outOfPosition"),
-        variant: "danger",
-      };
-  }
-}
 
 function getStyleFitBadge(
   fit: ReturnType<typeof getPlayStyleFit>,
@@ -367,7 +344,6 @@ function TacticsTableRow({
     translateLabel,
   );
   const tacticalFit = getSquadTacticalFit(player, activePosition);
-  const tacticalFitBadge = getFitBadge(tacticalFit, translateLabel);
   const styleFitBadge = getStyleFitBadge(
     getPlayStyleFit(player, activePlayStyle),
     translateLabel,
@@ -529,11 +505,23 @@ function TacticsTableRow({
         ) : (
           <>
             <td className="px-4 py-3 align-top">
-              <Badge variant={tacticalFitBadge.variant} size="sm">
-                {tacticalFitBadge.label}
-              </Badge>
-              <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
-                {currentSlotOption?.label ?? translatePositionAbbreviation(t, activePosition)}
+              <div className="space-y-0.5 text-xs">
+                <div>
+                  <span
+                    className={
+                      tacticalFit === "out"
+                        ? "font-medium text-red-500 dark:text-red-400"
+                        : tacticalFit === "adapted"
+                          ? "font-medium text-amber-500 dark:text-amber-400"
+                          : "font-medium text-emerald-600 dark:text-emerald-400"
+                    }
+                  >
+                    {t("squad.slotLabel")}: {translatePositionAbbreviation(t, activePosition)}
+                  </span>
+                </div>
+                <div className="text-gray-500 dark:text-gray-400">
+                  {t("squad.hasLabel")}: {preferredPositions.map((p) => translatePositionAbbreviation(t, p)).join(", ")}
+                </div>
               </div>
             </td>
 

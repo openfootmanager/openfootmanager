@@ -104,20 +104,6 @@ function getConditionFillClassName(condition: number): string {
   return "bg-red-400";
 }
 
-function getFitStateLabel(
-  fitTone: FitTone,
-  translate: (key: string, fallback?: string) => string,
-): string {
-  if (fitTone === "exact") {
-    return translate("tactics.tokenStates.ready");
-  }
-
-  if (fitTone === "adapted") {
-    return translate("tactics.tokenStates.adjusted");
-  }
-
-  return translate("tactics.tokenStates.risk");
-}
 
 function getRoleMarkers(
   matchRoles: TeamMatchRolesData | undefined,
@@ -295,8 +281,6 @@ export default function TacticsPitch({
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
   const draggedPlayerId = dragState?.playerId ?? null;
-  const translateLabel = (key: string, fallback?: string) =>
-    t(key, fallback ?? key);
 
   return (
     <Card className="overflow-hidden">
@@ -464,10 +448,6 @@ export default function TacticsPitch({
                   {player ? (
                     (() => {
                       const roleMarkers = getRoleMarkers(matchRoles, player.id);
-                      const fitStateLabel = getFitStateLabel(
-                        fitTone,
-                        translateLabel,
-                      );
                       const fitBarClassName = getConditionFillClassName(
                         Math.min(
                           player.condition,
@@ -559,10 +539,6 @@ export default function TacticsPitch({
                               </span>
                             </div>
                             <div className="mt-2 w-full">
-                              <div className="mb-1 flex items-center justify-between text-[8px] font-heading font-bold uppercase tracking-[0.18em] text-white/65">
-                                <span>{fitStateLabel}</span>
-                                <span>{t("common.condition")}</span>
-                              </div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                                 <div
                                   className={`h-full rounded-full ${fitBarClassName}`}

@@ -678,6 +678,8 @@
     "currentPlan": "Piano attuale",
     "planStatus": "Piano",
     "tacticalFit": "Adattamento tattico",
+    "slotLabel": "Ruolo",
+    "hasLabel": "Ha",
     "coverageTitle": "Copertura dei ruoli",
     "coverageStable": "La copertura sembra solida",
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",

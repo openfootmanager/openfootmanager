@@ -659,6 +659,8 @@
     "currentPlan": "Plan actuel",
     "planStatus": "Plan",
     "tacticalFit": "Compatibilité tactique",
+    "slotLabel": "Poste",
+    "hasLabel": "Peut",
     "coverageTitle": "Couverture des rôles",
     "coverageStable": "La couverture semble bonne",
     "coverageNeedsAttention": "{{count}} groupes de rôles ont besoin de couverture",

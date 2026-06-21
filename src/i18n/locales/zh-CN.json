@@ -659,6 +659,8 @@
     "currentPlan": "当前计划",
     "planStatus": "计划",
     "tacticalFit": "战术适配",
+    "slotLabel": "位置",
+    "hasLabel": "擅长",
     "coverageTitle": "角色覆盖",
     "coverageStable": "角色覆盖情况良好",
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",

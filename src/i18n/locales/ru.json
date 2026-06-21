@@ -659,6 +659,8 @@
     "currentPlan": "Текущий план",
     "planStatus": "План",
     "tacticalFit": "Тактическое соответствие",
+    "slotLabel": "Позиция",
+    "hasLabel": "Умеет",
     "coverageTitle": "Покрытие ролей",
     "coverageStable": "С покрытием всё в порядке",
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",

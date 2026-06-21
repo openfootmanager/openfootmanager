@@ -659,6 +659,8 @@
     "currentPlan": "Plano atual",
     "planStatus": "Plano",
     "tacticalFit": "Encaixe tático",
+    "slotLabel": "Posição",
+    "hasLabel": "Tem",
     "coverageTitle": "Cobertura de funções",
     "coverageStable": "A cobertura parece sólida",
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
