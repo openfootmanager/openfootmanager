@@ -171,7 +171,9 @@
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
     "digestViewIssues": "Посмотреть проблемы",
     "digestFired": "Вас уволили.",
-    "digestContinueAnyway": "Продолжить в любом случае"
+    "digestContinueAnyway": "Продолжить в любом случае",
+    "digestStop": "Остановить симуляцию",
+    "digestStopped": "Симуляция остановлена"
   },
   "continueMenu": {
     "goToField": "Перейти на поле",

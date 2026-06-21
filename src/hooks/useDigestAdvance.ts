@@ -14,7 +14,8 @@ export interface DigestEntry {
 export type DigestStopReason =
   | { kind: "match_day" }
   | { kind: "blocked"; blockers: BlockerData[] }
-  | { kind: "fired" };
+  | { kind: "fired" }
+  | { kind: "error" };
 
 const MAX_DIGEST_DAYS = 60;
 
@@ -72,6 +73,7 @@ export function useDigestAdvance(
       }
     } catch (err) {
       console.error("[useDigestAdvance] error during digest loop:", err);
+      setStopReason({ kind: "error" });
     } finally {
       setIsRunning(false);
     }

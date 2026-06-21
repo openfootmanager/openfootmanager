@@ -171,7 +171,9 @@
     "digestBlockedDesc": "Es gibt Probleme, die Ihre Aufmerksamkeit erfordern.",
     "digestViewIssues": "Probleme anzeigen",
     "digestFired": "Sie wurden entlassen.",
-    "digestContinueAnyway": "Trotzdem fortfahren"
+    "digestContinueAnyway": "Trotzdem fortfahren",
+    "digestStop": "Simulation stoppen",
+    "digestStopped": "Simulation gestoppt"
   },
   "continueMenu": {
     "goToField": "Aufs Spielfeld",

@@ -138,3 +138,18 @@ input[type="number"] {
 .high-contrast.dark .text-gray-600 {
   color: #90a4ae;
 }
+/* Digest feed staggered reveal */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.digest-event-item {
+  opacity: 0;
+  animation: fadeSlideIn 220ms ease forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .digest-event-item {
+    opacity: 1;
+    animation: none;
+  }
+}
