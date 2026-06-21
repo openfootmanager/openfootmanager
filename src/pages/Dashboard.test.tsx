@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 
 const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
@@ -334,6 +335,7 @@ describe("Dashboard", () => {
     markCleanMock.mockReset();
     loadSettingsMock.mockReset();
     navigateMock.mockReset();
+    vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
@@ -388,6 +390,7 @@ describe("Dashboard", () => {
     await waitFor(() => {
       expect(setGameStateMock).toHaveBeenCalledWith(gameState);
     });
+    expect(applyExtraTranslations).toHaveBeenCalledWith(gameState.extra_translations);
     expect(navigateMock).not.toHaveBeenCalled();
     expect(clearGameMock).not.toHaveBeenCalled();
   });
