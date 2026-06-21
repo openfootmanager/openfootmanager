@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, MessageData } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import {
   clearOldMessages,
   deleteMessage,
   deleteMessages,
+  fetchMessages,
   markAllMessagesRead,
   markMessageRead,
   resolveMessageAction,
@@ -25,8 +27,10 @@ import {
   sortInboxMessages,
 } from "./inboxHelpers";
 
+const EMPTY_MESSAGES: MessageData[] = [];
+
 interface InboxTabProps {
-  gameState: GameStateData;
+  gameState: GameStateData | null;
   onGameUpdate: (g: GameStateData) => void;
   initialMessageId?: string | null;
   onNavigate?: (tab: string, context?: { messageId?: string }) => void;
@@ -39,7 +43,25 @@ export default function InboxTab({
   onNavigate,
 }: InboxTabProps): JSX.Element {
   const { i18n } = useTranslation();
-  const messages = gameState.messages ?? [];
+  const { sessionState } = useGameStore();
+  const [fetchedMessages, setFetchedMessages] = useState<MessageData[] | null>(null);
+
+  // Prefer live sessionState clock; fall back to prop snapshot while sessionState loads.
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? null;
+  const currentTeamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const currentTeamName = sessionState?.team?.name ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMessages()
+      .then((msgs) => {
+        if (!cancelled && Array.isArray(msgs)) setFetchedMessages(msgs);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clockDate]);
+
+  const messages = fetchedMessages ?? gameState?.messages ?? EMPTY_MESSAGES;
   const allMessages = useMemo(() => messages.map(resolveMessage), [messages]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     initialMessageId ?? null,
@@ -103,6 +125,12 @@ export default function InboxTab({
     }
   }, [allMessages, selectedMessageId]);
 
+  useEffect(() => {
+    if (effectFeedback === null) return;
+    const id = setTimeout(() => setEffectFeedback(null), 4000);
+    return () => clearTimeout(id);
+  }, [effectFeedback]);
+
   async function handleSelectMessage(messageId: string): Promise<void> {
     setSelectedMessageId(messageId);
     const message = allMessages.find(
@@ -111,8 +139,8 @@ export default function InboxTab({
 
     if (message && !message.read) {
       try {
-        const updatedGameState = await markMessageRead(messageId);
-        onGameUpdate(updatedGameState);
+        const updated = await markMessageRead(messageId);
+        setFetchedMessages(updated);
       } catch { }
     }
   }
@@ -143,6 +171,7 @@ export default function InboxTab({
     try {
       const result = await resolveMessageAction(messageId, actionId, optionId);
 
+      setFetchedMessages(result.game.messages);
       onGameUpdate(result.game);
 
       if (result.effect || result.effect_i18n_key) {
@@ -160,22 +189,21 @@ export default function InboxTab({
           effectParams,
         );
         setEffectFeedback(resolvedEffect);
-        setTimeout(() => setEffectFeedback(null), 4000);
       }
     } catch { }
   }
 
   async function handleMarkAllRead(): Promise<void> {
     try {
-      const updatedGameState = await markAllMessagesRead();
-      onGameUpdate(updatedGameState);
+      const updated = await markAllMessagesRead();
+      setFetchedMessages(updated);
     } catch { }
   }
 
   async function handleClearOld(): Promise<void> {
     try {
-      const updatedGameState = await clearOldMessages();
-      onGameUpdate(updatedGameState);
+      const updated = await clearOldMessages();
+      setFetchedMessages(updated);
       setSelectedMessageId(null);
     } catch { }
   }
@@ -188,19 +216,19 @@ export default function InboxTab({
     setIsDeleting(true);
 
     try {
-      let updatedGameState: GameStateData;
+      let updatedMessages: MessageData[];
       let deletedMessageIds: string[];
 
       if (deleteModalState.mode === "single") {
         deletedMessageIds = [deleteModalState.messageId];
-        updatedGameState = await deleteMessage(deleteModalState.messageId);
+        updatedMessages = await deleteMessage(deleteModalState.messageId);
       } else {
         deletedMessageIds = deleteModalState.messageIds;
-        updatedGameState = await deleteMessages(deleteModalState.messageIds);
+        updatedMessages = await deleteMessages(deleteModalState.messageIds);
         setBulkSelectionEnabled(false);
       }
 
-      onGameUpdate(updatedGameState);
+      setFetchedMessages(updatedMessages);
       setSelectedMessageIds((currentIds) =>
         currentIds.filter((messageId) => !deletedMessageIds.includes(messageId)),
       );
@@ -353,7 +381,8 @@ export default function InboxTab({
         <div className="flex-1 flex flex-col min-w-0">
           <InboxMessageDetailPane
             effectFeedback={effectFeedback}
-            gameState={gameState}
+            currentTeamId={currentTeamId}
+            currentTeamName={currentTeamName}
             language={i18n.language}
             selectedMessage={selectedMessage}
             onAction={(messageId, actionId, optionId) => {

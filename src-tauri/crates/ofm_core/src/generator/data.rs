@@ -539,9 +539,11 @@ pub(super) const NATIONALITY_POOLS: &[NationalityNames] = &[
 ];
 
 // ---------------------------------------------------------------------------
-// Team data — 16 teams across multiple countries
+// Legacy curated team templates. The shipped world is now generated
+// procedurally (see `clubs.rs`); these are retained only as test fixtures.
 // ---------------------------------------------------------------------------
 
+#[cfg(test)]
 pub(super) struct TeamTemplate {
     pub name: &'static str,
     pub city: &'static str,
@@ -550,6 +552,7 @@ pub(super) struct TeamTemplate {
     pub play_style: &'static str,
 }
 
+#[cfg(test)]
 pub(super) const TEAM_TEMPLATES: &[TeamTemplate] = &[
     TeamTemplate {
         name: "London FC",

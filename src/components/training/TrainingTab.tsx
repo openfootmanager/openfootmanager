@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   BedDouble,
@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { getSquad } from "../../services/squadService";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
@@ -23,7 +25,7 @@ import TrainingSettingsPanel from "./TrainingSettingsPanel";
 import { getTrainingStaffAdvice } from "./trainingAdvice";
 
 interface TrainingTabProps {
-  gameState: GameStateData;
+  gameState: GameStateData | null;
   onGameUpdate?: (state: GameStateData) => void;
 }
 
@@ -94,24 +96,30 @@ export default function TrainingTab({
   onGameUpdate,
 }: TrainingTabProps) {
   const { t } = useTranslation();
-  const myTeam = gameState.teams.find(
-    (team) => team.id === gameState.manager.team_id,
-  );
+  const { sessionState } = useGameStore();
+  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
 
-  if (!myTeam) {
+  useEffect(() => {
+    if (!teamId) return;
+    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
+  }, [teamId]);
+
+  const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
+
+  if (!team) {
     return (
       <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
     );
   }
 
-  const currentFocus = myTeam.training_focus || "Physical";
-  const currentIntensity = myTeam.training_intensity || "Medium";
-  const currentSchedule = myTeam.training_schedule || "Balanced";
-  const [isSaving, setIsSaving] = useState(false);
+  const currentFocus = team.training_focus || "Physical";
+  const currentIntensity = team.training_intensity || "Medium";
+  const currentSchedule = team.training_schedule || "Balanced";
 
-  const roster = gameState.players.filter(
-    (player) => player.team_id === myTeam.id && isSeniorSquadPlayer(player),
-  );
+  const allSquadPlayers = fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
+  const roster = allSquadPlayers.filter(isSeniorSquadPlayer);
   const avgCondition =
     roster.length > 0
       ? Math.round(
@@ -127,7 +135,8 @@ export default function TrainingTab({
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const criticalCount = roster.filter((player) => player.condition < 25).length;
 
-  const todayWeekday = getWeekdayFromDate(gameState.clock.current_date);
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays =
     SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
   const isTodayTraining = trainingDays.includes(todayWeekday);
@@ -228,7 +237,7 @@ export default function TrainingTab({
         />
 
         <TrainingGroupsCard
-          gameState={gameState}
+          team={team}
           onGameUpdate={onGameUpdate}
           roster={roster}
           isSaving={isSaving}

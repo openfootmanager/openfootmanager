@@ -17,6 +17,28 @@ export interface TransferCollections {
   playersWithOffers: PlayerData[];
 }
 
+export function uniquePlayersById(players: PlayerData[]): PlayerData[] {
+  const seenPlayerIds = new Set<string>();
+
+  return players.filter((player) => {
+    if (seenPlayerIds.has(player.id)) {
+      return false;
+    }
+
+    seenPlayerIds.add(player.id);
+    return true;
+  });
+}
+
+export function getMyListedPlayers(
+  collections: TransferCollections,
+): PlayerData[] {
+  return uniquePlayersById([
+    ...collections.myTransferList,
+    ...collections.myLoanList,
+  ]);
+}
+
 export function deriveTransferCollections(
   gameState: GameStateData,
   userTeamId: string | null,
@@ -54,7 +76,7 @@ export function getCurrentTransferList(
 ): PlayerData[] {
   switch (view) {
     case "my_list":
-      return [...collections.myTransferList, ...collections.myLoanList];
+      return getMyListedPlayers(collections);
     case "market":
       return collections.marketPlayers;
     case "free_agents":

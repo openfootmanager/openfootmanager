@@ -501,6 +501,8 @@ export default function HalfTimeBreak({
           snapshot={snapshot}
           side={userSide}
           onSubstitute={handleSubstitution}
+          onFormationChange={handleFormationChange}
+          onPlayStyleChange={handlePlayStyleChange}
           onClose={() => setShowSubPanel(false)}
         />
       )}

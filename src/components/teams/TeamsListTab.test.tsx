@@ -1,22 +1,41 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
+import type {
+  TeamCard,
+  TeamsDirectory,
+  TeamsDirectoryQuery,
+} from "../../services/teamsService";
 import TeamsListTab from "./TeamsListTab";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => {
-      if (key === "teams.yourTeam") return "Your Team";
-      if (key === "common.position") return "Position";
-      if (key === "teams.squad") return "Squad";
-      if (key === "teams.avgOvr") return "Avg OVR";
-      if (key === "teams.rep") return "Rep";
-      if (key === "common.value") return "Value";
-      if (key === "common.pts") return "Pts";
-      if (key === "teams.est") return "Est";
-      if (key === "common.playStyles.Balanced") return "Equilibrado";
-      if (key === "common.playStyles.Counter") return "Contra-ataque";
+    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+      const labels: Record<string, string> = {
+        "teams.yourTeam": "Your Team",
+        "common.position": "Position",
+        "teams.squad": "Squad",
+        "teams.avgOvr": "Avg OVR",
+        "teams.rep": "Rep",
+        "common.value": "Value",
+        "common.pts": "Pts",
+        "teams.est": "Est",
+        "teams.searchPlaceholder": "Search clubs",
+        "teams.noResults": "No clubs match your search.",
+        "teams.otherClubs": "Other clubs",
+        "common.playStyles.Balanced": "Equilibrado",
+        "common.playStyles.Counter": "Contra-ataque",
+      };
+      if (labels[key]) return labels[key];
+      if (fallback && typeof fallback === "object") {
+        return fallback.defaultValue ?? key;
+      }
       return fallback ?? key;
     },
     i18n: { language: "en" },
@@ -25,7 +44,6 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("../ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../ui")>();
-
   return {
     ...actual,
     TeamLocation: ({ city, countryCode }: { city: string; countryCode: string }) => (
@@ -34,96 +52,9 @@ vi.mock("../ui", async (importOriginal) => {
   };
 });
 
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "GB",
-    city: "London",
-    stadium_name: "Alpha Ground",
-    stadium_capacity: 30000,
-    finance: 500000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 50000,
-    transfer_budget: 250000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "General",
-    training_intensity: "Balanced",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: { primary: "#000000", secondary: "#ffffff" },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
+const mockedInvoke = vi.mocked(invoke);
 
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
-  return {
-    id: "player-1",
-    match_name: "J. Smith",
-    full_name: "John Smith",
-    date_of_birth: "2000-01-01",
-    nationality: "GB",
-    position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 20,
-      reflexes: 20,
-      aerial: 60,
-    },
-    condition: 80,
-    morale: 75,
-    injury: null,
-    team_id: "team-1",
-    retired: false,
-    contract_end: "2027-06-30",
-    wage: 12000,
-    market_value: 350000,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [],
-    traits: [],
-    ...overrides,
-  };
-}
-
-function createGameState(): GameStateData {
+function gameStateWithManagerTeam(teamId: string | null): GameStateData {
   return {
     clock: {
       current_date: "2026-08-01T00:00:00Z",
@@ -138,7 +69,7 @@ function createGameState(): GameStateData {
       reputation: 50,
       satisfaction: 50,
       fan_approval: 50,
-      team_id: "team-1",
+      team_id: teamId,
       career_stats: {
         matches_managed: 0,
         wins: 0,
@@ -149,100 +80,209 @@ function createGameState(): GameStateData {
       },
       career_history: [],
     },
-    teams: [
-      createTeam(),
-      createTeam({
-        id: "team-2",
-        name: "Beta FC",
-        short_name: "BET",
-        manager_id: "manager-2",
-        founded_year: 1910,
-      }),
-    ],
-    players: [
-      createPlayer({ team_id: "team-1", market_value: 400000 }),
-      createPlayer({ id: "player-2", team_id: "team-1", market_value: 300000 }),
-      createPlayer({ id: "player-3", team_id: "team-2", market_value: 250000 }),
-    ],
+    teams: [],
+    players: [],
     staff: [],
     messages: [],
     news: [],
-    league: {
-      id: "league-1",
-      name: "League",
-      season: 1,
-      fixtures: [],
-      standings: [
-        {
-          team_id: "team-2",
-          played: 1,
-          won: 1,
-          drawn: 0,
-          lost: 0,
-          goals_for: 2,
-          goals_against: 0,
-          points: 3,
-        },
-        {
-          team_id: "team-1",
-          played: 1,
-          won: 0,
-          drawn: 1,
-          lost: 0,
-          goals_for: 1,
-          goals_against: 1,
-          points: 1,
-        },
-      ],
-    },
+    league: null,
     scouting_assignments: [],
     board_objectives: [],
   };
 }
 
+function buildCard(overrides: {
+  id: string;
+  name: string;
+  city?: string;
+  short_name?: string;
+  founded_year?: number;
+  play_style?: string;
+  league_pos: number;
+  points?: number;
+}): TeamCard {
+  return {
+    team: {
+      id: overrides.id,
+      name: overrides.name,
+      short_name: overrides.short_name ?? overrides.name.slice(0, 3).toUpperCase(),
+      city: overrides.city ?? "London",
+      country: "GB",
+      colors: { primary: "#000000", secondary: "#ffffff" },
+      formation: "4-4-2",
+      play_style: overrides.play_style ?? "Balanced",
+      founded_year: overrides.founded_year ?? 1900,
+      reputation: 50,
+      media: { logo: null },
+    },
+    roster_size: 22,
+    avg_ovr: 65,
+    total_value: 1_000_000,
+    league_pos: overrides.league_pos,
+    standing:
+      overrides.points !== undefined
+        ? {
+            played: 1,
+            won: 0,
+            drawn: 0,
+            lost: 0,
+            goals_for: 0,
+            goals_against: 0,
+            points: overrides.points,
+          }
+        : null,
+  };
+}
+
+function applySearch(cards: TeamCard[], search: string | null): TeamCard[] {
+  if (!search) return cards;
+  const needle = search.toLowerCase();
+  return cards.filter(
+    (card) =>
+      card.team.name.toLowerCase().includes(needle) ||
+      card.team.city.toLowerCase().includes(needle),
+  );
+}
+
+function buildDirectory(cards: TeamCard[], search: string | null): TeamsDirectory {
+  const filtered = applySearch(cards, search);
+  if (filtered.length === 0) {
+    return { regions: [] };
+  }
+  const sorted = [...filtered].sort((a, b) => a.league_pos - b.league_pos);
+  return {
+    regions: [
+      {
+        id: "europe",
+        team_count: sorted.length,
+        leagues: [
+          {
+            id: "league-1",
+            name: "League",
+            teams: sorted,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function setupDirectoryMock(cards: TeamCard[]) {
+  mockedInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+    if (cmd !== "get_teams_directory") return undefined;
+    const query = (args as { query: TeamsDirectoryQuery }).query;
+    return buildDirectory(cards, query.search);
+  });
+}
+
 describe("TeamsListTab", () => {
-  it("orders teams by league position and marks the user team", () => {
-    render(<TeamsListTab gameState={createGameState()} onSelectTeam={vi.fn()} />);
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+  });
 
+  it("orders teams by league position and marks the user team", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 2, points: 1 }),
+      buildCard({ id: "team-2", name: "Beta FC", league_pos: 1, points: 3 }),
+    ]);
+
+    render(
+      <TeamsListTab
+        gameState={gameStateWithManagerTeam("team-1")}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("Beta FC");
     const headings = screen.getAllByRole("heading", { level: 3 });
-
     expect(headings[0]).toHaveTextContent("Beta FC");
     expect(headings[1]).toHaveTextContent("Alpha FC");
     expect(screen.getByText("Your Team")).toBeInTheDocument();
   });
 
-  it("selects a team when its card is clicked", () => {
-    const onSelectTeam = vi.fn();
+  it("filters clubs by name via the search box", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 2 }),
+      buildCard({ id: "team-2", name: "Beta FC", league_pos: 1 }),
+    ]);
 
-    render(<TeamsListTab gameState={createGameState()} onSelectTeam={onSelectTeam} />);
-
-    fireEvent.click(screen.getByText("Beta FC"));
-
-    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
-  });
-
-  it("renders translated play styles instead of raw values", () => {
     render(
       <TeamsListTab
-        gameState={{
-          ...createGameState(),
-          teams: [
-            createTeam({ play_style: "Balanced" }),
-            createTeam({
-              id: "team-2",
-              name: "Beta FC",
-              short_name: "BET",
-              manager_id: "manager-2",
-              founded_year: 1910,
-              play_style: "Counter",
-            }),
-          ],
-        }}
+        gameState={gameStateWithManagerTeam("team-1")}
         onSelectTeam={vi.fn()}
       />,
     );
 
-    expect(screen.getByText(/4-4-2 — Equilibrado/)).toBeInTheDocument();
+    await screen.findByText("Alpha FC");
+
+    fireEvent.change(screen.getByPlaceholderText("Search clubs"), {
+      target: { value: "beta" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Beta FC")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when no clubs match", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1 }),
+    ]);
+
+    render(
+      <TeamsListTab
+        gameState={gameStateWithManagerTeam("team-1")}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("Alpha FC");
+
+    fireEvent.change(screen.getByPlaceholderText("Search clubs"), {
+      target: { value: "zzzzz" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No clubs match your search."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("selects a team when its card is clicked", async () => {
+    const onSelectTeam = vi.fn();
+    setupDirectoryMock([
+      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 2 }),
+      buildCard({ id: "team-2", name: "Beta FC", league_pos: 1 }),
+    ]);
+
+    render(
+      <TeamsListTab
+        gameState={gameStateWithManagerTeam("team-1")}
+        onSelectTeam={onSelectTeam}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText("Beta FC"));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
+  });
+
+  it("renders translated play styles instead of raw values", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1, play_style: "Balanced" }),
+      buildCard({ id: "team-2", name: "Beta FC", league_pos: 2, play_style: "Counter" }),
+    ]);
+
+    render(
+      <TeamsListTab
+        gameState={gameStateWithManagerTeam("team-1")}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/4-4-2 — Equilibrado/)).toBeInTheDocument();
     expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Balanced/)).not.toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Counter/)).not.toBeInTheDocument();

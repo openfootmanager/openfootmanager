@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData } from "../store/gameStore";
+import type { GameStateData, MessageData } from "../store/gameStore";
+
+export async function fetchMessages(): Promise<MessageData[]> {
+  return invoke<MessageData[]>("get_messages_page", { query: {} });
+}
 
 export interface ResolveMessageActionResult {
   game: GameStateData;
@@ -9,10 +13,13 @@ export interface ResolveMessageActionResult {
   effect_i18n_params?: Record<string, string | number> | null;
 }
 
+// Inbox-only mutations return just the updated message list (not the whole
+// game), so the UI patches its message slice instead of round-tripping the
+// entire world on every read/delete.
 export async function markMessageRead(
   messageId: string,
-): Promise<GameStateData> {
-  return invoke<GameStateData>("mark_message_read", {
+): Promise<MessageData[]> {
+  return invoke<MessageData[]>("mark_message_read", {
     messageId,
   });
 }
@@ -29,26 +36,26 @@ export async function resolveMessageAction(
   });
 }
 
-export async function markAllMessagesRead(): Promise<GameStateData> {
-  return invoke<GameStateData>("mark_all_messages_read");
+export async function markAllMessagesRead(): Promise<MessageData[]> {
+  return invoke<MessageData[]>("mark_all_messages_read");
 }
 
-export async function clearOldMessages(): Promise<GameStateData> {
-  return invoke<GameStateData>("clear_old_messages");
+export async function clearOldMessages(): Promise<MessageData[]> {
+  return invoke<MessageData[]>("clear_old_messages");
 }
 
 export async function deleteMessage(
   messageId: string,
-): Promise<GameStateData> {
-  return invoke<GameStateData>("delete_message", {
+): Promise<MessageData[]> {
+  return invoke<MessageData[]>("delete_message", {
     messageId,
   });
 }
 
 export async function deleteMessages(
   messageIds: string[],
-): Promise<GameStateData> {
-  return invoke<GameStateData>("delete_messages", {
+): Promise<MessageData[]> {
+  return invoke<MessageData[]>("delete_messages", {
     messageIds,
   });
 }

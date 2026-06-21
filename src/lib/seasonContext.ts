@@ -6,6 +6,7 @@ import type {
   TransferWindowStatus,
 } from "../store/gameStore";
 import { TRANSFER_WINDOW_DAYS } from "./domainConstants";
+import { getUserCompetition } from "./fixtures";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -54,7 +55,7 @@ function normaliseSeasonContext(context: SeasonContextData): SeasonContextData {
 }
 
 function deriveSeasonContext(gameState: GameStateData): SeasonContextData {
-  const league = gameState.league;
+  const league = getUserCompetition(gameState);
   if (!league) {
     return DEFAULT_SEASON_CONTEXT;
   }

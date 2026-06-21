@@ -10,6 +10,7 @@ export interface AppSettings {
   match_speed: "slow" | "normal" | "fast";
   show_match_commentary: boolean;
   confirm_advance: boolean;
+  continue_to_next_event: boolean;
   ui_scale: "small" | "normal" | "large" | "xlarge";
   high_contrast: boolean;
 }
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   match_speed: "normal",
   show_match_commentary: true,
   confirm_advance: false,
+  continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
 };

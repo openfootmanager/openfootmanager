@@ -23,13 +23,10 @@ import {
   getTeamName,
   calcAge,
   formatVal,
-  formatWeeklyAmount,
+  formatAnnualAmount,
   getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
-import {
-  annualAmountToWeeklyCommitment,
-} from "../../lib/finance";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import {
@@ -61,6 +58,7 @@ import {
   deriveTransferCollections,
   filterTransferPlayers,
   getCurrentTransferList,
+  getMyListedPlayers,
   type TransferTabView,
 } from "./TransfersTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
@@ -99,7 +97,7 @@ export default function TransfersTab({
   onGameUpdate,
 }: TransfersTabProps) {
   const { t, i18n } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
+  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const userTeamId = gameState.manager.team_id;
   const [view, setView] = useState<TransferTabView>("my_list");
   const [search, setSearch] = useState("");
@@ -251,13 +249,12 @@ export default function TransfersTab({
 
   const transferCollections = deriveTransferCollections(gameState, userTeamId);
   const {
-    myTransferList,
-    myLoanList,
     marketPlayers,
     freeAgentPlayers,
     loanPlayers,
     playersWithOffers,
   } = transferCollections;
+  const myListedPlayers = getMyListedPlayers(transferCollections);
   const isMarketView = view === "market";
   const isFreeAgentView = view === "free_agents";
   const isLoanView = view === "loans";
@@ -275,7 +272,7 @@ export default function TransfersTab({
         id: "my_list",
         label: t("transfers.myTransferList"),
         icon: <ShoppingCart className="w-4 h-4" />,
-        count: myTransferList.length + myLoanList.length,
+        count: myListedPlayers.length,
       },
       {
         id: "market",
@@ -305,9 +302,7 @@ export default function TransfersTab({
 
   const currentList = getCurrentTransferList(view, transferCollections);
   const filteredList = filterTransferPlayers(currentList, search, posFilter);
-  const weeklyWageBudget = myTeam
-    ? annualAmountToWeeklyCommitment(myTeam.wage_budget)
-    : 0;
+  const annualWageBudget = myTeam?.wage_budget ?? 0;
   const {
     freeAgentTarget,
     contractWage,
@@ -382,14 +377,14 @@ export default function TransfersTab({
                   {formatVal(myTeam.transfer_budget)}
                 </p>
               </div>
-              <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
+              <div data-testid="wage-budget-card" className="bg-white/5 rounded-xl px-4 py-2 text-center">
                 <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">
                   {t("finances.wageBudget")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {formatWeeklyAmount(
-                    formatVal(weeklyWageBudget),
-                    weeklySuffix,
+                  {formatAnnualAmount(
+                    formatVal(annualWageBudget),
+                    annualSuffix,
                   )}
                 </p>
               </div>
@@ -398,7 +393,7 @@ export default function TransfersTab({
                   {t("transfers.listed")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {myTransferList.length + myLoanList.length}
+                  {myListedPlayers.length}
                 </p>
               </div>
             </div>
@@ -673,7 +668,7 @@ export default function TransfersTab({
                           {formatVal(player.market_value)}
                         </td>
                         <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                          {formatVal(player.wage)}/yr
+                          {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
                         </td>
                         <td className="py-2.5 px-4">
                           <span

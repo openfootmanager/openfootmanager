@@ -6,7 +6,7 @@ import {
   MessageData,
   PlayerSelectionOptions,
 } from "../../store/gameStore";
-import { Card, CardHeader, CardBody, Badge, ProgressBar, Button } from "../ui";
+import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import { User } from "lucide-react";
 import {
   formatExactMoney,
@@ -907,14 +907,13 @@ export default function FinancesTab({
                       className="rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 p-3 flex items-start justify-between gap-3"
                     >
                       <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedRiskPlayerIds.includes(player.id)}
                           onChange={() => handleToggleRiskPlayer(player.id)}
                           aria-label={t("finances.selectRiskPlayer", {
                             player: player.full_name,
                           })}
-                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500/30"
+                          className="mt-1"
                         />
                         <div className="space-y-1">
                           <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">

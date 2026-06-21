@@ -25,6 +25,8 @@ vi.mock("react-i18next", () => ({
       if (key === "hallOfFameWorld.legendsCount") return `${params?.count} legends`;
       if (key === "hallOfFameWorld.championsCount") return `${params?.count} title-winning seasons`;
       if (key === "hallOfFameWorld.seasonLabel") return `Season ${params?.season}`;
+      if (key === "hallOfFameWorld.worldCupChampions") return "World Cup Champions";
+      if (key === "hallOfFameWorld.worldCupEdition") return `${params?.year} World Cup`;
       return key;
     },
     i18n: { language: "en" },
@@ -247,6 +249,28 @@ describe("HallOfFameWorldTab", () => {
     expect(screen.getByText("Titles: 2")).toBeInTheDocument();
     expect(screen.getByText("Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Beta United")).toBeInTheDocument();
+  });
+
+  it("shows World Cup champions when the world has crowned one", () => {
+    const state = createGameState();
+    state.world_history = {
+      world_cup_champions: [
+        { year: 2026, nation_code: "BR", nation_name: "Brazil" },
+        { year: 2022, nation_code: "AR", nation_name: "Argentina" },
+      ],
+    };
+
+    render(<HallOfFameWorldTab gameState={state} />);
+
+    expect(screen.getByText("World Cup Champions")).toBeInTheDocument();
+    expect(screen.getByTestId("world-cup-champion-2026")).toHaveTextContent("Brazil");
+    expect(screen.getByTestId("world-cup-champion-2022")).toHaveTextContent("Argentina");
+    expect(screen.getByText("2026 World Cup")).toBeInTheDocument();
+  });
+
+  it("hides the World Cup section before any cup is won", () => {
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+    expect(screen.queryByText("World Cup Champions")).not.toBeInTheDocument();
   });
 
   it("routes player and team selection from the hall of fame cards", () => {

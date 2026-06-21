@@ -2,6 +2,7 @@ pub mod identity;
 pub mod league;
 pub mod manager;
 pub mod message;
+pub mod national_team;
 pub mod negotiation;
 pub mod news;
 pub mod player;

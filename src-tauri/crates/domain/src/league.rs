@@ -1,17 +1,187 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionType {
+    #[default]
+    League,
+    Cup,
+    ContinentalClub,
+    InternationalClub,
+    InternationalNation,
+    FriendlyCup,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionScope {
+    #[default]
+    Domestic,
+    Regional,
+    Continental,
+    International,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum CompetitionFormat {
+    #[default]
+    LeagueTable,
+    Knockout,
+    GroupAndKnockout,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct CompetitionRules {
+    pub format: CompetitionFormat,
+    pub counts_in_season_flow: bool,
+    /// Group-and-knockout only: clubs advancing from each group.
+    pub group_qualifiers_per_group: u32,
+    /// Group-and-knockout only: additional best next-placed finishers across
+    /// all groups that also advance (the 2026 World Cup's "best thirds").
+    pub group_best_third_qualifiers: u32,
+    /// Days between knockout rounds.
+    pub knockout_round_gap_days: u32,
+}
+
+impl Default for CompetitionRules {
+    fn default() -> Self {
+        Self {
+            format: CompetitionFormat::LeagueTable,
+            counts_in_season_flow: true,
+            group_qualifiers_per_group: 2,
+            group_best_third_qualifiers: 0,
+            knockout_round_gap_days: 14,
+        }
+    }
+}
+
+/// One group of a group-and-knockout competition: a mini league table whose
+/// top finishers advance to the knockout rounds.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct GroupState {
+    pub id: String,
+    /// Short label ("A", "B", …); the UI renders it as "Group A".
+    pub name: String,
+    pub team_ids: Vec<String>,
+    pub standings: Vec<StandingEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct KnockoutRoundState {
+    pub id: String,
+    pub name: String,
+    pub fixture_ids: Vec<String>,
+    /// Teams that advance from this round without playing (byes), used when the
+    /// entrant count is not a power of two.
+    pub bye_team_ids: Vec<String>,
+    pub completed: bool,
+}
+
+/// One qualification berth a competition awards into another, based on this
+/// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
+/// Authored on competition definitions; carried on the runtime competition so
+/// it can be evaluated at season rollover.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Berth {
+    /// Competition id the qualifying club(s) enter.
+    pub target: String,
+    /// How the qualifying club(s) are chosen from this competition's results.
+    pub rule: BerthRule,
+    /// Optional cascade: when a chosen club has already taken a higher-priority
+    /// berth, its place passes to this competition instead (e.g. cup winner
+    /// already in the Champions Cup → their cup berth drops to the Europa Cup).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_to: Option<String>,
+}
+
+/// How a [`Berth`] selects qualifying clubs from the source competition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum BerthRule {
+    /// League finishers in the inclusive 1-based range `[from, to]`.
+    PositionRange { from: u32, to: u32 },
+    /// The winner of this (knockout/group-and-knockout) competition.
+    CupWinner,
+    /// The winner of a playoff contested by league finishers in the inclusive
+    /// 1-based range `[from, to]`.
+    PlayoffWinner { from: u32, to: u32 },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct League {
     pub id: String,
     pub name: String,
+    pub kind: CompetitionType,
+    pub scope: CompetitionScope,
     pub season: u32,
+    pub region_id: Option<String>,
+    pub country_id: Option<String>,
+    #[serde(default)]
+    pub required_region_ids: Vec<String>,
+    pub participant_ids: Vec<String>,
+    pub rules: CompetitionRules,
     pub fixtures: Vec<Fixture>,
     pub standings: Vec<StandingEntry>,
+    #[serde(default)]
+    pub groups: Vec<GroupState>,
+    pub knockout_rounds: Vec<KnockoutRoundState>,
     #[serde(default)]
     pub transfer_log: Vec<CompletedTransfer>,
     #[serde(default)]
     pub transfer_rumours: Vec<TransferRumour>,
+    #[serde(default)]
+    pub priority: u32,
+    /// Qualification berths this competition awards, evaluated at rollover.
+    #[serde(default)]
+    pub berths: Vec<Berth>,
+    /// Calendar month the season starts (1–12). Stored so rollover can compute
+    /// the correct next-season start date without re-reading the definition.
+    #[serde(default = "default_season_start_month")]
+    pub season_start_month: u8,
+    /// Day of month the season starts (1–31).
+    #[serde(default = "default_season_start_day")]
+    pub season_start_day: u8,
+    /// Optional i18n key for the competition name. When set, the frontend
+    /// translates via `t(name_key, { year })` instead of displaying `name` raw.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_key: Option<String>,
 }
+
+fn default_season_start_month() -> u8 { 8 }
+fn default_season_start_day() -> u8 { 1 }
+
+impl Default for League {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            kind: CompetitionType::League,
+            scope: CompetitionScope::Domestic,
+            season: 0,
+            region_id: None,
+            country_id: None,
+            required_region_ids: Vec::new(),
+            participant_ids: Vec::new(),
+            rules: CompetitionRules::default(),
+            fixtures: Vec::new(),
+            standings: Vec::new(),
+            groups: Vec::new(),
+            knockout_rounds: Vec::new(),
+            transfer_log: Vec::new(),
+            transfer_rumours: Vec::new(),
+            priority: 0,
+            berths: Vec::new(),
+            season_start_month: default_season_start_month(),
+            season_start_day: default_season_start_day(),
+            name_key: None,
+        }
+    }
+}
+
+pub type CompetitionState = League;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompletedTransfer {
@@ -36,7 +206,12 @@ pub struct TransferRumour {
 pub enum FixtureCompetition {
     #[default]
     League,
+    Cup,
+    ContinentalClub,
+    InternationalClub,
+    InternationalNation,
     Friendly,
+    FriendlyCup,
     PreseasonTournament,
 }
 
@@ -44,6 +219,7 @@ pub enum FixtureCompetition {
 #[serde(default)]
 pub struct Fixture {
     pub id: String,
+    pub competition_id: String,
     pub matchday: u32,
     pub date: String, // ISO 8601 date
     pub home_team_id: String,
@@ -159,7 +335,12 @@ impl Fixture {
         matches!(
             self.competition,
             FixtureCompetition::League
+                | FixtureCompetition::Cup
+                | FixtureCompetition::ContinentalClub
+                | FixtureCompetition::InternationalClub
+                | FixtureCompetition::InternationalNation
                 | FixtureCompetition::Friendly
+                | FixtureCompetition::FriendlyCup
                 | FixtureCompetition::PreseasonTournament
         )
     }
@@ -175,15 +356,28 @@ impl League {
         Self {
             id,
             name,
+            kind: CompetitionType::League,
+            scope: CompetitionScope::Domestic,
             season,
+            region_id: None,
+            country_id: None,
+            required_region_ids: Vec::new(),
+            participant_ids: team_ids.to_vec(),
+            rules: CompetitionRules::default(),
             fixtures: Vec::new(),
             standings,
+            groups: Vec::new(),
+            knockout_rounds: Vec::new(),
             transfer_log: Vec::new(),
             transfer_rumours: Vec::new(),
+            priority: 0,
+            berths: Vec::new(),
+            season_start_month: default_season_start_month(),
+            season_start_day: default_season_start_day(),
+            name_key: None,
         }
     }
 
-    /// Sort standings by points, then goal difference, then goals scored
     pub fn sorted_standings(&self) -> Vec<StandingEntry> {
         let mut sorted = self.standings.clone();
         sorted.sort_by(|a, b| {
@@ -200,6 +394,7 @@ impl Default for Fixture {
     fn default() -> Self {
         Self {
             id: String::new(),
+            competition_id: String::new(),
             matchday: 0,
             date: String::new(),
             home_team_id: String::new(),

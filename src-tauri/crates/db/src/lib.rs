@@ -6,4 +6,7 @@ pub mod migrations;
 pub mod repositories;
 pub mod save_index;
 pub mod save_index_manager;
+pub mod save_load_error;
 pub mod save_manager;
+
+pub use save_load_error::SaveLoadError;

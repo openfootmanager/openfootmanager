@@ -15,6 +15,16 @@ export type PitchSlot = {
   player: PlayerData | null;
 };
 export type PitchSlotRow = PitchRow & { slots: PitchSlot[] };
+export type SquadTacticalFit = "natural" | "adapted" | "out";
+export type SquadStyleFit = "strong" | "good" | "risky";
+export type SquadRoleCoverageStatus = "covered" | "thin" | "uncovered";
+export type SquadRoleCoverage = {
+  role: string;
+  requiredSlots: number;
+  naturalStarters: number;
+  benchOptions: number;
+  status: SquadRoleCoverageStatus;
+};
 
 export const CORE_POSITIONS = [
   "Goalkeeper",
@@ -121,6 +131,19 @@ const POSITION_CODES: Record<string, string> = {
   RightWinger: "RW",
   LeftWinger: "LW",
   Striker: "ST",
+};
+
+const GROUP_ROLE_PREFERENCES: Record<string, string[]> = {
+  Goalkeeper: ["Goalkeeper"],
+  Defender: ["CenterBack", "LeftBack", "RightBack", "LeftWingBack", "RightWingBack"],
+  Midfielder: [
+    "CentralMidfielder",
+    "DefensiveMidfielder",
+    "AttackingMidfielder",
+    "LeftMidfielder",
+    "RightMidfielder",
+  ],
+  Forward: ["Striker", "LeftWinger", "RightWinger"],
 };
 
 function normaliseKey(value: string): string {
@@ -443,6 +466,341 @@ export function isPlayerExactForSlot(
   currentPos: string,
 ): boolean {
   return canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos);
+}
+
+export function getSquadTacticalFit(
+  player: PlayerData,
+  currentPos: string,
+): SquadTacticalFit {
+  if (isPlayerExactForSlot(player, currentPos)) {
+    return "natural";
+  }
+
+  if (isPlayerOutOfPosition(player, currentPos)) {
+    return "out";
+  }
+
+  return "adapted";
+}
+
+function averageAttributes(
+  player: PlayerData,
+  attributeKeys: Array<keyof PlayerData["attributes"]>,
+): number {
+  return (
+    attributeKeys.reduce((total, key) => total + player.attributes[key], 0) /
+    attributeKeys.length
+  );
+}
+
+export function getBestRoleForFormation(
+  player: PlayerData,
+  formation: string,
+): string {
+  const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
+  const preferredPositions = getPreferredPositions(player);
+
+  const exactPreferredRole = preferredPositions.find((position) =>
+    formationSlots.includes(position),
+  );
+  if (exactPreferredRole) {
+    return exactPreferredRole;
+  }
+
+  const playerGroup = normalisePosition(player.natural_position || player.position);
+  const groupRolePreferences = GROUP_ROLE_PREFERENCES[playerGroup] ?? [];
+  const preferredGroupRole = groupRolePreferences.find((position) =>
+    formationSlots.includes(position),
+  );
+
+  if (preferredGroupRole) {
+    return preferredGroupRole;
+  }
+
+  const firstGroupRole = formationSlots.find(
+    (position) => normalisePosition(position) === playerGroup,
+  );
+
+  return firstGroupRole ?? preferredPositions[0] ?? canonicalPosition(player.position);
+}
+
+export function getPlayStyleFit(player: PlayerData, playStyle: string): SquadStyleFit {
+  const fitScore = (() => {
+    switch (playStyle) {
+      case "Attacking":
+        return averageAttributes(player, ["shooting", "dribbling", "pace", "passing"]);
+      case "Defensive":
+        return averageAttributes(player, ["defending", "tackling", "positioning", "strength"]);
+      case "Possession":
+        return averageAttributes(player, ["passing", "vision", "decisions", "composure"]);
+      case "Counter":
+        return averageAttributes(player, ["pace", "dribbling", "passing", "positioning"]);
+      case "HighPress":
+        return averageAttributes(player, ["stamina", "aggression", "teamwork", "pace", "tackling"]);
+      default:
+        return averageAttributes(player, ["decisions", "teamwork", "composure", "stamina"]);
+    }
+  })();
+
+  if (fitScore >= 72) {
+    return "strong";
+  }
+
+  if (fitScore >= 58) {
+    return "good";
+  }
+
+  return "risky";
+}
+
+export function buildRoleCoverageSummary(
+  availablePlayers: PlayerData[],
+  currentXiIds: string[],
+  formation: string,
+): SquadRoleCoverage[] {
+  const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
+  const requiredByRole = new Map<string, number>();
+  const naturalStartersByRole = new Map<string, number>();
+  const benchOptionsByRole = new Map<string, number>();
+  const xiSet = new Set(currentXiIds);
+  const playersById = new Map(
+    availablePlayers.map((player) => [player.id, player] as const),
+  );
+
+  slotPositions.forEach((role) => {
+    requiredByRole.set(role, (requiredByRole.get(role) ?? 0) + 1);
+  });
+
+  currentXiIds.forEach((playerId, slotIndex) => {
+    const player = playersById.get(playerId);
+    const slotPosition = slotPositions[slotIndex];
+
+    if (!player || !slotPosition) {
+      return;
+    }
+
+    if (getSquadTacticalFit(player, slotPosition) === "natural") {
+      naturalStartersByRole.set(
+        slotPosition,
+        (naturalStartersByRole.get(slotPosition) ?? 0) + 1,
+      );
+    }
+  });
+
+  availablePlayers
+    .filter((player) => !xiSet.has(player.id))
+    .forEach((player) => {
+      const preferredPositions = new Set(getPreferredPositions(player));
+      requiredByRole.forEach((_, role) => {
+        if (preferredPositions.has(role)) {
+          benchOptionsByRole.set(role, (benchOptionsByRole.get(role) ?? 0) + 1);
+        }
+      });
+    });
+
+  return [...requiredByRole.entries()]
+    .map(([role, requiredSlots]) => {
+      const naturalStarters = naturalStartersByRole.get(role) ?? 0;
+      const benchOptions = benchOptionsByRole.get(role) ?? 0;
+      const status: SquadRoleCoverageStatus =
+        naturalStarters === 0 && benchOptions === 0
+          ? "uncovered"
+          : naturalStarters < requiredSlots || benchOptions === 0
+            ? "thin"
+            : "covered";
+
+      return {
+        role,
+        requiredSlots,
+        naturalStarters,
+        benchOptions,
+        status,
+      };
+    })
+    .sort((leftRole, rightRole) => {
+      const statusOrder: Record<SquadRoleCoverageStatus, number> = {
+        uncovered: 0,
+        thin: 1,
+        covered: 2,
+      };
+
+      return (
+        statusOrder[leftRole.status] - statusOrder[rightRole.status] ||
+        leftRole.role.localeCompare(rightRole.role)
+      );
+    });
+}
+
+function getFitScore(player: PlayerData, currentPos: string): number {
+  const fit = getSquadTacticalFit(player, currentPos);
+
+  if (fit === "natural") return 2;
+  if (fit === "adapted") return 1;
+  return 0;
+}
+
+export function buildPromoteToStartingXi(
+  currentXiIds: string[],
+  playersById: Map<string, PlayerData>,
+  formation: string,
+  playerId: string,
+): string[] | null {
+  if (currentXiIds.includes(playerId)) {
+    return currentXiIds;
+  }
+
+  const promotedPlayer = playersById.get(playerId);
+
+  if (!promotedPlayer) {
+    return null;
+  }
+
+  if (promotedPlayer.injury) {
+    return null;
+  }
+
+  const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
+
+  const targetSlotIndex = slotPositions
+    .map((slotPosition, slotIndex) => {
+      const incumbentId = currentXiIds[slotIndex];
+      const incumbentPlayer = incumbentId ? playersById.get(incumbentId) ?? null : null;
+
+      return {
+        incumbentPlayer,
+        slotIndex,
+        slotPosition,
+      };
+    })
+    .sort((leftSlot, rightSlot) => {
+      const promotedLeftScore = getFitScore(promotedPlayer, leftSlot.slotPosition);
+      const promotedRightScore = getFitScore(promotedPlayer, rightSlot.slotPosition);
+      const incumbentLeftScore = leftSlot.incumbentPlayer
+        ? getFitScore(leftSlot.incumbentPlayer, leftSlot.slotPosition)
+        : -1;
+      const incumbentRightScore = rightSlot.incumbentPlayer
+        ? getFitScore(rightSlot.incumbentPlayer, rightSlot.slotPosition)
+        : -1;
+      const incumbentLeftOvr = leftSlot.incumbentPlayer
+        ? getPlayerOvr(leftSlot.incumbentPlayer)
+        : -1;
+      const incumbentRightOvr = rightSlot.incumbentPlayer
+        ? getPlayerOvr(rightSlot.incumbentPlayer)
+        : -1;
+      const incumbentLeftCondition = leftSlot.incumbentPlayer?.condition ?? -1;
+      const incumbentRightCondition = rightSlot.incumbentPlayer?.condition ?? -1;
+
+      return (
+        promotedRightScore - promotedLeftScore ||
+        incumbentLeftScore - incumbentRightScore ||
+        incumbentLeftOvr - incumbentRightOvr ||
+        incumbentLeftCondition - incumbentRightCondition ||
+        leftSlot.slotIndex - rightSlot.slotIndex
+      );
+    })[0]?.slotIndex;
+
+  if (targetSlotIndex == null || targetSlotIndex < 0) {
+    return null;
+  }
+
+  const nextXiIds = [...currentXiIds];
+  nextXiIds[targetSlotIndex] = playerId;
+  return nextXiIds;
+}
+
+export function buildAssignStartingXiSlot(
+  currentXiIds: string[],
+  playerId: string,
+  targetSlotIndex: number,
+): string[] | null {
+  const currentSlotIndex = currentXiIds.indexOf(playerId);
+
+  if (currentSlotIndex < 0) {
+    return null;
+  }
+
+  if (targetSlotIndex < 0 || targetSlotIndex >= currentXiIds.length) {
+    return currentXiIds;
+  }
+
+  if (currentSlotIndex === targetSlotIndex) {
+    return currentXiIds;
+  }
+
+  const nextXiIds = [...currentXiIds];
+  [nextXiIds[currentSlotIndex], nextXiIds[targetSlotIndex]] = [
+    nextXiIds[targetSlotIndex],
+    nextXiIds[currentSlotIndex],
+  ];
+
+  return nextXiIds;
+}
+
+export function buildAssignBestFitSlot(
+  currentXiIds: string[],
+  playersById: Map<string, PlayerData>,
+  formation: string,
+  playerId: string,
+): string[] | null {
+  const currentSlotIndex = currentXiIds.indexOf(playerId);
+
+  if (currentSlotIndex < 0) {
+    return null;
+  }
+
+  const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
+  const player = playersById.get(playerId);
+
+  if (!player) {
+    return null;
+  }
+
+  const bestSlotIndex = slotPositions
+    .map((slotPosition, slotIndex) => ({
+      fitScore: getFitScore(player, slotPosition),
+      slotIndex,
+    }))
+    .sort((leftSlot, rightSlot) => {
+      return (
+        rightSlot.fitScore - leftSlot.fitScore ||
+        leftSlot.slotIndex - rightSlot.slotIndex
+      );
+    })[0]?.slotIndex;
+
+  if (bestSlotIndex == null) {
+    return currentXiIds;
+  }
+
+  return buildAssignStartingXiSlot(currentXiIds, playerId, bestSlotIndex);
+}
+
+export function buildDemoteFromStartingXi(
+  currentXiIds: string[],
+  availablePlayers: PlayerData[],
+  formation: string,
+  playerId: string,
+): string[] | null {
+  const slotIndex = currentXiIds.indexOf(playerId);
+
+  if (slotIndex < 0) {
+    return currentXiIds;
+  }
+
+  const slotPosition = buildPitchRows(formation).flatMap((row) => row.positions)[slotIndex];
+  const benchCandidates = availablePlayers.filter(
+    (player) => !currentXiIds.includes(player.id) && player.id !== playerId,
+  );
+  const replacement = benchCandidates.sort((leftPlayer, rightPlayer) =>
+    comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
+  )[0];
+
+  if (!replacement) {
+    return null;
+  }
+
+  const nextXiIds = [...currentXiIds];
+  nextXiIds[slotIndex] = replacement.id;
+  return nextXiIds;
 }
 
 export function applyLineupDrop(

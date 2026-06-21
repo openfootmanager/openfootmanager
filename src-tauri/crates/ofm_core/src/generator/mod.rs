@@ -1,20 +1,29 @@
+pub mod clubs;
 pub(crate) mod data;
+pub mod competition_def;
 pub mod definitions;
+pub mod file_format;
 mod generation;
+pub mod package;
 pub mod world_io;
 
+pub use clubs::WorldGenConfig;
+pub use competition_def::*;
 pub use definitions::*;
+pub use file_format::{load_definition_file, parse_definition_str};
+pub use package::{load_world_package, PackageError, WorldPackage};
 pub use world_io::*;
 
 use domain::player::{Player, Position};
 use domain::staff::{Staff, StaffRole};
 use domain::team::Team;
 use domain::team::TeamColors;
-use log::{debug, info};
+use log::info;
 use rand::RngExt;
 use uuid::Uuid;
 
 use generation::*;
+use chrono::Datelike;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
@@ -206,6 +215,31 @@ pub fn generate_youth_academy_recruit_with_nationality(
     player
 }
 
+/// Generate a senior free-agent player for a national squad. `squad_slot`
+/// follows the standard squad layout (GK 0-1, DEF 2-8, MID 9-15, FWD 16-21)
+/// and drives the position; the player belongs to no club and holds no
+/// contract, so clubs may sign them afterwards.
+pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Player {
+    let mut rng = rand::rng();
+    let names_def = default_names_definition();
+    let nationality = generation::canonicalize_generated_nationality(nationality);
+    // Avoid the youth-reserved slots so the player generates at a senior age.
+    let slot = match squad_slot % 22 {
+        8 => 7,
+        15 => 14,
+        21 => 20,
+        other => other,
+    };
+    let mut player =
+        generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
+    player.team_id = None;
+    player.contract_end = None;
+    player.wage = 0;
+    player.transfer_listed = false;
+    player.loan_listed = false;
+    player
+}
+
 fn normalize_generated_team(team: &mut Team, players: &mut [Player]) {
     seed_opening_youth_academy(players);
     normalize_opening_contracts(players);
@@ -369,18 +403,388 @@ pub fn process_available_staff_market(game: &mut crate::game::Game) -> bool {
     true
 }
 
+/// Ensure the unemployed manager and scout pools each meet a floor of `team_count * 2`.
+///
+/// Called at the end of every season after retiree conversion so there are always
+/// enough candidates for the player to consider hiring.  The function only adds
+/// entries — it never removes any.
+pub fn replenish_manager_and_scout_market(game: &mut crate::game::Game) {
+    let team_count = game.teams.len();
+    let floor = team_count * 2;
+
+    let user_manager_id = if game.manager_id.is_empty() {
+        game.manager.id.clone()
+    } else {
+        game.manager_id.clone()
+    };
+
+    // --- Managers ---
+    let unemployed_mgr_count = game
+        .managers
+        .iter()
+        .filter(|m| m.id != user_manager_id && m.team_id.is_none())
+        .count();
+
+    if unemployed_mgr_count < floor {
+        let needed = floor - unemployed_mgr_count;
+        let (names_def, country_codes) = create_staff_generator_context();
+        let current_year = game.clock.current_date.year() as u32;
+        let mut rng = rand::rng();
+        for _ in 0..needed {
+            let nationality = if country_codes.is_empty() {
+                "ENG".to_string()
+            } else {
+                let idx = rng.random_range(0..country_codes.len());
+                country_codes[idx].clone()
+            };
+            let mgr = generation::generate_random_unemployed_manager(
+                &nationality,
+                &names_def,
+                current_year,
+                &mut rng,
+            );
+            game.managers.push(mgr);
+        }
+    }
+
+    // --- Scouts ---
+    let unemployed_scout_count = game
+        .staff
+        .iter()
+        .filter(|s| s.team_id.is_none() && matches!(s.role, StaffRole::Scout))
+        .count();
+
+    if unemployed_scout_count < floor {
+        let needed = floor - unemployed_scout_count;
+        let (names_def, country_codes) = create_staff_generator_context();
+        let mut rng = rand::rng();
+        for _ in 0..needed {
+            let nationality = if country_codes.is_empty() {
+                "ENG".to_string()
+            } else {
+                let idx = rng.random_range(0..country_codes.len());
+                country_codes[idx].clone()
+            };
+            let scout = generate_random_staff_unattached_from_def(
+                StaffRole::Scout,
+                &nationality,
+                &names_def,
+                &mut rng,
+            );
+            game.staff.push(scout);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // World generation
 // ---------------------------------------------------------------------------
 
 /// Generate a random world (raw tuple — used by `generate_world_data`).
-/// Loads definition files from `data_dir` if provided; falls back to hardcoded defaults.
-/// Generate a world using entropy-seeded randomness (production default).
-/// Every call produces a different world — this is what "New Game" uses.
+/// Loads definition files from `data_dir` if provided; otherwise procedurally
+/// generates the full standard world (every catalogued nation with a real
+/// league pyramid). Entropy-seeded — each call (e.g. each "New Game") produces
+/// a different world.
 pub fn generate_world(
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
-    generate_world_with_rng(rand::rng(), data_dir)
+    generate_world_with(&clubs::WorldGenConfig::standard(), data_dir)
+}
+
+/// Build a club (without players) from a definition. Uses the definition's
+/// stable `id` when set (world packages); otherwise a fresh UUID.
+fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
+    let team_id = if tdef.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        tdef.id.clone()
+    };
+    let short_name = if tdef.short_name.is_empty() {
+        tdef.name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .collect::<String>()
+            .to_uppercase()
+            .chars()
+            .take(3)
+            .collect()
+    } else {
+        tdef.short_name.clone()
+    };
+    let stadium = if tdef.stadium_name.is_empty() {
+        format!("{} Arena", tdef.city)
+    } else {
+        tdef.stadium_name.clone()
+    };
+
+    let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
+    let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
+
+    let mut team = domain::team::Team::new(
+        team_id,
+        tdef.name.clone(),
+        short_name,
+        tdef.country.clone(),
+        tdef.city.clone(),
+        stadium,
+        rng.random_range(10000..80000),
+    );
+    team.finance = rng.random_range(fin_range[0]..fin_range[1]);
+    team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
+    team.wage_budget = (team.finance as f64 * 0.06) as i64;
+    team.transfer_budget = (team.finance as f64 * 0.15) as i64;
+    team.founded_year = rng.random_range(1880..1960);
+    team.colors = TeamColors {
+        primary: tdef.colors.primary.clone(),
+        secondary: tdef.colors.secondary.clone(),
+    };
+    team.play_style = play_style_from_str(&tdef.play_style);
+    team
+}
+
+/// Build a club with a full generated squad (22 players) and staff, normalised
+/// to a sensible opening wage budget. Shared by the random world and world
+/// packages.
+fn build_club(
+    tdef: &TeamDef,
+    country_codes: &[String],
+    names_def: &NamesDefinition,
+    rng: &mut impl rand::Rng,
+) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
+    let mut team = build_team(tdef, rng);
+    let team_id = team.id.clone();
+
+    let mut team_players = Vec::with_capacity(22);
+    for slot in 0..22 {
+        let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
+        let mut player =
+            generate_random_player_from_def(&team_id, slot, &nationality, names_def, rng);
+        if rng.random_range(0..100) < 12 {
+            player.transfer_listed = true;
+        } else if rng.random_range(0..100) < 8 {
+            player.loan_listed = true;
+        }
+        team_players.push(player);
+    }
+
+    let mut team_staff = Vec::with_capacity(4);
+    for role in [
+        StaffRole::AssistantManager,
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+    ] {
+        let nationality = pick_nationality_from_def(&tdef.country, country_codes, rng);
+        team_staff.push(generate_random_staff_from_def(
+            &team_id,
+            role,
+            &nationality,
+            names_def,
+            rng,
+        ));
+    }
+
+    normalize_generated_team(&mut team, &mut team_players);
+    (team, team_players, team_staff)
+}
+
+/// Build a club for a world package: start from a generated squad, then swap
+/// each hand-authored player in over a generated one of the same position (so
+/// squad balance is kept), appending if the position is already full.
+fn build_package_club(
+    tdef: &TeamDef,
+    authored: &[&package::PlayerDef],
+    country_codes: &[String],
+    names_def: &NamesDefinition,
+    rng: &mut impl rand::Rng,
+) -> (domain::team::Team, Vec<Player>, Vec<Staff>) {
+    let (mut team, mut players, staff) = build_club(tdef, country_codes, names_def, rng);
+    if authored.is_empty() {
+        return (team, players, staff);
+    }
+
+    let mut placed = vec![false; players.len()];
+    for def in authored {
+        let authored_player = generate_player_from_def(def, &team.id, names_def, rng);
+        let group = authored_player.position.to_group_position();
+        let slot = players
+            .iter()
+            .enumerate()
+            .find(|(index, player)| {
+                !placed[*index] && player.position.to_group_position() == group
+            })
+            .map(|(index, _)| index);
+        match slot {
+            Some(index) => {
+                players[index] = authored_player;
+                placed[index] = true;
+            }
+            None => {
+                players.push(authored_player);
+                placed.push(true);
+            }
+        }
+    }
+
+    // Authored wages may differ from the players they replaced, so re-normalise
+    // the opening wage budget to the final squad.
+    normalize_generated_team(&mut team, &mut players);
+    (team, players, staff)
+}
+
+/// Human-readable name for the built-in confederations, falling back to the id.
+fn builtin_region_name(id: &str) -> String {
+    match id {
+        "europe" => "Europe",
+        "south-america" => "South America",
+        "north-america" => "North America",
+        "central-america" => "Central America",
+        "africa" => "Africa",
+        "asia" => "Asia",
+        "oceania" => "Oceania",
+        other => other,
+    }
+    .to_string()
+}
+
+/// Build the region list for a package: one region per confederation, with each
+/// club's country assigned to its confederation (package-defined first,
+/// otherwise the built-in catalog).
+fn regions_from_package(
+    package: &package::WorldPackage,
+    teams: &[domain::team::Team],
+) -> Vec<WorldRegionDefinition> {
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+    let mut region_names: BTreeMap<String, String> = BTreeMap::new();
+    let mut region_countries: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for confederation in &package.confederations {
+        region_names.insert(confederation.id.clone(), confederation.name.clone());
+        region_countries.entry(confederation.id.clone()).or_default();
+    }
+
+    let country_region: HashMap<&str, &str> = package
+        .countries
+        .iter()
+        .filter(|country| !country.confederation.is_empty())
+        .map(|country| (country.id.as_str(), country.confederation.as_str()))
+        .collect();
+
+    for team in teams {
+        let code = if team.football_nation.is_empty() {
+            team.country.as_str()
+        } else {
+            team.football_nation.as_str()
+        };
+        let region = country_region
+            .get(code)
+            .copied()
+            .unwrap_or_else(|| crate::nations::region_for_code(code));
+        region_names
+            .entry(region.to_string())
+            .or_insert_with(|| builtin_region_name(region));
+        region_countries
+            .entry(region.to_string())
+            .or_default()
+            .insert(code.to_string());
+    }
+
+    region_countries
+        .into_iter()
+        .map(|(id, codes)| WorldRegionDefinition {
+            name: region_names.get(&id).cloned().unwrap_or_else(|| id.clone()),
+            id,
+            country_codes: codes.into_iter().collect(),
+        })
+        .collect()
+}
+
+/// Build a runnable [`WorldData`] from a validated world package: clubs with
+/// generated squads, regions from the package's confederations/countries, and
+/// the package's competitions as embedded definitions (resolved at game start).
+/// Call only after [`package::load_world_package`] reports no errors.
+pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldData {
+    let mut rng = rand::rng();
+    let names_def = package.names.clone().unwrap_or_else(default_names_definition);
+    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+
+    // Group hand-authored players by the club they belong to.
+    let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
+        std::collections::HashMap::new();
+    for player in &package.players {
+        if !player.club.is_empty() {
+            authored_by_club
+                .entry(player.club.as_str())
+                .or_default()
+                .push(player);
+        }
+    }
+    const NO_AUTHORED: &[&package::PlayerDef] = &[];
+
+    let mut teams = Vec::new();
+    let mut players = Vec::new();
+    let mut staff = Vec::new();
+    for tdef in &package.teams {
+        let authored = authored_by_club
+            .get(tdef.id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or(NO_AUTHORED);
+        let (team, team_players, team_staff) =
+            build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
+        teams.push(team);
+        players.extend(team_players);
+        staff.extend(team_staff);
+    }
+
+    let regions = regions_from_package(package, &teams);
+    let competition_definitions = if package.competitions.is_empty() {
+        None
+    } else {
+        Some(CompetitionDefinitionFile {
+            format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: package.competitions.clone(),
+        })
+    };
+
+    let meta = package.meta.clone().unwrap_or_default();
+    let mut world = WorldData {
+        name: if meta.name.is_empty() {
+            "Imported World".to_string()
+        } else {
+            meta.name.clone()
+        },
+        description: meta.description.clone(),
+        teams,
+        players,
+        staff,
+        competition_definitions,
+        regions,
+        default_active_regions: meta.default_active_regions.clone(),
+        default_active_competitions: meta.default_active_competitions.clone(),
+        ..WorldData::default()
+    };
+    if let Some(base_year) = meta.base_year {
+        world.metadata.base_year = Some(base_year);
+    }
+    world
+}
+
+/// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
+fn find_definition_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
+    ["json", "yaml", "yml"]
+        .iter()
+        .map(|ext| dir.join(format!("{stem}.{ext}")))
+        .find(|path| path.exists())
+}
+
+/// Generate a world from an explicit generation config (entropy-seeded). The
+/// shipped game uses [`WorldGenConfig::standard`]; tests use a smaller config
+/// for speed.
+pub fn generate_world_with(
+    config: &clubs::WorldGenConfig,
+    data_dir: Option<&std::path::Path>,
+) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
+    generate_world_with_rng(rand::rng(), config, data_dir)
 }
 
 /// Generate a world deterministically from `seed`. The same seed always
@@ -390,11 +794,17 @@ pub fn generate_world_seeded(
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     use rand::SeedableRng;
-    generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(seed), data_dir)
+    generate_world_with_rng(
+        rand::rngs::StdRng::seed_from_u64(seed),
+        &clubs::WorldGenConfig::standard(),
+        data_dir,
+    )
 }
 
+/// Core world generation from an explicit rng and config.
 fn generate_world_with_rng(
     mut rng: impl rand::Rng,
+    config: &clubs::WorldGenConfig,
     data_dir: Option<&std::path::Path>,
 ) -> (Vec<domain::team::Team>, Vec<Player>, Vec<Staff>) {
     info!("[generator] generate_world: data_dir={:?}", data_dir);
@@ -402,111 +812,39 @@ fn generate_world_with_rng(
     let mut players = Vec::new();
     let mut staff = Vec::new();
 
-    // Load definitions (external file → hardcoded fallback)
+    // Load name pools (external JSON/YAML file → hardcoded fallback)
     let names_def = data_dir
-        .and_then(|dir| {
-            let path = dir.join("default_names.json");
+        .and_then(|dir| find_definition_file(dir, "default_names"))
+        .and_then(|path| {
             let result = load_names_definition(&path);
             if result.is_some() {
                 info!("[generator] loaded names from {:?}", path);
-            } else {
-                debug!("[generator] no names file at {:?}, using defaults", path);
             }
             result
         })
         .unwrap_or_else(default_names_definition);
-    let teams_def = data_dir
-        .and_then(|dir| {
-            let path = dir.join("default_teams.json");
+
+    // Clubs come from an external curated JSON/YAML file when present, otherwise
+    // from the procedural generator driven by `config`.
+    let team_defs: Vec<TeamDef> = data_dir
+        .and_then(|dir| find_definition_file(dir, "default_teams"))
+        .and_then(|path| {
             let result = load_teams_definition(&path);
             if result.is_some() {
                 info!("[generator] loaded teams from {:?}", path);
-            } else {
-                debug!("[generator] no teams file at {:?}, using defaults", path);
             }
             result
         })
-        .unwrap_or_else(default_teams_definition);
+        .map(|def| def.teams)
+        .unwrap_or_else(|| clubs::generate_club_defs(config, &mut rng));
 
     let country_codes = sorted_country_codes(&names_def);
 
-    for tdef in &teams_def.teams {
-        let team_id = Uuid::new_v4().to_string();
-        let short_name = if tdef.short_name.is_empty() {
-            tdef.name
-                .split_whitespace()
-                .filter_map(|w| w.chars().next())
-                .collect::<String>()
-                .to_uppercase()
-                .chars()
-                .take(3)
-                .collect()
-        } else {
-            tdef.short_name.clone()
-        };
-        let stadium = if tdef.stadium_name.is_empty() {
-            format!("{} Arena", tdef.city)
-        } else {
-            tdef.stadium_name.clone()
-        };
-
-        let rep_range = tdef.reputation_range.unwrap_or([300, 900]);
-        let fin_range = tdef.finance_range.unwrap_or([500_000, 10_000_000]);
-
-        let mut team = domain::team::Team::new(
-            team_id.clone(),
-            tdef.name.clone(),
-            short_name,
-            tdef.country.clone(),
-            tdef.city.clone(),
-            stadium,
-            rng.random_range(10000..80000),
-        );
-        team.finance = rng.random_range(fin_range[0]..fin_range[1]);
-        team.reputation = rng.random_range(rep_range[0]..rep_range[1]);
-        team.wage_budget = (team.finance as f64 * 0.06) as i64;
-        team.transfer_budget = (team.finance as f64 * 0.15) as i64;
-        team.founded_year = rng.random_range(1880..1960);
-        team.colors = TeamColors {
-            primary: tdef.colors.primary.clone(),
-            secondary: tdef.colors.secondary.clone(),
-        };
-        team.play_style = play_style_from_str(&tdef.play_style);
-        let team_player_start = players.len();
-
-        // Generate 22 players
-        for j in 0..22 {
-            let nationality = pick_nationality_from_def(&tdef.country, &country_codes, &mut rng);
-            let mut player =
-                generate_random_player_from_def(&team_id, j, &nationality, &names_def, &mut rng);
-            if rng.random_range(0..100) < 12 {
-                player.transfer_listed = true;
-            } else if rng.random_range(0..100) < 8 {
-                player.loan_listed = true;
-            }
-            players.push(player);
-        }
-
-        // Generate 4 staff per team
-        let roles = [
-            StaffRole::AssistantManager,
-            StaffRole::Coach,
-            StaffRole::Scout,
-            StaffRole::Physio,
-        ];
-        for role in &roles {
-            let nationality = pick_nationality_from_def(&tdef.country, &country_codes, &mut rng);
-            let s = generate_random_staff_from_def(
-                &team_id,
-                role.clone(),
-                &nationality,
-                &names_def,
-                &mut rng,
-            );
-            staff.push(s);
-        }
-
-        normalize_generated_team(&mut team, &mut players[team_player_start..]);
+    for tdef in &team_defs {
+        let (team, team_players, team_staff) =
+            build_club(tdef, &country_codes, &names_def, &mut rng);
+        players.extend(team_players);
+        staff.extend(team_staff);
         teams_out.push(team);
     }
 
@@ -538,16 +876,51 @@ mod tests {
     use domain::staff::{Staff, StaffAttributes, StaffRole};
 
     #[test]
+    fn generate_national_team_player_is_a_senior_free_agent() {
+        let player = generate_national_team_player("JP", 5);
+
+        assert_eq!(player.nationality, "JP");
+        assert_eq!(player.team_id, None, "national-pool players belong to no club");
+        assert_eq!(player.contract_end, None);
+        assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
+        assert!(player.ovr > 0, "derived ratings must be computed");
+        assert_eq!(player.squad_role, SquadRole::Senior);
+    }
+
+    #[test]
     fn test_generate_world_team_count() {
-        let (teams, players, staff) = generate_world(None);
-        assert_eq!(teams.len(), 16);
-        assert_eq!(players.len(), 16 * 22);
-        assert_eq!(staff.len(), 16 * 4 + 12);
+        let config = WorldGenConfig::compact();
+        let expected = config.total_clubs();
+        let (teams, players, staff) = generate_world_with(&config, None);
+        assert_eq!(teams.len(), expected);
+        assert_eq!(players.len(), expected * 22);
+        assert_eq!(staff.len(), expected * 4 + 12);
+    }
+
+    #[test]
+    fn standard_world_fills_every_nation_and_spans_confederations() {
+        let config = WorldGenConfig::standard();
+        let (teams, _, _) = generate_world_with(&config, None);
+        assert_eq!(teams.len(), config.total_clubs());
+
+        // Every configured nation fields at least a full division.
+        for nation in &config.nations {
+            let count = teams
+                .iter()
+                .filter(|team| team.football_nation == nation.code)
+                .count();
+            assert!(
+                count >= config.clubs_per_division,
+                "{} only generated {} clubs",
+                nation.code,
+                count
+            );
+        }
     }
 
     #[test]
     fn test_generate_world_all_players_assigned() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
         let team_ids: Vec<&str> = teams.iter().map(|t| t.id.as_str()).collect();
         for p in &players {
             assert!(p.team_id.is_some(), "Player {} has no team", p.full_name);
@@ -560,7 +933,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_positions_per_team() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
         for team in &teams {
             let team_players: Vec<_> = players
                 .iter()
@@ -578,7 +951,7 @@ mod tests {
     #[test]
     fn test_generate_world_normalizes_opening_financials() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world(None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
             for team in &teams {
                 let annual_wages: i64 = players
                     .iter()
@@ -612,7 +985,7 @@ mod tests {
 
     #[test]
     fn test_generate_world_seeds_opening_youth_academies() {
-        let (teams, players, _) = generate_world(None);
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
 
         for team in &teams {
             let youth_players: Vec<_> = players
@@ -649,7 +1022,7 @@ mod tests {
     #[test]
     fn test_generate_world_limits_immediate_contract_pressure() {
         for _ in 0..8 {
-            let (teams, players, _) = generate_world(None);
+            let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), None);
             for team in &teams {
                 let expiring_contracts = players
                     .iter()
@@ -740,7 +1113,7 @@ mod tests {
 
     #[test]
     fn test_all_nationalities_use_short_uppercase_codes() {
-        let (_, players, staff) = generate_world(None);
+        let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), None);
         for p in &players {
             assert_eq!(
                 p.nationality.len() == 2 || p.nationality.len() == 3,
@@ -775,9 +1148,27 @@ mod tests {
     }
 
     #[test]
+    fn generate_world_loads_a_yaml_teams_file() {
+        let dir = std::env::temp_dir().join(format!("ofm-world-yaml-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("default_teams.yaml"),
+            "teams:\n  - name: Istanbul United\n    city: Istanbul\n    country: TR\n    colors:\n      primary: \"#ff0000\"\n      secondary: \"#ffffff\"\n",
+        )
+        .unwrap();
+
+        let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), Some(&dir));
+        assert_eq!(teams.len(), 1, "the YAML teams file should drive generation");
+        assert_eq!(teams[0].name, "Istanbul United");
+        assert_eq!(players.len(), 22);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn test_world_data_wrapper() {
         let world = generate_world_data(None);
-        assert_eq!(world.teams.len(), 16);
+        assert_eq!(world.teams.len(), WorldGenConfig::standard().total_clubs());
         assert!(!world.name.is_empty());
         assert!(!world.description.is_empty());
     }
@@ -942,6 +1333,7 @@ mod tests {
             stats: domain::stats::StatsState::default(),
             world_history: domain::world_history::WorldHistoryArchive::default(),
             metadata: WorldDataMetadata::default(),
+            ..Default::default()
         }
     }
 

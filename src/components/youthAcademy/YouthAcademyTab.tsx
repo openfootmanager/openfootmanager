@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { GameStateData } from "../../store/gameStore";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
+import { getSquad } from "../../services/squadService";
+import { getStaff, type StaffSlice } from "../../services/staffService";
 import {
   Card,
   CardHeader,
@@ -30,7 +33,7 @@ import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
 
 interface YouthAcademyTabProps {
-  gameState: GameStateData;
+  gameState: GameStateData | null;
   onSelectPlayer?: (id: string) => void;
   onGameUpdate?: (game: GameStateData) => void;
   onNavigate?: (tab: string, context?: DashboardNavigateContext) => void;
@@ -58,24 +61,36 @@ export default function YouthAcademyTab({
   onNavigate,
 }: YouthAcademyTabProps) {
   const { t, i18n } = useTranslation();
+  const { sessionState } = useGameStore();
+  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
+  const [fetchedStaff, setFetchedStaff] = useState<StaffSlice | null>(null);
   const [selectedYouthScoutId, setSelectedYouthScoutId] = useState("");
   const [youthRegion, setYouthRegion] = useState("Domestic");
   const [youthObjective, setYouthObjective] = useState("Balanced");
   const [youthTargetPosition, setYouthTargetPosition] = useState("");
   const [startingYouthSearch, setStartingYouthSearch] = useState(false);
   const [youthSearchError, setYouthSearchError] = useState<string | null>(null);
-  const myTeam = gameState.teams.find(
-    (tm) => tm.id === gameState.manager.team_id,
-  );
-  const scouts = gameState.staff.filter(
-    (staffMember) =>
-      staffMember.role === "Scout" && staffMember.team_id === gameState.manager.team_id,
-  );
-  const youthAssignments = gameState.youth_scouting_assignments || [];
-  const availableScouts = calculateAvailableScouts(
-    scouts,
-    [...(gameState.scouting_assignments || []), ...youthAssignments],
-  );
+
+  const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+
+  useEffect(() => {
+    if (!teamId) return;
+    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
+    void getStaff(teamId).then(setFetchedStaff).catch(() => {});
+  }, [teamId]);
+
+  const team = sessionState?.team ?? gameState?.teams.find((tm) => tm.id === teamId) ?? null;
+  const scouts =
+    fetchedStaff?.team_staff.filter((s) => s.role === "Scout") ??
+    gameState?.staff.filter((s) => s.role === "Scout" && s.team_id === teamId) ??
+    [];
+  const youthAssignments =
+    fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
+  const allAssignments = [
+    ...(fetchedStaff?.scouting_assignments ?? gameState?.scouting_assignments ?? []),
+    ...youthAssignments,
+  ];
+  const availableScouts = calculateAvailableScouts(scouts, allAssignments);
 
   useEffect(() => {
     if (
@@ -88,9 +103,8 @@ export default function YouthAcademyTab({
     setSelectedYouthScoutId(availableScouts[0]?.id ?? "");
   }, [availableScouts, selectedYouthScoutId]);
 
-  const roster = myTeam
-    ? gameState.players.filter((p) => p.team_id === myTeam.id)
-    : [];
+  const roster =
+    fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
   const youthPlayers = roster
     .filter((player) => isYouthAcademyPlayer(player))
     .map((p) => ({
@@ -127,14 +141,29 @@ export default function YouthAcademyTab({
   const highPotential = youthPlayers.filter((p) => p.potential >= 75).length;
 
   // Youth development staff
-  const youthCoach = gameState.staff.filter(
-    (s) => s.team_id === myTeam?.id && s.specialization === "Youth",
-  );
+  const youthCoach =
+    fetchedStaff?.team_staff.filter((s) => s.specialization === "Youth") ??
+    gameState?.staff.filter((s) => s.team_id === team?.id && s.specialization === "Youth") ??
+    [];
+
+  const applyScoutingUpdate = (updated: GameStateData) => {
+    onGameUpdate?.(updated);
+    setFetchedStaff((prev) =>
+      prev
+        ? {
+          ...prev,
+          scouting_assignments: updated.scouting_assignments,
+          youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
+        }
+        : null,
+    );
+  };
 
   const handleDelegatePlayer = async (playerId: string) => {
     try {
       const updated = await setPlayerSquadRole(playerId, "Youth");
       onGameUpdate?.(updated);
+      setFetchedSquad(updated.players.filter((p) => p.team_id === teamId));
     } catch {
       return;
     }
@@ -152,7 +181,7 @@ export default function YouthAcademyTab({
         objective: youthObjective,
         targetPosition: youthTargetPosition || null,
       });
-      onGameUpdate(updated);
+      applyScoutingUpdate(updated);
       setSelectedYouthScoutId("");
     } catch (err) {
       setYouthSearchError(String(err));
@@ -162,12 +191,9 @@ export default function YouthAcademyTab({
   };
 
   const handleCancelYouthScouting = async (assignmentId: string) => {
-    if (!onGameUpdate) return;
-
     setYouthSearchError(null);
     try {
-      const updated = await cancelYouthScouting(assignmentId);
-      onGameUpdate(updated);
+      applyScoutingUpdate(await cancelYouthScouting(assignmentId));
     } catch (err) {
       setYouthSearchError(String(err));
     }
@@ -177,12 +203,9 @@ export default function YouthAcademyTab({
     assignmentId: string,
     scoutId: string,
   ) => {
-    if (!onGameUpdate) return;
-
     setYouthSearchError(null);
     try {
-      const updated = await reassignYouthScouting(assignmentId, scoutId);
-      onGameUpdate(updated);
+      applyScoutingUpdate(await reassignYouthScouting(assignmentId, scoutId));
     } catch (err) {
       setYouthSearchError(String(err));
     }

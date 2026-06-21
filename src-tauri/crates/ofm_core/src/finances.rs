@@ -885,36 +885,52 @@ pub fn process_weekly_finances(game: &mut Game) {
     }
 
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let team_expenses: Vec<(String, i64)> = game
+
+    // Sum each member's weekly wage into its team in a single pass, instead of
+    // rescanning every player and staff member once per team
+    // (O(teams * (players + staff)) -> O(teams + players + staff)).
+    let mut wage_by_team: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    for player in &game.players {
+        if let Some(team_id) = &player.team_id {
+            *wage_by_team.entry(team_id.clone()).or_default() += player.wage as i64 / 52;
+        }
+    }
+    for staff_member in &game.staff {
+        if let Some(team_id) = &staff_member.team_id {
+            *wage_by_team.entry(team_id.clone()).or_default() += staff_member.wage as i64 / 52;
+        }
+    }
+
+    let team_expenses: std::collections::HashMap<String, i64> = game
         .teams
         .iter()
         .map(|team| {
-            let wages = calc_wages(game, &team.id);
-            let upkeep = calc_upkeep(team);
-
-            (team.id.clone(), wages + upkeep)
+            let wages = wage_by_team.get(&team.id).copied().unwrap_or(0);
+            (team.id.clone(), wages + calc_upkeep(team))
         })
         .collect();
-    let team_positions: Vec<(String, Option<u32>)> = game
-        .teams
-        .iter()
-        .map(|team| (team.id.clone(), current_league_position(game, &team.id)))
-        .collect();
+
+    // Resolve league positions once from a single sort, not once per team.
+    let position_by_team: std::collections::HashMap<String, u32> = game
+        .league
+        .as_ref()
+        .map(|league| {
+            league
+                .sorted_standings()
+                .iter()
+                .enumerate()
+                .map(|(index, standing)| (standing.team_id.clone(), index as u32 + 1))
+                .collect()
+        })
+        .unwrap_or_default();
 
     for team in game.teams.iter_mut() {
-        let total_expenses = team_expenses
-            .iter()
-            .find(|(team_id, _)| team_id == &team.id)
-            .map(|(_, total)| *total)
-            .unwrap_or(0);
+        let total_expenses = team_expenses.get(&team.id).copied().unwrap_or(0);
 
         team.finance -= total_expenses;
         team.season_expenses += total_expenses;
 
-        let current_position = team_positions
-            .iter()
-            .find(|(team_id, _)| team_id == &team.id)
-            .and_then(|(_, position)| *position);
+        let current_position = position_by_team.get(&team.id).copied();
 
         let sponsorship_income = team
             .sponsorship
@@ -940,18 +956,14 @@ pub fn process_weekly_finances(game: &mut Game) {
 
     // --- Matchday income for home matches completed in last 7 days ---
     if game.league.is_some() {
-        let home_match_counts: Vec<(String, i64)> = game
+        let home_match_counts: std::collections::HashMap<String, i64> = game
             .teams
             .iter()
             .map(|team| (team.id.clone(), count_recent_home_matches(game, &team.id)))
             .collect();
 
         for team in game.teams.iter_mut() {
-            let home_count = home_match_counts
-                .iter()
-                .find(|(team_id, _)| team_id == &team.id)
-                .map(|(_, count)| *count)
-                .unwrap_or(0);
+            let home_count = home_match_counts.get(&team.id).copied().unwrap_or(0);
 
             if home_count > 0 {
                 let mut rng = rand::rng();

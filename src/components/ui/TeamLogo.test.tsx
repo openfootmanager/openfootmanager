@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
 import { describe, expect, it } from "vitest";
 import { TeamLogo } from "./TeamLogo";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: { team?: string }) =>
+      key === "common.teamLogoAlt" ? `${params?.team ?? ""} logo` : key,
+  }),
+}));
 
 const team = {
   name: "Media FC",

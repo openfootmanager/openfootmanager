@@ -712,6 +712,129 @@ fn all_focuses_run_without_panic() {
 }
 
 #[test]
+fn each_team_trains_under_its_own_focus() {
+    // Given: two teams with different focuses, each with one player
+    let date = Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap();
+    let clock = GameClock::new(date);
+    let mut manager = Manager::new(
+        "mgr1".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("team1".to_string());
+
+    let mut team1 = make_team("team1", "Tech FC");
+    team1.training_focus = TrainingFocus::Technical;
+    team1.training_intensity = TrainingIntensity::High;
+    team1.training_schedule = TrainingSchedule::Intense;
+
+    let mut team2 = make_team("team2", "Phys FC");
+    team2.training_focus = TrainingFocus::Physical;
+    team2.training_intensity = TrainingIntensity::High;
+    team2.training_schedule = TrainingSchedule::Intense;
+
+    let tech_player = make_player("tech", "Tech", "team1", "2004-03-15");
+    let phys_player = make_player("phys", "Phys", "team2", "2004-03-15");
+
+    let mut game = Game::new(
+        clock,
+        manager,
+        vec![team1, team2],
+        vec![tech_player, phys_player],
+        vec![],
+        vec![],
+    );
+
+    let tech_initial = game.players.iter().find(|p| p.id == "tech").unwrap().attributes.clone();
+    let phys_initial = game.players.iter().find(|p| p.id == "phys").unwrap().attributes.clone();
+
+    // When: both teams train for many sessions
+    for _ in 0..150 {
+        for p in game.players.iter_mut() {
+            p.condition = 90;
+        }
+        training::process_training(&mut game, 0);
+    }
+
+    let tech_after = game.players.iter().find(|p| p.id == "tech").unwrap().attributes.clone();
+    let phys_after = game.players.iter().find(|p| p.id == "phys").unwrap().attributes.clone();
+
+    // Then: the Technical player never gains Physical-only attributes, and the
+    // Physical player never gains Technical-only attributes — proving each
+    // player trained under its OWN team's plan, not another team's.
+    assert_eq!(tech_after.pace, tech_initial.pace, "Technical focus must not change pace");
+    assert_eq!(tech_after.stamina, tech_initial.stamina, "Technical focus must not change stamina");
+    assert_eq!(tech_after.strength, tech_initial.strength, "Technical focus must not change strength");
+    assert_eq!(tech_after.agility, tech_initial.agility, "Technical focus must not change agility");
+
+    assert_eq!(phys_after.passing, phys_initial.passing, "Physical focus must not change passing");
+    assert_eq!(phys_after.dribbling, phys_initial.dribbling, "Physical focus must not change dribbling");
+}
+
+#[test]
+fn players_without_a_real_team_are_not_trained() {
+    // Given: a free agent (no team) and a player pointing at a non-existent team
+    let date = Utc.with_ymd_and_hms(2025, 6, 16, 12, 0, 0).unwrap();
+    let clock = GameClock::new(date);
+    let mut manager = Manager::new(
+        "mgr1".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("team1".to_string());
+
+    let mut team1 = make_team("team1", "Real FC");
+    team1.training_focus = TrainingFocus::Physical;
+    team1.training_intensity = TrainingIntensity::High;
+    team1.training_schedule = TrainingSchedule::Intense;
+
+    let mut free_agent = make_player("free", "Free", "team1", "2004-03-15");
+    free_agent.team_id = None;
+    free_agent.condition = 40;
+    free_agent.fitness = 40;
+
+    let mut ghost = make_player("ghost", "Ghost", "no-such-team", "2004-03-15");
+    ghost.condition = 40;
+    ghost.fitness = 40;
+
+    let mut game = Game::new(
+        clock,
+        manager,
+        vec![team1],
+        vec![free_agent, ghost],
+        vec![],
+        vec![],
+    );
+
+    let snapshot = |g: &Game, id: &str| {
+        let p = g.players.iter().find(|p| p.id == id).unwrap();
+        (
+            p.attributes.pace,
+            p.attributes.stamina,
+            p.attributes.strength,
+            p.attributes.agility,
+            p.condition,
+            p.fitness,
+        )
+    };
+    let free_before = snapshot(&game, "free");
+    let ghost_before = snapshot(&game, "ghost");
+
+    // When: training runs for several sessions
+    for _ in 0..50 {
+        training::process_training(&mut game, 0);
+    }
+
+    // Then: neither player is touched (no recovery, no gains, no fitness change)
+    assert_eq!(snapshot(&game, "free"), free_before, "Free agent must not be trained");
+    assert_eq!(snapshot(&game, "ghost"), ghost_before, "Player with no real team must not be trained");
+}
+
+#[test]
 fn all_intensities_run_without_panic() {
     let intensities = [
         TrainingIntensity::Low,

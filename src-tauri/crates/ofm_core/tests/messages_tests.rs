@@ -446,3 +446,41 @@ fn incoming_transfer_offer_message_uses_i18n_keys_and_params() {
             && action.label_key.as_deref() == Some("be.msg.transferOffer.actionReview")
     }));
 }
+
+#[test]
+fn transfer_interest_digest_message_uses_i18n_keys_and_stable_id() {
+    let msg = messages::transfer_interest_digest_message(
+        "player-1",
+        "John Star",
+        3,
+        "Rival FC",
+        1_250_000,
+        "2025-08-01",
+    );
+
+    assert_eq!(msg.id, "transfer_interest_player-1");
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.transferInterest.subject")
+    );
+    assert_eq!(msg.body_key.as_deref(), Some("be.msg.transferInterest.body"));
+    assert_eq!(
+        msg.context.player_id.as_deref(),
+        Some("player-1"),
+        "digest carries the player id so callers can upsert it"
+    );
+    assert_eq!(
+        msg.i18n_params.get("player").map(String::as_str),
+        Some("John Star")
+    );
+    assert_eq!(msg.i18n_params.get("n").map(String::as_str), Some("3"));
+    assert_eq!(
+        msg.i18n_params.get("team").map(String::as_str),
+        Some("Rival FC")
+    );
+    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("€1.2M"));
+    assert!(msg.actions.iter().any(|action| {
+        action.id == "view_transfers"
+            && action.label_key.as_deref() == Some("be.msg.transferInterest.actionReview")
+    }));
+}

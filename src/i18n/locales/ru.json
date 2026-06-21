@@ -2,7 +2,7 @@
   "app": {
     "name": "OpenFoot Manager",
     "publisher": "Sturdy Robot",
-    "version": "v0.2.1-alpha"
+    "version": "v0.3.0-beta"
   },
   "menu": {
     "newGame": "Новая игра",
@@ -18,6 +18,8 @@
     "deleteSave": "Удалить сохранение",
     "noResults": "Ничего не найдено",
     "importedDescription": "Импортированная база мира",
+    "importedPackageDescription": "Импортированный пакет мира",
+    "loadGameFailed": "Не удалось загрузить сохранение: {{error}}",
     "invalidWorldDb": "Недопустимый файл базы мира: {{error}}",
     "failedStartGame": "Не удалось начать игру: {{error}}",
     "openDiscord": "Открыть сообщество в Discord",
@@ -62,12 +64,17 @@
     "title": "Выберите мир",
     "scanning": "Поиск баз данных...",
     "importFile": "Импортировать из файла",
+    "importPackage": "Импорт пакета мира",
+    "packageErrorsTitle": "Проблемы пакета",
+    "importCompetitions": "Добавить файл турниров",
+    "removeCompetitions": "Убрать",
+    "competitionsErrorsTitle": "Этот файл турниров нельзя использовать:",
     "startCareer": "Начать карьеру",
     "creatingWorld": "Создание мира...",
     "teams": "{{count}} команд",
     "players": "{{count}} игроков",
     "randomWorld": "Случайный мир",
-    "randomDescription": "Случайно сгенерированная лига с 8 командами, игроками и персоналом",
+    "randomDescription": "Процедурно сгенерированный мир клубов, игроков и персонала",
     "historyMode": {
       "generated": "Сгенерированная история",
       "reference": "Справочная история",
@@ -117,6 +124,15 @@
     "exitToMenu": "Выйти в меню",
     "continue": "Продолжить",
     "simulating": "Симуляция...",
+    "simulatingMessage": "Обработка мира — это займёт всего мгновение.",
+    "resultsRecapTitle": "Результаты",
+    "recapAdvancedTo": "Переход к {{date}}",
+    "recapSectionTransfers": "Трансферы",
+    "recapSectionNews": "Новости",
+    "recapSectionInbox": "Входящие",
+    "recapNothingNotable": "Нет важных событий.",
+    "recapTransferLine": "{{player}}: {{from}} → {{to}}",
+    "resultsRecapDismiss": "Продолжить",
     "loading": "Загрузка состояния игры...",
     "noResults": "Ничего не найдено.",
     "searchPlaceholder": "Поиск игроков, команд...",
@@ -141,7 +157,21 @@
       "financeRunway": "Запас средств снизился до {{count}} нед.",
       "wagePressure": "Фонд зарплат съедает {{percent}}% бюджета"
     },
-    "unemployedBanner": "Сейчас у вас нет клуба. Предложения о работе могут прийти во входящие."
+    "unemployedBanner": "Сейчас у вас нет клуба. Предложения о работе могут прийти во входящие.",
+    "digestAdvancing": "Продвижение...",
+    "digestDone": "Готово",
+    "digestClose": "Закрыть",
+    "digestEmpty": "Ничего не произошло.",
+    "digestQuietDay": "Тихий день.",
+    "digestSimulating": "Симуляция...",
+    "digestMatchDay": "Игровой день",
+    "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
+    "digestReturnHome": "Вернуться на главную",
+    "digestBlocked": "Требуется действие",
+    "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
+    "digestViewIssues": "Посмотреть проблемы",
+    "digestFired": "Вас уволили.",
+    "digestContinueAnyway": "Продолжить в любом случае"
   },
   "continueMenu": {
     "goToField": "Перейти на поле",
@@ -266,7 +296,61 @@
     "repStrong": "Сильный",
     "repAverage": "Средний",
     "repDeveloping": "Развивающийся",
-    "failedToSelectTeam": "Не удалось выбрать команду: {{error}}."
+    "failedToSelectTeam": "Не удалось выбрать команду: {{error}}.",
+    "homeRegion": "Домашний регион",
+    "homeCountry": "Домашняя страна",
+    "allCountries": "Все страны",
+    "simulationScope": "Объём симуляции",
+    "otherClubs": "Другие клубы",
+    "searchClubs": "Поиск клубов…",
+    "clubCount": "Клубов: {{n}}",
+    "noClubsMatch": "Нет клубов по вашему запросу.",
+    "simulatedRegions": "Симулируемые регионы",
+    "simulatedCompetitions": "Симулируемые турниры",
+    "homeBadge": "Дом",
+    "yourClub": "вашего клуба",
+    "yourClubBadge": "Ваш клуб",
+    "requiresRegions": "Требуются регионы: {{regions}}",
+    "selectedClub": "Выбранный клуб",
+    "formation": "Схема",
+    "overall": "Общий уровень",
+    "likelyXi": "Вероятный стартовый состав",
+    "competitions": "Турниры",
+    "keyPlayers": "Ключевые игроки",
+    "activeCompetitions": "Активные турниры",
+    "clubCompetitionsAlwaysSimulated": "Турниры вашего клуба всегда симулируются, даже если отключены другие регионы или соревнования.",
+    "selectClubPrompt": "Выберите клуб, чтобы посмотреть состав и турниры.",
+    "playersCount": "{{count}} игроков",
+    "scopeSummary": "Будут загружены {{regionsCount}} симулируемых регионов и {{competitionsCount}} симулируемых турниров.",
+    "regionLabels": {
+      "north-america": "Северная Америка",
+      "central-america": "Центральная Америка",
+      "south-america": "Южная Америка",
+      "europe": "Европа",
+      "asia": "Азия",
+      "oceania": "Океания"
+    },
+    "scopes": {
+      "Domestic": "Внутренний",
+      "Regional": "Региональный",
+      "Continental": "Континентальный",
+      "International": "Международный"
+    },
+    "kinds": {
+      "League": "Лига",
+      "Cup": "Кубок",
+      "ContinentalClub": "Континентальный клубный турнир",
+      "InternationalClub": "Международный клубный турнир",
+      "InternationalNation": "Международный турнир сборных",
+      "FriendlyCup": "Товарищеский кубок"
+    },
+    "scopeMessages": {
+      "homeRegionAlwaysActive": "Ваш игровой регион всегда остаётся активным.",
+      "regionRequiredByCompetition": "{{competition}} входит в календарь {{club}}, поэтому регион {{region}} должен оставаться активным.",
+      "regionRemovedDisablesCompetitions": "Регион {{region}} был убран из области симуляции, поэтому зависимые турниры тоже были отключены.",
+      "clubCompetitionLocked": "{{competition}} есть в календаре {{club}} и всегда будет симулироваться.",
+      "autoEnabledRegions": "Для {{competition}} нужны регионы {{regions}}, поэтому они были включены автоматически."
+    }
   },
   "youthAcademy": {
     "title": "Молодёжная академия",
@@ -288,7 +372,7 @@
     "player": "Игрок",
     "pos": "Позиция",
     "age": "Возраст",
-    "ovr": "OVR",
+    "ovr": "ОВР",
     "potential": "Потенциал",
     "growth": "Рост",
     "traits": "Черты",
@@ -496,7 +580,12 @@
       "goalkeeper": "Вратарские"
     },
     "retry": "Повторить",
-    "score": "Счёт"
+    "score": "Счёт",
+    "teamLogoAlt": "Логотип {{team}}",
+    "left": "Левый",
+    "center": "Центр",
+    "right": "Правый",
+    "competition": "Соревнование"
   },
   "teamSelection": {
     "title": "Выберите клуб",
@@ -516,6 +605,19 @@
     "title": "Состав {{team}}",
     "playerCount": "{{count}} игроков",
     "noPlayers": "Игроки в составе не найдены.",
+    "jerseyNumber": "#",
+    "jerseyNumberFull": "Номер футболки",
+    "jerseyNumberClickToChange": "#{{number}} — нажмите для изменения",
+    "jerseyNumberClickToAssign": "Нажмите, чтобы назначить номер футболки",
+    "teamKit": "Форма команды",
+    "kitPattern": "Узор формы",
+    "kitPatterns": {
+      "Solid": "Однотонный",
+      "Stripes": "Полосатый",
+      "Hoops": "Кольца",
+      "HalfAndHalf": "Пополам",
+      "Diagonal": "Диагональный"
+    },
     "pos": "Позиция",
     "traits": "Черты",
     "fullRoster": "Полный состав",
@@ -546,6 +648,27 @@
       "Possession": "Поощряет терпеливый розыгрыш мяча, контроль темпа и поиск более чистых моментов.",
       "Counter": "Просит команду быстро выходить в атаку после отбора, пока соперник не успел перестроиться.",
       "HighPress": "Просит команду раньше вступать в прессинг, отбирать мяч выше и постоянно держать соперника под давлением."
+    },
+    "currentPlan": "Текущий план",
+    "planStatus": "План",
+    "tacticalFit": "Тактическое соответствие",
+    "coverageTitle": "Покрытие ролей",
+    "coverageStable": "С покрытием всё в порядке",
+    "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
+    "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
+    "bestRole": "Лучшая роль",
+    "styleFit": "Соответствие стилю",
+    "starter": "Основа",
+    "benchOption": "Запас",
+    "naturalFit": "Естественная роль",
+    "adaptedFit": "Адаптированная роль",
+    "needsCover": "Нужна подмена",
+    "makeStarter": "Сделать игроком основы",
+    "sendToBench": "Отправить в запас",
+    "styleFitValues": {
+      "strong": "Соответствие стилю: Сильное",
+      "good": "Соответствие стилю: Хорошее",
+      "risky": "Соответствие стилю: Рискованное"
     }
   },
   "tactics": {
@@ -562,14 +685,121 @@
     "noStartersForRoles": "Назначьте стартовый состав, чтобы распределить роли и стандарты.",
     "startingXI": "Стартовый состав — {{formation}}",
     "fullSquad": "Вся команда",
-    "pitchInteractionHint": "Перетаскивайте игроков между полем и скамейкой, нажмите на игрока, чтобы открыть его карточку, затем выберите второго для сравнения и подтвердите обмен в панели сравнения.",
+    "pitchInteractionHint": "Перетаскивайте игроков между полем и скамейкой, нажмите для просмотра, выберите второго для сравнения или используйте правый клик для быстрых тактических действий.",
     "selectedPlayer": "Выбранный игрок",
     "comparePlayer": "Игрок для сравнения",
     "selectSecondPlayer": "Выберите второго игрока в обзоре состава, чтобы сравнить характеристики и подготовить обмен.",
     "compareSelectionHint": "Проверьте обоих игроков ниже, затем подтвердите обмен, когда будете готовы.",
     "confirmSwap": "Подтвердить обмен",
     "selectPitchPlayer": "Выберите игрока на схеме, чтобы просмотреть его характеристики.",
-    "selectAnotherToSwap": "Выберите второго игрока, чтобы сравнить их и подтвердить обмен."
+    "selectAnotherToSwap": "Выберите второго игрока, чтобы сравнить их и подтвердить обмен.",
+    "teamIdentity": "Идентичность команды",
+    "presetTactics": "Готовые тактики",
+    "presets": "Шаблоны",
+    "tacticLibrary": "Библиотека тактик",
+    "chooseTactic": "Выбрать тактику",
+    "searchTactics": "Искать тактики...",
+    "myTactics": "Мои тактики",
+    "newTactic": "Новая тактика",
+    "duplicateTactic": "Дублировать",
+    "saveAsTactic": "Сохранить как тактику",
+    "updateTactic": "Обновить тактику",
+    "tacticName": "Название тактики",
+    "identitySummary": "Сводка идентичности",
+    "synced": "Синхронизировано",
+    "unsavedChanges": "Несохранённые изменения",
+    "currentPlanCard": "Текущий план",
+    "phaseBlueprint": "План по фазам",
+    "phaseLabels": {
+      "withBall": "С мячом",
+      "withoutBall": "Без мяча",
+      "transitions": "Переходы"
+    },
+    "phaseSummaries": {
+      "withBall": "Сначала задай идентичность команды: форму, ширину, темп и роли, которые поддерживают атаку.",
+      "withoutBall": "Используй высоту блока, компактность и намерение прессинга, чтобы определить агрессивность команды без мяча.",
+      "transitions": "Следующий слой должен описывать, насколько быстро команда выбегает, контрпрессингует или перестраивается после потерь."
+    },
+    "customTacticDescription": "Создай собственную настройку, сочетая любую схему со стилем игры, который лучше всего подходит твоему составу.",
+    "customTacticNumber": "Пользовательская тактика {{count}}",
+    "copyOfTactic": "Копия {{name}}",
+    "modifiedPreset": "Изменённый шаблон",
+    "activePreset": "Активный шаблон",
+    "customTactic": "Пользовательская тактика",
+    "layoutModes": {
+      "pitch": "Фокус на поле",
+      "balanced": "Сбалансированный вид",
+      "analysis": "Аналитический вид"
+    },
+    "presetNames": {
+      "balanced-control": "Сбалансированный контроль",
+      "wing-play": "Игра через фланги",
+      "high-press": "Высокий прессинг",
+      "counter-attack": "Контратака",
+      "low-block": "Низкий блок"
+    },
+    "tableInteractionHint": "Щёлкните правой кнопкой по игроку для быстрых действий.",
+    "makeCaptain": "Сделать капитаном",
+    "makeViceCaptain": "Сделать вице-капитаном",
+    "setPenaltyTaker": "Назначить пенальтиста",
+    "setFreeKickTaker": "Назначить исполнителя штрафных",
+    "setCornerTaker": "Назначить исполнителя угловых",
+    "inspector": "Инспектор",
+    "inspectorEmptyTitle": "Ничего не выбрано",
+    "naturalFit": "Естественная роль",
+    "adaptedFit": "Адаптированная роль",
+    "tokenStates": {
+      "ready": "Готов",
+      "adjusted": "Адаптирован",
+      "risk": "Риск"
+    },
+    "presetDescriptions": {
+      "balanced-control": "Стабильные линии, надежная страховка и понятная структура для большинства составов.",
+      "wing-play": "Естественная ширина, ранняя поддержка у штрафной и больше забеганий впереди мяча.",
+      "high-press": "Поднимает блок выше, требует агрессивного давления и отправляет больше игроков вперед.",
+      "counter-attack": "Делает ставку на быстрые выпады из более безопасной центральной зоны после возврата владения.",
+      "low-block": "Дает больше защиты линии обороны и более компактную форму при низком блоке."
+    },
+    "clearSelection": "Сбросить выбор",
+    "compareWithSelected": "Сравнить с выбранным",
+    "selectForSwap": "Выбрать для обмена",
+    "assignBestFit": "Назначить в лучший слот",
+    "moveToBench": "Отправить в запас",
+    "promoteToLineup": "Вернуть в основу",
+    "tableView": "Табличный вид",
+    "tableModeHints": {
+      "lineup": "Показывает тактические слоты, готовность, мораль и игровые позиции.",
+      "roles": "Сосредоточен на сигналах соответствия и текущих обязанностях в матче."
+    },
+    "tableModes": {
+      "lineup": "Состав",
+      "roles": "Роли"
+    },
+    "positionSelector": "Тактический слот",
+    "playablePositions": "Позиции",
+    "slotFit": "Соответствие слоту",
+    "styleFit": "Соответствие стилю",
+    "responsibilities": "Обязанности",
+    "noSpecialRoles": "Нет особых ролей",
+    "moraleLevels": {
+      "superb": "Отлично",
+      "veryGood": "Очень хорошо",
+      "good": "Хорошо",
+      "okay": "Нормально",
+      "poor": "Плохо",
+      "veryPoor": "Очень плохо"
+    },
+    "conditionLevels": {
+      "ready": "Готов",
+      "sharp": "В тонусе",
+      "managing": "Под нагрузкой",
+      "risk": "Риск"
+    },
+    "styleFitLevels": {
+      "strong": "Сильное соответствие",
+      "good": "Хорошее соответствие",
+      "risky": "Рискованное соответствие"
+    }
   },
   "training": {
     "weeklySchedule": "Недельный график",
@@ -747,7 +977,9 @@
     "seasonIncome": "Доход за сезон",
     "seasonExpenses": "Расходы за сезон",
     "perWeekSuffix": "/нед.",
+    "perYearSuffix": "/год",
     "wagePerWeek": "Зарплата/нед.",
+    "wagePerYear": "Зарплата/год",
     "marketValue": "Рыночная стоимость",
     "until": "До {{year}}",
     "facilities": "Инфраструктура",
@@ -906,6 +1138,8 @@
     "subtitle": "Завершившие карьеру легенды и прошлые чемпионы",
     "legends": "Легенды",
     "pastChampions": "Прошлые чемпионы",
+    "worldCupChampions": "Чемпионы мира",
+    "worldCupEdition": "Чемпионат мира {{year}}",
     "noLegends": "Завершивших карьеру легенд пока нет.",
     "noChampions": "Чемпионские сезоны пока не зафиксированы.",
     "appearances": "Матчи",
@@ -1019,10 +1253,34 @@
   "schedule": {
     "noSchedule": "Расписание лиги пока недоступно.",
     "noLeague": "Расписание лиги пока недоступно.",
+    "standingsUnavailable": "Турнирная таблица недоступна для этого турнира.",
     "fixtures": "Матчи",
     "standings": "Таблица",
     "matchday": "Тур {{number}}",
-    "season": "Сезон {{number}}"
+    "season": "Сезон {{number}}",
+    "international": "Сборные",
+    "internationalDuty": "В сборной",
+    "promotionZone": "Повышение",
+    "loadMore": "Загрузить ещё",
+    "relegationZone": "Вылет",
+    "nextMatch": "Следующий матч",
+    "noUpcoming": "Нет предстоящих матчей.",
+    "pastResults": "Прошлые результаты",
+    "calendar": {
+      "title": "Календарь",
+      "mon": "Пн",
+      "tue": "Вт",
+      "wed": "Ср",
+      "thu": "Чт",
+      "fri": "Пт",
+      "sat": "Сб",
+      "sun": "Вс",
+      "prevMonth": "Предыдущий месяц",
+      "nextMonth": "Следующий месяц",
+      "dayWithFixtures": "{{date}} — есть матчи",
+      "yourMatch": "Ваш матч",
+      "otherFixtures": "Другие матчи"
+    }
   },
   "players": {
     "searchPlaceholder": "Поиск по имени или гражданству...",
@@ -1034,6 +1292,9 @@
     "showingRange": "{{from}}–{{to}} из {{total}}"
   },
   "teams": {
+    "searchPlaceholder": "Поиск клубов…",
+    "noResults": "Нет клубов по вашему запросу.",
+    "otherClubs": "Другие клубы",
     "yourTeam": "Ваша команда",
     "squad": "Состав",
     "avgOvr": "Сред. OVR",
@@ -1064,6 +1325,17 @@
     "topScorers": "Бомбардиры",
     "loadingAwards": "Загрузка наград...",
     "awardsTab": "Награды",
+    "bracket": "Сетка",
+    "group": "Группа {{name}}",
+    "bye": "Без игры",
+    "roundComplete": "Завершён",
+    "roundInProgress": "Идёт",
+    "rounds": {
+      "final": "Финал",
+      "semifinal": "Полуфинал",
+      "quarterfinal": "Четвертьфинал",
+      "roundOf": "Раунд {{size}}"
+    },
     "awards": {
       "goldenBootTitle": "Золотая бутса",
       "goldenBootSubtitle": "Лучшие бомбардиры",
@@ -1087,9 +1359,20 @@
         "winRate": "процент побед"
       },
       "managerOfSeasonTitle": "Тренер сезона",
+      "currentLeaders": "Текущие лидеры — итоговые награды определяются в конце сезона.",
       "managerOfSeasonSubtitle": "Лучшая работа на тренерском мостике"
     },
-    "noGoals": "Голов пока нет."
+    "noGoals": "Голов пока нет.",
+    "worldCupChampion": "Чемпион мира",
+    "competitions": {
+      "title": "Все соревнования",
+      "statusNotStarted": "Не начато",
+      "statusInProgress": "В процессе",
+      "statusCompleted": "Завершено",
+      "participating": "Участвует",
+      "worldCup": "Чемпионат мира {{year}}",
+      "worldCupQualifying": "Отбор на Чемпионат мира {{year}}"
+    }
   },
   "news": {
     "noNews": "Новостей пока нет.",
@@ -1113,6 +1396,7 @@
     "dateOfBirth": "Дата рождения",
     "noContract": "Без контракта",
     "weeklyWage": "Недельная зарплата",
+    "annualWage": "Годовая зарплата",
     "yearsRemaining": "Осталось лет",
     "contractRisk": "Риск по контракту",
     "renewalTitle": "Продление контракта",
@@ -1188,6 +1472,7 @@
     "nGoals": "{{count}} гол.",
     "nAssists": "{{count}} асс.",
     "daysRemaining": "Осталось {{count}} дн. — игрок недоступен для выбора",
+    "injuryDaysShort": "{{count}} дн.",
     "renewalProjectionTitle": "Прогноз финансового влияния",
     "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",
@@ -1258,6 +1543,8 @@
     "matchCommentaryDesc": "Показывать текстовые комментарии во время матчей в реальном времени",
     "confirmAdvance": "Подтверждать переход по дням",
     "confirmAdvanceDesc": "Запрашивать подтверждение перед переходом к следующему дню",
+    "continueToNextEvent": "«Продолжить» переходит к следующему событию",
+    "continueToNextEventDesc": "«Продолжить» проматывает до вашего следующего матча, блокирующего действия, дедлайна трансферов или важной новости",
     "savesData": "Сохранения и данные",
     "autoSave": "Автосохранение",
     "autoSaveDesc": "Автоматически сохранять игру после каждого дня",
@@ -1953,6 +2240,40 @@
           "1": "Судья завершает матч."
         }
       }
+    },
+    "recommendedPlan": "Рекомендуемый план",
+    "recommendedChanges": "Рекомендуемые изменения",
+    "noRecommendedChanges": "Пока ни одно изменение явно не выделяется.",
+    "quickTacticalTweaks": "Быстрые тактические правки",
+    "roleFit": "Соответствие роли",
+    "fitExact": "Точное",
+    "fitAdjusted": "С поправкой",
+    "subRecommendationReasons": {
+      "low-fitness": "Низкая готовность",
+      "yellow-risk": "Риск карточки",
+      "fresh-legs": "Свежие ноги",
+      "upgrade": "Усиление качества",
+      "role-match": "Подходящая роль",
+      "attacking-boost": "Атакующее усиление",
+      "defensive-cover": "Оборонительное прикрытие"
+    },
+    "subScenario": {
+      "steady": {
+        "title": "Спокойное Управление",
+        "description": "Пока не нужно форсировать игру. Отдавайте приоритет чистому набору энергии и заменам по позиции."
+      },
+      "protect-lead": {
+        "title": "Удержать Преимущество",
+        "description": "Главный приоритет сейчас — контроль и надежность в обороне. Свежие ноги и более безопасные профили особенно важны."
+      },
+      "find-winner": {
+        "title": "Дожать На Победу",
+        "description": "Матч еще можно выиграть. Ищите более свежие ноги и более агрессивные варианты."
+      },
+      "chase-goal": {
+        "title": "Нужен Гол",
+        "description": "Вам нужна дополнительная острота. Отдавайте приоритет атакующей энергии, риску и игрокам, которые могут изменить темп."
+      }
     }
   },
   "endOfSeason": {
@@ -2018,6 +2339,9 @@
       "noTeamAssigned": "Команда не назначена",
       "playerNotFound": "Игрок не найден",
       "invalidSquadRole": "Неверная роль в составе",
+      "jerseyNumberOutOfRange": "Номер футболки должен быть от 1 до 99",
+      "jerseyNumberTaken": "Этот номер футболки уже занят другим игроком вашего состава",
+      "invalidKitPattern": "Недопустимый узор формы",
       "staffMemberNotFound": "Сотрудник не найден",
       "staffMemberAlreadyEmployed": "Этот сотрудник уже работает в команде",
       "playerNotInSquad": "Игрок не входит в ваш состав",
@@ -2041,10 +2365,59 @@
         "playerNotInStartingXi": "Игрок не в стартовом составе"
       },
       "worldReadFileFailed": "Не удалось прочитать файл мировой базы данных.",
+      "package": {
+        "invalid": "Этот пакет мира недействителен и не может быть загружен.",
+        "readFailed": "Не удалось прочитать файл пакета.",
+        "missingSchema": "В файле пакета отсутствует поле «schema».",
+        "unknownSchema": "Неизвестная схема «{{schema}}».",
+        "invalidEntity": "Запись «{{schema}}» недействительна.",
+        "missingId": "У записи {{kind}} отсутствует id.",
+        "duplicateId": "Повторяющийся id {{kind}} «{{id}}».",
+        "unknownConfederation": "Страна «{{country}}» ссылается на неизвестную конфедерацию «{{confederation}}».",
+        "unknownCountry": "«{{entity}}» ссылается на неизвестную страну «{{country}}».",
+        "unknownTeam": "Игрок «{{player}}» ссылается на неизвестный клуб «{{team}}»."
+      },
+      "competitionDef": {
+        "invalidEmbedded": "Определения турниров этого мира недействительны и не могут быть загружены.",
+        "invalidStandalone": "Выбранный файл определений турниров недействителен.",
+        "parseFailed": "Не удалось прочитать файл определений турниров как JSON.",
+        "unsupportedVersion": "Версия формата {{version}} не поддерживается; эта сборка поддерживает до {{supported}}.",
+        "berthUnknownTarget": "Квалификационное место указывает на неизвестный турнир «{{target}}».",
+        "berthInvalidRange": "Недопустимый диапазон мест {{from}}–{{to}}.",
+        "berthRequiresLeague": "Места за позицию или плей-офф может назначать только лига.",
+        "berthRequiresCup": "Место обладателя кубка может назначать только кубковый турнир.",
+        "berthPlayoffTooSmall": "Для плей-офф нужно минимум два участника.",
+        "emptyId": "У турнира отсутствует id.",
+        "duplicateId": "Повторяющийся id турнира \"{{id}}\".",
+        "emptyName": "У турнира отсутствует название.",
+        "unknownRegion": "Неизвестный регион \"{{region}}\".",
+        "unknownCountry": "Неизвестная страна \"{{country}}\".",
+        "groupConfigOnNonGroupFormat": "Настройки групп применимы только к формату «группы и плей-офф».",
+        "groupSizeTooSmall": "Размер группы {{groupSize}} слишком мал (минимум 2).",
+        "zeroLegs": "Турниру нужен хотя бы один круг.",
+        "noParticipants": "Нет участников: укажите явный список или селектор.",
+        "bothParticipantSources": "Укажите либо явный список, либо селектор, но не оба.",
+        "tooFewParticipants": "Требуется не менее двух участников.",
+        "unknownTeam": "Неизвестная команда \"{{team}}\".",
+        "selectorMissingCountry": "Этому селектору нужна страна.",
+        "selectorCountTooSmall": "Этому селектору нужно число не менее 2.",
+        "selectorMissingRegion": "Этому селектору нужен регион.",
+        "unknownSourceCompetition": "Неизвестный исходный турнир \"{{source}}\".",
+        "selectorMissingSource": "Этому селектору нужен исходный турнир.",
+        "unknownExcludedCompetition": "Неизвестный исключённый турнир \"{{excluded}}\".",
+        "selectorCycle": "Циклическая квалификация между турнирами."
+      },
       "worldParseFailed": "Не удалось проанализировать файл мировой базы данных.",
       "worldWriteFileFailed": "Не удалось экспортировать файл мировой базы данных.",
       "worldWriteDatabaseFailed": "Не удалось сохранить импортированную базу данных мира.",
       "worldSerializeFailed": "Не удалось экспортировать данные мировой базы данных.",
+      "saveLoad": {
+        "corrupted": "Этот файл сохранения повреждён и не может быть загружен.",
+        "incompatibleVersion": "Это сохранение создано более новой версией игры (сохранение v{{saveVersion}}; эта сборка поддерживает до v{{supported}}). Обновите игру, чтобы загрузить его.",
+        "missingData": "В этом сохранении отсутствуют необходимые данные, его нельзя загрузить.",
+        "invalidWorld": "Данные мира или мода в этом сохранении недействительны, его нельзя загрузить.",
+        "unknown": "Не удалось загрузить это сохранение из-за непредвиденной ошибки."
+      },
       "gameDatabase": {
         "openFailed": "Не удалось открыть данные сохранения.",
         "migrationFailed": "Не удалось подготовить данные для сохранения.",
@@ -2260,6 +2633,18 @@
           "midTable": "{{team}} завершил сезон на {{position}}{{suffix}} месте с {{points}} очками.\n\nЭто середина таблицы. Совет директоров ждёт прогресса в следующем сезоне. Нам нужно прибавлять в конкурентоспособности.",
           "lowerHalf": "Сезон для {{team}} получился разочаровывающим. {{position}}{{suffix}} место и всего {{points}} очков — это ниже ожиданий.\n\nСовет директоров обеспокоен. В следующем сезоне потребуется серьёзный прогресс, иначе Ваше положение в клубе окажется под вопросом."
         }
+      },
+      "promotion": {
+        "subject": "Выход в {{division}}!",
+        "body": "Поздравляем! Клуб добился повышения и в сезоне {{season}} сыграет в {{division}}.\n\nСовет директоров в восторге от этого достижения. Подготовимся к новому уровню."
+      },
+      "relegation": {
+        "subject": "Вылет в {{division}}",
+        "body": "Клуб выбыл и в сезоне {{season}} сыграет в {{division}}.\n\nСовет директоров глубоко разочарован. От нас ждут немедленной борьбы за возвращение."
+      },
+      "worldCupChampion": {
+        "subject": "{{nation}} — чемпион мира {{year}} года!",
+        "body": "Сборная {{nation}} стала чемпионом мира на чемпионате мира {{year}} года.\n\nЭто поколение игроков запомнят благодаря этому триумфу."
       },
       "newSeasonSchedule": {
         "subject": "Сезон {{season}} — опубликован новый календарь",
@@ -2656,6 +3041,11 @@
         "subject": "Входящее предложение по {{player}}",
         "body": "Клуб {{team}} предложил {{fee}} за {{player}}. Откройте раздел трансферов, чтобы принять предложение или отклонить его.",
         "actionReview": "Рассмотреть предложение"
+      },
+      "transferInterest": {
+        "subject": "Трансферный интерес к {{player}}",
+        "body": "Клубы с активными предложениями по {{player}}: {{n}}. Последний запрос: {{team}} ({{fee}}). Просмотрите предложения на вкладке «Трансферы», чтобы ответить.",
+        "actionReview": "Посмотреть предложения"
       }
     },
     "news": {
@@ -2683,7 +3073,7 @@
         "body0.noScorers": "В матче {{matchday}}-го тура встреча завершилась со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Этот результат может повлиять на положение команд в таблице по ходу сезона.",
         "body1.noScorers": "Матч {{matchday}}-го тура между {{home}} и {{away}} завершился со счётом {{homeGoals}}-{{awayGoals}}. Обе команды выложились полностью и подарили зрителям содержательную игру.",
         "body2.noScorers": "{{matchday}}-й тур подарил ещё одну интересную встречу: {{home}} принимал {{away}} ({{homeGoals}}-{{awayGoals}}). Болельщики увидели напряжённый и конкурентный матч.",
-        "scorer": "{{player}} ({{minute}}', {{team}})",
+        "scorer": "{{player}} ({{minute}} мин., {{team}})",
         "scorersSection": "Голы: {{scorers}}",
         "reportFriendly": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о товарищеском матче",
@@ -2731,6 +3121,18 @@
         "headline": "Обзор трансферов — неделя {{weekStart}}",
         "body": "Трансферный рынок на этой неделе был оживленным. {{transferCount}} завершенных сделок выделялись во всем подразделении.\n\n{{deals}}",
         "dealLine": "{{player}}: {{fromTeam}} -> {{toTeam}} ({{fee}})"
+      },
+      "worldCupQualifying": {
+        "headline": "Начинается путь к чемпионату мира {{year}}",
+        "body": "{{nations}} сборных начинают отбор на чемпионат мира {{year}}, который проходит в международных окнах этого сезона."
+      },
+      "worldCupKickoff": {
+        "headline": "Чемпионат мира {{year}} начинается",
+        "body": "{{nations}} сборных собрались на чемпионат мира {{year}}. Этим летом всё остальное замирает, пока лучшие игроки мира борются за главный трофей футбола."
+      },
+      "worldCupChampion": {
+        "headline": "{{nation}} — чемпион мира",
+        "body": "Сборная {{nation}} выиграла чемпионат мира {{year}} и вписала своё имя в историю футбола. Целая нация празднует триумф, который запомнят на поколения."
       },
       "seasonAwards": {
         "headline": "Награды сезона {{season}}",

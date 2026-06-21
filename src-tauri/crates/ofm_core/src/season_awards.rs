@@ -1,8 +1,10 @@
 use crate::game::Game;
 use chrono::{Datelike, NaiveDate};
+use domain::league::League;
 use domain::manager::Manager;
 use domain::player::{Player, Position};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// A single award entry (player + stat value).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -80,12 +82,36 @@ fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
     (team_id, team_name)
 }
 
-fn build_player_award_contexts(game: &Game) -> Vec<PlayerAwardContext<'_>> {
+/// Team ids contesting a division, falling back to the standings for legacy
+/// leagues that never recorded a participant list.
+fn division_team_ids(division: &League) -> HashSet<String> {
+    if !division.participant_ids.is_empty() {
+        division.participant_ids.iter().cloned().collect()
+    } else {
+        division
+            .standings
+            .iter()
+            .map(|standing| standing.team_id.clone())
+            .collect()
+    }
+}
+
+fn build_player_award_contexts<'a>(
+    game: &'a Game,
+    scope: Option<&HashSet<String>>,
+) -> Vec<PlayerAwardContext<'a>> {
     let today = game.clock.current_date.date_naive();
 
     game.players
         .iter()
         .filter(|player| !player.retired && player.stats.appearances > 0)
+        .filter(|player| match scope {
+            Some(team_ids) => player
+                .team_id
+                .as_ref()
+                .is_some_and(|team_id| team_ids.contains(team_id)),
+            None => true,
+        })
         .map(|player| {
             let (team_id, team_name) = resolve_team_info(game, player);
 
@@ -120,10 +146,14 @@ fn manager_award_entry<'a>(context: &ManagerAwardContext<'a>) -> ManagerAwardEnt
     }
 }
 
-fn build_manager_award_contexts(game: &Game) -> Vec<ManagerAwardContext<'_>> {
+fn build_manager_award_contexts<'a>(
+    game: &'a Game,
+    division: Option<&League>,
+) -> Vec<ManagerAwardContext<'a>> {
     let mut standings_by_team = std::collections::HashMap::new();
+    let scope = division.map(division_team_ids);
 
-    if let Some(league) = &game.league {
+    if let Some(league) = division.or(game.league.as_ref()) {
         for (index, standing) in league.sorted_standings().into_iter().enumerate() {
             standings_by_team.insert(
                 standing.team_id.clone(),
@@ -141,6 +171,11 @@ fn build_manager_award_contexts(game: &Game) -> Vec<ManagerAwardContext<'_>> {
         .iter()
         .filter_map(|manager| {
             let team_id = manager.team_id.clone()?;
+            if let Some(team_ids) = &scope
+                && !team_ids.contains(&team_id)
+            {
+                return None;
+            }
             let team = game.teams.iter().find(|team| team.id == team_id)?;
             let (league_position, points, matches_played, wins) =
                 if let Some((league_position, points, matches_played, wins)) =
@@ -233,10 +268,23 @@ where
     awards
 }
 
-/// Compute current season award standings from player stats.
+/// Compute current season award standings from player stats, across the whole
+/// game world (legacy behaviour, used for transfers and generated history).
 pub fn compute_season_awards(game: &Game) -> SeasonAwards {
-    let contexts = build_player_award_contexts(game);
-    let manager_contexts = build_manager_award_contexts(game);
+    compute_awards(game, None)
+}
+
+/// Compute award standings within a single division: only its participating
+/// clubs' players and managers are eligible, and the manager award ranks by
+/// that division's table.
+pub fn compute_division_season_awards(game: &Game, division: &League) -> SeasonAwards {
+    compute_awards(game, Some(division))
+}
+
+fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
+    let player_scope = division.map(division_team_ids);
+    let contexts = build_player_award_contexts(game, player_scope.as_ref());
+    let manager_contexts = build_manager_award_contexts(game, division);
 
     // Golden Boot — top scorers
     let golden_boot = top_awards(
@@ -300,8 +348,9 @@ pub fn compute_season_awards(game: &Game) -> SeasonAwards {
 
 #[cfg(test)]
 mod tests {
-    use super::compute_season_awards;
+    use super::{compute_division_season_awards, compute_season_awards};
     use chrono::{TimeZone, Utc};
+    use domain::league::League;
     use domain::manager::{Manager, ManagerCareerStats};
     use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
     use domain::team::Team;
@@ -398,6 +447,71 @@ mod tests {
             best_finish: Some(1),
         };
         manager
+    }
+
+    #[test]
+    fn division_awards_only_consider_participating_clubs() {
+        let team1 = make_team("team1", "Alpha FC");
+        let team2 = make_team("team2", "Beta FC");
+        let players = vec![
+            make_player(
+                "p1",
+                "Division Scorer",
+                Some("team1"),
+                Position::Forward,
+                "2000-01-01",
+                PlayerSeasonStats {
+                    appearances: 8,
+                    goals: 10,
+                    ..PlayerSeasonStats::default()
+                },
+            ),
+            make_player(
+                "p2",
+                "Foreign Scorer",
+                Some("team2"),
+                Position::Forward,
+                "2000-01-01",
+                PlayerSeasonStats {
+                    appearances: 8,
+                    goals: 25,
+                    ..PlayerSeasonStats::default()
+                },
+            ),
+        ];
+        let mut game = make_game(players, vec![team1, team2]);
+        game.managers.push(make_manager("m1", "Division", "Boss", Some("team1")));
+        game.managers.push(make_manager("m2", "Foreign", "Boss", Some("team2")));
+
+        let division = League::new(
+            "div1".to_string(),
+            "Division One".to_string(),
+            2025,
+            &["team1".to_string()],
+        );
+
+        let awards = compute_division_season_awards(&game, &division);
+
+        assert_eq!(
+            awards.golden_boot.first().map(|e| e.player_id.as_str()),
+            Some("p1"),
+            "only the division's own scorer is eligible"
+        );
+        assert!(awards.golden_boot.iter().all(|e| e.team_id == "team1"));
+        assert!(
+            awards
+                .manager_of_season
+                .iter()
+                .all(|e| e.team_id == "team1"),
+            "manager award is scoped to the division"
+        );
+
+        // The unscoped computation still sees the whole world.
+        let global = compute_season_awards(&game);
+        assert_eq!(
+            global.golden_boot.first().map(|e| e.player_id.as_str()),
+            Some("p2")
+        );
     }
 
     #[test]

@@ -282,6 +282,99 @@ describe("HomeTab.helpers", function (): void {
     expect(result?.recentForm).toEqual(["W", "D", "W"]);
   });
 
+  it("derives the next opponent from the user's competition when game.league is a stale all-teams league", function (): void {
+    const gameState = createGameState({
+      season_context: {
+        phase: "InSeason",
+        season_start: "2025-01-01",
+        season_end: "2025-05-01",
+        days_until_season_start: null,
+        transfer_window: {
+          status: "Closed",
+          opens_on: null,
+          closes_on: null,
+          days_until_opens: null,
+          days_remaining: null,
+        },
+      },
+      teams: [
+        createTeam(),
+        createTeam({
+          id: "team-2",
+          name: "Beta FC",
+          short_name: "BET",
+          form: ["W", "D", "W"],
+        }),
+      ],
+      active_competition_ids: ["comp-domestic"],
+      competitions: [
+        {
+          id: "comp-domestic",
+          name: "Brazil First Division",
+          kind: "League",
+          scope: "Domestic",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [
+            createFixture({
+              id: "comp-fixture-next",
+              date: "2025-01-12",
+              matchday: 2,
+              status: "Scheduled",
+            }),
+          ],
+          standings: [
+            {
+              team_id: "team-2",
+              played: 1,
+              won: 1,
+              drawn: 0,
+              lost: 0,
+              goals_for: 2,
+              goals_against: 0,
+              points: 3,
+            },
+            {
+              team_id: "team-1",
+              played: 1,
+              won: 0,
+              drawn: 0,
+              lost: 1,
+              goals_for: 0,
+              goals_against: 2,
+              points: 0,
+            },
+          ],
+        },
+      ],
+      // Stale legacy league spanning the whole world — should be ignored.
+      league: {
+        id: "stale-world-league",
+        name: "Stale World League",
+        season: 1,
+        fixtures: [
+          createFixture({
+            id: "stale-fixture",
+            date: "2025-01-04",
+            matchday: 1,
+            away_team_id: "team-999",
+            status: "Scheduled",
+          }),
+        ],
+        standings: [],
+      },
+    });
+
+    const result = getNextOpponentWidgetData(gameState);
+
+    expect(result).not.toBeNull();
+    expect(result?.fixture.id).toBe("comp-fixture-next");
+    expect(result?.opponent.name).toBe("Beta FC");
+    expect(result?.isHome).toBe(true);
+    expect(result?.standingPosition).toBe(1);
+    expect(result?.standingPoints).toBe(3);
+  });
+
   it("returns the latest league digest articles in reverse chronological order", function (): void {
     const gameState = createGameState({
       news: [
@@ -422,6 +515,65 @@ describe("HomeTab.helpers", function (): void {
     });
   });
 
+  it("reads recent results from the user's competitions, ignoring a stale league", function (): void {
+    const gameState = createGameState({
+      teams: [
+        createTeam(),
+        createTeam({ id: "team-2", name: "Beta FC" }),
+      ],
+      active_competition_ids: ["comp-domestic"],
+      competitions: [
+        {
+          id: "comp-domestic",
+          name: "Brazil First Division",
+          kind: "League",
+          scope: "Domestic",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          standings: [],
+          fixtures: [
+            createFixture({
+              id: "comp-result",
+              date: "2025-01-05",
+              status: "Completed",
+              result: {
+                home_goals: 3,
+                away_goals: 1,
+                home_scorers: [],
+                away_scorers: [],
+              },
+            }),
+          ],
+        },
+      ],
+      league: {
+        id: "stale-world-league",
+        name: "Stale World League",
+        season: 1,
+        standings: [],
+        fixtures: [
+          createFixture({
+            id: "stale-result",
+            date: "2025-01-06",
+            away_team_id: "team-999",
+            status: "Completed",
+            result: {
+              home_goals: 9,
+              away_goals: 0,
+              home_scorers: [],
+              away_scorers: [],
+            },
+          }),
+        ],
+      },
+    });
+
+    const result = getRecentResultsForTeam(gameState, "team-1");
+
+    expect(result.map((entry) => entry.fixture.id)).toEqual(["comp-result"]);
+    expect(result[0]).toMatchObject({ myGoals: 3, opponentGoals: 1, resultCode: "W" });
+  });
+
   it("starts with no visited onboarding pages and no read inbox step", function (): void {
     const state = getOnboardingCompletionState(createGameState(), new Set<string>());
 
@@ -522,6 +674,24 @@ describe("HomeTab.helpers", function (): void {
     expect(Array.from(loadVisitedOnboardingTabs(otherGameState, localStorage))).toEqual(
       [],
     );
+  });
+
+  it("isolates visited onboarding tabs by active save id", function (): void {
+    const gameState = createGameState();
+
+    saveVisitedOnboardingTabs(
+      gameState,
+      new Set<string>(["Squad", "Training"]),
+      localStorage,
+      "save-a",
+    );
+
+    expect(
+      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-a")),
+    ).toEqual(["Squad", "Training"]);
+    expect(
+      Array.from(loadVisitedOnboardingTabs(gameState, localStorage, "save-b")),
+    ).toEqual([]);
   });
 
   it("keeps onboarding completed after reloading persisted progress", function (): void {

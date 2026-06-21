@@ -1,6 +1,6 @@
 name: "💬 Feedback / Sugestão (Português PT)"
 description: "Partilha feedback ou sugestões em português europeu"
-labels: ["feedback", "alpha"]
+labels: ["feedback", "beta"]
 body:
   - type: markdown
     attributes:
