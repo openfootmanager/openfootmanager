@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData } from "../store/gameStore";
-import type { KitPattern, PlayerRole, PlayerSquadRole } from "../store/types";
+import type { KitPattern, PlayerRole, PlayerSquadRole, TacticsPhaseSettings } from "../store/types";
 
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
     return invoke<PlayerData[]>("get_squad", { teamId });
@@ -34,6 +34,22 @@ export async function assignJerseyNumber(
     return invoke<GameStateData>("assign_jersey_number", {
         playerId,
         jerseyNumber,
+    });
+}
+
+export async function setTacticsPhase(
+    patch: Partial<TacticsPhaseSettings>,
+): Promise<GameStateData> {
+    return invoke<GameStateData>("set_tactics_phase", {
+        buildUpStyle: patch.build_up_style,
+        width: patch.width,
+        tempo: patch.tempo,
+        defensiveLine: patch.defensive_line,
+        pressingIntensity: patch.pressing_intensity,
+        defensiveShape: patch.defensive_shape,
+        markingStyle: patch.marking_style,
+        counterPressDuration: patch.counter_press_duration,
+        breakSpeed: patch.break_speed,
     });
 }
 

@@ -1,4 +1,6 @@
 import {
+  ChevronDown,
+  ChevronUp,
   Copy,
   Crosshair,
   Flag,
@@ -20,6 +22,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { Badge, Button, Card } from "../ui";
+import type { TacticsPhaseSettings } from "../../store/types";
 import { FORMATIONS } from "./TacticsTab.helpers";
 
 export interface TacticsLibraryEntry {
@@ -42,6 +45,8 @@ interface TacticsCommandBarProps {
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
   onSave: () => void;
+  onTacticsPhaseChange?: (patch: Partial<TacticsPhaseSettings>) => void;
+  tacticsPhase?: TacticsPhaseSettings;
   onSelectTactic: (id: string) => void;
   tacticLibrary: TacticsLibraryEntry[];
 }
@@ -70,10 +75,13 @@ export default function TacticsCommandBar({
   onPlayStyleChange,
   onSave,
   onSelectTactic,
+  onTacticsPhaseChange,
   tacticLibrary,
+  tacticsPhase,
 }: TacticsCommandBarProps): JSX.Element {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isPhaseOpen, setIsPhaseOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
@@ -363,6 +371,131 @@ export default function TacticsCommandBar({
                 ))}
               </div>
             </div>
+
+            {onTacticsPhaseChange ? (
+              <div className="rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400"
+                  onClick={() => setIsPhaseOpen((prev) => !prev)}
+                >
+                  <span>{t("tactics.phaseBlueprint")}</span>
+                  {isPhaseOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+
+                {isPhaseOpen ? (
+                  <div className="mt-3 space-y-4">
+                    <div>
+                      <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
+                        {t("tactics.phaseLabels.withBall")}
+                      </div>
+                      <div className="space-y-2">
+                        {([
+                          ["build_up_style", "buildUpStyle", ["Short", "Mixed", "Long"]] as const,
+                          ["width", "width", ["Narrow", "Normal", "Wide"]] as const,
+                          ["tempo", "tempo", ["Patient", "Direct"]] as const,
+                        ]).map(([field, labelKey, options]) => (
+                          <div key={field} className="flex items-center gap-2">
+                            <span className="w-20 shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
+                              {t(`tactics.phaseSettings.${labelKey}`)}
+                            </span>
+                            <div className="flex flex-1 gap-1">
+                              {options.map((opt) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  aria-pressed={tacticsPhase?.[field] === opt}
+                                  onClick={() => onTacticsPhaseChange({ [field]: opt })}
+                                  className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                                    tacticsPhase?.[field] === opt
+                                      ? "bg-primary-500 text-white"
+                                      : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
+                                  }`}
+                                >
+                                  {t(`tactics.phaseSettings.${labelKey}_${opt}`, opt)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
+                        {t("tactics.phaseLabels.withoutBall")}
+                      </div>
+                      <div className="space-y-2">
+                        {([
+                          ["defensive_line", "defensiveLine", ["VeryLow", "Low", "Medium", "High"]] as const,
+                          ["pressing_intensity", "pressingIntensity", ["Passive", "Medium", "Aggressive"]] as const,
+                          ["defensive_shape", "defensiveShape", ["Stretched", "Normal", "Compact"]] as const,
+                          ["marking_style", "markingStyle", ["Zonal", "Mixed", "ManToMan"]] as const,
+                        ]).map(([field, labelKey, options]) => (
+                          <div key={field} className="flex items-center gap-2">
+                            <span className="w-20 shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
+                              {t(`tactics.phaseSettings.${labelKey}`)}
+                            </span>
+                            <div className="flex flex-1 gap-1">
+                              {options.map((opt) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  aria-pressed={tacticsPhase?.[field] === opt}
+                                  onClick={() => onTacticsPhaseChange({ [field]: opt })}
+                                  className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                                    tacticsPhase?.[field] === opt
+                                      ? "bg-primary-500 text-white"
+                                      : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
+                                  }`}
+                                >
+                                  {t(`tactics.phaseSettings.${labelKey}_${opt}`, opt)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
+                        {t("tactics.phaseLabels.transitions")}
+                      </div>
+                      <div className="space-y-2">
+                        {([
+                          ["counter_press_duration", "counterPressDuration", ["None", "Short", "Long"]] as const,
+                          ["break_speed", "breakSpeed", ["Slow", "Medium", "Fast"]] as const,
+                        ]).map(([field, labelKey, options]) => (
+                          <div key={field} className="flex items-center gap-2">
+                            <span className="w-20 shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
+                              {t(`tactics.phaseSettings.${labelKey}`)}
+                            </span>
+                            <div className="flex flex-1 gap-1">
+                              {options.map((opt) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  aria-pressed={tacticsPhase?.[field] === opt}
+                                  onClick={() => onTacticsPhaseChange({ [field]: opt })}
+                                  className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                                    tacticsPhase?.[field] === opt
+                                      ? "bg-primary-500 text-white"
+                                      : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
+                                  }`}
+                                >
+                                  {t(`tactics.phaseSettings.${labelKey}_${opt}`, opt)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

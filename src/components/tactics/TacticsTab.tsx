@@ -9,8 +9,8 @@ import type {
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { getSquad, setPlayerRole as setPlayerRoleService } from "../../services/squadService";
-import type { PlayerRole } from "../../store/types";
+import { getSquad, setPlayerRole as setPlayerRoleService, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import {
   applyLineupDrop,
   applyLineupSwap,
@@ -854,6 +854,17 @@ export default function TacticsTab({
     }
   }
 
+  async function handleTacticsPhaseChange(
+    patch: Partial<TacticsPhaseSettings>,
+  ): Promise<void> {
+    try {
+      const updated = await setTacticsPhaseService(patch);
+      onGameUpdate(updated);
+    } catch (error) {
+      console.error("Failed to set tactics phase:", error);
+    }
+  }
+
   const lineupWorkspace = (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(38rem,1.1fr)] xl:items-start 2xl:gap-8">
       <div className="flex flex-col gap-5">
@@ -1058,7 +1069,11 @@ export default function TacticsTab({
 
           void applyTacticSelection(nextTactic);
         }}
+        onTacticsPhaseChange={(patch) => {
+          void handleTacticsPhaseChange(patch);
+        }}
         tacticLibrary={tacticLibrary}
+        tacticsPhase={team?.tactics_phase}
       />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex gap-1 self-start rounded-lg bg-gray-100 p-1 dark:bg-navy-800">

@@ -553,6 +553,63 @@ pub fn set_player_role(
     })
 }
 
+#[tauri::command]
+pub fn set_tactics_phase(
+    state: State<'_, Arc<StateManager>>,
+    build_up_style: Option<String>,
+    width: Option<String>,
+    tempo: Option<String>,
+    defensive_line: Option<String>,
+    pressing_intensity: Option<String>,
+    defensive_shape: Option<String>,
+    marking_style: Option<String>,
+    counter_press_duration: Option<String>,
+    break_speed: Option<String>,
+) -> Result<Game, String> {
+    use domain::team::*;
+    info!("[cmd] set_tactics_phase");
+    mutate_active_game(&state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            let p = &mut team.tactics_phase;
+            if let Some(v) = build_up_style {
+                p.build_up_style = match v.as_str() { "Short" => BuildUpStyle::Short, "Long" => BuildUpStyle::Long, _ => BuildUpStyle::Mixed };
+            }
+            if let Some(v) = width {
+                p.width = match v.as_str() { "Narrow" => PitchWidth::Narrow, "Wide" => PitchWidth::Wide, _ => PitchWidth::Normal };
+            }
+            if let Some(v) = tempo {
+                p.tempo = match v.as_str() { "Patient" => Tempo::Patient, _ => Tempo::Direct };
+            }
+            if let Some(v) = defensive_line {
+                p.defensive_line = match v.as_str() { "VeryLow" => DefensiveLine::VeryLow, "Low" => DefensiveLine::Low, "High" => DefensiveLine::High, _ => DefensiveLine::Medium };
+            }
+            if let Some(v) = pressing_intensity {
+                p.pressing_intensity = match v.as_str() { "Passive" => PressingIntensity::Passive, "Aggressive" => PressingIntensity::Aggressive, _ => PressingIntensity::Medium };
+            }
+            if let Some(v) = defensive_shape {
+                p.defensive_shape = match v.as_str() { "Stretched" => DefensiveShape::Stretched, "Compact" => DefensiveShape::Compact, _ => DefensiveShape::Normal };
+            }
+            if let Some(v) = marking_style {
+                p.marking_style = match v.as_str() { "ManToMan" => MarkingStyle::ManToMan, "Mixed" => MarkingStyle::Mixed, _ => MarkingStyle::Zonal };
+            }
+            if let Some(v) = counter_press_duration {
+                p.counter_press_duration = match v.as_str() { "Short" => CounterPressDuration::Short, "Long" => CounterPressDuration::Long, _ => CounterPressDuration::None };
+            }
+            if let Some(v) = break_speed {
+                p.break_speed = match v.as_str() { "Slow" => BreakSpeed::Slow, "Fast" => BreakSpeed::Fast, _ => BreakSpeed::Medium };
+            }
+        }
+
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{set_player_squad_role_internal, set_player_training_focus_internal};

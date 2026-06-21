@@ -230,6 +230,7 @@ pub fn run() {
             set_player_training_focus,
             set_player_squad_role,
             set_player_role,
+            set_tactics_phase,
             assign_jersey_number,
             set_team_kit_pattern,
             hire_staff,

@@ -37,6 +37,8 @@ pub struct Team {
     /// Missing entries default to the position's standard role.
     #[serde(default)]
     pub player_roles: HashMap<String, PlayerRole>,
+    #[serde(default)]
+    pub tactics_phase: TacticsPhaseSettings,
 
     // Training
     #[serde(default)]
@@ -157,6 +159,50 @@ impl PlayerRole {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct TacticsPhaseSettings {
+    // With ball
+    pub build_up_style: BuildUpStyle,
+    pub width: PitchWidth,
+    pub tempo: Tempo,
+    // Without ball
+    pub defensive_line: DefensiveLine,
+    pub pressing_intensity: PressingIntensity,
+    pub defensive_shape: DefensiveShape,
+    pub marking_style: MarkingStyle,
+    // Transitions
+    pub counter_press_duration: CounterPressDuration,
+    pub break_speed: BreakSpeed,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum BuildUpStyle { Short, #[default] Mixed, Long }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PitchWidth { Narrow, #[default] Normal, Wide }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum Tempo { Patient, #[default] Direct }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum DefensiveLine { VeryLow, Low, #[default] Medium, High }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PressingIntensity { Passive, #[default] Medium, Aggressive }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum DefensiveShape { Stretched, #[default] Normal, Compact }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum MarkingStyle { #[default] Zonal, Mixed, ManToMan }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum CounterPressDuration { #[default] None, Short, Long }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum BreakSpeed { Slow, #[default] Medium, Fast }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum TrainingFocus {
@@ -401,6 +447,7 @@ impl Team {
             formation: "4-4-2".to_string(),
             play_style: PlayStyle::Balanced,
             player_roles: HashMap::new(),
+            tactics_phase: TacticsPhaseSettings::default(),
             training_focus: TrainingFocus::default(),
             training_intensity: TrainingIntensity::default(),
             training_schedule: TrainingSchedule::default(),
