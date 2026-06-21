@@ -27,6 +27,7 @@ pub enum NamingStyle {
     Nordic,
     Balkan,
     LatinAmerican,
+    Brazilian,
     Generic,
 }
 
@@ -78,6 +79,10 @@ impl NamingStyle {
             NamingStyle::LatinAmerican => &[
                 "Club {}", "{} FC", "Atlético {}", "Racing {}", "Deportivo {}", "Unión {}",
                 "Independiente {}", "Nacional {}",
+            ],
+            NamingStyle::Brazilian => &[
+                "{} Esporte Clube", "Associação Atlética {}", "Grêmio Esportivo {}",
+                "Clube Atlético {}", "{} Futebol Clube", "União Esportiva {}",
             ],
             NamingStyle::Generic => &[
                 "{} FC", "{} United", "{} City", "Club {}", "{} Athletic", "Sporting {}",
@@ -162,14 +167,16 @@ const PLAY_STYLES: &[&str] = &[
 fn short_code(name: &str) -> String {
     const SKIP: &[&str] = &[
         "FC", "AC", "AS", "SV", "CF", "CD", "SC", "US", "RC", "NK", "FK", "BK", "IF", "FF", "SK",
-        "TSV", "VfB", "HNK", "IFK", "AIK", "VV", "Pro", "Os",
+        "TSV", "VfB", "HNK", "IFK", "AIK", "VV", "Pro", "Os", "Esporte", "Clube",
+        "Associação", "Atlética", "Grêmio", "Esportivo", "Atlético", "Futebol", "União",
+        "Esportiva",
     ];
     // Initial of each significant word, restricted to ASCII so accented names
     // (São, Málaga, Évora) still yield clean three-letter codes.
     let initials: String = name
         .split_whitespace()
         .filter(|word| !SKIP.contains(word))
-        .filter_map(|word| word.chars().find(|c| c.is_ascii_alphabetic()))
+        .filter_map(|word| ascii_letters(word).chars().next())
         .collect::<String>()
         .to_ascii_uppercase();
     if initials.len() >= 3 {
@@ -178,9 +185,8 @@ fn short_code(name: &str) -> String {
 
     // Fall back to the first ASCII letters of the whole name, padding the rare
     // ultra-short case so a code is always exactly three letters.
-    let mut code: String = name
+    let mut code: String = ascii_letters(name)
         .chars()
-        .filter(|c| c.is_ascii_alphabetic())
         .take(3)
         .collect::<String>()
         .to_ascii_uppercase();
@@ -188,6 +194,23 @@ fn short_code(name: &str) -> String {
         code.push('X');
     }
     code
+}
+
+fn ascii_letters(value: &str) -> String {
+    value
+        .chars()
+        .filter_map(|c| match c {
+            'A'..='Z' | 'a'..='z' => Some(c),
+            'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => Some('a'),
+            'Ç' | 'ç' => Some('c'),
+            'È' | 'É' | 'Ê' | 'Ë' | 'è' | 'é' | 'ê' | 'ë' => Some('e'),
+            'Ì' | 'Í' | 'Î' | 'Ï' | 'ì' | 'í' | 'î' | 'ï' => Some('i'),
+            'Ñ' | 'ñ' => Some('n'),
+            'Ò' | 'Ó' | 'Ô' | 'Õ' | 'Ö' | 'ò' | 'ó' | 'ô' | 'õ' | 'ö' => Some('o'),
+            'Ù' | 'Ú' | 'Û' | 'Ü' | 'ù' | 'ú' | 'û' | 'ü' => Some('u'),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Generate `count` distinct (club name, city) pairs for a nation, spreading
@@ -198,8 +221,10 @@ fn club_names(nation: &NationGen, count: usize) -> Vec<(String, String)> {
     let mut out = Vec::with_capacity(count);
     let mut seen = HashSet::new();
 
-    'outer: for pattern in patterns {
-        for city in nation.cities {
+    'outer: for index in 0..count.saturating_mul(2) {
+        let city = nation.cities[index % nation.cities.len()];
+        let pattern = patterns[(index + index / nation.cities.len()) % patterns.len()];
+        {
             let name = pattern.replace("{}", city);
             if seen.insert(name.clone()) {
                 out.push((name, (*city).to_string()));
@@ -246,6 +271,7 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
     let mut defs = Vec::with_capacity(config.total_clubs());
 
     for nation in &config.nations {
+        let mut used_codes = HashSet::new();
         let total = config.clubs_per_division * nation.tiers;
         let names = club_names(nation, total);
         for (index, (name, city)) in names.into_iter().enumerate() {
@@ -257,9 +283,16 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
             let (primary, secondary) = COLOR_PALETTE[rng.random_range(0..COLOR_PALETTE.len())];
             let play_style = PLAY_STYLES[rng.random_range(0..PLAY_STYLES.len())];
 
+            let base_code = short_code(&name);
+            let mut unique_code = base_code.clone();
+            for suffix in b'A'..=b'Z' {
+                if !used_codes.contains(&unique_code) { break; }
+                unique_code = format!("{}{}", &base_code[..2], char::from(suffix));
+            }
+            used_codes.insert(unique_code.clone());
             defs.push(TeamDef {
                 id: String::new(),
-                short_name: short_code(&name),
+                short_name: unique_code,
                 name,
                 city: city.clone(),
                 country: nation.code.to_string(),
@@ -342,7 +375,7 @@ pub const STANDARD_NATIONS: &[NationGen] = &[
     },
     NationGen {
         code: "BR",
-        style: NamingStyle::LatinAmerican,
+        style: NamingStyle::Brazilian,
         tiers: 2,
         strength: 4,
         cities: &[
@@ -550,5 +583,24 @@ mod tests {
                 def.short_name
             );
         }
+    }
+
+    #[test]
+    fn brazilian_pyramid_uses_varied_local_names_and_unique_codes() {
+        let brazil = *STANDARD_NATIONS.iter().find(|nation| nation.code == "BR").unwrap();
+        let mut rng = rand::rng();
+        let defs = generate_club_defs(&WorldGenConfig {
+            clubs_per_division: 20,
+            nations: vec![brazil],
+        }, &mut rng);
+        assert_eq!(defs.len(), 40);
+        assert!(defs.iter().all(|club| !club.name.starts_with("Club ") && !club.name.ends_with(" FC")));
+        let forms: HashSet<&str> = defs.iter().filter_map(|club| {
+            ["Esporte Clube", "Associação Atlética", "Grêmio Esportivo", "Clube Atlético", "Futebol Clube", "União Esportiva"]
+                .into_iter().find(|form| club.name.contains(form))
+        }).collect();
+        assert!(forms.len() >= 4, "expected several Brazilian naming forms");
+        let codes: HashSet<&str> = defs.iter().map(|club| club.short_name.as_str()).collect();
+        assert_eq!(codes.len(), 40);
     }
 }

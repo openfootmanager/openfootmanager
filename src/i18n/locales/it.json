@@ -3322,6 +3322,7 @@
     "switchConfirmBody": "Accettare questa opportunità terminerà il tuo incarico al {{currentClub}} e ti porterà al {{newClub}}.",
     "switchConfirmAccept": "Accetta il nuovo ruolo"
   },
+  "competitionNames": { "brazilStateSoutheast": "Serie Statale Sudorientale", "brazilStateSouth": "Serie Statale Meridionale", "brazilStateNortheast": "Serie Statale Nordorientale", "brazilStateNorthCentralWest": "Serie Statale Nord/Centro-Ovest" },
   "awardsCeremony": {
     "title": "Cerimonia dei Premi",
     "subtitle": "Stagione {{season}} in {{league}}",

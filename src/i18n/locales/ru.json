@@ -3318,6 +3318,7 @@
     "switchConfirmBody": "Приняв это предложение, вы завершите работу в {{currentClub}} и перейдёте в {{newClub}}.",
     "switchConfirmAccept": "Принять новую должность"
   },
+  "competitionNames": { "brazilStateSoutheast": "Юго-восточная серия штатов", "brazilStateSouth": "Южная серия штатов", "brazilStateNortheast": "Северо-восточная серия штатов", "brazilStateNorthCentralWest": "Северная/центрально-западная серия штатов" },
   "awardsCeremony": {
     "title": "Церемония награждения",
     "subtitle": "Сезон {{season}} в {{league}}",

@@ -601,7 +601,14 @@ pub fn start_date_at_game_open(
     month: u8,
     day: u8,
 ) -> (DateTime<Utc>, bool) {
-    let date = date_utc(game_start.year(), month, day);
+    // A December management anchor belongs to the following Brazilian-style
+    // calendar season, so Jan–Mar competitions use their next occurrence.
+    let year = if game_start.month() >= 10 && month <= 3 {
+        game_start.year() + 1
+    } else {
+        game_start.year()
+    };
+    let date = date_utc(year, month, day);
     let is_mid_season = date <= game_start;
     (date, is_mid_season)
 }
@@ -837,6 +844,10 @@ fn build_competition(
     competition.berths = def.berths.clone();
     competition.season_start_month = def.season_start_month.unwrap_or(8);
     competition.season_start_day = def.season_start_day.unwrap_or(1);
+    if def.format.kind == CompetitionFormat::GroupAndKnockout {
+        competition.rules.group_stage_legs = def.format.legs.unwrap_or(2);
+        competition.rules.group_matchday_gap_days = 7;
+    }
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();

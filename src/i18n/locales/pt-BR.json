@@ -3322,6 +3322,7 @@
     "switchConfirmBody": "Aceitar esta oportunidade encerrará sua passagem pelo {{currentClub}} e o levará ao {{newClub}}.",
     "switchConfirmAccept": "Aceitar novo cargo"
   },
+  "competitionNames": { "brazilStateSoutheast": "Série Estadual do Sudeste", "brazilStateSouth": "Série Estadual do Sul", "brazilStateNortheast": "Série Estadual do Nordeste", "brazilStateNorthCentralWest": "Série Estadual do Norte/Centro-Oeste" },
   "awardsCeremony": {
     "title": "Cerimonia de Premiacao",
     "subtitle": "Temporada {{season}} em {{league}}",

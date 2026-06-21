@@ -1,5 +1,4 @@
 use crate::game::Game;
-use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
@@ -686,13 +685,6 @@ fn manage_international_calendar(
         return;
     }
 
-    // Outside a cup summer, clubs play their preseason friendlies as usual.
-    if let Some(primary) = game.competitions.first_mut() {
-        let friendlies =
-            generate_preseason_friendlies(&primary.participant_ids.clone(), next_start, 4);
-        append_fixtures(primary, friendlies);
-    }
-
     let window_dates = crate::national_team::international_window_dates(next_start);
     if window_dates.is_empty() {
         return;
@@ -703,6 +695,14 @@ fn manage_international_calendar(
     for competition in game.competitions.iter_mut() {
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
     }
+    crate::schedule::append_south_american_preseason_friendlies(
+        &mut game.competitions,
+        &window_dates,
+    );
+    crate::schedule::append_other_preseason_friendlies(
+        &mut game.competitions,
+        &window_dates,
+    );
 
     if crate::world_cup::season_leads_into_world_cup(next_start) {
         // The windows host World Cup qualifying instead of friendlies.
