@@ -1,7 +1,4 @@
-export {
-  canonicalPosition,
-  positionBadgeVariant,
-} from "./playerRating";
+export { positionBadgeVariant } from "./playerRating";
 export { getPlayerOvr } from "./playerOvr";
 export {
   getTeamName,
@@ -11,7 +8,6 @@ export {
   expectedFixtureCount,
   findNextFixture,
   getActiveCompetitions,
-  getAllFixturesAcrossCompetitions,
   getCompetitiveFixtures,
   getFixtureDisplayLabel,
   getPrimaryCompetition,
@@ -19,7 +15,6 @@ export {
   getUserCompetitions,
   getUserNextFixture,
   hasFullLeagueSchedule,
-  isCompetitiveFixture,
   isSeasonComplete,
 } from "./fixtures";
 export {
@@ -28,8 +23,7 @@ export {
   getUserCalledUpPlayers,
 } from "./nationalTeams";
 export { getPromotionRelegationZones } from "./pyramid";
-export type { PromotionRelegationZones } from "./pyramid";
-export type { CalledUpPlayer } from "./nationalTeams";
+
 export {
   formatDate,
   formatDateFull,
@@ -41,12 +35,9 @@ export {
   getContractRiskBadgeVariant,
   getContractRiskLevel,
   getContractYearsRemaining,
-  getDaysUntil,
 } from "./contractUtils";
-export type { ContractRiskLevel } from "./contractUtils";
 export {
   calcAge,
-  calcAgeOnDate,
   formatAnnualAmount,
   formatExactMoney,
   formatVal,
