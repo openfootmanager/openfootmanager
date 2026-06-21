@@ -217,7 +217,7 @@ export const SPEED_MS: Record<SimSpeed, number> = {
   instant: 10,
 };
 
-export const FORMATIONS = ["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3"];
+export const FORMATIONS = ["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3", "5-3-2", "4-1-4-1"];
 
 export const PLAY_STYLES = [
   "Balanced",
