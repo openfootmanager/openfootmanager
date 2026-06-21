@@ -191,6 +191,12 @@ describe("dobValidationMessage", () => {
     expect(dobValidationMessage(baseForm(), 12, t)).toBeNull();
   });
 
+  it("returns invalid-dob message when manager would be over 99 at career start", () => {
+    // Born 1920, starting 2025 = age 105
+    const msg = dobValidationMessage({ ...baseForm(), dob: "1920-07-01", startYear: "2025" }, 12, t);
+    expect(msg).toBe("Invalid date of birth");
+  });
+
   it("returns null when startup options cannot be built (invalid startYear)", () => {
     // If buildStartupOptions returns null, dobValidationMessage should also return null
     expect(dobValidationMessage({ ...baseForm(), startYear: "abc" }, 12, t)).toBeNull();

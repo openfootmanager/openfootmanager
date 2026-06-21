@@ -122,6 +122,11 @@ describe("sponsorPitchAvailable", () => {
     expect(sponsorPitchAvailable(mapLocalFinanceSnapshot(team, snap))).toBe(true);
   });
 
+  it("returns true when wage budget is warning", () => {
+    const snap = makeSnapshot({ wageBudgetStatus: "warning" });
+    expect(sponsorPitchAvailable(mapLocalFinanceSnapshot(makeSolventTeam(), snap))).toBe(true);
+  });
+
   it("returns true when wage budget is critical", () => {
     const snap = makeSnapshot({ wageBudgetStatus: "critical" });
     expect(sponsorPitchAvailable(mapLocalFinanceSnapshot(makeSolventTeam(), snap))).toBe(true);
@@ -129,12 +134,13 @@ describe("sponsorPitchAvailable", () => {
 });
 
 describe("marketingCampaignAvailable", () => {
-  it("mirrors sponsorPitchAvailable", () => {
-    const healthy = mapLocalFinanceSnapshot(makeSolventTeam(), makeSnapshot());
-    expect(marketingCampaignAvailable(healthy)).toBe(sponsorPitchAvailable(healthy));
+  it("returns false when finances are healthy", () => {
+    expect(marketingCampaignAvailable(mapLocalFinanceSnapshot(makeSolventTeam(), makeSnapshot()))).toBe(false);
+  });
 
-    const critical = mapLocalFinanceSnapshot(makeSolventTeam(), makeSnapshot({ runwayStatus: "critical" }));
-    expect(marketingCampaignAvailable(critical)).toBe(sponsorPitchAvailable(critical));
+  it("returns true when runway is critical", () => {
+    const snap = makeSnapshot({ runwayStatus: "critical" });
+    expect(marketingCampaignAvailable(mapLocalFinanceSnapshot(makeSolventTeam(), snap))).toBe(true);
   });
 });
 
