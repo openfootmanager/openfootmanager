@@ -188,6 +188,11 @@ export default function TransfersTab({
   const [loanResult, setLoanResult] = useState<
     LoanOfferResponseData["decision"] | "error" | null
   >(null);
+  const [loanSuggestedTerms, setLoanSuggestedTerms] = useState<{
+    wageContributionPct: number;
+    endDate: string;
+    buyOptionFee?: number | null;
+  } | null>(null);
   const [loanCounterTarget, setLoanCounterTarget] =
     useState<LoanCounterTarget | null>(null);
   const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
@@ -219,6 +224,7 @@ export default function TransfersTab({
     setLoanBuyOptionFee("");
     setLoanError(null);
     setLoanResult(null);
+    setLoanSuggestedTerms(null);
   };
 
   const closeLoanOffer = () => {
@@ -229,6 +235,7 @@ export default function TransfersTab({
     setLoanBuyOptionFee("");
     setLoanError(null);
     setLoanResult(null);
+    setLoanSuggestedTerms(null);
   };
 
   const openLoanCounterOffer = (player: PlayerData, offer: LoanOfferData) => {
@@ -325,6 +332,7 @@ export default function TransfersTab({
     setLoanLoading(true);
     setLoanError(null);
     setLoanResult(null);
+    setLoanSuggestedTerms(null);
 
     try {
       const response = await makeLoanOffer(
@@ -335,6 +343,14 @@ export default function TransfersTab({
       );
       setLoanResult(response.decision);
       if (response.decision === "counter_offer") {
+        setLoanSuggestedTerms({
+          wageContributionPct:
+            response.suggested_wage_contribution_pct ??
+            loanWageContributionPct,
+          endDate:
+            response.suggested_end_date ?? selectedLoanPeriodOption.endDate,
+          buyOptionFee: response.suggested_buy_option_fee,
+        });
         if (response.suggested_wage_contribution_pct !== null) {
           setLoanWageContributionPct(
             Math.max(
@@ -1414,6 +1430,7 @@ export default function TransfersTab({
           onBuyOptionEnabledChange={setLoanBuyOptionEnabled}
           onBuyOptionFeeChange={setLoanBuyOptionFee}
           result={loanResult}
+          suggestedTerms={loanSuggestedTerms}
           error={loanError}
           loading={loanLoading}
           submitDisabled={loanSubmitDisabled}
