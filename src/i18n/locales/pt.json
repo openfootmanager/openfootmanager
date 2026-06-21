@@ -171,7 +171,10 @@
     "digestBlockedDesc": "Há problemas que precisam da sua atenção antes de avançar.",
     "digestViewIssues": "Ver problemas",
     "digestFired": "Foi despedido.",
-    "digestContinueAnyway": "Continuar mesmo assim"
+    "digestContinueAnyway": "Continuar mesmo assim",
+    "digestStop": "Parar simulação",
+    "digestStopped": "Simulação parada",
+    "digestError": "Erro de simulação"
   },
   "continueMenu": {
     "goToField": "Ir para o Campo",

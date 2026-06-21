@@ -171,7 +171,10 @@
     "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
     "digestViewIssues": "查看问题",
     "digestFired": "您已被解雇。",
-    "digestContinueAnyway": "仍然继续"
+    "digestContinueAnyway": "仍然继续",
+    "digestStop": "停止模拟",
+    "digestStopped": "模拟已停止",
+    "digestError": "模拟出错"
   },
   "continueMenu": {
     "goToField": "进入球场",

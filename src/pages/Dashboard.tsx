@@ -257,6 +257,7 @@ export default function Dashboard(): JSX.Element {
     isDigestVisible,
     isDigestRunning,
     startDigest,
+    abortDigest,
     dismissDigest,
   } = useAdvanceTime(
     setGameState,
@@ -516,6 +517,7 @@ export default function Dashboard(): JSX.Element {
         }
         onDigestContinueAfterBlocker={() => void startDigest()}
         onDismissDigest={dismissDigest}
+        onDigestStop={abortDigest}
       />
       <FiredModal />
 

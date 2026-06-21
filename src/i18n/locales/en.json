@@ -171,7 +171,10 @@
     "digestBlockedDesc": "Some issues need your attention before advancing.",
     "digestViewIssues": "View Issues",
     "digestFired": "You have been dismissed.",
-    "digestContinueAnyway": "Continue Anyway"
+    "digestContinueAnyway": "Continue Anyway",
+    "digestStop": "Stop Simulation",
+    "digestStopped": "Simulation stopped",
+    "digestError": "Simulation error"
   },
   "continueMenu": {
     "goToField": "Go to the Field",
