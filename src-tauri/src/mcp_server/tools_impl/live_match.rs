@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::require_game;
 use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::tools_impl::helpers::require_game;
 
 /// Format a match event as a readable string.
 fn fmt_event(event: &engine::MatchEvent) -> String {
@@ -49,11 +49,8 @@ pub fn match_start(
 
 /// Step the live match forward by N minutes.
 pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> {
-    let results = crate::application::live_match::step_live_match(
-        &ctx.state_manager,
-        minutes,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let results = crate::application::live_match::step_live_match(&ctx.state_manager, minutes)
+        .map_err(|e| translate_error(&e))?;
 
     let mut lines: Vec<String> = Vec::new();
     for result in &results {
@@ -79,27 +76,17 @@ pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<String, String> 
 
     Ok(format!(
         "## Match Advanced {} Minutes\n\n**Minute**: {}\n**Score**: {} - {}\n\n### Events\n{}",
-        minutes,
-        snapshot.current_minute,
-        snapshot.home_score,
-        snapshot.away_score,
-        events_text
+        minutes, snapshot.current_minute, snapshot.home_score, snapshot.away_score, events_text
     ))
 }
 
 /// Apply a match command (substitution, tactic change, set piece taker, etc.)
-pub fn match_command(
-    ctx: Arc<McpContext>,
-    command_json: String,
-) -> Result<String, String> {
+pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<String, String> {
     let command: engine::MatchCommand = serde_json::from_str(&command_json)
         .map_err(|e| format!("Invalid match command JSON: {}", e))?;
 
-    let snapshot = crate::application::live_match::apply_match_command(
-        &ctx.state_manager,
-        command,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let snapshot = crate::application::live_match::apply_match_command(&ctx.state_manager, command)
+        .map_err(|e| translate_error(&e))?;
 
     {
         use tauri::Emitter;
@@ -108,9 +95,7 @@ pub fn match_command(
 
     Ok(format!(
         "## Command Applied\n\n**Minute**: {}\n**Score**: {} - {}",
-        snapshot.current_minute,
-        snapshot.home_score,
-        snapshot.away_score
+        snapshot.current_minute, snapshot.home_score, snapshot.away_score
     ))
 }
 
@@ -141,9 +126,16 @@ pub fn match_finish(ctx: Arc<McpContext>) -> Result<String, String> {
     }
 
     let round_text = if let Some(ref summary) = response.round_summary {
-        let results: Vec<String> = summary.completed_results.iter().map(|r| {
-            format!("- {} {} - {} {}", r.home_team_name, r.home_goals, r.away_goals, r.away_team_name)
-        }).collect();
+        let results: Vec<String> = summary
+            .completed_results
+            .iter()
+            .map(|r| {
+                format!(
+                    "- {} {} - {} {}",
+                    r.home_team_name, r.home_goals, r.away_goals, r.away_team_name
+                )
+            })
+            .collect();
         format!("\n\n### Round Results\n{}", results.join("\n"))
     } else {
         String::new()
@@ -167,9 +159,8 @@ pub fn match_team_talk(
     let mut game = require_game(&ctx.state_manager)?;
 
     let seed = rand::random::<u64>();
-    let results = crate::commands::live_match::apply_team_talk_internal(
-        &mut game, &tone, &context, seed,
-    )?;
+    let results =
+        crate::commands::live_match::apply_team_talk_internal(&mut game, &tone, &context, seed)?;
 
     ctx.state_manager.set_game(game);
 
@@ -182,7 +173,13 @@ pub fn match_team_talk(
     for result in &results {
         let pid = result["player_id"].as_str().unwrap_or("?");
         let delta = result["delta"].as_i64().unwrap_or(0);
-        let emoji = if delta > 0 { "📈" } else if delta < 0 { "📉" } else { "➡️" };
+        let emoji = if delta > 0 {
+            "📈"
+        } else if delta < 0 {
+            "📉"
+        } else {
+            "➡️"
+        };
         lines.push(format!("- {} {}: morale {:+}", emoji, pid, delta));
     }
 
@@ -214,30 +211,54 @@ pub fn match_press_conference(
         player_id: String,
     }
 
-    let answers: Vec<PressAnswer> = serde_json::from_str(&answers_json)
-        .map_err(|e| format!("Invalid answers JSON: {}", e))?;
+    let answers: Vec<PressAnswer> =
+        serde_json::from_str(&answers_json).map_err(|e| format!("Invalid answers JSON: {}", e))?;
 
     let mut game = require_game(&ctx.state_manager)?;
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     // Derive user team and last match result from game state
-    let user_team_id = game.manager.team_id.clone()
+    let user_team_id = game
+        .manager
+        .team_id
+        .clone()
         .ok_or("No team assigned to manager")?;
-    let user_team_name = game.teams.iter()
+    let user_team_name = game
+        .teams
+        .iter()
         .find(|t| t.id == user_team_id)
         .map(|t| t.name.clone())
         .unwrap_or_else(|| user_team_id.clone());
 
     // Find the most recent completed fixture involving the user's team
-    let last_match = game.league.as_ref()
-        .and_then(|league| league.fixtures.iter()
-            .filter(|f| f.result.is_some() && (f.home_team_id == user_team_id || f.away_team_id == user_team_id))
-            .max_by(|a, b| a.date.cmp(&b.date)))
+    let last_match = game
+        .league
+        .as_ref()
+        .and_then(|league| {
+            league
+                .fixtures
+                .iter()
+                .filter(|f| {
+                    f.result.is_some()
+                        && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
+                })
+                .max_by(|a, b| a.date.cmp(&b.date))
+        })
         .ok_or("No completed match found for your team")?;
 
     let (home_team_name, away_team_name) = {
-        let home = game.teams.iter().find(|t| t.id == last_match.home_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.home_team_id.clone());
-        let away = game.teams.iter().find(|t| t.id == last_match.away_team_id).map(|t| t.name.clone()).unwrap_or_else(|| last_match.away_team_id.clone());
+        let home = game
+            .teams
+            .iter()
+            .find(|t| t.id == last_match.home_team_id)
+            .map(|t| t.name.clone())
+            .unwrap_or_else(|| last_match.home_team_id.clone());
+        let away = game
+            .teams
+            .iter()
+            .find(|t| t.id == last_match.away_team_id)
+            .map(|t| t.name.clone())
+            .unwrap_or_else(|| last_match.away_team_id.clone());
         (home, away)
     };
     let home_score = last_match.result.as_ref().unwrap().home_goals;
@@ -257,7 +278,8 @@ pub fn match_press_conference(
 
         let rid = answer.response_id.as_str();
         match rid {
-            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate" | "understand" => morale_delta += 2,
+            "humble" | "fair" | "positive" | "focused" | "grateful" | "patience" | "appreciate"
+            | "understand" => morale_delta += 2,
             "confident" | "ambitious" | "shared" => morale_delta += 3,
             "defiant" | "frustrated" => morale_delta += 0,
             "curt" | "evasive" => morale_delta -= 1,
@@ -290,7 +312,10 @@ pub fn match_press_conference(
         }
     }
 
-    let result_str = format!("{} {} - {} {}", home_team_name, home_score, away_score, away_team_name);
+    let result_str = format!(
+        "{} {} - {} {}",
+        home_team_name, home_score, away_score, away_team_name
+    );
     let headline_key = if quotes.is_empty() {
         "be.news.pressConference.headlinePostMatch"
     } else {
@@ -332,7 +357,13 @@ pub fn match_press_conference(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    let emoji = if morale_delta > 0 { "📈" } else if morale_delta < 0 { "📉" } else { "➡️" };
+    let emoji = if morale_delta > 0 {
+        "📈"
+    } else if morale_delta < 0 {
+        "📉"
+    } else {
+        "➡️"
+    };
     Ok(format!(
         "## Press Conference Complete\n\n{} Squad morale: {:+}\n**Match**: {} {} - {} {}",
         emoji, morale_delta, home_team_name, home_score, away_score, away_team_name

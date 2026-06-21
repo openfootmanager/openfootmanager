@@ -1,40 +1,58 @@
 use chrono::{TimeZone, Utc};
-use domain::league::{
-    CompetitionScope, CompetitionType, League, StandingEntry,
-};
+use domain::league::{CompetitionScope, CompetitionType, League, StandingEntry};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
-use ofm_core::slices::teams::{
-    TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_directory,
-};
+use ofm_core::slices::teams::{TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_directory};
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
-        pace: 60, stamina: 60, strength: 60, agility: 60,
-        passing: 60, shooting: 60, tackling: 60, dribbling: 60,
-        defending: 60, positioning: 60, vision: 60, decisions: 60,
-        composure: 60, aggression: 50, teamwork: 60, leadership: 50,
-        handling: 20, reflexes: 20, aerial: 60,
+        pace: 60,
+        stamina: 60,
+        strength: 60,
+        agility: 60,
+        passing: 60,
+        shooting: 60,
+        tackling: 60,
+        dribbling: 60,
+        defending: 60,
+        positioning: 60,
+        vision: 60,
+        decisions: 60,
+        composure: 60,
+        aggression: 50,
+        teamwork: 60,
+        leadership: 50,
+        handling: 20,
+        reflexes: 20,
+        aerial: 60,
     }
 }
 
 fn make_team(id: &str, name: &str, country: &str, city: &str) -> Team {
     let short: String = name.chars().take(3).collect();
     Team::new(
-        id.to_string(), name.to_string(), short,
-        country.to_string(), city.to_string(),
-        "Ground".to_string(), 20_000,
+        id.to_string(),
+        name.to_string(),
+        short,
+        country.to_string(),
+        city.to_string(),
+        "Ground".to_string(),
+        20_000,
     )
 }
 
 fn make_player(id: &str, team_id: Option<&str>, ovr: u8, value: u64) -> Player {
     let mut p = Player::new(
-        id.to_string(), format!("{id} short"), format!("{id} full"),
-        "2000-01-01".to_string(), "GB".to_string(),
-        Position::Midfielder, default_attrs(),
+        id.to_string(),
+        format!("{id} short"),
+        format!("{id} full"),
+        "2000-01-01".to_string(),
+        "GB".to_string(),
+        Position::Midfielder,
+        default_attrs(),
     );
     p.team_id = team_id.map(String::from);
     p.ovr = ovr;
@@ -42,27 +60,37 @@ fn make_player(id: &str, team_id: Option<&str>, ovr: u8, value: u64) -> Player {
     p
 }
 
-fn make_domestic_league(id: &str, name: &str, country: &str, region: Option<&str>, team_ids: &[&str]) -> League {
-    let mut league = League::default();
-    league.id = id.to_string();
-    league.name = name.to_string();
-    league.kind = CompetitionType::League;
-    league.scope = CompetitionScope::Domestic;
-    league.country_id = Some(country.to_string());
-    league.region_id = region.map(String::from);
-    league.participant_ids = team_ids.iter().map(|s| s.to_string()).collect();
-    league.standings = team_ids
-        .iter()
-        .map(|id| StandingEntry::new(id.to_string()))
-        .collect();
-    league
+fn make_domestic_league(
+    id: &str,
+    name: &str,
+    country: &str,
+    region: Option<&str>,
+    team_ids: &[&str],
+) -> League {
+    League {
+        id: id.to_string(),
+        name: name.to_string(),
+        kind: CompetitionType::League,
+        scope: CompetitionScope::Domestic,
+        country_id: Some(country.to_string()),
+        region_id: region.map(String::from),
+        participant_ids: team_ids.iter().map(|s| s.to_string()).collect(),
+        standings: team_ids
+            .iter()
+            .map(|id| StandingEntry::new(id.to_string()))
+            .collect(),
+        ..Default::default()
+    }
 }
 
 fn make_game(teams: Vec<Team>, players: Vec<Player>, competitions: Vec<League>) -> Game {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
     let manager = Manager::new(
-        "m".to_string(), "M".to_string(), "Gr".to_string(),
-        "1980-01-01".to_string(), "GB".to_string(),
+        "m".to_string(),
+        "M".to_string(),
+        "Gr".to_string(),
+        "1980-01-01".to_string(),
+        "GB".to_string(),
     );
     let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
     game.competitions = competitions;
@@ -191,7 +219,8 @@ fn league_position_uses_sorted_standings() {
         make_team("t2", "Second FC", "ENG", "B"),
         make_team("t3", "Third FC", "ENG", "C"),
     ];
-    let mut league = make_domestic_league("epl", "Premier", "ENG", Some("UEFA"), &["t1", "t2", "t3"]);
+    let mut league =
+        make_domestic_league("epl", "Premier", "ENG", Some("UEFA"), &["t1", "t2", "t3"]);
     league.standings[0].points = 5;
     league.standings[1].points = 9;
     league.standings[2].points = 7;
@@ -215,10 +244,8 @@ fn leagues_within_region_sort_with_ungrouped_last() {
         make_team("a1", "Alpha FC", "ENG", "A"),
         make_team("o1", "Orphan FC", "ENG", "O"),
     ];
-    let alpha_league =
-        make_domestic_league("a", "Alpha League", "ENG", Some("europe"), &["a1"]);
-    let zulu_league =
-        make_domestic_league("z", "Zulu League", "ENG", Some("europe"), &["z1"]);
+    let alpha_league = make_domestic_league("a", "Alpha League", "ENG", Some("europe"), &["a1"]);
+    let zulu_league = make_domestic_league("z", "Zulu League", "ENG", Some("europe"), &["z1"]);
     let game = make_game(teams, vec![], vec![alpha_league, zulu_league]);
 
     let dir = query_directory(&game, &empty_query());

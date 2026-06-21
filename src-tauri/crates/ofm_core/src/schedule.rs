@@ -25,13 +25,13 @@ pub fn generate_league(
 
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
 /// spacing matchdays 7 days apart from `start_date`.
-fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
-    let fixtures = build_round_robin_fixtures(
-        &league.id,
-        team_ids,
-        start_date,
-        FixtureCompetition::League,
-    );
+fn append_round_robin_fixtures(
+    league: &mut League,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+) {
+    let fixtures =
+        build_round_robin_fixtures(&league.id, team_ids, start_date, FixtureCompetition::League);
     league.fixtures.extend(fixtures);
 }
 
@@ -43,7 +43,14 @@ pub fn build_round_robin_fixtures(
     start_date: DateTime<Utc>,
     fixture_competition: FixtureCompetition,
 ) -> Vec<Fixture> {
-    build_round_robin_fixtures_with(competition_id, team_ids, start_date, fixture_competition, 2, 7)
+    build_round_robin_fixtures_with(
+        competition_id,
+        team_ids,
+        start_date,
+        fixture_competition,
+        2,
+        7,
+    )
 }
 
 /// Build a round-robin fixture list with a configurable number of legs (even
@@ -62,7 +69,7 @@ pub fn build_round_robin_fixtures_with(
     if n < 2 || legs == 0 {
         return Vec::new();
     }
-    let slots = if n % 2 == 0 { n } else { n + 1 };
+    let slots = if n.is_multiple_of(2) { n } else { n + 1 };
     let rounds = slots - 1;
     let half = slots / 2;
     let mut fixtures = Vec::new();
@@ -72,10 +79,9 @@ pub fn build_round_robin_fixtures_with(
     for leg in 0..legs {
         let mut indices: Vec<usize> = (0..slots).collect();
         for _round in 0..rounds {
-            let date_str = (start_date
-                + Duration::days((matchday as i64 - 1) * matchday_gap_days))
-            .format("%Y-%m-%d")
-            .to_string();
+            let date_str = (start_date + Duration::days((matchday as i64 - 1) * matchday_gap_days))
+                .format("%Y-%m-%d")
+                .to_string();
             for i in 0..half {
                 let (mut home, mut away) = (indices[i], indices[slots - 1 - i]);
                 if leg % 2 == 1 {
@@ -108,11 +114,7 @@ pub fn build_round_robin_fixtures_with(
 /// participants but clearing results and regenerating standings and fixtures.
 /// Participants are taken from `participant_ids`, falling back to the previous
 /// standings for legacy leagues that never recorded a participant list.
-pub fn regenerate_league_for_season(
-    league: &mut League,
-    season: u32,
-    start_date: DateTime<Utc>,
-) {
+pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date: DateTime<Utc>) {
     let team_ids: Vec<String> = if !league.participant_ids.is_empty() {
         league.participant_ids.clone()
     } else {
@@ -134,11 +136,7 @@ pub fn regenerate_league_for_season(
 
 /// Reset a knockout competition for a new season in place, preserving identity
 /// and participants but clearing previous fixtures, standings, and rounds.
-pub fn regenerate_knockout_for_season(
-    cup: &mut League,
-    season: u32,
-    start_date: DateTime<Utc>,
-) {
+pub fn regenerate_knockout_for_season(cup: &mut League, season: u32, start_date: DateTime<Utc>) {
     cup.season = season;
     cup.fixtures.clear();
     cup.standings.clear();
@@ -251,15 +249,27 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
         return;
     }
 
-    let Some(next_round) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
+    let Some(next_round) = cup
+        .knockout_rounds
+        .iter_mut()
+        .find(|round| !round.completed)
+    else {
         return;
     };
     let round_fixtures: Vec<_> = next_round
         .fixture_ids
         .iter()
-        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
+        .filter_map(|fixture_id| {
+            cup.fixtures
+                .iter()
+                .find(|fixture| &fixture.id == fixture_id)
+        })
         .collect();
-    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none()) {
+    if round_fixtures.is_empty()
+        || round_fixtures
+            .iter()
+            .any(|fixture| fixture.result.is_none())
+    {
         return;
     }
 
@@ -311,7 +321,7 @@ pub fn generate_preseason_friendlies(
     }
 
     let mut rotation: Vec<Option<usize>> = (0..team_ids.len()).map(Some).collect();
-    if rotation.len() % 2 != 0 {
+    if !rotation.len().is_multiple_of(2) {
         rotation.push(None);
     }
 
@@ -532,7 +542,12 @@ mod tests {
                 .all(|f| f.status == FixtureStatus::Scheduled && f.result.is_none())
         );
         assert_eq!(league.standings.len(), 4);
-        assert!(league.standings.iter().all(|s| s.points == 0 && s.played == 0));
+        assert!(
+            league
+                .standings
+                .iter()
+                .all(|s| s.points == 0 && s.played == 0)
+        );
         assert_eq!(league.participant_ids.len(), 4);
     }
 
@@ -548,7 +563,10 @@ mod tests {
 
         regenerate_league_for_season(&mut league, 2027, start);
 
-        assert_eq!(league.participant_ids, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(
+            league.participant_ids,
+            vec!["a".to_string(), "b".to_string()]
+        );
         assert_eq!(league.fixtures.len(), 2);
     }
 
@@ -572,7 +590,11 @@ mod tests {
         assert_eq!(cup.season, 2027);
         assert_eq!(cup.knockout_rounds.len(), 1);
         assert_eq!(cup.fixtures.len(), 2);
-        assert!(cup.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Scheduled)
+        );
     }
 
     #[test]

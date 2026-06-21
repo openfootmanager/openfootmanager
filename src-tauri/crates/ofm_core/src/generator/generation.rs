@@ -55,9 +55,7 @@ pub(super) fn pick_nationality_from_def(
 ) -> String {
     // Map team country name → ISO code for the 60% local weight
     let local_code = country_to_iso(team_country);
-    let selected_code = if rng.random_range(0..100) < 60 {
-        local_code.to_string()
-    } else if available_codes.is_empty() {
+    let selected_code = if available_codes.is_empty() || rng.random_range(0..100) < 60 {
         local_code.to_string()
     } else {
         available_codes[rng.random_range(0..available_codes.len())].clone()
@@ -581,9 +579,10 @@ pub(super) fn generate_player_from_def(
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
     let age = current_year.saturating_sub(birth_year);
 
-    let attributes = def.attributes.clone().unwrap_or_else(|| {
-        attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng)
-    });
+    let attributes = def
+        .attributes
+        .clone()
+        .unwrap_or_else(|| attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng));
 
     let approx_ovr = (attributes.pace as u32
         + attributes.stamina as u32

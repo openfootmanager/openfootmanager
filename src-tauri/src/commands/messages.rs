@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use log::info;
 use tauri::State;
@@ -86,9 +86,7 @@ pub fn mark_all_messages_read(
     mark_all_messages_read_internal(&state)
 }
 
-pub fn mark_all_messages_read_internal(
-    state: &StateManager,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn mark_all_messages_read_internal(state: &StateManager) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] mark_all_messages_read");
     state
         .update_game(|game| {
@@ -107,9 +105,7 @@ pub fn clear_old_messages(
     clear_old_messages_internal(&state)
 }
 
-pub fn clear_old_messages_internal(
-    state: &StateManager,
-) -> Result<Vec<InboxMessage>, String> {
+pub fn clear_old_messages_internal(state: &StateManager) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] clear_old_messages");
     state
         .update_game(|game| {
@@ -338,10 +334,7 @@ mod tests {
         state.set_game(make_game());
 
         let response = clear_old_messages_internal(&state).expect("response");
-        let message_ids: Vec<&str> = response
-            .iter()
-            .map(|message| message.id.as_str())
-            .collect();
+        let message_ids: Vec<&str> = response.iter().map(|message| message.id.as_str()).collect();
 
         assert_eq!(message_ids.len(), 3);
         assert!(message_ids.contains(&"keep-unread"));
@@ -378,7 +371,7 @@ mod tests {
         );
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
-        assert_eq!(stored_game.messages[0].actions[0].resolved, true);
+        assert!(stored_game.messages[0].actions[0].resolved);
     }
 
     #[test]
@@ -467,9 +460,7 @@ mod tests {
 
         let response = delete_message_internal(&state, "remove-stale").expect("response");
 
-        assert!(!response
-            .iter()
-            .any(|message| message.id == "remove-stale"));
+        assert!(!response.iter().any(|message| message.id == "remove-stale"));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert!(!stored_game
@@ -489,12 +480,8 @@ mod tests {
         )
         .expect("response");
 
-        assert!(!response
-            .iter()
-            .any(|message| message.id == "keep-unread"));
-        assert!(!response
-            .iter()
-            .any(|message| message.id == "remove-stale"));
+        assert!(!response.iter().any(|message| message.id == "keep-unread"));
+        assert!(!response.iter().any(|message| message.id == "remove-stale"));
 
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert!(!stored_game

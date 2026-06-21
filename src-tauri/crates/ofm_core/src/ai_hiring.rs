@@ -129,13 +129,11 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
             return false;
         }
 
-        let team_lost = if fixture.home_team_id == team_id {
+        if fixture.home_team_id == team_id {
             result.home_goals < result.away_goals
         } else {
             result.away_goals < result.home_goals
-        };
-
-        team_lost
+        }
     });
 
     if recent_loss {

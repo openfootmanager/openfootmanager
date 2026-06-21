@@ -1173,7 +1173,7 @@
     "offers": "Offres",
     "searchByName": "Rechercher par nom...",
     "noPlayersListed": "Vous n'avez aucun joueur inscrit sur la liste des transferts ou des prêts.",
-    "goToProfile": "Accédez au profil du joueur pour l'inscrire au transfert ou au prêt.",
+    "goToProfile": "Faites un clic droit sur un joueur dans Effectif ou Joueurs pour le placer sur la liste des transferts ou des prêts.",
     "noOffers": "Aucune offre de transfert active pour le moment.",
     "noTransferMarket": "Aucun joueur disponible au transfert pour le moment.",
     "noFreeAgents": "Aucun joueur libre disponible pour le moment.",
@@ -1216,10 +1216,15 @@
     "loanToBuyOption": "Option d'achat",
     "loanToBuyOptionDesc": "Ajouter une clause d'achat définitif exerçable pendant le prêt.",
     "buyOptionFee": "Montant de l'option d'achat",
-    "buyOptionFeeShort": "Option {{fee}}",
+    "buyOptionFeeShort": "Option d'achat {{fee}}",
     "loanBuyOptionSummary": "Option d'achat définitif à {{fee}}.",
     "exerciseBuyOption": "Lever l'option",
     "loanOfferAccepted": "Prêt accepté. Le joueur arrive en prêt.",
+    "loanOfferScheduled": "Prêt conclu. Enregistrement prévu le {{date}}.",
+    "loanCounterScheduled": "Prêt conclu. Le joueur partira en prêt à l'ouverture des inscriptions le {{date}}.",
+    "loanWindowClosedNoticeTitle": "Mercato fermé",
+    "loanWindowClosedNoticeDetail": "Vous pouvez négocier maintenant. En cas d'accord, le prêt sera enregistré le {{date}}.",
+    "loanWindowClosedUnavailableDetail": "L'enregistrement des prêts est indisponible tant que le prochain mercato n'est pas planifié.",
     "loanOfferRejected": "Offre de prêt refusée.",
     "loanOfferCountered": "Ils ont répondu avec des conditions de prêt révisées.",
     "loanCounterAccepted": "Contre-offre de prêt acceptée. Le joueur part en prêt.",
@@ -1255,6 +1260,7 @@
     "lastCounterLabel": "Votre dernière contre-offre",
     "currentOfferLabel": "Leur offre actuelle",
     "offerStatusPending": "En cours",
+    "offerStatusPendingRegistration": "En attente d'enregistrement",
     "offerStatusAccepted": "Acceptée",
     "offerStatusRejected": "Refusée",
     "offerStatusWithdrawn": "Les discussions se sont refroidies",
@@ -1519,7 +1525,7 @@
     "movementLoanToBuy": "Prêt avec achat",
     "movementFreeAgentSigning": "Libre",
     "movementReleased": "Libéré",
-    "movementFromTo": "{{from}} → {{to}}",
+    "movementFromTo": "De {{from}} à {{to}}",
     "movementTo": "A rejoint {{to}}",
     "movementFrom": "A quitté {{from}}",
     "movementFee": "Montant {{fee}}",
@@ -3199,6 +3205,10 @@
       "majorTransfer": {
         "headline": "{{player}} rejoint {{toTeam}}",
         "body": "{{toTeam}} a finalisé le recrutement de {{player}} en provenance de {{fromTeam}} pour {{fee}}."
+      },
+      "loanMove": {
+        "headline": "{{player}} rejoint {{toTeam}} en prêt",
+        "body": "{{player}} a rejoint {{toTeam}} en prêt depuis {{fromTeam}} jusqu'au {{endDate}}."
       },
       "transferRoundup": {
         "headline": "Résumé des Transferts — Semaine du {{weekStart}}",

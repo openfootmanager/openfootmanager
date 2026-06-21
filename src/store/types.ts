@@ -253,7 +253,12 @@ export interface LoanOfferData {
   suggested_wage_contribution_pct?: number | null;
   suggested_end_date?: string | null;
   suggested_buy_option_fee?: number | null;
-  status: "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+  status:
+    | "Pending"
+    | "PendingRegistration"
+    | "Accepted"
+    | "Rejected"
+    | "Withdrawn";
   date: string;
 }
 

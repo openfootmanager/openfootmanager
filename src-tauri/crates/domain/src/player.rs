@@ -239,20 +239,11 @@ pub struct PlayerIssue {
     pub severity: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default)]
 pub struct RecentTreatmentMemory {
     pub action_key: String,
     pub times_recently_used: u8,
-}
-
-impl Default for RecentTreatmentMemory {
-    fn default() -> Self {
-        Self {
-            action_key: String::new(),
-            times_recently_used: 0,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -499,6 +490,7 @@ pub struct LoanOffer {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LoanOfferStatus {
     Pending,
+    PendingRegistration,
     Accepted,
     Rejected,
     Withdrawn,

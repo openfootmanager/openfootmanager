@@ -593,11 +593,11 @@ fn pass_accuracy_in_range() {
     let home_acc = report.home_stats.pass_accuracy();
     let away_acc = report.away_stats.pass_accuracy();
     assert!(
-        home_acc >= 0.0 && home_acc <= 100.0,
+        (0.0..=100.0).contains(&home_acc),
         "Home pass accuracy: {home_acc}"
     );
     assert!(
-        away_acc >= 0.0 && away_acc <= 100.0,
+        (0.0..=100.0).contains(&away_acc),
         "Away pass accuracy: {away_acc}"
     );
 }

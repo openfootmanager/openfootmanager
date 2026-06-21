@@ -400,15 +400,19 @@ impl SaveManager {
             .i18n_key());
         }
         if save_format_version < meta_repo::CURRENT_SAVE_FORMAT_VERSION {
-            // Pre-v3 saves are already promoted into `competitions` by
-            // `read_game` (via `promote_legacy_league`); resaving restamps them
-            // at the current format so the upgrade persists.
             info!(
                 "[save_manager] upgrading save {} from format {} to {}",
                 save_id,
                 save_format_version,
                 meta_repo::CURRENT_SAVE_FORMAT_VERSION
             );
+            if save_format_version < 4 {
+                let seeded = ofm_core::transfers::seed_opening_ai_loan_market(&mut game);
+                info!(
+                    "[save_manager] seeded {} opening AI loan listings for save {}",
+                    seeded, save_id
+                );
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -568,6 +572,7 @@ impl SaveManager {
                 player.team_id = Some(loan.parent_team_id);
             }
         }
+        ofm_core::transfers::seed_opening_ai_loan_market(&mut game);
 
         // Clear league (will be regenerated)
         game.league = None;
@@ -844,6 +849,34 @@ mod tests {
             vec![],
         );
         game.league = Some(league);
+        game
+    }
+
+    fn sample_game_with_ai_loan_candidates() -> Game {
+        let mut game = sample_game();
+        game.players[0].team_id = Some("team-001".to_string());
+        game.players[0].contract_end = Some("2028-06-30".to_string());
+        game.teams.push(Team::new(
+            "team-002".to_string(),
+            "Rivals FC".to_string(),
+            "RFC".to_string(),
+            "GB".to_string(),
+            "Manchester".to_string(),
+            "Rivals Stadium".to_string(),
+            42000,
+        ));
+
+        for (id, date_of_birth) in [
+            ("ai-loan-1", "2007-01-01"),
+            ("ai-loan-2", "2006-01-01"),
+            ("ai-loan-3", "2005-01-01"),
+        ] {
+            let mut player = make_opening_repair_player(id, Position::Midfielder, date_of_birth);
+            player.team_id = Some("team-002".to_string());
+            player.contract_end = Some("2028-06-30".to_string());
+            game.players.push(player);
+        }
+
         game
     }
 
@@ -1377,6 +1410,51 @@ mod tests {
     }
 
     #[test]
+    fn test_load_game_seeds_ai_loan_market_when_upgrading_format_v3_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let game = sample_game_with_ai_loan_candidates();
+        let save_id = sm.create_save(&game, "Legacy Loan Market").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let mut meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            meta.save_format_version = 3;
+            meta_repo::upsert_meta(db.conn(), &meta).unwrap();
+        }
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(
+            loaded
+                .players
+                .iter()
+                .filter(|player| {
+                    player.team_id.as_deref() == Some("team-002") && player.loan_listed
+                })
+                .count(),
+            2
+        );
+        assert!(
+            loaded
+                .players
+                .iter()
+                .filter(|player| player.team_id.as_deref() == Some("team-001"))
+                .all(|player| !player.loan_listed)
+        );
+
+        let db = GameDatabase::open(&db_path).unwrap();
+        let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+        assert_eq!(
+            meta.save_format_version,
+            meta_repo::CURRENT_SAVE_FORMAT_VERSION
+        );
+        assert!(meta.save_format_version > 3);
+    }
+
+    #[test]
     fn test_save_game_updates_existing() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
@@ -1491,14 +1569,13 @@ mod tests {
         assert!(loaded.managers.iter().any(|manager| {
             manager.team_id.as_deref() == Some("team-003") && manager.full_name() == "Marco Rossi"
         }));
-        assert_eq!(
+        assert!(
             loaded
                 .teams
                 .iter()
                 .find(|team| team.id == "team-003")
                 .and_then(|team| team.manager_id.clone())
-                .is_some(),
-            true
+                .is_some()
         );
     }
 
@@ -1971,6 +2048,31 @@ mod tests {
         // Player stats should be reset
         assert!(!new_game.players[0].transfer_listed);
         assert!(!new_game.players[0].loan_listed);
+    }
+
+    #[test]
+    fn test_new_game_from_save_reseeds_ai_loan_market() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_ai_loan_candidates();
+        for player in &mut game.players {
+            player.loan_listed = false;
+        }
+        let save_id = sm.create_save(&game, "Reusable World").unwrap();
+
+        let new_game = sm.new_game_from_save(&save_id).unwrap();
+
+        assert_eq!(
+            new_game
+                .players
+                .iter()
+                .filter(|player| {
+                    player.team_id.as_deref() == Some("team-002") && player.loan_listed
+                })
+                .count(),
+            2
+        );
     }
 
     #[test]

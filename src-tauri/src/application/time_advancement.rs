@@ -42,30 +42,41 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
         {
             continue;
         }
-        if let Some(fixture_index) = competition.fixtures.iter().enumerate().find_map(|(index, fixture)| {
-            if fixture.date == today
-                && fixture.status == domain::league::FixtureStatus::Scheduled
-                && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
-            {
-                Some(index)
-            } else {
-                None
-            }
-        }) {
+        if let Some(fixture_index) =
+            competition
+                .fixtures
+                .iter()
+                .enumerate()
+                .find_map(|(index, fixture)| {
+                    if fixture.date == today
+                        && fixture.status == domain::league::FixtureStatus::Scheduled
+                        && (fixture.home_team_id == *user_team_id
+                            || fixture.away_team_id == *user_team_id)
+                    {
+                        Some(index)
+                    } else {
+                        None
+                    }
+                })
+        {
             return Some((competition_index, fixture_index));
         }
     }
     let league = game.league.as_ref()?;
-    league.fixtures.iter().enumerate().find_map(|(index, fixture)| {
-        if fixture.date == today
-            && fixture.status == domain::league::FixtureStatus::Scheduled
-            && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
-        {
-            Some((0, index))
-        } else {
-            None
-        }
-    })
+    league
+        .fixtures
+        .iter()
+        .enumerate()
+        .find_map(|(index, fixture)| {
+            if fixture.date == today
+                && fixture.status == domain::league::FixtureStatus::Scheduled
+                && (fixture.home_team_id == *user_team_id || fixture.away_team_id == *user_team_id)
+            {
+                Some((0, index))
+            } else {
+                None
+            }
+        })
 }
 
 pub fn advance_time_with_mode(

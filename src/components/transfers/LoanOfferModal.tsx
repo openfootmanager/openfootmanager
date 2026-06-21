@@ -1,4 +1,4 @@
-import { BadgeEuro, CalendarDays, Percent } from "lucide-react";
+import { BadgeEuro, CalendarClock, CalendarDays, Percent } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
@@ -38,6 +38,9 @@ interface LoanOfferModalProps {
   error: string | null;
   loading: boolean;
   submitDisabled: boolean;
+  noticeTitle?: string | null;
+  noticeDetail?: string | null;
+  acceptedMessage?: string | null;
   onSubmit: () => void;
   onClose: () => void;
 }
@@ -65,6 +68,9 @@ export default function LoanOfferModal({
   error,
   loading,
   submitDisabled,
+  noticeTitle = null,
+  noticeDetail = null,
+  acceptedMessage = null,
   onSubmit,
   onClose,
 }: LoanOfferModalProps) {
@@ -98,6 +104,21 @@ export default function LoanOfferModal({
             </p>
           </div>
         </div>
+
+        {noticeTitle ? (
+          <div
+            role="status"
+            className="mb-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+          >
+            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="text-xs">
+              <p className="font-heading font-bold uppercase tracking-wider">
+                {noticeTitle}
+              </p>
+              {noticeDetail ? <p className="mt-1">{noticeDetail}</p> : null}
+            </div>
+          </div>
+        ) : null}
 
         <label
           htmlFor="loan-period"
@@ -252,7 +273,7 @@ export default function LoanOfferModal({
             className={`text-xs font-heading font-bold uppercase tracking-wider mb-3 ${result === "accepted" ? "text-green-500" : result === "counter_offer" ? "text-amber-500" : "text-red-500"}`}
           >
             {result === "accepted"
-              ? t(acceptedLabelKey)
+              ? acceptedMessage ?? t(acceptedLabelKey)
               : result === "rejected"
                 ? t(rejectedLabelKey)
                 : result === "counter_offer"

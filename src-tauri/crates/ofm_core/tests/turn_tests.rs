@@ -237,7 +237,6 @@ fn process_day_simulates_due_national_team_fixture() {
         competition: FixtureCompetition::InternationalNation,
         status: FixtureStatus::Scheduled,
         result: None,
-        ..Default::default()
     });
     let mut away = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
     away.squad_player_ids = away_squad;

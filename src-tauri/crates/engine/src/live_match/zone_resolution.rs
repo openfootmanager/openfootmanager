@@ -494,18 +494,18 @@ mod event_detail_tests {
                 }
             };
 
-            if let Some(first_evt) = first_scoring {
-                if first_evt.event_type == EventType::Goal {
-                    assert_eq!(
-                        first_evt.detail,
-                        Some(EventDetail::Goal {
-                            context: GoalContext::Opener
-                        }),
-                        "seed {seed}: first goal detail should be Opener, got {:?}",
-                        first_evt.detail
-                    );
-                    saw_any_goal = true;
-                }
+            if let Some(first_evt) = first_scoring
+                && first_evt.event_type == EventType::Goal
+            {
+                assert_eq!(
+                    first_evt.detail,
+                    Some(EventDetail::Goal {
+                        context: GoalContext::Opener
+                    }),
+                    "seed {seed}: first goal detail should be Opener, got {:?}",
+                    first_evt.detail
+                );
+                saw_any_goal = true;
             }
             // No goal scored in this seed — try the next one.
         }

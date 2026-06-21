@@ -25,7 +25,6 @@ fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> Me
 }
 
 /// Message template system — generates rich messages with variations.
-
 pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
     let mut rng = rand::rng();
     let idx = rng.random_range(0..3);
@@ -285,6 +284,7 @@ pub fn transfer_interest_digest_message(
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn incoming_loan_offer_message(
     offer_id: &str,
     player_id: &str,
@@ -340,6 +340,7 @@ pub fn incoming_loan_offer_message(
     .with_sender_i18n("be.sender.directorOfFootball", "be.role.directorOfFootball")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn loan_development_report_message(
     message_id: &str,
     player_id: &str,

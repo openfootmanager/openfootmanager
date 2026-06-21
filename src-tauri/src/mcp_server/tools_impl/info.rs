@@ -1,9 +1,11 @@
 //! MCP tool implementations: info
 
-use std::sync::Arc;
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{require_game, user_team, require_league, format_position, age_from_dob};
 use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::tools_impl::helpers::{
+    age_from_dob, format_position, require_game, require_league, user_team,
+};
+use std::sync::Arc;
 
 // ─── info_game_state ────────────────────────────────────────────────────────
 
@@ -28,7 +30,11 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
     let league_info = if let Some(league) = &game.league {
         let team_id = team.id.as_str();
         let mut standings = league.standings.clone();
-        standings.sort_by(|a, b| b.points.cmp(&a.points).then_with(|| b.goals_for.cmp(&a.goals_for)));
+        standings.sort_by(|a, b| {
+            b.points
+                .cmp(&a.points)
+                .then_with(|| b.goals_for.cmp(&a.goals_for))
+        });
         let position = standings
             .iter()
             .position(|s| s.team_id == team_id)
@@ -36,18 +42,34 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
             .unwrap_or(0);
         let standing = standings.iter().find(|s| s.team_id == team_id);
         let pts = standing.map(|s| s.points).unwrap_or(0);
-        let gd = standing.map(|s| i64::from(s.goals_for) - i64::from(s.goals_against)).unwrap_or(0);
+        let gd = standing
+            .map(|s| i64::from(s.goals_for) - i64::from(s.goals_against))
+            .unwrap_or(0);
 
         // Recent form (from last 5 completed fixtures involving our team)
         let mut recent: Vec<String> = Vec::new();
         for fixture in league.fixtures.iter().rev() {
-            if recent.len() >= 5 { break; }
-            if fixture.status != domain::league::FixtureStatus::Completed { continue; }
-            if fixture.home_team_id != team_id && fixture.away_team_id != team_id { continue; }
+            if recent.len() >= 5 {
+                break;
+            }
+            if fixture.status != domain::league::FixtureStatus::Completed {
+                continue;
+            }
+            if fixture.home_team_id != team_id && fixture.away_team_id != team_id {
+                continue;
+            }
             if let Some(ref result) = fixture.result {
                 let is_home = fixture.home_team_id == team_id;
-                let our_goals = if is_home { result.home_goals } else { result.away_goals };
-                let their_goals = if is_home { result.away_goals } else { result.home_goals };
+                let our_goals = if is_home {
+                    result.home_goals
+                } else {
+                    result.away_goals
+                };
+                let their_goals = if is_home {
+                    result.away_goals
+                } else {
+                    result.home_goals
+                };
                 recent.push(if our_goals > their_goals {
                     "W".to_string()
                 } else if our_goals < their_goals {
@@ -83,22 +105,25 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
     let avg_condition = if squad_players.is_empty() {
         0.0
     } else {
-        squad_players.iter().map(|p| f64::from(p.condition)).sum::<f64>() / squad_players.len() as f64
+        squad_players
+            .iter()
+            .map(|p| f64::from(p.condition))
+            .sum::<f64>()
+            / squad_players.len() as f64
     };
     let avg_ovr = if squad_players.is_empty() {
         0.0
     } else {
         squad_players.iter().map(|p| f64::from(p.ovr)).sum::<f64>() / squad_players.len() as f64
     };
-    let injured = squad_players
-        .iter()
-        .filter(|p| p.injury.is_some())
-        .count();
+    let injured = squad_players.iter().filter(|p| p.injury.is_some()).count();
 
     // Next match
     let next_match = game.league.as_ref().and_then(|league| {
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-        league.fixtures.iter()
+        league
+            .fixtures
+            .iter()
             .filter(|f| {
                 f.date >= today
                     && f.status == domain::league::FixtureStatus::Scheduled
@@ -107,9 +132,23 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
             .min_by_key(|f| f.date.clone())
             .map(|f| {
                 let opponent = if f.home_team_id == team_id {
-                    format!("{} (H)", game.teams.iter().find(|t| t.id == f.away_team_id).map(|t| t.name.clone()).unwrap_or_default())
+                    format!(
+                        "{} (H)",
+                        game.teams
+                            .iter()
+                            .find(|t| t.id == f.away_team_id)
+                            .map(|t| t.name.clone())
+                            .unwrap_or_default()
+                    )
                 } else {
-                    format!("{} (A)", game.teams.iter().find(|t| t.id == f.home_team_id).map(|t| t.name.clone()).unwrap_or_default())
+                    format!(
+                        "{} (A)",
+                        game.teams
+                            .iter()
+                            .find(|t| t.id == f.home_team_id)
+                            .map(|t| t.name.clone())
+                            .unwrap_or_default()
+                    )
                 };
                 format!("vs {} — {}", opponent, f.date)
             })
@@ -122,7 +161,13 @@ pub fn info_game_summary(ctx: Arc<McpContext>) -> Result<String, String> {
     let phase = format!("{:?}", game.season_context.phase);
     let transfer_window = match &game.season_context.transfer_window.status {
         domain::season::TransferWindowStatus::Open => {
-            format!("Open ({} days remaining)", game.season_context.transfer_window.days_remaining.unwrap_or(0))
+            format!(
+                "Open ({} days remaining)",
+                game.season_context
+                    .transfer_window
+                    .days_remaining
+                    .unwrap_or(0)
+            )
         }
         domain::season::TransferWindowStatus::Closed => "Closed".to_string(),
         _ => "Unknown".to_string(),
@@ -166,11 +211,16 @@ pub fn info_standings(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
     let league = require_league(&game)?;
 
-    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
+    let team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let mut standings = league.standings.clone();
     standings.sort_by(|a, b| {
-        b.points.cmp(&a.points)
+        b.points
+            .cmp(&a.points)
             .then_with(|| b.goals_for.cmp(&a.goals_for))
     });
 
@@ -249,13 +299,20 @@ pub fn game_is_finished(ctx: Arc<McpContext>) -> Result<String, String> {
 
     // Or if the season is complete and all fixtures are played
     if let Some(league) = &game.league {
-        let incomplete = league.fixtures.iter()
+        let incomplete = league
+            .fixtures
+            .iter()
             .filter(|f| f.status != domain::league::FixtureStatus::Completed)
             .count();
         if incomplete == 0 && !league.fixtures.is_empty() {
-            return Ok("## Game Status: Finished\n\n**Reason**: All fixtures completed.".to_string());
+            return Ok(
+                "## Game Status: Finished\n\n**Reason**: All fixtures completed.".to_string(),
+            );
         }
-        return Ok(format!("## Game Status: In Progress\n\n**Remaining fixtures**: {}", incomplete));
+        return Ok(format!(
+            "## Game Status: In Progress\n\n**Remaining fixtures**: {}",
+            incomplete
+        ));
     }
 
     Ok("## Game Status: In Progress\n\nNo league active yet.".to_string())
@@ -269,7 +326,11 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
     let league = require_league(&game)?;
 
-    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
+    let team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or("be.error.noTeamAssigned")?;
 
     let mut upcoming = Vec::new();
     let mut past = Vec::new();
@@ -277,19 +338,48 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
 
     for f in &league.fixtures {
         let involves_us = f.home_team_id == team_id || f.away_team_id == team_id;
-        if !involves_us { continue; }
+        if !involves_us {
+            continue;
+        }
 
-        let home_name = game.teams.iter().find(|t| t.id == f.home_team_id).map(|t| t.name.clone()).unwrap_or_default();
-        let away_name = game.teams.iter().find(|t| t.id == f.away_team_id).map(|t| t.name.clone()).unwrap_or_default();
+        let home_name = game
+            .teams
+            .iter()
+            .find(|t| t.id == f.home_team_id)
+            .map(|t| t.name.clone())
+            .unwrap_or_default();
+        let away_name = game
+            .teams
+            .iter()
+            .find(|t| t.id == f.away_team_id)
+            .map(|t| t.name.clone())
+            .unwrap_or_default();
 
         let entry = if f.status == domain::league::FixtureStatus::Completed {
             if let Some(ref result) = f.result {
-                format!("| {} | {} - {} | {} | MD{} |", f.date, result.home_goals, result.away_goals, format!("{} vs {}", home_name, away_name), f.matchday)
+                format!(
+                    "| {} | {} - {} | {} | MD{} |",
+                    f.date,
+                    result.home_goals,
+                    result.away_goals,
+                    format!("{} vs {}", home_name, away_name),
+                    f.matchday
+                )
             } else {
-                format!("| {} | - | {} | MD{} |", f.date, format!("{} vs {}", home_name, away_name), f.matchday)
+                format!(
+                    "| {} | - | {} | MD{} |",
+                    f.date,
+                    format!("{} vs {}", home_name, away_name),
+                    f.matchday
+                )
             }
         } else {
-            format!("| {} | - | {} | MD{} |", f.date, format!("{} vs {}", home_name, away_name), f.matchday)
+            format!(
+                "| {} | - | {} | MD{} |",
+                f.date,
+                format!("{} vs {}", home_name, away_name),
+                f.matchday
+            )
         };
 
         if f.date >= today && f.status != domain::league::FixtureStatus::Completed {
@@ -332,11 +422,15 @@ pub fn info_fixtures(ctx: Arc<McpContext>) -> Result<String, String> {
 
 pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player = game.players.iter()
+    let player = game
+        .players
+        .iter()
         .find(|p| p.id == player_id)
         .ok_or_else(|| format!("Player {} not found", player_id))?;
 
-    let team_name = player.team_id.as_deref()
+    let team_name = player
+        .team_id
+        .as_deref()
         .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
         .map(|t| t.name.clone())
         .unwrap_or_else(|| "Free Agent".to_string());
@@ -387,17 +481,42 @@ pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<St
         output.push_str("\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n");
         let attrs = &player.attributes;
         let attr_rows = [
-            [("Pace", attrs.pace), ("Shooting", attrs.shooting), ("Passing", attrs.passing)],
-            [("Dribbling", attrs.dribbling), ("Defending", attrs.defending), ("Tackling", attrs.tackling)],
-            [("Strength", attrs.strength), ("Stamina", attrs.stamina), ("Agility", attrs.agility)],
-            [("Vision", attrs.vision), ("Decisions", attrs.decisions), ("Composure", attrs.composure)],
-            [("Positioning", attrs.positioning), ("Aggression", attrs.aggression), ("Teamwork", attrs.teamwork)],
-            [("Leadership", attrs.leadership), ("Handling", attrs.handling), ("Reflexes", attrs.reflexes)],
+            [
+                ("Pace", attrs.pace),
+                ("Shooting", attrs.shooting),
+                ("Passing", attrs.passing),
+            ],
+            [
+                ("Dribbling", attrs.dribbling),
+                ("Defending", attrs.defending),
+                ("Tackling", attrs.tackling),
+            ],
+            [
+                ("Strength", attrs.strength),
+                ("Stamina", attrs.stamina),
+                ("Agility", attrs.agility),
+            ],
+            [
+                ("Vision", attrs.vision),
+                ("Decisions", attrs.decisions),
+                ("Composure", attrs.composure),
+            ],
+            [
+                ("Positioning", attrs.positioning),
+                ("Aggression", attrs.aggression),
+                ("Teamwork", attrs.teamwork),
+            ],
+            [
+                ("Leadership", attrs.leadership),
+                ("Handling", attrs.handling),
+                ("Reflexes", attrs.reflexes),
+            ],
             [("Aerial", attrs.aerial), ("", 0), ("", 0)],
         ];
         for row in &attr_rows {
             // Skip empty cells at the end
-            let cells: Vec<String> = row.iter()
+            let cells: Vec<String> = row
+                .iter()
                 .filter(|(name, _)| !name.is_empty())
                 .flat_map(|(name, val)| [name.to_string(), val.to_string()])
                 .collect();
@@ -410,8 +529,7 @@ pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<St
         output.push_str(&format!(
             "| OVR | {} |\n\
              | Form | {} |\n",
-            player.ovr,
-            player.condition,
+            player.ovr, player.condition,
         ));
         output.push_str("\n*Use `scout_send` for detailed attributes.*");
     }
@@ -424,11 +542,9 @@ pub fn info_player_profile(ctx: Arc<McpContext>, player_id: String) -> Result<St
 // ─── info_finances ──────────────────────────────────────────────────────────
 
 pub fn info_finances(ctx: Arc<McpContext>) -> Result<String, String> {
-    let response = crate::commands::finances::get_finance_snapshot_internal(
-        &ctx.state_manager,
-        None,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let response =
+        crate::commands::finances::get_finance_snapshot_internal(&ctx.state_manager, None)
+            .map_err(|e| translate_error(&e))?;
 
     let snap = &response.snapshot;
 
@@ -451,7 +567,9 @@ pub fn info_finances(ctx: Arc<McpContext>) -> Result<String, String> {
         snap.weekly_sponsor_income,
         snap.projected_weekly_net,
         snap.wage_budget_usage_percent,
-        snap.cash_runway_weeks.map(|w| format!("{} weeks", w)).unwrap_or_else(|| "N/A".to_string()),
+        snap.cash_runway_weeks
+            .map(|w| format!("{} weeks", w))
+            .unwrap_or_else(|| "N/A".to_string()),
         snap.currently_in_debt,
         snap.currently_over_budget,
         snap.overall_status,
@@ -472,7 +590,12 @@ pub fn info_season_context(ctx: Arc<McpContext>) -> Result<String, String> {
          | Transfer Window | {} |\n\
          | Season | {} |",
         game.season_context.phase,
-        if game.season_context.transfer_window.status == domain::season::TransferWindowStatus::Open { "Open" } else { "Closed" },
+        if game.season_context.transfer_window.status == domain::season::TransferWindowStatus::Open
+        {
+            "Open"
+        } else {
+            "Closed"
+        },
         game.league.as_ref().map(|l| l.season).unwrap_or(0),
     ))
 }
@@ -489,7 +612,8 @@ pub fn info_news(ctx: Arc<McpContext>) -> Result<String, String> {
         return Ok("## News\n\nNo recent news.".to_string());
     }
 
-    let mut output = format!("## Recent News\n\n| # | Headline | Date |\n|---|----------|------|\n");
+    let mut output =
+        format!("## Recent News\n\n| # | Headline | Date |\n|---|----------|------|\n");
     for (i, n) in news.iter().enumerate() {
         output.push_str(&format!("| {} | {} | {} |\n", i + 1, n.headline, n.date));
     }
@@ -504,9 +628,15 @@ pub fn info_news(ctx: Arc<McpContext>) -> Result<String, String> {
 pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
     let league = require_league(&game)?;
-    let team_id = game.manager.team_id.as_deref().ok_or("be.error.noTeamAssigned")?;
+    let team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or("be.error.noTeamAssigned")?;
 
-    let next_fixture = league.fixtures.iter()
+    let next_fixture = league
+        .fixtures
+        .iter()
         .filter(|f| f.status != domain::league::FixtureStatus::Completed)
         .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
         .min_by_key(|f| &f.date);
@@ -516,12 +646,23 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
     };
 
     let is_home = fixture.home_team_id == team_id;
-    let opponent_id = if is_home { &fixture.away_team_id } else { &fixture.home_team_id };
-    let opponent_name = game.teams.iter().find(|t| t.id == *opponent_id).map(|t| t.name.clone()).unwrap_or_default();
+    let opponent_id = if is_home {
+        &fixture.away_team_id
+    } else {
+        &fixture.home_team_id
+    };
+    let opponent_name = game
+        .teams
+        .iter()
+        .find(|t| t.id == *opponent_id)
+        .map(|t| t.name.clone())
+        .unwrap_or_default();
     let venue = if is_home { "Home" } else { "Away" };
 
     // Opponent form (last 5 results)
-    let opponent_results: Vec<_> = league.fixtures.iter()
+    let opponent_results: Vec<_> = league
+        .fixtures
+        .iter()
         .filter(|f| f.status == domain::league::FixtureStatus::Completed)
         .filter(|f| f.home_team_id == *opponent_id || f.away_team_id == *opponent_id)
         .collect();
@@ -530,9 +671,23 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
     for f in opponent_results.iter().rev().take(5) {
         if let Some(ref result) = f.result {
             let is_opp_home = f.home_team_id == *opponent_id;
-            let opp_goals = if is_opp_home { result.home_goals } else { result.away_goals };
-            let other_goals = if is_opp_home { result.away_goals } else { result.home_goals };
-            let marker = if opp_goals > other_goals { "W" } else if opp_goals < other_goals { "L" } else { "D" };
+            let opp_goals = if is_opp_home {
+                result.home_goals
+            } else {
+                result.away_goals
+            };
+            let other_goals = if is_opp_home {
+                result.away_goals
+            } else {
+                result.home_goals
+            };
+            let marker = if opp_goals > other_goals {
+                "W"
+            } else if opp_goals < other_goals {
+                "L"
+            } else {
+                "D"
+            };
             form.push_str(&format!("{} ", marker));
         }
     }
@@ -540,10 +695,12 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
     // Opponent position (sorted standings)
     let mut sorted_standings = league.standings.clone();
     sorted_standings.sort_by(|a, b| {
-        b.points.cmp(&a.points)
+        b.points
+            .cmp(&a.points)
             .then_with(|| b.goals_for.cmp(&a.goals_for))
     });
-    let opp_pos = sorted_standings.iter()
+    let opp_pos = sorted_standings
+        .iter()
         .position(|st| st.team_id == *opponent_id)
         .map(|p| p + 1)
         .unwrap_or(0);
@@ -557,7 +714,12 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
          | Matchday | {} |\n\
          | Opponent Position | {} |\n\
          | Opponent Form | {} |",
-        opponent_name, venue, fixture.date, fixture.matchday, opp_pos, form.trim(),
+        opponent_name,
+        venue,
+        fixture.date,
+        fixture.matchday,
+        opp_pos,
+        form.trim(),
     ))
 }
 
@@ -566,26 +728,34 @@ pub fn info_match_preview(ctx: Arc<McpContext>) -> Result<String, String> {
 // ─── info_player_stats ──────────────────────────────────────────────────────
 
 pub fn info_player_stats(ctx: Arc<McpContext>, player_id: String) -> Result<String, String> {
-    let response = crate::commands::stats::get_player_stats_overview_internal(
-        &ctx.state_manager,
-        &player_id,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let response =
+        crate::commands::stats::get_player_stats_overview_internal(&ctx.state_manager, &player_id)
+            .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game.players.iter()
+    let player_name = game
+        .players
+        .iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or(player_id);
 
-    Ok(format!("## Player Stats: {}\n\n{}", player_name, serde_json::to_string_pretty(&response).unwrap_or_else(|_| "Stats available".to_string())))
+    Ok(format!(
+        "## Player Stats: {}\n\n{}",
+        player_name,
+        serde_json::to_string_pretty(&response).unwrap_or_else(|_| "Stats available".to_string())
+    ))
 }
 
 // ─── info_player_match_history ──────────────────────────────────────────────
 
 // ─── info_player_match_history ──────────────────────────────────────────────
 
-pub fn info_player_match_history(ctx: Arc<McpContext>, player_id: String, limit: Option<usize>) -> Result<String, String> {
+pub fn info_player_match_history(
+    ctx: Arc<McpContext>,
+    player_id: String,
+    limit: Option<usize>,
+) -> Result<String, String> {
     let response = crate::commands::stats::get_player_match_history_internal(
         &ctx.state_manager,
         &player_id,
@@ -594,13 +764,18 @@ pub fn info_player_match_history(ctx: Arc<McpContext>, player_id: String, limit:
     .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game.players.iter()
+    let player_name = game
+        .players
+        .iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
         .unwrap_or(player_id);
 
     if response.is_empty() {
-        return Ok(format!("## Match History: {}\n\nNo match data available.", player_name));
+        return Ok(format!(
+            "## Match History: {}\n\nNo match data available.",
+            player_name
+        ));
     }
 
     let mut output = format!("## Match History: {} ({} matches)\n\n| # | Date | Opponent | Mins | Goals | Assists |\n|---|------|----------|--------|-------|--------|\n", player_name, response.len());
@@ -625,12 +800,16 @@ pub fn info_player_match_history(ctx: Arc<McpContext>, player_id: String, limit:
 
 pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-    let team = game.teams.iter()
+    let team = game
+        .teams
+        .iter()
         .find(|t| t.id == team_id)
         .ok_or_else(|| format!("Team {} not found", team_id))?;
 
     let is_own = game.manager.team_id.as_deref() == Some(team_id.as_str());
-    let squad_size = game.players.iter()
+    let squad_size = game
+        .players
+        .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id.as_str()))
         .count();
 
@@ -642,14 +821,23 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
          | Play Style | {:?} |\n\
          | Squad Size | {} |\n\
          | Training | {:?} / {:?} |\n",
-        team.name, team.id, team.formation, team.play_style, squad_size,
-        team.training_focus, team.training_intensity,
+        team.name,
+        team.id,
+        team.formation,
+        team.play_style,
+        squad_size,
+        team.training_focus,
+        team.training_intensity,
     );
 
     // Standings position
     if let Some(league) = &game.league {
         let mut standings = league.standings.clone();
-        standings.sort_by(|a, b| b.points.cmp(&a.points).then_with(|| b.goals_for.cmp(&a.goals_for)));
+        standings.sort_by(|a, b| {
+            b.points
+                .cmp(&a.points)
+                .then_with(|| b.goals_for.cmp(&a.goals_for))
+        });
         if let Some(pos) = standings.iter().position(|st| st.team_id == team_id) {
             let s = &standings[pos];
             let gd = i64::from(s.goals_for) - i64::from(s.goals_against);
@@ -657,14 +845,21 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
                 "| League Position | {} |\n\
                  | Points | {} ({}/{}/{}) |\n\
                  | Goal Difference | {:+} |\n",
-                pos + 1, s.points, s.won, s.drawn, s.lost, gd,
+                pos + 1,
+                s.points,
+                s.won,
+                s.drawn,
+                s.lost,
+                gd,
             ));
         }
     }
 
     // Recent form (last 5 results)
     if let Some(league) = &game.league {
-        let recent: Vec<_> = league.fixtures.iter()
+        let recent: Vec<_> = league
+            .fixtures
+            .iter()
             .filter(|f| f.status == domain::league::FixtureStatus::Completed)
             .filter(|f| f.home_team_id == team_id || f.away_team_id == team_id)
             .collect();
@@ -673,9 +868,23 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
         for f in recent.iter().rev().take(5) {
             if let Some(ref result) = f.result {
                 let is_home = f.home_team_id == team_id;
-                let our_goals = if is_home { result.home_goals } else { result.away_goals };
-                let their_goals = if is_home { result.away_goals } else { result.home_goals };
-                let marker = if our_goals > their_goals { "W" } else if our_goals < their_goals { "L" } else { "D" };
+                let our_goals = if is_home {
+                    result.home_goals
+                } else {
+                    result.away_goals
+                };
+                let their_goals = if is_home {
+                    result.away_goals
+                } else {
+                    result.home_goals
+                };
+                let marker = if our_goals > their_goals {
+                    "W"
+                } else if our_goals < their_goals {
+                    "L"
+                } else {
+                    "D"
+                };
                 form.push_str(&format!("{} ", marker));
             }
         }
@@ -686,7 +895,10 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
 
     // Financial info for own team
     if is_own {
-        if let Ok(finance_response) = crate::commands::finances::get_finance_snapshot_internal(&ctx.state_manager, Some(team_id.as_str())) {
+        if let Ok(finance_response) = crate::commands::finances::get_finance_snapshot_internal(
+            &ctx.state_manager,
+            Some(team_id.as_str()),
+        ) {
             let snap = &finance_response.snapshot;
             output.push_str(&format!(
                 "\n### Finances\n\n\
@@ -713,21 +925,28 @@ pub fn info_team_profile(ctx: Arc<McpContext>, team_id: String) -> Result<String
 // ─── info_team_stats ────────────────────────────────────────────────────────
 
 pub fn info_team_stats(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
-    let response = crate::commands::stats::get_team_stats_overview_internal(
-        &ctx.state_manager,
-        &team_id,
-    )
-    .map_err(|e| translate_error(&e))?;
+    let response =
+        crate::commands::stats::get_team_stats_overview_internal(&ctx.state_manager, &team_id)
+            .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let team_name = game.teams.iter()
+    let team_name = game
+        .teams
+        .iter()
         .find(|t| t.id == team_id)
         .map(|t| t.name.clone())
         .unwrap_or(team_id);
 
     match response {
-        Some(stats) => Ok(format!("## Team Stats: {}\n\n{}", team_name, serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "Stats available".to_string()))),
-        None => Ok(format!("## Team Stats: {}\n\nNo stats available yet.", team_name)),
+        Some(stats) => Ok(format!(
+            "## Team Stats: {}\n\n{}",
+            team_name,
+            serde_json::to_string_pretty(&stats).unwrap_or_else(|_| "Stats available".to_string())
+        )),
+        None => Ok(format!(
+            "## Team Stats: {}\n\nNo stats available yet.",
+            team_name
+        )),
     }
 }
 
@@ -735,7 +954,11 @@ pub fn info_team_stats(ctx: Arc<McpContext>, team_id: String) -> Result<String, 
 
 // ─── info_team_match_history ────────────────────────────────────────────────
 
-pub fn info_team_match_history(ctx: Arc<McpContext>, team_id: String, limit: Option<usize>) -> Result<String, String> {
+pub fn info_team_match_history(
+    ctx: Arc<McpContext>,
+    team_id: String,
+    limit: Option<usize>,
+) -> Result<String, String> {
     let response = crate::commands::stats::get_team_match_history_internal(
         &ctx.state_manager,
         &team_id,
@@ -744,13 +967,18 @@ pub fn info_team_match_history(ctx: Arc<McpContext>, team_id: String, limit: Opt
     .map_err(|e| translate_error(&e))?;
 
     let game = require_game(&ctx.state_manager)?;
-    let team_name = game.teams.iter()
+    let team_name = game
+        .teams
+        .iter()
         .find(|t| t.id == team_id)
         .map(|t| t.name.clone())
         .unwrap_or(team_id);
 
     if response.is_empty() {
-        return Ok(format!("## Match History: {}\n\nNo match data available.", team_name));
+        return Ok(format!(
+            "## Match History: {}\n\nNo match data available.",
+            team_name
+        ));
     }
 
     let mut output = format!("## Match History: {} ({} matches)\n\n| # | Date | Opponent | Score |\n|---|------|----------|-------|\n", team_name, response.len());
@@ -771,7 +999,10 @@ pub fn info_team_match_history(ctx: Arc<McpContext>, team_id: String, limit: Opt
 
 // ─── info_finance_snapshot ──────────────────────────────────────────────────
 
-pub fn info_finance_snapshot(ctx: Arc<McpContext>, team_id: Option<String>) -> Result<String, String> {
+pub fn info_finance_snapshot(
+    ctx: Arc<McpContext>,
+    team_id: Option<String>,
+) -> Result<String, String> {
     let response = crate::commands::finances::get_finance_snapshot_internal(
         &ctx.state_manager,
         team_id.as_deref(),
@@ -802,7 +1033,9 @@ pub fn info_finance_snapshot(ctx: Arc<McpContext>, team_id: Option<String>) -> R
         snap.weekly_recurring_income,
         snap.weekly_sponsor_income,
         snap.projected_weekly_net,
-        snap.cash_runway_weeks.map(|w| format!("{} weeks", w)).unwrap_or_else(|| "N/A".to_string()),
+        snap.cash_runway_weeks
+            .map(|w| format!("{} weeks", w))
+            .unwrap_or_else(|| "N/A".to_string()),
         snap.wage_budget_usage_percent,
         snap.currently_in_debt,
         snap.currently_over_budget,

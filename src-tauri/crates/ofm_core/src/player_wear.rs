@@ -185,6 +185,9 @@ mod tests {
                 break;
             }
         }
-        assert!(injured, "a low-fitness player should be injured within 500 rolls");
+        assert!(
+            injured,
+            "a low-fitness player should be injured within 500 rolls"
+        );
     }
 }

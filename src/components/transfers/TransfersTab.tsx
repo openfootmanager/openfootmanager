@@ -34,6 +34,7 @@ import {
   translatePositionAbbreviation,
 } from "../squad/SquadTab.helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
+import { formatDate } from "../../lib/dateFormatting";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
@@ -106,6 +107,37 @@ type LoanCounterTarget = {
   offer: LoanOfferData;
 };
 
+function parseDateOnlyMs(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return Date.UTC(
+    parsed.getUTCFullYear(),
+    parsed.getUTCMonth(),
+    parsed.getUTCDate(),
+  );
+}
+
+function futureClosedWindowRegistrationDate(
+  currentDateValue: string,
+  opensOnValue: string | null | undefined,
+): string | null {
+  const currentDate = parseDateOnlyMs(currentDateValue);
+  const opensOn = parseDateOnlyMs(opensOnValue);
+
+  if (currentDate === null || opensOn === null || opensOn <= currentDate) {
+    return null;
+  }
+
+  return opensOnValue ?? null;
+}
+
 export default function TransfersTab({
   gameState,
   onSelectPlayer,
@@ -115,6 +147,19 @@ export default function TransfersTab({
   const { t, i18n } = useTranslation();
   const annualSuffix = t("finances.perYearSuffix", "/yr");
   const userTeamId = gameState.manager.team_id;
+  const seasonContext = resolveSeasonContext(gameState);
+  const transferWindow = seasonContext.transfer_window;
+  const closedWindowLoanRegistrationDate =
+    transferWindow.status === "Closed"
+      ? futureClosedWindowRegistrationDate(
+        gameState.clock.current_date,
+        transferWindow.opens_on,
+      )
+      : null;
+  const loanRegistrationDate =
+    transferWindow.status === "Closed" && closedWindowLoanRegistrationDate
+      ? closedWindowLoanRegistrationDate
+      : gameState.clock.current_date;
   const [view, setView] = useState<TransferTabView>("my_list");
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
@@ -133,7 +178,7 @@ export default function TransfersTab({
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
   const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
-    getDefaultLoanPeriodId(gameState.clock.current_date, null),
+    getDefaultLoanPeriodId(loanRegistrationDate, null),
   );
   const [loanWageContributionPct, setLoanWageContributionPct] = useState(100);
   const [loanBuyOptionEnabled, setLoanBuyOptionEnabled] = useState(false);
@@ -147,7 +192,7 @@ export default function TransfersTab({
     useState<LoanCounterTarget | null>(null);
   const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
     LoanPeriodOptionId | ""
-  >(getDefaultLoanPeriodId(gameState.clock.current_date, null));
+  >(getDefaultLoanPeriodId(loanRegistrationDate, null));
   const [loanCounterWageContributionPct, setLoanCounterWageContributionPct] =
     useState(100);
   const [loanCounterBuyOptionEnabled, setLoanCounterBuyOptionEnabled] =
@@ -167,7 +212,7 @@ export default function TransfersTab({
   const openLoanOffer = (player: PlayerData) => {
     setLoanTarget(player);
     setLoanPeriodId(
-      getDefaultLoanPeriodId(gameState.clock.current_date, player.contract_end),
+      getDefaultLoanPeriodId(loanRegistrationDate, player.contract_end),
     );
     setLoanWageContributionPct(100);
     setLoanBuyOptionEnabled(false);
@@ -178,7 +223,7 @@ export default function TransfersTab({
 
   const closeLoanOffer = () => {
     setLoanTarget(null);
-    setLoanPeriodId(getDefaultLoanPeriodId(gameState.clock.current_date, null));
+    setLoanPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, null));
     setLoanWageContributionPct(100);
     setLoanBuyOptionEnabled(false);
     setLoanBuyOptionFee("");
@@ -190,7 +235,7 @@ export default function TransfersTab({
     setLoanCounterTarget({ player, offer });
     setLoanCounterPeriodId(
       getLoanPeriodIdForEndDate(
-        gameState.clock.current_date,
+        loanRegistrationDate,
         player.contract_end,
         offer.suggested_end_date ?? offer.end_date,
       ),
@@ -219,7 +264,7 @@ export default function TransfersTab({
   const closeLoanCounterOffer = () => {
     setLoanCounterTarget(null);
     setLoanCounterPeriodId(
-      getDefaultLoanPeriodId(gameState.clock.current_date, null),
+      getDefaultLoanPeriodId(loanRegistrationDate, null),
     );
     setLoanCounterWageContributionPct(100);
     setLoanCounterBuyOptionEnabled(false);
@@ -341,7 +386,7 @@ export default function TransfersTab({
         if (response.suggested_end_date) {
           setLoanCounterPeriodId(
             getLoanPeriodIdForEndDate(
-              gameState.clock.current_date,
+              loanRegistrationDate,
               loanCounterTarget.player.contract_end,
               response.suggested_end_date,
             ),
@@ -454,8 +499,6 @@ export default function TransfersTab({
       (offer) => offer.id === counterTarget.offerId,
     ) ?? null
     : null;
-  const seasonContext = resolveSeasonContext(gameState);
-  const transferWindow = seasonContext.transfer_window;
   const transferWindowVariant =
     transferWindow.status === "DeadlineDay"
       ? "danger"
@@ -476,6 +519,26 @@ export default function TransfersTab({
             count: transferWindow.days_until_opens,
           })
           : t("season.windowClosed");
+  const isTransferWindowClosed = transferWindow.status === "Closed";
+  const transferWindowBlockingTitle = isTransferWindowClosed
+    ? t("season.windowClosed")
+    : null;
+  const transferWindowBlockingDetail =
+    isTransferWindowClosed &&
+      transferWindowSummary !== transferWindowBlockingTitle
+      ? transferWindowSummary
+      : null;
+  const loanWindowNoticeTitle = isTransferWindowClosed
+    ? t("transfers.loanWindowClosedNoticeTitle")
+    : null;
+  const loanWindowNoticeDetail =
+    isTransferWindowClosed && closedWindowLoanRegistrationDate
+      ? t("transfers.loanWindowClosedNoticeDetail", {
+        date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+      })
+      : isTransferWindowClosed
+        ? t("transfers.loanWindowClosedUnavailableDetail")
+      : null;
 
   const transferCollections = deriveTransferCollections(gameState, userTeamId);
   const {
@@ -496,7 +559,7 @@ export default function TransfersTab({
     ? parseTransferFeeInput(loanCounterBuyOptionFee)
     : null;
   const loanPeriodOptions = loanTarget
-    ? buildLoanPeriodOptions(gameState.clock.current_date, loanTarget.contract_end)
+    ? buildLoanPeriodOptions(loanRegistrationDate, loanTarget.contract_end)
     : [];
   const selectedLoanPeriodOption =
     loanPeriodOptions.find(
@@ -506,6 +569,7 @@ export default function TransfersTab({
     loanLoading ||
     !selectedLoanPeriodOption ||
     loanResult === "accepted" ||
+    (isTransferWindowClosed && !closedWindowLoanRegistrationDate) ||
     (loanBuyOptionEnabled &&
       (parsedLoanBuyOptionFee === null || parsedLoanBuyOptionFee <= 0));
   const loanCounterReferenceEndDate =
@@ -515,7 +579,7 @@ export default function TransfersTab({
     null;
   const loanCounterPeriodOptions = loanCounterTarget
     ? buildLoanPeriodOptions(
-      gameState.clock.current_date,
+      loanRegistrationDate,
       loanCounterTarget.player.contract_end,
       loanCounterReferenceEndDate,
     )
@@ -528,6 +592,7 @@ export default function TransfersTab({
     loanCounterLoading ||
     !selectedLoanCounterPeriodOption ||
     loanCounterResult === "accepted" ||
+    (isTransferWindowClosed && !closedWindowLoanRegistrationDate) ||
     (loanCounterBuyOptionEnabled &&
       (parsedLoanCounterBuyOptionFee === null ||
         parsedLoanCounterBuyOptionFee <= 0));
@@ -1245,7 +1310,9 @@ export default function TransfersTab({
           hasExistingOffer={hasExistingOffer}
           bidResult={bidResult}
           bidLoading={bidLoading}
-          bidSubmitDisabled={bidSubmitDisabled}
+          bidSubmitDisabled={isTransferWindowClosed || bidSubmitDisabled}
+          blockingTitle={transferWindowBlockingTitle}
+          blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleMakeBid}
           onClose={closeBidNegotiation}
         />
@@ -1261,6 +1328,9 @@ export default function TransfersTab({
           counterResult={counterResult}
           counterError={counterError}
           counterLoading={counterLoading}
+          submitDisabled={isTransferWindowClosed}
+          blockingTitle={transferWindowBlockingTitle}
+          blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleCounterOffer}
           onClose={() => {
             setCounterTarget(null);
@@ -1307,6 +1377,15 @@ export default function TransfersTab({
           error={loanError}
           loading={loanLoading}
           submitDisabled={loanSubmitDisabled}
+          noticeTitle={loanWindowNoticeTitle}
+          noticeDetail={loanWindowNoticeDetail}
+          acceptedMessage={
+            isTransferWindowClosed && closedWindowLoanRegistrationDate
+              ? t("transfers.loanOfferScheduled", {
+                date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+              })
+              : null
+          }
           onSubmit={handleMakeLoanOffer}
           onClose={closeLoanOffer}
         />
@@ -1335,6 +1414,15 @@ export default function TransfersTab({
           error={loanCounterError}
           loading={loanCounterLoading}
           submitDisabled={loanCounterSubmitDisabled}
+          noticeTitle={loanWindowNoticeTitle}
+          noticeDetail={loanWindowNoticeDetail}
+          acceptedMessage={
+            isTransferWindowClosed && closedWindowLoanRegistrationDate
+              ? t("transfers.loanCounterScheduled", {
+                date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+              })
+              : null
+          }
           onSubmit={handleCounterLoanOffer}
           onClose={closeLoanCounterOffer}
         />

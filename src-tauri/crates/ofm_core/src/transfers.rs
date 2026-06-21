@@ -44,6 +44,87 @@ const ERR_INVALID_LOAN_BUY_OPTION: &str = "be.error.transfers.invalidLoanBuyOpti
 const ERR_NO_LOAN_BUY_OPTION: &str = "be.error.transfers.noLoanBuyOption";
 const ERR_LOAN_BUY_OPTION_NOT_AVAILABLE: &str = "be.error.transfers.loanBuyOptionNotAvailable";
 const LOAN_DEVELOPMENT_REPORT_INTERVAL_DAYS: i64 = 30;
+const OPENING_LOAN_LISTINGS_PER_AI_TEAM: usize = 2;
+const MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS: i64 = 90;
+
+/// Populate a small, deterministic opening loan market for AI clubs.
+///
+/// This is intended for one-time career setup/save migration, not daily market
+/// maintenance. Existing listings are preserved and count toward each club's
+/// target.
+pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
+    let user_team_id = game.manager.team_id.as_deref();
+    let current_date = game.clock.current_date.date_naive();
+    let ai_teams: Vec<(String, HashSet<String>)> = game
+        .teams
+        .iter()
+        .filter(|team| Some(team.id.as_str()) != user_team_id)
+        .map(|team| {
+            (
+                team.id.clone(),
+                team.starting_xi_ids.iter().cloned().collect(),
+            )
+        })
+        .collect();
+    let mut seeded = 0;
+
+    for (team_id, starting_xi_ids) in ai_teams {
+        let existing_listings = game
+            .players
+            .iter()
+            .filter(|player| {
+                player.team_id.as_deref() == Some(team_id.as_str())
+                    && player.loan_listed
+                    && player.active_loan.is_none()
+            })
+            .count();
+        let listings_needed = OPENING_LOAN_LISTINGS_PER_AI_TEAM.saturating_sub(existing_listings);
+
+        if listings_needed == 0 {
+            continue;
+        }
+
+        let mut candidates: Vec<usize> = game
+            .players
+            .iter()
+            .enumerate()
+            .filter(|(_, player)| {
+                player.team_id.as_deref() == Some(team_id.as_str())
+                    && !player.retired
+                    && !player.transfer_listed
+                    && !player.loan_listed
+                    && player.active_loan.is_none()
+                    && !starting_xi_ids.contains(&player.id)
+                    && player.contract_end.as_deref().is_some_and(|contract_end| {
+                        NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").is_ok_and(|date| {
+                            date >= current_date
+                                + Duration::days(MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS)
+                        })
+                    })
+            })
+            .map(|(index, _)| index)
+            .collect();
+
+        candidates.sort_by(|left, right| {
+            let left = &game.players[*left];
+            let right = &game.players[*right];
+
+            right
+                .date_of_birth
+                .cmp(&left.date_of_birth)
+                .then_with(|| right.potential.cmp(&left.potential))
+                .then_with(|| left.ovr.cmp(&right.ovr))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+
+        for player_index in candidates.into_iter().take(listings_needed) {
+            game.players[player_index].loan_listed = true;
+            seeded += 1;
+        }
+    }
+
+    seeded
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -519,6 +600,7 @@ fn transfer_negotiation_metrics(round: u8, stalled: bool, respected_signal: bool
     (tension.clamp(20, 90) as u8, patience.clamp(18, 86) as u8)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upsert_transfer_offer(
     player: &mut domain::player::Player,
     from_team_id: &str,
@@ -556,6 +638,7 @@ fn upsert_transfer_offer(
     offer_id
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upsert_loan_offer(
     player: &mut domain::player::Player,
     from_team_id: &str,
@@ -614,6 +697,28 @@ fn transfer_window_is_open(game: &Game) -> bool {
         game.season_context.transfer_window.status,
         TransferWindowStatus::Open | TransferWindowStatus::DeadlineDay
     )
+}
+
+fn loan_registration_date(game: &Game) -> Result<NaiveDate, String> {
+    let current_date = game.clock.current_date.date_naive();
+    if transfer_window_is_open(game) {
+        return Ok(current_date);
+    }
+
+    let opens_on = game
+        .season_context
+        .transfer_window
+        .opens_on
+        .as_deref()
+        .ok_or(ERR_TRANSFER_WINDOW_CLOSED)?;
+    let registration_date = NaiveDate::parse_from_str(opens_on, "%Y-%m-%d")
+        .map_err(|_| ERR_TRANSFER_WINDOW_CLOSED.to_string())?;
+
+    if registration_date <= current_date {
+        return Err(ERR_TRANSFER_WINDOW_CLOSED.to_string());
+    }
+
+    Ok(registration_date)
 }
 
 pub fn evaluate_transfer_market(game: &mut Game) {
@@ -1171,10 +1276,6 @@ pub fn make_loan_offer(
 ) -> Result<LoanOfferOutcome, String> {
     expire_stale_loan_offers(game);
 
-    if !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
-
     if wage_contribution_pct > 100 {
         return Err(ERR_INVALID_LOAN_WAGE_CONTRIBUTION.into());
     }
@@ -1184,8 +1285,11 @@ pub fn make_loan_offer(
     }
 
     let current_date = game.clock.current_date.date_naive();
-    let end_date = parse_valid_loan_end_date(current_date, end_date)?;
+    let registration_date = loan_registration_date(game)?;
+    let register_immediately = registration_date == current_date;
+    let end_date = parse_valid_loan_end_date(registration_date, end_date)?;
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let start_date_string = registration_date.format("%Y-%m-%d").to_string();
     let end_date_string = end_date.format("%Y-%m-%d").to_string();
 
     let user_team_id = game
@@ -1229,7 +1333,11 @@ pub fn make_loan_offer(
     };
     let accepted = wage_contribution_pct >= adjusted_minimum_contribution && buy_option_accepted;
     let status = if accepted {
-        LoanOfferStatus::Accepted
+        if register_immediately {
+            LoanOfferStatus::Accepted
+        } else {
+            LoanOfferStatus::PendingRegistration
+        }
     } else {
         LoanOfferStatus::Rejected
     };
@@ -1244,7 +1352,7 @@ pub fn make_loan_offer(
             player,
             &user_team_id,
             &owner_team_id,
-            &today,
+            &start_date_string,
             &end_date_string,
             wage_contribution_pct,
             buy_option_fee,
@@ -1254,16 +1362,20 @@ pub fn make_loan_offer(
     };
 
     if accepted {
-        execute_loan(
-            game,
-            player_id,
-            &owner_team_id,
-            &user_team_id,
-            &today,
-            &end_date_string,
-            wage_contribution_pct,
-            buy_option_fee,
-        )?;
+        if register_immediately {
+            execute_loan(
+                game,
+                player_id,
+                &owner_team_id,
+                &user_team_id,
+                &start_date_string,
+                &end_date_string,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+        } else {
+            reserve_player_for_pending_loan(game, player_id, &offer_id)?;
+        }
     }
 
     Ok(LoanOfferOutcome {
@@ -1569,10 +1681,6 @@ pub fn respond_to_loan_offer(
 ) -> Result<(), String> {
     expire_stale_loan_offers(game);
 
-    if accept && !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
-
     let user_team_id = game
         .manager
         .team_id
@@ -1600,9 +1708,16 @@ pub fn respond_to_loan_offer(
     let buy_option_fee = offer.buy_option_fee;
     let offer_end_date = offer.end_date.clone();
     let current_date = game.clock.current_date.date_naive();
+    let registration_date = if accept {
+        loan_registration_date(game)?
+    } else {
+        current_date
+    };
+    let register_immediately = registration_date == current_date;
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let start_date = registration_date.format("%Y-%m-%d").to_string();
     let end_date = if accept {
-        let parsed_end_date = parse_valid_loan_end_date(current_date, &offer_end_date)?;
+        let parsed_end_date = parse_valid_loan_end_date(registration_date, &offer_end_date)?;
         validate_loan_end_before_contract(player, parsed_end_date)?;
         parsed_end_date.format("%Y-%m-%d").to_string()
     } else {
@@ -1619,25 +1734,33 @@ pub fn respond_to_loan_offer(
             .find(|offer| offer.id == offer_id)
     {
         offer.status = if accept {
-            LoanOfferStatus::Accepted
+            if register_immediately {
+                LoanOfferStatus::Accepted
+            } else {
+                LoanOfferStatus::PendingRegistration
+            }
         } else {
             LoanOfferStatus::Rejected
         };
-        offer.start_date = today.clone();
+        offer.start_date = start_date.clone();
         offer.date = today.clone();
     }
 
     if accept {
-        execute_loan(
-            game,
-            player_id,
-            &user_team_id,
-            &from_team_id,
-            &today,
-            &end_date,
-            wage_contribution_pct,
-            buy_option_fee,
-        )?;
+        if register_immediately {
+            execute_loan(
+                game,
+                player_id,
+                &user_team_id,
+                &from_team_id,
+                &start_date,
+                &end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+        } else {
+            reserve_player_for_pending_loan(game, player_id, offer_id)?;
+        }
     }
 
     Ok(())
@@ -1654,10 +1777,6 @@ pub fn counter_loan_offer(
 ) -> Result<LoanOfferOutcome, String> {
     expire_stale_loan_offers(game);
 
-    if !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
-
     if wage_contribution_pct > 100 {
         return Err(ERR_INVALID_LOAN_WAGE_CONTRIBUTION.into());
     }
@@ -1667,9 +1786,12 @@ pub fn counter_loan_offer(
     }
 
     let current_date = game.clock.current_date.date_naive();
-    let parsed_end_date = parse_valid_loan_end_date(current_date, end_date)?;
+    let registration_date = loan_registration_date(game)?;
+    let register_immediately = registration_date == current_date;
+    let parsed_end_date = parse_valid_loan_end_date(registration_date, end_date)?;
     let requested_end_date = parsed_end_date.format("%Y-%m-%d").to_string();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let start_date = registration_date.format("%Y-%m-%d").to_string();
     let user_team_id = game
         .manager
         .team_id
@@ -1748,7 +1870,7 @@ pub fn counter_loan_offer(
                 .iter_mut()
                 .find(|offer| offer.id == offer_id)
         {
-            offer.start_date = today.clone();
+            offer.start_date = start_date.clone();
             offer.end_date = requested_end_date.clone();
             offer.wage_contribution_pct = wage_contribution_pct;
             offer.buy_option_fee = buy_option_fee;
@@ -1759,20 +1881,28 @@ pub fn counter_loan_offer(
             offer.suggested_wage_contribution_pct = None;
             offer.suggested_end_date = None;
             offer.suggested_buy_option_fee = None;
-            offer.status = LoanOfferStatus::Accepted;
+            offer.status = if register_immediately {
+                LoanOfferStatus::Accepted
+            } else {
+                LoanOfferStatus::PendingRegistration
+            };
             offer.date = today.clone();
         }
 
-        execute_loan(
-            game,
-            player_id,
-            &user_team_id,
-            &borrower_team_id,
-            &today,
-            &requested_end_date,
-            wage_contribution_pct,
-            buy_option_fee,
-        )?;
+        if register_immediately {
+            execute_loan(
+                game,
+                player_id,
+                &user_team_id,
+                &borrower_team_id,
+                &start_date,
+                &requested_end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+        } else {
+            reserve_player_for_pending_loan(game, player_id, offer_id)?;
+        }
 
         return Ok(loan_offer_outcome(
             LoanOfferDecision::Accepted,
@@ -2021,7 +2151,7 @@ fn round_transfer_fee(value: u64) -> u64 {
         return 0;
     }
 
-    ((value + 49_999) / 50_000) * 50_000
+    value.div_ceil(50_000) * 50_000
 }
 
 fn build_transfer_feedback(
@@ -2047,6 +2177,7 @@ fn build_transfer_feedback(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_loan(
     game: &mut Game,
     player_id: &str,
@@ -2061,14 +2192,13 @@ fn execute_loan(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    let active_loan = game
+    let player_snapshot = game
         .players
         .iter()
         .find(|player| player.id == player_id)
-        .ok_or("be.error.playerNotFound")?
-        .active_loan
-        .is_some();
-    if active_loan {
+        .cloned()
+        .ok_or("be.error.playerNotFound")?;
+    if player_snapshot.active_loan.is_some() {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -2104,20 +2234,162 @@ fn execute_loan(
         date: start_date.to_string(),
         kind: PlayerMovementKind::LoanStart,
         from_team_id: Some(parent_team_id.to_string()),
-        from_team_name: Some(parent_team_name),
+        from_team_name: Some(parent_team_name.clone()),
         to_team_id: Some(loan_team_id.to_string()),
-        to_team_name: Some(loan_team_name),
+        to_team_name: Some(loan_team_name.clone()),
         fee: None,
         loan_end_date: Some(end_date.to_string()),
     });
 
     for offer in &mut player.loan_offers {
-        if offer.status == LoanOfferStatus::Pending {
+        if matches!(
+            offer.status,
+            LoanOfferStatus::Pending | LoanOfferStatus::PendingRegistration
+        ) {
+            offer.status = LoanOfferStatus::Withdrawn;
+        }
+    }
+
+    let article_id = format!(
+        "loan_news_{}_{}_{}_{}",
+        player_id, parent_team_id, loan_team_id, start_date
+    );
+    if !game.news.iter().any(|article| article.id == article_id) {
+        game.news.push(crate::news::loan_move_article(
+            &article_id,
+            player_id,
+            &player_snapshot.full_name,
+            parent_team_id,
+            &parent_team_name,
+            loan_team_id,
+            &loan_team_name,
+            end_date,
+            start_date,
+        ));
+    }
+
+    Ok(())
+}
+
+fn reserve_player_for_pending_loan(
+    game: &mut Game,
+    player_id: &str,
+    accepted_offer_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+
+    if player.active_loan.is_some() {
+        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
+    player.transfer_listed = false;
+    player.loan_listed = false;
+    for offer in &mut player.loan_offers {
+        if offer.id != accepted_offer_id && offer.status == LoanOfferStatus::Pending {
             offer.status = LoanOfferStatus::Withdrawn;
         }
     }
 
     Ok(())
+}
+
+pub fn process_pending_loan_registrations(game: &mut Game) {
+    if !transfer_window_is_open(game) {
+        return;
+    }
+
+    let current_date = game.clock.current_date.date_naive();
+    let today = current_date.format("%Y-%m-%d").to_string();
+    type DueLoanRegistration = (String, String, String, String, String, u8, Option<u64>);
+
+    let due_registrations: Vec<DueLoanRegistration> = game
+        .players
+        .iter()
+        .flat_map(|player| {
+            player.loan_offers.iter().filter_map(|offer| {
+                if offer.status != LoanOfferStatus::PendingRegistration {
+                    return None;
+                }
+
+                let start_date = NaiveDate::parse_from_str(&offer.start_date, "%Y-%m-%d").ok()?;
+                if start_date > current_date {
+                    return None;
+                }
+
+                Some((
+                    player.id.clone(),
+                    offer.id.clone(),
+                    offer.parent_team_id.clone(),
+                    offer.from_team_id.clone(),
+                    offer.end_date.clone(),
+                    offer.wage_contribution_pct,
+                    offer.buy_option_fee,
+                ))
+            })
+        })
+        .collect();
+
+    for (
+        player_id,
+        offer_id,
+        parent_team_id,
+        loan_team_id,
+        end_date,
+        wage_contribution_pct,
+        buy_option_fee,
+    ) in due_registrations
+    {
+        let agreement_is_valid = game
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .is_some_and(|player| {
+                player.team_id.as_deref() == Some(&parent_team_id)
+                    && player.active_loan.is_none()
+                    && NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
+                        .ok()
+                        .is_some_and(|loan_end_date| {
+                            loan_end_date > current_date
+                                && validate_loan_end_before_contract(player, loan_end_date).is_ok()
+                        })
+            });
+
+        let executed = agreement_is_valid
+            && execute_loan(
+                game,
+                &player_id,
+                &parent_team_id,
+                &loan_team_id,
+                &today,
+                &end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )
+            .is_ok();
+
+        if let Some(player) = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == player_id)
+            && let Some(offer) = player
+                .loan_offers
+                .iter_mut()
+                .find(|offer| offer.id == offer_id)
+        {
+            offer.status = if executed {
+                LoanOfferStatus::Accepted
+            } else {
+                LoanOfferStatus::Withdrawn
+            };
+            if executed {
+                offer.start_date = today.clone();
+            }
+        }
+    }
 }
 
 fn complete_loan_buy_option_transfer(

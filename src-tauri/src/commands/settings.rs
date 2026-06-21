@@ -1,6 +1,6 @@
 use log::info;
-use std::sync::Arc;
 use ofm_core::currency::{self, CurrencyDefinition};
+use std::sync::Arc;
 use tauri::Manager as TauriManager;
 
 const SETTINGS_LOAD_FAILED_ERROR: &str = "be.error.settings.loadFailed";
@@ -126,7 +126,9 @@ pub fn save_settings(app_handle: tauri::AppHandle, settings: AppSettings) -> Res
 }
 
 #[tauri::command]
-pub fn clear_all_saves(sm_state: tauri::State<'_, Arc<crate::SaveManagerState>>) -> Result<(), String> {
+pub fn clear_all_saves(
+    sm_state: tauri::State<'_, Arc<crate::SaveManagerState>>,
+) -> Result<(), String> {
     log::warn!("[cmd] clear_all_saves: deleting all save data!");
     let mut sm = sm_state
         .0

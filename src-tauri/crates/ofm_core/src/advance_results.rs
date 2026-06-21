@@ -84,9 +84,10 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
                 away_team,
                 home_goals: result.home_goals,
                 away_goals: result.away_goals,
-                involves_user: !is_wc && user_team_id.is_some_and(|team_id| {
-                    fixture.home_team_id == team_id || fixture.away_team_id == team_id
-                }),
+                involves_user: !is_wc
+                    && user_team_id.is_some_and(|team_id| {
+                        fixture.home_team_id == team_id || fixture.away_team_id == team_id
+                    }),
             });
         }
     }
@@ -263,10 +264,25 @@ mod tests {
         );
         let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
         game.national_teams = vec![
-            NationalTeam::new("nt-bra".to_string(), "Brazil".to_string(), "BR".to_string(), None),
-            NationalTeam::new("nt-ger".to_string(), "Germany".to_string(), "DE".to_string(), None),
+            NationalTeam::new(
+                "nt-bra".to_string(),
+                "Brazil".to_string(),
+                "BR".to_string(),
+                None,
+            ),
+            NationalTeam::new(
+                "nt-ger".to_string(),
+                "Germany".to_string(),
+                "DE".to_string(),
+                None,
+            ),
         ];
-        let mut wc = League::new("wc-2026".to_string(), "World Cup 2026".to_string(), 2026, &[]);
+        let mut wc = League::new(
+            "wc-2026".to_string(),
+            "World Cup 2026".to_string(),
+            2026,
+            &[],
+        );
         wc.kind = CompetitionType::InternationalNation;
         wc.scope = CompetitionScope::International;
         wc.fixtures = vec![

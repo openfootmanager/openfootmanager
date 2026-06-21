@@ -1173,7 +1173,7 @@
     "offers": "Offers",
     "searchByName": "Search by name...",
     "noPlayersListed": "You have no players on the transfer or loan list.",
-    "goToProfile": "Go to a player's profile to list them for transfer or loan.",
+    "goToProfile": "Right-click a player in Squad or Players to list them for transfer or loan.",
     "noOffers": "No active transfer offers at this time.",
     "noTransferMarket": "No players currently available for transfer.",
     "noFreeAgents": "No free agents currently available.",
@@ -1220,6 +1220,11 @@
     "loanBuyOptionSummary": "Permanent purchase option at {{fee}}.",
     "exerciseBuyOption": "Exercise Option",
     "loanOfferAccepted": "Loan accepted. Player joined on loan.",
+    "loanOfferScheduled": "Loan agreed. Registration scheduled for {{date}}.",
+    "loanCounterScheduled": "Loan agreed. The player will leave on loan when registration opens on {{date}}.",
+    "loanWindowClosedNoticeTitle": "Transfer window closed",
+    "loanWindowClosedNoticeDetail": "You can negotiate now. If accepted, the loan will be registered on {{date}}.",
+    "loanWindowClosedUnavailableDetail": "Loan registration is unavailable until the next transfer window is scheduled.",
     "loanOfferRejected": "Loan offer rejected.",
     "loanOfferCountered": "They came back with revised loan terms.",
     "loanCounterAccepted": "Loan counter accepted. Player sent out on loan.",
@@ -1255,6 +1260,7 @@
     "lastCounterLabel": "Your last counter",
     "currentOfferLabel": "Their current offer",
     "offerStatusPending": "Live",
+    "offerStatusPendingRegistration": "Pending registration",
     "offerStatusAccepted": "Accepted",
     "offerStatusRejected": "Rejected",
     "offerStatusWithdrawn": "Talks cooled off",
@@ -3195,6 +3201,10 @@
       "majorTransfer": {
         "headline": "{{player}} Completes Move to {{toTeam}}",
         "body": "{{toTeam}} have completed the signing of {{player}} from {{fromTeam}} for {{fee}}."
+      },
+      "loanMove": {
+        "headline": "{{player}} joins {{toTeam}} on loan",
+        "body": "{{player}} has joined {{toTeam}} from {{fromTeam}} on loan until {{endDate}}."
       },
       "transferRoundup": {
         "headline": "Transfer Roundup — Week of {{weekStart}}",

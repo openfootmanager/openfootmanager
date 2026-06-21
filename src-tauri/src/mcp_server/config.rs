@@ -115,7 +115,9 @@ where
                 if i < args.len() {
                     match args[i].parse() {
                         Ok(p) => port = Some(p),
-                        Err(_) => log::warn!("[mcp-config] Invalid --mcp-port '{}', ignoring", args[i]),
+                        Err(_) => {
+                            log::warn!("[mcp-config] Invalid --mcp-port '{}', ignoring", args[i])
+                        }
                     }
                 }
             }
@@ -123,7 +125,10 @@ where
                 i += 1;
                 if i < args.len() {
                     mode = Some(McpMode::parse(&args[i]).ok_or_else(|| {
-                        format!("Invalid --mcp-mode '{}' (expected 'sandbox' or 'competition')", args[i])
+                        format!(
+                            "Invalid --mcp-mode '{}' (expected 'sandbox' or 'competition')",
+                            args[i]
+                        )
                     })?);
                 }
             }
@@ -151,7 +156,10 @@ where
                 if i < args.len() {
                     match args[i].parse() {
                         Ok(val) => min_tick_delay_ms = val,
-                        Err(_) => log::warn!("[mcp-config] Invalid --min-tick-delay-ms '{}', using default 0", args[i]),
+                        Err(_) => log::warn!(
+                            "[mcp-config] Invalid --min-tick-delay-ms '{}', using default 0",
+                            args[i]
+                        ),
                     }
                 }
             }
@@ -160,7 +168,10 @@ where
                 if i < args.len() {
                     match args[i].parse() {
                         Ok(val) => auto_save_interval_days = val,
-                        Err(_) => log::warn!("[mcp-config] Invalid --auto-save-interval-days '{}', using default 7", args[i]),
+                        Err(_) => log::warn!(
+                            "[mcp-config] Invalid --auto-save-interval-days '{}', using default 7",
+                            args[i]
+                        ),
                     }
                 }
             }
@@ -195,7 +206,9 @@ where
 
     // Validate: competition mode requires --mcp-auto-start
     if mode == McpMode::Competition && auto_start.is_none() {
-        return Err("--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])".to_string());
+        return Err(
+            "--mcp-mode competition requires --mcp-auto-start (world.json[,team_id])".to_string(),
+        );
     }
 
     Ok(Some(McpConfig {
@@ -209,11 +222,7 @@ where
         manager_name,
         manager_last_name,
         manager_nationality,
-        allowed_hosts: vec![
-            "localhost".into(),
-            "127.0.0.1".into(),
-            "::1".into(),
-        ],
+        allowed_hosts: vec!["localhost".into(), "127.0.0.1".into(), "::1".into()],
     }))
 }
 
@@ -224,13 +233,16 @@ mod tests {
     #[test]
     fn parse_mcp_config_no_args() {
         // No --mcp-port means no MCP server
-        assert!(parse_mcp_config_from_iter::<Vec<String>, String>(vec![]).unwrap().is_none());
+        assert!(parse_mcp_config_from_iter::<Vec<String>, String>(vec![])
+            .unwrap()
+            .is_none());
     }
 
     #[test]
     fn parse_mcp_config_with_port() {
-        let config =
-            parse_mcp_config_from_iter(&["--mcp-port", "3001"]).unwrap().expect("config");
+        let config = parse_mcp_config_from_iter(&["--mcp-port", "3001"])
+            .unwrap()
+            .expect("config");
         assert_eq!(config.port, 3001);
         assert_eq!(config.mode, McpMode::Sandbox);
         assert!(config.disabled_tools.is_empty());
@@ -293,30 +305,26 @@ mod tests {
     #[test]
     fn competition_mode_disabled_tools() {
         assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
-        assert!(!McpMode::Competition.disabled_tools().contains(&"info_game_state"));
+        assert!(!McpMode::Competition
+            .disabled_tools()
+            .contains(&"info_game_state"));
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
     }
 
     #[test]
     fn competition_mode_without_auto_start_returns_err() {
-        let result = parse_mcp_config_from_iter(&[
-            "--mcp-port",
-            "3001",
-            "--mcp-mode",
-            "competition",
-        ]);
+        let result =
+            parse_mcp_config_from_iter(&["--mcp-port", "3001", "--mcp-mode", "competition"]);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("--mcp-mode competition requires --mcp-auto-start"));
+        assert!(result
+            .unwrap_err()
+            .contains("--mcp-mode competition requires --mcp-auto-start"));
     }
 
     #[test]
     fn invalid_mcp_mode_returns_err() {
-        let result = parse_mcp_config_from_iter(&[
-            "--mcp-port",
-            "3001",
-            "--mcp-mode",
-            "invalid_mode",
-        ]);
+        let result =
+            parse_mcp_config_from_iter(&["--mcp-port", "3001", "--mcp-mode", "invalid_mode"]);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.contains("Invalid --mcp-mode"));

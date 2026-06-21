@@ -1,6 +1,6 @@
 use domain::team::{
-    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors,
-    TeamMedia, TrainingFocus, TrainingIntensity, TrainingSchedule,
+    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors, TeamMedia,
+    TrainingFocus, TrainingIntensity, TrainingSchedule,
 };
 use rusqlite::{Connection, params};
 
@@ -25,8 +25,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let facilities_json = serde_json::to_string(&t.facilities)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let media_json = serde_json::to_string(&t.media)
-        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let media_json =
+        serde_json::to_string(&t.media).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
     let kit_pattern_str = t.kit_pattern.to_string();
     let training_focus_str = format!("{:?}", t.training_focus);

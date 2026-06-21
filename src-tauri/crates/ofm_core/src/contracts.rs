@@ -1112,10 +1112,10 @@ fn next_renewal_round(player: &Player, today: Option<&str>) -> u8 {
         return 1;
     };
 
-    if let Some(today) = today {
-        if state.last_attempt_date.as_deref() != Some(today) {
-            return 1;
-        }
+    if let Some(today) = today
+        && state.last_attempt_date.as_deref() != Some(today)
+    {
+        return 1;
     }
 
     state.conversation_round.saturating_add(1).max(1)
@@ -1304,7 +1304,7 @@ pub(crate) fn round_up_to_nearest_thousand(value: u32) -> u32 {
         return 0;
     }
 
-    ((value + 999) / 1000) * 1000
+    value.div_ceil(1000) * 1000
 }
 
 fn contract_days_remaining(contract_end: Option<&str>, current_date: NaiveDate) -> Option<i64> {

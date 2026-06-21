@@ -242,24 +242,13 @@ pub enum SponsorshipBonusCriterion {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(default)]
 pub struct Sponsorship {
     pub sponsor_name: String,
     pub base_value: i64,
     pub remaining_weeks: u32,
     pub bonus_criteria: Vec<SponsorshipBonusCriterion>,
-}
-
-impl Default for Sponsorship {
-    fn default() -> Self {
-        Self {
-            sponsor_name: String::new(),
-            base_value: 0,
-            remaining_weeks: 0,
-            bonus_criteria: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

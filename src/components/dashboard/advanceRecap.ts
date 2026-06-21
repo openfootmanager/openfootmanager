@@ -45,9 +45,20 @@ const ROUTINE_NEWS_CATEGORIES = new Set([
   "TransferRoundup",
 ]);
 
+const NOTABLE_ROUTINE_NEWS_KEYS = new Set([
+  "be.news.loanMove.headline",
+]);
+
 /** Date portion (YYYY-MM-DD) of an ISO timestamp. */
 export function toDatePart(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 10) : "";
+}
+
+function isRoutineRecapNews(article: GameStateData["news"][number]): boolean {
+  return (
+    ROUTINE_NEWS_CATEGORIES.has(article.category) &&
+    !NOTABLE_ROUTINE_NEWS_KEYS.has(article.headline_key ?? "")
+  );
 }
 
 /**
@@ -91,7 +102,7 @@ export function buildAdvanceRecap(
     .filter(
       (article) =>
         article.date >= sinceDate &&
-        !ROUTINE_NEWS_CATEGORIES.has(article.category),
+        !isRoutineRecapNews(article),
     )
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)

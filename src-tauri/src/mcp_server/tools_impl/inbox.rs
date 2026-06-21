@@ -1,16 +1,22 @@
 //! MCP tool implementations: inbox
 
-use std::sync::Arc;
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::{require_game};
 use crate::mcp_server::formatting::translate_error;
+use crate::mcp_server::tools_impl::helpers::require_game;
+use std::sync::Arc;
 
 // ─── inbox_get_messages ─────────────────────────────────────────────────────
 
-pub fn inbox_get_messages(ctx: Arc<McpContext>, category: Option<String>, unread_only: Option<bool>) -> Result<String, String> {
+pub fn inbox_get_messages(
+    ctx: Arc<McpContext>,
+    category: Option<String>,
+    unread_only: Option<bool>,
+) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
-    let messages: Vec<_> = game.messages.iter()
+    let messages: Vec<_> = game
+        .messages
+        .iter()
         .filter(|m| {
             if let Some(ref cat) = category {
                 format!("{:?}", m.category) == *cat
@@ -118,7 +124,12 @@ pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── inbox_resolve_action ───────────────────────────────────────────────────
 
-pub fn inbox_resolve_action(ctx: Arc<McpContext>, message_id: String, action_id: String, option_id: Option<String>) -> Result<String, String> {
+pub fn inbox_resolve_action(
+    ctx: Arc<McpContext>,
+    message_id: String,
+    action_id: String,
+    option_id: Option<String>,
+) -> Result<String, String> {
     crate::commands::messages::resolve_message_action_internal(
         &ctx.state_manager,
         &message_id,
@@ -132,7 +143,10 @@ pub fn inbox_resolve_action(ctx: Arc<McpContext>, message_id: String, action_id:
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!("## Action Resolved\n\nMessage {} — action {} completed.", message_id, action_id))
+    Ok(format!(
+        "## Action Resolved\n\nMessage {} — action {} completed.",
+        message_id, action_id
+    ))
 }
 
 // ─── info_player_profile ────────────────────────────────────────────────────

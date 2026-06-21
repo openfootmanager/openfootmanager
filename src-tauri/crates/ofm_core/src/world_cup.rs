@@ -159,8 +159,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
             .map(|player| (player.id.clone(), player.ovr))
             .collect();
         squad.sort_by(|a, b| b.1.cmp(&a.1));
-        let squad_player_ids: Vec<String> =
-            squad.into_iter().take(23).map(|(id, _)| id).collect();
+        let squad_player_ids: Vec<String> = squad.into_iter().take(23).map(|(id, _)| id).collect();
 
         if let Some(team) = game
             .national_teams
@@ -254,7 +253,11 @@ pub fn schedule_world_cup_with_field(
 
     // The whole world hears about a World Cup, participant or not.
     let kickoff_news_id = format!("world_cup_kickoff_{year}");
-    if !game.news.iter().any(|article| article.id == kickoff_news_id) {
+    if !game
+        .news
+        .iter()
+        .any(|article| article.id == kickoff_news_id)
+    {
         let mut params = std::collections::HashMap::new();
         params.insert("year".to_string(), year.to_string());
         params.insert("nations".to_string(), field.len().to_string());
@@ -414,11 +417,7 @@ fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
 /// Schedule World Cup qualifying for `wc_year` across the season's international
 /// windows: per-region groups playing a single round robin, one matchday per
 /// window. National squads are prepared for every candidate nation.
-pub fn schedule_world_cup_qualifying(
-    game: &mut Game,
-    wc_year: i32,
-    window_dates: &[String],
-) {
+pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates: &[String]) {
     if window_dates.is_empty() {
         return;
     }
@@ -749,8 +748,14 @@ mod tests {
         let berths = berths_by_region(16, &counts);
 
         assert_eq!(berths.values().sum::<usize>(), 16);
-        assert!((1..=2).contains(&berths["oceania"]), "small region keeps a berth but is capped");
-        assert!(berths["europe"] > berths["asia"], "berths scale with region size");
+        assert!(
+            (1..=2).contains(&berths["oceania"]),
+            "small region keeps a berth but is capped"
+        );
+        assert!(
+            berths["europe"] > berths["asia"],
+            "berths scale with region size"
+        );
     }
 
     #[test]
@@ -776,7 +781,9 @@ mod tests {
             }));
         }
         assert!(
-            game.news.iter().any(|a| a.id == "world_cup_qualifying_2026"),
+            game.news
+                .iter()
+                .any(|a| a.id == "world_cup_qualifying_2026"),
             "the qualifying campaign makes the news"
         );
 
@@ -794,12 +801,19 @@ mod tests {
             .groups
             .iter()
             .any(|g| g.standings.iter().any(|s| s.played > 0));
-        assert!(played, "qualifying group tables update as matches are played");
+        assert!(
+            played,
+            "qualifying group tables update as matches are played"
+        );
 
         let field = qualified_field_from_game(&game, FORMAT_16.field).expect("a field");
         assert_eq!(field.len(), FORMAT_16.field);
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
-        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        assert_eq!(
+            distinct.len(),
+            field.len(),
+            "qualified nations are distinct"
+        );
     }
 
     #[test]
@@ -848,7 +862,10 @@ mod tests {
             kickoff_news.headline_key.as_deref(),
             Some("be.news.worldCupKickoff.headline")
         );
-        assert_eq!(kickoff_news.i18n_params.get("nations"), Some(&"16".to_string()));
+        assert_eq!(
+            kickoff_news.i18n_params.get("nations"),
+            Some(&"16".to_string())
+        );
     }
 
     #[test]

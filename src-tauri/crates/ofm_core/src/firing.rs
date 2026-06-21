@@ -145,13 +145,13 @@ fn execute_ai_firing_on_date(game: &mut Game, manager_index: usize, today: &str)
         team.manager_id = None;
     }
 
-    game.managers[manager_index].fire(&today);
+    game.managers[manager_index].fire(today);
     game.news.push(ai_managerial_change_article(
         &manager.id,
         &manager.full_name(),
         &team_id,
         &team_name,
-        &today,
+        today,
     ));
 }
 

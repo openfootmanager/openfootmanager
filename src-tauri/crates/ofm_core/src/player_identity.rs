@@ -66,10 +66,11 @@ fn build_assigned_slot_map(game: &Game) -> HashMap<String, Position> {
 fn infer_natural_position(player: &Player, assigned_slot: Option<&Position>) -> Position {
     let group = player.position.to_group_position();
 
-    if let Some(slot) = assigned_slot {
-        if !slot.is_legacy_bucket() && slot.to_group_position() == group {
-            return slot.clone();
-        }
+    if let Some(slot) = assigned_slot
+        && !slot.is_legacy_bucket()
+        && slot.to_group_position() == group
+    {
+        return slot.clone();
     }
 
     match group {
@@ -233,10 +234,12 @@ fn candidate_alternate_positions(
         Position::Forward => vec![Position::Striker],
     };
 
-    if let Some(slot) = assigned_slot {
-        if !slot.is_legacy_bucket() && !candidates.contains(slot) && *slot != *natural_position {
-            candidates.insert(0, slot.clone());
-        }
+    if let Some(slot) = assigned_slot
+        && !slot.is_legacy_bucket()
+        && !candidates.contains(slot)
+        && *slot != *natural_position
+    {
+        candidates.insert(0, slot.clone());
     }
 
     candidates
@@ -251,16 +254,16 @@ fn infer_footedness(
         return side_foot;
     }
 
-    if let Some(slot) = assigned_slot {
-        if let Some(side_foot) = side_foot_from_position(slot) {
-            return side_foot;
-        }
+    if let Some(slot) = assigned_slot
+        && let Some(side_foot) = side_foot_from_position(slot)
+    {
+        return side_foot;
     }
 
     let hash = stable_hash(&player.id);
-    if hash % 20 == 0 {
+    if hash.is_multiple_of(20) {
         Footedness::Both
-    } else if hash % 5 == 0 {
+    } else if hash.is_multiple_of(5) {
         Footedness::Left
     } else {
         Footedness::Right
@@ -417,7 +420,7 @@ fn infer_left_side(player: &Player, assigned_slot: Option<&Position>) -> bool {
         }
     }
 
-    stable_hash(&player.id) % 2 == 0
+    stable_hash(&player.id).is_multiple_of(2)
 }
 
 fn side_foot_from_position(position: &Position) -> Option<Footedness> {
@@ -545,7 +548,7 @@ mod tests {
 
         assert_eq!(player.natural_position, Position::CenterBack);
         assert!(player.alternate_positions.len() <= 1);
-        assert_eq!(player.footedness != Footedness::Both, true);
+        assert!(player.footedness != Footedness::Both);
     }
 
     #[test]

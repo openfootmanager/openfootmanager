@@ -1173,7 +1173,7 @@
     "offers": "Propostas",
     "searchByName": "Buscar por nome...",
     "noPlayersListed": "Você não tem jogadores na lista de transferência ou empréstimo.",
-    "goToProfile": "Acesse o perfil do jogador para listá-lo para transferência ou empréstimo.",
+    "goToProfile": "Clique com o botão direito em um jogador no Elenco ou em Jogadores para listá-lo para transferência ou empréstimo.",
     "noOffers": "Nenhuma proposta de transferência ativa no momento.",
     "noTransferMarket": "Nenhum jogador disponível para transferência no momento.",
     "noFreeAgents": "Nenhum agente livre disponível no momento.",
@@ -1220,6 +1220,11 @@
     "loanBuyOptionSummary": "Opção de compra definitiva por {{fee}}.",
     "exerciseBuyOption": "Exercer opção",
     "loanOfferAccepted": "Empréstimo aceito. O jogador chegou por empréstimo.",
+    "loanOfferScheduled": "Empréstimo acordado. Registro agendado para {{date}}.",
+    "loanCounterScheduled": "Empréstimo acordado. O jogador sairá quando o registro abrir em {{date}}.",
+    "loanWindowClosedNoticeTitle": "Janela de transferências fechada",
+    "loanWindowClosedNoticeDetail": "Você pode negociar agora. Se for aceito, o empréstimo será registrado em {{date}}.",
+    "loanWindowClosedUnavailableDetail": "O registro de empréstimos fica indisponível até a próxima janela de transferências ser agendada.",
     "loanOfferRejected": "Proposta de empréstimo rejeitada.",
     "loanOfferCountered": "Responderam com termos de empréstimo revisados.",
     "loanCounterAccepted": "Contraproposta de empréstimo aceita. O jogador saiu por empréstimo.",
@@ -1255,6 +1260,7 @@
     "lastCounterLabel": "Sua última contra-oferta",
     "currentOfferLabel": "A oferta atual deles",
     "offerStatusPending": "Em aberto",
+    "offerStatusPendingRegistration": "Aguardando registro",
     "offerStatusAccepted": "Aceita",
     "offerStatusRejected": "Rejeitada",
     "offerStatusWithdrawn": "As conversas esfriaram",
@@ -1519,7 +1525,7 @@
     "movementLoanToBuy": "Empréstimo com compra",
     "movementFreeAgentSigning": "Livre",
     "movementReleased": "Dispensado",
-    "movementFromTo": "{{from}} → {{to}}",
+    "movementFromTo": "De {{from}} para {{to}}",
     "movementTo": "Chegou ao {{to}}",
     "movementFrom": "Saiu do {{from}}",
     "movementFee": "Valor {{fee}}",
@@ -3199,6 +3205,10 @@
       "majorTransfer": {
         "headline": "{{player}} conclui transferência para o {{toTeam}}",
         "body": "{{toTeam}} concluiu a contratação de {{player}} do {{fromTeam}} por {{fee}}."
+      },
+      "loanMove": {
+        "headline": "{{player}} chega ao {{toTeam}} por empréstimo",
+        "body": "{{player}} chegou ao {{toTeam}} emprestado pelo {{fromTeam}} até {{endDate}}."
       },
       "transferRoundup": {
         "headline": "Resumo de Transferências — Semana de {{weekStart}}",

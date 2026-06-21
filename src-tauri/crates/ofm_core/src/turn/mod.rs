@@ -191,6 +191,7 @@ where
     debug!("[turn] process_day {}: complete, advancing clock", today);
     game.clock.advance_days(1);
     crate::season_context::refresh_game_context(game);
+    transfers::process_pending_loan_registrations(game);
 }
 
 /// Called after a live match finishes to complete the day:
@@ -225,9 +226,11 @@ pub fn finish_live_match_day(game: &mut Game) {
     game.clock.advance_days(1);
     game.sync_legacy_league();
     crate::season_context::refresh_game_context(game);
+    transfers::process_pending_loan_registrations(game);
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::finish_live_match_day;
     use crate::clock::GameClock;

@@ -103,6 +103,8 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.lastCounterLabel") return "Your last counter";
       if (key === "transfers.currentOfferLabel") return "Their current offer";
       if (key === "transfers.offerStatusPending") return "Live";
+      if (key === "transfers.offerStatusPendingRegistration")
+        return "Pending registration";
       if (key === "transfers.offerStatusAccepted") return "Accepted";
       if (key === "transfers.offerStatusRejected") return "Rejected";
       if (key === "transfers.offerStatusWithdrawn") return "Talks cooled off";
@@ -116,6 +118,19 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.counterCountered") return "They pushed back with a lower number.";
       if (key === "transfers.transferFeedbackCounterHeadline") return "They want more before shaking hands.";
       if (key === "transfers.transferFeedbackCounterDetail") return `The bid was close enough to keep talking, but their side are signalling a price nearer ${params?.fee}.`;
+      if (key === "season.windowClosed") return "Transfer window closed";
+      if (key === "season.windowOpensInDays")
+        return `${params?.count} days until the window opens`;
+      if (key === "transfers.loanWindowClosedNoticeTitle")
+        return "Transfer window closed";
+      if (key === "transfers.loanWindowClosedNoticeDetail")
+        return `If accepted, the loan will be registered on ${params?.date}.`;
+      if (key === "transfers.loanWindowClosedUnavailableDetail")
+        return "Loan registration is unavailable until the next transfer window is scheduled.";
+      if (key === "transfers.loanOfferScheduled")
+        return `Loan agreed. Registration scheduled for ${params?.date}.`;
+      if (key === "transfers.loanCounterScheduled")
+        return `Loan agreed. Registration scheduled for ${params?.date}.`;
       if (key === "squad.viewProfile") return "View profile";
       if (key === "squad.addToTransferList") return "Add to transfer list";
       if (key === "squad.removeFromTransferList") return "Remove from transfer list";
@@ -338,6 +353,19 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
     },
     scouting_assignments: [],
     board_objectives: [],
+    season_context: {
+      phase: "InSeason",
+      season_start: "2026-07-01",
+      season_end: "2027-05-31",
+      days_until_season_start: null,
+      transfer_window: {
+        status: "Open",
+        opens_on: "2026-06-01",
+        closes_on: "2026-08-31",
+        days_until_opens: null,
+        days_remaining: 30,
+      },
+    },
   };
 }
 
@@ -808,6 +836,135 @@ describe("TransfersTab", function (): void {
       });
     });
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
+  });
+
+  it("explains deferred registration and allows loan negotiations while transfers remain blocked", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "loan-target",
+        team_id: "team-2",
+        loan_listed: true,
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    ]);
+    state.season_context!.transfer_window = {
+      status: "Closed",
+      opens_on: "2027-01-01",
+      closes_on: null,
+      days_until_opens: 12,
+      days_remaining: null,
+    };
+
+    const updatedState = structuredClone(state);
+    updatedState.players[0].loan_listed = false;
+    updatedState.players[0].loan_offers = [
+      {
+        id: "scheduled-loan",
+        from_team_id: "team-1",
+        parent_team_id: "team-2",
+        start_date: "2027-01-01",
+        end_date: "2027-06-01",
+        wage_contribution_pct: 40,
+        status: "PendingRegistration",
+        date: "2026-12-20",
+      },
+    ];
+    mockedInvoke.mockResolvedValueOnce({
+      decision: "accepted",
+      offer_id: "scheduled-loan",
+      suggested_wage_contribution_pct: null,
+      suggested_end_date: null,
+      suggested_buy_option_fee: null,
+      is_terminal: true,
+      game: updatedState,
+    });
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Transfer window closed",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "If accepted, the loan will be registered on",
+    );
+    expect(
+      screen.getByRole("button", { name: /submit loan offer/i }),
+    ).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: /submit loan offer/i }),
+    );
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        playerId: "loan-target",
+        endDate: "2027-06-30",
+        wageContributionPct: 100,
+        buyOptionFee: null,
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Transfer window closed",
+    );
+  });
+
+  it("blocks closed-window loan submission when the opening date is stale", function (): void {
+    const state = createGameState([
+      createPlayer({
+        id: "loan-target",
+        team_id: "team-2",
+        loan_listed: true,
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    ]);
+    state.clock.current_date = "2026-09-15T12:00:00Z";
+    state.season_context!.transfer_window = {
+      status: "Closed",
+      opens_on: "2026-07-02",
+      closes_on: "2026-08-31",
+      days_until_opens: null,
+      days_remaining: null,
+    };
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Transfer window closed",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Loan registration is unavailable until the next transfer window is scheduled.",
+    );
+    expect(
+      screen.getByRole("button", { name: /submit loan offer/i }),
+    ).toBeDisabled();
   });
 
   it("submits a loan offer with a buy option", async function (): Promise<void> {

@@ -1173,7 +1173,7 @@
     "offers": "Предложения",
     "searchByName": "Поиск по имени...",
     "noPlayersListed": "У вас нет игроков в списке на трансфер или аренду.",
-    "goToProfile": "Перейдите в профиль игрока, чтобы выставить его на трансфер или в аренду.",
+    "goToProfile": "Щёлкните игрока правой кнопкой мыши в разделах «Состав» или «Игроки», чтобы выставить его на трансфер или в аренду.",
     "noOffers": "Сейчас нет активных трансферных предложений.",
     "noTransferMarket": "Сейчас нет игроков, доступных для трансфера.",
     "noFreeAgents": "Свободных агентов на данный момент нет.",
@@ -1220,6 +1220,11 @@
     "loanBuyOptionSummary": "Опция постоянного выкупа за {{fee}}.",
     "exerciseBuyOption": "Активировать опцию",
     "loanOfferAccepted": "Аренда согласована. Игрок присоединился на правах аренды.",
+    "loanOfferScheduled": "Аренда согласована. Регистрация назначена на {{date}}.",
+    "loanCounterScheduled": "Аренда согласована. Игрок уйдёт в аренду после открытия регистрации {{date}}.",
+    "loanWindowClosedNoticeTitle": "Трансферное окно закрыто",
+    "loanWindowClosedNoticeDetail": "Переговоры доступны сейчас. При согласии аренда будет зарегистрирована {{date}}.",
+    "loanWindowClosedUnavailableDetail": "Регистрация аренд недоступна, пока не будет запланировано следующее трансферное окно.",
     "loanOfferRejected": "Предложение аренды отклонено.",
     "loanOfferCountered": "Клуб вернулся с обновленными условиями аренды.",
     "loanCounterAccepted": "Встречное предложение аренды принято. Игрок отправлен в аренду.",
@@ -1255,6 +1260,7 @@
     "lastCounterLabel": "Ваше последнее контрпредложение",
     "currentOfferLabel": "Их текущее предложение",
     "offerStatusPending": "В работе",
+    "offerStatusPendingRegistration": "Ожидает регистрации",
     "offerStatusAccepted": "Принято",
     "offerStatusRejected": "Отклонено",
     "offerStatusWithdrawn": "Переговоры охладились",
@@ -1519,7 +1525,7 @@
     "movementLoanToBuy": "Аренда с выкупом",
     "movementFreeAgentSigning": "Свободный агент",
     "movementReleased": "Освобождён",
-    "movementFromTo": "{{from}} → {{to}}",
+    "movementFromTo": "Из {{from}} в {{to}}",
     "movementTo": "Перешёл в {{to}}",
     "movementFrom": "Покинул {{from}}",
     "movementFee": "Сумма {{fee}}",
@@ -3195,6 +3201,10 @@
       "majorTransfer": {
         "headline": "{{player}} переходит в {{toTeam}}",
         "body": "{{toTeam}} оформил переход {{player}} из {{fromTeam}} за {{fee}}."
+      },
+      "loanMove": {
+        "headline": "{{player}} переходит в {{toTeam}} в аренду",
+        "body": "{{player}} перешел в {{toTeam}} из {{fromTeam}} в аренду до {{endDate}}."
       },
       "transferRoundup": {
         "headline": "Обзор трансферов — неделя {{weekStart}}",

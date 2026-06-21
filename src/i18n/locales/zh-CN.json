@@ -1173,7 +1173,7 @@
     "offers": "报价",
     "searchByName": "按姓名搜索...",
     "noPlayersListed": "你没有在转会或租借名单上的球员。",
-    "goToProfile": "前往球员资料页将其挂牌转会或租借。",
+    "goToProfile": "在“阵容”或“球员”中右键点击球员，将其挂牌转会或租借。",
     "noOffers": "当前没有活跃的转会报价。",
     "noTransferMarket": "当前没有可供转会的球员。",
     "noFreeAgents": "当前没有可签约的自由球员。",
@@ -1220,6 +1220,11 @@
     "loanBuyOptionSummary": "永久买断选项金额为 {{fee}}。",
     "exerciseBuyOption": "执行买断选项",
     "loanOfferAccepted": "租借已接受。球员已租借加盟。",
+    "loanOfferScheduled": "租借已达成，将于 {{date}} 完成注册。",
+    "loanCounterScheduled": "租借已达成，球员将在 {{date}} 注册窗口开放后离队。",
+    "loanWindowClosedNoticeTitle": "转会窗口已关闭",
+    "loanWindowClosedNoticeDetail": "你现在可以谈判。若获接受，租借将在 {{date}} 注册。",
+    "loanWindowClosedUnavailableDetail": "在下一个转会窗口排定前，租借注册暂不可用。",
     "loanOfferRejected": "租借报价被拒绝。",
     "loanOfferCountered": "对方提出了修改后的租借条款。",
     "loanCounterAccepted": "租借还价已接受。球员将被租借离队。",
@@ -1255,6 +1260,7 @@
     "lastCounterLabel": "你的上次还价",
     "currentOfferLabel": "对方当前报价",
     "offerStatusPending": "进行中",
+    "offerStatusPendingRegistration": "等待注册",
     "offerStatusAccepted": "已接受",
     "offerStatusRejected": "已拒绝",
     "offerStatusWithdrawn": "谈判已冷却",
@@ -1519,7 +1525,7 @@
     "movementLoanToBuy": "租借买断",
     "movementFreeAgentSigning": "自由球员",
     "movementReleased": "解约离队",
-    "movementFromTo": "{{from}} → {{to}}",
+    "movementFromTo": "{{from}} 转至 {{to}}",
     "movementTo": "加盟 {{to}}",
     "movementFrom": "离开 {{from}}",
     "movementFee": "费用 {{fee}}",
@@ -3196,6 +3202,10 @@
       "majorTransfer": {
         "headline": "{{player}}转会至{{toTeam}}",
         "body": "{{toTeam}}已完成从{{fromTeam}}签下{{player}}的交易,转会费为{{fee}}。"
+      },
+      "loanMove": {
+        "headline": "{{player}}租借加盟{{toTeam}}",
+        "body": "{{player}}已从{{fromTeam}}租借加盟{{toTeam}},租期至{{endDate}}。"
       },
       "transferRoundup": {
         "headline": "转会综述——{{weekStart}}当周",

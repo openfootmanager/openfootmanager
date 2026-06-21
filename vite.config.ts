@@ -80,7 +80,9 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
+    maxWorkers: 2,
     setupFiles: ["src/test-setup.ts"],
+    testTimeout: 10_000,
     coverage: {
       exclude: ["src/i18n/locales/**", "src/**/*.test.{ts,tsx}", "src/test-setup.ts"],
     },

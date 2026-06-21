@@ -236,7 +236,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
                     std::io::ErrorKind::InvalidData,
                     "invalid players.jersey_number: expected NULL or 1..=99",
                 )),
-            ))
+            ));
         }
         None => None,
     };

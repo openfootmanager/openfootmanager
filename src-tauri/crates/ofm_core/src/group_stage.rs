@@ -70,7 +70,7 @@ fn seed_groups(competition_id: &str, team_ids: &[String]) -> Vec<GroupState> {
     for (position, team_id) in team_ids.iter().enumerate() {
         let row = position / group_count;
         let column = position % group_count;
-        let group = if row % 2 == 0 {
+        let group = if row.is_multiple_of(2) {
             column
         } else {
             group_count - 1 - column
@@ -399,10 +399,16 @@ mod tests {
             .unwrap();
         assert_eq!(group_a_entry.points, 3);
         assert!(
-            cup.groups[1].standings.iter().all(|entry| entry.played == 0),
+            cup.groups[1]
+                .standings
+                .iter()
+                .all(|entry| entry.played == 0),
             "the other group is untouched"
         );
-        assert!(cup.knockout_rounds.is_empty(), "groups are not finished yet");
+        assert!(
+            cup.knockout_rounds.is_empty(),
+            "groups are not finished yet"
+        );
     }
 
     #[test]
@@ -417,7 +423,11 @@ mod tests {
             }
         }
 
-        assert_eq!(cup.knockout_rounds.len(), 1, "bracket seeded once groups end");
+        assert_eq!(
+            cup.knockout_rounds.len(),
+            1,
+            "bracket seeded once groups end"
+        );
         let round = &cup.knockout_rounds[0];
         assert_eq!(round.name, "Semifinal");
         assert_eq!(round.fixture_ids.len(), 2);

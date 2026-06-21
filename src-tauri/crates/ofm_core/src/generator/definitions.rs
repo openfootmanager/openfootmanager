@@ -214,7 +214,7 @@ pub struct WorldManifestV2 {
     pub compatibility: Option<WorldDataMetadata>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct WorldData {
     pub name: String,
@@ -240,30 +240,6 @@ pub struct WorldData {
     pub stats: domain::stats::StatsState,
     pub world_history: domain::world_history::WorldHistoryArchive,
     pub metadata: WorldDataMetadata,
-}
-
-impl Default for WorldData {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            description: String::new(),
-            teams: Vec::new(),
-            players: Vec::new(),
-            staff: Vec::new(),
-            managers: Vec::new(),
-            competitions: Vec::new(),
-            competition_definitions: None,
-            national_teams: Vec::new(),
-            regions: Vec::new(),
-            default_active_regions: Vec::new(),
-            default_active_competitions: Vec::new(),
-            league: None,
-            news: Vec::new(),
-            stats: domain::stats::StatsState::default(),
-            world_history: domain::world_history::WorldHistoryArchive::default(),
-            metadata: WorldDataMetadata::default(),
-        }
-    }
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.

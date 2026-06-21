@@ -178,6 +178,7 @@ export function getDefaultLoanPeriodId(
   contractEndValue: string | null | undefined,
   currentOfferEndDateValue?: string | null,
 ): LoanPeriodOptionId | "" {
+  const loanStartDate = parseUtcDate(currentDateValue);
   const options = buildLoanPeriodOptions(
     currentDateValue,
     contractEndValue,
@@ -186,12 +187,10 @@ export function getDefaultLoanPeriodId(
   const currentOfferOption = options.find(
     (option) => option.id === "current_offer" && !option.disabled,
   );
-  const priority: LoanPeriodPresetId[] = [
-    "january_window",
-    "end_of_season",
-    "three_months",
-    "twelve_months",
-  ];
+  const priority: LoanPeriodPresetId[] =
+    loanStartDate?.getUTCMonth() === 0
+      ? ["end_of_season", "three_months", "twelve_months", "january_window"]
+      : ["january_window", "end_of_season", "three_months", "twelve_months"];
 
   return (
     currentOfferOption?.id ??
@@ -330,6 +329,8 @@ export function getTransferOfferStatusLabel(
   switch (status) {
     case "Pending":
       return t("transfers.offerStatusPending");
+    case "PendingRegistration":
+      return t("transfers.offerStatusPendingRegistration");
     case "Accepted":
       return t("transfers.offerStatusAccepted");
     case "Rejected":
@@ -346,6 +347,8 @@ export function getTransferOfferBadgeVariant(
 ) {
   switch (status) {
     case "Pending":
+      return "accent" as const;
+    case "PendingRegistration":
       return "accent" as const;
     case "Accepted":
       return "success" as const;

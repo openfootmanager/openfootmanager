@@ -22,10 +22,10 @@ fn resolve_match_role_assignment(
     starter_ids: &HashSet<String>,
     fallback_id: Option<String>,
 ) -> Option<String> {
-    if let Some(player_id) = assigned_id {
-        if starter_ids.contains(player_id) {
-            return Some(player_id.clone());
-        }
+    if let Some(player_id) = assigned_id
+        && starter_ids.contains(player_id)
+    {
+        return Some(player_id.clone());
     }
 
     fallback_id

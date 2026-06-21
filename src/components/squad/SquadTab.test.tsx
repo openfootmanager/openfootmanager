@@ -15,6 +15,10 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.letContractExpire") return "Let Expire";
       if (key === "playerProfile.reopenContractTalks") return "Reopen Talks";
       if (key === "playerProfile.terminateContract") return "Terminate Now";
+      if (key === "squad.addToLoanList") return "Add to Loan List";
+      if (key === "squad.removeFromLoanList") return "Remove from Loan List";
+      if (key === "transfers.loan") return "Loan";
+      if (key === "transfers.transfer") return "Transfer";
       if (key === "youthAcademy.delegateToYouthAcademy")
         return "Delegate to youth academy";
       if (key === "playerProfile.yearsRemaining") return "Years Remaining";
@@ -374,6 +378,34 @@ describe("SquadTab", () => {
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openTermination: true,
+    });
+  });
+
+  it("shows loan-listed status immediately after using the roster context menu", async () => {
+    const gameState = makeGameState();
+    const updatedGameState = {
+      ...gameState,
+      players: gameState.players.map((player) =>
+        player.id === "gk1" ? { ...player, loan_listed: true } : player,
+      ),
+    };
+    const onGameUpdate = vi.fn();
+    renderSquadTab(gameState, { onGameUpdate });
+    mockedInvoke.mockResolvedValue(updatedGameState);
+
+    const playerRow = screen.getByText("Player gk1").closest("tr");
+    expect(playerRow).not.toBeNull();
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Add to Loan List" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("toggle_loan_list", {
+        playerId: "gk1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+      expect(
+        screen.getByText("Player gk1").closest("tr"),
+      ).toHaveTextContent("Loan");
     });
   });
 

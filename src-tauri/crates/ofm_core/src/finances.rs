@@ -615,9 +615,8 @@ pub fn preview_board_support(game: &Game, team_id: &str) -> Result<BoardSupportR
         snapshot.weekly_wage_spend * BOARD_SUPPORT_TARGET_RUNWAY_WEEKS,
         BOARD_SUPPORT_MIN_AMOUNT,
     );
-    let support_amount = (reserve_target - team.finance)
-        .max(BOARD_SUPPORT_MIN_AMOUNT)
-        .min(BOARD_SUPPORT_MAX_AMOUNT);
+    let support_amount =
+        (reserve_target - team.finance).clamp(BOARD_SUPPORT_MIN_AMOUNT, BOARD_SUPPORT_MAX_AMOUNT);
     let transfer_budget_reduction = std::cmp::min(team.transfer_budget.max(0), support_amount / 2);
 
     Ok(BoardSupportResult {

@@ -161,7 +161,12 @@ fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> {
 fn match_day_xi(squad_player_ids: &[String], players: &[Player]) -> Vec<String> {
     let mut rated: Vec<(String, u8)> = squad_player_ids
         .iter()
-        .filter_map(|pid| players.iter().find(|p| &p.id == pid).map(|p| (p.id.clone(), p.ovr)))
+        .filter_map(|pid| {
+            players
+                .iter()
+                .find(|p| &p.id == pid)
+                .map(|p| (p.id.clone(), p.ovr))
+        })
         .collect();
     rated.sort_by(|left, right| right.1.cmp(&left.1));
     rated
@@ -391,10 +396,7 @@ mod tests {
     #[test]
     fn process_due_fixtures_completes_match_and_carries_fatigue_back() {
         let mut game = empty_game();
-        game.players = vec![
-            make_player("p1", 80),
-            make_player("p2", 60),
-        ];
+        game.players = vec![make_player("p1", 80), make_player("p2", 60)];
         let mut home = make_national_team("nt-eng", "ENG", &["p1"]);
         home.fixtures.push(Fixture {
             id: "ntf-0".to_string(),
