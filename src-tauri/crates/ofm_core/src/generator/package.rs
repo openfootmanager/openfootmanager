@@ -98,6 +98,10 @@ pub struct WorldPackage {
     pub players: Vec<PlayerDef>,
     pub competitions: Vec<CompetitionDefinition>,
     pub names: Option<NamesDefinition>,
+    /// Per-locale translation bundles supplied by the package, keyed by locale
+    /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
+    /// files found anywhere in the package directory tree.
+    pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +263,16 @@ fn classify_file(
 /// file by its `schema`, and validate ids. Returns the aggregated package and
 /// every problem found. Collections are sorted by id so the result is
 /// independent of file-discovery order (and therefore of folder layout).
+/// Extract the locale code from a translation file name of the form
+/// `translations.{locale}.json` (case-insensitive extension). Returns `None`
+/// for file names that don't match the pattern.
+fn translation_locale_from_filename(name: &str) -> Option<&str> {
+    let lower = name.to_ascii_lowercase();
+    let stem = lower.strip_suffix(".json")?;
+    stem.strip_prefix("translations.")
+        .map(|_| &name[name.find('.').map(|i| i + 1).unwrap_or(0)..name.rfind('.').unwrap_or(name.len())])
+}
+
 pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let mut files = Vec::new();
     collect_data_files(dir, &mut files);
@@ -273,6 +287,25 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
             .unwrap_or(path)
             .to_string_lossy()
             .replace('\\', "/");
+
+        // Translation files are loaded separately and not treated as entity definitions.
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        if let Some(locale) = translation_locale_from_filename(file_name) {
+            match std::fs::read_to_string(path) {
+                Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                    Ok(value) => {
+                        package.extra_translations.insert(locale.to_string(), value);
+                    }
+                    Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+                },
+                Err(_) => errors.push(PackageError::new(READ_FAILED, &file)),
+            }
+            continue;
+        }
+
         match std::fs::read_to_string(path) {
             Ok(text) => match super::parse_definition_str::<Value>(&text) {
                 Ok(value) => classify_file(value, &file, &mut package, &mut errors),

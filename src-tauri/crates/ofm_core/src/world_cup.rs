@@ -162,12 +162,16 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
         let squad_player_ids: Vec<String> =
             squad.into_iter().take(23).map(|(id, _)| id).collect();
 
+        let nation_name_key = Some(format!("nations.{}", code.to_lowercase()));
         if let Some(team) = game
             .national_teams
             .iter_mut()
             .find(|team| &team.football_nation == code)
         {
             team.squad_player_ids = squad_player_ids;
+            if team.name_key.is_none() {
+                team.name_key = nation_name_key;
+            }
         } else {
             let mut team = NationalTeam::new(
                 national_team_id(code),
@@ -176,6 +180,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
                 nations::nation_by_code(code).map(|nation| nation.region_id.to_string()),
             );
             team.squad_player_ids = squad_player_ids;
+            team.name_key = nation_name_key;
             game.national_teams.push(team);
         }
     }
@@ -241,6 +246,8 @@ pub fn schedule_world_cup_with_field(
             qualifiers_per_group: format.qualifiers_per_group,
             best_third_qualifiers: format.best_third_qualifiers,
             knockout_round_gap_days: KNOCKOUT_GAP_DAYS,
+            max_concurrent_matches_per_day: Some(4),
+            knockout_matches_per_day: 4,
         },
     );
     // Sort after every club competition in browsing lists.

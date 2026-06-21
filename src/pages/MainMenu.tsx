@@ -18,6 +18,7 @@ import type {
   WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
+import i18n from "../i18n";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
   FolderOpen,
@@ -26,6 +27,15 @@ import {
   ChevronRight,
   Power,
 } from "lucide-react";
+
+function applyExtraTranslations(
+  extra: Record<string, Record<string, unknown>> | undefined,
+): void {
+  if (!extra) return;
+  for (const [locale, bundle] of Object.entries(extra)) {
+    i18n.addResourceBundle(locale, "translation", bundle, true, true);
+  }
+}
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
 const GITHUB_REPO_URL = "https://github.com/openfootmanager/openfootmanager";
@@ -354,6 +364,7 @@ export default function MainMenu() {
     invoke<GameStateData>("get_active_game")
       .then((state) => {
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
@@ -369,6 +380,7 @@ export default function MainMenu() {
       try {
         const state = await invoke<GameStateData>("get_active_game");
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
@@ -686,6 +698,7 @@ export default function MainMenu() {
         worldSource,
         competitionDefinitionsJson: competitionDefsJson ?? undefined,
       });
+      applyExtraTranslations(game.extra_translations);
       setGameState(game);
       navigate("/select-team");
     } catch (error) {

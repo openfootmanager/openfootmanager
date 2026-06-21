@@ -490,6 +490,7 @@ mod tests {
                 source_world_kind: String::new(),
                 active_region_ids_json: "[]".to_string(),
                 active_competition_ids_json: "[]".to_string(),
+                extra_translations_json: "{}".to_string(),
             },
         )
         .unwrap();
@@ -611,6 +612,7 @@ mod tests {
                 source_world_kind: String::new(),
                 active_region_ids_json: "[]".to_string(),
                 active_competition_ids_json: "[]".to_string(),
+                extra_translations_json: "{}".to_string(),
             },
         )
         .unwrap();

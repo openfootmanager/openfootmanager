@@ -51,6 +51,7 @@ export interface TeamCard {
 export interface LeagueGroup {
   id: string;
   name: string;
+  name_key?: string | null;
   teams: TeamCard[];
 }
 

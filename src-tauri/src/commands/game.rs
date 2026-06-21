@@ -289,6 +289,7 @@ fn build_game_from_world_data(
         stats,
         world_history,
         metadata,
+        extra_translations,
         ..
     } = world;
 
@@ -326,6 +327,7 @@ fn build_game_from_world_data(
             game.promote_legacy_league();
             game.news = news;
             game.world_history = world_history;
+            game.extra_translations = extra_translations;
             ensure_multi_competition_foundations(&mut game);
             ofm_core::season_context::refresh_game_context(&mut game);
             (game, stats)
@@ -334,6 +336,7 @@ fn build_game_from_world_data(
             // Authored definitions, if any, become the world's competitions;
             // otherwise ensure_multi_competition_foundations auto-builds them.
             game.competitions = competitions;
+            game.extra_translations = extra_translations;
             // Build the league/division foundations *before* generating history so
             // each club's past seasons are attributed to its real ~20-team
             // division. Otherwise history runs with no competitions and treats the
@@ -484,6 +487,16 @@ fn division_tier_name(tier: usize, division_count: usize) -> &'static str {
     }
 }
 
+fn division_tier_name_key(tier: usize, division_count: usize) -> &'static str {
+    if division_count <= 1 {
+        "tournaments.competitions.league"
+    } else if tier == 0 {
+        "tournaments.competitions.firstDivision"
+    } else {
+        "tournaments.competitions.secondDivision"
+    }
+}
+
 /// Name a division within a country's pyramid.
 fn division_name(country: &str, tier: usize, division_count: usize) -> String {
     format!("{country} {}", division_tier_name(tier, division_count))
@@ -628,6 +641,7 @@ fn build_foundation_competition_plan(
                         berths,
                         season_start_month: Some(month),
                         season_start_day: Some(1),
+                        name_key: None,
                     }
                 };
                 let tier_suffix = format!("d{}", tier + 1);
@@ -688,6 +702,7 @@ fn build_foundation_competition_plan(
                         berths,
                         season_start_month: Some(league_month),
                         season_start_day: Some(1),
+                        name_key: Some(division_tier_name_key(tier, division_count).to_string()),
                     },
                     league_start,
                 ));
@@ -718,6 +733,7 @@ fn build_foundation_competition_plan(
                 berths: vec![continental_berth(BerthRule::CupWinner)],
                 season_start_month: Some(cup_actual_start.month() as u8),
                 season_start_day: Some(cup_actual_start.day() as u8),
+                name_key: Some("tournaments.competitions.nationalCup".to_string()),
             },
             cup_actual_start,
         ));
@@ -751,6 +767,7 @@ fn build_foundation_competition_plan(
                 name: "Continental Champions Cup".to_string(),
                 r#type: CompetitionType::ContinentalClub,
                 scope: CompetitionScope::Continental,
+                name_key: Some("tournaments.competitions.continentalChampionsCup".to_string()),
                 region_id: None,
                 country_id: None,
                 required_region_ids: feeder_regions,
@@ -2569,6 +2586,7 @@ competitions:
                 base_year: Some(2031),
                 snapshot_date: Some("2031-11-20T00:00:00Z".to_string()),
             },
+            extra_translations: std::collections::HashMap::new(),
         }
     }
 
@@ -3233,6 +3251,7 @@ competitions:
                 berths: Vec::new(),
                 season_start_month: None,
                 season_start_day: None,
+                name_key: None,
             }],
         });
         let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();

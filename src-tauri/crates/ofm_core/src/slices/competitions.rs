@@ -23,6 +23,10 @@ pub struct CompetitionsView {
     pub team_names: BTreeMap<String, String>,
     /// National team names keyed by ID.
     pub national_team_names: BTreeMap<String, String>,
+    /// i18n keys for national team nation names, keyed by national team ID.
+    /// Frontend resolves these via `t(key)` and the `nations.nationalTeamTemplate`
+    /// template rather than displaying the raw English `national_team_names` entry.
+    pub national_team_name_keys: BTreeMap<String, String>,
     /// Name info for every player who has scored in a competition fixture.
     pub player_names: BTreeMap<String, PlayerNameEntry>,
     pub world_cup_champions: Vec<WorldCupChampionRecord>,
@@ -66,6 +70,12 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
         .map(|nt| (nt.id.clone(), nt.name.clone()))
         .collect();
 
+    let national_team_name_keys: BTreeMap<String, String> = game
+        .national_teams
+        .iter()
+        .filter_map(|nt| nt.name_key.as_ref().map(|key| (nt.id.clone(), key.clone())))
+        .collect();
+
     // Collect scorer IDs across all competition fixtures.
     let scorer_ids: BTreeSet<&str> = competitions
         .iter()
@@ -105,6 +115,7 @@ pub fn query_competitions(game: &Game, _query: &CompetitionsQuery) -> Competitio
         competitions,
         team_names,
         national_team_names,
+        national_team_name_keys,
         player_names,
         world_cup_champions: game.world_history.world_cup_champions.clone(),
         manager_team_id: game.manager.team_id.clone(),

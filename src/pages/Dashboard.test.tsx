@@ -170,6 +170,10 @@ function createGameState(): GameStateData {
 
 const gameState = createGameState();
 
+vi.mock("../i18n", () => ({
+  default: { addResourceBundle: vi.fn() },
+}));
+
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
 }));

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import i18n from "../i18n";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
@@ -121,7 +122,13 @@ export default function Dashboard(): JSX.Element {
       throw stateResult.reason;
     }
 
-    setGameState(stateResult.value);
+    const activeState = stateResult.value;
+    if (activeState.extra_translations) {
+      for (const [locale, bundle] of Object.entries(activeState.extra_translations)) {
+        i18n.addResourceBundle(locale, "translation", bundle, true, true);
+      }
+    }
+    setGameState(activeState);
 
     if (saveIdResult.status === "fulfilled") {
       setActiveSaveId(saveIdResult.value);

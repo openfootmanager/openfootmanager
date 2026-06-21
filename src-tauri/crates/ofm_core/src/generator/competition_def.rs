@@ -66,6 +66,12 @@ pub struct CompetitionDefinition {
     /// Day of month the season starts (1–31). Defaults to 1.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub season_start_day: Option<u8>,
+    /// Optional i18n key for the competition name. When set, the frontend
+    /// translates via `t(nameKey, { year })` instead of displaying `name` raw.
+    /// Package authors can set this to a built-in key or to a custom key whose
+    /// translation is provided in the package's `translations.{locale}.json` file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_key: Option<String>,
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -837,6 +843,7 @@ fn build_competition(
     competition.berths = def.berths.clone();
     competition.season_start_month = def.season_start_month.unwrap_or(8);
     competition.season_start_day = def.season_start_day.unwrap_or(1);
+    competition.name_key = def.name_key.clone();
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();
@@ -955,6 +962,7 @@ mod tests {
             berths: Vec::new(),
             season_start_month: None,
             season_start_day: None,
+            name_key: None,
         }
     }
 
@@ -1247,6 +1255,7 @@ mod tests {
             berths: Vec::new(),
             season_start_month: None,
             season_start_day: None,
+            name_key: None,
         }
     }
 
