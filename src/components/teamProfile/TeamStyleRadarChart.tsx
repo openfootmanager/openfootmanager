@@ -64,7 +64,7 @@ export function TeamStyleRadarChart({
     },
     {
       attr: labels.fouls,
-      value: Math.round(clamp(overview.metrics.foulsCommitted.perMatch ?? 0, 5, 25)),
+      value: Math.round(100 - clamp(overview.metrics.foulsCommitted.perMatch ?? 0, 5, 25)),
       raw: (overview.metrics.foulsCommitted.perMatch ?? 0).toFixed(1),
     },
   ];

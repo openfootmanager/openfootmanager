@@ -55,8 +55,8 @@ export function PlayerRatingTrendChart({
             tickLine={false}
           />
           <YAxis
-            domain={[4, 10]}
-            ticks={[4, 5, 6, 7, 8, 9, 10]}
+            domain={[0, 10]}
+            ticks={[0, 2, 4, 6, 8, 10]}
             tick={{ fill: theme.axisColor, fontSize: 9 }}
             axisLine={false}
             tickLine={false}

@@ -1,7 +1,7 @@
 import { Card, CardBody, CardHeader } from "../ui";
 import { PlayerRatingTrendChart } from "./PlayerRatingTrendChart";
 
-type TranslateFn = (key: string) => string;
+type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
 
 export interface PlayerRecentMatchEntry {
     fixture_id: string;
@@ -21,8 +21,7 @@ export interface PlayerRecentMatchEntry {
 }
 
 function resolveLabel(t: TranslateFn, key: string, fallback: string): string {
-    const translated = t(key);
-    return translated === key ? fallback : translated;
+    return t(key, { defaultValue: fallback });
 }
 
 interface PlayerProfileRecentMatchesCardProps {
