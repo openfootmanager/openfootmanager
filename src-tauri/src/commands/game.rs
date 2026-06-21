@@ -1435,6 +1435,12 @@ pub async fn select_team(
     let stats_state =
         bootstrap_team_selection(&mut game, &team_id, start_phase, current_stats_state)?;
 
+    // Upgrade generic (legacy-bucket) positions to granular on new-game creation
+    // so the frontend sees the same granular positions immediately, rather than
+    // only after the first save/reload cycle (where load_game applies this same
+    // upgrade).
+    ofm_core::player_identity::upgrade_game_player_identities(&mut game);
+
     // Save to new per-save DB
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
     let save_name = default_save_name(&manager_name);
@@ -3402,5 +3408,68 @@ competitions:
                     | domain::news::NewsCategory::StandingsUpdate
             )
         }));
+    }
+
+    /// Regression test for issue #225: verifies that bootstrap_team_selection followed by
+    /// upgrade_game_player_identities converts generic bucket positions
+    /// (Defender/Midfielder/Forward) to granular positions (LeftBack/CentralMidfielder/etc.).
+    /// select_team calls both in sequence; it cannot be called directly here because it
+    /// requires Tauri App state, so this test exercises the same in-memory operations.
+    #[test]
+    fn bootstrap_and_upgrade_sets_granular_positions() {
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::SeasonStart,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let mut world = make_imported_baseline_world_without_staff();
+        ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+        let manager = domain::manager::Manager::new(
+            "mgr-user".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let (mut game, stats_state) =
+            build_game_from_world_data(clock, manager, &startup_options, world);
+
+        // All generated players start with generic (legacy-bucket) positions
+        let outfield_before: Vec<_> = game
+            .players
+            .iter()
+            .filter(|p| p.position != domain::player::Position::Goalkeeper)
+            .collect();
+        assert!(
+            outfield_before
+                .iter()
+                .all(|p| p.natural_position.is_legacy_bucket()),
+            "generated players should all start with generic (legacy-bucket) natural_position"
+        );
+
+        bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state)
+            .unwrap();
+        ofm_core::player_identity::upgrade_game_player_identities(&mut game);
+
+        // After upgrade, outfield players on team1 should have granular natural_position
+        let outfield_after: Vec<_> = game
+            .players
+            .iter()
+            .filter(|p| {
+                p.team_id.as_deref() == Some("team1")
+                    && p.position != domain::player::Position::Goalkeeper
+            })
+            .collect();
+        assert!(
+            !outfield_after.is_empty(),
+            "team1 should have outfield players"
+        );
+        assert!(
+            outfield_after
+                .iter()
+                .all(|p| !p.natural_position.is_legacy_bucket()),
+            "outfield players on the selected team should have granular natural_position after upgrade"
+        );
     }
 }

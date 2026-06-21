@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
+import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -341,7 +341,7 @@ export default function MatchLive({
               <div>
                 <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">{t('match.formation')}</p>
                 <div className="flex flex-wrap gap-1">
-                  {["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3"].map(f => {
+                  {FORMATIONS.map(f => {
                     const cur = userSide === "Home" ? snapshot.home_team.formation : snapshot.away_team.formation;
                     return (
                       <button key={f} onClick={() => handleFormationChange(f)}

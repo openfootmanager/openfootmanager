@@ -15,17 +15,7 @@ import {
   translatePositionLabel,
   type SquadSection,
 } from "../squad/SquadTab.helpers";
-
-export const FORMATIONS = [
-  "4-4-2",
-  "4-3-3",
-  "3-5-2",
-  "4-5-1",
-  "4-2-3-1",
-  "3-4-3",
-  "5-3-2",
-  "4-1-4-1",
-];
+export { FORMATIONS } from "../match/types";
 
 export type TacticsLayoutMode = "balanced" | "pitch" | "analysis";
 export type TacticsTableMode = "lineup" | "roles";
