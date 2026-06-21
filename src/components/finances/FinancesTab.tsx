@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
-import { User } from "lucide-react";
 import {
   formatExactMoney,
   formatVal,
@@ -10,7 +9,6 @@ import {
   getContractRiskBadgeVariant,
   getContractRiskLevel,
   getContractYearsRemaining,
-  positionBadgeVariant,
 } from "../../lib/helpers";
 import {
   annualAmountToWeeklyCommitment,
@@ -18,8 +16,6 @@ import {
 } from "../../lib/finance";
 import { getFinanceSnapshot } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
-import ContextMenu from "../ContextMenu";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
   type FacilityId,
@@ -31,10 +27,7 @@ import {
   type SponsorPitchResponseData,
   type MarketingCampaignResponseData,
   DEFAULT_FACILITIES,
-  FACILITY_DEFINITIONS,
-  getFacilityUpgradeCost,
   formatSignedAmount,
-  facilityUpgradeBlockReason,
   boardSupportAvailable,
   sponsorPitchAvailable,
   marketingCampaignAvailable,
@@ -42,6 +35,8 @@ import {
   isChooseOptionAction,
   isPendingSponsorOffer,
 } from "./FinancesTab.helpers";
+import FinancesFacilitiesCard from "./FinancesFacilitiesCard";
+import FinancesPayrollTable from "./FinancesPayrollTable";
 
 interface FinancesTabProps {
   gameState: GameStateData;
@@ -1000,158 +995,16 @@ export default function FinancesTab({
         </CardBody>
       </Card>
 
-      <Card className="lg:col-span-3">
-        <CardHeader>{t("finances.facilities")}</CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {FACILITY_DEFINITIONS.map((facility) => {
-              const level = facilities[facility.levelKey];
-              const nextUpgradeCost = getFacilityUpgradeCost(level);
-              const financeBlockReason = facilityUpgradeBlockReason(financeSnapshot);
-              const canAffordUpgrade = myTeam.finance >= nextUpgradeCost;
-              const canUpgrade = canAffordUpgrade && !financeBlockReason;
-              const isLoading = actionLoading === facility.id;
-              const upgradeReason = financeBlockReason
-                ? resolveBackendError(financeBlockReason)
-                : facilityUpgradeError?.facilityId === facility.id
-                  ? facilityUpgradeError.message
-                  : null;
+      <FinancesFacilitiesCard
+        facilities={facilities}
+        financeSnapshot={financeSnapshot}
+        teamFinance={myTeam.finance}
+        facilityUpgradeError={facilityUpgradeError}
+        actionLoading={actionLoading}
+        onUpgrade={(facility) => void handleUpgradeFacility(facility)}
+      />
 
-              return (
-                <div
-                  key={facility.id}
-                  className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 flex flex-col gap-4"
-                >
-                  <div className="space-y-1">
-                    <h3 className="font-heading font-bold text-base text-gray-900 dark:text-gray-100 uppercase tracking-wide">
-                      {t(facility.titleKey)}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t("finances.facilityLevel", { level })}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t(facility.effectKey)}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2 mt-auto">
-                    <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      {t("finances.nextUpgradeCost", {
-                        amount: formatExactMoney(nextUpgradeCost),
-                      })}
-                    </p>
-                    <Button
-                      disabled={!canUpgrade || isLoading}
-                      onClick={() => void handleUpgradeFacility(facility.id)}
-                      size="sm"
-                    >
-                      {t("finances.upgradeFacility")}
-                    </Button>
-                    {!canAffordUpgrade && !upgradeReason && (
-                      <p className="text-xs text-red-500">
-                        {t("finances.insufficientFunds")}
-                      </p>
-                    )}
-                    {upgradeReason && (
-                      <p className="text-xs text-red-500">{upgradeReason}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Payroll */}
-      <Card className="lg:col-span-3">
-        <CardHeader>{t("finances.payroll")}</CardHeader>
-        <CardBody className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                  <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("common.player")}
-                  </th>
-                  <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("common.position")}
-                  </th>
-                  <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("finances.wagePerWeek")}
-                  </th>
-                  <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("finances.marketValue")}
-                  </th>
-                  <th className="py-3 px-5 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("common.contract")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                {[...roster]
-                  .sort((a, b) => b.wage - a.wage)
-                  .slice(0, 10)
-                  .map((p) => {
-                    const contextItems = onSelectPlayer
-                      ? [
-                        {
-                          label: t("squad.viewProfile"),
-                          icon: <User className="w-4 h-4" />,
-                          onClick: () => onSelectPlayer(p.id),
-                        },
-                      ]
-                      : [];
-
-                    const row = (
-                      <tr
-                        key={p.id}
-                        onClick={() => onSelectPlayer?.(p.id)}
-                        className={`hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors ${onSelectPlayer ? "cursor-pointer group" : ""}`}
-                      >
-                        <td className="py-3 px-5 font-semibold text-sm text-gray-800 dark:text-gray-200">
-                          <span className="group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                            {p.full_name}
-                          </span>
-                        </td>
-                        <td className="py-3 px-5">
-                          <Badge variant={positionBadgeVariant(p.position)}>
-                            {translatePositionAbbreviation(t, p.position)}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {formatExactMoney(
-                            annualAmountToWeeklyCommitment(p.wage),
-                          )}
-                        </td>
-                        <td className="py-3 px-5 text-sm text-gray-600 dark:text-gray-400">
-                          {formatVal(p.market_value)}
-                        </td>
-                        <td className="py-3 px-5 text-sm text-gray-500 dark:text-gray-400">
-                          {p.contract_end
-                            ? t("finances.until", {
-                              year: p.contract_end.substring(0, 4),
-                            })
-                            : "—"}
-                        </td>
-                      </tr>
-                    );
-
-                    if (!onSelectPlayer) {
-                      return row;
-                    }
-
-                    return (
-                      <ContextMenu items={contextItems} key={p.id}>
-                        {row}
-                      </ContextMenu>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </CardBody>
-      </Card>
+      <FinancesPayrollTable roster={roster} onSelectPlayer={onSelectPlayer} />
     </div>
   );
 }
