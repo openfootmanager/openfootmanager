@@ -217,8 +217,8 @@ export default function DashboardSimulatingModal({
   const { t } = useTranslation();
   const listEndRef = useRef<HTMLDivElement>(null);
   const isDigestMode =
-    digestEntries !== undefined && digestEntries.length > 0 ||
-    isDigestRunning ||
+    digestEntries !== undefined ||
+    isDigestRunning === true ||
     stopReason != null;
   const isRunning = isDigestRunning ?? false;
 
