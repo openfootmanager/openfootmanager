@@ -296,6 +296,18 @@ export default function DashboardSimulatingModal({
           <div ref={listEndRef} />
         </div>
 
+        {/* Close button when digest finished with no specific stop reason (natural end or user-aborted) */}
+        {!isRunning && !stopReason && digestEntries && digestEntries.length > 0 && (
+          <div className="border-t border-gray-200 dark:border-navy-700 pt-4 shrink-0">
+            <button
+              onClick={onDismiss}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
+            >
+              {t("common.close")}
+            </button>
+          </div>
+        )}
+
         {/* Action buttons pinned at the bottom */}
         {stopReason && (
           <div className="border-t border-gray-200 dark:border-navy-700 pt-4 shrink-0">
