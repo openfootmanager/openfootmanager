@@ -107,5 +107,6 @@ fn make_player(
         reflexes: biased(base, gk_off, rng),
         aerial: noise(base, rng),
         traits: vec![],
+        role: Default::default(),
     }
 }
