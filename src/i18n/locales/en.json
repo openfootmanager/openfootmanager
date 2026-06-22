@@ -173,6 +173,7 @@
     "digestFired": "You have been dismissed.",
     "digestContinueAnyway": "Continue Anyway",
     "digestStop": "Stop Simulation",
+    "digestStopping": "Stopping...",
     "digestStopped": "Simulation stopped",
     "digestError": "Simulation error"
   },
@@ -618,6 +619,7 @@
     "jerseyNumberClickToAssign": "Click to assign jersey number",
     "teamKit": "Team Kit",
     "kitPattern": "Kit Pattern",
+    "kitLockedInSeason": "Kit design can only be changed during the pre-season.",
     "kitPatterns": {
       "Solid": "Solid",
       "Stripes": "Stripes",
@@ -1406,6 +1408,7 @@
     "bye": "Bye",
     "roundComplete": "Complete",
     "roundInProgress": "In progress",
+    "tbd": "TBD",
     "rounds": {
       "final": "Final",
       "semifinal": "Semifinal",
@@ -2436,6 +2439,7 @@
       "jerseyNumberOutOfRange": "Jersey number must be between 1 and 99",
       "jerseyNumberTaken": "That jersey number is already taken by another player in your squad",
       "invalidKitPattern": "Invalid kit pattern",
+      "kitChangesLockedInSeason": "Kit design can only be changed during the pre-season",
       "staffMemberNotFound": "Staff member not found",
       "staffMemberAlreadyEmployed": "Staff member already employed by a team",
       "playerNotInSquad": "Player is not in your squad",

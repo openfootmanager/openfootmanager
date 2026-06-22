@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
+import { useSettingsStore } from "../store/settingsStore";
 import {
   MatchSnapshot,
   MatchEvent,
@@ -39,6 +40,7 @@ export default function MatchSimulation() {
   const routeState = (location.state as MatchRouteState | null) ?? null;
   const matchMode = routeState?.mode || "live";
   const { gameState, setGameState } = useGameStore();
+  const { settings } = useSettingsStore();
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(
     routeState?.snapshot ?? null,
   );
@@ -48,6 +50,8 @@ export default function MatchSimulation() {
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
+  const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {
@@ -57,6 +61,15 @@ export default function MatchSimulation() {
       matchMode,
     });
   }, [gameState, matchMode, routeState?.fixtureIndex, routeState?.snapshot]);
+
+  useEffect(() => {
+    if (hasUserOverriddenSpeed) return;
+    setPreferredSpeed(
+      settings.match_speed === "slow" || settings.match_speed === "fast"
+        ? settings.match_speed
+        : "normal",
+    );
+  }, [settings.match_speed, hasUserOverriddenSpeed]);
 
   // Determine user side from game state
   useEffect(() => {
@@ -264,6 +277,14 @@ export default function MatchSimulation() {
     setImportantEvents((prev) => [...prev, evt]);
   }, []);
 
+  const handlePreferredSpeedChange = useCallback(
+    (speed: "slow" | "normal" | "fast") => {
+      setHasUserOverriddenSpeed(true);
+      setPreferredSpeed(speed);
+    },
+    [],
+  );
+
   // Loading state
   if (!snapshot || !gameState) {
     return (
@@ -309,6 +330,8 @@ export default function MatchSimulation() {
           userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
+          preferredSpeed={preferredSpeed}
+          onPreferredSpeedChange={handlePreferredSpeedChange}
           onSnapshotUpdate={handleSnapshotUpdate}
           onImportantEvent={handleImportantEvent}
           onHalfTime={handleHalfTime}

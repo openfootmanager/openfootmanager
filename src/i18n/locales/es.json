@@ -203,6 +203,7 @@
     "digestFired": "Has sido despedido.",
     "digestContinueAnyway": "Continuar de todas formas",
     "digestStop": "Detener simulación",
+    "digestStopping": "Deteniendo...",
     "digestStopped": "Simulación detenida",
     "digestError": "Error de simulación"
   },
@@ -648,6 +649,7 @@
     "jerseyNumberClickToAssign": "Clic para asignar número de camiseta",
     "teamKit": "Equipación del Equipo",
     "kitPattern": "Diseño de Equipación",
+    "kitLockedInSeason": "El diseño de equipación solo se puede cambiar durante la pretemporada.",
     "kitPatterns": {
       "Solid": "Liso",
       "Stripes": "Rayas",
@@ -1436,6 +1438,7 @@
     "bye": "Exento",
     "roundComplete": "Completada",
     "roundInProgress": "En curso",
+    "tbd": "Por definir",
     "rounds": {
       "final": "Final",
       "semifinal": "Semifinal",
@@ -2453,6 +2456,7 @@
       "jerseyNumberOutOfRange": "El número de camiseta debe estar entre 1 y 99",
       "jerseyNumberTaken": "Ese número de camiseta ya lo lleva otro jugador de tu plantilla",
       "invalidKitPattern": "Diseño de equipación no válido",
+      "kitChangesLockedInSeason": "El diseño de equipación solo se puede cambiar durante la pretemporada",
       "staffMemberNotFound": "Miembro del personal no encontrado",
       "staffMemberAlreadyEmployed": "Ese miembro del personal ya está contratado por un equipo",
       "playerNotInSquad": "El jugador no está en tu plantilla",

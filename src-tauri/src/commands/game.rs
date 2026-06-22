@@ -938,16 +938,21 @@ fn rebuild_competitions_for_management_date(game: &mut Game, management_date: Da
 
     let existing: std::collections::HashSet<String> = game.competitions.iter().map(|competition| competition.id.clone()).collect();
     let season = preseason_league_year(&game.clock);
-    let missing_states: Vec<League> = build_foundation_competition_plan(game, management_date)
+    let mut missing_states: Vec<(League, DateTime<Utc>)> = build_foundation_competition_plan(game, management_date)
         .into_iter()
         .filter(|(definition, _)| definition.id.starts_with("br-state-") && !existing.contains(&definition.id))
         .filter_map(|(definition, start)| {
             let mut competition = ofm_core::generator::build_explicit_competition(&definition, season, start)?;
             finalize_brazil_state_competition(&mut competition);
-            Some(competition)
+            Some((competition, start))
         })
         .collect();
-    game.competitions.extend(missing_states);
+    for (competition, start) in &mut missing_states {
+        if *start <= management_date {
+            ofm_core::catchup::simulate_past_fixtures(competition, &game.players, management_date);
+        }
+    }
+    game.competitions.extend(missing_states.into_iter().map(|(c, _)| c));
 }
 
 fn ensure_multi_competition_foundations(game: &mut Game) {

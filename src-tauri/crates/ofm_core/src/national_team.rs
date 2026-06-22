@@ -6,8 +6,10 @@
 //! injury risk back to their clubs (full carry-back over the shared
 //! [`Player`](domain::player::Player) records).
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Datelike, Utc};
-use domain::league::{Fixture, FixtureCompetition, FixtureStatus, MatchResult};
+use domain::league::{Fixture, FixtureCompetition, FixtureStatus, GoalEvent, MatchResult};
 use domain::national_team::NationalTeam;
 use domain::player::Player;
 use rand::{Rng, RngExt};
@@ -113,15 +115,16 @@ pub fn process_national_team_fixtures_due(
             (fixture.home_team_id.clone(), fixture.away_team_id.clone())
         };
 
-        let (home_goals, away_goals) = play_national_match(game, &home_id, &away_id, rng);
+        let (home_goals, away_goals, home_scorers, away_scorers) =
+            play_national_match(game, &home_id, &away_id, rng);
 
         let fixture = &mut game.national_teams[team_index].fixtures[fixture_index];
         fixture.status = FixtureStatus::Completed;
         fixture.result = Some(MatchResult {
             home_goals,
             away_goals,
-            home_scorers: Vec::new(),
-            away_scorers: Vec::new(),
+            home_scorers,
+            away_scorers,
             report: None,
         });
         simulated += 1;
@@ -137,19 +140,22 @@ pub fn play_national_match(
     home_national_team_id: &str,
     away_national_team_id: &str,
     rng: &mut impl Rng,
-) -> (u8, u8) {
+) -> (u8, u8, Vec<GoalEvent>, Vec<GoalEvent>) {
     let home_squad = squad_ids_for(game, home_national_team_id);
     let away_squad = squad_ids_for(game, away_national_team_id);
     let home_strength = squad_strength(&home_squad, &game.players);
     let away_strength = squad_strength(&away_squad, &game.players);
     let (home_goals, away_goals) = simulate_scoreline(home_strength, away_strength, rng);
 
+    let home_scorers = simulate_goal_scorers(&home_squad, &game.players, home_goals, rng);
+    let away_scorers = simulate_goal_scorers(&away_squad, &game.players, away_goals, rng);
+
     apply_carry_back(game, &home_squad, home_goals, away_goals, rng);
     apply_carry_back(game, &away_squad, away_goals, home_goals, rng);
-    (home_goals, away_goals)
+    (home_goals, away_goals, home_scorers, away_scorers)
 }
 
-fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> {
+pub(crate) fn squad_ids_for(game: &Game, national_team_id: &str) -> Vec<String> {
     game.national_teams
         .iter()
         .find(|team| team.id == national_team_id)
@@ -195,6 +201,48 @@ pub(crate) fn simulate_scoreline(
     let home_xg = (1.3 + 0.25 * edge).clamp(0.2, 4.0);
     let away_xg = (1.1 - 0.25 * edge).clamp(0.2, 4.0);
     (sample_goals(home_xg, rng), sample_goals(away_xg, rng))
+}
+
+/// Distribute `goal_count` goals among squad players, weighted by OVR.
+/// Returns sorted `GoalEvent` entries (ascending minute).
+pub fn simulate_goal_scorers(
+    squad_player_ids: &[String],
+    players: &[Player],
+    goal_count: u8,
+    rng: &mut impl Rng,
+) -> Vec<GoalEvent> {
+    if goal_count == 0 || squad_player_ids.is_empty() {
+        return Vec::new();
+    }
+    let player_ovr: HashMap<&str, u8> =
+        players.iter().map(|p| (p.id.as_str(), p.ovr)).collect();
+    // Clamp OVR to at least 1 so zero-rated players still get a uniform chance
+    // rather than being silently collapsed to candidates[0].
+    let candidates: Vec<(&String, u8)> = squad_player_ids
+        .iter()
+        .filter_map(|pid| player_ovr.get(pid.as_str()).copied().map(|ovr| (pid, ovr.max(1))))
+        .collect();
+    if candidates.is_empty() {
+        return Vec::new();
+    }
+    let total_weight: u32 = candidates.iter().map(|(_, ovr)| *ovr as u32).sum();
+    let mut scorers = Vec::with_capacity(goal_count as usize);
+    for _ in 0..goal_count {
+        let roll: u32 = rng.random_range(0..total_weight.max(1));
+        let mut cumulative = 0u32;
+        let scorer_id = candidates
+            .iter()
+            .find(|(_, ovr)| {
+                cumulative += *ovr as u32;
+                roll < cumulative
+            })
+            .map(|(pid, _)| (*pid).clone())
+            .unwrap_or_else(|| candidates[0].0.clone());
+        let minute = rng.random_range(1u8..=90);
+        scorers.push(GoalEvent { player_id: scorer_id, minute });
+    }
+    scorers.sort_by_key(|g| g.minute);
+    scorers
 }
 
 /// Sample a goal count from an expected-goals mean (Knuth's Poisson), capped.

@@ -9,11 +9,19 @@ export function EventFeed({
   events,
   snapshot,
   feedRef,
+  playerJerseyMap,
 }: {
   events: MatchEvent[];
   snapshot: MatchSnapshot;
   feedRef: React.RefObject<HTMLDivElement | null>;
+  playerJerseyMap?: Map<string, number>;
 }) {
+  function displayName(playerId: string | null): string {
+    const name = getPlayerName(snapshot, playerId);
+    if (!name || !playerId || !playerJerseyMap) return name;
+    const jersey = playerJerseyMap.get(playerId);
+    return jersey != null ? `${name} (#${jersey})` : name;
+  }
   const { t } = useTranslation();
   return (
     <div ref={feedRef} className="flex flex-col gap-1">
@@ -56,7 +64,7 @@ export function EventFeed({
                     {evt.event_type === "Goal" && evt.secondary_player_id && (
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {t("match.assist", {
-                          name: getPlayerName(snapshot, evt.secondary_player_id),
+                          name: displayName(evt.secondary_player_id),
                         })}
                       </p>
                     )}
@@ -75,13 +83,13 @@ export function EventFeed({
                     </div>
                     {evt.player_id && (
                       <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                        {getPlayerName(snapshot, evt.player_id)}
+                        {displayName(evt.player_id)}
                         {evt.secondary_player_id && (
                           <span className="text-gray-500 dark:text-gray-400 font-normal">
                             {evt.event_type === "Goal"
-                              ? ` (${t("match.assist", { name: getPlayerName(snapshot, evt.secondary_player_id) })})`
+                              ? ` (${t("match.assist", { name: displayName(evt.secondary_player_id) })})`
                               : evt.event_type === "Substitution"
-                                ? ` ${t("match.subFor", { name: getPlayerName(snapshot, evt.secondary_player_id) })}`
+                                ? ` ${t("match.subFor", { name: displayName(evt.secondary_player_id) })}`
                                 : ""}
                           </span>
                         )}

@@ -255,7 +255,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                 ];
             const staffCard = (
               <div data-testid={`staff-card-${staff.id}`} className="h-full">
-                <Card>
+                <Card className="h-full">
                   <CardBody>
                     <div className="flex items-start gap-4">
                       {/* Avatar */}

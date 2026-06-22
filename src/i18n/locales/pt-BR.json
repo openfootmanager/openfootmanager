@@ -173,6 +173,7 @@
     "digestFired": "Você foi demitido.",
     "digestContinueAnyway": "Continuar mesmo assim",
     "digestStop": "Parar simulação",
+    "digestStopping": "Parando...",
     "digestStopped": "Simulação parada",
     "digestError": "Erro de simulação"
   },
@@ -618,6 +619,7 @@
     "jerseyNumberClickToAssign": "Clique para atribuir o número da camisa",
     "teamKit": "Uniforme do Time",
     "kitPattern": "Padrão do Uniforme",
+    "kitLockedInSeason": "O design do uniforme só pode ser alterado durante a pré-temporada.",
     "kitPatterns": {
       "Solid": "Liso",
       "Stripes": "Listrado",
@@ -1406,6 +1408,7 @@
     "bye": "Folga",
     "roundComplete": "Concluída",
     "roundInProgress": "Em andamento",
+    "tbd": "A definir",
     "rounds": {
       "final": "Final",
       "semifinal": "Semifinal",
@@ -2423,6 +2426,7 @@
       "jerseyNumberOutOfRange": "O número da camisa deve estar entre 1 e 99",
       "jerseyNumberTaken": "Esse número de camisa já está sendo usado por outro jogador do seu elenco",
       "invalidKitPattern": "Padrão de uniforme inválido",
+      "kitChangesLockedInSeason": "O design do uniforme só pode ser alterado durante a pré-temporada",
       "staffMemberNotFound": "Membro da comissão não encontrado",
       "staffMemberAlreadyEmployed": "Esse membro da comissão já está empregado por um time",
       "playerNotInSquad": "O jogador não faz parte do seu elenco",

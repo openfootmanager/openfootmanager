@@ -173,6 +173,7 @@
     "digestFired": "Вас уволили.",
     "digestContinueAnyway": "Продолжить в любом случае",
     "digestStop": "Остановить симуляцию",
+    "digestStopping": "Остановка...",
     "digestStopped": "Симуляция остановлена",
     "digestError": "Ошибка симуляции"
   },
@@ -618,6 +619,7 @@
     "jerseyNumberClickToAssign": "Нажмите, чтобы назначить номер футболки",
     "teamKit": "Форма команды",
     "kitPattern": "Узор формы",
+    "kitLockedInSeason": "Дизайн формы можно менять только в межсезонье.",
     "kitPatterns": {
       "Solid": "Однотонный",
       "Stripes": "Полосатый",
@@ -1406,6 +1408,7 @@
     "bye": "Без игры",
     "roundComplete": "Завершён",
     "roundInProgress": "Идёт",
+    "tbd": "Не определено",
     "rounds": {
       "final": "Финал",
       "semifinal": "Полуфинал",
@@ -2436,6 +2439,7 @@
       "jerseyNumberOutOfRange": "Номер футболки должен быть от 1 до 99",
       "jerseyNumberTaken": "Этот номер футболки уже занят другим игроком вашего состава",
       "invalidKitPattern": "Недопустимый узор формы",
+      "kitChangesLockedInSeason": "Дизайн формы можно менять только в межсезонье",
       "staffMemberNotFound": "Сотрудник не найден",
       "staffMemberAlreadyEmployed": "Этот сотрудник уже работает в команде",
       "playerNotInSquad": "Игрок не входит в ваш состав",

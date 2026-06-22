@@ -32,6 +32,12 @@ vi.mock("../store/gameStore", () => ({
   useGameStore: () => gameStoreState,
 }));
 
+vi.mock("../store/settingsStore", () => ({
+  useSettingsStore: () => ({
+    settings: { match_speed: "normal" },
+  }),
+}));
+
 vi.mock("../components/match/PreMatchSetup", () => ({
   default: ({
     snapshot,
@@ -52,19 +58,32 @@ vi.mock("../components/match/PreMatchSetup", () => ({
 vi.mock("../components/match/MatchLive", () => ({
   default: ({
     snapshot,
+    preferredSpeed,
+    onPreferredSpeedChange,
+    onHalfTime,
     onFullTime,
   }: {
     snapshot: { home_team: { name: string } };
+    preferredSpeed?: string;
+    onPreferredSpeedChange?: (speed: string) => void;
+    onHalfTime?: () => void;
     onFullTime?: () => void;
   }) => (
-    <button data-testid="match-live" onClick={onFullTime}>
+    <div data-testid="match-live-container" data-preferred-speed={preferredSpeed ?? "normal"}>
       {snapshot.home_team.name}
-    </button>
+      <button data-testid="match-live" onClick={onFullTime}>Full Time</button>
+      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>Half Time</button>
+      <button data-testid="match-trigger-speed-fast" onClick={() => onPreferredSpeedChange?.("fast")}>Fast</button>
+    </div>
   ),
 }));
 
 vi.mock("../components/match/HalfTimeBreak", () => ({
-  default: () => <div data-testid="halftime" />,
+  default: ({ onResume }: { onResume?: () => void }) => (
+    <div data-testid="halftime">
+      <button data-testid="halftime-resume" onClick={onResume}>Resume</button>
+    </div>
+  ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
@@ -409,7 +428,7 @@ describe("MatchSimulation", function (): void {
     render(<MatchSimulation />);
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
   });
 
@@ -436,7 +455,7 @@ describe("MatchSimulation", function (): void {
     render(<MatchSimulation />);
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
@@ -486,7 +505,7 @@ describe("MatchSimulation", function (): void {
     fireEvent.click(screen.getByTestId("prematch-start"));
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
@@ -558,6 +577,50 @@ describe("MatchSimulation", function (): void {
 
     await waitFor(function (): void {
       expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
+    });
+  });
+
+  it("preserves user-selected match speed from first half into second half", async function (): Promise<void> {
+    const mockedInvoke = vi.mocked(invoke);
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    // Advance to the first-half live match view.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live-container")).toBeInTheDocument();
+    });
+
+    // Initial preferred speed comes from settings ("normal").
+    expect(screen.getByTestId("match-live-container")).toHaveAttribute(
+      "data-preferred-speed",
+      "normal",
+    );
+
+    // User selects fast speed during first half.
+    fireEvent.click(screen.getByTestId("match-trigger-speed-fast"));
+
+    // Trigger half-time transition.
+    fireEvent.click(screen.getByTestId("match-trigger-halftime"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("halftime")).toBeInTheDocument();
+    });
+
+    // Resume from half-time — advances to second_half stage.
+    fireEvent.click(screen.getByTestId("halftime-resume"));
+
+    // The remounted MatchLive for second half must carry the user's preferred speed.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live-container")).toHaveAttribute(
+        "data-preferred-speed",
+        "fast",
+      );
     });
   });
 });
