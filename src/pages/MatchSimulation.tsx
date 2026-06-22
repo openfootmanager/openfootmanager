@@ -194,9 +194,9 @@ export default function MatchSimulation() {
   }, [snapshot?.phase]);
 
   const handleResumeFromHalfTime = useCallback(() => {
-    console.info("[MatchSimulation] handleResumeFromHalfTime");
-    setStage("second_half");
-  }, []);
+    console.info("[MatchSimulation] handleResumeFromHalfTime", { stage });
+    setStage(stage === "extra_time_halftime" ? "extra_time_second_half" : "second_half");
+  }, [stage]);
 
   const handlePenaltyShootout = useCallback(() => {
     console.info("[MatchSimulation] handlePenaltyShootout");
@@ -314,6 +314,7 @@ export default function MatchSimulation() {
 
     case "first_half":
     case "second_half":
+    case "extra_time_second_half":
       return (
         <MatchLive
           key={stage}

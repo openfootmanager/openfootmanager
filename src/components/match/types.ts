@@ -50,7 +50,7 @@ export interface EnginePlayerData {
   reflexes: number;
   aerial: number;
   traits: string[];
-  role?: string;
+  role: string;
 }
 
 export interface EngineTeamData {
@@ -181,6 +181,7 @@ export type MatchDayStage =
   | "halftime"
   | "second_half"
   | "extra_time_halftime"
+  | "extra_time_second_half"
   | "penalty_shootout"
   | "postmatch"
   | "digest"
