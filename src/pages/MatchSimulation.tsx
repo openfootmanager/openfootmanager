@@ -50,11 +50,8 @@ export default function MatchSimulation() {
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
-  const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">(
-    settings.match_speed === "slow" || settings.match_speed === "fast"
-      ? settings.match_speed
-      : "normal",
-  );
+  const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {
@@ -64,6 +61,15 @@ export default function MatchSimulation() {
       matchMode,
     });
   }, [gameState, matchMode, routeState?.fixtureIndex, routeState?.snapshot]);
+
+  useEffect(() => {
+    if (hasUserOverriddenSpeed) return;
+    setPreferredSpeed(
+      settings.match_speed === "slow" || settings.match_speed === "fast"
+        ? settings.match_speed
+        : "normal",
+    );
+  }, [settings.match_speed, hasUserOverriddenSpeed]);
 
   // Determine user side from game state
   useEffect(() => {
@@ -271,6 +277,14 @@ export default function MatchSimulation() {
     setImportantEvents((prev) => [...prev, evt]);
   }, []);
 
+  const handlePreferredSpeedChange = useCallback(
+    (speed: "slow" | "normal" | "fast") => {
+      setHasUserOverriddenSpeed(true);
+      setPreferredSpeed(speed);
+    },
+    [],
+  );
+
   // Loading state
   if (!snapshot || !gameState) {
     return (
@@ -317,7 +331,7 @@ export default function MatchSimulation() {
           isSpectator={isSpectator}
           importantEvents={importantEvents}
           preferredSpeed={preferredSpeed}
-          onPreferredSpeedChange={setPreferredSpeed}
+          onPreferredSpeedChange={handlePreferredSpeedChange}
           onSnapshotUpdate={handleSnapshotUpdate}
           onImportantEvent={handleImportantEvent}
           onHalfTime={handleHalfTime}
