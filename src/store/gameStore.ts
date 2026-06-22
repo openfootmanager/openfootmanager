@@ -195,7 +195,7 @@ interface GameStore {
   clearGame: () => void;
 }
 
-export const useGameStore = create<GameStore>((set) => ({
+export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveGame: false,
   managerName: null,
   gameState: null,
@@ -210,11 +210,12 @@ export const useGameStore = create<GameStore>((set) => ({
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
   },
-  setMessages: (messages) => set((store) => {
-    if (!store.gameState) return store;
-    const next = { ...store.gameState, messages };
-    return { gameState: next, sessionState: deriveSessionState(next), isDirty: true };
-  }),
+  setMessages: (messages) => {
+    const { gameState } = get();
+    if (!gameState) return;
+    const next = { ...gameState, messages };
+    set({ gameState: next, sessionState: deriveSessionState(next), isDirty: true });
+  },
   setSessionState: (state) => set({ sessionState: state }),
   markClean: () => set({ isDirty: false }),
   setShowFiredModal: (show) => set({ showFiredModal: show }),

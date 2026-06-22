@@ -216,9 +216,11 @@ pub fn simulate_goal_scorers(
     }
     let player_ovr: HashMap<&str, u8> =
         players.iter().map(|p| (p.id.as_str(), p.ovr)).collect();
+    // Clamp OVR to at least 1 so zero-rated players still get a uniform chance
+    // rather than being silently collapsed to candidates[0].
     let candidates: Vec<(&String, u8)> = squad_player_ids
         .iter()
-        .filter_map(|pid| player_ovr.get(pid.as_str()).copied().map(|ovr| (pid, ovr)))
+        .filter_map(|pid| player_ovr.get(pid.as_str()).copied().map(|ovr| (pid, ovr.max(1))))
         .collect();
     if candidates.is_empty() {
         return Vec::new();

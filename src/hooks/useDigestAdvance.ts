@@ -30,8 +30,11 @@ export function useDigestAdvance(
   const [stopReason, setStopReason] = useState<DigestStopReason | null>(null);
   // Abort flag so an in-flight loop can be cancelled (e.g. on unmount).
   const abortRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   const startDigest = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     abortRef.current = false;
     setIsRunning(true);
     setIsAborting(false);
@@ -84,6 +87,7 @@ export function useDigestAdvance(
       console.error("[useDigestAdvance] error during digest loop:", err);
       setStopReason({ kind: "error" });
     } finally {
+      inFlightRef.current = false;
       setIsRunning(false);
       setIsAborting(false);
     }

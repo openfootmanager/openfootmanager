@@ -23,6 +23,7 @@ interface KnockoutBracketProps {
 }
 
 interface MatchSlotProps {
+  fixtureId: string;
   fixture: FixtureData | undefined;
   resolveTeamName: (id: string) => string;
   userTeamId?: string | null;
@@ -38,6 +39,7 @@ function ScoreBadge({ score }: { score: number }): JSX.Element {
 }
 
 function MatchSlot({
+  fixtureId,
   fixture,
   resolveTeamName,
   userTeamId,
@@ -45,7 +47,10 @@ function MatchSlot({
 }: MatchSlotProps): JSX.Element {
   if (!fixture) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 dark:border-navy-600 p-2 text-xs text-gray-400 dark:text-gray-500 text-center italic">
+      <div
+        data-testid={`tournaments-bracket-${fixtureId}`}
+        className="rounded-lg border border-dashed border-gray-200 dark:border-navy-600 p-2 text-xs text-gray-400 dark:text-gray-500 text-center italic"
+      >
         {tbdLabel}
       </div>
     );
@@ -71,8 +76,16 @@ function MatchSlot({
   const loserRow = "text-gray-500 dark:text-gray-400";
   const neutralRow = "text-gray-700 dark:text-gray-300";
 
+  const homeRowStyle = result
+    ? isHomeWinner ? winnerRow : isAwayWinner ? loserRow : neutralRow
+    : neutralRow;
+  const awayRowStyle = result
+    ? isAwayWinner ? winnerRow : isHomeWinner ? loserRow : neutralRow
+    : neutralRow;
+
   return (
     <div
+      data-testid={`tournaments-bracket-${fixtureId}`}
       className={`rounded-lg border overflow-hidden ${
         userInvolved
           ? "border-primary-400/50 dark:border-primary-500/40"
@@ -80,30 +93,14 @@ function MatchSlot({
       }`}
     >
       {/* Home team row */}
-      <div
-        className={`${baseRow} ${
-          result
-            ? isHomeWinner
-              ? winnerRow
-              : loserRow
-            : neutralRow
-        }`}
-      >
+      <div className={`${baseRow} ${homeRowStyle}`}>
         <span className="flex-1 truncate max-w-[9rem]">{homeName}</span>
         {result && <ScoreBadge score={result.home_goals} />}
       </div>
       {/* Divider */}
       <div className="h-px bg-gray-100 dark:bg-navy-700" />
       {/* Away team row */}
-      <div
-        className={`${baseRow} ${
-          result
-            ? isAwayWinner
-              ? winnerRow
-              : loserRow
-            : neutralRow
-        }`}
-      >
+      <div className={`${baseRow} ${awayRowStyle}`}>
         <span className="flex-1 truncate max-w-[9rem]">{awayName}</span>
         {result && <ScoreBadge score={result.away_goals} />}
       </div>
@@ -126,7 +123,6 @@ export default function KnockoutBracket({
 
   const fixtureById = new Map(fixtures.map((f) => [f.id, f]));
 
-  // How many slots each round needs (power of 2, largest round first)
   const maxSlots = Math.max(...rounds.map((r) => r.fixture_ids.length + (r.bye_team_ids?.length ?? 0)));
 
   return (
@@ -169,6 +165,7 @@ export default function KnockoutBracket({
                 {roundFixtures.map((fixture, idx) => (
                   <MatchSlot
                     key={round.fixture_ids[idx]}
+                    fixtureId={round.fixture_ids[idx]}
                     fixture={fixture}
                     resolveTeamName={resolveTeamName}
                     userTeamId={userTeamId}
@@ -176,7 +173,10 @@ export default function KnockoutBracket({
                   />
                 ))}
                 {byeTeams.length > 0 && (
-                  <div className="rounded-lg border border-dashed border-gray-200 dark:border-navy-600 px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    data-testid={`tournaments-byes-${round.id}`}
+                    className="rounded-lg border border-dashed border-gray-200 dark:border-navy-600 px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400"
+                  >
                     <span className="font-heading font-semibold uppercase tracking-wide text-[10px] text-gray-400 dark:text-gray-500 mr-1.5">
                       {byeLabel}
                     </span>
