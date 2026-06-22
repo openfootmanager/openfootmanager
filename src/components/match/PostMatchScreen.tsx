@@ -47,7 +47,7 @@ const SET_PIECE_CLEAR_EVENTS = new Set([
   "Clearance", "Interception", "PassIntercepted", "GoalKick",
 ]);
 
-function computeGoalSources(
+export function computeGoalSources(
   events: MatchEvent[],
   side: "Home" | "Away",
 ): { openPlay: number; corners: number; freekicks: number; penalties: number } {
@@ -57,11 +57,12 @@ function computeGoalSources(
   for (const evt of events) {
     if (evt.event_type === "Corner") {
       lastSetPiece = { type: "Corner", side: evt.side };
-    } else if (
-      evt.event_type === "FreeKick" &&
-      (evt.zone === "HomeDefense" || evt.zone === "AwayDefense")
-    ) {
-      lastSetPiece = { type: "FreeKick", side: evt.side };
+    } else if (evt.event_type === "FreeKick") {
+      // Only dangerous FKs: taking side must be in their attacking third
+      const dangerousZone = evt.side === "Home" ? "AwayDefense" : "HomeDefense";
+      if (evt.zone === dangerousZone) {
+        lastSetPiece = { type: "FreeKick", side: evt.side };
+      }
     } else if (SET_PIECE_CLEAR_EVENTS.has(evt.event_type)) {
       lastSetPiece = null;
     } else if (evt.event_type === "Goal" && evt.side === side) {
