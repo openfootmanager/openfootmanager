@@ -42,29 +42,31 @@ interface PostMatchScreenProps {
 
 type PostMatchTab = "teamTalk" | "matchReport" | "playerRatings" | "tactics";
 
+const SET_PIECE_CLEAR_EVENTS = new Set([
+  "ShotOffTarget", "ShotBlocked", "ShotSaved", "PenaltyMiss",
+  "Clearance", "Interception", "PassIntercepted", "GoalKick",
+]);
+
 function computeGoalSources(
   events: MatchEvent[],
   side: "Home" | "Away",
 ): { openPlay: number; corners: number; freekicks: number; penalties: number } {
   const sources = { openPlay: 0, corners: 0, freekicks: 0, penalties: 0 };
-  let lastSetPiece: "Corner" | "FreeKick" | null = null;
-  const clearEvents = new Set([
-    "ShotOffTarget", "ShotBlocked", "ShotSaved", "PenaltyMiss",
-    "Clearance", "Interception", "PassIntercepted", "GoalKick",
-  ]);
+  // Track (type, side) so a set piece by one team doesn't attribute the other's goal
+  let lastSetPiece: { type: "Corner" | "FreeKick"; side: "Home" | "Away" } | null = null;
   for (const evt of events) {
     if (evt.event_type === "Corner") {
-      lastSetPiece = "Corner";
+      lastSetPiece = { type: "Corner", side: evt.side };
     } else if (
       evt.event_type === "FreeKick" &&
       (evt.zone === "HomeDefense" || evt.zone === "AwayDefense")
     ) {
-      lastSetPiece = "FreeKick";
-    } else if (clearEvents.has(evt.event_type)) {
+      lastSetPiece = { type: "FreeKick", side: evt.side };
+    } else if (SET_PIECE_CLEAR_EVENTS.has(evt.event_type)) {
       lastSetPiece = null;
     } else if (evt.event_type === "Goal" && evt.side === side) {
-      if (lastSetPiece === "Corner") sources.corners++;
-      else if (lastSetPiece === "FreeKick") sources.freekicks++;
+      if (lastSetPiece?.type === "Corner" && lastSetPiece.side === side) sources.corners++;
+      else if (lastSetPiece?.type === "FreeKick" && lastSetPiece.side === side) sources.freekicks++;
       else sources.openPlay++;
       lastSetPiece = null;
     } else if (evt.event_type === "PenaltyGoal" && evt.side === side) {
