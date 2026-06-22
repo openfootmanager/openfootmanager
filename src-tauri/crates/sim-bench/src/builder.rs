@@ -1,4 +1,4 @@
-use engine::{PlayerData, PlayStyle, Position, TeamData};
+use engine::{PlayerData, PlayerRole, PlayStyle, Position, TeamData};
 use rand::{Rng, RngExt};
 
 /// Build a synthetic team with per-attribute values centered on `avg_ovr`.
@@ -107,5 +107,30 @@ fn make_player(
         reflexes: biased(base, gk_off, rng),
         aerial: noise(base, rng),
         traits: vec![],
+        role: {
+            let choices: &[PlayerRole] = match position {
+                Position::Goalkeeper => &[
+                    PlayerRole::SweeperKeeper,
+                    PlayerRole::BallPlayingKeeper,
+                    PlayerRole::Standard,
+                ],
+                Position::Defender => &[
+                    PlayerRole::CoverCB,
+                    PlayerRole::Stopper,
+                    PlayerRole::BallPlayingCB,
+                ],
+                Position::Midfielder => &[
+                    PlayerRole::BoxToBox,
+                    PlayerRole::DeepLyingPlaymaker,
+                    PlayerRole::Mezzala,
+                ],
+                Position::Forward => &[
+                    PlayerRole::CompleteForward,
+                    PlayerRole::Poacher,
+                    PlayerRole::TargetMan,
+                ],
+            };
+            choices[rng.random_range(0..choices.len())]
+        },
     }
 }
