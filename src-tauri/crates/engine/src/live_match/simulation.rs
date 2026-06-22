@@ -184,6 +184,12 @@ impl LiveMatchState {
             self.ball_zone = Zone::Midfield;
         }
 
+        // Record ball zone for AI zone-pressure tracking (cap at 10)
+        if self.recent_zones.len() >= 10 {
+            self.recent_zones.pop_front();
+        }
+        self.recent_zones.push_back(self.ball_zone);
+
         // Check for phase transitions
         let transition_events = self.check_phase_end(minute, rng);
         minute_events.extend(transition_events);
