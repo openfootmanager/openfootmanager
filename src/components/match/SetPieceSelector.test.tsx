@@ -156,8 +156,8 @@ const allSquad = [
 
 describe("SetPieceSelector component", () => {
   it("uses readable shared stat value classes for selector chips", () => {
-    expect(getAttributeValueClassName(75)).toContain("text-accent-700");
-    expect(getAttributeValueClassName(48)).toContain("text-gray-700");
+    expect(getAttributeValueClassName(75)).toContain("text-success-600");
+    expect(getAttributeValueClassName(48)).toContain("text-accent-700");
   });
 
   it("renders the label and 'not assigned' when no currentId", () => {

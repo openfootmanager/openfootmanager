@@ -259,6 +259,7 @@ export default function Dashboard(): JSX.Element {
     digestStopReason,
     isDigestVisible,
     isDigestRunning,
+    isDigestAborting,
     startDigest,
     abortDigest,
     dismissDigest,
@@ -515,9 +516,7 @@ export default function Dashboard(): JSX.Element {
         digestStopReason={digestStopReason}
         isDigestVisible={isDigestVisible}
         isDigestRunning={isDigestRunning}
-        onDigestViewBlockers={(blockers) =>
-          setBlockerModal({ blockers })
-        }
+        isDigestAborting={isDigestAborting}
         onDigestContinueAfterBlocker={() => void startDigest()}
         onDismissDigest={dismissDigest}
         onDigestStop={abortDigest}

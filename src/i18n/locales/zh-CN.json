@@ -173,6 +173,7 @@
     "digestFired": "您已被解雇。",
     "digestContinueAnyway": "仍然继续",
     "digestStop": "停止模拟",
+    "digestStopping": "正在停止...",
     "digestStopped": "模拟已停止",
     "digestError": "模拟出错"
   },
@@ -618,6 +619,7 @@
     "jerseyNumberClickToAssign": "点击分配球衣号码",
     "teamKit": "球队球衣",
     "kitPattern": "球衣图案",
+    "kitLockedInSeason": "球衣设计只能在赛季前修改。",
     "kitPatterns": {
       "Solid": "纯色",
       "Stripes": "条纹",
@@ -1406,6 +1408,7 @@
     "bye": "轮空",
     "roundComplete": "已结束",
     "roundInProgress": "进行中",
+    "tbd": "待定",
     "rounds": {
       "final": "决赛",
       "semifinal": "半决赛",
@@ -2440,6 +2443,7 @@
       "jerseyNumberOutOfRange": "球衣号码必须在 1 到 99 之间",
       "jerseyNumberTaken": "该球衣号码已被阵容中的另一名球员使用",
       "invalidKitPattern": "无效的球衣图案",
+      "kitChangesLockedInSeason": "球衣设计只能在赛季前修改",
       "staffMemberNotFound": "未找到职员",
       "staffMemberAlreadyEmployed": "该职员已受雇于某支球队",
       "playerNotInSquad": "球员不在你的阵容中",

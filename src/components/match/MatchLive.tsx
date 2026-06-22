@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
@@ -24,6 +24,8 @@ interface MatchLiveProps {
   userSide: "Home" | "Away" | null;
   isSpectator: boolean;
   importantEvents: MatchEvent[];
+  preferredSpeed?: "slow" | "normal" | "fast";
+  onPreferredSpeedChange?: (speed: "slow" | "normal" | "fast") => void;
   onSnapshotUpdate: (snap: MatchSnapshot) => void;
   onImportantEvent: (evt: MatchEvent) => void;
   onHalfTime: () => void;
@@ -33,12 +35,14 @@ interface MatchLiveProps {
 
 export default function MatchLive({
   snapshot, gameState, userSide, isSpectator,
-  importantEvents, onSnapshotUpdate, onImportantEvent,
+  importantEvents, preferredSpeed, onPreferredSpeedChange,
+  onSnapshotUpdate, onImportantEvent,
   onHalfTime, onFullTime, onPenaltyShootout,
 }: MatchLiveProps) {
   const { t } = useTranslation();
   const { settings } = useSettingsStore();
-  const initialSpeed: SimSpeed = (settings.match_speed === "slow" || settings.match_speed === "fast") ? settings.match_speed : "normal";
+  const initialSpeed: SimSpeed = preferredSpeed
+    ?? ((settings.match_speed === "slow" || settings.match_speed === "fast") ? settings.match_speed : "normal");
   const [speed, setSpeed] = useState<SimSpeed>(initialSpeed);
   const [activePanel, setActivePanel] = useState<ActivePanel>("events");
   const [isRunning, setIsRunning] = useState(true);
@@ -52,6 +56,14 @@ export default function MatchLive({
   const awayFullTeam = gameState.teams.find(t => t.id === snapshot.away_team.id);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
+
+  const playerJerseyMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of gameState.players) {
+      if (p.jersey_number != null) m.set(p.id, p.jersey_number);
+    }
+    return m;
+  }, [gameState.players]);
 
   const isFinished = snapshot.phase === "Finished";
 
@@ -295,7 +307,7 @@ export default function MatchLive({
           </div>
 
           <div className="flex-1 overflow-auto p-4">
-            {activePanel === "events" && <EventFeed events={importantEvents} snapshot={snapshot} feedRef={eventFeedRef} />}
+            {activePanel === "events" && <EventFeed events={importantEvents} snapshot={snapshot} feedRef={eventFeedRef} playerJerseyMap={playerJerseyMap} />}
             {activePanel === "stats" && <MatchStats snapshot={snapshot} />}
             {activePanel === "lineups" && <Lineups snapshot={snapshot} />}
           </div>
@@ -316,7 +328,13 @@ export default function MatchLive({
               ]).map(s => (
                 <button
                   key={s.id}
-                  onClick={() => { setSpeed(s.id); setIsRunning(s.id !== "paused"); }}
+                  onClick={() => {
+                    setSpeed(s.id);
+                    setIsRunning(s.id !== "paused");
+                    if (s.id !== "paused" && s.id !== "instant") {
+                      onPreferredSpeedChange?.(s.id);
+                    }
+                  }}
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${speed === s.id ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                     }`}
                 >

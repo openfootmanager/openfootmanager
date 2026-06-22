@@ -173,6 +173,7 @@
     "digestFired": "Sie wurden entlassen.",
     "digestContinueAnyway": "Trotzdem fortfahren",
     "digestStop": "Simulation stoppen",
+    "digestStopping": "Wird gestoppt...",
     "digestStopped": "Simulation gestoppt",
     "digestError": "Simulationsfehler"
   },
@@ -618,6 +619,7 @@
     "jerseyNumberClickToAssign": "Klicken, um Trikotnummer zuzuweisen",
     "teamKit": "Teamtrikot",
     "kitPattern": "Trikotvariante",
+    "kitLockedInSeason": "Das Trikotdesign kann nur in der Vorsaison geändert werden.",
     "kitPatterns": {
       "Solid": "Einfarbig",
       "Stripes": "Streifen",
@@ -1406,6 +1408,7 @@
     "bye": "Freilos",
     "roundComplete": "Abgeschlossen",
     "roundInProgress": "Läuft",
+    "tbd": "Noch offen",
     "rounds": {
       "final": "Finale",
       "semifinal": "Halbfinale",
@@ -2440,6 +2443,7 @@
       "jerseyNumberOutOfRange": "Die Trikotnummer muss zwischen 1 und 99 liegen",
       "jerseyNumberTaken": "Diese Trikotnummer wird bereits von einem anderen Spieler in deinem Kader getragen",
       "invalidKitPattern": "Ungültige Trikotvariante",
+      "kitChangesLockedInSeason": "Das Trikotdesign kann nur in der Vorsaison geändert werden",
       "staffMemberNotFound": "Mitarbeiter nicht gefunden",
       "staffMemberAlreadyEmployed": "Dieser Mitarbeiter ist bereits bei einem Team angestellt",
       "playerNotInSquad": "Spieler ist nicht in deinem Kader",

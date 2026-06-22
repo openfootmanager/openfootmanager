@@ -310,7 +310,7 @@ export default function TrainingTab({
                             : "text-gray-800 dark:text-gray-200"
                         }`}
                     >
-                      {player.match_name}
+                      {player.match_name}{player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                     </span>
                     <ProgressBar
                       value={player.condition}
