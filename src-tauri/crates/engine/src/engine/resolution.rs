@@ -283,21 +283,21 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
     let assister = snap_player(ctx, att_side, Position::Midfielder, rng);
     let goalkeeper = snap_player(ctx, def_side, Position::Goalkeeper, rng);
 
+    let att_cond = if att_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
+    let def_cond = if def_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
+
     let shoot_rating =
         (shooter.shooting as f64 + shooter.composure as f64 + shooter.decisions as f64) / 3.0
-            * trait_bonus(&shooter, TraitContext::Shooting);
+            * trait_bonus(&shooter, TraitContext::Shooting)
+            * att_cond;
     let gk_rating =
         (goalkeeper.handling as f64 + goalkeeper.reflexes as f64 + goalkeeper.positioning as f64)
             / 3.0
-            * trait_bonus(&goalkeeper, TraitContext::Goalkeeping);
+            * trait_bonus(&goalkeeper, TraitContext::Goalkeeping)
+            * def_cond;
 
-    let cond = if att_side == Side::Home {
-        ctx.home_condition
-    } else {
-        ctx.away_condition
-    };
     let accuracy =
-        (ctx.config.shot_accuracy_base * cond + (shoot_rating - 50.0) / 200.0).clamp(0.15, 0.85);
+        (ctx.config.shot_accuracy_base + (shoot_rating - 50.0) / 200.0).clamp(0.15, 0.85);
 
     if rng.random_range(0.0..1.0f64) > accuracy {
         if rng.random_range(0.0..1.0f64) < 0.4 {
@@ -322,7 +322,7 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
 
     let def_line_mod = tactics_defensive_conversion_mod(&ctx.team(def_side).tactics);
     let conversion =
-        (ctx.config.goal_conversion_base * cond * def_line_mod + (shoot_rating - gk_rating) / 150.0)
+        (ctx.config.goal_conversion_base * def_line_mod + (shoot_rating - gk_rating) / 150.0)
             .clamp(0.10, 0.70);
 
     if rng.random_range(0.0..1.0f64) < conversion {
