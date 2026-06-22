@@ -42,9 +42,9 @@ pub fn build_team(
 }
 
 fn parse_formation(formation: &str) -> (u8, u8, u8) {
-    let parts: Vec<u8> = formation
+    let parts: Vec<u16> = formation
         .split('-')
-        .filter_map(|s| s.parse::<u8>().ok())
+        .filter_map(|s| s.parse::<u16>().ok())
         .collect();
 
     let result = match parts.len() {
@@ -58,7 +58,7 @@ fn parse_formation(formation: &str) -> (u8, u8, u8) {
     if result.0 + result.1 + result.2 != 10 {
         return (4, 4, 2);
     }
-    result
+    (result.0 as u8, result.1 as u8, result.2 as u8)
 }
 
 fn make_player(

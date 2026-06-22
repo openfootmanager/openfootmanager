@@ -1338,7 +1338,7 @@
     "loanCounterCountered": "Respondieron con condiciones de cesión ajustadas.",
     "loanCounterSuggestedTerms": "Condiciones sugeridas: {{percent}}% del salario hasta {{endDate}}",
     "loanCounterSuggestedBuyOption": "Opción de compra sugerida: {{fee}}",
-    "loanOfferTerms": "Cesión {{percent}}% salarios hasta {{endDate}}",
+    "loanOfferTerms": "Cesión con {{percent}}% del salario hasta {{endDate}}",
     "submitLoanOffer": "Enviar oferta de cesión",
     "submitLoanCounter": "Enviar contraoferta",
     "acceptLoanOffer": "Aceptar cesión",

@@ -8,9 +8,9 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
-use engine::{simulate_with_rng, MatchConfig, PlayStyle};
-use rand::rngs::StdRng;
+use engine::{MatchConfig, PlayStyle, simulate_with_rng};
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use builder::build_team;
 use stats::BenchStats;
@@ -46,11 +46,11 @@ struct Cli {
     away_formation: String,
 
     /// Home team average overall rating (10–99)
-    #[arg(long, default_value_t = 70)]
+    #[arg(long, default_value_t = 70, value_parser = clap::value_parser!(u8).range(10..=99))]
     home_rating: u8,
 
     /// Away team average overall rating (10–99)
-    #[arg(long, default_value_t = 70)]
+    #[arg(long, default_value_t = 70, value_parser = clap::value_parser!(u8).range(10..=99))]
     away_rating: u8,
 
     /// Print a rich colour terminal report (default: JSON to stdout)
@@ -191,15 +191,7 @@ fn main() {
         &mut team_rng,
     );
 
-    eprintln!(
-        "Simulating {} games (seed: {})…",
-        cli.games,
-        if cli.seed.is_some() {
-            base_seed.to_string()
-        } else {
-            "random".to_string()
-        }
-    );
+    eprintln!("Simulating {} games (seed: {})…", cli.games, base_seed);
 
     let start = Instant::now();
     let mut bench_stats = BenchStats::default();
@@ -225,7 +217,7 @@ fn main() {
             home_rating: cli.home_rating,
             away_rating: cli.away_rating,
             goal_conversion_base: config.goal_conversion_base,
-            seed: cli.seed,
+            seed: Some(base_seed),
         };
         terminal::print_report(&bench_stats, &run_cfg);
     }
@@ -242,7 +234,7 @@ fn main() {
             home_rating: cli.home_rating,
             away_rating: cli.away_rating,
             goal_conversion_base: config.goal_conversion_base,
-            seed: cli.seed,
+            seed: Some(base_seed),
         };
         let content = html::generate_html(&bench_stats, &run_cfg);
         std::fs::write(html_path, content).expect("Failed to write HTML report");

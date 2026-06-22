@@ -34,6 +34,12 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     }
     println!("{}\n", sep.bright_cyan());
 
+    if stats.games == 0 {
+        println!("{}", "  No games simulated.".yellow());
+        println!("{}\n", sep.bright_cyan());
+        return;
+    }
+
     // ── Setup ────────────────────────────────────────────────────────────────
     section("SETUP");
     println!(
@@ -129,7 +135,7 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
         .unwrap_or(1);
     for goals in 0u8..=9 {
         let count = stats.goals_per_game_hist.get(&goals).copied().unwrap_or(0);
-        let pct = count as f64 / stats.games as f64 * 100.0;
+        let pct = pct_of_games(count, stats.games);
         let bar = ascii_bar(count as f64, max_hist as f64, 18);
         let label = if goals == 9 {
             "9+".to_string()
@@ -145,7 +151,7 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let scorelines = stats.top_scorelines(8);
     let max_sl = scorelines.first().map(|(_, c)| *c).unwrap_or(1);
     for ((hg, ag), count) in &scorelines {
-        let pct = *count as f64 / stats.games as f64 * 100.0;
+        let pct = pct_of_games(*count, stats.games);
         let bar = ascii_bar(*count as f64, max_sl as f64, 18);
         let hg_label = if *hg >= 6 {
             "6+".to_string()
@@ -304,6 +310,13 @@ fn ascii_bar(value: f64, max_val: f64, width: usize) -> String {
         "█".repeat(filled).bright_blue(),
         "░".repeat(width - filled).dimmed()
     )
+}
+
+fn pct_of_games(count: u32, games: u32) -> f64 {
+    if games == 0 {
+        return 0.0;
+    }
+    count as f64 / games as f64 * 100.0
 }
 
 fn check(value: f64, lo: f64, hi: f64) -> bool {

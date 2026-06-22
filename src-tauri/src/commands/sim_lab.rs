@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use engine::{
-    simulate_with_rng, EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, PlayerRole,
-    Position, TeamData,
+    EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, PlayerRole, Position, TeamData,
+    simulate_with_rng,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -145,6 +145,13 @@ fn validate_probability(name: &str, value: f64) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_rating(name: &str, value: u8) -> Result<(), String> {
+    if !(10..=99).contains(&value) {
+        return Err(format!("{name} must be between 10 and 99, got {value}"));
+    }
+    Ok(())
+}
+
 /// Run a batch of headless simulations and return aggregate statistics.
 #[tauri::command]
 pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> {
@@ -154,6 +161,8 @@ pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> 
             config.games
         ));
     }
+    validate_rating("home_rating", config.home_rating)?;
+    validate_rating("away_rating", config.away_rating)?;
     if let Some(v) = config.shot_accuracy_base {
         validate_probability("shot_accuracy_base", v)?;
     }
@@ -221,6 +230,9 @@ pub fn run_single_seeded_match(
     home_rating: u8,
     away_rating: u8,
 ) -> Result<SingleMatchResult, String> {
+    validate_rating("home_rating", home_rating)?;
+    validate_rating("away_rating", away_rating)?;
+
     let match_config = MatchConfig::default();
     let mut team_rng = StdRng::seed_from_u64(seed.wrapping_add(0xDEAD_BEEF));
 
@@ -348,6 +360,11 @@ impl Aggregator {
 
     fn into_results(self, games: u32, elapsed: f64, conversion_base: f64) -> SimBatchResults {
         let n = games as f64;
+        let games_per_sec = if elapsed <= 0.0 {
+            0.0
+        } else {
+            games as f64 / elapsed
+        };
 
         let gpg = self.total_goals as f64 / n;
         let shot_acc = if self.total_shots == 0 {
@@ -429,7 +446,7 @@ impl Aggregator {
             scoreline_heatmap: heatmap,
             goals_by_bucket: bucket_fracs,
             total_time_secs: elapsed,
-            games_per_sec: games as f64 / elapsed,
+            games_per_sec,
         }
     }
 }
@@ -524,9 +541,9 @@ fn build_team(
 }
 
 fn parse_formation(formation: &str) -> (u8, u8, u8) {
-    let parts: Vec<u8> = formation
+    let parts: Vec<u16> = formation
         .split('-')
-        .filter_map(|s| s.parse::<u8>().ok())
+        .filter_map(|s| s.parse::<u16>().ok())
         .collect();
     let result = match parts.len() {
         2 => (parts[0], 0, parts[1]),
@@ -538,7 +555,7 @@ fn parse_formation(formation: &str) -> (u8, u8, u8) {
     if result.0 + result.1 + result.2 != 10 {
         return (4, 4, 2);
     }
-    result
+    (result.0 as u8, result.1 as u8, result.2 as u8)
 }
 
 fn make_player(

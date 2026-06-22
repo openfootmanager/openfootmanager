@@ -3175,7 +3175,7 @@
           "failed": "Impossible d'accepter l'offre de {{team}}"
         },
         "acceptDescription": "Rejoignez {{team}} comme nouveau manager",
-        "declineDescription": "Continuez a chercher d'autres opportunites"
+        "declineDescription": "Continuez à chercher d'autres opportunités"
       },
       "jobOfferExpired": {
         "subject": "Poste pourvu — {{team}}",
