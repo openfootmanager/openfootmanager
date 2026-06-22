@@ -104,6 +104,45 @@ pub fn build_round_robin_fixtures_with(
     fixtures
 }
 
+/// Redistribute fixture dates so that at most `max_per_day` fixtures fall on any
+/// single calendar day, spreading each matchday's fixtures across consecutive
+/// days. Matchdays are kept in order and separated by a one-day buffer so that
+/// the last fixture of matchday N and the first fixture of matchday N+1 are
+/// never on the same day.
+///
+/// Fixtures are sorted by `(matchday, id)` before reassignment so the result is
+/// deterministic regardless of insertion order.
+pub fn spread_fixture_dates(
+    fixtures: &mut Vec<Fixture>,
+    start_date: DateTime<Utc>,
+    max_per_day: usize,
+) {
+    if fixtures.is_empty() || max_per_day == 0 {
+        return;
+    }
+
+    fixtures.sort_by(|a, b| a.matchday.cmp(&b.matchday).then(a.id.cmp(&b.id)));
+
+    let mut cursor_day: i64 = 0;
+    let mut i = 0;
+    while i < fixtures.len() {
+        let current_matchday = fixtures[i].matchday;
+        let mut j = i;
+        while j < fixtures.len() && fixtures[j].matchday == current_matchday {
+            j += 1;
+        }
+        let count = j - i;
+        for (slot, fixture) in fixtures[i..j].iter_mut().enumerate() {
+            fixture.date = (start_date + Duration::days(cursor_day + (slot / max_per_day) as i64))
+                .format("%Y-%m-%d")
+                .to_string();
+        }
+        let days_used = ((count + max_per_day - 1) / max_per_day) as i64;
+        cursor_day += days_used + 1;
+        i = j;
+    }
+}
+
 /// Reset a league for a new season in place, preserving its identity, name, and
 /// participants but clearing results and regenerating standings and fixtures.
 /// Participants are taken from `participant_ids`, falling back to the previous
@@ -213,6 +252,7 @@ pub fn seed_knockout_round(
     let byes = team_ids.len().next_power_of_two() - team_ids.len();
     let (bye_teams, playing_teams) = team_ids.split_at(byes);
 
+    let mpd = cup.rules.knockout_matches_per_day.max(1) as usize;
     let mut round_fixture_ids = Vec::new();
     for (pair_index, pair) in playing_teams.chunks(2).enumerate() {
         if pair.len() < 2 {
@@ -224,7 +264,7 @@ pub fn seed_knockout_round(
             id: fixture_id,
             competition_id: cup.id.clone(),
             matchday: round_index,
-            date: (start_date + Duration::days(pair_index as i64))
+            date: (start_date + Duration::days((pair_index / mpd) as i64))
                 .format("%Y-%m-%d")
                 .to_string(),
             home_team_id: pair[0].clone(),
@@ -749,5 +789,104 @@ mod tests {
                 assert!(appearances <= 1, "{team} is double-booked on {date}");
             }
         }
+    }
+
+    #[test]
+    fn spread_fixture_dates_caps_matches_per_day() {
+        // 12 groups × 4 teams → 24 fixtures per matchday when using 1 leg.
+        // With max_per_day=4 each matchday must spread across 6 days.
+        let competition_id = "wc";
+        let start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
+        let max_per_day = 4;
+
+        let mut fixtures: Vec<Fixture> = Vec::new();
+        for group in 0..12_usize {
+            let team_ids: Vec<String> = (0..4).map(|t| format!("g{group}t{t}")).collect();
+            fixtures.extend(build_round_robin_fixtures_with(
+                competition_id,
+                &team_ids,
+                start,
+                FixtureCompetition::InternationalNation,
+                1,
+                2,
+            ));
+        }
+
+        spread_fixture_dates(&mut fixtures, start, max_per_day);
+
+        // No date should exceed max_per_day fixtures.
+        let mut per_day: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for f in &fixtures {
+            *per_day.entry(f.date.as_str()).or_default() += 1;
+        }
+        for (date, count) in &per_day {
+            assert!(
+                *count <= max_per_day,
+                "date {date} has {count} fixtures, expected ≤ {max_per_day}"
+            );
+        }
+    }
+
+    #[test]
+    fn spread_fixture_dates_keeps_matchday_order_without_overlap() {
+        let start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (0..4).map(|i| format!("t{i}")).collect();
+        let mut fixtures = build_round_robin_fixtures_with(
+            "c",
+            &teams,
+            start,
+            FixtureCompetition::Cup,
+            1,
+            2,
+        );
+
+        spread_fixture_dates(&mut fixtures, start, 1);
+
+        // All matchday-1 dates must be strictly earlier than all matchday-2 dates.
+        let max_md1 = fixtures
+            .iter()
+            .filter(|f| f.matchday == 1)
+            .map(|f| f.date.as_str())
+            .max()
+            .unwrap();
+        let min_md2 = fixtures
+            .iter()
+            .filter(|f| f.matchday == 2)
+            .map(|f| f.date.as_str())
+            .min()
+            .unwrap();
+        assert!(
+            max_md1 < min_md2,
+            "matchday 1 should end before matchday 2 starts"
+        );
+    }
+
+    #[test]
+    fn seed_knockout_round_groups_matches_per_day() {
+        // Round of 32 (16 matches) with mpd=4 should span exactly 4 days.
+        let teams: Vec<String> = (0..32).map(|i| format!("t{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::InternationalNation,
+            domain::league::CompetitionScope::International,
+        );
+        cup.rules.knockout_matches_per_day = 4;
+        // seed_knockout_round was already called in generate_knockout_cup with the
+        // old default (mpd=1); regenerate with our updated rule.
+        cup.fixtures.clear();
+        cup.knockout_rounds.clear();
+        seed_knockout_round(&mut cup, &teams, start, FixtureCompetition::InternationalNation);
+
+        let unique_dates: std::collections::HashSet<&str> =
+            cup.fixtures.iter().map(|f| f.date.as_str()).collect();
+        assert_eq!(
+            unique_dates.len(),
+            4,
+            "16 matches at 4/day should use exactly 4 dates"
+        );
     }
 }

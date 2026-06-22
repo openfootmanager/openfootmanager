@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
@@ -121,7 +122,9 @@ export default function Dashboard(): JSX.Element {
       throw stateResult.reason;
     }
 
-    setGameState(stateResult.value);
+    const activeState = stateResult.value;
+    applyExtraTranslations(activeState.extra_translations);
+    setGameState(activeState);
 
     if (saveIdResult.status === "fulfilled") {
       setActiveSaveId(saveIdResult.value);

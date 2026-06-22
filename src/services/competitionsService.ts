@@ -12,6 +12,7 @@ export interface CompetitionsView {
   competitions: LeagueData[];
   team_names: Record<string, string>;
   national_team_names: Record<string, string>;
+  national_team_name_keys: Record<string, string>;
   player_names: Record<string, PlayerNameEntry>;
   world_cup_champions: WorldCupChampionData[];
   manager_team_id: string | null;

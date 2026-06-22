@@ -567,6 +567,7 @@ export interface NationalTeamData {
   manager_name?: string | null;
   reputation: number;
   fixtures: FixtureData[];
+  name_key?: string | null;
 }
 
 export interface WorldRegionData {
@@ -699,4 +700,5 @@ export interface GameStateData {
   board_objectives: BoardObjective[];
   season_context?: SeasonContextData;
   available_staff_market_last_activity_date?: string | null;
+  extra_translations?: Record<string, Record<string, unknown>>;
 }

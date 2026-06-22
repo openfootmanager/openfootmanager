@@ -175,6 +175,7 @@ fn world_data_from_parts(
         stats: domain::stats::StatsState::default(),
         world_history: domain::world_history::WorldHistoryArchive::default(),
         metadata: super::definitions::WorldDataMetadata::default(),
+        extra_translations: std::collections::HashMap::new(),
     })
 }
 
@@ -259,6 +260,7 @@ fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Resu
             world_id: manifest.world_id,
             ..Default::default()
         }),
+        extra_translations: std::collections::HashMap::new(),
     }))
 }
 

@@ -21,21 +21,29 @@ export function getNationalTeamFixtures(
   return [...windowFixtures, ...tournamentFixtures];
 }
 
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
 /** Display name for a national team, falling back to its id when unknown. */
 export function getNationalTeamName(
   gameState: Pick<GameStateData, "national_teams">,
   nationalTeamId: string,
+  t?: TranslateFn,
 ): string {
   const team = (gameState.national_teams ?? []).find(
     (nation) => nation.id === nationalTeamId,
   );
-  return team?.name ?? nationalTeamId;
+  if (!team) return nationalTeamId;
+  if (t && team.name_key) {
+    return t("nations.nationalTeamTemplate", { name: t(team.name_key) });
+  }
+  return team.name;
 }
 
 export interface CalledUpPlayer {
   player: PlayerData;
   nationalTeamId: string;
   nationalTeamName: string;
+  nationalTeamNameKey?: string | null;
 }
 
 /**
@@ -73,6 +81,7 @@ export function getUserCalledUpPlayers(
         player,
         nationalTeamId: nation.id,
         nationalTeamName: nation.name,
+        nationalTeamNameKey: nation.name_key,
       });
     }
   }
