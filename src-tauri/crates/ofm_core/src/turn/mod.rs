@@ -5,7 +5,7 @@ mod round_summary;
 
 use crate::board_objectives;
 use crate::game::Game;
-use crate::live_match_manager::domain_to_engine_role;
+use crate::live_match_manager::{domain_to_engine_role, domain_to_engine_tactics};
 use crate::player_events;
 use crate::random_events;
 use crate::scouting;
@@ -342,7 +342,7 @@ mod tests {
 fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let player_roles = team.map(|t| &t.player_roles);
-    let (name, formation, play_style) = match team {
+    let (name, formation, play_style, tactics) = match team {
         Some(t) => (
             t.name.clone(),
             t.formation.clone(),
@@ -354,11 +354,13 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
                 domain::team::PlayStyle::HighPress => engine::PlayStyle::HighPress,
                 _ => engine::PlayStyle::Balanced,
             },
+            domain_to_engine_tactics(&t.tactics_phase),
         ),
         None => (
             "Unknown".into(),
             "4-4-2".into(),
             engine::PlayStyle::Balanced,
+            engine::TacticsConfig::default(),
         ),
     };
 
@@ -415,6 +417,7 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
         formation,
         play_style,
         players,
+        tactics,
     }
 }
 

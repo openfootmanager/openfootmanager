@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import PostMatchScreen from "./PostMatchScreen";
+import PostMatchScreen, { computeGoalSources } from "./PostMatchScreen";
 import type { GameStateData } from "../../store/gameStore";
+import type { MatchEvent } from "./types";
 import { ThemeProvider } from "../../context/ThemeContext";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -113,6 +114,7 @@ function makeSnapshot() {
           reflexes: 20,
           aerial: 50,
           traits: [],
+          role: "Standard",
         },
       ],
     },
@@ -148,6 +150,7 @@ function makeSnapshot() {
           reflexes: 20,
           aerial: 50,
           traits: [],
+          role: "Standard",
         },
       ],
     },
@@ -530,5 +533,77 @@ describe("PostMatchScreen", function (): void {
     fireEvent.click(screen.getByText("match.skip"));
     expect(onFinish).toHaveBeenCalledTimes(1);
     expect(onContinue).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeGoalSources unit tests
+// ---------------------------------------------------------------------------
+
+function makeEvent(
+  event_type: string,
+  side: "Home" | "Away",
+  zone = "Midfield",
+): MatchEvent {
+  return { minute: 1, event_type, side, zone, player_id: null, secondary_player_id: null };
+}
+
+describe("computeGoalSources", function (): void {
+  it("counts open-play goals", function (): void {
+    const events: MatchEvent[] = [makeEvent("Goal", "Home")];
+    expect(computeGoalSources(events, "Home")).toEqual({
+      openPlay: 1, corners: 0, freekicks: 0, penalties: 0,
+    });
+  });
+
+  it("counts corner goals for the correct side only", function (): void {
+    // Away earns a corner, but Home scores — should be open play for Home, not corner
+    const events: MatchEvent[] = [
+      makeEvent("Corner", "Away"),
+      makeEvent("Goal", "Home"),
+    ];
+    expect(computeGoalSources(events, "Home")).toEqual({
+      openPlay: 1, corners: 0, freekicks: 0, penalties: 0,
+    });
+    // Away scoring after their own corner is a corner goal
+    const events2: MatchEvent[] = [
+      makeEvent("Corner", "Away"),
+      makeEvent("Goal", "Away"),
+    ];
+    expect(computeGoalSources(events2, "Away")).toEqual({
+      openPlay: 0, corners: 1, freekicks: 0, penalties: 0,
+    });
+  });
+
+  it("only counts attacking-third free kicks as set-piece windows", function (): void {
+    // Home FK in HomeDefense (their own third) should NOT open a set-piece window
+    const defensive = makeEvent("FreeKick", "Home", "HomeDefense");
+    const goal = makeEvent("Goal", "Home");
+    expect(computeGoalSources([defensive, goal], "Home")).toEqual({
+      openPlay: 1, corners: 0, freekicks: 0, penalties: 0,
+    });
+    // Home FK in AwayDefense (their attacking third) SHOULD open a window
+    const attacking = makeEvent("FreeKick", "Home", "AwayDefense");
+    expect(computeGoalSources([attacking, goal], "Home")).toEqual({
+      openPlay: 0, corners: 0, freekicks: 1, penalties: 0,
+    });
+  });
+
+  it("clears the set-piece window on defensive events", function (): void {
+    const events: MatchEvent[] = [
+      makeEvent("Corner", "Home"),
+      makeEvent("Clearance", "Away"),
+      makeEvent("Goal", "Home"),
+    ];
+    expect(computeGoalSources(events, "Home")).toEqual({
+      openPlay: 1, corners: 0, freekicks: 0, penalties: 0,
+    });
+  });
+
+  it("counts penalty goals", function (): void {
+    const events: MatchEvent[] = [makeEvent("PenaltyGoal", "Home")];
+    expect(computeGoalSources(events, "Home")).toEqual({
+      openPlay: 0, corners: 0, freekicks: 0, penalties: 1,
+    });
   });
 });

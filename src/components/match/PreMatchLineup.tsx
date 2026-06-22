@@ -6,6 +6,9 @@ import type { TeamData } from "../../store/gameStore";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { ROLES_BY_ENGINE_POSITION } from "./roles";
+
+export const POSITION_ROLES = ROLES_BY_ENGINE_POSITION;
 
 export const POSITION_KEY_STATS: Record<
   string,
@@ -156,6 +159,7 @@ interface PreMatchLineupProps {
   onSelectStarter: (id: string | null) => void;
   onSwap: (benchPlayerId: string) => void;
   onAutoSelect: () => void;
+  onChangeRole?: (playerId: string, role: string) => void;
 }
 
 export default function PreMatchLineup({
@@ -173,6 +177,7 @@ export default function PreMatchLineup({
   onSelectStarter,
   onSwap,
   onAutoSelect,
+  onChangeRole,
 }: PreMatchLineupProps) {
   const { t } = useTranslation();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
@@ -307,9 +312,14 @@ export default function PreMatchLineup({
                       >
                         {posOvr}
                       </div>
-                      <span className="text-sm text-gray-800 dark:text-gray-200 font-medium flex-1 truncate">
+                      <span className="text-sm text-gray-800 dark:text-gray-200 font-medium truncate min-w-0">
                         {p.name}
                       </span>
+                      {p.role && p.role !== "Standard" && (
+                        <span className="text-[9px] font-heading uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-navy-700 rounded px-1 py-0.5 shrink-0">
+                          {t(`tactics.playerRoles.${p.role}` as never, p.role as string)}
+                        </span>
+                      )}
                       {isSelected && (
                         <ArrowUpDown className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
                       )}
@@ -336,6 +346,17 @@ export default function PreMatchLineup({
                     </button>
                   );
 
+                  const roleMenuItems = onChangeRole
+                    ? [
+                        { label: t("match.changeRole"), onClick: () => {}, disabled: true, divider: false },
+                        ...(POSITION_ROLES[p.position] || []).map((role) => ({
+                          label: t(`tactics.playerRoles.${role}` as never, role),
+                          onClick: () => onChangeRole(p.id, role),
+                          disabled: (p.role ?? "Standard") === role,
+                        })),
+                      ]
+                    : [];
+
                   return (
                     <ContextMenu
                       items={[
@@ -345,6 +366,8 @@ export default function PreMatchLineup({
                             : t("match.selectForSwap"),
                           onClick: () => onSelectStarter(isSelected ? null : p.id),
                         },
+                        ...(roleMenuItems.length > 0 ? [{ label: "", onClick: () => {}, divider: true }] : []),
+                        ...roleMenuItems,
                       ]}
                       key={p.id}
                     >

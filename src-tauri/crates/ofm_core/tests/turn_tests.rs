@@ -372,7 +372,7 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
                 "other".to_string()
             },
             assist_id: None,
-            is_penalty: false,
+            goal_source: engine::report::GoalSource::OpenPlay,
             side: Side::Home,
         })
         .chain((0..away_goals).map(|i| GoalDetail {
@@ -383,7 +383,7 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
                 "other".to_string()
             },
             assist_id: None,
-            is_penalty: false,
+            goal_source: engine::report::GoalSource::OpenPlay,
             side: Side::Away,
         }))
         .collect();

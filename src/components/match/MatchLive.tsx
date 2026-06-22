@@ -28,15 +28,16 @@ interface MatchLiveProps {
   onPreferredSpeedChange?: (speed: "slow" | "normal" | "fast") => void;
   onSnapshotUpdate: (snap: MatchSnapshot) => void;
   onImportantEvent: (evt: MatchEvent) => void;
-  onHalfTime: () => void;
+  onHalfTime: (phase: "HalfTime" | "ExtraTimeHalfTime") => void;
   onFullTime: () => void;
+  onPenaltyShootout?: () => void;
 }
 
 export default function MatchLive({
   snapshot, gameState, userSide, isSpectator,
   importantEvents, preferredSpeed, onPreferredSpeedChange,
   onSnapshotUpdate, onImportantEvent,
-  onHalfTime, onFullTime,
+  onHalfTime, onFullTime, onPenaltyShootout,
 }: MatchLiveProps) {
   const { t } = useTranslation();
   const { settings } = useSettingsStore();
@@ -94,7 +95,7 @@ export default function MatchLive({
           setIsRunning(false);
           setSpeed("paused");
           // Small delay so the last event renders before transitioning
-          setTimeout(() => onHalfTime(), 600);
+          setTimeout(() => onHalfTime("HalfTime"), 600);
           return;
         }
 
@@ -102,7 +103,15 @@ export default function MatchLive({
           signaledRef.current.add("ExtraTimeHalfTime");
           setIsRunning(false);
           setSpeed("paused");
-          setTimeout(() => onHalfTime(), 600);
+          setTimeout(() => onHalfTime("ExtraTimeHalfTime"), 600);
+          return;
+        }
+
+        if (phase === "PenaltyShootout" && !signaledRef.current.has("PenaltyShootout")) {
+          signaledRef.current.add("PenaltyShootout");
+          setIsRunning(false);
+          setSpeed("paused");
+          setTimeout(() => onPenaltyShootout?.(), 600);
           return;
         }
 
@@ -118,7 +127,7 @@ export default function MatchLive({
       console.error("Failed to step match:", err);
       setIsRunning(false);
     }
-  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime]);
+  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout]);
 
   // Auto-step timer
   useEffect(() => {

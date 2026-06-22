@@ -205,7 +205,8 @@
     "news.nArticles",
     "training.groups.groupFocus",
     "playerProfile.renewalTension",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "match.cornersGoals"
   ],
   "it": [
     "nations.sn",
