@@ -241,7 +241,7 @@ export default function PenaltyShootoutScreen({
   );
 }
 
-function KickRow({
+export function KickRow({
   label,
   taken,
   scored,
