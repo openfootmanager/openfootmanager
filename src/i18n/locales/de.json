@@ -1804,7 +1804,7 @@
     "penaltyShootout": "Elfmeterschießen",
     "shootout": {
       "round": "Runde {{n}} von 5",
-      "suddenDeath": "Sudden Death",
+      "suddenDeath": "Plötzlicher Tod",
       "shootoutScore": "Elfmeter: {{h}} – {{a}}",
       "homeKick": "Heimmannschaft schießt...",
       "awayKick": "Gastmannschaft schießt..."
