@@ -140,10 +140,10 @@ export default function PostMatchScreen({
         }[]
       >("apply_team_talk", { tone: selectedTalk, context });
       setTalkResults(results);
+      setTalkDelivered(true);
     } catch (err) {
       console.error("Team talk failed:", err);
     }
-    setTalkDelivered(true);
   };
 
   const tabs: { id: PostMatchTab; label: string; icon: React.ReactNode }[] = [
