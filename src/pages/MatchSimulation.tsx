@@ -170,7 +170,7 @@ export default function MatchSimulation() {
     return () => {
       isCancelled = true;
     };
-  }, [matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
+  }, [gameState, matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
 
   // Skip pre-match for spectators
   useEffect(() => {
