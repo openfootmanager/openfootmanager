@@ -516,9 +516,9 @@ fn default_season_month_for_region(region_id: &str) -> u8 {
 
 fn brazil_state_region(city: &str) -> Option<&'static str> {
     match city {
-        "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino" | "Juiz de Fora" => Some("southeast"),
+        "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino" | "Juiz de Fora" | "Vitória" => Some("southeast"),
         "Porto Alegre" | "Curitiba" | "Florianópolis" => Some("south"),
-        "Salvador" | "Recife" | "Fortaleza" | "Vitória" | "Natal" | "Maceió" => Some("northeast"),
+        "Salvador" | "Recife" | "Fortaleza" | "Natal" | "Maceió" => Some("northeast"),
         "Goiânia" | "Belém" | "Manaus" | "Cuiabá" => Some("north-central-west"),
         _ => None,
     }
@@ -709,6 +709,11 @@ fn build_foundation_competition_plan(
                 } else {
                     Vec::new()
                 };
+                let actual_start = if country == "BR" && tier > 0 {
+                    ofm_core::generator::start_date_at_game_open(game_start, 3, 21).0
+                } else {
+                    league_start
+                };
                 planned.push((
                     CompetitionDefinition {
                         id: format!("{country_slug}-d{}", tier + 1),
@@ -726,24 +731,18 @@ fn build_foundation_competition_plan(
                         },
                         berths,
                         season_start_month: Some(if country == "BR" && tier > 0 {
-                            3
+                            actual_start.month() as u8
                         } else {
                             league_month
                         }),
                         season_start_day: Some(if country == "BR" {
-                            if tier == 0 {
-                                28
-                            } else {
-                                21
-                            }
+                            if tier == 0 { 28 } else { actual_start.day() as u8 }
                         } else {
                             1
                         }),
                         name_key: Some(division_tier_name_key(tier, division_count).to_string()),
                     },
-                    if country == "BR" && tier > 0 {
-                        ofm_core::generator::start_date_at_game_open(game_start, 3, 21).0
-                    } else { league_start },
+                    actual_start,
                 ));
                 priority += 1;
             }
@@ -887,6 +886,11 @@ fn build_foundation_competition_plan(
     planned
 }
 
+fn finalize_brazil_state_competition(competition: &mut League) {
+    competition.rules.counts_in_season_flow = false;
+    competition.rules.knockout_round_gap_days = 7;
+}
+
 fn build_foundation_competitions(game: &Game) -> Vec<League> {
     let game_start = game.clock.start_date;
     let season = preseason_league_year(&game.clock);
@@ -906,9 +910,7 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
                 );
             }
             if competition.id.starts_with("br-state-") {
-                competition.rules.counts_in_season_flow = false;
-                competition.rules.knockout_round_gap_days = 7;
-                competition.name_key = Some(competition.name.clone());
+                finalize_brazil_state_competition(&mut competition);
             }
             Some(competition)
         })
@@ -941,9 +943,7 @@ fn rebuild_competitions_for_management_date(game: &mut Game, management_date: Da
         .filter(|(definition, _)| definition.id.starts_with("br-state-") && !existing.contains(&definition.id))
         .filter_map(|(definition, start)| {
             let mut competition = ofm_core::generator::build_explicit_competition(&definition, season, start)?;
-            competition.rules.counts_in_season_flow = false;
-            competition.rules.knockout_round_gap_days = 7;
-            competition.name_key = Some(competition.name.clone());
+            finalize_brazil_state_competition(&mut competition);
             Some(competition)
         })
         .collect();
@@ -1836,13 +1836,13 @@ pub fn bootstrap_game_for_mcp(
 mod tests {
     use super::{
         age_on_date, apply_generated_past_history, bootstrap_team_selection,
-        build_foundation_competitions, build_game_from_world_data, create_new_save,
-        current_date_for_phase, ensure_international_windows, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        package_folder_name, parse_competition_definitions, preseason_league_year,
-        preseason_season_start, rebuild_competitions_for_management_date, require_active_stats_state,
-        resolve_simulation_scope, select_continental_entrants, split_into_divisions,
-        start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
+        brazil_state_region, build_foundation_competitions, build_game_from_world_data,
+        create_new_save, current_date_for_phase, ensure_international_windows,
+        game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
+        normalize_startup_options, package_folder_name, parse_competition_definitions,
+        preseason_league_year, preseason_season_start, rebuild_competitions_for_management_date,
+        require_active_stats_state, resolve_simulation_scope, select_continental_entrants,
+        split_into_divisions, start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
     use chrono::{TimeZone, Utc};
@@ -3694,5 +3694,25 @@ competitions:
                 .all(|p| !p.natural_position.is_legacy_bucket()),
             "outfield players on the selected team should have granular natural_position after upgrade"
         );
+    }
+
+    #[test]
+    fn brazil_state_region_covers_all_standard_br_cities() {
+        // All cities from STANDARD_NATIONS BR entry must map to a region so that
+        // state-series competitions are generated for every club location.
+        let br_cities = [
+            "São Paulo", "Rio", "Belo Horizonte", "Porto Alegre", "Salvador", "Recife",
+            "Curitiba", "Fortaleza", "Goiânia", "Santos", "Campinas", "Belém", "Manaus",
+            "Vitória", "Natal", "Florianópolis", "Cuiabá", "Maceió", "Bragantino",
+            "Juiz de Fora",
+        ];
+        for city in br_cities {
+            assert!(
+                brazil_state_region(city).is_some(),
+                "brazil_state_region returned None for BR city: {city}"
+            );
+        }
+        assert_eq!(brazil_state_region("Vitória"), Some("southeast"),
+            "Vitória (ES) belongs in the southeast region, not northeast");
     }
 }
