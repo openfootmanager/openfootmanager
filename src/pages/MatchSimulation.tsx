@@ -198,14 +198,14 @@ export default function MatchSimulation() {
     setStage("first_half");
   }, []);
 
-  const handleHalfTime = useCallback(() => {
-    console.info("[MatchSimulation] handleHalfTime", { phase: snapshot?.phase });
-    if (snapshot?.phase === "ExtraTimeHalfTime") {
+  const handleHalfTime = useCallback((phase: "HalfTime" | "ExtraTimeHalfTime") => {
+    console.info("[MatchSimulation] handleHalfTime", { phase });
+    if (phase === "ExtraTimeHalfTime") {
       setStage("extra_time_halftime");
     } else {
       setStage("halftime");
     }
-  }, [snapshot?.phase]);
+  }, []);
 
   const handleResumeFromHalfTime = useCallback(() => {
     console.info("[MatchSimulation] handleResumeFromHalfTime", { stage });
