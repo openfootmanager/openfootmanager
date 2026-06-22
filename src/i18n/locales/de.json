@@ -1828,6 +1828,8 @@
       }
     },
     "deliverTeamTalk": "Ansprache halten",
+    "delivering": "Wird übermittelt...",
+    "teamTalkFailed": "Ansprache fehlgeschlagen. Bitte erneut versuchen.",
     "delivered": "Gehalten",
     "spectatorMode": "Zuschauermodus",
     "spectatorHT": "Beide Trainer sprechen in der Kabine mit ihren Teams.",

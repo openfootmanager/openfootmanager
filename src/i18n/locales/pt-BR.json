@@ -1771,6 +1771,8 @@
       }
     },
     "deliverTeamTalk": "Fazer Preleção",
+    "delivering": "Entregando...",
+    "teamTalkFailed": "A preleção falhou. Por favor, tente novamente.",
     "delivered": "Feito",
     "spectatorMode": "Modo Espectador",
     "spectatorHT": "Ambos os treinadores estão conversando com seus times no vestiário.",

@@ -1847,6 +1847,8 @@
       }
     },
     "deliverTeamTalk": "Fai il discorso",
+    "delivering": "In corso...",
+    "teamTalkFailed": "Il discorso è fallito. Riprova.",
     "delivered": "Consegnato",
     "spectatorMode": "Modalità spettatore",
     "spectatorHT": "Entrambi gli allenatori stanno parlando alle loro squadre nello spogliatoio.",

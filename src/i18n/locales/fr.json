@@ -1828,6 +1828,8 @@
       }
     },
     "deliverTeamTalk": "Donner la Causerie",
+    "delivering": "En cours...",
+    "teamTalkFailed": "La causerie a échoué. Veuillez réessayer.",
     "delivered": "Donné",
     "spectatorMode": "Mode Spectateur",
     "spectatorHT": "Les deux entraîneurs parlent à leurs équipes dans les vestiaires.",

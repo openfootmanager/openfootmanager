@@ -1828,6 +1828,8 @@
       }
     },
     "deliverTeamTalk": "发表更衣室讲话",
+    "delivering": "正在发表...",
+    "teamTalkFailed": "更衣室讲话失败，请重试.",
     "delivered": "已发表",
     "spectatorMode": "观众模式",
     "spectatorHT": "两位经理正在更衣室内与球队谈话。",

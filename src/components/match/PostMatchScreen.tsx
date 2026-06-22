@@ -57,6 +57,8 @@ export default function PostMatchScreen({
   );
   const [selectedTalk, setSelectedTalk] = useState<TeamTalkTone | null>(null);
   const [talkDelivered, setTalkDelivered] = useState(false);
+  const [talkPending, setTalkPending] = useState(false);
+  const [talkError, setTalkError] = useState<string | null>(null);
   const [talkResults, setTalkResults] = useState<
     {
       player_id: string;
@@ -122,13 +124,15 @@ export default function PostMatchScreen({
         : ["calm", "motivational", "assertive"];
 
   const handleDeliverTalk = async () => {
-    if (!selectedTalk) return;
+    if (!selectedTalk || talkPending) return;
     const context =
       resultType === "win"
         ? "winning"
         : resultType === "loss"
           ? "losing"
           : "drawing";
+    setTalkPending(true);
+    setTalkError(null);
     try {
       const results = await invoke<
         {
@@ -143,6 +147,9 @@ export default function PostMatchScreen({
       setTalkDelivered(true);
     } catch (err) {
       console.error("Team talk failed:", err);
+      setTalkError(t("match.teamTalkFailed"));
+    } finally {
+      setTalkPending(false);
     }
   };
 
@@ -304,11 +311,15 @@ export default function PostMatchScreen({
       {/* Tab Bar */}
       <div className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
         <div className="max-w-4xl mx-auto px-6">
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="tablist">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-heading font-bold uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === tab.id
@@ -329,7 +340,12 @@ export default function PostMatchScreen({
         <div className="max-w-4xl mx-auto px-6 py-6">
           {/* Team Talk Tab */}
           {activeTab === "teamTalk" && !isSpectator && userSide && (
-            <div className="max-w-2xl mx-auto">
+            <div
+              id="tabpanel-teamTalk"
+              role="tabpanel"
+              aria-labelledby="tab-teamTalk"
+              className="max-w-2xl mx-auto"
+            >
               {!talkDelivered ? (
                 <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-6 transition-colors duration-300">
                   <div className="flex items-center gap-2 mb-4">
@@ -385,10 +401,20 @@ export default function PostMatchScreen({
                     <button
                       type="button"
                       onClick={handleDeliverTalk}
-                      className="w-full py-3 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-xl font-heading font-bold text-sm uppercase tracking-wider transition-colors"
+                      disabled={talkPending}
+                      className={`w-full py-3 rounded-xl font-heading font-bold text-sm uppercase tracking-wider transition-colors ${
+                        talkPending
+                          ? "bg-gray-300 dark:bg-navy-600 text-gray-500 cursor-not-allowed"
+                          : "bg-primary-500/20 hover:bg-primary-500/30 text-primary-400"
+                      }`}
                     >
-                      {t("match.deliverTeamTalk")}
+                      {talkPending
+                        ? t("match.delivering")
+                        : t("match.deliverTeamTalk")}
                     </button>
+                  )}
+                  {talkError && (
+                    <p className="text-sm text-red-500 mt-2">{talkError}</p>
                   )}
                 </div>
               ) : (
@@ -477,7 +503,12 @@ export default function PostMatchScreen({
 
           {/* Match Report Tab */}
           {activeTab === "matchReport" && (
-            <div className="grid grid-cols-2 gap-6">
+            <div
+              id="tabpanel-matchReport"
+              role="tabpanel"
+              aria-labelledby="tab-matchReport"
+              className="grid grid-cols-2 gap-6"
+            >
               {/* Scorers */}
               <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
                 <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
@@ -600,7 +631,12 @@ export default function PostMatchScreen({
 
           {/* Player Ratings Tab */}
           {activeTab === "playerRatings" && (
-            <div className="grid grid-cols-2 gap-6">
+            <div
+              id="tabpanel-playerRatings"
+              role="tabpanel"
+              aria-labelledby="tab-playerRatings"
+              className="grid grid-cols-2 gap-6"
+            >
               {(["Home", "Away"] as const).map((side) => (
                 <PlayerRatingsPanel
                   key={side}

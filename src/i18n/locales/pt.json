@@ -1828,6 +1828,8 @@
       }
     },
     "deliverTeamTalk": "Dar a Palestra",
+    "delivering": "A entregar...",
+    "teamTalkFailed": "A palestra falhou. Por favor, tente novamente.",
     "delivered": "Entregue",
     "spectatorMode": "Modo Espetador",
     "spectatorHT": "Ambos os treinadores estão a falar com as suas equipas no balneário.",

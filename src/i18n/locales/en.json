@@ -1862,6 +1862,8 @@
       }
     },
     "deliverTeamTalk": "Deliver Team Talk",
+    "delivering": "Delivering...",
+    "teamTalkFailed": "Team talk failed. Please try again.",
     "delivered": "Delivered",
     "spectatorMode": "Spectator Mode",
     "spectatorHT": "Both managers are talking to their teams in the dressing room.",
