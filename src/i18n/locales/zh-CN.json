@@ -3417,6 +3417,12 @@
     "switchConfirmBody": "接受此机会将结束您在 {{currentClub}} 的执教并加盟 {{newClub}}。",
     "switchConfirmAccept": "接受新职位"
   },
+  "competitionNames": {
+    "brazilStateSoutheast": "东南部州系列赛",
+    "brazilStateSouth": "南部州系列赛",
+    "brazilStateNortheast": "东北部州系列赛",
+    "brazilStateNorthCentralWest": "北部/中西部州系列赛"
+  },
   "nations": {
     "nationalTeamTemplate": "{{name}}国家队",
     "fr": "法国",

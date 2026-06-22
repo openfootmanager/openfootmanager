@@ -3450,6 +3450,12 @@
     "switchConfirmBody": "Aceptar esta oportunidad pondrá fin a tu etapa en {{currentClub}} y te llevará a {{newClub}}.",
     "switchConfirmAccept": "Aceptar nuevo cargo"
   },
+  "competitionNames": {
+    "brazilStateSoutheast": "Serie Estatal del Sudeste",
+    "brazilStateSouth": "Serie Estatal del Sur",
+    "brazilStateNortheast": "Serie Estatal del Nordeste",
+    "brazilStateNorthCentralWest": "Serie Estatal del Norte/Centro-Oeste"
+  },
   "nations": {
     "nationalTeamTemplate": "Selección de {{name}}",
     "fr": "Francia",
