@@ -1833,6 +1833,8 @@
       }
     },
     "deliverTeamTalk": "发表更衣室讲话",
+    "delivering": "正在发表...",
+    "teamTalkFailed": "更衣室讲话失败，请重试.",
     "delivered": "已发表",
     "spectatorMode": "观众模式",
     "spectatorHT": "两位经理正在更衣室内与球队谈话。",
@@ -2357,7 +2359,13 @@
         "title": "全力追球",
         "description": "你需要更多威胁。优先考虑进攻能量、承担风险，以及能够改变节奏的球员。"
       }
-    }
+    },
+    "matchReport": "比赛报告",
+    "playerRatings": "球员评分",
+    "yourResult": "你的成绩",
+    "continue": "继续",
+    "notableUpset": "重大爆冷",
+    "pts": "分"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",

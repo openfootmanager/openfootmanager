@@ -1867,6 +1867,8 @@
       }
     },
     "deliverTeamTalk": "Deliver Team Talk",
+    "delivering": "Delivering...",
+    "teamTalkFailed": "Team talk failed. Please try again.",
     "delivered": "Delivered",
     "spectatorMode": "Spectator Mode",
     "spectatorHT": "Both managers are talking to their teams in the dressing room.",
@@ -2357,7 +2359,13 @@
           "1": "The referee brings the match to an end."
         }
       }
-    }
+    },
+    "matchReport": "Match Report",
+    "playerRatings": "Player Ratings",
+    "yourResult": "Your Result",
+    "continue": "Continue",
+    "notableUpset": "Notable Upset",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

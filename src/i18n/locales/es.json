@@ -1863,6 +1863,8 @@
       }
     },
     "deliverTeamTalk": "Dar la Charla",
+    "delivering": "Entregando...",
+    "teamTalkFailed": "La charla falló. Por favor, inténtalo de nuevo.",
     "delivered": "Entregado",
     "spectatorMode": "Modo Espectador",
     "spectatorHT": "Ambos entrenadores están hablando con sus equipos en el vestuario.",
@@ -2387,7 +2389,13 @@
         "title": "Ir A Por El Gol",
         "description": "Necesitas más amenaza. Prioriza energía ofensiva, riesgo y jugadores capaces de cambiar el ritmo."
       }
-    }
+    },
+    "matchReport": "Informe del partido",
+    "playerRatings": "Valoraciones",
+    "yourResult": "Tu resultado",
+    "continue": "Continuar",
+    "notableUpset": "Sorpresa notable",
+    "pts": "pts."
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Completa",

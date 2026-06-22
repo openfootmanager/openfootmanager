@@ -1833,6 +1833,8 @@
       }
     },
     "deliverTeamTalk": "Dar a Palestra",
+    "delivering": "A entregar...",
+    "teamTalkFailed": "A palestra falhou. Por favor, tente novamente.",
     "delivered": "Entregue",
     "spectatorMode": "Modo Espetador",
     "spectatorHT": "Ambos os treinadores estão a falar com as suas equipas no balneário.",
@@ -2357,7 +2359,13 @@
         "title": "Perseguir O Golo",
         "description": "Precisas de mais ameaça. Prioriza energia ofensiva, risco e jogadores capazes de mudar o ritmo."
       }
-    }
+    },
+    "matchReport": "Relatório do jogo",
+    "playerRatings": "Avaliações",
+    "yourResult": "O teu resultado",
+    "continue": "Continuar",
+    "notableUpset": "Grande surpresa",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

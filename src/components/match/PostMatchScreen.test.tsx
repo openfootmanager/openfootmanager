@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PostMatchScreen from "./PostMatchScreen";
-import type { FixtureData, GameStateData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import { ThemeProvider } from "../../context/ThemeContext";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -404,243 +404,131 @@ function makeGameState() {
   } as unknown as GameStateData;
 }
 
-function makeReportedFixture(id: string) {
-  return {
-    id,
-    matchday: 4,
-    date: "2026-08-01",
-    home_team_id: "team1",
-    away_team_id: "team2",
-    competition: "League" as const,
-    status: "Completed" as const,
-    result: {
-      home_goals: 2,
-      away_goals: 1,
-      home_scorers: [{ player_id: "p1", minute: 12 }],
-      away_scorers: [{ player_id: "p2", minute: 68 }],
-      report: {
-        total_minutes: 90,
-        home_stats: {
-          possession_pct: 54,
-          shots: 13,
-          shots_on_target: 6,
-          fouls: 8,
-          corners: 5,
-          yellow_cards: 1,
-          red_cards: 0,
-        },
-        away_stats: {
-          possession_pct: 46,
-          shots: 9,
-          shots_on_target: 4,
-          fouls: 11,
-          corners: 3,
-          yellow_cards: 2,
-          red_cards: 0,
-        },
-        events: [
-          {
-            minute: 12,
-            event_type: "Goal",
-            side: "Home" as const,
-            player_id: "p1",
-            secondary_player_id: null,
-          },
-          {
-            minute: 68,
-            event_type: "Goal",
-            side: "Away" as const,
-            player_id: "p2",
-            secondary_player_id: null,
-          },
-        ],
-      },
-    },
-  } as FixtureData;
-}
-
 describe("PostMatchScreen", function (): void {
-  it("renders the round summary mini table and scorer list when summary data exists", function (): void {
-    const gameState = makeGameState();
-    gameState.league = {
-      id: "league-1",
-      name: "League",
-      season: 1,
-      fixtures: [makeReportedFixture("fx1")],
-      standings: [],
-    };
-
-    render(
-      <ThemeProvider>
-        <PostMatchScreen
-          snapshot={makeSnapshot()}
-          gameState={gameState}
-          currentFixture={{
-            id: "fixture-1",
-            matchday: 4,
-            date: "2026-08-01",
-            home_team_id: "team1",
-            away_team_id: "team2",
-            competition: "League",
-            status: "Completed",
-            result: null,
-          }}
-          userSide="Home"
-          isSpectator={false}
-          importantEvents={[]}
-          roundSummary={{
-            matchday: 4,
-            is_complete: true,
-            pending_fixture_count: 0,
-            completed_results: [
-              {
-                fixture_id: "fx1",
-                home_team_id: "team1",
-                home_team_name: "Alpha FC",
-                away_team_id: "team2",
-                away_team_name: "Beta FC",
-                home_goals: 2,
-                away_goals: 1,
-              },
-            ],
-            standings_delta: [
-              {
-                team_id: "team1",
-                team_name: "Alpha FC",
-                previous_position: 2,
-                current_position: 1,
-                points: 12,
-                points_delta: 3,
-              },
-              {
-                team_id: "team2",
-                team_name: "Beta FC",
-                previous_position: 1,
-                current_position: 2,
-                points: 10,
-                points_delta: 0,
-              },
-            ],
-            notable_upset: null,
-            top_scorer_delta: [
-              {
-                player_id: "p1",
-                player_name: "Alice",
-                team_id: "team1",
-                previous_rank: 2,
-                current_rank: 1,
-                previous_goals: 4,
-                current_goals: 6,
-              },
-            ],
-          }}
-          onPressConference={() => { }}
-          onFinish={() => { }}
-        />
-      </ThemeProvider>,
-    );
-
-    expect(screen.getByText("Matchday 4")).toBeInTheDocument();
-    expect(screen.getByText("Alpha FC 2 - 1 Beta FC")).toBeInTheDocument();
-    expect(screen.getByText("Alice 12' • Bob 68'")).toBeInTheDocument();
-    expect(screen.getByText("View details")).toBeInTheDocument();
-    expect(screen.getByText("1. Alpha FC")).toBeInTheDocument();
-    expect(screen.getByText("1. Alice")).toBeInTheDocument();
-  });
-
-  it("opens a read-only detail modal for another completed fixture", function (): void {
-    const gameState = makeGameState();
-    gameState.league = {
-      id: "league-1",
-      name: "League",
-      season: 1,
-      fixtures: [makeReportedFixture("fx1")],
-      standings: [],
-    };
-
-    render(
-      <ThemeProvider>
-        <PostMatchScreen
-          snapshot={makeSnapshot()}
-          gameState={gameState}
-          currentFixture={{
-            id: "fixture-1",
-            matchday: 4,
-            date: "2026-08-01",
-            home_team_id: "team1",
-            away_team_id: "team2",
-            competition: "League",
-            status: "Completed",
-            result: null,
-          }}
-          userSide="Home"
-          isSpectator={false}
-          importantEvents={[]}
-          roundSummary={{
-            matchday: 4,
-            is_complete: true,
-            pending_fixture_count: 0,
-            completed_results: [
-              {
-                fixture_id: "fx1",
-                home_team_id: "team1",
-                home_team_name: "Alpha FC",
-                away_team_id: "team2",
-                away_team_name: "Beta FC",
-                home_goals: 2,
-                away_goals: 1,
-              },
-            ],
-            standings_delta: [],
-            notable_upset: null,
-            top_scorer_delta: [],
-          }}
-          onPressConference={() => { }}
-          onFinish={() => { }}
-        />
-      </ThemeProvider>,
-    );
-
-    fireEvent.click(screen.getByText("View details"));
-
-    expect(screen.getByText("Match Details")).toBeInTheDocument();
-    expect(
-      screen.getAllByText("Alpha FC 2 - 1 Beta FC").length,
-    ).toBeGreaterThan(0);
-    expect(screen.getAllByText("Alice").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("12'").length).toBeGreaterThan(0);
-    expect(screen.getByText("Close")).toBeInTheDocument();
-  });
-
-  it("renders a friendly empty state when the round summary is null", function (): void {
+  it("renders the Team Talk tab by default for a manager", function (): void {
     render(
       <ThemeProvider>
         <PostMatchScreen
           snapshot={makeSnapshot()}
           gameState={makeGameState()}
-          currentFixture={{
-            id: "friendly-1",
-            matchday: 0,
-            date: "2026-07-20",
-            home_team_id: "team1",
-            away_team_id: "team2",
-            competition: "Friendly",
-            status: "Completed",
-            result: null,
-          }}
           userSide="Home"
           isSpectator={false}
           importantEvents={[]}
-          roundSummary={null}
-          onPressConference={() => { }}
-          onFinish={() => { }}
+          onContinue={() => {}}
+          onFinish={() => {}}
         />
       </ThemeProvider>,
     );
 
-    expect(screen.getByText("Other Matches")).toBeInTheDocument();
     expect(
-      screen.getByText("Other match context unavailable for this fixture yet."),
-    ).toBeInTheDocument();
+      screen.getAllByText("match.postMatchTeamTalk").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("match.matchReport")).toBeInTheDocument();
+    expect(screen.getByText("match.playerRatings")).toBeInTheDocument();
+  });
+
+  it("switches to Match Report tab and shows scorers section", function (): void {
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.matchReport"));
+
+    expect(screen.getByText("match.scorers")).toBeInTheDocument();
+    expect(screen.getByText("match.quickStats")).toBeInTheDocument();
+  });
+
+  it("renders Match Report tab by default for a spectator", function (): void {
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide={null}
+          isSpectator={true}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("match.scorers")).toBeInTheDocument();
+  });
+
+  it("calls onContinue when manager clicks Continue", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.continue"));
+    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("calls onFinish when spectator clicks Continue to Dashboard", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide={null}
+          isSpectator={true}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.continueDashboard"));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it("calls onFinish when manager clicks Skip", function (): void {
+    const onContinue = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={makeSnapshot()}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={onContinue}
+          onFinish={onFinish}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.skip"));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onContinue).not.toHaveBeenCalled();
   });
 });

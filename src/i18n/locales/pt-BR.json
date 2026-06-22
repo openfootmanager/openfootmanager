@@ -1776,6 +1776,8 @@
       }
     },
     "deliverTeamTalk": "Fazer Preleção",
+    "delivering": "Entregando...",
+    "teamTalkFailed": "A preleção falhou. Por favor, tente novamente.",
     "delivered": "Feito",
     "spectatorMode": "Modo Espectador",
     "spectatorHT": "Ambos os treinadores estão conversando com seus times no vestiário.",
@@ -2300,7 +2302,13 @@
         "title": "Buscar O Gol",
         "description": "Você precisa de mais ameaça. Priorize energia ofensiva, risco e jogadores capazes de mudar o ritmo."
       }
-    }
+    },
+    "matchReport": "Relatório da partida",
+    "playerRatings": "Avaliações",
+    "yourResult": "Seu resultado",
+    "continue": "Continuar",
+    "notableUpset": "Grande surpresa",
+    "pts": "pts"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",
