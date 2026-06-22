@@ -138,6 +138,17 @@ export default function PreMatchSetup({
     setSelectedStarterId(null);
   };
 
+  const handleChangeRole = async (playerId: string, role: string) => {
+    try {
+      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+        command: { ChangePlayerRole: { side: userSide, player_id: playerId, role } },
+      });
+      onUpdateSnapshot(snap);
+    } catch (err) {
+      console.error("Role change failed:", err);
+    }
+  };
+
   const handleSetPieceTaker = async (role: string, playerId: string) => {
     const commandMap: Record<string, string> = {
       penalty: "SetPenaltyTaker",
@@ -377,6 +388,7 @@ export default function PreMatchSetup({
             onSelectStarter={setSelectedStarterId}
             onSwap={handleSwap}
             onAutoSelect={handleAutoSelect}
+            onChangeRole={handleChangeRole}
           />
         )}
 
