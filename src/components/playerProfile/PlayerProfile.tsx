@@ -224,6 +224,13 @@ export default function PlayerProfile({
     setRenewalCooledOff(false);
     setRenewalFeedback(null);
     setRenewalProjection(null);
+
+    const blockedUntil = player.morale_core?.renewal_state?.manager_blocked_until;
+    if (blockedUntil && blockedUntil > gameState.clock.current_date) {
+      setRenewalSessionStatus("blocked");
+      setRenewalIsTerminal(true);
+    }
+
     setShowRenewalModal(true);
   }
 
