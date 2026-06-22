@@ -362,7 +362,9 @@ impl LiveMatchState {
             } => {
                 let team = self.team_mut(side);
                 if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id) {
-                    p.role = role;
+                    if is_role_valid_for_position(role, p.position) {
+                        p.role = role;
+                    }
                 }
                 Ok(())
             }
@@ -420,5 +422,51 @@ impl LiveMatchState {
     /// Primarily used for testing substitution guards.
     pub fn test_send_off(&mut self, player_id: &str) {
         self.sent_off.insert(player_id.to_string());
+    }
+}
+
+fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
+    use crate::types::Position;
+    match position {
+        Position::Goalkeeper => matches!(
+            role,
+            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
+        ),
+        Position::Defender => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::Stopper
+                | PlayerRole::CoverCB
+                | PlayerRole::BallPlayingCB
+                | PlayerRole::AttackingFB
+                | PlayerRole::DefensiveFB
+                | PlayerRole::InvertedFB
+                | PlayerRole::WingBack
+        ),
+        Position::Midfielder => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::AnchorMan
+                | PlayerRole::BallWinner
+                | PlayerRole::DeepLyingPlaymaker
+                | PlayerRole::BoxToBox
+                | PlayerRole::Carrilero
+                | PlayerRole::Mezzala
+                | PlayerRole::AdvancedPlaymaker
+                | PlayerRole::ShadowStriker
+                | PlayerRole::WideForward
+                | PlayerRole::InsideForward
+                | PlayerRole::InvertedWinger
+        ),
+        Position::Forward => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::Poacher
+                | PlayerRole::TargetMan
+                | PlayerRole::DeepLyingForward
+                | PlayerRole::False9
+                | PlayerRole::PressingForward
+                | PlayerRole::CompleteForward
+        ),
     }
 }
