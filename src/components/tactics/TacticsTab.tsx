@@ -992,6 +992,7 @@ export default function TacticsTab({
           hoveredSlot={hoveredSlot}
           matchRoles={effectiveMatchRoles}
           tacticsPhase={team?.tactics_phase}
+          teamColors={team?.colors}
           onAssignBestFit={(playerId) => {
             void handleAssignBestFit(playerId);
           }}

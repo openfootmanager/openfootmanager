@@ -141,6 +141,7 @@ export default function InboxTab({
       try {
         const updated = await markMessageRead(messageId);
         setFetchedMessages(updated);
+        useGameStore.getState().setMessages(updated);
       } catch { }
     }
   }
@@ -197,6 +198,7 @@ export default function InboxTab({
     try {
       const updated = await markAllMessagesRead();
       setFetchedMessages(updated);
+      useGameStore.getState().setMessages(updated);
     } catch { }
   }
 
@@ -204,6 +206,7 @@ export default function InboxTab({
     try {
       const updated = await clearOldMessages();
       setFetchedMessages(updated);
+      useGameStore.getState().setMessages(updated);
       setSelectedMessageId(null);
     } catch { }
   }
@@ -229,6 +232,7 @@ export default function InboxTab({
       }
 
       setFetchedMessages(updatedMessages);
+      useGameStore.getState().setMessages(updatedMessages);
       setSelectedMessageIds((currentIds) =>
         currentIds.filter((messageId) => !deletedMessageIds.includes(messageId)),
       );

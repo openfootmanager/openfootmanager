@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameStateData, SeasonContextData } from './types';
+import type { GameStateData, MessageData, SeasonContextData } from './types';
 import type { SessionState, UserCompetitionSummary, StandingRow } from '../services/sessionService';
 
 type FootballIdentityCarrier = {
@@ -188,6 +188,7 @@ interface GameStore {
   showFiredModal: boolean;
   setGameActive: (active: boolean, managerName?: string) => void;
   setGameState: (state: GameStateData) => void;
+  setMessages: (messages: MessageData[]) => void;
   setSessionState: (state: SessionState) => void;
   markClean: () => void;
   setShowFiredModal: (show: boolean) => void;
@@ -209,6 +210,11 @@ export const useGameStore = create<GameStore>((set) => ({
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
   },
+  setMessages: (messages) => set((store) => {
+    if (!store.gameState) return store;
+    const next = { ...store.gameState, messages };
+    return { gameState: next, sessionState: deriveSessionState(next), isDirty: true };
+  }),
   setSessionState: (state) => set({ sessionState: state }),
   markClean: () => set({ isDirty: false }),
   setShowFiredModal: (show) => set({ showFiredModal: show }),

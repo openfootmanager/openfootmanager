@@ -8,6 +8,7 @@ import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card } from "../ui";
+import JerseyIcon from "../ui/JerseyIcon";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
@@ -25,6 +26,7 @@ interface TacticsPitchProps {
   formation: string;
   matchRoles?: TeamMatchRolesData;
   tacticsPhase?: TacticsPhaseSettings;
+  teamColors?: { primary: string; secondary: string };
   comparePlayerId: string | null;
   hoveredSlot: number | null;
   onAssignBestFit?: (playerId: string) => void;
@@ -354,6 +356,7 @@ export default function TacticsPitch({
   formation,
   matchRoles,
   tacticsPhase,
+  teamColors,
   comparePlayerId,
   hoveredSlot,
   onAssignBestFit,
@@ -619,8 +622,20 @@ export default function TacticsPitch({
                                 {getPlayerOvr(player)}
                               </span>
                             </div>
-                            <div className="mt-1.5 flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/12 text-sm font-heading font-bold text-white shadow-sm">
-                              {playerTokenInitials(player)}
+                            <div className="mt-1.5 flex h-11 w-11 items-center justify-center">
+                              {player.jersey_number != null && teamColors ? (
+                                <JerseyIcon
+                                  primaryColor={teamColors.primary}
+                                  secondaryColor={teamColors.secondary}
+                                  pattern="Solid"
+                                  size="sm"
+                                  number={player.jersey_number}
+                                />
+                              ) : (
+                                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/12 text-sm font-heading font-bold text-white shadow-sm">
+                                  {playerTokenInitials(player)}
+                                </div>
+                              )}
                             </div>
                             <div className="mt-1.5 max-w-full truncate text-[10px] font-heading font-bold uppercase tracking-[0.16em] text-white">
                               {getPitchDisplayName(player)}
