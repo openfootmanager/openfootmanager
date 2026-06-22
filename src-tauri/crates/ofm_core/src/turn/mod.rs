@@ -415,6 +415,7 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
         formation,
         play_style,
         players,
+        tactics: engine::TacticsConfig::default(),
     }
 }
 
