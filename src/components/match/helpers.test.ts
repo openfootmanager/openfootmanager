@@ -31,6 +31,7 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
     composure: 50, aggression: 50, teamwork: 50,
     leadership: 50, handling: 30, reflexes: 30, aerial: 50,
     traits: [],
+    role: "Standard",
     ...rest,
   };
 };
