@@ -213,6 +213,57 @@ fn ascii_letters(value: &str) -> String {
         .collect()
 }
 
+fn unique_short_code(base_code: &str, used_codes: &HashSet<String>) -> String {
+    if !used_codes.contains(base_code) {
+        return base_code.to_string();
+    }
+
+    let base = base_code.as_bytes();
+    for suffix in b'A'..=b'Z' {
+        let candidate = format!(
+            "{}{}{}",
+            char::from(base[0]),
+            char::from(base[1]),
+            char::from(suffix)
+        );
+        if !used_codes.contains(&candidate) {
+            return candidate;
+        }
+    }
+
+    for middle in b'A'..=b'Z' {
+        for suffix in b'A'..=b'Z' {
+            let candidate = format!(
+                "{}{}{}",
+                char::from(base[0]),
+                char::from(middle),
+                char::from(suffix)
+            );
+            if !used_codes.contains(&candidate) {
+                return candidate;
+            }
+        }
+    }
+
+    for first in b'A'..=b'Z' {
+        for middle in b'A'..=b'Z' {
+            for suffix in b'A'..=b'Z' {
+                let candidate = format!(
+                    "{}{}{}",
+                    char::from(first),
+                    char::from(middle),
+                    char::from(suffix)
+                );
+                if !used_codes.contains(&candidate) {
+                    return candidate;
+                }
+            }
+        }
+    }
+
+    panic!("three-letter club code space exhausted");
+}
+
 /// Generate `count` distinct (club name, city) pairs for a nation, spreading
 /// across cities first so a league looks geographically diverse before reusing
 /// a city with a different pattern.
@@ -284,11 +335,7 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
             let play_style = PLAY_STYLES[rng.random_range(0..PLAY_STYLES.len())];
 
             let base_code = short_code(&name);
-            let mut unique_code = base_code.clone();
-            for suffix in b'A'..=b'Z' {
-                if !used_codes.contains(&unique_code) { break; }
-                unique_code = format!("{}{}", &base_code[..2], char::from(suffix));
-            }
+            let unique_code = unique_short_code(&base_code, &used_codes);
             used_codes.insert(unique_code.clone());
             defs.push(TeamDef {
                 id: String::new(),
@@ -583,6 +630,19 @@ mod tests {
                 def.short_name
             );
         }
+    }
+
+    #[test]
+    fn short_code_deduplication_extends_beyond_one_suffix_letter() {
+        let mut used = HashSet::new();
+        for suffix in b'A'..=b'Z' {
+            used.insert(format!("AA{}", char::from(suffix)));
+        }
+
+        let code = unique_short_code("AAA", &used);
+
+        assert_eq!(code, "ABA");
+        assert!(!used.contains(&code));
     }
 
     #[test]

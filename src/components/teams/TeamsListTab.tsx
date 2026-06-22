@@ -73,7 +73,9 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           name:
             league.id === UNGROUPED_LEAGUE_ID
               ? t("teams.otherClubs")
-              : league.name,
+              : league.name_key
+                ? t(league.name_key)
+                : league.name,
           teams: league.teams,
         })),
       }))

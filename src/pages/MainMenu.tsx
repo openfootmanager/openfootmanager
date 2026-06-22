@@ -18,6 +18,7 @@ import type {
   WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
   FolderOpen,
@@ -354,6 +355,7 @@ export default function MainMenu() {
     invoke<GameStateData>("get_active_game")
       .then((state) => {
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
@@ -369,6 +371,7 @@ export default function MainMenu() {
       try {
         const state = await invoke<GameStateData>("get_active_game");
         const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
         navigate("/dashboard");
@@ -686,6 +689,7 @@ export default function MainMenu() {
         worldSource,
         competitionDefinitionsJson: competitionDefsJson ?? undefined,
       });
+      applyExtraTranslations(game.extra_translations);
       setGameState(game);
       navigate("/select-team");
     } catch (error) {

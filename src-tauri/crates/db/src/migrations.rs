@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 36;
+pub const MIGRATION_COUNT: usize = 39;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -79,6 +79,12 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v035_team_kit_pattern.sql")),
         // V36: Enforce per-team jersey number uniqueness at DB level
         M::up(include_str!("sql/v036_player_jersey_number_unique.sql")),
+        // V37: Per-player tactical roles and phase blueprint settings
+        M::up(include_str!("sql/v037_team_tactics.sql")),
+        // V38: i18n name key for national teams
+        M::up(include_str!("sql/v038_national_team_name_key.sql")),
+        // V39: Persist extra translations bundle from world packages
+        M::up(include_str!("sql/v039_game_extra_translations.sql")),
     ])
 }
 
@@ -169,6 +175,22 @@ mod tests {
         assert!(
             game_meta_columns.contains(&"available_staff_market_last_activity_date".to_string()),
             "missing game_meta.available_staff_market_last_activity_date"
+        );
+        assert!(
+            game_meta_columns.contains(&"extra_translations_json".to_string()),
+            "missing game_meta.extra_translations_json"
+        );
+
+        let national_team_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(national_teams)")
+            .unwrap()
+            .query_map([], |row| row.get(1))
+            .unwrap()
+            .filter_map(|row| row.ok())
+            .collect();
+        assert!(
+            national_team_columns.contains(&"name_key".to_string()),
+            "missing national_teams.name_key"
         );
 
         let team_columns: Vec<String> = conn

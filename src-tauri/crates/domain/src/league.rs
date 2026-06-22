@@ -44,7 +44,14 @@ pub struct CompetitionRules {
     pub group_matchday_gap_days: u32,
     /// Days between knockout rounds.
     pub knockout_round_gap_days: u32,
+    /// Maximum fixtures scheduled on the same day within a single knockout round.
+    /// Defaults to 1 (each match on its own day). Set higher for large tournaments
+    /// like the World Cup where multiple matches happen on the same day.
+    #[serde(default = "default_knockout_matches_per_day")]
+    pub knockout_matches_per_day: u32,
 }
+
+fn default_knockout_matches_per_day() -> u32 { 1 }
 
 impl Default for CompetitionRules {
     fn default() -> Self {
@@ -56,6 +63,7 @@ impl Default for CompetitionRules {
             group_stage_legs: 2,
             group_matchday_gap_days: 7,
             knockout_round_gap_days: 14,
+            knockout_matches_per_day: 1,
         }
     }
 }

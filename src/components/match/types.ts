@@ -171,6 +171,7 @@ export type MatchDayStage =
   | "halftime"
   | "second_half"
   | "postmatch"
+  | "digest"
   | "press";
 
 export type TeamTalkTone =

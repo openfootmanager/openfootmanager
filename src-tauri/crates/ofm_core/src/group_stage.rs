@@ -26,6 +26,13 @@ pub struct GroupStageConfig {
     pub best_third_qualifiers: u32,
     /// Days between knockout rounds once the bracket starts.
     pub knockout_round_gap_days: u32,
+    /// When `Some(n)`, spread group-stage fixtures so at most `n` matches
+    /// happen on any single calendar day. `None` keeps the default behaviour
+    /// (all fixtures in a matchday share the same date).
+    pub max_concurrent_matches_per_day: Option<usize>,
+    /// Maximum fixtures scheduled on the same day within a single knockout
+    /// round. Mirrors `CompetitionRules::knockout_matches_per_day`.
+    pub knockout_matches_per_day: u32,
 }
 
 impl Default for GroupStageConfig {
@@ -36,6 +43,8 @@ impl Default for GroupStageConfig {
             qualifiers_per_group: 2,
             best_third_qualifiers: 0,
             knockout_round_gap_days: 14,
+            max_concurrent_matches_per_day: None,
+            knockout_matches_per_day: 1,
         }
     }
 }
@@ -128,6 +137,7 @@ pub fn generate_group_knockout_cup_with(
         group_stage_legs: config.legs,
         group_matchday_gap_days: config.matchday_gap_days.max(1) as u32,
         knockout_round_gap_days: config.knockout_round_gap_days,
+        knockout_matches_per_day: config.knockout_matches_per_day,
     };
     cup.standings.clear();
     cup.groups = seed_groups(&competition_id, team_ids);
@@ -144,6 +154,11 @@ pub fn generate_group_knockout_cup_with(
         );
         cup.fixtures.extend(fixtures);
     }
+
+    if let Some(max_per_day) = config.max_concurrent_matches_per_day {
+        crate::schedule::spread_fixture_dates(&mut cup.fixtures, start_date, max_per_day);
+    }
+
     cup
 }
 

@@ -107,6 +107,7 @@ export default function TournamentsTab({
   );
   const nationalTeamNames =
     competitionsView?.national_team_names ?? fallbackNationalTeamNames;
+  const nationalTeamNameKeys = competitionsView?.national_team_name_keys ?? {};
   const playerNames = competitionsView?.player_names ?? {};
 
   const userTeamId =
@@ -295,8 +296,12 @@ export default function TournamentsTab({
   })();
 
   const isClubTeam = (id: string) => id in teamNames;
-  const resolveTeamName = (id: string) =>
-    teamNames[id] ?? nationalTeamNames[id] ?? id;
+  const resolveTeamName = (id: string) => {
+    if (id in teamNames) return teamNames[id];
+    const nameKey = nationalTeamNameKeys[id];
+    if (nameKey) return t("nations.nationalTeamTemplate", { name: t(nameKey) });
+    return nationalTeamNames[id] ?? id;
+  };
 
   const buildFixtureMenuItems = (fixture: FixtureData) =>
     [fixture.home_team_id, fixture.away_team_id]

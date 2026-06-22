@@ -14,6 +14,7 @@ import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
 import PostMatchScreen from "../components/match/PostMatchScreen";
+import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 
 // ---------------------------------------------------------------------------
@@ -222,11 +223,6 @@ export default function MatchSimulation() {
     })();
   }, [finalizeMatch]);
 
-  const handlePressConference = useCallback(() => {
-    console.info("[MatchSimulation] handlePressConference");
-    setStage("press");
-  }, []);
-
   const handleFinishMatch = useCallback(async () => {
     console.info("[MatchSimulation] handleFinishMatch:start");
     const finalized = await finalizeMatch();
@@ -234,6 +230,20 @@ export default function MatchSimulation() {
       navigate("/dashboard");
     }
   }, [finalizeMatch, navigate]);
+
+  const handlePostMatchContinue = useCallback(() => {
+    if (isSpectator) {
+      void handleFinishMatch();
+      return;
+    }
+    console.info("[MatchSimulation] handlePostMatchContinue");
+    setStage("digest");
+  }, [isSpectator, handleFinishMatch]);
+
+  const handlePressConference = useCallback(() => {
+    console.info("[MatchSimulation] handlePressConference");
+    setStage("press");
+  }, []);
 
   const handleSnapshotUpdate = useCallback((snap: MatchSnapshot) => {
     console.info("[MatchSimulation] handleSnapshotUpdate", {
@@ -325,15 +335,32 @@ export default function MatchSimulation() {
         <PostMatchScreen
           snapshot={snapshot}
           gameState={gameState}
-          currentFixture={currentFixture}
           userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
+          onContinue={handlePostMatchContinue}
+          onFinish={handleFinishMatch}
+        />
+      );
+
+    case "digest": {
+      const isLeagueFixture = currentFixture
+        ? currentFixture.competition !== "Friendly" &&
+          currentFixture.competition !== "PreseasonTournament"
+        : roundSummary !== null;
+      return (
+        <RoundDigestScreen
+          snapshot={snapshot}
+          gameState={gameState}
+          currentFixture={currentFixture}
+          userSide={userSide}
+          isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
           onPressConference={handlePressConference}
           onFinish={handleFinishMatch}
         />
       );
+    }
 
     case "press":
       if (!userSide) return null;

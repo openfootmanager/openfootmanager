@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
 import {
   GameStateData,
   MessageAction,
@@ -794,6 +795,15 @@ export default function FinancesTab({
               </p>
             </div>
           </div>
+          {(myTeam.financial_ledger?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <FinanceCashFlowChart
+                ledger={myTeam.financial_ledger ?? []}
+                incomeLabel={t("finances.seasonIncome")}
+                expensesLabel={t("finances.seasonExpenses")}
+              />
+            </div>
+          )}
           <div className="mt-4 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 space-y-3">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="space-y-1">

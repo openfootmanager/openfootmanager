@@ -101,7 +101,9 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
               {t("endOfSeason.seasonLine", {
-                league: league?.name ?? "",
+                league: league?.name_key
+                  ? t(league.name_key, { year: league.season })
+                  : (league?.name ?? ""),
                 season: league?.season ?? "",
               })}
             </p>

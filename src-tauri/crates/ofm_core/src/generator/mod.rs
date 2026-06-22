@@ -761,6 +761,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         regions,
         default_active_regions: meta.default_active_regions.clone(),
         default_active_competitions: meta.default_active_competitions.clone(),
+        extra_translations: package.extra_translations.clone(),
         ..WorldData::default()
     };
     if let Some(base_year) = meta.base_year {
