@@ -380,13 +380,15 @@ impl LiveMatchState {
                 let corner_evt = MatchEvent::new(minute, EventType::Corner, att_side, zone);
                 self.events.push(corner_evt.clone());
                 events.push(corner_evt);
+                self.possession = att_side;
+                self.ball_zone = Zone::attacking_box(att_side);
             } else {
                 let gk_evt = MatchEvent::new(minute, EventType::GoalKick, def_side, zone);
                 self.events.push(gk_evt.clone());
                 events.push(gk_evt);
+                self.ball_zone = Zone::defensive_third(def_side);
+                self.possession = def_side;
             }
-            self.ball_zone = Zone::defensive_third(def_side);
-            self.possession = def_side;
         }
 
         events
