@@ -253,7 +253,6 @@ function KickRow({
   maxRounds: number;
 }) {
   const cells = Math.max(maxRounds, taken);
-  const missed = taken - scored;
 
   return (
     <div className="flex items-center gap-3">
@@ -272,7 +271,7 @@ function KickRow({
               </span>
             );
           }
-          const isGoal = i < scored || (i >= missed && i < taken);
+          const isGoal = i < scored;
           return (
             <span
               key={i}
