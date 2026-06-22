@@ -339,11 +339,12 @@ export default function PostMatchScreen({
       <div className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-6 py-6">
           {/* Team Talk Tab */}
-          {activeTab === "teamTalk" && !isSpectator && userSide && (
+          {!isSpectator && userSide && (
             <div
               id="tabpanel-teamTalk"
               role="tabpanel"
               aria-labelledby="tab-teamTalk"
+              hidden={activeTab !== "teamTalk"}
               className="max-w-2xl mx-auto"
             >
               {!talkDelivered ? (
@@ -502,13 +503,13 @@ export default function PostMatchScreen({
           )}
 
           {/* Match Report Tab */}
-          {activeTab === "matchReport" && (
-            <div
-              id="tabpanel-matchReport"
-              role="tabpanel"
-              aria-labelledby="tab-matchReport"
-              className="grid grid-cols-2 gap-6"
-            >
+          <div
+            id="tabpanel-matchReport"
+            role="tabpanel"
+            aria-labelledby="tab-matchReport"
+            hidden={activeTab !== "matchReport"}
+            className="grid grid-cols-2 gap-6"
+          >
               {/* Scorers */}
               <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
                 <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
@@ -626,28 +627,26 @@ export default function PostMatchScreen({
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
 
           {/* Player Ratings Tab */}
-          {activeTab === "playerRatings" && (
-            <div
-              id="tabpanel-playerRatings"
-              role="tabpanel"
-              aria-labelledby="tab-playerRatings"
-              className="grid grid-cols-2 gap-6"
-            >
-              {(["Home", "Away"] as const).map((side) => (
-                <PlayerRatingsPanel
-                  key={side}
-                  snapshot={snapshot}
-                  side={side}
-                  teamColor={side === "Home" ? homeTeamColor : awayTeamColor}
-                  userSide={userSide}
-                />
-              ))}
-            </div>
-          )}
+          <div
+            id="tabpanel-playerRatings"
+            role="tabpanel"
+            aria-labelledby="tab-playerRatings"
+            hidden={activeTab !== "playerRatings"}
+            className="grid grid-cols-2 gap-6"
+          >
+            {(["Home", "Away"] as const).map((side) => (
+              <PlayerRatingsPanel
+                key={side}
+                snapshot={snapshot}
+                side={side}
+                teamColor={side === "Home" ? homeTeamColor : awayTeamColor}
+                userSide={userSide}
+              />
+            ))}
+          </div>
 
         </div>
       </div>
