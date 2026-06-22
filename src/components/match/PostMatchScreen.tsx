@@ -724,6 +724,9 @@ export default function PostMatchScreen({
                       const av = awaySrc[key];
                       const homePct = Math.round((hv / homeTotal) * 100);
                       const awayPct = Math.round((av / awayTotal) * 100);
+                      const rowTotal = hv + av || 1;
+                      const homeBarPct = Math.round((hv / rowTotal) * 100);
+                      const awayBarPct = 100 - homeBarPct;
                       return (
                         <div key={key} className="mb-1 last:mb-0">
                           <div className="flex justify-between text-xs mb-0.5">
@@ -738,8 +741,8 @@ export default function PostMatchScreen({
                             </span>
                           </div>
                           <div className="flex h-1 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary-500" style={{ width: `${homePct}%` }} />
-                            <div className="h-full bg-indigo-500" style={{ width: `${awayPct}%` }} />
+                            <div className="h-full bg-primary-500" style={{ width: `${homeBarPct}%` }} />
+                            <div className="h-full bg-indigo-500" style={{ width: `${awayBarPct}%` }} />
                           </div>
                         </div>
                       );
