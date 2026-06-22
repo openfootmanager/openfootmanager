@@ -137,8 +137,10 @@ impl MatchReport {
         home_stats.possession_ticks = home_possession_ticks;
         away_stats.possession_ticks = away_possession_ticks;
 
-        // State machine to determine goal source from preceding set-piece event
-        let mut last_set_piece: Option<EventType> = None;
+        // State machine to determine goal source from preceding set-piece event.
+        // Tracks (event_type, side) so a set piece earned by one team doesn't
+        // accidentally attribute a goal scored by the other.
+        let mut last_set_piece: Option<(EventType, Side)> = None;
 
         for event in &events {
             let stats = match event.side {
@@ -148,12 +150,12 @@ impl MatchReport {
 
             // Track set-piece window: reset on events that clear the opportunity
             match &event.event_type {
-                EventType::Corner => last_set_piece = Some(EventType::Corner),
+                EventType::Corner => last_set_piece = Some((EventType::Corner, event.side)),
                 EventType::FreeKick => {
                     // Only dangerous free kicks (attacking third) count as set-piece opportunities.
                     // Midfield free kicks are routine restarts, not direct scoring chances.
                     if matches!(event.zone, Zone::HomeDefense | Zone::AwayDefense) {
-                        last_set_piece = Some(EventType::FreeKick);
+                        last_set_piece = Some((EventType::FreeKick, event.side));
                     }
                 }
                 // Defensive events clear the set-piece window
@@ -177,8 +179,8 @@ impl MatchReport {
                     stats.shots += 1;
                     stats.shots_on_target += 1;
                     let source = match last_set_piece.take() {
-                        Some(EventType::Corner) => GoalSource::Corner,
-                        Some(EventType::FreeKick) => GoalSource::FreeKick,
+                        Some((EventType::Corner, sp_side)) if sp_side == event.side => GoalSource::Corner,
+                        Some((EventType::FreeKick, sp_side)) if sp_side == event.side => GoalSource::FreeKick,
                         _ => GoalSource::OpenPlay,
                     };
                     goals.push(GoalDetail {
