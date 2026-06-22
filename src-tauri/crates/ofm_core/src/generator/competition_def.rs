@@ -850,10 +850,6 @@ fn build_competition(
     competition.berths = def.berths.clone();
     competition.season_start_month = def.season_start_month.unwrap_or(8);
     competition.season_start_day = def.season_start_day.unwrap_or(1);
-    if def.format.kind == CompetitionFormat::GroupAndKnockout {
-        competition.rules.group_stage_legs = def.format.legs.unwrap_or(2);
-        competition.rules.group_matchday_gap_days = 7;
-    }
     competition.name_key = def.name_key.clone();
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {

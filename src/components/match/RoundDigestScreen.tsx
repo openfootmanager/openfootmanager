@@ -106,7 +106,7 @@ export default function RoundDigestScreen({
       case "PenaltyGoal":
         return `${primary} (P)`;
       case "PenaltyMiss":
-        return `${primary} (P)`;
+        return `${primary} (PM)`;
       case "Substitution":
         return `${primary} ${t("match.subFor", { name: getPlayerDisplayName(event.secondary_player_id) })}`;
       default:
@@ -168,12 +168,20 @@ export default function RoundDigestScreen({
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
-  const userScore =
-    userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-  const oppScore =
-    userSide === "Home" ? snapshot.away_score : snapshot.home_score;
   const resultType =
-    userScore > oppScore ? "win" : userScore < oppScore ? "loss" : "draw";
+    userSide === "Home"
+      ? snapshot.home_score > snapshot.away_score
+        ? "win"
+        : snapshot.home_score < snapshot.away_score
+          ? "loss"
+          : "draw"
+      : userSide === "Away"
+        ? snapshot.away_score > snapshot.home_score
+          ? "win"
+          : snapshot.away_score < snapshot.home_score
+            ? "loss"
+            : "draw"
+        : "neutral";
 
   // Position context from standings delta
   const userStanding = roundSummary?.standings_delta.find(

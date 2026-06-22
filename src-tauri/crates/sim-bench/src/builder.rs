@@ -11,7 +11,7 @@ pub fn build_team(
     formation: &str,
     rng: &mut impl Rng,
 ) -> TeamData {
-    let (n_def, n_mid, n_fwd) = parse_formation(formation);
+    let (n_def, n_mid, n_fwd, used_fallback) = parse_formation(formation);
     let mut players = Vec::with_capacity(11);
 
     players.push(make_player(id, "GK", 1, Position::Goalkeeper, avg_ovr, rng));
@@ -28,13 +28,13 @@ pub fn build_team(
     TeamData {
         id: id.to_string(),
         name: name.to_string(),
-        formation: formation.to_string(),
+        formation: if used_fallback { "4-4-2".to_string() } else { formation.to_string() },
         play_style,
         players,
     }
 }
 
-fn parse_formation(formation: &str) -> (u8, u8, u8) {
+fn parse_formation(formation: &str) -> (u8, u8, u8, bool) {
     let parts: Vec<u8> = formation
         .split('-')
         .filter_map(|s| s.parse::<u8>().ok())
@@ -44,14 +44,14 @@ fn parse_formation(formation: &str) -> (u8, u8, u8) {
         2 => (parts[0], 0, parts[1]),
         3 => (parts[0], parts[1], parts[2]),
         4 => (parts[0], parts[1] + parts[2], parts[3]),
-        _ => (4, 4, 2),
+        _ => return (4, 4, 2, true),
     };
 
     // Ensure exactly 10 outfield players; fall back to 4-4-2 if not
     if result.0 + result.1 + result.2 != 10 {
-        return (4, 4, 2);
+        return (4, 4, 2, true);
     }
-    result
+    (result.0, result.1, result.2, false)
 }
 
 fn make_player(
