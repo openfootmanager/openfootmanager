@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
-use crate::types::{MatchConfig, PlayStyle, PlayerData, Side, TeamData, Zone};
+use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TeamData, Zone};
 
 // ---------------------------------------------------------------------------
 // MatchPhase — tracks where we are in the match lifecycle
@@ -71,6 +71,11 @@ pub enum MatchCommand {
         side: Side,
         player_off_id: String,
         player_on_id: String,
+    },
+    ChangePlayerRole {
+        side: Side,
+        player_id: String,
+        role: PlayerRole,
     },
 }
 
@@ -143,6 +148,20 @@ pub struct MatchSnapshot {
     pub home_yellows: HashMap<String, u8>,
     pub away_yellows: HashMap<String, u8>,
     pub sent_off: HashSet<String>,
+    pub penalty_shootout: Option<PenaltyShootoutSnapshot>,
+}
+
+// ---------------------------------------------------------------------------
+// PenaltyShootoutSnapshot — public snapshot of shootout progress for the UI
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenaltyShootoutSnapshot {
+    pub home_taken: u8,
+    pub away_taken: u8,
+    pub home_scored: u8,
+    pub away_scored: u8,
+    pub sudden_death: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +354,17 @@ impl LiveMatchState {
                     return Err("be.error.liveMatch.preMatchSwapTooLate".into());
                 }
                 self.do_pre_match_swap(side, &player_off_id, &player_on_id)
+            }
+            MatchCommand::ChangePlayerRole {
+                side,
+                player_id,
+                role,
+            } => {
+                let team = self.team_mut(side);
+                if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id) {
+                    p.role = role;
+                }
+                Ok(())
             }
         }
     }
