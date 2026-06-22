@@ -3437,6 +3437,12 @@
     "switchConfirmBody": "Accepter cette opportunité mettra fin à votre mandat à {{currentClub}} et vous fera rejoindre {{newClub}}.",
     "switchConfirmAccept": "Accepter le nouveau poste"
   },
+  "competitionNames": {
+    "brazilStateSoutheast": "Série d'État du Sud-Est",
+    "brazilStateSouth": "Série d'État du Sud",
+    "brazilStateNortheast": "Série d'État du Nord-Est",
+    "brazilStateNorthCentralWest": "Série d'État du Nord/Centre-Ouest"
+  },
   "nations": {
     "nationalTeamTemplate": "Équipe nationale {{name}}",
     "fr": "France",

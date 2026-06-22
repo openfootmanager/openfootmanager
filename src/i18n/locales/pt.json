@@ -3437,6 +3437,12 @@
     "switchConfirmBody": "Aceitar esta oportunidade encerrará a tua passagem pelo {{currentClub}} e levar-te-á ao {{newClub}}.",
     "switchConfirmAccept": "Aceitar novo cargo"
   },
+  "competitionNames": {
+    "brazilStateSoutheast": "Série Estadual do Sudeste",
+    "brazilStateSouth": "Série Estadual do Sul",
+    "brazilStateNortheast": "Série Estadual do Nordeste",
+    "brazilStateNorthCentralWest": "Série Estadual do Norte/Centro-Oeste"
+  },
   "nations": {
     "nationalTeamTemplate": "Seleção {{name}}",
     "fr": "França",
