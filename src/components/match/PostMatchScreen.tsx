@@ -58,6 +58,7 @@ export function computeGoalSources(
     if (evt.event_type === "Corner") {
       lastSetPiece = { type: "Corner", side: evt.side };
     } else if (evt.event_type === "FreeKick") {
+      lastSetPiece = null;
       // Only dangerous FKs: taking side must be in their attacking third
       const dangerousZone = evt.side === "Home" ? "AwayDefense" : "HomeDefense";
       if (evt.zone === dangerousZone) {
@@ -65,13 +66,15 @@ export function computeGoalSources(
       }
     } else if (SET_PIECE_CLEAR_EVENTS.has(evt.event_type)) {
       lastSetPiece = null;
-    } else if (evt.event_type === "Goal" && evt.side === side) {
-      if (lastSetPiece?.type === "Corner" && lastSetPiece.side === side) sources.corners++;
-      else if (lastSetPiece?.type === "FreeKick" && lastSetPiece.side === side) sources.freekicks++;
-      else sources.openPlay++;
+    } else if (evt.event_type === "Goal") {
+      if (evt.side === side) {
+        if (lastSetPiece?.type === "Corner" && lastSetPiece.side === side) sources.corners++;
+        else if (lastSetPiece?.type === "FreeKick" && lastSetPiece.side === side) sources.freekicks++;
+        else sources.openPlay++;
+      }
       lastSetPiece = null;
-    } else if (evt.event_type === "PenaltyGoal" && evt.side === side) {
-      sources.penalties++;
+    } else if (evt.event_type === "PenaltyGoal") {
+      if (evt.side === side) sources.penalties++;
       lastSetPiece = null;
     }
   }
@@ -724,9 +727,9 @@ export default function PostMatchScreen({
                       const av = awaySrc[key];
                       const homePct = Math.round((hv / homeTotal) * 100);
                       const awayPct = Math.round((av / awayTotal) * 100);
-                      const rowTotal = hv + av || 1;
-                      const homeBarPct = Math.round((hv / rowTotal) * 100);
-                      const awayBarPct = 100 - homeBarPct;
+                      const rowTotal = hv + av;
+                      const homeBarPct = rowTotal > 0 ? Math.round((hv / rowTotal) * 100) : 0;
+                      const awayBarPct = rowTotal > 0 ? 100 - homeBarPct : 0;
                       return (
                         <div key={key} className="mb-1 last:mb-0">
                           <div className="flex justify-between text-xs mb-0.5">
