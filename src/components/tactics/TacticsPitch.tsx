@@ -17,12 +17,14 @@ import {
 } from "../squad/SquadTab.helpers";
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
+import type { TacticsPhaseSettings } from "../../store/types";
 
 interface TacticsPitchProps {
   benchPlayers: PlayerData[];
   dragState: DragState | null;
   formation: string;
   matchRoles?: TeamMatchRolesData;
+  tacticsPhase?: TacticsPhaseSettings;
   comparePlayerId: string | null;
   hoveredSlot: number | null;
   onAssignBestFit?: (playerId: string) => void;
@@ -104,20 +106,6 @@ function getConditionFillClassName(condition: number): string {
   return "bg-red-400";
 }
 
-function getFitStateLabel(
-  fitTone: FitTone,
-  translate: (key: string, fallback?: string) => string,
-): string {
-  if (fitTone === "exact") {
-    return translate("tactics.tokenStates.ready");
-  }
-
-  if (fitTone === "adapted") {
-    return translate("tactics.tokenStates.adjusted");
-  }
-
-  return translate("tactics.tokenStates.risk");
-}
 
 function getRoleMarkers(
   matchRoles: TeamMatchRolesData | undefined,
@@ -269,11 +257,103 @@ function getPitchDisplayName(player: PlayerData): string {
   return (player.match_name || player.full_name).toUpperCase();
 }
 
+// SVG viewBox is 0 0 100 140; pitch bounds x=[4,96] y=[4,136]; midfield at y=70.
+// Team attacks upward (toward y=4). Defensive line sits in the lower half.
+function getDefensiveLineY(line: TacticsPhaseSettings["defensive_line"]): number {
+  switch (line) {
+    case "High": return 77;
+    case "Low": return 105;
+    case "VeryLow": return 118;
+    default: return 91; // Medium
+  }
+}
+
+function getPressingZoneOpacity(intensity: TacticsPhaseSettings["pressing_intensity"]): number {
+  switch (intensity) {
+    case "Aggressive": return 0.13;
+    case "Passive": return 0;
+    default: return 0.07; // Medium
+  }
+}
+
+function getPressingZoneTop(intensity: TacticsPhaseSettings["pressing_intensity"]): number {
+  // Aggressive: press from opponent's half; Medium: press from 35m line; Passive: no zone
+  switch (intensity) {
+    case "Aggressive": return 4;
+    case "Passive": return 70;
+    default: return 35;
+  }
+}
+
+function getWidthX(width: TacticsPhaseSettings["width"]): { left: number; right: number } {
+  switch (width) {
+    case "Narrow": return { left: 25, right: 75 };
+    case "Wide": return { left: 4, right: 96 };
+    default: return { left: 16, right: 84 }; // Normal
+  }
+}
+
+function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Element {
+  const lineY = getDefensiveLineY(phase.defensive_line);
+  const pressOpacity = getPressingZoneOpacity(phase.pressing_intensity);
+  const pressTop = getPressingZoneTop(phase.pressing_intensity);
+  const { left: wLeft, right: wRight } = getWidthX(phase.width);
+
+  return (
+    <>
+      {/* Pressing zone: shaded band in the opponent's half */}
+      {pressOpacity > 0 && (
+        <rect
+          x="4"
+          y={pressTop}
+          width="92"
+          height={70 - pressTop}
+          fill={`rgba(255,220,100,${pressOpacity})`}
+          pointerEvents="none"
+        />
+      )}
+
+      {/* Defensive line: dashed horizontal line */}
+      <line
+        x1="4"
+        y1={lineY}
+        x2="96"
+        y2={lineY}
+        stroke="rgba(255,80,80,0.75)"
+        strokeWidth="0.8"
+        strokeDasharray="3,2"
+        pointerEvents="none"
+      />
+
+      {/* Width indicator: vertical arrows on each side at midfield */}
+      <line
+        x1={wLeft}
+        y1="62"
+        x2={wLeft}
+        y2="78"
+        stroke="rgba(255,255,255,0.45)"
+        strokeWidth="0.7"
+        pointerEvents="none"
+      />
+      <line
+        x1={wRight}
+        y1="62"
+        x2={wRight}
+        y2="78"
+        stroke="rgba(255,255,255,0.45)"
+        strokeWidth="0.7"
+        pointerEvents="none"
+      />
+    </>
+  );
+}
+
 export default function TacticsPitch({
   benchPlayers,
   dragState,
   formation,
   matchRoles,
+  tacticsPhase,
   comparePlayerId,
   hoveredSlot,
   onAssignBestFit,
@@ -295,8 +375,6 @@ export default function TacticsPitch({
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
   const draggedPlayerId = dragState?.playerId ?? null;
-  const translateLabel = (key: string, fallback?: string) =>
-    t(key, fallback ?? key);
 
   return (
     <Card className="overflow-hidden">
@@ -440,6 +518,7 @@ export default function TacticsPitch({
                 stroke="rgba(255,255,255,0.55)"
                 strokeWidth="0.6"
               />
+              {tacticsPhase ? <TacticalOverlays phase={tacticsPhase} /> : null}
             </svg>
 
             {pitchSlots.map((slot) => {
@@ -464,10 +543,6 @@ export default function TacticsPitch({
                   {player ? (
                     (() => {
                       const roleMarkers = getRoleMarkers(matchRoles, player.id);
-                      const fitStateLabel = getFitStateLabel(
-                        fitTone,
-                        translateLabel,
-                      );
                       const fitBarClassName = getConditionFillClassName(
                         Math.min(
                           player.condition,
@@ -559,10 +634,6 @@ export default function TacticsPitch({
                               </span>
                             </div>
                             <div className="mt-2 w-full">
-                              <div className="mb-1 flex items-center justify-between text-[8px] font-heading font-bold uppercase tracking-[0.18em] text-white/65">
-                                <span>{fitStateLabel}</span>
-                                <span>{t("common.condition")}</span>
-                              </div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                                 <div
                                   className={`h-full rounded-full ${fitBarClassName}`}

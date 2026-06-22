@@ -627,9 +627,6 @@ export default function SquadRosterView({
                 <SortHeader col="pos" label={t("squad.pos")} />
                 <SortHeader col="name" label={t("common.name")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("squad.planStatus")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.tacticalFit")}
                 </th>
                 <SortHeader col="age" label={t("common.age")} />
@@ -854,29 +851,31 @@ export default function SquadRosterView({
                         </div>
                       </td>
                       <td className="py-2.5 px-4">
-                        <Badge variant={inXI ? "primary" : "neutral"} size="sm">
-                          {inXI ? t("squad.starter") : t("squad.benchOption")}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={
-                            tacticalFit === "natural"
-                              ? "success"
-                              : tacticalFit === "adapted"
-                                ? "accent"
-                                : "danger"
-                          }
-                          size="sm"
-                        >
-                          {t(
-                            tacticalFit === "natural"
-                              ? "squad.naturalFit"
-                              : tacticalFit === "adapted"
-                                ? "squad.adaptedFit"
-                                : "squad.outOfPosition",
-                          )}
-                        </Badge>
+                        {inXI ? (
+                          <div className="space-y-0.5 text-xs">
+                            <div>
+                              <span
+                                className={
+                                  tacticalFit === "out"
+                                    ? "font-medium text-red-500 dark:text-red-400"
+                                    : tacticalFit === "adapted"
+                                      ? "font-medium text-amber-500 dark:text-amber-400"
+                                      : "font-medium text-emerald-600 dark:text-emerald-400"
+                                }
+                              >
+                                {t("squad.slotLabel")}: {translatePositionAbbreviation(t, currentPos)}
+                              </span>
+                            </div>
+                            <div className="text-gray-500 dark:text-gray-400">
+                              {t("squad.hasLabel")}: {getPreferredPositions(player).map((p) => translatePositionAbbreviation(t, p)).join(", ")}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium">{t("squad.bestRole")}:</span>{" "}
+                            {translatePositionAbbreviation(t, getBestRoleForFormation(player, formation))}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
                         {age}

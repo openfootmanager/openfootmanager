@@ -1,6 +1,6 @@
 use domain::team::{
-    Facilities, FinancialTransaction, PlayStyle, Sponsorship, Team, TeamColors, TeamMedia,
-    TrainingFocus, TrainingIntensity, TrainingSchedule,
+    Facilities, FinancialTransaction, PlayStyle, PlayerRole, Sponsorship, TacticsPhaseSettings,
+    Team, TeamColors, TeamMedia, TrainingFocus, TrainingIntensity, TrainingSchedule,
 };
 use rusqlite::{Connection, params};
 
@@ -27,6 +27,10 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let media_json =
         serde_json::to_string(&t.media).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let player_roles_json = serde_json::to_string(&t.player_roles)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let tactics_phase_json = serde_json::to_string(&t.tactics_phase)
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let play_style_str = format!("{:?}", t.play_style);
     let kit_pattern_str = t.kit_pattern.to_string();
     let training_focus_str = format!("{:?}", t.training_focus);
@@ -40,8 +44,9 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
          season_income, season_expenses, formation, play_style,
          training_focus, training_intensity, training_schedule,
          founded_year, colors_primary, colors_secondary,
-         starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json, kit_pattern)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)",
+         starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities, media_json, kit_pattern,
+         player_roles_json, tactics_phase_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)",
         params![
             t.id,
             t.name,
@@ -76,6 +81,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
             facilities_json,
             media_json,
             kit_pattern_str,
+            player_roles_json,
+            tactics_phase_json,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -143,6 +150,8 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
     let training_schedule_str: String = row.get(19)?;
     let media_json: String = row.get(31).unwrap_or_else(|_| "{}".to_string());
     let kit_pattern_str: String = row.get::<_, String>(32)?;
+    let player_roles_json: String = row.get(33).unwrap_or_else(|_| "{}".to_string());
+    let tactics_phase_json: String = row.get(34).unwrap_or_else(|_| "{}".to_string());
 
     Ok(Team {
         id: row.get(0)?,
@@ -189,6 +198,53 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
         media: serde_json::from_str(&media_json).unwrap_or_else(|_| TeamMedia::default()),
         starting_xi_ids: serde_json::from_str(&starting_xi_json).unwrap_or_default(),
         match_roles: serde_json::from_str(&match_roles_json).unwrap_or_default(),
+        player_roles: serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
+            &player_roles_json,
+        )
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(k, v)| serde_json::from_value::<PlayerRole>(v).ok().map(|r| (k, r)))
+        .collect(),
+        tactics_phase: {
+            let raw: serde_json::Value =
+                serde_json::from_str(&tactics_phase_json).unwrap_or_default();
+            TacticsPhaseSettings {
+                build_up_style: serde_json::from_value(
+                    raw.get("build_up_style").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                width: serde_json::from_value(raw.get("width").cloned().unwrap_or_default())
+                    .unwrap_or_default(),
+                tempo: serde_json::from_value(raw.get("tempo").cloned().unwrap_or_default())
+                    .unwrap_or_default(),
+                defensive_line: serde_json::from_value(
+                    raw.get("defensive_line").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                pressing_intensity: serde_json::from_value(
+                    raw.get("pressing_intensity").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                defensive_shape: serde_json::from_value(
+                    raw.get("defensive_shape").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                marking_style: serde_json::from_value(
+                    raw.get("marking_style").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                counter_press_duration: serde_json::from_value(
+                    raw.get("counter_press_duration")
+                        .cloned()
+                        .unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+                break_speed: serde_json::from_value(
+                    raw.get("break_speed").cloned().unwrap_or_default(),
+                )
+                .unwrap_or_default(),
+            }
+        },
         form: serde_json::from_str(&form_json).unwrap_or_default(),
         history: serde_json::from_str(&history_json).unwrap_or_default(),
     })
@@ -204,7 +260,8 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
                     training_focus, training_intensity, training_schedule,
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
-                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid')
+                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
              FROM teams",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -230,7 +287,8 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
                     training_focus, training_intensity, training_schedule,
                     founded_year, colors_primary, colors_secondary,
                     starting_xi_ids, match_roles, form, history, training_groups, financial_ledger, sponsorship, facilities,
-                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid')
+                    COALESCE(media_json, '{}'), COALESCE(kit_pattern, 'Solid'),
+                    COALESCE(player_roles_json, '{}'), COALESCE(tactics_phase_json, '{}')
              FROM teams WHERE id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -495,6 +553,53 @@ mod tests {
         assert_eq!(loaded.facilities.training, 2);
         assert_eq!(loaded.facilities.medical, 3);
         assert_eq!(loaded.facilities.scouting, 4);
+    }
+
+    #[test]
+    fn test_team_player_roles_roundtrip() {
+        use domain::team::PlayerRole;
+        let db = test_db();
+        let mut team = sample_team("team-001", "Roles FC");
+        team.player_roles
+            .insert("player-1".to_string(), PlayerRole::PressingForward);
+        team.player_roles
+            .insert("player-2".to_string(), PlayerRole::Mezzala);
+
+        upsert_team(db.conn(), &team).unwrap();
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+
+        assert_eq!(
+            loaded.player_roles.get("player-1"),
+            Some(&PlayerRole::PressingForward)
+        );
+        assert_eq!(
+            loaded.player_roles.get("player-2"),
+            Some(&PlayerRole::Mezzala)
+        );
+        assert_eq!(loaded.player_roles.len(), 2);
+    }
+
+    #[test]
+    fn test_team_tactics_phase_roundtrip() {
+        use domain::team::{BuildUpStyle, DefensiveLine, PressingIntensity, TacticsPhaseSettings};
+        let db = test_db();
+        let mut team = sample_team("team-001", "Phase FC");
+        team.tactics_phase = TacticsPhaseSettings {
+            build_up_style: BuildUpStyle::Short,
+            defensive_line: DefensiveLine::High,
+            pressing_intensity: PressingIntensity::Aggressive,
+            ..TacticsPhaseSettings::default()
+        };
+
+        upsert_team(db.conn(), &team).unwrap();
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+
+        assert_eq!(loaded.tactics_phase.build_up_style, BuildUpStyle::Short);
+        assert_eq!(loaded.tactics_phase.defensive_line, DefensiveLine::High);
+        assert_eq!(
+            loaded.tactics_phase.pressing_intensity,
+            PressingIntensity::Aggressive
+        );
     }
 
     #[test]

@@ -1,7 +1,10 @@
 use rand::{Rng, RngExt};
 
 use crate::event::{EventDetail, EventType, MatchEvent};
-use crate::shared::{PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, trait_bonus};
+use crate::shared::{
+    PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_attribute_modifier,
+    trait_bonus,
+};
 use crate::types::{Position, Side, Zone};
 
 use super::LiveMatchState;
@@ -100,12 +103,12 @@ impl LiveMatchState {
             self.team_ref(att_side).play_style,
             PlayStylePhase::Midfield,
             true,
-        );
+        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Midfield);
         let def_mod = play_style_modifier(
             self.team_ref(def_side).play_style,
             PlayStylePhase::Midfield,
             false,
-        );
+        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
         let def_eff = def_rating * def_mod * crate::shared::home_mod(def_side, &self.config);
         let success = att_eff / (att_eff + def_eff);
@@ -168,12 +171,12 @@ impl LiveMatchState {
             self.team_ref(att_side).play_style,
             PlayStylePhase::Attack,
             true,
-        );
+        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Attack);
         let def_mod = play_style_modifier(
             self.team_ref(def_side).play_style,
             PlayStylePhase::Defense,
             false,
-        );
+        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
         let def_eff = def_rating * def_mod * crate::shared::home_mod(def_side, &self.config);
         let success = att_eff / (att_eff + def_eff);
@@ -433,6 +436,7 @@ mod event_detail_tests {
             reflexes: 70,
             aerial: 70,
             traits: vec![],
+            role: crate::types::PlayerRole::Standard,
         }
     }
 

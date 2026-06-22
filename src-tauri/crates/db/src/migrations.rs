@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 38;
+pub const MIGRATION_COUNT: usize = 39;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -79,10 +79,12 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v035_team_kit_pattern.sql")),
         // V36: Enforce per-team jersey number uniqueness at DB level
         M::up(include_str!("sql/v036_player_jersey_number_unique.sql")),
-        // V37: Persist loan offer history and active loan contracts
-        M::up(include_str!("sql/v037_player_loan_state.sql")),
-        // V38: Persist per-player transfer and loan movement history
-        M::up(include_str!("sql/v038_player_movement_history.sql")),
+        // V37: Per-player tactical roles and phase blueprint settings
+        M::up(include_str!("sql/v037_team_tactics.sql")),
+        // V38: Persist loan offer history and active loan contracts
+        M::up(include_str!("sql/v038_player_loan_state.sql")),
+        // V39: Persist per-player transfer and loan movement history
+        M::up(include_str!("sql/v039_player_movement_history.sql")),
     ])
 }
 

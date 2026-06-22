@@ -249,7 +249,7 @@ describe("SquadTab", () => {
     expect(screen.queryByText("What this changes")).not.toBeInTheDocument();
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
-    expect(screen.getByText("squad.planStatus")).toBeInTheDocument();
+    expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
     expect(screen.getByText("squad.tacticalFit")).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();

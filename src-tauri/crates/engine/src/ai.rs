@@ -1,7 +1,21 @@
 use rand::{Rng, RngExt};
 
 use crate::live_match::{LiveMatchState, MatchCommand, MatchPhase};
-use crate::types::{PlayStyle, PlayerData, Position, Side};
+use crate::types::{PlayStyle, PlayerData, PlayerRole, Position, Side, Zone};
+
+// ---------------------------------------------------------------------------
+// AiPersonality — determines decision-making style
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AiPersonality {
+    /// Safe play: subs early for fatigue, incremental style changes.
+    Pragmatist,
+    /// Bold: can trigger formation changes after minute 60 when losing.
+    Visionary,
+    /// Reactive: 1.5× base chance after any score-differential change.
+    Reactive,
+}
 
 // ---------------------------------------------------------------------------
 // AI Manager profile — drives decision-making style
@@ -13,6 +27,8 @@ pub struct AiProfile {
     pub reputation: u32,
     /// Manager experience level 0–100. Affects timing and quality of subs.
     pub experience: u8,
+    /// Personality archetype derived from manager stats.
+    pub personality: AiPersonality,
 }
 
 impl Default for AiProfile {
@@ -20,6 +36,7 @@ impl Default for AiProfile {
         Self {
             reputation: 500,
             experience: 50,
+            personality: AiPersonality::Pragmatist,
         }
     }
 }
@@ -138,7 +155,7 @@ fn consider_substitution<R: Rng>(
     if let Some((tired_player, _)) = worst_player {
         // Find best replacement from bench with same position
         if let Some(replacement) =
-            find_best_bench_replacement(bench, tired_player.position, &snap.sent_off)
+            find_best_bench_replacement(bench, tired_player.position, &snap.sent_off, None)
         {
             return Some(MatchCommand::Substitute {
                 side,
@@ -150,7 +167,8 @@ fn consider_substitution<R: Rng>(
 
     // --- Tactical substitutions (losing and past 65') ---
     if goal_diff < 0 && minute >= 65 && subs_made < 3 {
-        // Bring on an attacker if losing
+        // Bring on an attacker if losing.
+        // When playing HighPress, prefer a PressingForward for role synergy.
         let chance = 0.03 * experience_factor * (1.0 + (minute as f64 - 65.0) / 25.0);
         if rng.random_range(0.0..1.0f64) < chance {
             // Find a defender or midfielder to take off
@@ -163,9 +181,19 @@ fn consider_substitution<R: Rng>(
                 })
                 .collect();
 
+            let preferred_role = if team.play_style == PlayStyle::HighPress {
+                Some(PlayerRole::PressingForward)
+            } else {
+                None
+            };
+
             if let Some(player_off) = candidates.last()
-                && let Some(attacker_on) =
-                    find_best_bench_replacement(bench, Position::Forward, &snap.sent_off)
+                && let Some(attacker_on) = find_best_bench_replacement(
+                    bench,
+                    Position::Forward,
+                    &snap.sent_off,
+                    preferred_role,
+                )
             {
                 return Some(MatchCommand::Substitute {
                     side,
@@ -189,7 +217,7 @@ fn consider_substitution<R: Rng>(
 
             if let Some(player_off) = forwards.first()
                 && let Some(defender_on) =
-                    find_best_bench_replacement(bench, Position::Defender, &snap.sent_off)
+                    find_best_bench_replacement(bench, Position::Defender, &snap.sent_off, None)
             {
                 return Some(MatchCommand::Substitute {
                     side,
@@ -207,7 +235,26 @@ fn find_best_bench_replacement<'a>(
     bench: &'a [PlayerData],
     preferred_position: Position,
     sent_off: &std::collections::HashSet<String>,
+    preferred_role: Option<PlayerRole>,
 ) -> Option<&'a PlayerData> {
+    // If a role preference is set, try to find a position+role match first
+    if let Some(role) = preferred_role {
+        let mut role_candidates: Vec<&PlayerData> = bench
+            .iter()
+            .filter(|p| {
+                p.position == preferred_position && p.role == role && !sent_off.contains(&p.id)
+            })
+            .collect();
+        role_candidates.sort_by(|a, b| {
+            b.overall()
+                .partial_cmp(&a.overall())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        if let Some(best) = role_candidates.first() {
+            return Some(*best);
+        }
+    }
+
     // First try exact position match, sorted by overall
     let mut candidates: Vec<&PlayerData> = bench
         .iter()
@@ -262,8 +309,39 @@ fn consider_tactic_change<R: Rng>(
         return None;
     }
 
-    // Very low probability per minute to avoid constant switching
-    let base_chance = 0.02 * experience_factor;
+    // Base chance per minute; Reactive personality gets a 1.5× boost
+    let personality_mult = if profile.personality == AiPersonality::Reactive {
+        1.5
+    } else {
+        1.0
+    };
+    let base_chance = 0.02 * experience_factor * personality_mult;
+
+    // ---------------------------------------------------------------------------
+    // Zone-reactive: if the ball has been stuck in our defensive half for most of
+    // the last 10 minutes, shift to a more defensive style to soak pressure.
+    // ---------------------------------------------------------------------------
+    let defensive_zones_for_side = match side {
+        Side::Home => [Zone::HomeBox, Zone::HomeDefense],
+        Side::Away => [Zone::AwayBox, Zone::AwayDefense],
+    };
+    let recent = match_state.recent_zones();
+    let pressure_ticks = recent
+        .iter()
+        .filter(|z| defensive_zones_for_side.contains(z))
+        .count();
+    // 6+ of the last 10 minutes under defensive pressure → consider going defensive.
+    // Guard: only when not already losing (a losing team should be attacking, not absorbing).
+    if pressure_ticks >= 6
+        && goal_diff >= 0
+        && team.play_style != PlayStyle::Defensive
+        && rng.random_range(0.0..1.0f64) < base_chance * 2.5
+    {
+        return Some(MatchCommand::ChangePlayStyle {
+            side,
+            play_style: PlayStyle::Defensive,
+        });
+    }
 
     // Losing by 2+ goals after 70': switch to attacking
     if goal_diff <= -2
@@ -311,6 +389,26 @@ fn consider_tactic_change<R: Rng>(
         return Some(MatchCommand::ChangePlayStyle {
             side,
             play_style: PlayStyle::Defensive,
+        });
+    }
+
+    // Visionary: losing after 60' → try a formation change
+    if profile.personality == AiPersonality::Visionary
+        && goal_diff < 0
+        && minute >= 60
+        && rng.random_range(0.0..1.0f64) < base_chance * 1.5
+    {
+        let current = &team.formation;
+        let new_formation = if current == "4-4-2" {
+            "4-3-3"
+        } else if current == "4-3-3" || current == "4-5-1" {
+            "4-2-3-1"
+        } else {
+            return None;
+        };
+        return Some(MatchCommand::ChangeFormation {
+            side,
+            formation: new_formation.to_string(),
         });
     }
 
