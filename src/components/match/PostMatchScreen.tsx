@@ -27,6 +27,7 @@ import {
   BarChart3,
   Users,
   FileText,
+  Shield,
 } from "lucide-react";
 
 interface PostMatchScreenProps {
@@ -39,7 +40,40 @@ interface PostMatchScreenProps {
   onFinish: () => void;
 }
 
-type PostMatchTab = "teamTalk" | "matchReport" | "playerRatings";
+type PostMatchTab = "teamTalk" | "matchReport" | "playerRatings" | "tactics";
+
+function computeGoalSources(
+  events: MatchEvent[],
+  side: "Home" | "Away",
+): { openPlay: number; corners: number; freekicks: number; penalties: number } {
+  const sources = { openPlay: 0, corners: 0, freekicks: 0, penalties: 0 };
+  let lastSetPiece: "Corner" | "FreeKick" | null = null;
+  const clearEvents = new Set([
+    "ShotOffTarget", "ShotBlocked", "ShotSaved", "PenaltyMiss",
+    "Clearance", "Interception", "PassIntercepted", "GoalKick",
+  ]);
+  for (const evt of events) {
+    if (evt.event_type === "Corner") {
+      lastSetPiece = "Corner";
+    } else if (
+      evt.event_type === "FreeKick" &&
+      (evt.zone === "HomeDefense" || evt.zone === "AwayDefense")
+    ) {
+      lastSetPiece = "FreeKick";
+    } else if (clearEvents.has(evt.event_type)) {
+      lastSetPiece = null;
+    } else if (evt.event_type === "Goal" && evt.side === side) {
+      if (lastSetPiece === "Corner") sources.corners++;
+      else if (lastSetPiece === "FreeKick") sources.freekicks++;
+      else sources.openPlay++;
+      lastSetPiece = null;
+    } else if (evt.event_type === "PenaltyGoal" && evt.side === side) {
+      sources.penalties++;
+      lastSetPiece = null;
+    }
+  }
+  return sources;
+}
 
 export default function PostMatchScreen({
   snapshot,
@@ -172,6 +206,11 @@ export default function PostMatchScreen({
       id: "playerRatings",
       label: t("match.playerRatings"),
       icon: <Users className="w-4 h-4" />,
+    },
+    {
+      id: "tactics",
+      label: t("match.tacticsTab"),
+      icon: <Shield className="w-4 h-4" />,
     },
   ];
 
@@ -646,6 +685,101 @@ export default function PostMatchScreen({
                 userSide={userSide}
               />
             ))}
+          </div>
+
+          {/* Tactics Tab */}
+          <div
+            id="tabpanel-tactics"
+            role="tabpanel"
+            aria-labelledby="tab-tactics"
+            hidden={activeTab !== "tactics"}
+            className="grid grid-cols-2 gap-6"
+          >
+            {/* Goal Sources — spans both columns */}
+            {(() => {
+              const homeSrc = computeGoalSources(snapshot.events, "Home");
+              const awaySrc = computeGoalSources(snapshot.events, "Away");
+              const homeTotal = homeSrc.openPlay + homeSrc.corners + homeSrc.freekicks + homeSrc.penalties || 1;
+              const awayTotal = awaySrc.openPlay + awaySrc.corners + awaySrc.freekicks + awaySrc.penalties || 1;
+              const sourceKeys: { key: keyof typeof homeSrc; label: string }[] = [
+                { key: "openPlay", label: t("match.openPlay") },
+                { key: "corners", label: t("match.cornersGoals") },
+                { key: "freekicks", label: t("match.freekickGoals") },
+                { key: "penalties", label: t("match.penaltyGoals") },
+              ];
+              return (
+                <div className="col-span-2 bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      {t("match.goalSources")}
+                    </h3>
+                  </div>
+                  <div className="space-y-2">
+                    {sourceKeys.map(({ key, label }) => {
+                      const hv = homeSrc[key];
+                      const av = awaySrc[key];
+                      const homePct = Math.round((hv / homeTotal) * 100);
+                      const awayPct = Math.round((av / awayTotal) * 100);
+                      return (
+                        <div key={key} className="mb-1 last:mb-0">
+                          <div className="flex justify-between text-xs mb-0.5">
+                            <span className="font-heading font-bold text-primary-400 tabular-nums">
+                              {hv} <span className="font-normal text-gray-500">({homePct}%)</span>
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-500 font-heading uppercase tracking-wider text-[10px]">
+                              {label}
+                            </span>
+                            <span className="font-heading font-bold text-indigo-400 tabular-nums">
+                              <span className="font-normal text-gray-500">({awayPct}%)</span> {av}
+                            </span>
+                          </div>
+                          <div className="flex h-1 bg-gray-300 dark:bg-navy-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary-500" style={{ width: `${homePct}%` }} />
+                            <div className="h-full bg-indigo-500" style={{ width: `${awayPct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Player roles per side */}
+            {(["Home", "Away"] as const).map((side) => {
+              const team = side === "Home" ? snapshot.home_team : snapshot.away_team;
+              const teamColor = side === "Home" ? homeTeamColor : awayTeamColor;
+              return (
+                <div
+                  key={side}
+                  className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: teamColor }} />
+                    <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                      {team.name}
+                    </h3>
+                  </div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-500 font-heading uppercase tracking-wider mb-3">
+                    {team.formation} · {t(`common.playStyles.${team.play_style}` as never, team.play_style)}
+                  </p>
+                  <div className="flex flex-col gap-0.5 max-h-52 overflow-auto">
+                    {team.players.map((p) => (
+                      <div key={p.id} className="flex items-center gap-2 text-xs py-0.5">
+                        <span className="text-gray-500 dark:text-gray-500 text-[10px] font-heading uppercase w-6 shrink-0">
+                          {p.position.charAt(0)}
+                        </span>
+                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{p.name}</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-[10px] font-heading shrink-0">
+                          {t(`tactics.playerRoles.${p.role ?? "Standard"}` as never, p.role ?? "Standard")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
         </div>
