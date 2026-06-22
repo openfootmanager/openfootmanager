@@ -152,9 +152,14 @@ impl MatchReport {
             match &event.event_type {
                 EventType::Corner => last_set_piece = Some((EventType::Corner, event.side)),
                 EventType::FreeKick => {
-                    // Only dangerous free kicks (attacking third) count as set-piece opportunities.
-                    // Midfield free kicks are routine restarts, not direct scoring chances.
-                    if matches!(event.zone, Zone::HomeDefense | Zone::AwayDefense) {
+                    // Only dangerous free kicks count: the taking side must be in their attacking
+                    // third (opponent's defensive third). A free kick in HomeDefense is only
+                    // dangerous when Away is taking it, and vice-versa.
+                    let dangerous_zone = match event.side {
+                        Side::Home => Zone::AwayDefense,
+                        Side::Away => Zone::HomeDefense,
+                    };
+                    if event.zone == dangerous_zone {
                         last_set_piece = Some((EventType::FreeKick, event.side));
                     }
                 }
