@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use engine::{
-    simulate_with_rng, EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, Position,
-    TeamData,
+    simulate_with_rng, EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, PlayerRole,
+    Position, TeamData,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -572,5 +572,6 @@ fn make_player(
         reflexes: biased(base, gk_off, rng),
         aerial: noise(base, rng),
         traits: vec![],
+        role: PlayerRole::default(),
     }
 }
