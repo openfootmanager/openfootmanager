@@ -27,15 +27,15 @@ pub fn build_team_with_tactics(
     let (n_def, n_mid, n_fwd) = parse_formation(formation);
     let mut players = Vec::with_capacity(11);
 
-    players.push(make_player(id, "GK", 1, Position::Goalkeeper, avg_ovr, rng));
+    players.push(make_player(id, "GK", 1, 1, Position::Goalkeeper, avg_ovr, rng));
     for i in 1..=n_def {
-        players.push(make_player(id, "DEF", i, Position::Defender, avg_ovr, rng));
+        players.push(make_player(id, "DEF", i, n_def, Position::Defender, avg_ovr, rng));
     }
     for i in 1..=n_mid {
-        players.push(make_player(id, "MID", i, Position::Midfielder, avg_ovr, rng));
+        players.push(make_player(id, "MID", i, n_mid, Position::Midfielder, avg_ovr, rng));
     }
     for i in 1..=n_fwd {
-        players.push(make_player(id, "FWD", i, Position::Forward, avg_ovr, rng));
+        players.push(make_player(id, "FWD", i, n_fwd, Position::Forward, avg_ovr, rng));
     }
 
     TeamData {
@@ -48,7 +48,7 @@ pub fn build_team_with_tactics(
     }
 }
 
-fn sample_role(position: Position, slot_idx: u8, rng: &mut impl Rng) -> PlayerRole {
+fn sample_role(position: Position, slot_idx: u8, total_in_position: u8, rng: &mut impl Rng) -> PlayerRole {
     match position {
         Position::Goalkeeper => {
             const ROLES: [PlayerRole; 3] = [
@@ -59,7 +59,11 @@ fn sample_role(position: Position, slot_idx: u8, rng: &mut impl Rng) -> PlayerRo
             ROLES[rng.random_range(0usize..3)]
         }
         Position::Defender => {
-            if slot_idx <= 2 {
+            // FB count: 0 for 3-back, 2 for 4-back and 5-back.
+            // CB slots are the first (total - fb_count) slots.
+            let fb_count = if total_in_position <= 3 { 0u8 } else { 2u8 };
+            let cb_count = total_in_position - fb_count;
+            if slot_idx <= cb_count {
                 // CB slots
                 const ROLES: [PlayerRole; 3] =
                     [PlayerRole::Stopper, PlayerRole::CoverCB, PlayerRole::BallPlayingCB];
@@ -130,6 +134,7 @@ fn make_player(
     team_id: &str,
     pos_label: &str,
     idx: u8,
+    total_in_position: u8,
     position: Position,
     avg_ovr: u8,
     rng: &mut impl Rng,
@@ -150,7 +155,7 @@ fn make_player(
         Position::Forward => (18.0, -12.0, 3.0, -18.0, -20.0),
     };
 
-    let role = sample_role(position, idx, rng);
+    let role = sample_role(position, idx, total_in_position, rng);
 
     PlayerData {
         id: format!("{team_id}_{pos_label}{idx}"),
