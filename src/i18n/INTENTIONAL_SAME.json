@@ -15,10 +15,18 @@
     "common.posAbbr.RightWinger",
     "common.posAbbr.Striker",
     "common.statsView",
-    "common.radarView"
+    "common.radarView",
+    "tactics.playerRoles.Carrilero",
+    "tactics.playerRoles.Mezzala"
   ],
   "de": [
-    "squad.planStatus",
+    "tactics.playerRoles.Standard",
+    "tactics.playerRoles.Stopper",
+    "tactics.playerRoles.BoxToBox",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.pressingIntensity",
+    "tactics.phaseSettings.width_Normal",
+    "tactics.phaseSettings.defensiveShape_Normal",
     "tactics.moraleLevels.okay",
     "schedule.calendar.mon",
     "schedule.calendar.fri",
@@ -77,7 +85,15 @@
     "squad.kitPatterns.Diagonal"
   ],
   "fr": [
-    "squad.planStatus",
+    "tactics.playerRoles.Standard",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.tempo_Patient",
+    "tactics.phaseSettings.tempo_Direct",
+    "tactics.phaseSettings.pressingIntensity",
+    "tactics.phaseSettings.defensiveShape_Normal",
+    "tactics.phaseSettings.defensiveShape_Compact",
+    "tactics.phaseSettings.markingStyle_Zonal",
+    "tactics.phaseSettings.counterPressDuration_Long",
     "tactics.phaseLabels.transitions",
     "match.fitExact",
     "manager.club",
@@ -153,6 +169,10 @@
     "squad.kitPatterns.Diagonal"
   ],
   "it": [
+    "tactics.playerRoles.Standard",
+    "tactics.playerRoles.Stopper",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.pressingIntensity",
     "manager.club",
     "common.attributes.leadership",
     "common.goalsFor",
@@ -184,7 +204,10 @@
     "training.groups.groupFocus"
   ],
   "es": [
-    "squad.planStatus",
+    "tactics.phaseSettings.width_Normal",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.defensiveShape_Normal",
+    "tactics.phaseSettings.markingStyle_Zonal",
     "tactics.inspector",
     "tactics.tableModes.roles",
     "dashboard.recapTransferLine",
@@ -214,6 +237,9 @@
     "squad.kitPatterns.Diagonal"
   ],
   "pt-BR": [
+    "tactics.phaseSettings.width_Normal",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.defensiveShape_Normal",
     "dashboard.recapTransferLine",
     "be.news.preseasonDigest.resultLine",
     "be.news.roundup.resultLine",
@@ -239,6 +265,9 @@
     "squad.kitPatterns.Diagonal"
   ],
   "pt": [
+    "tactics.phaseSettings.width_Normal",
+    "tactics.phaseSettings.tempo",
+    "tactics.phaseSettings.defensiveShape_Normal",
     "dashboard.recapTransferLine",
     "be.news.preseasonDigest.resultLine",
     "be.news.roundup.resultLine",

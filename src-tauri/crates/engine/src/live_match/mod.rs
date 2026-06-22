@@ -7,7 +7,7 @@ mod zone_resolution;
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
@@ -221,6 +221,9 @@ pub struct LiveMatchState {
 
     // Penalty shootout state
     penalty_state: PenaltyShootoutState,
+
+    // Rolling window of the last 10 ball_zone values (oldest first)
+    recent_zones: VecDeque<Zone>,
 }
 
 impl LiveMatchState {
@@ -270,6 +273,7 @@ impl LiveMatchState {
             et_second_half_stoppage: 0,
             player_conditions,
             penalty_state: PenaltyShootoutState::default(),
+            recent_zones: VecDeque::with_capacity(10),
         }
     }
 
@@ -367,6 +371,11 @@ impl LiveMatchState {
     /// Current minute
     pub fn minute(&self) -> u8 {
         self.current_minute
+    }
+
+    /// Rolling window of the last ≤10 ball_zone values (oldest first)
+    pub fn recent_zones(&self) -> &VecDeque<Zone> {
+        &self.recent_zones
     }
 
     /// Get the bench for a side

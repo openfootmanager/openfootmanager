@@ -27,6 +27,50 @@ pub enum PlayStyle {
 }
 
 // ---------------------------------------------------------------------------
+// PlayerRole — mirrors domain::team::PlayerRole, kept independent
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum PlayerRole {
+    // Goalkeeper
+    #[default]
+    Standard,
+    BallPlayingKeeper,
+    SweeperKeeper,
+    // Center Back
+    Stopper,
+    CoverCB,
+    BallPlayingCB,
+    // Full Back / Wing Back
+    AttackingFB,
+    DefensiveFB,
+    InvertedFB,
+    WingBack,
+    // Defensive Midfielder
+    AnchorMan,
+    BallWinner,
+    DeepLyingPlaymaker,
+    // Central Midfielder
+    BoxToBox,
+    Carrilero,
+    Mezzala,
+    // Attacking Midfielder
+    AdvancedPlaymaker,
+    ShadowStriker,
+    // Wide
+    WideForward,
+    InsideForward,
+    InvertedWinger,
+    // Striker
+    Poacher,
+    TargetMan,
+    DeepLyingForward,
+    False9,
+    PressingForward,
+    CompleteForward,
+}
+
+// ---------------------------------------------------------------------------
 // PlayerData — a snapshot of a player for engine consumption
 // ---------------------------------------------------------------------------
 
@@ -80,6 +124,9 @@ pub struct PlayerData {
     // Traits (string names matching domain::player::PlayerTrait variants)
     #[serde(default)]
     pub traits: Vec<String>,
+
+    #[serde(default)]
+    pub role: PlayerRole,
 }
 
 fn default_engine_attr() -> u8 {
