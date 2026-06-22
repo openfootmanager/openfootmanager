@@ -497,6 +497,10 @@ pub fn set_team_kit_pattern_internal(
     kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
+        if game.season_context.phase != domain::season::SeasonPhase::Preseason {
+            return Err("be.error.kitChangesLockedInSeason".to_string());
+        }
+
         let team_id = game
             .manager
             .team_id

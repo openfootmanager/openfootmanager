@@ -167,11 +167,19 @@ export function sortInboxMessages(
     const leftDateValue = getMessageDateValue(leftMessage.date);
     const rightDateValue = getMessageDateValue(rightMessage.date);
 
-    if (sortOrder === "oldest") {
-      return leftDateValue - rightDateValue;
-    }
+    const dateCompare =
+      sortOrder === "oldest"
+        ? leftDateValue - rightDateValue
+        : rightDateValue - leftDateValue;
 
-    return rightDateValue - leftDateValue;
+    if (dateCompare !== 0) return dateCompare;
+
+    // Stable secondary sort by id so same-date messages always appear in the same order.
+    return leftMessage.id < rightMessage.id
+      ? -1
+      : leftMessage.id > rightMessage.id
+        ? 1
+        : 0;
   });
 }
 

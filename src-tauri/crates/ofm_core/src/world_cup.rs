@@ -610,7 +610,7 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
                 let fixture = &game.competitions[competition_index].fixtures[fixture_index];
                 (fixture.home_team_id.clone(), fixture.away_team_id.clone())
             };
-            let (home_goals, away_goals) =
+            let (home_goals, away_goals, home_scorers, away_scorers) =
                 crate::national_team::play_national_match(game, &home_id, &away_id, rng);
 
             let competition = &mut game.competitions[competition_index];
@@ -619,8 +619,8 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             fixture.result = Some(MatchResult {
                 home_goals,
                 away_goals,
-                home_scorers: Vec::new(),
-                away_scorers: Vec::new(),
+                home_scorers,
+                away_scorers,
                 report: None,
             });
             crate::group_stage::process_completed_fixture(competition, fixture_index);
