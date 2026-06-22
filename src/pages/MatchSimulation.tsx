@@ -136,7 +136,8 @@ export default function MatchSimulation() {
           });
           const fixture = gameState?.league?.fixtures?.[routeState.fixtureIndex];
           const competitionsWithET: string[] = ["Cup", "ContinentalClub", "InternationalClub", "InternationalNation", "FriendlyCup"];
-          const allowsExtraTime = competitionsWithET.includes(fixture?.competition ?? "");
+          const allowsExtraTime = routeState?.snapshot?.allows_extra_time
+            ?? competitionsWithET.includes(fixture?.competition ?? "");
           const restoredSnapshot = await invoke<MatchSnapshot>(
             "start_live_match",
             {
