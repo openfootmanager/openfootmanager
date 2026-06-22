@@ -205,6 +205,7 @@ export default function PenaltyShootoutScreen({
       {/* Speed controls */}
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => {
             setIsRunning((r) => !r);
             if (!isRunning) setSpeed("normal");
@@ -220,6 +221,7 @@ export default function PenaltyShootoutScreen({
           )}
         </button>
         <button
+          type="button"
           onClick={() => { setSpeed("fast"); setIsRunning(true); }}
           className="p-2 rounded-full bg-white dark:bg-navy-700 shadow hover:shadow-md transition-all"
           aria-label={t("match.fast")}
@@ -227,6 +229,7 @@ export default function PenaltyShootoutScreen({
           <FastForward className="w-5 h-5 text-gray-700 dark:text-gray-200" />
         </button>
         <button
+          type="button"
           onClick={async () => {
             setIsRunning(false);
             await stepMatch();
