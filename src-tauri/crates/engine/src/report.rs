@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::event::{EventType, MatchEvent};
-use crate::types::Side;
+use crate::types::{Side, Zone};
 
 // ---------------------------------------------------------------------------
 // TeamStats — aggregate stats for one side
@@ -61,6 +61,18 @@ pub struct PlayerMatchStats {
 }
 
 // ---------------------------------------------------------------------------
+// GoalSource — how a goal was created (distinct from event.rs GoalContext which tracks narrative)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GoalSource {
+    OpenPlay,
+    Corner,
+    FreeKick,
+    Penalty,
+}
+
+// ---------------------------------------------------------------------------
 // GoalDetail — enriched goal info for the report
 // ---------------------------------------------------------------------------
 
@@ -69,7 +81,7 @@ pub struct GoalDetail {
     pub minute: u8,
     pub scorer_id: String,
     pub assist_id: Option<String>,
-    pub is_penalty: bool,
+    pub goal_source: GoalSource,
     pub side: Side,
 }
 
@@ -125,11 +137,36 @@ impl MatchReport {
         home_stats.possession_ticks = home_possession_ticks;
         away_stats.possession_ticks = away_possession_ticks;
 
+        // State machine to determine goal source from preceding set-piece event
+        let mut last_set_piece: Option<EventType> = None;
+
         for event in &events {
             let stats = match event.side {
                 Side::Home => &mut home_stats,
                 Side::Away => &mut away_stats,
             };
+
+            // Track set-piece window: reset on events that clear the opportunity
+            match &event.event_type {
+                EventType::Corner => last_set_piece = Some(EventType::Corner),
+                EventType::FreeKick => {
+                    // Only dangerous free kicks (attacking third) count as set-piece opportunities.
+                    // Midfield free kicks are routine restarts, not direct scoring chances.
+                    if matches!(event.zone, Zone::HomeDefense | Zone::AwayDefense) {
+                        last_set_piece = Some(EventType::FreeKick);
+                    }
+                }
+                // Defensive events clear the set-piece window
+                EventType::ShotOffTarget
+                | EventType::ShotBlocked
+                | EventType::ShotSaved
+                | EventType::PenaltyMiss
+                | EventType::Clearance
+                | EventType::Interception
+                | EventType::PassIntercepted
+                | EventType::GoalKick => last_set_piece = None,
+                _ => {}
+            }
 
             // Update player stats helper
             let pid = event.player_id.as_deref().unwrap_or("");
@@ -139,11 +176,16 @@ impl MatchReport {
                     stats.goals += 1;
                     stats.shots += 1;
                     stats.shots_on_target += 1;
+                    let source = match last_set_piece.take() {
+                        Some(EventType::Corner) => GoalSource::Corner,
+                        Some(EventType::FreeKick) => GoalSource::FreeKick,
+                        _ => GoalSource::OpenPlay,
+                    };
                     goals.push(GoalDetail {
                         minute: event.minute,
                         scorer_id: pid.to_string(),
                         assist_id: event.secondary_player_id.clone(),
-                        is_penalty: false,
+                        goal_source: source,
                         side: event.side,
                     });
                     if !pid.is_empty() {
@@ -162,11 +204,12 @@ impl MatchReport {
                     stats.shots += 1;
                     stats.shots_on_target += 1;
                     stats.penalties += 1;
+                    last_set_piece = None;
                     goals.push(GoalDetail {
                         minute: event.minute,
                         scorer_id: pid.to_string(),
                         assist_id: None,
-                        is_penalty: true,
+                        goal_source: GoalSource::Penalty,
                         side: event.side,
                     });
                     if !pid.is_empty() {
