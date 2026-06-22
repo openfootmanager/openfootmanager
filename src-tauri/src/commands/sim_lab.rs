@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use engine::{
-    simulate_with_rng, EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, PlayerRole,
-    Position, TeamData,
+    simulate_with_rng, EventType, GoalSource, MatchConfig, MatchReport, PlayStyle, PlayerData,
+    PlayerRole, Position, TeamData,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -312,8 +312,16 @@ impl Aggregator {
         let aw = &r.away_stats;
         self.total_shots += (hs.shots + aw.shots) as u64;
         self.shots_on_target += (hs.shots_on_target + aw.shots_on_target) as u64;
-        self.penalties_awarded += (hs.penalties + aw.penalties) as u64;
-        self.penalty_goals += r.goals.iter().filter(|g| g.is_penalty).count() as u64;
+        self.penalties_awarded += r
+            .events
+            .iter()
+            .filter(|e| matches!(e.event_type, EventType::PenaltyAwarded))
+            .count() as u64;
+        self.penalty_goals += r
+            .goals
+            .iter()
+            .filter(|g| g.goal_source == GoalSource::Penalty)
+            .count() as u64;
         self.passes_completed += (hs.passes_completed + aw.passes_completed) as u64;
         self.yellow_cards += (hs.yellow_cards + aw.yellow_cards) as u64;
         self.red_cards += (hs.red_cards + aw.red_cards) as u64;
@@ -501,6 +509,7 @@ fn build_team(id: &str, avg_ovr: u8, play_style: PlayStyle, formation: &str, rng
         formation: formation.to_string(),
         play_style,
         players,
+        tactics: engine::TacticsConfig::default(),
     }
 }
 
