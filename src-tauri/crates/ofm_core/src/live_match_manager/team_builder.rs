@@ -209,7 +209,7 @@ pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePl
     }
 }
 
-fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -> TacticsConfig {
+pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -> TacticsConfig {
     TacticsConfig {
         pressing_intensity: match t.pressing_intensity {
             domain::team::PressingIntensity::Passive => PressingIntensity::Passive,
