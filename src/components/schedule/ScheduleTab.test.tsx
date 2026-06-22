@@ -450,7 +450,7 @@ describe("ScheduleTab", () => {
               competition: "League",
               competition_id: "league-1",
               status: "Completed",
-              result: { home_goals: 1, away_goals: 2, home_scorers: [], away_scorers: [] },
+              result: { home_goals: 1, away_goals: 2 },
             },
           ],
         }),
