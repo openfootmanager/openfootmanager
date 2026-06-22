@@ -28,12 +28,13 @@ interface MatchLiveProps {
   onImportantEvent: (evt: MatchEvent) => void;
   onHalfTime: () => void;
   onFullTime: () => void;
+  onPenaltyShootout?: () => void;
 }
 
 export default function MatchLive({
   snapshot, gameState, userSide, isSpectator,
   importantEvents, onSnapshotUpdate, onImportantEvent,
-  onHalfTime, onFullTime,
+  onHalfTime, onFullTime, onPenaltyShootout,
 }: MatchLiveProps) {
   const { t } = useTranslation();
   const { settings } = useSettingsStore();
@@ -94,6 +95,14 @@ export default function MatchLive({
           return;
         }
 
+        if (phase === "PenaltyShootout" && !signaledRef.current.has("PenaltyShootout")) {
+          signaledRef.current.add("PenaltyShootout");
+          setIsRunning(false);
+          setSpeed("paused");
+          setTimeout(() => onPenaltyShootout?.(), 600);
+          return;
+        }
+
         if (lastResult.is_finished && !signaledRef.current.has("Finished")) {
           signaledRef.current.add("Finished");
           setIsRunning(false);
@@ -106,7 +115,7 @@ export default function MatchLive({
       console.error("Failed to step match:", err);
       setIsRunning(false);
     }
-  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime]);
+  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout]);
 
   // Auto-step timer
   useEffect(() => {

@@ -16,6 +16,7 @@ import HalfTimeBreak from "../components/match/HalfTimeBreak";
 import PostMatchScreen from "../components/match/PostMatchScreen";
 import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
+import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -133,10 +134,13 @@ export default function MatchSimulation() {
             fixtureIndex: routeState.fixtureIndex,
             matchMode,
           });
+          const fixture = gameState?.league?.fixtures?.[routeState.fixtureIndex];
+          const competitionsWithET: string[] = ["Cup", "ContinentalClub", "InternationalClub", "InternationalNation", "FriendlyCup"];
+          const allowsExtraTime = competitionsWithET.includes(fixture?.competition ?? "");
           const restoredSnapshot = await invoke<MatchSnapshot>(
             "start_live_match",
             {
-              allowsExtraTime: false,
+              allowsExtraTime,
               fixtureIndex: routeState.fixtureIndex,
               mode: matchMode,
             },
@@ -181,13 +185,22 @@ export default function MatchSimulation() {
   }, []);
 
   const handleHalfTime = useCallback(() => {
-    console.info("[MatchSimulation] handleHalfTime");
-    setStage("halftime");
-  }, []);
+    console.info("[MatchSimulation] handleHalfTime", { phase: snapshot?.phase });
+    if (snapshot?.phase === "ExtraTimeHalfTime") {
+      setStage("extra_time_halftime");
+    } else {
+      setStage("halftime");
+    }
+  }, [snapshot?.phase]);
 
   const handleResumeFromHalfTime = useCallback(() => {
     console.info("[MatchSimulation] handleResumeFromHalfTime");
     setStage("second_half");
+  }, []);
+
+  const handlePenaltyShootout = useCallback(() => {
+    console.info("[MatchSimulation] handlePenaltyShootout");
+    setStage("penalty_shootout");
   }, []);
 
   const finalizeMatch = useCallback(async (): Promise<boolean> => {
@@ -313,13 +326,16 @@ export default function MatchSimulation() {
           onImportantEvent={handleImportantEvent}
           onHalfTime={handleHalfTime}
           onFullTime={handleFullTime}
+          onPenaltyShootout={handlePenaltyShootout}
         />
       );
 
     case "halftime":
+    case "extra_time_halftime":
       if (!userSide) return null;
       return (
         <HalfTimeBreak
+          key={stage}
           snapshot={snapshot}
           gameState={gameState}
           userSide={userSide}
@@ -327,6 +343,20 @@ export default function MatchSimulation() {
           importantEvents={importantEvents}
           onResume={handleResumeFromHalfTime}
           onUpdateSnapshot={handleSnapshotUpdate}
+        />
+      );
+
+    case "penalty_shootout":
+      return (
+        <PenaltyShootoutScreen
+          snapshot={snapshot}
+          gameState={gameState}
+          userSide={userSide}
+          isSpectator={isSpectator}
+          importantEvents={importantEvents}
+          onSnapshotUpdate={handleSnapshotUpdate}
+          onImportantEvent={handleImportantEvent}
+          onFullTime={handleFullTime}
         />
       );
 
