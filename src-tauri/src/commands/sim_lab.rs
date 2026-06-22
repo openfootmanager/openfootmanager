@@ -572,6 +572,30 @@ fn make_player(
         reflexes: biased(base, gk_off, rng),
         aerial: noise(base, rng),
         traits: vec![],
-        role: PlayerRole::default(),
+        role: {
+            let choices: &[PlayerRole] = match position {
+                Position::Goalkeeper => &[
+                    PlayerRole::SweeperKeeper,
+                    PlayerRole::BallPlayingKeeper,
+                    PlayerRole::Standard,
+                ],
+                Position::Defender => &[
+                    PlayerRole::CoverCB,
+                    PlayerRole::Stopper,
+                    PlayerRole::BallPlayingCB,
+                ],
+                Position::Midfielder => &[
+                    PlayerRole::BoxToBox,
+                    PlayerRole::DeepLyingPlaymaker,
+                    PlayerRole::Mezzala,
+                ],
+                Position::Forward => &[
+                    PlayerRole::CompleteForward,
+                    PlayerRole::Poacher,
+                    PlayerRole::TargetMan,
+                ],
+            };
+            choices[rng.random_range(0..choices.len())]
+        },
     }
 }
