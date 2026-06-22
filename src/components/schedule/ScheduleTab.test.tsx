@@ -431,6 +431,51 @@ describe("ScheduleTab", () => {
     });
   });
 
+  it("auto-scrolls to next user fixture on load when mid-season past groups exist", async () => {
+    const slice = makeSlice({
+      past_groups: [
+        makeGroup({
+          key: "g-past",
+          date: "2026-08-01",
+          matchday: 0,
+          fixtures: [
+            {
+              id: "fix-past",
+              matchday: 0,
+              date: "2026-08-01",
+              home_team_id: "team-2",
+              home_team_name: "Beta FC",
+              away_team_id: "team-1",
+              away_team_name: "Alpha FC",
+              competition: "League",
+              competition_id: "league-1",
+              status: "Completed",
+              result: { home_goals: 1, away_goals: 2, home_scorers: [], away_scorers: [] },
+            },
+          ],
+        }),
+      ],
+      upcoming_groups: [makeGroup({ is_next_user_match: true })],
+      next_user_match_date: "2026-09-05",
+    });
+    mockedInvoke.mockResolvedValue(slice);
+
+    render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
+
+    // Wait for upcoming fixture group to be in the DOM so its ref is registered.
+    await waitFor(() => {
+      expect(screen.getByTestId("schedule-fixture-fix-1")).toBeInTheDocument();
+    });
+
+    // The auto-scroll fires after a 50ms timeout; waitFor retries until scrollIntoView is called.
+    await waitFor(() => {
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  });
+
   it("shows national-team fixtures and call-ups in the international view", async () => {
     const state = makeGameState(true);
     state.players = [

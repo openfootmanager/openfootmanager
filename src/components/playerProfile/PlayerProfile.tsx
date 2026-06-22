@@ -226,7 +226,7 @@ export default function PlayerProfile({
     setRenewalProjection(null);
 
     const blockedUntil = player.morale_core?.renewal_state?.manager_blocked_until;
-    if (blockedUntil && blockedUntil > gameState.clock.current_date) {
+    if (blockedUntil && blockedUntil.slice(0, 10) > gameState.clock.current_date.slice(0, 10)) {
       setRenewalSessionStatus("blocked");
       setRenewalIsTerminal(true);
     }
