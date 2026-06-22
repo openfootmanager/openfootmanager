@@ -6,13 +6,9 @@ import type { TeamData } from "../../store/gameStore";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { ROLES_BY_ENGINE_POSITION } from "./roles";
 
-export const POSITION_ROLES: Record<string, string[]> = {
-  Goalkeeper: ["Standard", "BallPlayingKeeper", "SweeperKeeper"],
-  Defender: ["Stopper", "CoverCB", "BallPlayingCB", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
-  Midfielder: ["AnchorMan", "BallWinner", "DeepLyingPlaymaker", "BoxToBox", "Carrilero", "Mezzala", "AdvancedPlaymaker", "ShadowStriker", "WideForward", "InsideForward", "InvertedWinger"],
-  Forward: ["Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward"],
-};
+export const POSITION_ROLES = ROLES_BY_ENGINE_POSITION;
 
 export const POSITION_KEY_STATS: Record<
   string,
