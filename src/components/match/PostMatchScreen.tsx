@@ -16,6 +16,7 @@ import {
   renderScorers,
   PlayerRatingsPanel,
 } from "./PostMatchHelpers";
+import { PossessionDonut } from "./PostMatchCharts";
 import {
   Trophy,
   TrendingDown,
@@ -502,12 +503,17 @@ export default function PostMatchScreen({
                     {t("match.quickStats")}
                   </h3>
                 </div>
-                <QuickStat
-                  label={t("match.possession")}
-                  home={`${snapshot.home_possession_pct.toFixed(0)}%`}
-                  away={`${snapshot.away_possession_pct.toFixed(0)}%`}
-                  homePct={snapshot.home_possession_pct}
-                />
+                <div className="flex justify-center mb-3">
+                  <PossessionDonut
+                    homePct={snapshot.home_possession_pct}
+                    awayPct={snapshot.away_possession_pct}
+                    homeTeamName={snapshot.home_team.name}
+                    awayTeamName={snapshot.away_team.name}
+                    homeColor={homeTeamColor}
+                    awayColor={awayTeamColor}
+                    label={t("match.possession")}
+                  />
+                </div>
                 <QuickStat
                   label={t("match.shots")}
                   home={homeShots}

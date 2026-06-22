@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Card, CardBody, CardHeader } from "../ui";
 
 import type { TeamProfileTranslate, TeamStatsOverview } from "./TeamProfile.types";
+import { TeamStyleRadarChart } from "./TeamStyleRadarChart";
 
 interface TeamProfileAdvancedStatsCardProps {
   overview: TeamStatsOverview;
@@ -12,8 +14,7 @@ function resolveLabel(
   key: string,
   fallback: string,
 ): string {
-  const translated = t(key);
-  return translated === key ? fallback : translated;
+  return t(key, { defaultValue: fallback });
 }
 
 function formatRate(value: number | null): string {
@@ -83,6 +84,7 @@ export default function TeamProfileAdvancedStatsCard({
   overview,
   t,
 }: TeamProfileAdvancedStatsCardProps) {
+  const [view, setView] = useState<"stats" | "radar">("stats");
   const labels = {
     title: t("teamProfile.advancedStats"),
     matchesPlayed: resolveLabel(t, "teamProfile.matchesPlayed", "Matches"),
@@ -121,7 +123,45 @@ export default function TeamProfileAdvancedStatsCard({
 
   return (
     <Card className="lg:col-span-3">
-      <CardHeader>{labels.title}</CardHeader>
+      <CardHeader
+        action={
+          <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-navy-600 text-[10px] font-heading font-bold uppercase tracking-wider">
+            <button
+              type="button"
+              aria-pressed={view === "stats"}
+              onClick={() => setView("stats")}
+              className={`px-3 py-1 transition-colors ${view === "stats" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+            >
+              {t("common.statsView")}
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "radar"}
+              onClick={() => setView("radar")}
+              className={`px-3 py-1 transition-colors ${view === "radar" ? "bg-primary-500 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700"}`}
+            >
+              {t("teamProfile.teamStyle")}
+            </button>
+          </div>
+        }
+      >
+        {labels.title}
+      </CardHeader>
+      {view === "radar" ? (
+        <CardBody>
+          <TeamStyleRadarChart
+            overview={overview}
+            labels={{
+              possession: labels.possession,
+              shots: labels.shots,
+              passes: labels.passes,
+              tackles: labels.tacklesWon,
+              interceptions: labels.interceptions,
+              fouls: labels.foulsCommitted,
+            }}
+          />
+        </CardBody>
+      ) : (
       <CardBody>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <SummaryStat label={labels.matchesPlayed} value={String(overview.matchesPlayed)} />
@@ -175,6 +215,7 @@ export default function TeamProfileAdvancedStatsCard({
           />
         </div>
       </CardBody>
+      )}
     </Card>
   );
 }

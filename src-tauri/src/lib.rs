@@ -229,6 +229,8 @@ pub fn run() {
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,
+            set_player_role,
+            set_tactics_phase,
             assign_jersey_number,
             set_team_kit_pattern,
             hire_staff,
@@ -280,7 +282,9 @@ pub fn run() {
             save_manager_profile,
             update_manager_profile,
             delete_manager_profile,
-            touch_manager_profile
+            touch_manager_profile,
+            run_sim_batch,
+            run_single_seeded_match
         ])
         .run(tauri::generate_context!());
 

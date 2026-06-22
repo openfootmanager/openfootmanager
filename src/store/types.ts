@@ -42,6 +42,65 @@ export interface TeamSeasonRecord {
   goals_against: number;
 }
 
+export type PlayerRole =
+  // Goalkeeper
+  | "Standard"
+  | "BallPlayingKeeper"
+  | "SweeperKeeper"
+  // Center Back
+  | "Stopper"
+  | "CoverCB"
+  | "BallPlayingCB"
+  // Full Back / Wing Back
+  | "AttackingFB"
+  | "DefensiveFB"
+  | "InvertedFB"
+  | "WingBack"
+  // Defensive Midfielder
+  | "AnchorMan"
+  | "BallWinner"
+  | "DeepLyingPlaymaker"
+  // Central Midfielder
+  | "BoxToBox"
+  | "Carrilero"
+  | "Mezzala"
+  // Attacking Midfielder
+  | "AdvancedPlaymaker"
+  | "ShadowStriker"
+  // Wide
+  | "WideForward"
+  | "InsideForward"
+  | "InvertedWinger"
+  // Striker
+  | "Poacher"
+  | "TargetMan"
+  | "DeepLyingForward"
+  | "False9"
+  | "PressingForward"
+  | "CompleteForward";
+
+export type BuildUpStyle = "Short" | "Mixed" | "Long";
+export type PitchWidth = "Narrow" | "Normal" | "Wide";
+export type Tempo = "Patient" | "Direct";
+export type DefensiveLine = "VeryLow" | "Low" | "Medium" | "High";
+export type PressingIntensity = "Passive" | "Medium" | "Aggressive";
+export type DefensiveShape = "Stretched" | "Normal" | "Compact";
+export type MarkingStyle = "Zonal" | "Mixed" | "ManToMan";
+export type CounterPressDuration = "None" | "Short" | "Long";
+export type BreakSpeed = "Slow" | "Medium" | "Fast";
+
+export interface TacticsPhaseSettings {
+  build_up_style: BuildUpStyle;
+  width: PitchWidth;
+  tempo: Tempo;
+  defensive_line: DefensiveLine;
+  pressing_intensity: PressingIntensity;
+  defensive_shape: DefensiveShape;
+  marking_style: MarkingStyle;
+  counter_press_duration: CounterPressDuration;
+  break_speed: BreakSpeed;
+}
+
 export interface TeamMatchRolesData {
   captain: string | null;
   vice_captain: string | null;
@@ -85,6 +144,8 @@ export interface TeamData {
   sponsorship?: SponsorshipData | null;
   starting_xi_ids: string[];
   match_roles?: TeamMatchRolesData;
+  player_roles?: Record<string, PlayerRole>;
+  tactics_phase?: TacticsPhaseSettings;
   form: string[];
   history: TeamSeasonRecord[];
 }

@@ -42,6 +42,7 @@ interface DashboardOverlaysProps {
   onDigestViewBlockers?: (blockers: BlockerData[]) => void;
   onDigestContinueAfterBlocker?: () => void;
   onDismissDigest?: () => void;
+  onDigestStop?: () => void;
 }
 
 export default function DashboardOverlays({
@@ -72,6 +73,7 @@ export default function DashboardOverlays({
   onDigestViewBlockers,
   onDigestContinueAfterBlocker,
   onDismissDigest,
+  onDigestStop,
 }: DashboardOverlaysProps) {
   return (
     <>
@@ -80,6 +82,7 @@ export default function DashboardOverlays({
           digestEntries={digestEntries}
           isDigestRunning={isDigestRunning}
           stopReason={digestStopReason}
+          onStop={onDigestStop}
           onDismiss={onDismissDigest}
           onViewBlockers={onDigestViewBlockers}
           onContinueAfterBlocker={onDigestContinueAfterBlocker}

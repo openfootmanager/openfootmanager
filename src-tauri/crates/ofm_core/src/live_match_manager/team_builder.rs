@@ -1,7 +1,7 @@
 use crate::game::Game;
 use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use domain::player::Position as DomainPosition;
-use engine::{PlayStyle, PlayerData, Position, TeamData};
+use engine::{PlayStyle, PlayerData, PlayerRole as EnginePlayerRole, Position, TeamData};
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
@@ -38,12 +38,21 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
         .collect();
+    let player_roles = team.map(|t| &t.player_roles);
+    let convert_player = |p: &domain::player::Player| {
+        let role = player_roles
+            .and_then(|roles| roles.get(&p.id))
+            .map(domain_to_engine_role)
+            .unwrap_or(EnginePlayerRole::Standard);
+        to_engine_player(p, role)
+    };
+
     let starting_players = select_starting_xi(saved_xi_ids, &available_players, &formation);
     let used_ids: HashSet<String> = starting_players
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    let starting_xi = starting_players.into_iter().map(to_engine_player).collect();
+    let starting_xi = starting_players.into_iter().map(|p| convert_player(p)).collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
         .into_iter()
@@ -54,7 +63,7 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(to_engine_player).collect();
+    let bench = bench_domain.into_iter().map(|p| convert_player(p)).collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -162,7 +171,39 @@ fn auto_select_starting_xi<'a>(
     starting_xi
 }
 
-fn to_engine_player(p: &domain::player::Player) -> PlayerData {
+pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePlayerRole {
+    match role {
+        domain::team::PlayerRole::Standard => EnginePlayerRole::Standard,
+        domain::team::PlayerRole::BallPlayingKeeper => EnginePlayerRole::BallPlayingKeeper,
+        domain::team::PlayerRole::SweeperKeeper => EnginePlayerRole::SweeperKeeper,
+        domain::team::PlayerRole::Stopper => EnginePlayerRole::Stopper,
+        domain::team::PlayerRole::CoverCB => EnginePlayerRole::CoverCB,
+        domain::team::PlayerRole::BallPlayingCB => EnginePlayerRole::BallPlayingCB,
+        domain::team::PlayerRole::AttackingFB => EnginePlayerRole::AttackingFB,
+        domain::team::PlayerRole::DefensiveFB => EnginePlayerRole::DefensiveFB,
+        domain::team::PlayerRole::InvertedFB => EnginePlayerRole::InvertedFB,
+        domain::team::PlayerRole::WingBack => EnginePlayerRole::WingBack,
+        domain::team::PlayerRole::AnchorMan => EnginePlayerRole::AnchorMan,
+        domain::team::PlayerRole::BallWinner => EnginePlayerRole::BallWinner,
+        domain::team::PlayerRole::DeepLyingPlaymaker => EnginePlayerRole::DeepLyingPlaymaker,
+        domain::team::PlayerRole::BoxToBox => EnginePlayerRole::BoxToBox,
+        domain::team::PlayerRole::Carrilero => EnginePlayerRole::Carrilero,
+        domain::team::PlayerRole::Mezzala => EnginePlayerRole::Mezzala,
+        domain::team::PlayerRole::AdvancedPlaymaker => EnginePlayerRole::AdvancedPlaymaker,
+        domain::team::PlayerRole::ShadowStriker => EnginePlayerRole::ShadowStriker,
+        domain::team::PlayerRole::WideForward => EnginePlayerRole::WideForward,
+        domain::team::PlayerRole::InsideForward => EnginePlayerRole::InsideForward,
+        domain::team::PlayerRole::InvertedWinger => EnginePlayerRole::InvertedWinger,
+        domain::team::PlayerRole::Poacher => EnginePlayerRole::Poacher,
+        domain::team::PlayerRole::TargetMan => EnginePlayerRole::TargetMan,
+        domain::team::PlayerRole::DeepLyingForward => EnginePlayerRole::DeepLyingForward,
+        domain::team::PlayerRole::False9 => EnginePlayerRole::False9,
+        domain::team::PlayerRole::PressingForward => EnginePlayerRole::PressingForward,
+        domain::team::PlayerRole::CompleteForward => EnginePlayerRole::CompleteForward,
+    }
+}
+
+fn to_engine_player(p: &domain::player::Player, role: EnginePlayerRole) -> PlayerData {
     let pos = match p.position.to_group_position() {
         DomainPosition::Goalkeeper => Position::Goalkeeper,
         DomainPosition::Defender => Position::Defender,
@@ -198,6 +239,7 @@ fn to_engine_player(p: &domain::player::Player) -> PlayerData {
         reflexes: p.attributes.reflexes,
         aerial: p.attributes.aerial,
         traits: p.traits.iter().map(|t| format!("{:?}", t)).collect(),
+        role,
     }
 }
 

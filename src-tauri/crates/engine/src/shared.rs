@@ -1,4 +1,4 @@
-use crate::types::{MatchConfig, PlayStyle, PlayerData, Side};
+use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side};
 
 // ---------------------------------------------------------------------------
 // PlayerSnap — lightweight snapshot of a player to avoid borrow conflicts
@@ -28,6 +28,7 @@ pub(crate) struct PlayerSnap {
     pub reflexes: u8,
     pub aerial: u8,
     pub traits: Vec<String>,
+    pub role: PlayerRole,
 }
 
 impl PlayerSnap {
@@ -54,6 +55,7 @@ impl PlayerSnap {
             reflexes: p.reflexes,
             aerial: p.aerial,
             traits: p.traits.clone(),
+            role: p.role,
         }
     }
 
@@ -191,6 +193,63 @@ pub(crate) fn play_style_modifier(
         (PlayStyle::Counter, PlayStylePhase::Midfield) => 0.92,
         (PlayStyle::HighPress, PlayStylePhase::Press) => 1.20,
         (PlayStyle::HighPress, PlayStylePhase::Defense) => 0.95,
+        _ => 1.0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Role attribute modifier — applied per-player during zone resolution
+// ---------------------------------------------------------------------------
+
+/// Returns a multiplier (0.88–1.20) applied to the player's effective skill
+/// calculation based on their assigned tactical role. Values reflect the
+/// attribute biases described in domain::team::PlayerRole documentation.
+pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
+    match (role, phase) {
+        // Goalkeepers
+        (PlayerRole::SweeperKeeper, PlayStylePhase::Defense) => 1.06,
+        (PlayerRole::BallPlayingKeeper, PlayStylePhase::Midfield) => 1.06,
+        // Center Backs
+        (PlayerRole::Stopper, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::BallPlayingCB, PlayStylePhase::Midfield) => 1.05,
+        (PlayerRole::CoverCB, PlayStylePhase::Defense) => 1.05,
+        // Full Backs
+        (PlayerRole::AttackingFB, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::AttackingFB, PlayStylePhase::Defense) => 0.93,
+        (PlayerRole::DefensiveFB, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::DefensiveFB, PlayStylePhase::Attack) => 0.93,
+        (PlayerRole::WingBack, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::WingBack, PlayStylePhase::Defense) => 0.97,
+        (PlayerRole::InvertedFB, PlayStylePhase::Midfield) => 1.06,
+        // Defensive Midfielders
+        (PlayerRole::AnchorMan, PlayStylePhase::Defense) => 1.10,
+        (PlayerRole::AnchorMan, PlayStylePhase::Attack) => 0.90,
+        (PlayerRole::BallWinner, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::DeepLyingPlaymaker, PlayStylePhase::Midfield) => 1.10,
+        (PlayerRole::DeepLyingPlaymaker, PlayStylePhase::Attack) => 0.93,
+        // Central Midfielders
+        (PlayerRole::BoxToBox, PlayStylePhase::Midfield) => 1.06,
+        (PlayerRole::BoxToBox, PlayStylePhase::Attack) => 1.05,
+        (PlayerRole::Mezzala, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::Carrilero, PlayStylePhase::Defense) => 1.06,
+        // Attacking Midfielders
+        (PlayerRole::AdvancedPlaymaker, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::ShadowStriker, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::ShadowStriker, PlayStylePhase::Defense) => 0.92,
+        // Wide
+        (PlayerRole::WideForward, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::InsideForward, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::InvertedWinger, PlayStylePhase::Midfield) => 1.08,
+        // Strikers
+        (PlayerRole::Poacher, PlayStylePhase::Attack) => 1.12,
+        (PlayerRole::Poacher, PlayStylePhase::Defense) => 0.85,
+        (PlayerRole::TargetMan, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::DeepLyingForward, PlayStylePhase::Midfield) => 1.06,
+        (PlayerRole::False9, PlayStylePhase::Midfield) => 1.08,
+        (PlayerRole::False9, PlayStylePhase::Attack) => 1.05,
+        (PlayerRole::PressingForward, PlayStylePhase::Press) => 1.15,
+        (PlayerRole::CompleteForward, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::CompleteForward, PlayStylePhase::Defense) => 1.03,
         _ => 1.0,
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,12 @@ pub struct Team {
     // Tactical
     pub formation: String,
     pub play_style: PlayStyle,
+    /// Per-player tactical role assignments. Keyed by player ID.
+    /// Missing entries default to the position's standard role.
+    #[serde(default)]
+    pub player_roles: HashMap<String, PlayerRole>,
+    #[serde(default)]
+    pub tactics_phase: TacticsPhaseSettings,
 
     // Training
     #[serde(default)]
@@ -76,6 +83,129 @@ pub struct MatchRoles {
     pub free_kick_taker: Option<String>,
     pub corner_taker: Option<String>,
 }
+
+/// Tactical role for a player within the team's formation.
+/// Each role biases attribute weighting in match resolution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PlayerRole {
+    // Goalkeeper
+    #[default]
+    Standard,
+    BallPlayingKeeper,
+    SweeperKeeper,
+    // Center Back
+    Stopper,
+    CoverCB,
+    BallPlayingCB,
+    // Full Back / Wing Back
+    AttackingFB,
+    DefensiveFB,
+    InvertedFB,
+    WingBack,
+    // Defensive Midfielder
+    AnchorMan,
+    BallWinner,
+    DeepLyingPlaymaker,
+    // Central Midfielder
+    BoxToBox,
+    Carrilero,
+    Mezzala,
+    // Attacking Midfielder
+    AdvancedPlaymaker,
+    ShadowStriker,
+    // Wide
+    WideForward,
+    InsideForward,
+    InvertedWinger,
+    // Striker
+    Poacher,
+    TargetMan,
+    DeepLyingForward,
+    False9,
+    PressingForward,
+    CompleteForward,
+}
+
+impl std::str::FromStr for PlayerRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Standard" => Ok(Self::Standard),
+            "BallPlayingKeeper" => Ok(Self::BallPlayingKeeper),
+            "SweeperKeeper" => Ok(Self::SweeperKeeper),
+            "Stopper" => Ok(Self::Stopper),
+            "CoverCB" => Ok(Self::CoverCB),
+            "BallPlayingCB" => Ok(Self::BallPlayingCB),
+            "AttackingFB" => Ok(Self::AttackingFB),
+            "DefensiveFB" => Ok(Self::DefensiveFB),
+            "InvertedFB" => Ok(Self::InvertedFB),
+            "WingBack" => Ok(Self::WingBack),
+            "AnchorMan" => Ok(Self::AnchorMan),
+            "BallWinner" => Ok(Self::BallWinner),
+            "DeepLyingPlaymaker" => Ok(Self::DeepLyingPlaymaker),
+            "BoxToBox" => Ok(Self::BoxToBox),
+            "Carrilero" => Ok(Self::Carrilero),
+            "Mezzala" => Ok(Self::Mezzala),
+            "AdvancedPlaymaker" => Ok(Self::AdvancedPlaymaker),
+            "ShadowStriker" => Ok(Self::ShadowStriker),
+            "WideForward" => Ok(Self::WideForward),
+            "InsideForward" => Ok(Self::InsideForward),
+            "InvertedWinger" => Ok(Self::InvertedWinger),
+            "Poacher" => Ok(Self::Poacher),
+            "TargetMan" => Ok(Self::TargetMan),
+            "DeepLyingForward" => Ok(Self::DeepLyingForward),
+            "False9" => Ok(Self::False9),
+            "PressingForward" => Ok(Self::PressingForward),
+            "CompleteForward" => Ok(Self::CompleteForward),
+            _ => Err(format!("unknown PlayerRole: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct TacticsPhaseSettings {
+    // With ball
+    pub build_up_style: BuildUpStyle,
+    pub width: PitchWidth,
+    pub tempo: Tempo,
+    // Without ball
+    pub defensive_line: DefensiveLine,
+    pub pressing_intensity: PressingIntensity,
+    pub defensive_shape: DefensiveShape,
+    pub marking_style: MarkingStyle,
+    // Transitions
+    pub counter_press_duration: CounterPressDuration,
+    pub break_speed: BreakSpeed,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum BuildUpStyle { Short, #[default] Mixed, Long }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PitchWidth { Narrow, #[default] Normal, Wide }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum Tempo { Patient, #[default] Direct }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum DefensiveLine { VeryLow, Low, #[default] Medium, High }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum PressingIntensity { Passive, #[default] Medium, Aggressive }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum DefensiveShape { Stretched, #[default] Normal, Compact }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum MarkingStyle { #[default] Zonal, Mixed, ManToMan }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum CounterPressDuration { #[default] None, Short, Long }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum BreakSpeed { Slow, #[default] Medium, Fast }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum TrainingFocus {
@@ -319,6 +449,8 @@ impl Team {
             facilities: Facilities::default(),
             formation: "4-4-2".to_string(),
             play_style: PlayStyle::Balanced,
+            player_roles: HashMap::new(),
+            tactics_phase: TacticsPhaseSettings::default(),
             training_focus: TrainingFocus::default(),
             training_intensity: TrainingIntensity::default(),
             training_schedule: TrainingSchedule::default(),
@@ -339,6 +471,7 @@ impl Team {
 
     pub fn remove_player_references(&mut self, player_id: &str) {
         self.starting_xi_ids.retain(|id| id != player_id);
+        self.player_roles.remove(player_id);
 
         for group in &mut self.training_groups {
             group.player_ids.retain(|id| id != player_id);
