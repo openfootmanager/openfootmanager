@@ -441,7 +441,7 @@ export default function SquadRosterView({
   );
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <KitEditorCard
         primaryColor={team.colors.primary}
         secondaryColor={team.colors.secondary}

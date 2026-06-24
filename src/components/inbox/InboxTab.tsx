@@ -334,7 +334,7 @@ export default function InboxTab({
   }
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col h-full">
+    <div className="flex flex-col h-full">
       <InboxToolbar
         allMessagesCount={allMessages.length}
         bulkSelectionEnabled={bulkSelectionEnabled}

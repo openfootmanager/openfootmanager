@@ -165,7 +165,7 @@ export default function HalfTimeBreak({
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* Header scoreboard */}
       <header className="bg-linear-to-r from-gray-200 via-white to-gray-200 dark:from-navy-800 dark:via-navy-900 dark:to-navy-800 border-b border-gray-200 dark:border-navy-700 px-4 py-4 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto relative">
+        <div className="relative">
           <ThemeToggle className="absolute right-0 top-0" />
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
@@ -244,7 +244,7 @@ export default function HalfTimeBreak({
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-3 gap-6">
+        <div className="px-6 py-6 grid grid-cols-3 gap-6">
           {/* Left: First Half Summary */}
           <div className="flex flex-col gap-4">
             <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
@@ -479,7 +479,7 @@ export default function HalfTimeBreak({
 
       {/* Footer */}
       <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 px-6 py-4 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
+        <div className="flex justify-between items-center">
           <p className="text-xs text-gray-600 dark:text-gray-500 font-heading uppercase tracking-wider">
             {isSpectator
               ? t("match.waitingSecondHalf")

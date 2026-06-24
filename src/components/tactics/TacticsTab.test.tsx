@@ -294,8 +294,8 @@ describe("TacticsTab", () => {
     expect(
       screen.getByRole("button", { name: "tactics.chooseTactic" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "4-4-2" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Balanced" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "tactics.formation" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeInTheDocument();
   });
 
   it("falls back to a custom current setup when no preset matches the active tactic", () => {

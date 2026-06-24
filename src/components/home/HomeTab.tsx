@@ -210,8 +210,10 @@ export default function HomeTab({
   ];
   const completedSteps = onboardingState.completedSteps;
 
+  const hasMomentum = roster.length > 0 && (hotPlayers.length > 0 || coldPlayers.length > 0);
+
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {myTeam && isPreseason && (
         <HomeSeasonStatusCard
           phase={seasonContext.phase}
@@ -239,16 +241,15 @@ export default function HomeTab({
 
       {myTeam ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Next Match Card */}
-            <Card accent="primary" className="md:col-span-2">
+          {/* Row 1: Next Match (3/4) + League Position (1/4) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <Card accent="primary" className="md:col-span-2 lg:col-span-3">
               <CardHeader>{t("home.nextMatch")}</CardHeader>
               <CardBody>
                 <NextMatchDisplay gameState={gameState} />
               </CardBody>
             </Card>
 
-            {/* League Position */}
             <HomeLeaguePositionCard
               isPreseason={isPreseason}
               phase={seasonContext.phase}
@@ -259,6 +260,37 @@ export default function HomeTab({
               onNavigate={onNavigate}
             />
           </div>
+
+          {/* Row 2: Four secondary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <HomeNextOpponentCard
+              nextOpponent={nextOpponent}
+              lang={lang}
+              onNavigate={onNavigate}
+            />
+            <HomeSquadOverviewCard
+              avgCondition={avgCondition}
+              avgOvr={avgOvr}
+              exhaustedCount={exhaustedCount}
+              scheduleIcon={schedIcons.icon}
+              scheduleColorClass={schedIcons.color}
+              scheduleLabel={schedLabel}
+              focus={focus}
+              onNavigate={onNavigate}
+            />
+            <HomeRecentResultsCard
+              recentResults={recentResults}
+              teams={gameState.teams}
+              onNavigate={onNavigate}
+            />
+            <HomeLatestNewsCard
+              articles={latestNews}
+              teams={gameState.teams}
+              lang={lang}
+              onNavigate={onNavigate}
+            />
+          </div>
+
           {onGameUpdate && (
             <JobOpportunitiesCard
               gameState={gameState}
@@ -266,42 +298,6 @@ export default function HomeTab({
               hideWhenEmpty
             />
           )}
-        </>
-      ) : (
-        <>
-          <HomeLeaguePositionCard
-            isPreseason={isPreseason}
-            phase={seasonContext.phase}
-            seasonStartLabel={seasonStartLabel}
-            myStanding={myStanding}
-            myStandingData={myStandingData}
-            teamForm={[]}
-            onNavigate={onNavigate}
-          />
-          {onGameUpdate && (
-            <JobOpportunitiesCard
-              gameState={gameState}
-              onGameUpdate={onGameUpdate}
-            />
-          )}
-        </>
-      )}
-
-      {myTeam && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <HomeNextOpponentCard
-              nextOpponent={nextOpponent}
-              lang={lang}
-              onNavigate={onNavigate}
-            />
-
-            <HomeLeagueDigestCard
-              articles={leagueDigestArticles}
-              lang={lang}
-              onNavigate={onNavigate}
-            />
-          </div>
 
           {/* Board Objectives */}
           {boardObjectives.length > 0 && (
@@ -352,38 +348,37 @@ export default function HomeTab({
             onNavigate={onNavigate}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Squad Fitness */}
-            <HomeSquadOverviewCard
-              avgCondition={avgCondition}
-              avgOvr={avgOvr}
-              exhaustedCount={exhaustedCount}
-              scheduleIcon={schedIcons.icon}
-              scheduleColorClass={schedIcons.color}
-              scheduleLabel={schedLabel}
-              focus={focus}
-              onNavigate={onNavigate}
-            />
-
-            <HomeRecentResultsCard
-              recentResults={recentResults}
-              teams={gameState.teams}
-              onNavigate={onNavigate}
-            />
-
-            <HomeLatestNewsCard
-              articles={latestNews}
-              teams={gameState.teams}
+          {/* Row 3: League Digest + Player Momentum */}
+          <div className={`grid grid-cols-1 gap-5 ${hasMomentum ? "md:grid-cols-2" : ""}`}>
+            <HomeLeagueDigestCard
+              articles={leagueDigestArticles}
               lang={lang}
               onNavigate={onNavigate}
             />
+            {hasMomentum && (
+              <HomePlayerMomentumCard
+                hotPlayers={hotPlayers}
+                coldPlayers={coldPlayers}
+                onNavigate={onNavigate}
+              />
+            )}
           </div>
-
-          {roster.length > 0 && (hotPlayers.length > 0 || coldPlayers.length > 0) && (
-            <HomePlayerMomentumCard
-              hotPlayers={hotPlayers}
-              coldPlayers={coldPlayers}
-              onNavigate={onNavigate}
+        </>
+      ) : (
+        <>
+          <HomeLeaguePositionCard
+            isPreseason={isPreseason}
+            phase={seasonContext.phase}
+            seasonStartLabel={seasonStartLabel}
+            myStanding={myStanding}
+            myStandingData={myStandingData}
+            teamForm={[]}
+            onNavigate={onNavigate}
+          />
+          {onGameUpdate && (
+            <JobOpportunitiesCard
+              gameState={gameState}
+              onGameUpdate={onGameUpdate}
             />
           )}
         </>

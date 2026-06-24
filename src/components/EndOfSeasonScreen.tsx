@@ -85,7 +85,7 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
+    <div className="py-8 px-4">
       {step === "review" && (
         <>
           {/* Hero */}

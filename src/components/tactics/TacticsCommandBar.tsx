@@ -21,7 +21,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Badge, Button, Card } from "../ui";
+import { Badge, Button, Card, Select } from "../ui";
 import type { TacticsPhaseSettings } from "../../store/types";
 import { FORMATIONS } from "./TacticsTab.helpers";
 
@@ -329,47 +329,37 @@ export default function TacticsCommandBar({
               <div className="mb-2 text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
                 {t("tactics.formation")}
               </div>
-              <div className="grid grid-cols-4 gap-2 xl:grid-cols-2">
-                {FORMATIONS.map((nextFormation) => (
-                  <button
-                    key={nextFormation}
-                    type="button"
-                    aria-pressed={formation === nextFormation}
-                    onClick={() => onFormationChange(nextFormation)}
-                    className={`rounded-xl px-3 py-2.5 text-sm font-heading font-bold transition-all ${
-                      formation === nextFormation
-                        ? "bg-primary-500 text-white shadow-sm"
-                        : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
-                    }`}
-                  >
-                    {nextFormation}
-                  </button>
+              <Select
+                value={formation}
+                onChange={(e) => onFormationChange(e.target.value)}
+                fullWidth
+                aria-label={t("tactics.formation")}
+              >
+                {FORMATIONS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
                 ))}
-              </div>
+              </Select>
             </div>
 
             <div className="rounded-2xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-white/8 dark:bg-navy-900/35">
               <div className="mb-2 text-[11px] font-heading font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
                 {t("tactics.playStyle")}
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Select
+                value={activePlayStyle}
+                onChange={(e) => onPlayStyleChange(e.target.value)}
+                fullWidth
+                aria-label={t("tactics.playStyle")}
+              >
                 {PLAY_STYLES.map((style) => (
-                  <button
-                    key={style.id}
-                    type="button"
-                    aria-pressed={activePlayStyle === style.id}
-                    onClick={() => onPlayStyleChange(style.id)}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-                      activePlayStyle === style.id
-                        ? "bg-primary-500 text-white shadow-sm"
-                        : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
-                    }`}
-                  >
-                    {style.icon}
-                    <span>{t(`common.playStyles.${style.id}`, style.id)}</span>
-                  </button>
+                  <option key={style.id} value={style.id}>
+                    <span className="flex items-center gap-1.5">
+                      {style.icon}
+                      <span>{t(`common.playStyles.${style.id}`, style.id)}</span>
+                    </span>
+                  </option>
                 ))}
-              </div>
+              </Select>
             </div>
 
             {onTacticsPhaseChange ? (

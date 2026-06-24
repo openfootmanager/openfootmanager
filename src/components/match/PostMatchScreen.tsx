@@ -187,7 +187,7 @@ export default function PostMatchScreen({
               : "bg-linear-to-r from-gray-200 via-white to-gray-200 dark:from-navy-800 dark:via-navy-900 dark:to-navy-800"
         }`}
       >
-        <div className="max-w-4xl mx-auto text-center relative">
+        <div className="text-center relative">
           <ThemeToggle className="absolute right-0 top-0" />
 
           {/* Result badge */}
@@ -276,7 +276,7 @@ export default function PostMatchScreen({
 
       {/* Sticky Action Bar */}
       <div className="sticky top-0 z-10 bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 shadow-sm transition-colors duration-300">
-        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-center gap-3">
+        <div className="px-6 py-3 flex items-center justify-center gap-3">
           {isSpectator ? (
             <button
               type="button"
@@ -310,7 +310,7 @@ export default function PostMatchScreen({
 
       {/* Tab Bar */}
       <div className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 transition-colors duration-300">
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="px-6">
           <div className="flex gap-1" role="tablist">
             {tabs.map((tab) => (
               <button
@@ -337,7 +337,7 @@ export default function PostMatchScreen({
 
       {/* Tab Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto px-6 py-6">
+        <div className="px-6 py-6">
           {/* Team Talk Tab */}
           {!isSpectator && userSide && (
             <div
