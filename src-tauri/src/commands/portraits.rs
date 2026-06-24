@@ -252,12 +252,12 @@ fn ensure_portrait_file(
     include_bytes: bool,
 ) -> Result<(PrewarmPlayerPortraitRecord, Option<Vec<u8>>), String> {
     let started = Instant::now();
-    let seed = portrait_seed(&request);
+    let seed = portrait_seed(request);
     let sources = portrait_sources()?;
     let source = select_source(sources, seed);
     let recipe = build_recipe(seed, source.id);
     let cache_key = cache_key(seed, source.id);
-    fs::create_dir_all(&cache_dir)
+    fs::create_dir_all(cache_dir)
         .map_err(|error| format!("failed to create portrait cache: {error}"))?;
     let cache_path = cache_dir.join(format!("{cache_key}.webp"));
 
