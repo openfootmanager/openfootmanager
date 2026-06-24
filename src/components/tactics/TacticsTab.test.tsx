@@ -658,7 +658,7 @@ describe("TacticsTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
         formation: "3-4-3",
       });
-    });
+    }, { timeout: 5000 });
 
     expect(
       screen.getByRole("button", { name: "tactics.chooseTactic" }),

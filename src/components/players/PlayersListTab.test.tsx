@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type {
   GameStateData,
+  PlayerData,
+  TeamData,
 } from "../../store/gameStore";
 import type {
   PlayerSummary,
