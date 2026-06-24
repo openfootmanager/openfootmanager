@@ -184,7 +184,7 @@ pub async fn prewarm_player_portraits(
 
     tauri::async_runtime::spawn_blocking(move || {
         let result = prewarm_player_portraits_to_dir(&cache_dir, &requests)?;
-        log::info!(
+        log::debug!(
             "[portraits] prewarmed portrait batch requested={} generated={} cached={} failed={} render_ms={} elapsed_ms={}",
             result.requested_count,
             result.generated_count,

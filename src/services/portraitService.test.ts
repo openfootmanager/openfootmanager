@@ -93,6 +93,26 @@ describe("portraitService prewarm planning", () => {
     ]);
   });
 
+  it("caps default background prewarm to a small relevant window", () => {
+    const state = gameState([
+      player("a-1", "team-a"),
+      ...Array.from({ length: 24 }, (_, index) =>
+        player(`b-${index + 1}`, "team-b"),
+      ),
+      ...Array.from({ length: 60 }, (_, index) =>
+        player(`c-${index + 1}`, "team-c"),
+      ),
+    ]);
+
+    const selected = selectBackgroundPortraitPlayers(state);
+
+    expect(selected).toHaveLength(48);
+    expect(selected.slice(0, 24).map((p) => p.id)).toEqual(
+      Array.from({ length: 24 }, (_, index) => `b-${index + 1}`),
+    );
+    expect(selected[selected.length - 1]?.id).toBe("c-24");
+  });
+
   it("keeps the background prewarm key stable across equivalent game state objects", () => {
     const state = gameState([
       player("a-1", "team-a"),

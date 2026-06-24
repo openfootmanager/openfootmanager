@@ -57,6 +57,7 @@ const runtimePortraitRequests = new Map<
   Promise<GeneratedPlayerPortrait | null>
 >();
 const queuedBackgroundPrewarmKeys = new Set<string>();
+const DEFAULT_BACKGROUND_PREWARM_LIMIT = 48;
 const DEFAULT_BACKGROUND_PREWARM_BATCH_SIZE = 4;
 const DEFAULT_BACKGROUND_PREWARM_BATCH_DELAY_MS = 150;
 const noop = () => undefined;
@@ -118,7 +119,7 @@ export function selectManagerSquadPortraitPlayers(
 
 export function selectBackgroundPortraitPlayers(
   gameState: GameStateData,
-  limit = Number.POSITIVE_INFINITY,
+  limit = DEFAULT_BACKGROUND_PREWARM_LIMIT,
 ): PlayerData[] {
   const managerTeamId = gameState.manager.team_id;
   if (!managerTeamId) {
@@ -263,7 +264,7 @@ export function queueBackgroundPortraitPrewarm(
       }
 
       if (result) {
-        console.info("[portraits] background prewarm batch", {
+        console.debug("[portraits] background prewarm batch", {
           startIndex,
           requested: result.requestedCount,
           generated: result.generatedCount,
