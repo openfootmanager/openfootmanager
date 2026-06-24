@@ -224,6 +224,18 @@ export default function PlayerProfile({
     setRenewalCooledOff(false);
     setRenewalFeedback(null);
     setRenewalProjection(null);
+
+    const renewalState = player.morale_core?.renewal_state;
+    const blockedUntil = renewalState?.manager_blocked_until;
+    const hasActiveManagerBlock =
+      renewalState?.status === "blocked" &&
+      (!blockedUntil ||
+        blockedUntil.slice(0, 10) >= gameState.clock.current_date.slice(0, 10));
+    if (hasActiveManagerBlock) {
+      setRenewalSessionStatus("blocked");
+      setRenewalIsTerminal(true);
+    }
+
     setShowRenewalModal(true);
   }
 
@@ -714,10 +726,13 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           isOwnClub={isOwnClub}
+          isGk={primaryPosition === "Goalkeeper"}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
           hiddenTitle={t("playerProfile.attributesHidden")}
           hiddenBody={t("playerProfile.scoutToView")}
+          listLabel={t("common.listView")}
+          radarLabel={t("common.radarView")}
         />
 
         <PlayerProfileSeasonStatsCard stats={player.stats} t={t} />

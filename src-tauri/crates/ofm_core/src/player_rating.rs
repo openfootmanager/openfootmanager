@@ -544,6 +544,66 @@ mod tests {
     }
 
     #[test]
+    fn formation_slots_532_yields_11_granular_positions() {
+        let slots = formation_slots("5-3-2");
+        assert_eq!(slots.len(), 11);
+        assert_eq!(slots[0], Position::Goalkeeper);
+        // 5 defenders
+        assert_eq!(
+            &slots[1..6],
+            &[
+                Position::LeftWingBack,
+                Position::CenterBack,
+                Position::CenterBack,
+                Position::CenterBack,
+                Position::RightWingBack,
+            ]
+        );
+        // 3 midfielders
+        assert_eq!(
+            &slots[6..9],
+            &[
+                Position::DefensiveMidfielder,
+                Position::CentralMidfielder,
+                Position::AttackingMidfielder,
+            ]
+        );
+        // 2 forwards
+        assert_eq!(&slots[9..11], &[Position::Striker, Position::Striker]);
+    }
+
+    #[test]
+    fn formation_slots_4141_yields_11_granular_positions() {
+        let slots = formation_slots("4-1-4-1");
+        assert_eq!(slots.len(), 11);
+        assert_eq!(slots[0], Position::Goalkeeper);
+        // 4 defenders
+        assert_eq!(
+            &slots[1..5],
+            &[
+                Position::LeftBack,
+                Position::CenterBack,
+                Position::CenterBack,
+                Position::RightBack,
+            ]
+        );
+        // 1 deep midfielder
+        assert_eq!(slots[5], Position::DefensiveMidfielder);
+        // 4 attacking midfielders (attacking_midfield_line wildcard arm: all AM)
+        assert_eq!(
+            &slots[6..10],
+            &[
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+                Position::AttackingMidfielder,
+            ]
+        );
+        // 1 forward
+        assert_eq!(slots[10], Position::Striker);
+    }
+
+    #[test]
     fn refresh_does_not_award_wonderkid_below_elite_potential_threshold() {
         let mut player = make_player(Position::Striker);
         player.date_of_birth = "2007-01-01".to_string();

@@ -228,7 +228,7 @@ export default function TrainingGroupsCard({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/30 transition-colors"
                     >
                       <td className="py-1.5 px-3 text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[160px]">
-                        {player.match_name}
+                        {player.match_name}{player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                       </td>
                       <td className="py-1.5 px-3 text-xs text-gray-500 dark:text-gray-400">
                         {translatePositionAbbreviation(

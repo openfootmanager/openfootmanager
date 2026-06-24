@@ -34,6 +34,7 @@ fn make_player(id: &str, name: &str, position: Position, skill: u8) -> PlayerDat
         reflexes: skill,
         aerial: skill,
         traits: vec![],
+        role: PlayerRole::Standard,
     }
 }
 
@@ -43,6 +44,7 @@ fn make_team(id: &str, name: &str, skill: u8, play_style: PlayStyle) -> TeamData
         name: name.to_string(),
         formation: "4-4-2".to_string(),
         play_style,
+        tactics: TacticsConfig::default(),
         players: vec![
             make_player(&format!("{id}_gk1"), "GK1", Position::Goalkeeper, skill),
             make_player(&format!("{id}_def1"), "DEF1", Position::Defender, skill),
@@ -921,6 +923,7 @@ fn minimal_team_doesnt_crash() {
         name: "Minimal FC".to_string(),
         formation: "1-1-1-1".to_string(),
         play_style: PlayStyle::Balanced,
+        tactics: TacticsConfig::default(),
         players: vec![
             make_player("gk", "GK", Position::Goalkeeper, 50),
             make_player("def", "DEF", Position::Defender, 50),
@@ -1026,4 +1029,28 @@ fn dribble_events_occur() {
     }
     assert!(total_dribbles > 0, "Dribbles should occur");
     assert!(total_clearances > 0, "Clearances should occur");
+}
+
+#[test]
+fn penalties_occur_at_realistic_rate() {
+    let home = make_team("home", "Home FC", 70, PlayStyle::Balanced);
+    let away = make_team("away", "Away FC", 70, PlayStyle::Balanced);
+    let config = MatchConfig::default();
+
+    let games = 1000u32;
+    let mut total_penalties = 0u32;
+    for seed in 0..games {
+        let report = simulate_with_rng(&home, &away, &config, &mut seeded_rng(seed as u64));
+        total_penalties += report
+            .events
+            .iter()
+            .filter(|e| matches!(e.event_type, EventType::PenaltyAwarded))
+            .count() as u32;
+    }
+
+    let avg = total_penalties as f64 / games as f64;
+    assert!(
+        avg >= 0.15 && avg <= 0.70,
+        "Expected penalties/game in [0.15, 0.70], got {avg:.3}"
+    );
 }

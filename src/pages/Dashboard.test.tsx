@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData } from "../store/gameStore";
+import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 
 const { listenMock, registeredEventHandlers } = vi.hoisted(() => {
@@ -165,10 +166,17 @@ function createGameState(): GameStateData {
     league: null,
     scouting_assignments: [],
     board_objectives: [],
+    extra_translations: {
+      en: { tournaments: { customCup: "Custom Cup" } },
+    },
   };
 }
 
 const gameState = createGameState();
+
+vi.mock("../lib/extraTranslations", () => ({
+  applyExtraTranslations: vi.fn(),
+}));
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
@@ -209,6 +217,10 @@ vi.mock("react-i18next", () => ({
       return labels[key] ?? key;
     },
   }),
+}));
+
+vi.mock("../utils/backendI18n", () => ({
+  resolveBackendText: (_key: string | undefined, fallback: string) => fallback ?? "",
 }));
 
 vi.mock("../store/gameStore", () => ({
@@ -330,6 +342,7 @@ describe("Dashboard", () => {
     markCleanMock.mockReset();
     loadSettingsMock.mockReset();
     navigateMock.mockReset();
+    vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
@@ -384,6 +397,7 @@ describe("Dashboard", () => {
     await waitFor(() => {
       expect(setGameStateMock).toHaveBeenCalledWith(gameState);
     });
+    expect(applyExtraTranslations).toHaveBeenCalledWith(gameState.extra_translations);
     expect(navigateMock).not.toHaveBeenCalled();
     expect(clearGameMock).not.toHaveBeenCalled();
   });

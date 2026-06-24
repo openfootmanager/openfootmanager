@@ -739,4 +739,34 @@ describe("TransfersTab", function (): void {
       expect(onGameUpdate).toHaveBeenCalledWith(gameState);
     });
   });
+
+  it("shows wage budget in annual units (/yr) matching the player wage display (regression #212)", function (): void {
+    // wage_budget = 52000 annual → should render as "50K/yr" style value
+    // If shown weekly: floor(52000/52) = 1000 → "1K/wk" — a clear unit mismatch
+    // Player.wage = 52000 annual → displayed as "50K/yr" in the player row
+    const state = createGameState([
+      createPlayer({ wage: 52000 }),
+    ]);
+    state.teams[0].wage_budget = 52000;
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    const wkElements = document.querySelectorAll("*");
+    const hasWeeklySuffix = Array.from(wkElements).some(
+      (el) =>
+        el.children.length === 0 &&
+        el.textContent?.includes("/wk"),
+    );
+    expect(hasWeeklySuffix).toBe(false);
+
+    const wageBudgetCard = screen.getByTestId("wage-budget-card");
+    expect(wageBudgetCard.textContent).toContain("/yr");
+  });
 });

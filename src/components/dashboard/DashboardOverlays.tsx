@@ -2,7 +2,6 @@ import type { FixtureData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
 import type { DigestEntry, DigestStopReason } from "../../hooks/useDigestAdvance";
-import type { BlockerData } from "../../services/advanceTimeService";
 import DashboardBlockerModal from "./DashboardBlockerModal";
 import DashboardCloseConfirmModal from "./DashboardCloseConfirmModal";
 import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
@@ -39,9 +38,10 @@ interface DashboardOverlaysProps {
   digestStopReason?: DigestStopReason | null;
   isDigestVisible?: boolean;
   isDigestRunning?: boolean;
-  onDigestViewBlockers?: (blockers: BlockerData[]) => void;
+  isDigestAborting?: boolean;
   onDigestContinueAfterBlocker?: () => void;
   onDismissDigest?: () => void;
+  onDigestStop?: () => void;
 }
 
 export default function DashboardOverlays({
@@ -69,9 +69,10 @@ export default function DashboardOverlays({
   digestStopReason,
   isDigestVisible,
   isDigestRunning,
-  onDigestViewBlockers,
+  isDigestAborting,
   onDigestContinueAfterBlocker,
   onDismissDigest,
+  onDigestStop,
 }: DashboardOverlaysProps) {
   return (
     <>
@@ -79,9 +80,11 @@ export default function DashboardOverlays({
         <DashboardSimulatingModal
           digestEntries={digestEntries}
           isDigestRunning={isDigestRunning}
+          isDigestAborting={isDigestAborting}
           stopReason={digestStopReason}
+          onStop={onDigestStop}
           onDismiss={onDismissDigest}
-          onViewBlockers={onDigestViewBlockers}
+          onNavigate={handleNavigate}
           onContinueAfterBlocker={onDigestContinueAfterBlocker}
         />
       ) : null}

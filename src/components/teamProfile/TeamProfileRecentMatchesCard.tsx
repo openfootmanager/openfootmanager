@@ -12,8 +12,7 @@ function resolveLabel(
   key: string,
   fallback: string,
 ): string {
-  const translated = t(key);
-  return translated === key ? fallback : translated;
+  return t(key, { defaultValue: fallback });
 }
 
 export default function TeamProfileRecentMatchesCard({

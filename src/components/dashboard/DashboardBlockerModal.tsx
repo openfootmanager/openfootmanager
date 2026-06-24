@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { BlockerModal } from "../../hooks/useAdvanceTime.helpers";
 import type { BlockerData } from "../../services/advanceTimeService";
 import { resolveBackendText } from "../../utils/backendI18n";
+import { getBlockerTabLabel } from "../../utils/blockerUtils";
 import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardBlockerModalProps {
@@ -45,12 +46,6 @@ export default function DashboardBlockerModal({
 }: DashboardBlockerModalProps): JSX.Element {
   const { t } = useTranslation();
 
-  const getBlockerTabLabel = (tab: string): string => {
-    const translationKey = `dashboard.${tab.charAt(0).toLowerCase()}${tab.slice(1)}`;
-    const resolved = t(translationKey);
-    return resolved === translationKey ? tab : resolved;
-  };
-
   return (
     <DashboardModalFrame maxWidthClassName="max-w-md">
       <div className="mb-4 flex items-center gap-3">
@@ -77,7 +72,7 @@ export default function DashboardBlockerModal({
               {getBlockerText(blocker)}
             </p>
             <p className="mt-1 text-[10px] font-heading uppercase tracking-widest text-gray-400">
-              {t("notifications.goTo")} {getBlockerTabLabel(blocker.tab)} →
+              {t("notifications.goTo")} {getBlockerTabLabel(t, blocker.tab)} →
             </p>
           </button>
         ))}

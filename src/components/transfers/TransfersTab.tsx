@@ -23,14 +23,10 @@ import {
   getTeamName,
   calcAge,
   formatVal,
-  formatWeeklyAmount,
   formatAnnualAmount,
   getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
-import {
-  annualAmountToWeeklyCommitment,
-} from "../../lib/finance";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import {
@@ -101,7 +97,6 @@ export default function TransfersTab({
   onGameUpdate,
 }: TransfersTabProps) {
   const { t, i18n } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const annualSuffix = t("finances.perYearSuffix", "/yr");
   const userTeamId = gameState.manager.team_id;
   const [view, setView] = useState<TransferTabView>("my_list");
@@ -307,9 +302,7 @@ export default function TransfersTab({
 
   const currentList = getCurrentTransferList(view, transferCollections);
   const filteredList = filterTransferPlayers(currentList, search, posFilter);
-  const weeklyWageBudget = myTeam
-    ? annualAmountToWeeklyCommitment(myTeam.wage_budget)
-    : 0;
+  const annualWageBudget = myTeam?.wage_budget ?? 0;
   const {
     freeAgentTarget,
     contractWage,
@@ -384,14 +377,14 @@ export default function TransfersTab({
                   {formatVal(myTeam.transfer_budget)}
                 </p>
               </div>
-              <div className="bg-white/5 rounded-xl px-4 py-2 text-center">
+              <div data-testid="wage-budget-card" className="bg-white/5 rounded-xl px-4 py-2 text-center">
                 <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">
                   {t("finances.wageBudget")}
                 </p>
                 <p className="font-heading font-bold text-lg text-white">
-                  {formatWeeklyAmount(
-                    formatVal(weeklyWageBudget),
-                    weeklySuffix,
+                  {formatAnnualAmount(
+                    formatVal(annualWageBudget),
+                    annualSuffix,
                   )}
                 </p>
               </div>

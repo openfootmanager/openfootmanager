@@ -100,7 +100,8 @@ export const i18nReady = i18n
     lng: detectInitialLanguage(),
     fallbackLng: "en",
     defaultNS: "translation",
-    ns: ["translation"],
+    ns: ["translation", "pkgTranslations"],
+    fallbackNS: "pkgTranslations",
     interpolation: {
       escapeValue: false,
     },

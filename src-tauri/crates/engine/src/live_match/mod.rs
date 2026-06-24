@@ -7,11 +7,11 @@ mod zone_resolution;
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::event::MatchEvent;
 use crate::report::MatchReport;
-use crate::types::{MatchConfig, PlayStyle, PlayerData, Side, TeamData, Zone};
+use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side, TeamData, Zone};
 
 // ---------------------------------------------------------------------------
 // MatchPhase — tracks where we are in the match lifecycle
@@ -71,6 +71,11 @@ pub enum MatchCommand {
         side: Side,
         player_off_id: String,
         player_on_id: String,
+    },
+    ChangePlayerRole {
+        side: Side,
+        player_id: String,
+        role: PlayerRole,
     },
 }
 
@@ -143,6 +148,20 @@ pub struct MatchSnapshot {
     pub home_yellows: HashMap<String, u8>,
     pub away_yellows: HashMap<String, u8>,
     pub sent_off: HashSet<String>,
+    pub penalty_shootout: Option<PenaltyShootoutSnapshot>,
+}
+
+// ---------------------------------------------------------------------------
+// PenaltyShootoutSnapshot — public snapshot of shootout progress for the UI
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenaltyShootoutSnapshot {
+    pub home_taken: u8,
+    pub away_taken: u8,
+    pub home_scored: u8,
+    pub away_scored: u8,
+    pub sudden_death: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +240,9 @@ pub struct LiveMatchState {
 
     // Penalty shootout state
     penalty_state: PenaltyShootoutState,
+
+    // Rolling window of the last 10 ball_zone values (oldest first)
+    recent_zones: VecDeque<Zone>,
 }
 
 impl LiveMatchState {
@@ -270,6 +292,7 @@ impl LiveMatchState {
             et_second_half_stoppage: 0,
             player_conditions,
             penalty_state: PenaltyShootoutState::default(),
+            recent_zones: VecDeque::with_capacity(10),
         }
     }
 
@@ -332,6 +355,19 @@ impl LiveMatchState {
                 }
                 self.do_pre_match_swap(side, &player_off_id, &player_on_id)
             }
+            MatchCommand::ChangePlayerRole {
+                side,
+                player_id,
+                role,
+            } => {
+                let team = self.team_mut(side);
+                if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id) {
+                    if is_role_valid_for_position(role, p.position) {
+                        p.role = role;
+                    }
+                }
+                Ok(())
+            }
         }
     }
 
@@ -369,6 +405,11 @@ impl LiveMatchState {
         self.current_minute
     }
 
+    /// Rolling window of the last ≤10 ball_zone values (oldest first)
+    pub fn recent_zones(&self) -> &VecDeque<Zone> {
+        &self.recent_zones
+    }
+
     /// Get the bench for a side
     pub fn bench(&self, side: Side) -> &[PlayerData] {
         match side {
@@ -381,5 +422,51 @@ impl LiveMatchState {
     /// Primarily used for testing substitution guards.
     pub fn test_send_off(&mut self, player_id: &str) {
         self.sent_off.insert(player_id.to_string());
+    }
+}
+
+fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
+    use crate::types::Position;
+    match position {
+        Position::Goalkeeper => matches!(
+            role,
+            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
+        ),
+        Position::Defender => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::Stopper
+                | PlayerRole::CoverCB
+                | PlayerRole::BallPlayingCB
+                | PlayerRole::AttackingFB
+                | PlayerRole::DefensiveFB
+                | PlayerRole::InvertedFB
+                | PlayerRole::WingBack
+        ),
+        Position::Midfielder => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::AnchorMan
+                | PlayerRole::BallWinner
+                | PlayerRole::DeepLyingPlaymaker
+                | PlayerRole::BoxToBox
+                | PlayerRole::Carrilero
+                | PlayerRole::Mezzala
+                | PlayerRole::AdvancedPlaymaker
+                | PlayerRole::ShadowStriker
+                | PlayerRole::WideForward
+                | PlayerRole::InsideForward
+                | PlayerRole::InvertedWinger
+        ),
+        Position::Forward => matches!(
+            role,
+            PlayerRole::Standard
+                | PlayerRole::Poacher
+                | PlayerRole::TargetMan
+                | PlayerRole::DeepLyingForward
+                | PlayerRole::False9
+                | PlayerRole::PressingForward
+                | PlayerRole::CompleteForward
+        ),
     }
 }

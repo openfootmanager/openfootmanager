@@ -32,44 +32,103 @@ vi.mock("../store/gameStore", () => ({
   useGameStore: () => gameStoreState,
 }));
 
+vi.mock("../store/settingsStore", () => ({
+  useSettingsStore: () => ({
+    settings: { match_speed: "normal" },
+  }),
+}));
+
 vi.mock("../components/match/PreMatchSetup", () => ({
-  default: ({ snapshot }: { snapshot: { home_team: { name: string } } }) => (
-    <div data-testid="prematch">{snapshot.home_team.name}</div>
+  default: ({
+    snapshot,
+    onStart,
+  }: {
+    snapshot: { home_team: { name: string } };
+    onStart?: () => void;
+  }) => (
+    <div data-testid="prematch">
+      {snapshot.home_team.name}
+      <button data-testid="prematch-start" onClick={onStart}>
+        Start
+      </button>
+    </div>
   ),
 }));
 
 vi.mock("../components/match/MatchLive", () => ({
   default: ({
     snapshot,
+    preferredSpeed,
+    onPreferredSpeedChange,
+    onHalfTime,
     onFullTime,
   }: {
     snapshot: { home_team: { name: string } };
+    preferredSpeed?: string;
+    onPreferredSpeedChange?: (speed: string) => void;
+    onHalfTime?: () => void;
     onFullTime?: () => void;
   }) => (
-    <button data-testid="match-live" onClick={onFullTime}>
+    <div data-testid="match-live-container" data-preferred-speed={preferredSpeed ?? "normal"}>
       {snapshot.home_team.name}
-    </button>
+      <button data-testid="match-live" onClick={onFullTime}>Full Time</button>
+      <button data-testid="match-trigger-halftime" onClick={onHalfTime}>Half Time</button>
+      <button data-testid="match-trigger-speed-fast" onClick={() => onPreferredSpeedChange?.("fast")}>Fast</button>
+    </div>
   ),
 }));
 
 vi.mock("../components/match/HalfTimeBreak", () => ({
-  default: () => <div data-testid="halftime" />,
+  default: ({ onResume }: { onResume?: () => void }) => (
+    <div data-testid="halftime">
+      <button data-testid="halftime-resume" onClick={onResume}>Resume</button>
+    </div>
+  ),
 }));
 
 vi.mock("../components/match/PostMatchScreen", () => ({
   default: ({
+    onContinue,
     onFinish,
-    roundSummary,
   }: {
+    onContinue?: () => void;
     onFinish?: () => void;
-    roundSummary?: unknown;
   }) => (
     <div>
-      <div data-testid="postmatch-round-summary">
-        {roundSummary ? JSON.stringify(roundSummary) : "null"}
-      </div>
+      <button data-testid="postmatch-continue" onClick={onContinue}>
+        Continue
+      </button>
       <button data-testid="postmatch-finish" onClick={onFinish}>
         Finish Match
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("../components/match/RoundDigestScreen", () => ({
+  default: ({
+    roundSummary,
+    isLeagueFixture,
+    onPressConference,
+    onFinish,
+  }: {
+    roundSummary?: unknown;
+    isLeagueFixture?: boolean;
+    onPressConference?: () => void;
+    onFinish?: () => void;
+  }) => (
+    <div>
+      <div data-testid="digest-round-summary">
+        {roundSummary ? JSON.stringify(roundSummary) : "null"}
+      </div>
+      <div data-testid="digest-is-league">
+        {isLeagueFixture ? "true" : "false"}
+      </div>
+      <button data-testid="digest-press" onClick={onPressConference}>
+        Press Conference
+      </button>
+      <button data-testid="digest-finish" onClick={onFinish}>
+        Skip
       </button>
     </div>
   ),
@@ -256,6 +315,32 @@ function makeGameState(): Record<string, unknown> {
   };
 }
 
+function makeGameStateWithFriendly() {
+  const base = makeGameState();
+  return {
+    ...base,
+    league: {
+      id: "league1",
+      name: "Test League",
+      fixtures: [
+        {
+          id: "fix1",
+          competition: "Friendly",
+          home_team_id: "home1",
+          away_team_id: "away1",
+          date: "2026-08-01",
+          status: "Scheduled",
+          result: null,
+          round: 1,
+          matchday: null,
+        },
+      ],
+      standings: [],
+      top_scorers: [],
+    },
+  };
+}
+
 describe("MatchSimulation", function (): void {
   beforeEach(function resetState(): void {
     mockedInvoke.mockReset();
@@ -343,7 +428,7 @@ describe("MatchSimulation", function (): void {
     render(<MatchSimulation />);
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
   });
 
@@ -370,7 +455,7 @@ describe("MatchSimulation", function (): void {
     render(<MatchSimulation />);
 
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
@@ -389,9 +474,9 @@ describe("MatchSimulation", function (): void {
     });
   });
 
-  it("finalizes the match on full time and passes the round summary into postmatch", async function (): Promise<void> {
+  it("finalizes the match on full time and passes the round summary into the digest screen", async function (): Promise<void> {
     locationState = {
-      mode: "spectator",
+      mode: "live",
       snapshot: makeSnapshot(),
     };
 
@@ -412,8 +497,15 @@ describe("MatchSimulation", function (): void {
 
     render(<MatchSimulation />);
 
+    // Manager sees prematch; advance to live match
     await waitFor(function (): void {
-      expect(screen.getByTestId("match-live")).toHaveTextContent("Home FC");
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live-container")).toHaveTextContent("Home FC");
     });
 
     fireEvent.click(screen.getByTestId("match-live"));
@@ -425,14 +517,110 @@ describe("MatchSimulation", function (): void {
 
     expect(setGameStateMock).toHaveBeenCalledWith(finishedGame);
 
-    expect(screen.getByTestId("postmatch-round-summary")).toHaveTextContent(
+    // Manager clicks Continue → goes to digest
+    fireEvent.click(screen.getByTestId("postmatch-continue"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("digest-round-summary")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("digest-round-summary")).toHaveTextContent(
       '"matchday":1',
     );
 
-    fireEvent.click(screen.getByTestId("postmatch-finish"));
+    fireEvent.click(screen.getByTestId("digest-finish"));
 
     await waitFor(function (): void {
       expect(navigateMock).toHaveBeenCalledWith("/dashboard");
+    });
+  });
+
+  it("routes a manager's friendly through digest with isLeagueFixture=false", async function (): Promise<void> {
+    locationState = {
+      mode: "live",
+      fixtureIndex: 0,
+      snapshot: makeSnapshot(),
+    };
+
+    gameStoreState = {
+      gameState: makeGameStateWithFriendly(),
+      setGameState: setGameStateMock,
+    };
+
+    mockedInvoke
+      .mockResolvedValueOnce(makeSnapshot())
+      .mockResolvedValueOnce({
+        game: makeGameState(),
+        round_summary: null,
+      });
+
+    render(<MatchSimulation />);
+
+    // Manager sees prematch; click Start to advance to first_half
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("match-live"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("postmatch-continue"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
+    });
+  });
+
+  it("preserves user-selected match speed from first half into second half", async function (): Promise<void> {
+    const mockedInvoke = vi.mocked(invoke);
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    // Advance to the first-half live match view.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("prematch-start"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live-container")).toBeInTheDocument();
+    });
+
+    // Initial preferred speed comes from settings ("normal").
+    expect(screen.getByTestId("match-live-container")).toHaveAttribute(
+      "data-preferred-speed",
+      "normal",
+    );
+
+    // User selects fast speed during first half.
+    fireEvent.click(screen.getByTestId("match-trigger-speed-fast"));
+
+    // Trigger half-time transition.
+    fireEvent.click(screen.getByTestId("match-trigger-halftime"));
+
+    await waitFor(function (): void {
+      expect(screen.getByTestId("halftime")).toBeInTheDocument();
+    });
+
+    // Resume from half-time — advances to second_half stage.
+    fireEvent.click(screen.getByTestId("halftime-resume"));
+
+    // The remounted MatchLive for second half must carry the user's preferred speed.
+    await waitFor(function (): void {
+      expect(screen.getByTestId("match-live-container")).toHaveAttribute(
+        "data-preferred-speed",
+        "fast",
+      );
     });
   });
 });

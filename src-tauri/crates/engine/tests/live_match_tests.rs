@@ -1,4 +1,4 @@
-use ::engine::ai::{AiProfile, ai_decide};
+use ::engine::ai::{AiPersonality, AiProfile, ai_decide};
 use ::engine::*;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -39,6 +39,7 @@ fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
         reflexes: skill,
         aerial: skill,
         traits: vec![],
+        role: PlayerRole::Standard,
     }
 }
 
@@ -61,6 +62,7 @@ fn make_team(id: &str, name: &str, skill: u8, style: PlayStyle) -> TeamData {
         name: name.to_string(),
         formation: "4-4-2".to_string(),
         play_style: style,
+        tactics: TacticsConfig::default(),
         players,
     }
 }
@@ -632,6 +634,7 @@ fn ai_decide_returns_no_commands_early() {
     let profile = AiProfile {
         reputation: 500,
         experience: 50,
+        personality: AiPersonality::Pragmatist,
     };
     let cmds = ai_decide(&state, Side::Home, &profile, &mut rng);
     // At minute 0, AI shouldn't make decisions
@@ -645,6 +648,7 @@ fn ai_decide_does_not_crash() {
     let profile = AiProfile {
         reputation: 800,
         experience: 80,
+        personality: AiPersonality::Visionary,
     };
 
     // Run the entire match with AI decisions
@@ -672,6 +676,7 @@ fn ai_makes_substitutions_eventually() {
     let profile = AiProfile {
         reputation: 900,
         experience: 90,
+        personality: AiPersonality::Reactive,
     };
     let mut any_subs = false;
 
@@ -1246,6 +1251,7 @@ fn make_player_with_traits(
         reflexes: skill,
         aerial: skill,
         traits: traits.iter().map(|t| t.to_string()).collect(),
+        role: PlayerRole::Standard,
     }
 }
 
@@ -1334,6 +1340,7 @@ fn make_team_with_traits(id: &str, name: &str, skill: u8, traits: Vec<&str>) -> 
         name: name.to_string(),
         formation: "4-4-2".to_string(),
         play_style: PlayStyle::Balanced,
+        tactics: TacticsConfig::default(),
         players,
     }
 }

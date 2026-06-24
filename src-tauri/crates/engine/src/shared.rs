@@ -1,4 +1,7 @@
-use crate::types::{MatchConfig, PlayStyle, PlayerData, Side};
+use crate::types::{
+    DefensiveLine, MarkingStyle, MatchConfig, PlayStyle, PlayerData, PlayerRole, PressingIntensity,
+    Side, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth,
+};
 
 // ---------------------------------------------------------------------------
 // PlayerSnap — lightweight snapshot of a player to avoid borrow conflicts
@@ -28,6 +31,7 @@ pub(crate) struct PlayerSnap {
     pub reflexes: u8,
     pub aerial: u8,
     pub traits: Vec<String>,
+    pub role: PlayerRole,
 }
 
 impl PlayerSnap {
@@ -54,6 +58,7 @@ impl PlayerSnap {
             reflexes: p.reflexes,
             aerial: p.aerial,
             traits: p.traits.clone(),
+            role: p.role,
         }
     }
 
@@ -192,6 +197,112 @@ pub(crate) fn play_style_modifier(
         (PlayStyle::HighPress, PlayStylePhase::Press) => 1.20,
         (PlayStyle::HighPress, PlayStylePhase::Defense) => 0.95,
         _ => 1.0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Role attribute modifier — applied per-player during zone resolution
+// ---------------------------------------------------------------------------
+
+/// Returns a multiplier (0.88–1.20) applied to the player's effective skill
+/// calculation based on their assigned tactical role. Values reflect the
+/// attribute biases described in domain::team::PlayerRole documentation.
+pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
+    match (role, phase) {
+        // Goalkeepers
+        (PlayerRole::SweeperKeeper, PlayStylePhase::Defense) => 1.06,
+        (PlayerRole::BallPlayingKeeper, PlayStylePhase::Midfield) => 1.06,
+        // Center Backs
+        (PlayerRole::Stopper, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::BallPlayingCB, PlayStylePhase::Midfield) => 1.05,
+        (PlayerRole::CoverCB, PlayStylePhase::Defense) => 1.05,
+        // Full Backs
+        (PlayerRole::AttackingFB, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::AttackingFB, PlayStylePhase::Defense) => 0.93,
+        (PlayerRole::DefensiveFB, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::DefensiveFB, PlayStylePhase::Attack) => 0.93,
+        (PlayerRole::WingBack, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::WingBack, PlayStylePhase::Defense) => 0.97,
+        (PlayerRole::InvertedFB, PlayStylePhase::Midfield) => 1.06,
+        // Defensive Midfielders
+        (PlayerRole::AnchorMan, PlayStylePhase::Defense) => 1.10,
+        (PlayerRole::AnchorMan, PlayStylePhase::Attack) => 0.90,
+        (PlayerRole::BallWinner, PlayStylePhase::Defense) => 1.08,
+        (PlayerRole::DeepLyingPlaymaker, PlayStylePhase::Midfield) => 1.10,
+        (PlayerRole::DeepLyingPlaymaker, PlayStylePhase::Attack) => 0.93,
+        // Central Midfielders
+        (PlayerRole::BoxToBox, PlayStylePhase::Midfield) => 1.06,
+        (PlayerRole::BoxToBox, PlayStylePhase::Attack) => 1.05,
+        (PlayerRole::Mezzala, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::Carrilero, PlayStylePhase::Defense) => 1.06,
+        // Attacking Midfielders
+        (PlayerRole::AdvancedPlaymaker, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::ShadowStriker, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::ShadowStriker, PlayStylePhase::Defense) => 0.92,
+        // Wide
+        (PlayerRole::WideForward, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::InsideForward, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::InvertedWinger, PlayStylePhase::Midfield) => 1.08,
+        // Strikers
+        (PlayerRole::Poacher, PlayStylePhase::Attack) => 1.12,
+        (PlayerRole::Poacher, PlayStylePhase::Defense) => 0.85,
+        (PlayerRole::TargetMan, PlayStylePhase::Attack) => 1.08,
+        (PlayerRole::DeepLyingForward, PlayStylePhase::Midfield) => 1.06,
+        (PlayerRole::False9, PlayStylePhase::Midfield) => 1.08,
+        (PlayerRole::False9, PlayStylePhase::Attack) => 1.05,
+        (PlayerRole::PressingForward, PlayStylePhase::Press) => 1.15,
+        (PlayerRole::CompleteForward, PlayStylePhase::Attack) => 1.10,
+        (PlayerRole::CompleteForward, PlayStylePhase::Defense) => 1.03,
+        _ => 1.0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tactics modifiers — translate TacticsConfig settings to simulation multipliers
+// ---------------------------------------------------------------------------
+
+/// Foul rate multiplier from the defensive team's pressing + marking style.
+pub(crate) fn tactics_foul_modifier(tactics: &TacticsConfig) -> f64 {
+    let press = match tactics.pressing_intensity {
+        PressingIntensity::Aggressive => 1.25,
+        PressingIntensity::Passive => 0.80,
+        PressingIntensity::Medium => 1.0,
+    };
+    let marking = match tactics.marking_style {
+        MarkingStyle::ManToMan => 1.15,
+        MarkingStyle::Mixed => 1.05,
+        MarkingStyle::Zonal => 1.0,
+    };
+    press * marking
+}
+
+/// Cross attempt probability based on the attacking team's pitch width setting.
+pub(crate) fn tactics_cross_probability(tactics: &TacticsConfig) -> f64 {
+    match tactics.width {
+        TacticsPitchWidth::Wide => 0.72,
+        TacticsPitchWidth::Narrow => 0.45,
+        TacticsPitchWidth::Normal => 0.60,
+    }
+}
+
+/// Shot conversion multiplier from the defending team's defensive line depth.
+/// High line = more space in behind = easier for attackers to score.
+pub(crate) fn tactics_defensive_conversion_mod(tactics: &TacticsConfig) -> f64 {
+    match tactics.defensive_line {
+        DefensiveLine::High => 1.12,
+        DefensiveLine::Low => 0.92,
+        DefensiveLine::VeryLow => 0.85,
+        DefensiveLine::Medium => 1.0,
+    }
+}
+
+/// Build-up pass success modifier based on the attacking team's build-up style.
+/// Short passing = safer in own half; Long ball = riskier.
+pub(crate) fn tactics_buildup_mod(tactics: &TacticsConfig) -> f64 {
+    match tactics.build_up_style {
+        TacticsBuildUpStyle::Short => 1.08,
+        TacticsBuildUpStyle::Long => 0.88,
+        TacticsBuildUpStyle::Mixed => 1.0,
     }
 }
 

@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS } from "./types";
+import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -24,20 +24,25 @@ interface MatchLiveProps {
   userSide: "Home" | "Away" | null;
   isSpectator: boolean;
   importantEvents: MatchEvent[];
+  preferredSpeed?: "slow" | "normal" | "fast";
+  onPreferredSpeedChange?: (speed: "slow" | "normal" | "fast") => void;
   onSnapshotUpdate: (snap: MatchSnapshot) => void;
   onImportantEvent: (evt: MatchEvent) => void;
-  onHalfTime: () => void;
+  onHalfTime: (phase: "HalfTime" | "ExtraTimeHalfTime") => void;
   onFullTime: () => void;
+  onPenaltyShootout?: () => void;
 }
 
 export default function MatchLive({
   snapshot, gameState, userSide, isSpectator,
-  importantEvents, onSnapshotUpdate, onImportantEvent,
-  onHalfTime, onFullTime,
+  importantEvents, preferredSpeed, onPreferredSpeedChange,
+  onSnapshotUpdate, onImportantEvent,
+  onHalfTime, onFullTime, onPenaltyShootout,
 }: MatchLiveProps) {
   const { t } = useTranslation();
   const { settings } = useSettingsStore();
-  const initialSpeed: SimSpeed = (settings.match_speed === "slow" || settings.match_speed === "fast") ? settings.match_speed : "normal";
+  const initialSpeed: SimSpeed = preferredSpeed
+    ?? ((settings.match_speed === "slow" || settings.match_speed === "fast") ? settings.match_speed : "normal");
   const [speed, setSpeed] = useState<SimSpeed>(initialSpeed);
   const [activePanel, setActivePanel] = useState<ActivePanel>("events");
   const [isRunning, setIsRunning] = useState(true);
@@ -51,6 +56,14 @@ export default function MatchLive({
   const awayFullTeam = gameState.teams.find(t => t.id === snapshot.away_team.id);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
+
+  const playerJerseyMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of gameState.players) {
+      if (p.jersey_number != null) m.set(p.id, p.jersey_number);
+    }
+    return m;
+  }, [gameState.players]);
 
   const isFinished = snapshot.phase === "Finished";
 
@@ -82,7 +95,7 @@ export default function MatchLive({
           setIsRunning(false);
           setSpeed("paused");
           // Small delay so the last event renders before transitioning
-          setTimeout(() => onHalfTime(), 600);
+          setTimeout(() => onHalfTime("HalfTime"), 600);
           return;
         }
 
@@ -90,7 +103,15 @@ export default function MatchLive({
           signaledRef.current.add("ExtraTimeHalfTime");
           setIsRunning(false);
           setSpeed("paused");
-          setTimeout(() => onHalfTime(), 600);
+          setTimeout(() => onHalfTime("ExtraTimeHalfTime"), 600);
+          return;
+        }
+
+        if (phase === "PenaltyShootout" && !signaledRef.current.has("PenaltyShootout")) {
+          signaledRef.current.add("PenaltyShootout");
+          setIsRunning(false);
+          setSpeed("paused");
+          setTimeout(() => onPenaltyShootout?.(), 600);
           return;
         }
 
@@ -106,7 +127,7 @@ export default function MatchLive({
       console.error("Failed to step match:", err);
       setIsRunning(false);
     }
-  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime]);
+  }, [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout]);
 
   // Auto-step timer
   useEffect(() => {
@@ -286,7 +307,7 @@ export default function MatchLive({
           </div>
 
           <div className="flex-1 overflow-auto p-4">
-            {activePanel === "events" && <EventFeed events={importantEvents} snapshot={snapshot} feedRef={eventFeedRef} />}
+            {activePanel === "events" && <EventFeed events={importantEvents} snapshot={snapshot} feedRef={eventFeedRef} playerJerseyMap={playerJerseyMap} />}
             {activePanel === "stats" && <MatchStats snapshot={snapshot} />}
             {activePanel === "lineups" && <Lineups snapshot={snapshot} />}
           </div>
@@ -307,7 +328,13 @@ export default function MatchLive({
               ]).map(s => (
                 <button
                   key={s.id}
-                  onClick={() => { setSpeed(s.id); setIsRunning(s.id !== "paused"); }}
+                  onClick={() => {
+                    setSpeed(s.id);
+                    setIsRunning(s.id !== "paused");
+                    if (s.id !== "paused" && s.id !== "instant") {
+                      onPreferredSpeedChange?.(s.id);
+                    }
+                  }}
                   className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${speed === s.id ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
                     }`}
                 >
@@ -341,7 +368,7 @@ export default function MatchLive({
               <div>
                 <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">{t('match.formation')}</p>
                 <div className="flex flex-wrap gap-1">
-                  {["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3"].map(f => {
+                  {FORMATIONS.map(f => {
                     const cur = userSide === "Home" ? snapshot.home_team.formation : snapshot.away_team.formation;
                     return (
                       <button key={f} onClick={() => handleFormationChange(f)}

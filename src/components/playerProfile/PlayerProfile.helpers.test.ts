@@ -159,9 +159,11 @@ describe("PlayerProfile.helpers", function (): void {
     });
 
     it("maps attribute values to readable shared color classes", function (): void {
-        expect(getAttributeColorClass(85)).toContain("text-primary-600");
+        expect(getAttributeColorClass(85)).toContain("text-success-600");
+        expect(getAttributeColorClass(70)).toContain("text-success-600");
         expect(getAttributeColorClass(65)).toContain("text-accent-700");
-        expect(getAttributeColorClass(45)).toContain("text-gray-700");
+        expect(getAttributeColorClass(45)).toContain("text-accent-700");
+        expect(getAttributeColorClass(39)).toContain("text-red-600");
         expect(getAttributeColorClass(20)).toContain("text-red-600");
     });
 

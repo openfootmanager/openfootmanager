@@ -1,6 +1,7 @@
 import type { TeamData } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
+import { TeamSeasonHistoryChart } from "./TeamSeasonHistoryChart";
 
 interface TeamProfileHistoryCardProps {
   history: TeamData["history"];
@@ -19,6 +20,15 @@ export default function TeamProfileHistoryCard({
     <Card className="lg:col-span-3">
       <CardHeader>{t("teamProfile.seasonHistory")}</CardHeader>
       <CardBody className="p-0">
+        <div className="px-4 pt-4 pb-2">
+          <TeamSeasonHistoryChart
+            history={history}
+            wonLabel={t("common.won")}
+            drawnLabel={t("common.drawn")}
+            lostLabel={t("common.lost")}
+            positionLabel={t("common.position")}
+          />
+        </div>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">

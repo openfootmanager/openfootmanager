@@ -73,6 +73,7 @@ pub fn export_world_database_internal(
             base_year: Some(game.clock.start_date.year()),
             snapshot_date: Some(game.clock.current_date.to_rfc3339()),
         },
+        extra_translations: game.extra_translations.clone(),
     };
 
     ofm_core::generator::export_world_package(&world, export_path)

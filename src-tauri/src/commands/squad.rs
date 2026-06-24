@@ -504,6 +504,10 @@ pub fn set_team_kit_pattern_internal(
     kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
+        if game.season_context.phase != domain::season::SeasonPhase::Preseason {
+            return Err("be.error.kitChangesLockedInSeason".to_string());
+        }
+
         let team_id = game
             .manager
             .team_id
@@ -528,6 +532,203 @@ pub fn set_team_kit_pattern(
 ) -> Result<Game, String> {
     info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
     set_team_kit_pattern_internal(&state, kit_pattern)
+}
+
+fn role_valid_for_position(
+    role: &domain::team::PlayerRole,
+    pos: &domain::player::Position,
+) -> bool {
+    use domain::player::Position as P;
+    use domain::team::PlayerRole as R;
+    match pos {
+        P::Goalkeeper => matches!(role, R::Standard | R::BallPlayingKeeper | R::SweeperKeeper),
+        P::CenterBack => matches!(role, R::Standard | R::Stopper | R::CoverCB | R::BallPlayingCB),
+        P::RightBack | P::LeftBack | P::RightWingBack | P::LeftWingBack => {
+            matches!(role, R::Standard | R::AttackingFB | R::DefensiveFB | R::InvertedFB | R::WingBack)
+        }
+        P::DefensiveMidfielder => {
+            matches!(role, R::Standard | R::AnchorMan | R::BallWinner | R::DeepLyingPlaymaker)
+        }
+        P::CentralMidfielder => {
+            matches!(role, R::Standard | R::BoxToBox | R::Carrilero | R::Mezzala)
+        }
+        P::AttackingMidfielder => {
+            matches!(role, R::Standard | R::AdvancedPlaymaker | R::ShadowStriker)
+        }
+        P::RightMidfielder | P::LeftMidfielder | P::RightWinger | P::LeftWinger => {
+            matches!(role, R::Standard | R::WideForward | R::InsideForward | R::InvertedWinger)
+        }
+        P::Striker => matches!(
+            role,
+            R::Standard
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        // Legacy coarse-bucket positions: allow all roles in the broad group
+        P::Defender => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::AnchorMan
+                | R::BallWinner
+                | R::DeepLyingPlaymaker
+                | R::BoxToBox
+                | R::Carrilero
+                | R::Mezzala
+                | R::AdvancedPlaymaker
+                | R::ShadowStriker
+                | R::WideForward
+                | R::InsideForward
+                | R::InvertedWinger
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        P::Midfielder => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::Stopper
+                | R::CoverCB
+                | R::BallPlayingCB
+                | R::AttackingFB
+                | R::DefensiveFB
+                | R::InvertedFB
+                | R::WingBack
+                | R::Poacher
+                | R::TargetMan
+                | R::DeepLyingForward
+                | R::False9
+                | R::PressingForward
+                | R::CompleteForward
+        ),
+        P::Forward => !matches!(
+            role,
+            R::BallPlayingKeeper
+                | R::SweeperKeeper
+                | R::Stopper
+                | R::CoverCB
+                | R::BallPlayingCB
+                | R::AttackingFB
+                | R::DefensiveFB
+                | R::InvertedFB
+                | R::WingBack
+                | R::AnchorMan
+                | R::BallWinner
+                | R::DeepLyingPlaymaker
+                | R::BoxToBox
+                | R::Carrilero
+                | R::Mezzala
+                | R::AdvancedPlaymaker
+                | R::ShadowStriker
+        ),
+    }
+}
+
+#[tauri::command]
+pub fn set_player_role(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+    role: Option<String>,
+) -> Result<Game, String> {
+    info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
+    mutate_active_game(&state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        let player_position = game
+            .players
+            .iter()
+            .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&team_id))
+            .map(|p| p.position.clone())
+            .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
+
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            match role {
+                Some(r) => {
+                    let role_enum = r
+                        .parse::<domain::team::PlayerRole>()
+                        .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
+                    if !role_valid_for_position(&role_enum, &player_position) {
+                        return Err("be.error.roleNotValidForPosition".to_string());
+                    }
+                    team.player_roles.insert(player_id.clone(), role_enum);
+                }
+                None => {
+                    team.player_roles.remove(&player_id);
+                }
+            }
+        }
+
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn set_tactics_phase(
+    state: State<'_, Arc<StateManager>>,
+    build_up_style: Option<String>,
+    width: Option<String>,
+    tempo: Option<String>,
+    defensive_line: Option<String>,
+    pressing_intensity: Option<String>,
+    defensive_shape: Option<String>,
+    marking_style: Option<String>,
+    counter_press_duration: Option<String>,
+    break_speed: Option<String>,
+) -> Result<Game, String> {
+    use domain::team::*;
+    info!("[cmd] set_tactics_phase");
+    mutate_active_game(&state, |game| {
+        let team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or("be.error.noTeamAssigned".to_string())?;
+
+        if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
+            let p = &mut team.tactics_phase;
+            if let Some(v) = build_up_style {
+                p.build_up_style = match v.as_str() { "Short" => BuildUpStyle::Short, "Long" => BuildUpStyle::Long, _ => BuildUpStyle::Mixed };
+            }
+            if let Some(v) = width {
+                p.width = match v.as_str() { "Narrow" => PitchWidth::Narrow, "Wide" => PitchWidth::Wide, _ => PitchWidth::Normal };
+            }
+            if let Some(v) = tempo {
+                p.tempo = match v.as_str() { "Patient" => Tempo::Patient, _ => Tempo::Direct };
+            }
+            if let Some(v) = defensive_line {
+                p.defensive_line = match v.as_str() { "VeryLow" => DefensiveLine::VeryLow, "Low" => DefensiveLine::Low, "High" => DefensiveLine::High, _ => DefensiveLine::Medium };
+            }
+            if let Some(v) = pressing_intensity {
+                p.pressing_intensity = match v.as_str() { "Passive" => PressingIntensity::Passive, "Aggressive" => PressingIntensity::Aggressive, _ => PressingIntensity::Medium };
+            }
+            if let Some(v) = defensive_shape {
+                p.defensive_shape = match v.as_str() { "Stretched" => DefensiveShape::Stretched, "Compact" => DefensiveShape::Compact, _ => DefensiveShape::Normal };
+            }
+            if let Some(v) = marking_style {
+                p.marking_style = match v.as_str() { "ManToMan" => MarkingStyle::ManToMan, "Mixed" => MarkingStyle::Mixed, _ => MarkingStyle::Zonal };
+            }
+            if let Some(v) = counter_press_duration {
+                p.counter_press_duration = match v.as_str() { "Short" => CounterPressDuration::Short, "Long" => CounterPressDuration::Long, _ => CounterPressDuration::None };
+            }
+            if let Some(v) = break_speed {
+                p.break_speed = match v.as_str() { "Slow" => BreakSpeed::Slow, "Fast" => BreakSpeed::Fast, _ => BreakSpeed::Medium };
+            }
+        }
+
+        Ok(())
+    })
 }
 
 #[cfg(test)]

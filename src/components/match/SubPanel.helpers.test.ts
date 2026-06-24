@@ -11,6 +11,7 @@ function makePlayer(overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
     id: "p1",
     name: "Player One",
     position: "Midfielder",
+    role: "Midfielder",
     ovr: 70,
     condition: 80,
     pace: 70, stamina: 70, strength: 70, agility: 70,

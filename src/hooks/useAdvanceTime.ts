@@ -39,7 +39,9 @@ export interface AdvanceTimeState {
   digestStopReason: DigestStopReason | null;
   isDigestVisible: boolean;
   isDigestRunning: boolean;
+  isDigestAborting: boolean;
   startDigest: () => Promise<void>;
+  abortDigest: () => void;
   dismissDigest: () => void;
 }
 
@@ -62,10 +64,12 @@ export function useAdvanceTime(
 
   const {
     isRunning: isDigestRunning,
+    isAborting: isDigestAborting,
     entries: digestEntries,
     stopReason: digestStopReason,
     isVisible: isDigestVisible,
     startDigest,
+    abortDigest,
     dismissDigest,
   } = useDigestAdvance(setGameState, () => setShowFiredModal(true));
 
@@ -239,7 +243,9 @@ export function useAdvanceTime(
     digestStopReason,
     isDigestVisible,
     isDigestRunning,
+    isDigestAborting,
     startDigest,
+    abortDigest,
     dismissDigest,
   };
 }
