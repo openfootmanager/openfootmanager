@@ -21,7 +21,7 @@ members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "cr
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
@@ -34,6 +34,8 @@ engine = { path = "crates/engine" }
 db = { path = "crates/db" }
 chrono = "0.4.44"
 rand = "0.10"
+image = { version = "0.25.6", default-features = false, features = ["png", "webp"] }
+webp = "0.3.1"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own
