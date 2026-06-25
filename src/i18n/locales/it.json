@@ -3645,7 +3645,7 @@
       "allInRegion": "Tutti nella regione",
       "championsOf": "Campioni di"
     },
-    "homeSubtitle": "Progetta squadre, giocatori e competizioni — poi costruisci e condividi il tuo mondo.",
+    "homeSubtitle": "Crea club, giocatori e tornei da zero. Personalizza loghi, colori e statistiche — poi condividi il tuo mondo con la community.",
     "newPackageDesc": "Crea un nuovo mondo da zero",
     "openPackageDesc": "Apri una cartella mondo o file .ofm esistente",
     "noItemSelected": "Seleziona un elemento dall'elenco o fai clic su Aggiungi",
@@ -3677,7 +3677,9 @@
       "selectorKind": "topByReputation: le N squadre con maggior reputazione. allInCountry: tutte in un paese. allInRegion: tutte in una regione. championsOf: vincitori di un'altra competizione.",
       "selectorSource": "La competizione i cui vincitori si qualificano per questa. Inserisci l'ID competizione (es. 'serie-b').",
       "packageId": "Un identificatore univoco per questo mondo (es. 'italia-calcio-2026'). Usato come nome file per il .ofm.",
-      "packageType": "Database: un mondo completo. Patch: modifica un mondo esistente. Assets: solo grafica."
+      "packageType": "Database: un mondo completo. Patch: modifica un mondo esistente. Assets: solo grafica.",
+      "teamReputationRange": "0–950. Riferimento: <300 dilettanti, 300–550 serie minori, 550–720 metà classifica, 720–850 prima divisione, 850+ élite.",
+      "teamFinanceRange": "Budget mensile in valuta di gioco. Circa rep × 4.000–9.000. Top: ~3M–8M. Medio: ~1M–4M. Piccolo: ~100K–1M."
     },
     "searchCountries": "Cerca paesi…",
     "searchTeams": "Cerca squadre…",

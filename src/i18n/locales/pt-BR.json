@@ -3645,7 +3645,7 @@
       "allInRegion": "Todos na região",
       "championsOf": "Campeões de"
     },
-    "homeSubtitle": "Crie times, jogadores e competições — depois construa e compartilhe o seu mundo.",
+    "homeSubtitle": "Crie clubes, jogadores e torneios do zero. Personalize logos, cores e estatísticas — depois compartilhe seu mundo com a comunidade.",
     "newPackageDesc": "Criar um novo mundo do zero",
     "openPackageDesc": "Abrir uma pasta de mundo ou arquivo .ofm existente",
     "noItemSelected": "Selecione um item da lista ou clique em Adicionar",
@@ -3677,7 +3677,9 @@
       "selectorKind": "topByReputation: as N equipas com maior reputação. allInCountry: todas num país. allInRegion: todas numa região. championsOf: vencedores de outra competição.",
       "selectorSource": "A competição cujos vencedores se qualificam para esta. Insira o ID da competição (ex. 'segunda-liga').",
       "packageId": "Um identificador único para este mundo (ex. 'portugal-futebol-2026'). Usado como nome de ficheiro para o .ofm.",
-      "packageType": "Base de dados: um mundo completo. Patch: modifica um mundo existente. Assets: apenas gráficos."
+      "packageType": "Base de dados: um mundo completo. Patch: modifica um mundo existente. Assets: apenas gráficos.",
+      "teamReputationRange": "0–950. Referência: <300 amador, 300–550 ligas inferiores, 550–720 meio de tabela, 720–850 primeira divisão, 850+ elite.",
+      "teamFinanceRange": "Orçamento mensal em moeda do jogo. Aprox. rep × 4.000–9.000. Top: ~3M–8M. Médio: ~1M–4M. Pequeno: ~100K–1M."
     },
     "searchCountries": "Pesquisar países…",
     "searchTeams": "Pesquisar times…",

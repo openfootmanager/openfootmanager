@@ -3645,7 +3645,7 @@
       "allInRegion": "Alle in Region",
       "championsOf": "Meister von"
     },
-    "homeSubtitle": "Gestalte Teams, Spieler und Wettbewerbe — dann baue und teile deine Welt.",
+    "homeSubtitle": "Erstelle Vereine, Spieler und Turniere von Grund auf. Passe Logos, Farben und Werte an – und teile deine Welt mit der Community.",
     "newPackageDesc": "Neue Welt von Grund auf erstellen",
     "openPackageDesc": "Vorhandenen Weltordner oder .ofm-Datei öffnen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
@@ -3677,7 +3677,9 @@
       "selectorKind": "topByReputation: die N Teams mit dem höchsten Ruf. allInCountry: alle Teams in einem Land. allInRegion: alle Teams in einer Region. championsOf: Gewinner eines anderen Wettbewerbs.",
       "selectorSource": "Der Wettbewerb, dessen Gewinner sich für diesen qualifizieren. Wettbewerbs-ID eingeben (z.B. 'nationale-liga').",
       "packageId": "Ein eindeutiger Slug für dieses Weltpaket (z.B. 'england-fussball-2026'). Wird als Dateiname beim Erstellen der .ofm-Datei verwendet.",
-      "packageType": "Datenbank: eine vollständige Welt. Patch: modifiziert eine bestehende Welt. Assets: nur Grafiken."
+      "packageType": "Datenbank: eine vollständige Welt. Patch: modifiziert eine bestehende Welt. Assets: nur Grafiken.",
+      "teamReputationRange": "0–950. Empfehlung: <300 Amateur, 300–550 Unterliga, 550–720 Mittelfeld, 720–850 Erstliga, 850+ Elite.",
+      "teamFinanceRange": "Monatsbudget in Spielwährung. Ungefähr Rep × 4.000–9.000. Top: ~3M–8M. Mittel: ~1M–4M. Klein: ~100T–1M."
     },
     "searchCountries": "Länder suchen…",
     "searchTeams": "Teams suchen…",
