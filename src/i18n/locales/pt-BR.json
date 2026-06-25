@@ -2474,7 +2474,10 @@
         "archiveTooLarge": "O pacote excede o tamanho máximo permitido.",
         "tooManyFiles": "O pacote contém arquivos demais.",
         "versionTooOld": "Este pacote requer uma versão mais recente do jogo.",
-        "noDatabasePackage": "Pelo menos um pacote de banco de dados deve estar ativo para iniciar uma carreira."
+        "noDatabasePackage": "Pelo menos um pacote de banco de dados deve estar ativo para iniciar uma carreira.",
+        "projectAlreadyExists": "Já existe um projeto com este identificador.",
+        "outputInsideSource": "O arquivo de saída não pode ser salvo dentro do diretório de origem.",
+        "validationFailed": "O pacote tem erros de validação: {{errors}}"
       },
       "competitionDef": {
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
@@ -2607,7 +2610,8 @@
         "youthSearchAlreadyActive": "Já existe uma busca de base igual ativa",
         "youthAssignmentNotFound": "A tarefa de busca da base não foi encontrada",
         "scoutAlreadyAssignedToSearch": "O olheiro já está designado para esta busca"
-      }
+      },
+      "invalidPath": "Caminho inválido."
     },
     "sender": {
       "boardOfDirectors": "Diretoria",

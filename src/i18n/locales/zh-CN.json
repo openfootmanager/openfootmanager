@@ -2474,7 +2474,10 @@
         "archiveTooLarge": "该包超过了允许的最大大小。",
         "tooManyFiles": "该包包含太多文件。",
         "versionTooOld": "该包需要更新版本的游戏。",
-        "noDatabasePackage": "至少需要激活一个数据库包才能开始职业生涯。"
+        "noDatabasePackage": "至少需要激活一个数据库包才能开始职业生涯。",
+        "projectAlreadyExists": "已存在具有此 ID 的项目。",
+        "outputInsideSource": "输出文件不能保存在源目录内。",
+        "validationFailed": "该包存在验证错误：{{errors}}"
       },
       "competitionDef": {
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
@@ -2607,7 +2610,8 @@
         "youthSearchAlreadyActive": "已有相同的青训招募搜索在进行中",
         "youthAssignmentNotFound": "未找到青训招募任务",
         "scoutAlreadyAssignedToSearch": "该球探已经分配给这项搜索"
-      }
+      },
+      "invalidPath": "路径无效。"
     },
     "sender": {
       "boardOfDirectors": "董事会",

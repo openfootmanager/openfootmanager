@@ -2487,7 +2487,10 @@
         "archiveTooLarge": "The package exceeds the maximum allowed size.",
         "tooManyFiles": "The package contains too many files.",
         "versionTooOld": "This package requires a newer version of the game.",
-        "noDatabasePackage": "At least one database package must be active to start a career."
+        "noDatabasePackage": "At least one database package must be active to start a career.",
+        "projectAlreadyExists": "A project with this ID already exists.",
+        "outputInsideSource": "The output file cannot be saved inside the source directory.",
+        "validationFailed": "The package has validation errors: {{errors}}"
       },
       "competitionDef": {
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
@@ -2607,7 +2610,8 @@
         "youthSearchAlreadyActive": "A matching youth recruitment search is already active",
         "youthAssignmentNotFound": "Youth recruitment assignment not found",
         "scoutAlreadyAssignedToSearch": "Scout is already assigned to this search"
-      }
+      },
+      "invalidPath": "Invalid path."
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",

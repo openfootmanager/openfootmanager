@@ -2504,7 +2504,10 @@
         "archiveTooLarge": "El paquete supera el tamaño máximo permitido.",
         "tooManyFiles": "El paquete contiene demasiados archivos.",
         "versionTooOld": "Este paquete requiere una versión más reciente del juego.",
-        "noDatabasePackage": "Al menos un paquete de base de datos debe estar activo para iniciar una carrera."
+        "noDatabasePackage": "Al menos un paquete de base de datos debe estar activo para iniciar una carrera.",
+        "projectAlreadyExists": "Ya existe un proyecto con este identificador.",
+        "outputInsideSource": "El archivo de salida no puede guardarse dentro del directorio fuente.",
+        "validationFailed": "El paquete tiene errores de validación: {{errors}}"
       },
       "competitionDef": {
         "invalidEmbedded": "Las definiciones de competiciones de este mundo no son válidas y no se pudieron cargar.",
@@ -2637,7 +2640,8 @@
         "youthSearchAlreadyActive": "Ya hay una búsqueda de cantera igual activa",
         "youthAssignmentNotFound": "No se encontró la asignación de captación juvenil",
         "scoutAlreadyAssignedToSearch": "El ojeador ya está asignado a esta búsqueda"
-      }
+      },
+      "invalidPath": "Ruta no válida."
     },
     "sender": {
       "boardOfDirectors": "Junta Directiva",

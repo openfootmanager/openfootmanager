@@ -2474,7 +2474,10 @@
         "archiveTooLarge": "Das Paket überschreitet die maximal zulässige Größe.",
         "tooManyFiles": "Das Paket enthält zu viele Dateien.",
         "versionTooOld": "Dieses Paket erfordert eine neuere Version des Spiels.",
-        "noDatabasePackage": "Mindestens ein Datenbankpaket muss aktiv sein, um eine Karriere zu starten."
+        "noDatabasePackage": "Mindestens ein Datenbankpaket muss aktiv sein, um eine Karriere zu starten.",
+        "projectAlreadyExists": "Ein Projekt mit dieser ID existiert bereits.",
+        "outputInsideSource": "Die Ausgabedatei kann nicht im Quellverzeichnis gespeichert werden.",
+        "validationFailed": "Das Paket enthält Validierungsfehler: {{errors}}"
       },
       "competitionDef": {
         "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
@@ -2607,7 +2610,8 @@
         "youthSearchAlreadyActive": "Eine passende Jugendsuche ist bereits aktiv",
         "youthAssignmentNotFound": "Jugendscouting-Auftrag nicht gefunden",
         "scoutAlreadyAssignedToSearch": "Der Scout ist bereits dieser Suche zugewiesen"
-      }
+      },
+      "invalidPath": "Ungültiger Pfad."
     },
     "sender": {
       "boardOfDirectors": "Vorstand",

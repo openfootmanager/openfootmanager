@@ -118,7 +118,7 @@ pub fn create_world_project(
     project_dir
         .to_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| "Invalid path".to_string())
+        .ok_or_else(|| "be.error.invalidPath".to_string())
 }
 
 /// Load an existing package directory for editing.
@@ -425,7 +425,7 @@ pub fn extract_ofm_for_editing(
     edit_dir
         .to_str()
         .map(|s: &str| s.to_string())
-        .ok_or_else(|| "Invalid path".to_string())
+        .ok_or_else(|| "be.error.invalidPath".to_string())
 }
 
 /// Validate then export a package directory to a .ofm archive.
