@@ -265,6 +265,8 @@ pub fn run() {
             apply_match_command,
             get_match_snapshot,
             finish_live_match,
+            generate_player_portrait,
+            prewarm_player_portraits,
             delete_save,
             skip_to_match_day,
             advance_to_next_event,
