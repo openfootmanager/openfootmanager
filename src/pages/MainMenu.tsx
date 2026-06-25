@@ -14,6 +14,7 @@ import type {
 } from "../components/menu/CreateManagerForm";
 import type {
   CompetitionDefinitionIssue,
+  PackageInfo,
   PackageIssue,
   WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
@@ -26,6 +27,7 @@ import {
   PlusCircle,
   ChevronRight,
   Power,
+  Package,
 } from "lucide-react";
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
@@ -55,6 +57,7 @@ const ProfileSaveConfirm = lazy(
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
+const PackageEditor = lazy(() => import("../components/menu/PackageEditor"));
 
 interface SaveEntry {
   id: string;
@@ -298,7 +301,7 @@ export default function MainMenu() {
   const { t } = useTranslation();
 
   const [menuState, setMenuState] = useState<
-    "main" | "create" | "world" | "load"
+    "main" | "create" | "world" | "load" | "editor"
   >("main");
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
@@ -333,6 +336,12 @@ export default function MainMenu() {
   const [packageErrors, setPackageErrors] = useState<PackageIssue[]>([]);
   const [isInspectingPackage, setIsInspectingPackage] = useState(false);
   const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
+
+  // Installed packages state
+  const [installedPackages, setInstalledPackages] = useState<PackageInfo[]>([]);
+  const [activePackageIds, setActivePackageIds] = useState<string[]>([]);
+  const [isInstallingPackage, setIsInstallingPackage] = useState(false);
+  const [packageStackErrors, setPackageStackErrors] = useState<PackageIssue[]>([]);
   const [historyDepthYears, setHistoryDepthYears] = useState(
     initialHistoryDepthYears,
   );
@@ -665,6 +674,59 @@ export default function MainMenu() {
     }
   };
 
+  const loadInstalledPackages = async () => {
+    try {
+      const pkgs = await invoke<PackageInfo[]>("list_installed_packages");
+      setInstalledPackages(pkgs);
+    } catch (err) {
+      console.error("Failed to list packages:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (menuState === "world") {
+      loadInstalledPackages();
+    }
+  }, [menuState]);
+
+  const handleInstallPackage = async () => {
+    const selected = await open({
+      filters: [{ name: "OFM Package", extensions: ["ofm"] }],
+      multiple: false,
+      title: t("worldSelect.installPackage"),
+    });
+    if (typeof selected !== "string") return;
+    setIsInstallingPackage(true);
+    try {
+      await invoke<PackageInfo>("install_package", { path: selected });
+      await loadInstalledPackages();
+    } catch (err) {
+      console.error("Failed to install package:", err);
+      alert(resolveBackendError(err));
+    } finally {
+      setIsInstallingPackage(false);
+    }
+  };
+
+  const handleUninstallPackage = async (id: string) => {
+    try {
+      await invoke("uninstall_package", { id });
+      setInstalledPackages((prev) => prev.filter((p) => p.id !== id));
+      setActivePackageIds((prev) => prev.filter((pid) => pid !== id));
+      setPackageStackErrors([]);
+    } catch (err) {
+      console.error("Failed to uninstall package:", err);
+      alert(resolveBackendError(err));
+    }
+  };
+
+  const handleTogglePackage = (id: string) => {
+    setActivePackageIds((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
+    );
+    setPackageStackErrors([]);
+  };
+
   const handleStartGame = async () => {
     const startupOptions = buildStartupOptions(formData, historyDepthYears);
     if (!startupOptions) {
@@ -688,6 +750,7 @@ export default function MainMenu() {
         startupOptions,
         worldSource,
         competitionDefinitionsJson: competitionDefsJson ?? undefined,
+        packageIds: activePackageIds.length > 0 ? activePackageIds : undefined,
       });
       applyExtraTranslations(game.extra_translations);
       setGameState(game);
@@ -894,6 +957,19 @@ export default function MainMenu() {
               </button>
 
               <button
+                onClick={() => setMenuState("editor")}
+                className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <Package className="w-6 h-6 text-accent-500 dark:text-accent-400" />
+                  <span className="font-heading font-bold text-lg uppercase tracking-wide">
+                    {t("menu.packageEditor")}
+                  </span>
+                </div>
+                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all text-accent-500" />
+              </button>
+
+              <button
                 onClick={() => navigate("/settings", { state: { from: "/" } })}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-600 shadow-sm"
               >
@@ -982,6 +1058,13 @@ export default function MainMenu() {
                 onImportPackage={handleImportPackage}
                 isInspectingPackage={isInspectingPackage}
                 packageErrors={packageErrors}
+                installedPackages={installedPackages}
+                activePackageIds={activePackageIds}
+                onTogglePackage={handleTogglePackage}
+                onInstallPackage={handleInstallPackage}
+                onUninstallPackage={handleUninstallPackage}
+                isInstallingPackage={isInstallingPackage}
+                packageStackErrors={packageStackErrors}
               />
             </Suspense>
           )}
@@ -999,6 +1082,13 @@ export default function MainMenu() {
                 onConfirmDelete={setConfirmDeleteId}
                 onClose={() => setMenuState("main")}
               />
+            </Suspense>
+          )}
+
+          {/* Package Editor */}
+          {menuState === "editor" && (
+            <Suspense fallback={<MenuPanelFallback />}>
+              <PackageEditor onBack={() => setMenuState("main")} />
             </Suspense>
           )}
 

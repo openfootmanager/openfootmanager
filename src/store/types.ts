@@ -701,4 +701,5 @@ export interface GameStateData {
   season_context?: SeasonContextData;
   available_staff_market_last_activity_date?: string | null;
   extra_translations?: Record<string, Record<string, unknown>>;
+  package_lockfile?: Array<{ id: string; version: string; hash: string }>;
 }

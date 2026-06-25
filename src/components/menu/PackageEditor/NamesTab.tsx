@@ -1,0 +1,38 @@
+import { useTranslation } from "react-i18next";
+import { EntityListShell, EntityRow } from "./shared";
+import type { NamesDefinition } from "./types";
+
+interface NamesTabProps {
+  names: NamesDefinition;
+  onAdd: () => void;
+  onEdit: (key: string) => void;
+  onDelete: (key: string) => void;
+}
+
+export function NamesTab({ names, onAdd, onEdit, onDelete }: NamesTabProps) {
+  const { t } = useTranslation();
+  const poolKeys = Object.keys(names.pools);
+  return (
+    <EntityListShell
+      addLabel={t("packageEditor.addPool")}
+      onAdd={onAdd}
+      emptyLabel={t("packageEditor.noPools")}
+      isEmpty={poolKeys.length === 0}
+    >
+      {poolKeys.map((key) => {
+        const pool = names.pools[key];
+        return (
+          <EntityRow
+            key={key}
+            title={key}
+            subtitle={`${pool.first_names.length} first · ${pool.last_names.length} last`}
+            onEdit={() => onEdit(key)}
+            onDelete={() => onDelete(key)}
+            editLabel={t("packageEditor.editPool")}
+            deleteLabel={t("packageEditor.deletePool")}
+          />
+        );
+      })}
+    </EntityListShell>
+  );
+}

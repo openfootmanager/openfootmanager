@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use log::info;
-use tauri::State;
+use tauri::{Manager as TauriManager, State};
 
 use chrono::{Datelike, DateTime, Duration, TimeZone, Utc};
 
@@ -204,6 +204,37 @@ fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::Wo
             }
         }
     }
+}
+
+/// Load world data from a stack of installed `.ofm` packages (by id).
+/// Packages are merged in order with last-wins semantics for duplicate ids.
+/// Also returns the package lockfile entries for saving alongside the game.
+fn load_world_data_from_package_ids(
+    packages_dir: &std::path::Path,
+    package_ids: &[String],
+) -> Result<(ofm_core::generator::WorldData, Vec<ofm_core::generator::PackageLock>), String> {
+    let mut loaded = Vec::with_capacity(package_ids.len());
+    let mut lockfile = Vec::with_capacity(package_ids.len());
+    for id in package_ids {
+        let path = packages_dir.join(format!("{id}.ofm"));
+        let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
+        if !errors.is_empty() {
+            return Err("be.error.package.invalid".to_string());
+        }
+        let version = pkg.meta.as_ref().map(|m| m.version.clone()).unwrap_or_default();
+        let hash = ofm_core::generator::hash_package_file(&path).unwrap_or_default();
+        lockfile.push(ofm_core::generator::PackageLock { id: id.clone(), version, hash });
+        loaded.push(pkg);
+    }
+    let (merged, errors) = ofm_core::generator::merge_world_packages(loaded);
+    if !errors.is_empty() {
+        return Err("be.error.package.invalid".to_string());
+    }
+    let world = ofm_core::generator::build_world_from_package(&merged)?;
+    if world.teams.is_empty() {
+        return Err("be.error.package.noDatabasePackage".to_string());
+    }
+    Ok((world, lockfile))
 }
 
 fn world_start_year(
@@ -1236,9 +1267,9 @@ pub fn validate_competition_definitions(
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageIssue {
-    code: String,
-    file: String,
-    params: std::collections::HashMap<String, String>,
+    pub code: String,
+    pub file: String,
+    pub params: std::collections::HashMap<String, String>,
 }
 
 /// Validate a modular world-package directory. Returns the full list of problems
@@ -1320,6 +1351,7 @@ pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, Str
 #[tauri::command]
 pub async fn start_new_game(
     state: State<'_, Arc<StateManager>>,
+    app_handle: tauri::AppHandle,
     first_name: String,
     last_name: String,
     dob: String,
@@ -1327,6 +1359,7 @@ pub async fn start_new_game(
     startup_options: Option<RawStartupOptions>,
     world_source: Option<String>,
     competition_definitions_json: Option<String>,
+    package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     // Validate inputs
     let first_name = first_name.trim().to_string();
@@ -1347,7 +1380,16 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let mut world = load_world_data(world_source.as_deref())?;
+    let (mut world, package_lockfile) = if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
+        let packages_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("packages");
+        load_world_data_from_package_ids(&packages_dir, ids)?
+    } else {
+        (load_world_data(world_source.as_deref())?, vec![])
+    };
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via
@@ -1361,7 +1403,9 @@ pub async fn start_new_game(
     }
 
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    if matches!(world_source.as_deref(), Some(source) if source != "random") {
+    let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
+        || matches!(world_source.as_deref(), Some(source) if source != "random");
+    if is_non_random {
         ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
     }
     let reference_date = clock.current_date.date_naive();
@@ -1391,8 +1435,10 @@ pub async fn start_new_game(
         world_source
     );
 
-    let (new_game, stats_state) =
+    let (mut new_game, stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
+
+    new_game.package_lockfile = package_lockfile;
 
     info!(
         "[cmd] start_new_game: world generated with {} teams, {} players, {} staff",

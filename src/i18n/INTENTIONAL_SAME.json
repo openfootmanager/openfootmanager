@@ -17,7 +17,13 @@
     "common.statsView",
     "common.radarView",
     "tactics.playerRoles.Carrilero",
-    "tactics.playerRoles.Mezzala"
+    "tactics.playerRoles.Mezzala",
+    "worldSelect.packageVersion",
+    "packageEditor.typePatch",
+    "packageEditor.confederationId",
+    "packageEditor.countryId",
+    "packageEditor.playerId",
+    "packageEditor.competitionId"
   ],
   "de": [
     "nations.eng",
@@ -105,7 +111,14 @@
     "match.commentary.Foul.headline",
     "be.sender.scout",
     "traits.Dribbler.label",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageEditor.version",
+    "packageEditor.confederationName",
+    "packageEditor.countryName",
+    "packageEditor.competitionName",
+    "packageEditor.playerPosition",
+    "packageEditor.competitionFormat",
+    "packageEditor.competitionSelectorRegion"
   ],
   "fr": [
     "nations.pt",
@@ -205,7 +218,12 @@
     "news.nArticles",
     "training.groups.groupFocus",
     "playerProfile.renewalTension",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageEditor.version",
+    "packageEditor.description",
+    "packageEditor.competitionType",
+    "packageEditor.competitionFormat",
+    "packageEditor.competitionParticipantsMode"
   ],
   "it": [
     "nations.sn",
@@ -321,7 +339,8 @@
     "match.normal",
     "match.phases.Finished",
     "sacked.teamLabel",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageEditor.competitionSelector"
   ],
   "pt-BR": [
     "nations.pt",

@@ -163,6 +163,165 @@ pub fn write_temp_database(app_handle: tauri::AppHandle, json: String) -> Result
     write_database_json_to_dir(&db_dir, &json)
 }
 
+fn packages_dir(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    Ok(app_data_dir.join("packages"))
+}
+
+fn package_info_from_path(
+    path: &std::path::Path,
+) -> Option<ofm_core::generator::PackageInfo> {
+    let meta = ofm_core::generator::read_package_manifest_from_ofm(path)?;
+    let id = if meta.id.is_empty() {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string()
+    } else {
+        meta.id.clone()
+    };
+
+    let (package, errors) = ofm_core::generator::load_world_package_from_ofm(path);
+    if !errors.is_empty() {
+        return None;
+    }
+    Some(ofm_core::generator::PackageInfo {
+        id,
+        name: meta.name,
+        version: meta.version,
+        author: meta.author,
+        description: meta.description,
+        license: meta.license,
+        game_min_version: meta.game_min_version,
+        package_type: meta.package_type,
+        team_count: package.teams.len(),
+        player_count: package.players.len(),
+        competition_count: package.competitions.len(),
+        installed_path: path.to_string_lossy().to_string(),
+    })
+}
+
+/// Install a `.ofm` package file into the user's packages directory.
+#[tauri::command]
+pub fn install_package(
+    app_handle: tauri::AppHandle,
+    path: String,
+) -> Result<ofm_core::generator::PackageInfo, String> {
+    info!("[cmd] install_package: path={}", path);
+    let src = std::path::Path::new(&path);
+
+    // Reject archives that exceed the on-disk size limit before doing any I/O.
+    let src_size = std::fs::metadata(src)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    if src_size > ofm_core::generator::MAX_ARCHIVE_BYTES {
+        return Err("be.error.package.archiveTooLarge".to_string());
+    }
+
+    let meta = ofm_core::generator::read_package_manifest_from_ofm(src)
+        .ok_or_else(|| "be.error.package.noManifest".to_string())?;
+
+    // Enforce game_min_version: reject packages that require a newer game version.
+    // A non-parseable version string is treated as incompatible rather than skipped.
+    if !meta.game_min_version.is_empty() {
+        match semver::Version::parse(&meta.game_min_version) {
+            Ok(required) => {
+                let current = app_handle.package_info().version.clone();
+                if current < required {
+                    return Err("be.error.package.versionTooOld".to_string());
+                }
+            }
+            Err(_) => return Err("be.error.package.versionTooOld".to_string()),
+        }
+    }
+
+    let id = if meta.id.is_empty() {
+        src.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string()
+    } else {
+        meta.id.clone()
+    };
+
+    // Validate before copying: surface extraction errors (symlinks, zip-slip, size) and
+    // cross-reference errors (unknown country, unknown team) before the file is installed.
+    let (package, validation_errors) = ofm_core::generator::load_world_package_from_ofm(src);
+    if let Some(err) = validation_errors.first() {
+        return Err(err.code.clone());
+    }
+    let ref_errors = ofm_core::generator::validate_references(&package);
+    if let Some(err) = ref_errors.first() {
+        return Err(err.code.clone());
+    }
+
+    let packages_dir = packages_dir(&app_handle)?;
+    std::fs::create_dir_all(&packages_dir)
+        .map_err(|_| "be.error.package.installFailed".to_string())?;
+
+    let dest = packages_dir.join(format!("{id}.ofm"));
+    std::fs::copy(src, &dest).map_err(|_| "be.error.package.installFailed".to_string())?;
+
+    Ok(ofm_core::generator::PackageInfo {
+        id,
+        name: meta.name,
+        version: meta.version,
+        author: meta.author,
+        description: meta.description,
+        license: meta.license,
+        game_min_version: meta.game_min_version,
+        package_type: meta.package_type,
+        team_count: package.teams.len(),
+        player_count: package.players.len(),
+        competition_count: package.competitions.len(),
+        installed_path: dest.to_string_lossy().to_string(),
+    })
+}
+
+/// List all installed `.ofm` packages in the user's packages directory.
+#[tauri::command]
+pub fn list_installed_packages(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<ofm_core::generator::PackageInfo>, String> {
+    info!("[cmd] list_installed_packages");
+    let packages_dir = packages_dir(&app_handle)?;
+    if !packages_dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut result = Vec::new();
+    let Ok(entries) = std::fs::read_dir(&packages_dir) else {
+        return Ok(result);
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("ofm") {
+            if let Some(info) = package_info_from_path(&path) {
+                result.push(info);
+            }
+        }
+    }
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(result)
+}
+
+/// Remove an installed package by id.
+#[tauri::command]
+pub fn uninstall_package(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<(), String> {
+    info!("[cmd] uninstall_package: id={}", id);
+    let dest = packages_dir(&app_handle)?.join(format!("{id}.ofm"));
+    if dest.exists() {
+        std::fs::remove_file(&dest)
+            .map_err(|_| "be.error.package.installFailed".to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

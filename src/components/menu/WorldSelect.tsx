@@ -1,7 +1,7 @@
 import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
-import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2, FolderOpen } from "lucide-react";
+import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2, FolderOpen, Package, PackagePlus, Trash2, Trophy } from "lucide-react";
 import { resolveBackendText } from "../../utils/backendI18n";
 import type { CareerStartPhase } from "./CreateManagerForm";
 
@@ -30,6 +30,21 @@ export interface PackageIssue {
   params: Record<string, string>;
 }
 
+export interface PackageInfo {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  license: string;
+  game_min_version: string;
+  package_type: string;
+  team_count: number;
+  player_count: number;
+  competition_count: number;
+  installed_path: string;
+}
+
 interface WorldSelectProps {
   worldDatabases: WorldDatabaseInfo[];
   selectedWorldId: string;
@@ -51,6 +66,13 @@ interface WorldSelectProps {
   onImportPackage?: () => void;
   isInspectingPackage?: boolean;
   packageErrors?: PackageIssue[];
+  installedPackages?: PackageInfo[];
+  activePackageIds?: string[];
+  onTogglePackage?: (id: string) => void;
+  onInstallPackage?: () => void;
+  onUninstallPackage?: (id: string) => void;
+  isInstallingPackage?: boolean;
+  packageStackErrors?: PackageIssue[];
 }
 
 const HISTORY_DEPTH_OPTIONS = [0, 6, 12, 24] as const;
@@ -78,6 +100,8 @@ export default function WorldSelect({
   historyDepthYears, onSelectWorld, onChangeHistoryDepthYears, onImportFile, onStart, onBack, onClose,
   competitionDefsFileName, competitionDefsErrors, onImportCompetitionDefs, onClearCompetitionDefs,
   onImportPackage, isInspectingPackage, packageErrors,
+  installedPackages, activePackageIds, onTogglePackage, onInstallPackage, onUninstallPackage,
+  isInstallingPackage, packageStackErrors,
 }: WorldSelectProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
@@ -85,6 +109,11 @@ export default function WorldSelect({
   const competitionDefsInputRef = useRef<HTMLInputElement>(null);
   const hasCompetitionDefErrors = (competitionDefsErrors?.length ?? 0) > 0;
   const hasPackageErrors = (packageErrors?.length ?? 0) > 0;
+  const hasPackageStackErrors = (packageStackErrors?.length ?? 0) > 0;
+  const activePackages = installedPackages?.filter((p) => activePackageIds?.includes(p.id)) ?? [];
+  const hasPatchOnlyPackages =
+    activePackages.length > 0 &&
+    activePackages.every((p) => p.package_type !== "database");
   const selectedWorld = worldDatabases.find((db) => db.id === selectedWorldId);
   const historyMode = worldHistoryMode(selectedWorld);
   const canConfigureGeneratedHistory = historyMode !== "reference";
@@ -364,13 +393,127 @@ export default function WorldSelect({
         </div>
       )}
 
+      {/* Installed .ofm packages section */}
+      {(onInstallPackage || (installedPackages && installedPackages.length > 0)) && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-heading font-bold uppercase tracking-[0.18em] text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+              <Package className="w-4 h-4" />
+              {t("worldSelect.installedPackages")}
+            </p>
+            {onInstallPackage && (
+              <button
+                onClick={onInstallPackage}
+                disabled={isInstallingPackage}
+                className="flex items-center gap-1 text-xs font-heading font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-50 transition-colors"
+              >
+                {isInstallingPackage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <PackagePlus className="w-3.5 h-3.5" />
+                )}
+                {t("worldSelect.installPackage")}
+              </button>
+            )}
+          </div>
+
+          {installedPackages && installedPackages.length === 0 && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2">
+              {t("worldSelect.noInstalledPackages")}
+            </p>
+          )}
+
+          {installedPackages && installedPackages.map(pkg => {
+            const isActive = activePackageIds?.includes(pkg.id) ?? false;
+            return (
+              <div
+                key={pkg.id}
+                className={`flex items-start gap-3 w-full p-3 rounded-xl border transition-all duration-200 ${
+                  isActive
+                    ? "bg-accent-50 dark:bg-accent-500/10 border-accent-400 dark:border-accent-500 ring-1 ring-accent-400/30"
+                    : "bg-white dark:bg-navy-700 border-gray-200 dark:border-navy-600"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onTogglePackage?.(pkg.id)}
+                  className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+                    isActive
+                      ? "bg-accent-500 border-accent-500"
+                      : "border-gray-300 dark:border-navy-500"
+                  }`}
+                  aria-checked={isActive}
+                  role="checkbox"
+                >
+                  {isActive && <div className="w-2 h-2 rounded-sm bg-white" />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">
+                      {pkg.name || pkg.id}
+                    </p>
+                    {pkg.package_type && pkg.package_type !== "database" && (
+                      <span className="text-[9px] font-heading uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex-shrink-0">
+                        {pkg.package_type}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                    {pkg.author && t("worldSelect.packageAuthor", { author: pkg.author })}
+                    {pkg.author && pkg.version && " · "}
+                    {pkg.version && t("worldSelect.packageVersion", { version: pkg.version })}
+                    {pkg.license && ` · ${pkg.license}`}
+                  </p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                      <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: pkg.team_count })}
+                    </span>
+                    <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                      <Users className="w-3 h-3" />{t("worldSelect.players", { count: pkg.player_count })}
+                    </span>
+                    <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                      <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: pkg.competition_count })}
+                    </span>
+                  </div>
+                </div>
+                {onUninstallPackage && (
+                  <button
+                    onClick={() => onUninstallPackage(pkg.id)}
+                    className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5"
+                    title={t("worldSelect.removePackage")}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {hasPackageStackErrors && (
+            <div className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs">
+              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+                {t("worldSelect.packageStackErrors")}
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
+                {packageStackErrors!.map((issue, index) => (
+                  <li key={index}>
+                    {issue.file ? `[${issue.file}] ` : ""}
+                    {t(issue.code, issue.params)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <Button
         variant="primary"
         size="lg"
         className="w-full"
         iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
         onClick={onStart}
-        disabled={isStarting || hasCompetitionDefErrors || hasPackageErrors}
+        disabled={isStarting || hasCompetitionDefErrors || hasPackageErrors || hasPackageStackErrors || hasPatchOnlyPackages}
       >
         {isStarting ? t('worldSelect.creatingWorld') : t('worldSelect.startCareer')}
       </Button>
