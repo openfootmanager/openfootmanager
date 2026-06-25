@@ -3671,6 +3671,19 @@
     "save": "保存",
     "autoSave": "自动保存",
     "autoSaveOn": "自动保存已开启",
-    "autoSaveOff": "自动保存已关闭"
+    "autoSaveOff": "自动保存已关闭",
+    "newWorldForm": "创建新世界",
+    "worldName": "世界名称",
+    "worldNamePlaceholder": "例如 英超联赛2026",
+    "worldId": "世界ID",
+    "worldIdHint": "从名称自动生成 — 用作文件夹名",
+    "worldAuthor": "作者",
+    "worldDesc": "描述",
+    "createWorld": "创建世界",
+    "creating": "创建中…",
+    "startFromExample": "从示例开始",
+    "startFromExampleDesc": "4队迷你联赛 — 非常适合学习格式",
+    "recentProjects": "最近项目",
+    "openInEditor": "编辑"
   }
 }

@@ -39,14 +39,26 @@ import type {
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
-import { WorldEditorHome } from "../components/worldEditor/WorldEditorHome";
+import { WorldEditorHome, type RecentProject } from "../components/worldEditor/WorldEditorHome";
+import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import { EntityListPanel } from "../components/worldEditor/EntityListPanel";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
+const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
 const MAX_HISTORY = 50;
+const MAX_RECENT = 8;
+
+function readRecentProjects(): RecentProject[] {
+  try {
+    const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
+    return raw ? (JSON.parse(raw) as RecentProject[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 type FormPanel =
   | "empty"
@@ -105,6 +117,9 @@ export default function WorldEditor() {
 
   // Auto-save
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
+
+  // Recent projects
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
 
   // Undo/redo history (entity data only, not layout)
   const undoStack = useRef<EntitySnapshot[]>([]);
@@ -224,6 +239,20 @@ export default function WorldEditor() {
     setIsDirty(false);
   }
 
+  function addRecentProject(path: string, name: string) {
+    setRecentProjects((prev) => {
+      const filtered = prev.filter((p) => p.path !== path);
+      const updated = [{ path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
+        0,
+        MAX_RECENT,
+      );
+      try {
+        localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
+      } catch { /* ignore */ }
+      return updated;
+    });
+  }
+
   const persist = useCallback(async (overrides?: {
     meta?: WorldMetaDef;
     confederations?: ConfederationDef[];
@@ -294,15 +323,56 @@ export default function WorldEditor() {
   // Top-level project handlers
   // ---------------------------------------------------------------------------
 
-  async function handleNewPackage() {
-    const dir = await open({ directory: true, multiple: false });
-    if (typeof dir !== "string") return;
+  async function handleNewPackage(meta: WorldMetaDef, sample: SamplePackage | null) {
     setIsBusy(true);
     try {
-      const newMeta = emptyMeta();
-      await invoke("create_package_project", { dir, meta: newMeta });
+      const dir = await invoke<string>("create_world_project", { slug: meta.id, meta });
+      if (sample) {
+        // Populate with sample entities
+        await invoke("save_package_project", {
+          dir,
+          meta,
+          confederations: sample.confederations,
+          countries: sample.countries,
+          teams: sample.teams,
+          players: sample.players,
+          names: sample.names,
+          competitions: sample.competitions,
+        });
+      }
+      const data = await invoke<PackageProjectData>("read_package_project", { dir });
       setProjectDir(dir);
-      loadProjectState({ meta: newMeta, confederations: [], countries: [], teams: [], players: [], names: null, competitions: [], issues: [] });
+      loadProjectState(data);
+      addRecentProject(dir, meta.name || meta.id);
+      setSelectedSection("metadata");
+      setFormPanel("metadata");
+    } catch (err) {
+      flashError(resolveBackendError(err));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function openFromPath(path: string) {
+    let dir: string;
+    if (path.endsWith(".ofm")) {
+      setIsBusy(true);
+      try {
+        dir = await invoke<string>("extract_ofm_for_editing", { ofmPath: path });
+      } catch (err) {
+        flashError(resolveBackendError(err));
+        setIsBusy(false);
+        return;
+      }
+    } else {
+      dir = path;
+      setIsBusy(true);
+    }
+    try {
+      const data = await invoke<PackageProjectData>("read_package_project", { dir });
+      setProjectDir(dir);
+      loadProjectState(data);
+      addRecentProject(dir, data.meta.name || data.meta.id);
       setSelectedSection("metadata");
       setFormPanel("metadata");
     } catch (err) {
@@ -321,37 +391,14 @@ export default function WorldEditor() {
         { name: "All Files", extensions: ["*"] },
       ],
     });
-    // If user selected an .ofm file, extract it to a temp editing dir first
-    let dir: string;
-    if (typeof selected === "string" && selected.endsWith(".ofm")) {
-      setIsBusy(true);
-      try {
-        dir = await invoke<string>("extract_ofm_for_editing", { ofmPath: selected });
-      } catch (err) {
-        flashError(resolveBackendError(err));
-        setIsBusy(false);
-        return;
-      }
-    } else if (typeof selected === "string") {
-      dir = selected;
-      setIsBusy(true);
-    } else {
-      // User may have cancelled; fall back to directory picker
-      const dirFallback = await open({ directory: true, multiple: false });
-      if (typeof dirFallback !== "string") return;
-      dir = dirFallback;
-      setIsBusy(true);
+    if (typeof selected === "string") {
+      await openFromPath(selected);
+      return;
     }
-    try {
-      const data = await invoke<PackageProjectData>("read_package_project", { dir });
-      setProjectDir(dir);
-      loadProjectState(data);
-      setSelectedSection("metadata");
-      setFormPanel("metadata");
-    } catch (err) {
-      flashError(resolveBackendError(err));
-    } finally {
-      setIsBusy(false);
+    // Fallback to directory picker if user cancelled or selected non-file
+    const dirFallback = await open({ directory: true, multiple: false });
+    if (typeof dirFallback === "string") {
+      await openFromPath(dirFallback);
     }
   }
 
@@ -674,8 +721,10 @@ export default function WorldEditor() {
       <WorldEditorHome
         isBusy={isBusy}
         errorMsg={errorMsg}
-        onNewPackage={() => { void handleNewPackage(); }}
+        recentProjects={recentProjects}
+        onNewPackage={(meta, sample) => { void handleNewPackage(meta, sample); }}
         onOpenPackage={() => { void handleOpenPackage(); }}
+        onOpenRecent={(path) => { void openFromPath(path); }}
       />
     );
   }

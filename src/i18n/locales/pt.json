@@ -3674,6 +3674,19 @@
     "save": "Guardar",
     "autoSave": "Guardar auto",
     "autoSaveOn": "Guardar automaticamente ativo",
-    "autoSaveOff": "Guardar automaticamente inativo"
+    "autoSaveOff": "Guardar automaticamente inativo",
+    "newWorldForm": "Criar novo mundo",
+    "worldName": "Nome do mundo",
+    "worldNamePlaceholder": "ex. Premier League 2026",
+    "worldId": "ID do mundo",
+    "worldIdHint": "Derivado do nome — usado como nome da pasta",
+    "worldAuthor": "Autor",
+    "worldDesc": "Descrição",
+    "createWorld": "Criar mundo",
+    "creating": "A criar…",
+    "startFromExample": "Começar pelo exemplo",
+    "startFromExampleDesc": "Mini-liga de 4 equipas — ótima para aprender o formato",
+    "recentProjects": "Projetos recentes",
+    "openInEditor": "Editar"
   }
 }

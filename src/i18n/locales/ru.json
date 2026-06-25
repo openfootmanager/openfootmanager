@@ -3670,6 +3670,19 @@
     "save": "Сохранить",
     "autoSave": "Автосохранение",
     "autoSaveOn": "Автосохранение включено",
-    "autoSaveOff": "Автосохранение выключено"
+    "autoSaveOff": "Автосохранение выключено",
+    "newWorldForm": "Создать новый мир",
+    "worldName": "Название мира",
+    "worldNamePlaceholder": "напр. Премьер-лига 2026",
+    "worldId": "ID мира",
+    "worldIdHint": "Выводится из названия — используется как имя папки",
+    "worldAuthor": "Автор",
+    "worldDesc": "Описание",
+    "createWorld": "Создать мир",
+    "creating": "Создание…",
+    "startFromExample": "Начать с примера",
+    "startFromExampleDesc": "Мини-лига из 4 команд — для изучения формата",
+    "recentProjects": "Недавние проекты",
+    "openInEditor": "Изменить"
   }
 }

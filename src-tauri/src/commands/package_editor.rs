@@ -62,49 +62,22 @@ fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
 // Commands
 // ---------------------------------------------------------------------------
 
-/// Create a new package project directory with an empty scaffold.
-#[tauri::command]
-pub fn create_package_project(dir: String, meta: WorldMetaDef) -> Result<(), String> {
-    let pkg_dir = Path::new(&dir);
-
-    let subdirs = [
-        "teams",
-        "players",
-        "confederations",
-        "countries",
-        "competitions",
-        "names",
-    ];
+fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), String> {
+    let subdirs = ["teams", "players", "confederations", "countries", "competitions", "names"];
     for sub in &subdirs {
         std::fs::create_dir_all(pkg_dir.join(sub)).map_err(|e| e.to_string())?;
     }
 
-    let manifest = meta_to_manifest(&meta)?;
+    let manifest = meta_to_manifest(meta)?;
     write_json_atomic(&pkg_dir.join("package.json"), &manifest)?;
 
     let stubs: &[(&str, &str, serde_json::Value)] = &[
         ("teams", "teams.json", json!({"schema": "team", "items": []})),
         ("players", "players.json", json!({"schema": "player", "items": []})),
-        (
-            "confederations",
-            "confederations.json",
-            json!({"schema": "confederation", "items": []}),
-        ),
-        (
-            "countries",
-            "countries.json",
-            json!({"schema": "country", "items": []}),
-        ),
-        (
-            "competitions",
-            "competitions.json",
-            json!({"schema": "competition", "items": []}),
-        ),
-        (
-            "names",
-            "names.json",
-            json!({"schema": "names", "version": 1, "description": "", "pools": {}}),
-        ),
+        ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
+        ("countries", "countries.json", json!({"schema": "country", "items": []})),
+        ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
+        ("names", "names.json", json!({"schema": "names", "version": 1, "description": "", "pools": {}})),
     ];
 
     for (sub, file, content) in stubs {
@@ -112,6 +85,40 @@ pub fn create_package_project(dir: String, meta: WorldMetaDef) -> Result<(), Str
     }
 
     Ok(())
+}
+
+fn dir_is_nonempty(path: &Path) -> bool {
+    std::fs::read_dir(path).map(|mut d| d.next().is_some()).unwrap_or(false)
+}
+
+/// Create a new package project directory with an empty scaffold.
+#[tauri::command]
+pub fn create_package_project(dir: String, meta: WorldMetaDef) -> Result<(), String> {
+    let pkg_dir = Path::new(&dir);
+    if pkg_dir.exists() && dir_is_nonempty(pkg_dir) {
+        return Err("be.error.package.projectAlreadyExists".to_string());
+    }
+    scaffold_project_dir(pkg_dir, &meta)
+}
+
+/// Create a new world project under the app-managed `world-editor/<slug>/` directory.
+/// Returns the absolute path to the created project directory.
+#[tauri::command]
+pub fn create_world_project(
+    app_handle: tauri::AppHandle,
+    slug: String,
+    meta: WorldMetaDef,
+) -> Result<String, String> {
+    let base_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let project_dir = base_dir.join("world-editor").join(&slug);
+    if project_dir.exists() && dir_is_nonempty(&project_dir) {
+        return Err("be.error.package.projectAlreadyExists".to_string());
+    }
+    scaffold_project_dir(&project_dir, &meta)?;
+    project_dir
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Invalid path".to_string())
 }
 
 /// Load an existing package directory for editing.

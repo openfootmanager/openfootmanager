@@ -3670,6 +3670,19 @@
     "save": "Save",
     "autoSave": "Auto-save",
     "autoSaveOn": "Auto-save is ON",
-    "autoSaveOff": "Auto-save is OFF"
+    "autoSaveOff": "Auto-save is OFF",
+    "newWorldForm": "Create New World",
+    "worldName": "World Name",
+    "worldNamePlaceholder": "e.g. Premier League 2026",
+    "worldId": "World ID",
+    "worldIdHint": "Derived from name — used as the folder name",
+    "worldAuthor": "Author",
+    "worldDesc": "Description",
+    "createWorld": "Create World",
+    "creating": "Creating…",
+    "startFromExample": "Start from Example",
+    "startFromExampleDesc": "4-team mini league — great for learning the format",
+    "recentProjects": "Recent Projects",
+    "openInEditor": "Edit"
   }
 }

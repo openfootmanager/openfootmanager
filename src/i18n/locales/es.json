@@ -3704,6 +3704,19 @@
     "save": "Guardar",
     "autoSave": "Autoguardado",
     "autoSaveOn": "Autoguardado activado",
-    "autoSaveOff": "Autoguardado desactivado"
+    "autoSaveOff": "Autoguardado desactivado",
+    "newWorldForm": "Crear nuevo mundo",
+    "worldName": "Nombre del mundo",
+    "worldNamePlaceholder": "p. ej. Premier League 2026",
+    "worldId": "ID del mundo",
+    "worldIdHint": "Derivado del nombre — se usa como nombre de carpeta",
+    "worldAuthor": "Autor",
+    "worldDesc": "Descripción",
+    "createWorld": "Crear mundo",
+    "creating": "Creando…",
+    "startFromExample": "Empezar desde un ejemplo",
+    "startFromExampleDesc": "Liga de 4 equipos — ideal para aprender el formato",
+    "recentProjects": "Proyectos recientes",
+    "openInEditor": "Editar"
   }
 }

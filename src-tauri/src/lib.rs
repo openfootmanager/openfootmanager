@@ -289,6 +289,7 @@ pub fn run() {
             run_sim_batch,
             run_single_seeded_match,
             create_package_project,
+            create_world_project,
             read_package_project,
             save_package_project,
             build_ofm,
