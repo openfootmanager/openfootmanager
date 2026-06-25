@@ -185,7 +185,7 @@ export function WorldEditorFormPanel({
 
   if (formPanel === "player") {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-4xl">
         <PlayerForm
           editing={playerEditor.editing}
           editingIndex={playerEditor.editingIndex}

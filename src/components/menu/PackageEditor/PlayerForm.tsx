@@ -284,7 +284,7 @@ export function PlayerForm({
       )}
     </EntityFormShell>
     </div>
-    <div className="w-52 flex-shrink-0 sticky top-0">
+    <div className="w-64 flex-shrink-0 sticky top-0">
       <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} teams={teams} />
     </div>
     </div>
