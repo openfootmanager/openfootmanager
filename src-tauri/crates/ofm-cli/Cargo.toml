@@ -1,0 +1,16 @@
+[package]
+name = "ofm-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ofm-cli"
+path = "src/main.rs"
+
+[dependencies]
+ofm_core = { path = "../ofm_core" }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+colored = "2"
+comfy-table = "7"
