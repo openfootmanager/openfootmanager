@@ -108,6 +108,17 @@ pub(crate) struct MatchContext<'a> {
     pub(crate) away_possession_ticks: u32,
     pub(crate) yellows: std::collections::HashMap<String, u8>,
     pub(crate) sent_off: std::collections::HashSet<String>,
+    /// Team-level condition scalar (0.0–1.0). Starts from mean player condition, depletes per minute.
+    pub(crate) home_condition: f64,
+    pub(crate) away_condition: f64,
+}
+
+fn team_avg_condition(team: &TeamData) -> f64 {
+    if team.players.is_empty() {
+        return 1.0;
+    }
+    let sum: f64 = team.players.iter().map(|p| p.condition as f64).sum();
+    (sum / team.players.len() as f64 / 100.0).clamp(0.5, 1.0)
 }
 
 impl<'a> MatchContext<'a> {
@@ -125,6 +136,8 @@ impl<'a> MatchContext<'a> {
             away_possession_ticks: 0,
             yellows: std::collections::HashMap::new(),
             sent_off: std::collections::HashSet::new(),
+            home_condition: team_avg_condition(home),
+            away_condition: team_avg_condition(away),
         }
     }
 
@@ -189,6 +202,12 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
         Side::Home => ctx.home_possession_ticks += 1,
         Side::Away => ctx.away_possession_ticks += 1,
     }
+
+    // Deplete team condition ~0.18 over 90 minutes (floor at 0.70, but never increase
+    // if condition is already below 0.70 at match start).
+    let depletion = ctx.config.fatigue_per_minute / 100.0;
+    ctx.home_condition = (ctx.home_condition - depletion).max(0.70_f64.min(ctx.home_condition));
+    ctx.away_condition = (ctx.away_condition - depletion).max(0.70_f64.min(ctx.away_condition));
 
     let actions = rng.random_range(1..=3u8);
     for _ in 0..actions {

@@ -126,6 +126,14 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     }
   }, []);
 
+  // Auto-scroll to the next user fixture on load when mid-season (past groups present).
+  useEffect(() => {
+    if (!slice?.next_user_match_date || slice.past_groups.length === 0) return;
+    const date = slice.next_user_match_date;
+    const id = setTimeout(() => scrollToDate(date), 50);
+    return () => clearTimeout(id);
+  }, [slice?.competition_id, slice?.next_user_match_date, slice?.past_groups.length, scrollToDate]);
+
   const buildTeamMenuItem = (label: string, teamId: string): ContextMenuItem => ({
     label,
     onClick: () => onSelectTeam(teamId),
@@ -148,7 +156,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     >
       {activeCompetitions.map((c) => (
         <option key={c.id} value={c.id}>
-          {c.name}
+          {c.name_key ? t(c.name_key, { year: c.season }) : c.name}
         </option>
       ))}
     </Select>
@@ -585,7 +593,7 @@ function InternationalView({
           </div>
           <CardBody className="p-0">
             <div className="divide-y divide-gray-100 dark:divide-navy-600">
-              {calledUpPlayers.map(({ player, nationalTeamId, nationalTeamName }) => (
+              {calledUpPlayers.map(({ player, nationalTeamId, nationalTeamName, nationalTeamNameKey }) => (
                 <div
                   key={`${player.id}-${nationalTeamId}`}
                   className="flex items-center justify-between px-5 py-2.5"
@@ -595,7 +603,9 @@ function InternationalView({
                     {player.match_name}
                   </span>
                   <Badge variant="neutral" size="sm">
-                    {nationalTeamName}
+                    {nationalTeamNameKey
+                      ? t("nations.nationalTeamTemplate", { name: t(nationalTeamNameKey) })
+                      : nationalTeamName}
                   </Badge>
                 </div>
               ))}
@@ -622,7 +632,7 @@ function InternationalView({
                     data-testid={`schedule-international-${fixture.id}`}
                   >
                     <span className="flex-1 text-right text-sm font-semibold text-gray-800 dark:text-gray-200">
-                      {getNationalTeamName(gameState, fixture.home_team_id)}
+                      {getNationalTeamName(gameState, fixture.home_team_id, t)}
                     </span>
                     <div className="mx-3 w-24 text-center">
                       {completed && fixture.result ? (
@@ -636,7 +646,7 @@ function InternationalView({
                       )}
                     </div>
                     <span className="flex-1 text-left text-sm font-semibold text-gray-800 dark:text-gray-200">
-                      {getNationalTeamName(gameState, fixture.away_team_id)}
+                      {getNationalTeamName(gameState, fixture.away_team_id, t)}
                     </span>
                   </div>
                 );
@@ -698,7 +708,9 @@ function StandingsView({
       <div className="rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-navy-700 to-navy-800 p-5 dark:border-navy-600">
         <h3 className="flex items-center gap-2 font-heading text-lg font-bold uppercase tracking-wide text-white">
           <Trophy className="h-5 w-5 text-accent-400" />
-          {competition?.name ?? t("schedule.fixtures")} –{" "}
+          {competition?.name_key
+            ? t(competition.name_key, { year: competition.season })
+            : (competition?.name ?? t("schedule.fixtures"))} –{" "}
           {t("schedule.season", { number: competition?.season ?? 0 })}
         </h3>
       </div>

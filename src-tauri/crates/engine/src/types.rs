@@ -161,6 +161,60 @@ impl PlayerData {
 }
 
 // ---------------------------------------------------------------------------
+// TacticsConfig — tactical settings that influence simulation modifiers
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum PressingIntensity {
+    Passive,
+    #[default]
+    Medium,
+    Aggressive,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum DefensiveLine {
+    VeryLow,
+    Low,
+    #[default]
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum TacticsPitchWidth {
+    Narrow,
+    #[default]
+    Normal,
+    Wide,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum TacticsBuildUpStyle {
+    Short,
+    #[default]
+    Mixed,
+    Long,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum MarkingStyle {
+    #[default]
+    Zonal,
+    Mixed,
+    ManToMan,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TacticsConfig {
+    pub pressing_intensity: PressingIntensity,
+    pub defensive_line: DefensiveLine,
+    pub width: TacticsPitchWidth,
+    pub build_up_style: TacticsBuildUpStyle,
+    pub marking_style: MarkingStyle,
+}
+
+// ---------------------------------------------------------------------------
 // TeamData — everything the engine needs to know about one side
 // ---------------------------------------------------------------------------
 
@@ -171,6 +225,8 @@ pub struct TeamData {
     pub formation: String,
     pub play_style: PlayStyle,
     pub players: Vec<PlayerData>,
+    #[serde(default)]
+    pub tactics: TacticsConfig,
 }
 
 impl TeamData {
@@ -249,7 +305,8 @@ pub struct MatchConfig {
     pub yellow_card_probability: f64,
     /// Probability a yellow-card foul is upgraded to red (second yellow or serious foul).
     pub red_card_probability: f64,
-    /// Probability a foul in the box results in a penalty.
+    /// Probability that a foul inside the attacking box is adjudicated as a penalty kick.
+    /// Conditional on a box foul occurring — not a per-game rate. ~50% in real football.
     pub penalty_probability: f64,
     /// Minutes of stoppage time per half (0 = none).
     pub stoppage_time_max: u8,
@@ -261,13 +318,13 @@ impl Default for MatchConfig {
     fn default() -> Self {
         Self {
             home_advantage: 1.08,
-            shot_accuracy_base: 0.45,
-            goal_conversion_base: 0.30,
+            shot_accuracy_base: 0.35,
+            goal_conversion_base: 0.36,
             fatigue_per_minute: 0.20,
-            foul_probability: 0.12,
-            yellow_card_probability: 0.30,
+            foul_probability: 0.40,
+            yellow_card_probability: 0.11,
             red_card_probability: 0.04,
-            penalty_probability: 0.08,
+            penalty_probability: 0.50,
             stoppage_time_max: 4,
             injury_probability: 0.03,
         }

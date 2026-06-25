@@ -19,8 +19,8 @@ pub fn replace_national_teams(
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
         conn.execute(
-            "INSERT INTO national_teams (id, name, football_nation, region_id, squad_player_ids_json, manager_name, reputation, fixtures_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO national_teams (id, name, football_nation, region_id, squad_player_ids_json, manager_name, reputation, fixtures_json, name_key)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 team.id,
                 team.name,
@@ -30,6 +30,7 @@ pub fn replace_national_teams(
                 team.manager_name,
                 team.reputation,
                 fixtures_json,
+                team.name_key,
             ],
         )
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -40,7 +41,7 @@ pub fn replace_national_teams(
 
 pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, String> {
     let mut stmt = match conn.prepare(
-        "SELECT id, name, football_nation, region_id, squad_player_ids_json, manager_name, reputation, fixtures_json
+        "SELECT id, name, football_nation, region_id, squad_player_ids_json, manager_name, reputation, fixtures_json, name_key
          FROM national_teams
          ORDER BY name ASC",
     ) {
@@ -61,6 +62,7 @@ pub fn load_national_teams(conn: &Connection) -> Result<Vec<NationalTeam>, Strin
                 manager_name: row.get(5)?,
                 reputation: row.get::<_, i64>(6).unwrap_or(500) as u32,
                 fixtures: serde_json::from_str::<Vec<Fixture>>(&fixtures_json).unwrap_or_default(),
+                name_key: row.get(8)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;

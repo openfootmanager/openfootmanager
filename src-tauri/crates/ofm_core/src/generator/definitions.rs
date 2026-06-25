@@ -240,6 +240,11 @@ pub struct WorldData {
     pub stats: domain::stats::StatsState,
     pub world_history: domain::world_history::WorldHistoryArchive,
     pub metadata: WorldDataMetadata,
+    /// Per-locale translation bundles supplied by a world package, keyed by
+    /// locale code. Carried to the game state so the frontend can merge them
+    /// into the active i18n namespace when loading a custom world.
+    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.

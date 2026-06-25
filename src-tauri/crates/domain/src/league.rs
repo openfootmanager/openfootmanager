@@ -38,9 +38,20 @@ pub struct CompetitionRules {
     /// Group-and-knockout only: additional best next-placed finishers across
     /// all groups that also advance (the 2026 World Cup's "best thirds").
     pub group_best_third_qualifiers: u32,
+    /// Round-robin legs played inside each group.
+    pub group_stage_legs: u8,
+    /// Days between group-stage matchdays.
+    pub group_matchday_gap_days: u32,
     /// Days between knockout rounds.
     pub knockout_round_gap_days: u32,
+    /// Maximum fixtures scheduled on the same day within a single knockout round.
+    /// Defaults to 1 (each match on its own day). Set higher for large tournaments
+    /// like the World Cup where multiple matches happen on the same day.
+    #[serde(default = "default_knockout_matches_per_day")]
+    pub knockout_matches_per_day: u32,
 }
+
+fn default_knockout_matches_per_day() -> u32 { 1 }
 
 impl Default for CompetitionRules {
     fn default() -> Self {
@@ -49,7 +60,10 @@ impl Default for CompetitionRules {
             counts_in_season_flow: true,
             group_qualifiers_per_group: 2,
             group_best_third_qualifiers: 0,
+            group_stage_legs: 2,
+            group_matchday_gap_days: 7,
             knockout_round_gap_days: 14,
+            knockout_matches_per_day: 1,
         }
     }
 }

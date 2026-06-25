@@ -3,7 +3,8 @@ use rand::{Rng, RngExt};
 use crate::event::{EventDetail, EventType, MatchEvent};
 use crate::shared::{
     PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_attribute_modifier,
-    trait_bonus,
+    tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
+    tactics_foul_modifier, trait_bonus,
 };
 use crate::types::{Position, Side, Zone};
 
@@ -51,7 +52,8 @@ impl LiveMatchState {
         let press = self.effective_press(def_side);
         let ball_zone = self.ball_zone;
 
-        let success_chance = (pass_skill * 1.3) / (pass_skill * 1.3 + press);
+        let buildup_mod = tactics_buildup_mod(&self.team_ref(att_side).tactics);
+        let success_chance = (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
         if rng.random_range(0.0..1.0f64) < success_chance {
             let evt = MatchEvent::new(minute, EventType::PassCompleted, att_side, ball_zone)
                 .with_player(&passer.id);
@@ -125,9 +127,17 @@ impl LiveMatchState {
                     .with_player(&defender.id);
                 self.events.push(evt.clone());
                 events.push(evt);
+                let foul_mod = tactics_foul_modifier(&self.team_ref(def_side).tactics);
                 let foul_events =
-                    self.maybe_foul(minute, def_side, &attacker, &defender, Zone::Midfield, rng);
+                    self.maybe_foul(minute, def_side, &attacker, &defender, Zone::Midfield, rng, foul_mod);
+                let fouled = foul_events.iter().any(|e| e.event_type == EventType::Foul);
                 events.extend(foul_events);
+                if fouled {
+                    // Fouled team (att_side) retains possession for the free kick
+                    self.possession = att_side;
+                    self.ball_zone = Zone::Midfield;
+                    return events;
+                }
             } else {
                 let evt =
                     MatchEvent::new(minute, EventType::Interception, def_side, Zone::Midfield)
@@ -181,16 +191,43 @@ impl LiveMatchState {
         let def_eff = def_rating * def_mod * crate::shared::home_mod(def_side, &self.config);
         let success = att_eff / (att_eff + def_eff);
         let zone = Zone::attacking_third(att_side);
+        let cross_prob = tactics_cross_probability(&self.team_ref(att_side).tactics);
 
         if rng.random_range(0.0..1.0f64) < success {
             let evt = MatchEvent::new(minute, EventType::Dribble, att_side, zone)
                 .with_player(&attacker.id);
             self.events.push(evt.clone());
             events.push(evt);
-            self.ball_zone = Zone::attacking_box(att_side);
+            if rng.random_range(0.0..1.0f64) < cross_prob {
+                let winger_id = attacker.id.clone();
+                let cross_evt = MatchEvent::new(minute, EventType::Cross, att_side, zone)
+                    .with_player(&winger_id);
+                self.events.push(cross_evt.clone());
+                events.push(cross_evt);
+                let header = self.snap_player(att_side, Position::Forward, rng);
+                let def_header = self.snap_player(def_side, Position::Defender, rng);
+                let aerial_att = header.aerial as f64;
+                let aerial_def = def_header.aerial as f64;
+                let aerial_win = aerial_att / (aerial_att + aerial_def);
+                if rng.random_range(0.0..1.0f64) < aerial_win {
+                    self.ball_zone = Zone::attacking_box(att_side);
+                    let shot_events = self.resolve_shot(minute, att_side, rng);
+                    events.extend(shot_events);
+                } else {
+                    let clear_evt =
+                        MatchEvent::new(minute, EventType::Clearance, def_side, zone)
+                            .with_player(&def_header.id);
+                    self.events.push(clear_evt.clone());
+                    events.push(clear_evt);
+                    self.possession = def_side;
+                    self.ball_zone = Zone::defensive_third(att_side);
+                }
+            } else {
+                self.ball_zone = Zone::attacking_box(att_side);
+            }
         } else {
             let is_tackle = rng.random_range(0.0..1.0f64) < 0.5;
-            if is_tackle {
+            let fouled = if is_tackle {
                 let evt1 = MatchEvent::new(minute, EventType::DribbleTackled, att_side, zone)
                     .with_player(&attacker.id)
                     .with_secondary(&defender.id);
@@ -200,14 +237,24 @@ impl LiveMatchState {
                 self.events.push(evt2.clone());
                 events.push(evt1);
                 events.push(evt2);
+                let foul_mod = tactics_foul_modifier(&self.team_ref(def_side).tactics);
                 let foul_events =
-                    self.maybe_foul(minute, def_side, &attacker, &defender, zone, rng);
+                    self.maybe_foul(minute, def_side, &attacker, &defender, zone, rng, foul_mod);
+                let was_fouled = foul_events.iter().any(|e| e.event_type == EventType::Foul);
                 events.extend(foul_events);
+                was_fouled
             } else {
                 let evt = MatchEvent::new(minute, EventType::Clearance, def_side, zone)
                     .with_player(&defender.id);
                 self.events.push(evt.clone());
                 events.push(evt);
+                false
+            };
+            if fouled {
+                // Fouled team (att_side) retains possession for the free kick in the attacking third
+                self.possession = att_side;
+                self.ball_zone = zone;
+                return events;
             }
             if rng.random_range(0.0..1.0f64) < 0.25 {
                 let evt = MatchEvent::new(minute, EventType::Corner, att_side, zone);
@@ -227,6 +274,39 @@ impl LiveMatchState {
     fn resolve_shot<R: Rng>(&mut self, minute: u8, att_side: Side, rng: &mut R) -> Vec<MatchEvent> {
         let mut events = Vec::new();
         let def_side = att_side.opposite();
+        let zone = Zone::attacking_box(att_side);
+
+        // Box foul rate fixed at 3.6% per shot — independent of foul_probability (which tunes outfield fouls)
+        if rng.random_range(0.0..1.0f64) < 0.036 {
+            let fouler = self.snap_player(def_side, Position::Defender, rng);
+            let fouled = self.snap_player(att_side, Position::Forward, rng);
+            let foul_evt = MatchEvent::new(minute, EventType::Foul, def_side, zone)
+                .with_player(&fouler.id)
+                .with_secondary(&fouled.id)
+                .with_detail(EventDetail::Foul {
+                    severity: foul_severity(fouler.aggression),
+                });
+            self.events.push(foul_evt.clone());
+            events.push(foul_evt);
+
+            if rng.random_range(0.0..1.0f64) < self.config.penalty_probability {
+                let pen_evt =
+                    MatchEvent::new(minute, EventType::PenaltyAwarded, att_side, zone);
+                self.events.push(pen_evt.clone());
+                events.push(pen_evt);
+                let pen_events = self.resolve_in_match_penalty(minute, att_side, rng);
+                events.extend(pen_events);
+                let card_events = self.maybe_card(minute, def_side, &fouler.id.clone(), zone, rng);
+                events.extend(card_events);
+                self.ball_zone = Zone::Midfield;
+                self.possession = def_side;
+                return events;
+            }
+            let card_events = self.maybe_card(minute, def_side, &fouler.id.clone(), zone, rng);
+            events.extend(card_events);
+            // Foul but no penalty: advantage played, shot continues
+        }
+
         let shooter = self.snap_player(att_side, Position::Forward, rng);
         let assister = self.snap_player(att_side, Position::Midfielder, rng);
         let goalkeeper = self.snap_player(def_side, Position::Goalkeeper, rng);
@@ -244,7 +324,6 @@ impl LiveMatchState {
 
         let accuracy =
             (self.config.shot_accuracy_base + (shoot_rating - 50.0) / 200.0).clamp(0.15, 0.85);
-        let zone = Zone::attacking_box(att_side);
 
         if rng.random_range(0.0..1.0f64) > accuracy {
             let detail = EventDetail::Shot {
@@ -256,19 +335,25 @@ impl LiveMatchState {
                     .with_detail(detail);
                 self.events.push(evt.clone());
                 events.push(evt);
+                self.ball_zone = Zone::Midfield;
+                self.possession = def_side;
             } else {
                 let evt = MatchEvent::new(minute, EventType::ShotOffTarget, att_side, zone)
                     .with_player(&shooter.id)
                     .with_detail(detail);
                 self.events.push(evt.clone());
                 events.push(evt);
+                let gk_evt = MatchEvent::new(minute, EventType::GoalKick, def_side, zone);
+                self.events.push(gk_evt.clone());
+                events.push(gk_evt);
+                self.ball_zone = Zone::defensive_third(def_side);
+                self.possession = def_side;
             }
-            self.ball_zone = Zone::Midfield;
-            self.possession = def_side;
             return events;
         }
 
-        let conversion = (self.config.goal_conversion_base + (shoot_rating - gk_rating) / 150.0)
+        let def_line_mod = tactics_defensive_conversion_mod(&self.team_ref(def_side).tactics);
+        let conversion = (self.config.goal_conversion_base * def_line_mod + (shoot_rating - gk_rating) / 150.0)
             .clamp(0.10, 0.70);
 
         if rng.random_range(0.0..1.0f64) < conversion {
@@ -280,6 +365,8 @@ impl LiveMatchState {
             self.events.push(evt.clone());
             events.push(evt);
             self.add_goal(att_side);
+            self.ball_zone = Zone::Midfield;
+            self.possession = def_side;
         } else {
             let evt = MatchEvent::new(minute, EventType::ShotSaved, att_side, zone)
                 .with_player(&shooter.id)
@@ -288,10 +375,22 @@ impl LiveMatchState {
                 });
             self.events.push(evt.clone());
             events.push(evt);
+            // 40% of saves → corner (keeper parries wide), 60% → goal kick (keeper catches)
+            if rng.random_range(0.0..1.0f64) < 0.40 {
+                let corner_evt = MatchEvent::new(minute, EventType::Corner, att_side, zone);
+                self.events.push(corner_evt.clone());
+                events.push(corner_evt);
+                self.possession = att_side;
+                self.ball_zone = Zone::attacking_box(att_side);
+            } else {
+                let gk_evt = MatchEvent::new(minute, EventType::GoalKick, def_side, zone);
+                self.events.push(gk_evt.clone());
+                events.push(gk_evt);
+                self.ball_zone = Zone::defensive_third(def_side);
+                self.possession = def_side;
+            }
         }
 
-        self.ball_zone = Zone::Midfield;
-        self.possession = def_side;
         events
     }
 
@@ -307,13 +406,15 @@ impl LiveMatchState {
         fouler: &PlayerSnap,
         zone: Zone,
         rng: &mut R,
+        tactics_mod: f64,
     ) -> Vec<MatchEvent> {
         let mut events = Vec::new();
 
         let aggression_mod = fouler.aggression as f64 / 100.0;
         let foul_chance = self.config.foul_probability
             * (0.6 + aggression_mod * 0.8)
-            * trait_bonus(fouler, TraitContext::Foul);
+            * trait_bonus(fouler, TraitContext::Foul)
+            * tactics_mod;
         if rng.random_range(0.0..1.0f64) >= foul_chance {
             return events;
         }
@@ -356,7 +457,7 @@ impl LiveMatchState {
         events
     }
 
-    fn maybe_card<R: Rng>(
+    pub(super) fn maybe_card<R: Rng>(
         &mut self,
         minute: u8,
         side: Side,
@@ -366,7 +467,15 @@ impl LiveMatchState {
     ) -> Vec<MatchEvent> {
         let mut events = Vec::new();
 
-        if rng.random_range(0.0..1.0f64) >= self.config.yellow_card_probability {
+        let aggression_factor = self
+            .team_ref(side)
+            .players
+            .iter()
+            .find(|p| p.id == fouler_id)
+            .map(|p| p.aggression as f64 / 100.0)
+            .unwrap_or(0.5);
+        let card_chance = self.config.yellow_card_probability * (0.5 + aggression_factor);
+        if rng.random_range(0.0..1.0f64) >= card_chance {
             return events;
         }
 
@@ -446,6 +555,7 @@ mod event_detail_tests {
             name: id.to_string(),
             formation: "4-4-2".to_string(),
             play_style: PlayStyle::Balanced,
+            tactics: crate::types::TacticsConfig::default(),
             players: vec![
                 make_player(&format!("{id}_gk"), Position::Goalkeeper),
                 make_player(&format!("{id}_d1"), Position::Defender),

@@ -246,9 +246,26 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     section("SET PIECES");
     let c = stats.corners_pg();
     let fk = stats.free_kicks_pg();
+    let gk = stats.goal_kicks_pg();
+    let cr = stats.crosses_pg();
 
     metric("  Corners/game     ", c, 1, "8–14", check(c, 8.0, 14.0));
     metric("  Free kicks/game  ", fk, 1, "", true);
+    metric("  Goal kicks/game  ", gk, 1, "8–14", check(gk, 8.0, 14.0));
+    metric("  Crosses/game     ", cr, 1, "15–30", check(cr, 15.0, 30.0));
+    println!();
+
+    // ── Goal sources ─────────────────────────────────────────────────────────
+    section("GOAL SOURCES");
+    let op = stats.open_play_goal_pct();
+    let co = stats.corner_goal_pct();
+    let fkp = stats.free_kick_goal_pct();
+    let pep = stats.penalty_goal_pct();
+
+    metric("  Open play %      ", op, 1, "60–75%", check(op, 60.0, 75.0));
+    metric("  Corners %        ", co, 1, "10–20%", check(co, 10.0, 20.0));
+    metric("  Free kicks %     ", fkp, 1, "5–15%", check(fkp, 5.0, 15.0));
+    metric("  Penalties %      ", pep, 1, "5–15%", check(pep, 5.0, 15.0));
     println!();
 
     // ── Possession & passing ─────────────────────────────────────────────────

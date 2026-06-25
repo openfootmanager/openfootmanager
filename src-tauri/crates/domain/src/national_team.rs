@@ -12,6 +12,11 @@ pub struct NationalTeam {
     pub manager_name: Option<String>,
     pub reputation: u32,
     pub fixtures: Vec<Fixture>,
+    /// i18n key for the nation name (e.g. `"nations.fr"`). When set, the
+    /// frontend assembles the display name via the `nations.nationalTeamTemplate`
+    /// translation key rather than rendering `name` raw.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_key: Option<String>,
 }
 
 impl NationalTeam {
@@ -30,6 +35,7 @@ impl NationalTeam {
             manager_name: None,
             reputation: 500,
             fixtures: Vec::new(),
+            name_key: None,
         }
     }
 }

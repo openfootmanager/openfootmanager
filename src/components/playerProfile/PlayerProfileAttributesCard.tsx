@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Shield } from "lucide-react";
-import { getAttributeColorClass } from "./PlayerProfile.helpers";
+import { getAttributeColors } from "../../lib/playerAttributeDisplay";
 import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
@@ -76,12 +76,12 @@ export default function PlayerProfileAttributesCard({
                                             </span>
                                             <ProgressBar
                                                 value={attr.value}
-                                                variant="auto"
+                                                variant={getAttributeColors(attr.value).barVariant}
                                                 size="sm"
                                                 className="flex-1"
                                             />
                                             <span
-                                                className={`font-heading font-bold text-sm w-8 text-right tabular-nums ${getAttributeColorClass(attr.value)}`}
+                                                className={`font-heading font-bold text-sm w-8 text-right tabular-nums ${getAttributeColors(attr.value).textClass}`}
                                             >
                                                 {attr.value}
                                             </span>

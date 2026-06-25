@@ -50,6 +50,7 @@ export interface EnginePlayerData {
   reflexes: number;
   aerial: number;
   traits: string[];
+  role: string;
 }
 
 export interface EngineTeamData {
@@ -72,6 +73,14 @@ export interface SubstitutionRecord {
   side: "Home" | "Away";
   player_off_id: string;
   player_on_id: string;
+}
+
+export interface PenaltyShootoutSnapshot {
+  home_taken: number;
+  away_taken: number;
+  home_scored: number;
+  away_scored: number;
+  sudden_death: boolean;
 }
 
 export interface MatchSnapshot {
@@ -98,6 +107,7 @@ export interface MatchSnapshot {
   home_yellows: Record<string, number>;
   away_yellows: Record<string, number>;
   sent_off: string[];
+  penalty_shootout?: PenaltyShootoutSnapshot | null;
 }
 
 export interface MinuteResult {
@@ -170,7 +180,11 @@ export type MatchDayStage =
   | "first_half"
   | "halftime"
   | "second_half"
+  | "extra_time_halftime"
+  | "extra_time_second_half"
+  | "penalty_shootout"
   | "postmatch"
+  | "digest"
   | "press";
 
 export type TeamTalkTone =

@@ -14,20 +14,22 @@ import {
 import { useTranslation } from "react-i18next";
 
 import type { DigestEntry, DigestStopReason } from "../../hooks/useDigestAdvance";
-import type { BlockerData } from "../../services/advanceTimeService";
 import type { RecapMatch } from "./advanceRecap";
 import { getCategoryIcon } from "../inbox/inboxHelpers";
 import { formatVal } from "../../lib/valueFormatting";
+import { resolveBackendText } from "../../utils/backendI18n";
+import { getBlockerTabLabel } from "../../utils/blockerUtils";
 import DashboardModalFrame from "./DashboardModalFrame";
 
 interface DashboardSimulatingModalProps {
   // Digest-mode props (optional — omit for a plain single-advance spinner)
   digestEntries?: DigestEntry[];
   isDigestRunning?: boolean;
+  isDigestAborting?: boolean;
   stopReason?: DigestStopReason | null;
   onStop?: () => void;
   onDismiss?: () => void;
-  onViewBlockers?: (blockers: BlockerData[]) => void;
+  onNavigate?: (tab: string) => void;
   onContinueAfterBlocker?: () => void;
 }
 
@@ -208,10 +210,11 @@ function DigestDayRow({ entry }: { entry: DigestEntry }): JSX.Element {
 export default function DashboardSimulatingModal({
   digestEntries,
   isDigestRunning,
+  isDigestAborting,
   stopReason,
   onStop,
   onDismiss,
-  onViewBlockers,
+  onNavigate,
   onContinueAfterBlocker,
 }: DashboardSimulatingModalProps): JSX.Element {
   const { t } = useTranslation();
@@ -267,10 +270,15 @@ export default function DashboardSimulatingModal({
             <button
               type="button"
               onClick={onStop}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
+              disabled={isDigestAborting}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-navy-600 dark:text-gray-300 dark:hover:bg-navy-700"
             >
-              <XCircle className="h-3.5 w-3.5" />
-              {t("dashboard.digestStop")}
+              {isDigestAborting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5" />
+              )}
+              {isDigestAborting ? t("dashboard.digestStopping") : t("dashboard.digestStop")}
             </button>
           )}
         </div>
@@ -345,18 +353,30 @@ export default function DashboardSimulatingModal({
                 <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
                   {t("dashboard.digestBlockedDesc")}
                 </p>
+                {stopReason.blockers.length > 0 && (
+                  <div className="mb-3 flex flex-col gap-1.5">
+                    {stopReason.blockers.map((blocker) => (
+                      <button
+                        key={blocker.id}
+                        type="button"
+                        onClick={() => { onDismiss?.(); onNavigate?.(blocker.tab); }}
+                        className="w-full rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-left hover:bg-amber-500/10 transition-colors"
+                      >
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                          {resolveBackendText(blocker.text_key, blocker.text, blocker.text_params)}
+                        </p>
+                        <p className="mt-0.5 text-[10px] font-heading uppercase tracking-widest text-amber-600/70 dark:text-amber-400/70">
+                          {t("notifications.goTo")} {getBlockerTabLabel(t, blocker.tab)} →
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={() => onViewBlockers?.(stopReason.blockers)}
-                    className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
-                  >
-                    {t("dashboard.digestViewIssues")}
-                  </button>
-                  <button
-                    type="button"
                     onClick={onContinueAfterBlocker}
-                    className="w-full rounded-lg border border-amber-400 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                    className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                   >
                     {t("dashboard.digestContinueAnyway")}
                   </button>

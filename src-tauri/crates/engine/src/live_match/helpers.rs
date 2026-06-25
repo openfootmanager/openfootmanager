@@ -332,6 +332,7 @@ mod commentary_detail_tests {
                 make_test_player(&format!("{}_f1", id), Position::Forward),
                 make_test_player(&format!("{}_f2", id), Position::Forward),
             ],
+            tactics: crate::types::TacticsConfig::default(),
         };
         LiveMatchState::new(
             make_team("home"),

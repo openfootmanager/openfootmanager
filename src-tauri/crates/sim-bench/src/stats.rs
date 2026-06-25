@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use engine::{EventType, MatchReport};
+use engine::{EventType, GoalSource, MatchReport};
 use serde::Serialize;
 
 /// Aggregated statistics across N simulated matches.
@@ -48,6 +48,13 @@ pub struct BenchStats {
     // Set pieces
     pub corners: u64,
     pub free_kicks: u64,
+    pub goal_kicks: u64,
+    pub crosses: u64,
+
+    // Goal source breakdown
+    pub open_play_goals: u64,
+    pub corner_goals: u64,
+    pub free_kick_goals: u64,
 
     // Tackles & interceptions
     pub tackles: u64,
@@ -121,8 +128,17 @@ impl BenchStats {
         self.shots_on_target += (hs.shots_on_target + aw.shots_on_target) as u64;
         self.shots_off_target += (hs.shots_off_target + aw.shots_off_target) as u64;
         self.shots_blocked += (hs.shots_blocked + aw.shots_blocked) as u64;
-        self.penalties_awarded += (hs.penalties + aw.penalties) as u64;
-        self.penalty_goals += report.goals.iter().filter(|g| g.is_penalty).count() as u64;
+        // Count PenaltyAwarded directly to avoid double-counting with PenaltyGoal/PenaltyMiss
+        self.penalties_awarded += report
+            .events
+            .iter()
+            .filter(|e| matches!(e.event_type, EventType::PenaltyAwarded))
+            .count() as u64;
+        self.penalty_goals += report
+            .goals
+            .iter()
+            .filter(|g| g.goal_source == GoalSource::Penalty)
+            .count() as u64;
         self.passes_completed += (hs.passes_completed + aw.passes_completed) as u64;
         self.passes_intercepted += (hs.passes_intercepted + aw.passes_intercepted) as u64;
         self.yellow_cards += (hs.yellow_cards + aw.yellow_cards) as u64;
@@ -134,12 +150,24 @@ impl BenchStats {
         self.interceptions += (hs.interceptions + aw.interceptions) as u64;
         self.home_possession_sum += report.home_possession;
 
+        for goal in &report.goals {
+            match goal.goal_source {
+                GoalSource::OpenPlay => self.open_play_goals += 1,
+                GoalSource::Corner => self.corner_goals += 1,
+                GoalSource::FreeKick => self.free_kick_goals += 1,
+                GoalSource::Penalty => {} // already counted in penalty_goals
+            }
+        }
+
         for event in &report.events {
             if event.is_goal() {
                 self.goals_by_bucket[goal_bucket(event.minute)] += 1;
             }
-            if matches!(event.event_type, EventType::Injury) {
-                self.injuries += 1;
+            match event.event_type {
+                EventType::Injury => self.injuries += 1,
+                EventType::GoalKick => self.goal_kicks += 1,
+                EventType::Cross => self.crosses += 1,
+                _ => {}
             }
         }
     }
@@ -237,6 +265,24 @@ impl BenchStats {
         }
         self.games as f64 / self.total_time_secs
     }
+    pub fn goal_kicks_pg(&self) -> f64 {
+        self.goal_kicks as f64 / self.games as f64
+    }
+    pub fn crosses_pg(&self) -> f64 {
+        self.crosses as f64 / self.games as f64
+    }
+    pub fn open_play_goal_pct(&self) -> f64 {
+        self.open_play_goals as f64 / self.total_goals.max(1) as f64 * 100.0
+    }
+    pub fn corner_goal_pct(&self) -> f64 {
+        self.corner_goals as f64 / self.total_goals.max(1) as f64 * 100.0
+    }
+    pub fn free_kick_goal_pct(&self) -> f64 {
+        self.free_kick_goals as f64 / self.total_goals.max(1) as f64 * 100.0
+    }
+    pub fn penalty_goal_pct(&self) -> f64 {
+        self.penalty_goals as f64 / self.total_goals.max(1) as f64 * 100.0
+    }
 
     /// Top N scorelines sorted by frequency descending.
     pub fn top_scorelines(&self, n: usize) -> Vec<((u8, u8), u32)> {
@@ -284,6 +330,14 @@ impl BenchStats {
             set_pieces: SetPiecesJson {
                 corners_per_game: self.corners_pg(),
                 free_kicks_per_game: self.free_kicks_pg(),
+                goal_kicks_per_game: self.goal_kicks_pg(),
+                crosses_per_game: self.crosses_pg(),
+            },
+            goal_sources: GoalSourcesJson {
+                open_play_pct: self.open_play_goal_pct(),
+                corner_pct: self.corner_goal_pct(),
+                free_kick_pct: self.free_kick_goal_pct(),
+                penalty_pct: self.penalty_goal_pct(),
             },
             possession: PossessionJson {
                 home_avg_pct: self.avg_home_possession(),
@@ -306,6 +360,7 @@ pub struct JsonSummary {
     pub shooting: ShootingJson,
     pub discipline: DisciplineJson,
     pub set_pieces: SetPiecesJson,
+    pub goal_sources: GoalSourcesJson,
     pub possession: PossessionJson,
     pub performance: PerfJson,
 }
@@ -353,6 +408,16 @@ pub struct DisciplineJson {
 pub struct SetPiecesJson {
     pub corners_per_game: f64,
     pub free_kicks_per_game: f64,
+    pub goal_kicks_per_game: f64,
+    pub crosses_per_game: f64,
+}
+
+#[derive(Serialize)]
+pub struct GoalSourcesJson {
+    pub open_play_pct: f64,
+    pub corner_pct: f64,
+    pub free_kick_pct: f64,
+    pub penalty_pct: f64,
 }
 
 #[derive(Serialize)]

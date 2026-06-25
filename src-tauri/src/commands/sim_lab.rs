@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use engine::{
-    EventType, MatchConfig, MatchReport, PlayStyle, PlayerData, PlayerRole, Position, TeamData,
-    simulate_with_rng,
+    simulate_with_rng, EventType, GoalSource, MatchConfig, MatchReport, PlayStyle, PlayerData,
+    PlayerRole, Position, TeamData,
 };
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -338,8 +338,16 @@ impl Aggregator {
         let aw = &r.away_stats;
         self.total_shots += (hs.shots + aw.shots) as u64;
         self.shots_on_target += (hs.shots_on_target + aw.shots_on_target) as u64;
-        self.penalties_awarded += (hs.penalties + aw.penalties) as u64;
-        self.penalty_goals += r.goals.iter().filter(|g| g.is_penalty).count() as u64;
+        self.penalties_awarded += r
+            .events
+            .iter()
+            .filter(|e| matches!(e.event_type, EventType::PenaltyAwarded))
+            .count() as u64;
+        self.penalty_goals += r
+            .goals
+            .iter()
+            .filter(|g| g.goal_source == GoalSource::Penalty)
+            .count() as u64;
         self.passes_completed += (hs.passes_completed + aw.passes_completed) as u64;
         self.yellow_cards += (hs.yellow_cards + aw.yellow_cards) as u64;
         self.red_cards += (hs.red_cards + aw.red_cards) as u64;
@@ -537,6 +545,7 @@ fn build_team(
         formation: formation.to_string(),
         play_style,
         players,
+        tactics: engine::TacticsConfig::default(),
     }
 }
 
@@ -608,6 +617,121 @@ fn make_player(
         reflexes: biased(base, gk_off, rng),
         aerial: noise(base, rng),
         traits: vec![],
-        role: PlayerRole::Standard,
+        role: {
+            let choices: &[PlayerRole] = match position {
+                Position::Goalkeeper => &[
+                    PlayerRole::SweeperKeeper,
+                    PlayerRole::BallPlayingKeeper,
+                    PlayerRole::Standard,
+                ],
+                Position::Defender => &[
+                    PlayerRole::CoverCB,
+                    PlayerRole::Stopper,
+                    PlayerRole::BallPlayingCB,
+                ],
+                Position::Midfielder => &[
+                    PlayerRole::BoxToBox,
+                    PlayerRole::DeepLyingPlaymaker,
+                    PlayerRole::Mezzala,
+                ],
+                Position::Forward => &[
+                    PlayerRole::CompleteForward,
+                    PlayerRole::Poacher,
+                    PlayerRole::TargetMan,
+                ],
+            };
+            choices[rng.random_range(0..choices.len())]
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const GK_ROLES: &[PlayerRole] = &[
+        PlayerRole::SweeperKeeper,
+        PlayerRole::BallPlayingKeeper,
+        PlayerRole::Standard,
+    ];
+    const DEF_ROLES: &[PlayerRole] = &[
+        PlayerRole::CoverCB,
+        PlayerRole::Stopper,
+        PlayerRole::BallPlayingCB,
+    ];
+    const MID_ROLES: &[PlayerRole] = &[
+        PlayerRole::BoxToBox,
+        PlayerRole::DeepLyingPlaymaker,
+        PlayerRole::Mezzala,
+    ];
+    const FWD_ROLES: &[PlayerRole] = &[
+        PlayerRole::CompleteForward,
+        PlayerRole::Poacher,
+        PlayerRole::TargetMan,
+    ];
+
+    fn player_with_seed(position: Position, seed: u64) -> PlayerData {
+        let mut rng = StdRng::seed_from_u64(seed);
+        make_player("t", "p", 1, position, 70, &mut rng)
+    }
+
+    #[test]
+    fn make_player_goalkeeper_role_is_position_appropriate() {
+        for seed in 0..20 {
+            let p = player_with_seed(Position::Goalkeeper, seed);
+            assert!(
+                GK_ROLES.contains(&p.role),
+                "seed {seed}: unexpected GK role {:?}",
+                p.role
+            );
+        }
+    }
+
+    #[test]
+    fn make_player_defender_role_is_position_appropriate() {
+        for seed in 0..20 {
+            let p = player_with_seed(Position::Defender, seed);
+            assert!(
+                DEF_ROLES.contains(&p.role),
+                "seed {seed}: unexpected DEF role {:?}",
+                p.role
+            );
+        }
+    }
+
+    #[test]
+    fn make_player_midfielder_role_is_position_appropriate() {
+        for seed in 0..20 {
+            let p = player_with_seed(Position::Midfielder, seed);
+            assert!(
+                MID_ROLES.contains(&p.role),
+                "seed {seed}: unexpected MID role {:?}",
+                p.role
+            );
+        }
+    }
+
+    #[test]
+    fn make_player_forward_role_is_position_appropriate() {
+        for seed in 0..20 {
+            let p = player_with_seed(Position::Forward, seed);
+            assert!(
+                FWD_ROLES.contains(&p.role),
+                "seed {seed}: unexpected FWD role {:?}",
+                p.role
+            );
+        }
+    }
+
+    #[test]
+    fn make_player_roles_vary_across_seeds() {
+        let roles: std::collections::HashSet<String> = (0..50)
+            .map(|seed| format!("{:?}", player_with_seed(Position::Forward, seed).role))
+            .collect();
+        assert!(
+            roles.len() > 1,
+            "expected variety in Forward roles, got only: {:?}",
+            roles
+        );
     }
 }

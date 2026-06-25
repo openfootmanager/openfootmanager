@@ -1,4 +1,7 @@
-use crate::types::{MatchConfig, PlayStyle, PlayerData, PlayerRole, Side};
+use crate::types::{
+    DefensiveLine, MarkingStyle, MatchConfig, PlayStyle, PlayerData, PlayerRole, PressingIntensity,
+    Side, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth,
+};
 
 // ---------------------------------------------------------------------------
 // PlayerSnap — lightweight snapshot of a player to avoid borrow conflicts
@@ -251,6 +254,55 @@ pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -
         (PlayerRole::CompleteForward, PlayStylePhase::Attack) => 1.10,
         (PlayerRole::CompleteForward, PlayStylePhase::Defense) => 1.03,
         _ => 1.0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tactics modifiers — translate TacticsConfig settings to simulation multipliers
+// ---------------------------------------------------------------------------
+
+/// Foul rate multiplier from the defensive team's pressing + marking style.
+pub(crate) fn tactics_foul_modifier(tactics: &TacticsConfig) -> f64 {
+    let press = match tactics.pressing_intensity {
+        PressingIntensity::Aggressive => 1.25,
+        PressingIntensity::Passive => 0.80,
+        PressingIntensity::Medium => 1.0,
+    };
+    let marking = match tactics.marking_style {
+        MarkingStyle::ManToMan => 1.15,
+        MarkingStyle::Mixed => 1.05,
+        MarkingStyle::Zonal => 1.0,
+    };
+    press * marking
+}
+
+/// Cross attempt probability based on the attacking team's pitch width setting.
+pub(crate) fn tactics_cross_probability(tactics: &TacticsConfig) -> f64 {
+    match tactics.width {
+        TacticsPitchWidth::Wide => 0.72,
+        TacticsPitchWidth::Narrow => 0.45,
+        TacticsPitchWidth::Normal => 0.60,
+    }
+}
+
+/// Shot conversion multiplier from the defending team's defensive line depth.
+/// High line = more space in behind = easier for attackers to score.
+pub(crate) fn tactics_defensive_conversion_mod(tactics: &TacticsConfig) -> f64 {
+    match tactics.defensive_line {
+        DefensiveLine::High => 1.12,
+        DefensiveLine::Low => 0.92,
+        DefensiveLine::VeryLow => 0.85,
+        DefensiveLine::Medium => 1.0,
+    }
+}
+
+/// Build-up pass success modifier based on the attacking team's build-up style.
+/// Short passing = safer in own half; Long ball = riskier.
+pub(crate) fn tactics_buildup_mod(tactics: &TacticsConfig) -> f64 {
+    match tactics.build_up_style {
+        TacticsBuildUpStyle::Short => 1.08,
+        TacticsBuildUpStyle::Long => 0.88,
+        TacticsBuildUpStyle::Mixed => 1.0,
     }
 }
 

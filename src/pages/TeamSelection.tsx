@@ -33,6 +33,7 @@ import {
   Users,
 } from "lucide-react";
 import { resolveBackendError } from "../utils/backendI18n";
+import { prewarmManagerSquadPortraits } from "../services/portraitService";
 
 type CompetitionSelection = Record<string, boolean>;
 type RegionSelection = Record<string, boolean>;
@@ -122,6 +123,8 @@ function sortCompetitions(competitions: LeagueData[]): LeagueData[] {
 
 export default function TeamSelection() {
   const { t, i18n } = useTranslation();
+  const compName = (c: LeagueData) =>
+    c.name_key ? t(c.name_key, { year: c.season }) : c.name;
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -399,7 +402,7 @@ export default function TeamSelection() {
         {
           key: "teamSelect.scopeMessages.regionRequiredByCompetition",
           values: {
-            competition: blockedMandatoryCompetition.name,
+            competition: compName(blockedMandatoryCompetition),
             club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
             region: buildRegionLabel(t, regionId),
           },
@@ -456,7 +459,7 @@ export default function TeamSelection() {
         setScopeMessage({
           key: "teamSelect.scopeMessages.clubCompetitionLocked",
           values: {
-            competition: competition.name,
+            competition: compName(competition),
             club: selectedTeam?.short_name ?? t("teamSelect.yourClub"),
           },
         });
@@ -491,7 +494,7 @@ export default function TeamSelection() {
         {
           key: "teamSelect.scopeMessages.autoEnabledRegions",
           values: {
-            competition: competition.name,
+            competition: compName(competition),
             regions: missingRegions
               .map((regionId) => buildRegionLabel(t, regionId))
               .join(", "),
@@ -517,6 +520,14 @@ export default function TeamSelection() {
         activeRegionIds,
         activeCompetitionIds: enabledCompetitionIds,
       });
+      try {
+        await prewarmManagerSquadPortraits(updatedGame);
+      } catch (portraitError) {
+        console.warn(
+          "Portrait prewarm failed after team selection:",
+          portraitError,
+        );
+      }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
       setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);
@@ -752,7 +763,7 @@ export default function TeamSelection() {
                       <div className="flex items-center justify-between gap-3">
                         <span className="flex min-w-0 items-center gap-2">
                           <Trophy className="h-4 w-4 shrink-0 text-accent-500" />
-                          <span className="truncate">{competition.name}</span>
+                          <span className="truncate">{compName(competition)}</span>
                         </span>
                         <span
                           onClick={(e) => e.stopPropagation()}
@@ -762,7 +773,7 @@ export default function TeamSelection() {
                             checked={enabled}
                             disabled={isLocked}
                             onChange={() => handleCompetitionToggle(competition)}
-                            aria-label={competition.name}
+                            aria-label={compName(competition)}
                           />
                         </span>
                       </div>
@@ -1003,7 +1014,7 @@ export default function TeamSelection() {
                     <div className="flex flex-wrap gap-2">
                       {selectedTeamCompetitions.map((competition) => (
                         <Badge key={competition.id} variant="primary">
-                          {competition.name}
+                          {compName(competition)}
                         </Badge>
                       ))}
                     </div>

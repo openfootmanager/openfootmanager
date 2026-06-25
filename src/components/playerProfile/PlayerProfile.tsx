@@ -239,6 +239,18 @@ export default function PlayerProfile({
     setRenewalCooledOff(false);
     setRenewalFeedback(null);
     setRenewalProjection(null);
+
+    const renewalState = player.morale_core?.renewal_state;
+    const blockedUntil = renewalState?.manager_blocked_until;
+    const hasActiveManagerBlock =
+      renewalState?.status === "blocked" &&
+      (!blockedUntil ||
+        blockedUntil.slice(0, 10) >= gameState.clock.current_date.slice(0, 10));
+    if (hasActiveManagerBlock) {
+      setRenewalSessionStatus("blocked");
+      setRenewalIsTerminal(true);
+    }
+
     setShowRenewalModal(true);
   }
 
