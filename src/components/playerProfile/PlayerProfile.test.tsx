@@ -113,6 +113,18 @@ vi.mock("react-i18next", () => ({
         return "They want stronger terms before moving.";
       if (key === "playerProfile.renewalFeedbackFirmDetail")
         return "The discussion is still open, but wage level and contract length need to feel clearly worthwhile from their side.";
+      if (key === "playerProfile.loanStatus") return "Loan Status";
+      if (key === "playerProfile.loanedInFrom")
+        return `On loan from ${params?.team}`;
+      if (key === "playerProfile.loanedOutTo")
+        return `On loan at ${params?.team}`;
+      if (key === "playerProfile.loanBetweenClubs")
+        return `On loan from ${params?.parent} to ${params?.loanTeam}`;
+      if (key === "playerProfile.loanUntil") return `Until ${params?.date}`;
+      if (key === "playerProfile.loanWageSplit")
+        return `${params?.percent}% wages covered by loan club`;
+      if (key === "playerProfile.loanBuyOption")
+        return `Buy option ${params?.fee}`;
       if (key === "playerProfile.attributes") return "Attributes";
       if (key === "playerProfile.seasonStats") return "Season Stats";
       if (key === "playerProfile.advancedStats") return "Advanced Stats";
@@ -132,6 +144,21 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.noRecentMatches") return "No recent match data";
       if (key === "playerProfile.careerHistory") return "Career History";
       if (key === "playerProfile.noCareer") return "No Career";
+      if (key === "playerProfile.movementHistory") return "Movement History";
+      if (key === "playerProfile.noMovementHistory") return "No movement history";
+      if (key === "playerProfile.movementPermanentTransfer") return "Transfer";
+      if (key === "playerProfile.movementLoanStart") return "Loan";
+      if (key === "playerProfile.movementLoanReturn") return "Loan return";
+      if (key === "playerProfile.movementLoanToBuy") return "Loan-to-buy";
+      if (key === "playerProfile.movementFreeAgentSigning") return "Free agent";
+      if (key === "playerProfile.movementReleased") return "Released";
+      if (key === "playerProfile.movementFromTo")
+        return `${params?.from} -> ${params?.to}`;
+      if (key === "playerProfile.movementTo") return `Joined ${params?.to}`;
+      if (key === "playerProfile.movementFrom") return `Left ${params?.from}`;
+      if (key === "playerProfile.movementFee") return `Fee ${params?.fee}`;
+      if (key === "playerProfile.movementLoanUntil")
+        return `Loan until ${params?.date}`;
       if (key === "scouting.noScoutsHint") return "Hire a scout first";
       if (key === "scouting.scoutingInProgress") return "Scouting in progress";
       if (key === "scouting.scoutBtn") return "Scout";
@@ -252,6 +279,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     transfer_listed: false,
     loan_listed: false,
     transfer_offers: [],
+    movement_history: [],
     traits: [],
     ...overrides,
   };
@@ -401,6 +429,103 @@ describe("PlayerProfile contract surfaces", () => {
         hasAnnualWage(element?.textContent ?? "", "12K"),
       ).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("hides contract actions for loaned-in players owned by another club", () => {
+    const player = createPlayer({
+      team_id: "team-1",
+      active_loan: {
+        parent_team_id: "team-2",
+        loan_team_id: "team-1",
+        start_date: "2026-08-01",
+        end_date: "2027-01-01",
+        wage_contribution_pct: 75,
+        buy_option_fee: null,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+      },
+    });
+
+    const gameState = createGameState(player);
+    gameState.teams.push(
+      createTeam({
+        id: "team-2",
+        name: "Beta FC",
+        short_name: "BET",
+        manager_id: null,
+      }),
+    );
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Loan Status")).toBeInTheDocument();
+    expect(screen.getByText("On loan from Beta FC")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Renew Contract" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Let Expire" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Terminate Now" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows contract actions for players loaned out by the manager club", () => {
+    const player = createPlayer({
+      team_id: "team-2",
+      active_loan: {
+        parent_team_id: "team-1",
+        loan_team_id: "team-2",
+        start_date: "2026-08-01",
+        end_date: "2027-01-01",
+        wage_contribution_pct: 75,
+        buy_option_fee: null,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+      },
+    });
+
+    const gameState = createGameState(player);
+    gameState.teams.push(
+      createTeam({
+        id: "team-2",
+        name: "Beta FC",
+        short_name: "BET",
+        manager_id: null,
+      }),
+    );
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Loan Status")).toBeInTheDocument();
+    expect(screen.getByText("On loan at Beta FC")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Renew Contract" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terminate Now" })).toBeInTheDocument();
+    expect(screen.queryByText("Hire a scout first")).not.toBeInTheDocument();
+    expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("??")).toHaveLength(0);
   });
 
   it("allows selecting the player's team from the hero header", () => {
@@ -611,6 +736,48 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("3-0")).toBeInTheDocument();
       expect(screen.getByText("8.4")).toBeInTheDocument();
     });
+  });
+
+  it("renders player movement history from transfers and loans", async () => {
+    const player = createPlayer({
+      movement_history: [
+        {
+          date: "2026-08-01",
+          kind: "permanent_transfer",
+          from_team_id: "team-2",
+          from_team_name: "Beta FC",
+          to_team_id: "team-1",
+          to_team_name: "Alpha FC",
+          fee: 1_250_000,
+          loan_end_date: null,
+        },
+        {
+          date: "2027-01-01",
+          kind: "loan_return",
+          from_team_id: "team-3",
+          from_team_name: "Gamma FC",
+          to_team_id: "team-1",
+          to_team_name: "Alpha FC",
+          fee: null,
+          loan_end_date: "2027-01-01",
+        },
+      ],
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player)}
+        isOwnClub
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Movement History")).toBeInTheDocument();
+    expect(screen.getByText("Gamma FC -> Alpha FC")).toBeInTheDocument();
+    expect(screen.getByText("Beta FC -> Alpha FC")).toBeInTheDocument();
+    expect(screen.getByText("Fee €1,250,000")).toBeInTheDocument();
+    expect(screen.getByText("Loan until 2027-01-01")).toBeInTheDocument();
   });
 
   it("validates renewal offers before submission", async () => {

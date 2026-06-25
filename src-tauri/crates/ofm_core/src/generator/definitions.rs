@@ -214,7 +214,7 @@ pub struct WorldManifestV2 {
     pub compatibility: Option<WorldDataMetadata>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct WorldData {
     pub name: String,
@@ -245,31 +245,6 @@ pub struct WorldData {
     /// into the active i18n namespace when loading a custom world.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
-}
-
-impl Default for WorldData {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            description: String::new(),
-            teams: Vec::new(),
-            players: Vec::new(),
-            staff: Vec::new(),
-            managers: Vec::new(),
-            competitions: Vec::new(),
-            competition_definitions: None,
-            national_teams: Vec::new(),
-            regions: Vec::new(),
-            default_active_regions: Vec::new(),
-            default_active_competitions: Vec::new(),
-            league: None,
-            news: Vec::new(),
-            stats: domain::stats::StatsState::default(),
-            world_history: domain::world_history::WorldHistoryArchive::default(),
-            metadata: WorldDataMetadata::default(),
-            extra_translations: std::collections::HashMap::new(),
-        }
-    }
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.

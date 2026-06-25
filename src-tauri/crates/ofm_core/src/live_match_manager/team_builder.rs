@@ -57,7 +57,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    let starting_xi = starting_players.into_iter().map(|p| convert_player(p)).collect();
+    let starting_xi = starting_players
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
         .into_iter()
@@ -68,7 +71,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(|p| convert_player(p)).collect();
+    let bench = bench_domain
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),

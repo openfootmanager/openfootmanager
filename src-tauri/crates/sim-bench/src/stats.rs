@@ -70,6 +70,24 @@ pub struct BenchStats {
 }
 
 impl BenchStats {
+    fn per_game_u32(&self, value: u32) -> f64 {
+        if self.games == 0 {
+            return 0.0;
+        }
+        value as f64 / self.games as f64
+    }
+
+    fn per_game_u64(&self, value: u64) -> f64 {
+        if self.games == 0 {
+            return 0.0;
+        }
+        value as f64 / self.games as f64
+    }
+
+    fn pct_u32(&self, value: u32) -> f64 {
+        self.per_game_u32(value) * 100.0
+    }
+
     pub fn add(&mut self, report: &MatchReport) {
         self.games += 1;
 
@@ -157,34 +175,34 @@ impl BenchStats {
     // --- Computed metrics ---
 
     pub fn gpg(&self) -> f64 {
-        self.total_goals as f64 / self.games as f64
+        self.per_game_u32(self.total_goals)
     }
     pub fn home_gpg(&self) -> f64 {
-        self.home_goals as f64 / self.games as f64
+        self.per_game_u32(self.home_goals)
     }
     pub fn away_gpg(&self) -> f64 {
-        self.away_goals as f64 / self.games as f64
+        self.per_game_u32(self.away_goals)
     }
     pub fn home_win_pct(&self) -> f64 {
-        self.home_wins as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.home_wins)
     }
     pub fn draw_pct(&self) -> f64 {
-        self.draws as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.draws)
     }
     pub fn away_win_pct(&self) -> f64 {
-        self.away_wins as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.away_wins)
     }
     pub fn clean_sheet_home_pct(&self) -> f64 {
-        self.clean_sheets_home as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.clean_sheets_home)
     }
     pub fn clean_sheet_away_pct(&self) -> f64 {
-        self.clean_sheets_away as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.clean_sheets_away)
     }
     pub fn btts_pct(&self) -> f64 {
-        self.btts as f64 / self.games as f64 * 100.0
+        self.pct_u32(self.btts)
     }
     pub fn shots_pg(&self) -> f64 {
-        self.total_shots as f64 / self.games as f64
+        self.per_game_u64(self.total_shots)
     }
     pub fn shot_accuracy_pct(&self) -> f64 {
         if self.total_shots == 0 {
@@ -199,25 +217,25 @@ impl BenchStats {
         self.total_goals as f64 / self.shots_on_target as f64 * 100.0
     }
     pub fn xg_proxy_pg(&self, conversion_base: f64) -> f64 {
-        (self.shots_on_target as f64 / self.games as f64) * conversion_base
+        self.per_game_u64(self.shots_on_target) * conversion_base
     }
     pub fn yellows_pg(&self) -> f64 {
-        self.yellow_cards as f64 / self.games as f64
+        self.per_game_u64(self.yellow_cards)
     }
     pub fn reds_pg(&self) -> f64 {
-        self.red_cards as f64 / self.games as f64
+        self.per_game_u64(self.red_cards)
     }
     pub fn fouls_pg(&self) -> f64 {
-        self.fouls as f64 / self.games as f64
+        self.per_game_u64(self.fouls)
     }
     pub fn corners_pg(&self) -> f64 {
-        self.corners as f64 / self.games as f64
+        self.per_game_u64(self.corners)
     }
     pub fn free_kicks_pg(&self) -> f64 {
-        self.free_kicks as f64 / self.games as f64
+        self.per_game_u64(self.free_kicks)
     }
     pub fn penalties_pg(&self) -> f64 {
-        self.penalties_awarded as f64 / self.games as f64
+        self.per_game_u64(self.penalties_awarded)
     }
     pub fn penalty_conversion_pct(&self) -> f64 {
         if self.penalties_awarded == 0 {
@@ -226,9 +244,12 @@ impl BenchStats {
         self.penalty_goals as f64 / self.penalties_awarded as f64 * 100.0
     }
     pub fn injuries_pg(&self) -> f64 {
-        self.injuries as f64 / self.games as f64
+        self.per_game_u64(self.injuries)
     }
     pub fn avg_home_possession(&self) -> f64 {
+        if self.games == 0 {
+            return 0.0;
+        }
         self.home_possession_sum / self.games as f64
     }
     pub fn pass_accuracy_pct(&self) -> f64 {
@@ -239,6 +260,9 @@ impl BenchStats {
         self.passes_completed as f64 / total as f64 * 100.0
     }
     pub fn games_per_sec(&self) -> f64 {
+        if self.total_time_secs <= 0.0 {
+            return 0.0;
+        }
         self.games as f64 / self.total_time_secs
     }
     pub fn goal_kicks_pg(&self) -> f64 {
@@ -262,11 +286,7 @@ impl BenchStats {
 
     /// Top N scorelines sorted by frequency descending.
     pub fn top_scorelines(&self, n: usize) -> Vec<((u8, u8), u32)> {
-        let mut list: Vec<_> = self
-            .scorelines
-            .iter()
-            .map(|(&k, &v)| (k, v))
-            .collect();
+        let mut list: Vec<_> = self.scorelines.iter().map(|(&k, &v)| (k, v)).collect();
         list.sort_by(|a, b| b.1.cmp(&a.1));
         list.truncate(n);
         list

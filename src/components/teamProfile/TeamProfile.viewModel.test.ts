@@ -180,4 +180,51 @@ describe("TeamProfile.viewModel", () => {
     expect(viewModel.manager?.id).toBe("manager-1");
     expect(viewModel.standings?.points).toBe(0);
   });
+
+  it("counts loan wage commitments instead of full current-roster wages", () => {
+    const team = createTeam({ id: "team-1" });
+    const gameState = createGameState({
+      players: [
+        createPlayer({
+          id: "owned-player",
+          team_id: "team-1",
+          wage: 10000,
+        }),
+        createPlayer({
+          id: "loaned-out",
+          team_id: "team-2",
+          wage: 20000,
+          active_loan: {
+            parent_team_id: "team-1",
+            loan_team_id: "team-2",
+            start_date: "2026-08-01",
+            end_date: "2027-01-28",
+            wage_contribution_pct: 60,
+            buy_option_fee: null,
+          },
+        }),
+        createPlayer({
+          id: "loaned-in",
+          team_id: "team-1",
+          wage: 30000,
+          active_loan: {
+            parent_team_id: "team-2",
+            loan_team_id: "team-1",
+            start_date: "2026-08-01",
+            end_date: "2027-01-28",
+            wage_contribution_pct: 50,
+            buy_option_fee: null,
+          },
+        }),
+      ],
+    });
+
+    const viewModel = buildTeamProfileViewModel(team, gameState);
+
+    expect(viewModel.roster.map((player) => player.id)).toEqual([
+      "owned-player",
+      "loaned-in",
+    ]);
+    expect(viewModel.totalWages).toBe(33000);
+  });
 });

@@ -81,9 +81,7 @@ pub fn query_schedule(game: &Game, query: &ScheduleQuery) -> Option<ScheduleSlic
     let mut groups: BTreeMap<String, Vec<FixtureSummary>> = BTreeMap::new();
 
     let mut sorted_fixtures: Vec<&Fixture> = competition.fixtures.iter().collect();
-    sorted_fixtures.sort_by(|a, b| {
-        a.date.cmp(&b.date).then(a.matchday.cmp(&b.matchday))
-    });
+    sorted_fixtures.sort_by(|a, b| a.date.cmp(&b.date).then(a.matchday.cmp(&b.matchday)));
 
     for fixture in sorted_fixtures {
         let key = group_key(fixture);
@@ -101,10 +99,12 @@ pub fn query_schedule(game: &Game, query: &ScheduleQuery) -> Option<ScheduleSlic
                 && (f.home_team_id == user_team_id || f.away_team_id == user_team_id)
         })
         .min_by_key(|f| &f.date)
-        .map(|f| group_key(f));
+        .map(group_key);
 
     let next_user_match_date = next_user_match_key.as_deref().and_then(|key| {
-        groups.get(key).and_then(|fs| fs.first().map(|f| f.date.clone()))
+        groups
+            .get(key)
+            .and_then(|fs| fs.first().map(|f| f.date.clone()))
     });
 
     let mut past_groups: Vec<MatchdayGroup> = Vec::new();
@@ -113,7 +113,10 @@ pub fn query_schedule(game: &Game, query: &ScheduleQuery) -> Option<ScheduleSlic
     for (key, fixtures) in groups {
         let date = fixtures.first().map(|f| f.date.clone()).unwrap_or_default();
         let matchday = fixtures.first().map(|f| f.matchday).unwrap_or(0);
-        let competition_str = fixtures.first().map(|f| f.competition.clone()).unwrap_or_default();
+        let competition_str = fixtures
+            .first()
+            .map(|f| f.competition.clone())
+            .unwrap_or_default();
         let is_next_user_match = next_user_match_key.as_deref() == Some(key.as_str());
 
         // A group is "upcoming" when it has any scheduled fixture on or after today.
@@ -177,10 +180,7 @@ fn competition_type_str(c: &FixtureCompetition) -> &'static str {
     }
 }
 
-fn project_fixture<'a>(
-    fixture: &'a Fixture,
-    team_name: &BTreeMap<&str, &str>,
-) -> FixtureSummary {
+fn project_fixture(fixture: &Fixture, team_name: &BTreeMap<&str, &str>) -> FixtureSummary {
     let home_name = team_name
         .get(fixture.home_team_id.as_str())
         .copied()
@@ -224,7 +224,14 @@ mod tests {
     use crate::game::Game;
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, MatchResult};
 
-    fn make_fixture(id: &str, matchday: u32, date: &str, home: &str, away: &str, status: FixtureStatus) -> Fixture {
+    fn make_fixture(
+        id: &str,
+        matchday: u32,
+        date: &str,
+        home: &str,
+        away: &str,
+        status: FixtureStatus,
+    ) -> Fixture {
         Fixture {
             id: id.to_string(),
             competition_id: "league-1".to_string(),
@@ -238,7 +245,15 @@ mod tests {
         }
     }
 
-    fn make_completed_fixture(id: &str, matchday: u32, date: &str, home: &str, away: &str, hg: u8, ag: u8) -> Fixture {
+    fn make_completed_fixture(
+        id: &str,
+        matchday: u32,
+        date: &str,
+        home: &str,
+        away: &str,
+        hg: u8,
+        ag: u8,
+    ) -> Fixture {
         Fixture {
             id: id.to_string(),
             competition_id: "league-1".to_string(),
@@ -263,11 +278,13 @@ mod tests {
         use domain::manager::Manager;
         use domain::team::Team;
 
-        let mut competition = League::default();
-        competition.id = "league-1".to_string();
-        competition.name = "Test League".to_string();
-        competition.fixtures = fixtures;
-        competition.participant_ids = vec!["user-team".to_string(), "other-team".to_string()];
+        let competition = League {
+            id: "league-1".to_string(),
+            name: "Test League".to_string(),
+            fixtures,
+            participant_ids: vec!["user-team".to_string(), "other-team".to_string()],
+            ..Default::default()
+        };
 
         let start: DateTime<chrono::Utc> =
             format!("{today}T00:00:00Z").parse().expect("valid date");
@@ -301,11 +318,7 @@ mod tests {
             25_000,
         );
 
-        let mut game = Game::new(
-            clock, manager,
-            vec![team_a, team_b],
-            vec![], vec![], vec![],
-        );
+        let mut game = Game::new(clock, manager, vec![team_a, team_b], vec![], vec![], vec![]);
         game.competitions = vec![competition];
         game.sync_legacy_league();
         game
@@ -314,7 +327,9 @@ mod tests {
     #[test]
     fn returns_none_for_unknown_competition() {
         let game = make_game(vec![], "2026-08-15", "user-team");
-        let query = ScheduleQuery { competition_id: "no-such-league".to_string() };
+        let query = ScheduleQuery {
+            competition_id: "no-such-league".to_string(),
+        };
         assert!(query_schedule(&game, &query).is_none());
     }
 
@@ -322,11 +337,31 @@ mod tests {
     fn splits_past_and_upcoming_correctly() {
         let fixtures = vec![
             make_completed_fixture("f1", 1, "2026-08-10", "user-team", "other-team", 2, 1),
-            make_fixture("f2", 2, "2026-08-17", "other-team", "user-team", FixtureStatus::Scheduled),
-            make_fixture("f3", 3, "2026-08-24", "user-team", "other-team", FixtureStatus::Scheduled),
+            make_fixture(
+                "f2",
+                2,
+                "2026-08-17",
+                "other-team",
+                "user-team",
+                FixtureStatus::Scheduled,
+            ),
+            make_fixture(
+                "f3",
+                3,
+                "2026-08-24",
+                "user-team",
+                "other-team",
+                FixtureStatus::Scheduled,
+            ),
         ];
         let game = make_game(fixtures, "2026-08-15", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
 
         assert_eq!(slice.past_groups.len(), 1);
         assert_eq!(slice.upcoming_groups.len(), 2);
@@ -340,11 +375,31 @@ mod tests {
     fn marks_next_user_match_group() {
         let fixtures = vec![
             make_completed_fixture("f1", 1, "2026-08-10", "user-team", "other-team", 2, 1),
-            make_fixture("f2", 2, "2026-08-17", "other-team", "user-team", FixtureStatus::Scheduled),
-            make_fixture("f3", 3, "2026-08-24", "user-team", "other-team", FixtureStatus::Scheduled),
+            make_fixture(
+                "f2",
+                2,
+                "2026-08-17",
+                "other-team",
+                "user-team",
+                FixtureStatus::Scheduled,
+            ),
+            make_fixture(
+                "f3",
+                3,
+                "2026-08-24",
+                "user-team",
+                "other-team",
+                FixtureStatus::Scheduled,
+            ),
         ];
         let game = make_game(fixtures, "2026-08-15", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
 
         // Matchday 2 contains user team first upcoming match.
         let next = slice.upcoming_groups.iter().find(|g| g.is_next_user_match);
@@ -355,11 +410,23 @@ mod tests {
 
     #[test]
     fn no_next_match_when_all_completed() {
-        let fixtures = vec![
-            make_completed_fixture("f1", 1, "2026-08-10", "user-team", "other-team", 1, 0),
-        ];
+        let fixtures = vec![make_completed_fixture(
+            "f1",
+            1,
+            "2026-08-10",
+            "user-team",
+            "other-team",
+            1,
+            0,
+        )];
         let game = make_game(fixtures, "2026-08-15", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
         assert!(slice.next_user_match_date.is_none());
         assert!(slice.upcoming_groups.iter().all(|g| !g.is_next_user_match));
     }
@@ -381,13 +448,26 @@ mod tests {
             ));
         }
         let game = make_game(fixtures, "2026-08-01", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
 
         // Upcoming groups must be in ascending date order (matchday 1 first, 12 last).
-        let dates: Vec<&str> = slice.upcoming_groups.iter().map(|g| g.date.as_str()).collect();
+        let dates: Vec<&str> = slice
+            .upcoming_groups
+            .iter()
+            .map(|g| g.date.as_str())
+            .collect();
         let mut sorted = dates.clone();
         sorted.sort();
-        assert_eq!(dates, sorted, "upcoming_groups must be sorted by date, not lexicographic key");
+        assert_eq!(
+            dates, sorted,
+            "upcoming_groups must be sorted by date, not lexicographic key"
+        );
         // Verify matchday 1 (earliest date) is first, not matchday 10.
         assert_eq!(slice.upcoming_groups[0].matchday, 1);
         assert_eq!(slice.upcoming_groups[9].matchday, 10);
@@ -409,24 +489,44 @@ mod tests {
             ));
         }
         let game = make_game(fixtures, "2026-08-15", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
 
         // Past groups must be in descending date order (matchday 12 first, 1 last).
         let dates: Vec<&str> = slice.past_groups.iter().map(|g| g.date.as_str()).collect();
         let mut sorted_desc = dates.clone();
         sorted_desc.sort_by(|a, b| b.cmp(a));
-        assert_eq!(dates, sorted_desc, "past_groups must be sorted by date descending");
+        assert_eq!(
+            dates, sorted_desc,
+            "past_groups must be sorted by date descending"
+        );
         assert_eq!(slice.past_groups[0].matchday, 12);
         assert_eq!(slice.past_groups[11].matchday, 1);
     }
 
     #[test]
     fn team_names_are_resolved() {
-        let fixtures = vec![
-            make_fixture("f1", 1, "2026-08-17", "user-team", "other-team", FixtureStatus::Scheduled),
-        ];
+        let fixtures = vec![make_fixture(
+            "f1",
+            1,
+            "2026-08-17",
+            "user-team",
+            "other-team",
+            FixtureStatus::Scheduled,
+        )];
         let game = make_game(fixtures, "2026-08-15", "user-team");
-        let slice = query_schedule(&game, &ScheduleQuery { competition_id: "league-1".to_string() }).unwrap();
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".to_string(),
+            },
+        )
+        .unwrap();
 
         let fixture = &slice.upcoming_groups[0].fixtures[0];
         assert_eq!(fixture.home_team_name, "User FC");

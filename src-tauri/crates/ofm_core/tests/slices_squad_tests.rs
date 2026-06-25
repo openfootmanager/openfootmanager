@@ -8,27 +8,50 @@ use ofm_core::slices::squad::query_squad;
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
-        pace: 65, stamina: 65, strength: 65, agility: 65,
-        passing: 65, shooting: 65, tackling: 65, dribbling: 65,
-        defending: 65, positioning: 65, vision: 65, decisions: 65,
-        composure: 65, aggression: 50, teamwork: 65, leadership: 50,
-        handling: 20, reflexes: 20, aerial: 65,
+        pace: 65,
+        stamina: 65,
+        strength: 65,
+        agility: 65,
+        passing: 65,
+        shooting: 65,
+        tackling: 65,
+        dribbling: 65,
+        defending: 65,
+        positioning: 65,
+        vision: 65,
+        decisions: 65,
+        composure: 65,
+        aggression: 50,
+        teamwork: 65,
+        leadership: 50,
+        handling: 20,
+        reflexes: 20,
+        aerial: 65,
     }
 }
 
 fn make_team(id: &str, name: &str) -> Team {
     let short: String = name.chars().take(3).collect();
     Team::new(
-        id.to_string(), name.to_string(), short,
-        "GB".to_string(), "City".to_string(), "Ground".to_string(), 20_000,
+        id.to_string(),
+        name.to_string(),
+        short,
+        "GB".to_string(),
+        "City".to_string(),
+        "Ground".to_string(),
+        20_000,
     )
 }
 
 fn make_player(id: &str, team_id: Option<&str>) -> Player {
     let mut p = Player::new(
-        id.to_string(), id.to_string(), format!("Player {id}"),
-        "2000-01-01".to_string(), "GB".to_string(),
-        Position::Midfielder, default_attrs(),
+        id.to_string(),
+        id.to_string(),
+        format!("Player {id}"),
+        "2000-01-01".to_string(),
+        "GB".to_string(),
+        Position::Midfielder,
+        default_attrs(),
     );
     p.team_id = team_id.map(String::from);
     p
@@ -37,8 +60,11 @@ fn make_player(id: &str, team_id: Option<&str>) -> Player {
 fn make_game(teams: Vec<Team>, players: Vec<Player>) -> Game {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
     let manager = Manager::new(
-        "m".to_string(), "M".to_string(), "Gr".to_string(),
-        "1980-01-01".to_string(), "GB".to_string(),
+        "m".to_string(),
+        "M".to_string(),
+        "Gr".to_string(),
+        "1980-01-01".to_string(),
+        "GB".to_string(),
     );
     Game::new(clock, manager, teams, players, vec![], vec![])
 }
@@ -71,10 +97,7 @@ fn squad_includes_all_players_regardless_of_squad_role() {
     youth.squad_role = domain::player::SquadRole::Youth;
     let mut senior = make_player("senior", Some("t1"));
     senior.squad_role = domain::player::SquadRole::Senior;
-    let game = make_game(
-        vec![make_team("t1", "Alpha FC")],
-        vec![youth, senior],
-    );
+    let game = make_game(vec![make_team("t1", "Alpha FC")], vec![youth, senior]);
 
     let squad = query_squad(&game, "t1");
 
@@ -95,7 +118,8 @@ fn squad_matches_full_game_player_filter() {
     );
 
     let squad = query_squad(&game, "t1");
-    let expected: Vec<&domain::player::Player> = game.players
+    let expected: Vec<&domain::player::Player> = game
+        .players
         .iter()
         .filter(|p| p.team_id.as_deref() == Some("t1"))
         .collect();

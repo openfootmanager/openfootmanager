@@ -164,8 +164,12 @@ pub struct League {
     pub name_key: Option<String>,
 }
 
-fn default_season_start_month() -> u8 { 8 }
-fn default_season_start_day() -> u8 { 1 }
+fn default_season_start_month() -> u8 {
+    8
+}
+fn default_season_start_day() -> u8 {
+    1
+}
 
 impl Default for League {
     fn default() -> Self {

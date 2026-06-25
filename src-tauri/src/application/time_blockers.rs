@@ -5,9 +5,7 @@ use ofm_core::game::Game;
 use ofm_core::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use ofm_core::squad_safety::{project_user_team_planned_exit_safety, user_team_squad_safety};
 
-fn user_team_context<'a>(
-    game: &'a Game,
-) -> Option<(&'a domain::team::Team, Vec<&'a domain::player::Player>)> {
+fn user_team_context(game: &Game) -> Option<(&domain::team::Team, Vec<&domain::player::Player>)> {
     let user_team_id = game.manager.team_id.as_deref()?;
     let team = game.teams.iter().find(|team| team.id == user_team_id)?;
     let roster = game

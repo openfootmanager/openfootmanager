@@ -51,7 +51,8 @@ fn default_world_history_json() -> String {
 /// rejects saves newer than this and migrates + restamps older ones.
 /// v3 = `competitions` is the source of truth (legacy `game.league` demoted to a
 /// back-compat mirror, populated from it on load for pre-v3 saves).
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 3;
+/// v4 = opening AI loan listings are seeded once for existing careers.
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 4;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).

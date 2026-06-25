@@ -12,8 +12,7 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use domain::league::{
-    CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
-    StandingEntry,
+    CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League, StandingEntry,
 };
 use domain::team::Team;
 
@@ -300,8 +299,11 @@ fn check_berth_target(
 ) {
     if !known_ids.contains(target) {
         errors.push(
-            DefinitionError::new("be.error.competitionDef.berthUnknownTarget", &competition.id)
-                .with("target", target.to_string()),
+            DefinitionError::new(
+                "be.error.competitionDef.berthUnknownTarget",
+                &competition.id,
+            )
+            .with("target", target.to_string()),
         );
     }
 }
@@ -377,36 +379,37 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
             &competition.id,
         ));
     }
-    if let Some(month) = competition.season_start_month {
-        if !(1..=12).contains(&month) {
-            errors.push(
-                DefinitionError::new("be.error.competitionDef.invalidSeasonMonth", &competition.id)
-                    .with("month", month.to_string()),
-            );
-        }
+    if let Some(month) = competition.season_start_month
+        && !(1..=12).contains(&month)
+    {
+        errors.push(
+            DefinitionError::new(
+                "be.error.competitionDef.invalidSeasonMonth",
+                &competition.id,
+            )
+            .with("month", month.to_string()),
+        );
     }
-    if let Some(day) = competition.season_start_day {
-        if !(1..=31).contains(&day) {
-            errors.push(
-                DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
-                    .with("day", day.to_string()),
-            );
-        }
+    if let Some(day) = competition.season_start_day
+        && !(1..=31).contains(&day)
+    {
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
+                .with("day", day.to_string()),
+        );
     }
     // Cross-check month + day using a leap year as probe so Feb 29 is accepted
     // (it clamps to Feb 28 at runtime). This rejects truly impossible dates
     // such as Apr 31 or Feb 30 that pass the independent range checks above.
     if let (Some(month), Some(day)) = (competition.season_start_month, competition.season_start_day)
+        && (1..=12).contains(&month)
+        && (1..=31).contains(&day)
+        && NaiveDate::from_ymd_opt(2000, month as u32, day as u32).is_none()
     {
-        if (1..=12).contains(&month)
-            && (1..=31).contains(&day)
-            && NaiveDate::from_ymd_opt(2000, month as u32, day as u32).is_none()
-        {
-            errors.push(
-                DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
-                    .with("day", day.to_string()),
-            );
-        }
+        errors.push(
+            DefinitionError::new("be.error.competitionDef.invalidSeasonDay", &competition.id)
+                .with("day", day.to_string()),
+        );
     }
     if let Some(group_size) = format.group_size
         && group_size < 2
@@ -539,10 +542,7 @@ fn validate_selector(
 
 /// `championsOf` selectors create dependencies between competitions; a cycle
 /// would make resolution impossible.
-fn detect_selector_cycles(
-    file: &CompetitionDefinitionFile,
-    errors: &mut Vec<DefinitionError>,
-) {
+fn detect_selector_cycles(file: &CompetitionDefinitionFile, errors: &mut Vec<DefinitionError>) {
     let mut dependencies: HashMap<&str, &str> = HashMap::new();
     for competition in &file.competitions {
         if let Some(selector) = &competition.participants.selector
@@ -559,11 +559,8 @@ fn detect_selector_cycles(
         while let Some(&next) = dependencies.get(current) {
             if next == start {
                 errors.push(
-                    DefinitionError::new(
-                        "be.error.competitionDef.selectorCycle",
-                        start,
-                    )
-                    .with("competition", start),
+                    DefinitionError::new("be.error.competitionDef.selectorCycle", start)
+                        .with("competition", start),
                 );
                 break;
             }
@@ -646,7 +643,7 @@ fn fixture_competition_for(kind: &CompetitionType) -> FixtureCompetition {
     }
 }
 
-fn team_country<'a>(team: &'a Team) -> &'a str {
+fn team_country(team: &Team) -> &str {
     if team.football_nation.is_empty() {
         team.country.as_str()
     } else {
@@ -793,8 +790,7 @@ fn build_competition(
 
     let mut competition = match def.format.kind {
         CompetitionFormat::LeagueTable => {
-            let mut league =
-                League::new(def.id.clone(), def.name.clone(), season, team_ids);
+            let mut league = League::new(def.id.clone(), def.name.clone(), season, team_ids);
             league.fixtures = crate::schedule::build_round_robin_fixtures_with(
                 &def.id,
                 team_ids,
@@ -806,8 +802,7 @@ fn build_competition(
             league
         }
         CompetitionFormat::Knockout => {
-            let mut cup =
-                League::new(def.id.clone(), def.name.clone(), season, team_ids);
+            let mut cup = League::new(def.id.clone(), def.name.clone(), season, team_ids);
             cup.standings.clear();
             cup.rules.format = CompetitionFormat::Knockout;
             crate::schedule::seed_knockout_round(
@@ -853,7 +848,10 @@ fn build_competition(
     competition.name_key = def.name_key.clone();
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
-        competition.standings = team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect();
+        competition.standings = team_ids
+            .iter()
+            .map(|id| StandingEntry::new(id.clone()))
+            .collect();
     }
     Some(competition)
 }
@@ -1212,28 +1210,29 @@ mod tests {
             team.reputation = reputation;
             team
         };
-        let mut world = super::super::WorldData::default();
-        world.teams = vec![
-            make("tr-a", "TR", 900),
-            make("tr-b", "TR", 800),
-            make("tr-c", "TR", 700),
-            make("tr-d", "TR", 600),
-            make("jp-a", "JP", 850),
-            make("jp-b", "JP", 750),
-        ];
-        world.regions = vec![
-            super::super::WorldRegionDefinition {
-                id: "europe".to_string(),
-                name: "Europe".to_string(),
-                country_codes: vec!["TR".to_string()],
-            },
-            super::super::WorldRegionDefinition {
-                id: "asia".to_string(),
-                name: "Asia".to_string(),
-                country_codes: vec!["JP".to_string()],
-            },
-        ];
-        world
+        super::super::WorldData {
+            teams: vec![
+                make("tr-a", "TR", 900),
+                make("tr-b", "TR", 800),
+                make("tr-c", "TR", 700),
+                make("tr-d", "TR", 600),
+                make("jp-a", "JP", 850),
+                make("jp-b", "JP", 750),
+            ],
+            regions: vec![
+                super::super::WorldRegionDefinition {
+                    id: "europe".to_string(),
+                    name: "Europe".to_string(),
+                    country_codes: vec!["TR".to_string()],
+                },
+                super::super::WorldRegionDefinition {
+                    id: "asia".to_string(),
+                    name: "Asia".to_string(),
+                    country_codes: vec!["JP".to_string()],
+                },
+            ],
+            ..Default::default()
+        }
     }
 
     fn start() -> DateTime<Utc> {
@@ -1241,7 +1240,12 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap()
     }
 
-    fn selector_def(id: &str, ty: CompetitionType, format: CompetitionFormat, selector: SelectorSpec) -> CompetitionDefinition {
+    fn selector_def(
+        id: &str,
+        ty: CompetitionType,
+        format: CompetitionFormat,
+        selector: SelectorSpec,
+    ) -> CompetitionDefinition {
         CompetitionDefinition {
             id: id.to_string(),
             name: id.to_string(),
@@ -1258,7 +1262,10 @@ mod tests {
                 qualifiers_per_group: None,
                 best_third_qualifiers: None,
             },
-            participants: ParticipantSpec { explicit: None, selector: Some(selector) },
+            participants: ParticipantSpec {
+                explicit: None,
+                selector: Some(selector),
+            },
             berths: Vec::new(),
             season_start_month: None,
             season_start_day: None,
@@ -1353,10 +1360,7 @@ mod tests {
         let afc = competitions.iter().find(|c| c.id == "afc").unwrap();
         assert_eq!(afc.rules.format, CompetitionFormat::GroupAndKnockout);
         // Top 4 Turkish clubs by reputation qualified.
-        assert_eq!(
-            afc.participant_ids,
-            vec!["tr-a", "tr-b", "tr-c", "tr-d"]
-        );
+        assert_eq!(afc.participant_ids, vec!["tr-a", "tr-b", "tr-c", "tr-d"]);
         // The generated id was rewritten to the stable definition id everywhere.
         assert!(afc.fixtures.iter().all(|f| f.competition_id == "afc"));
         assert!(afc.groups.iter().all(|g| g.id.starts_with("afc-group-")));

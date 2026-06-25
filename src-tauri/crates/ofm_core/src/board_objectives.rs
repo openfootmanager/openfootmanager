@@ -131,7 +131,7 @@ pub fn generate_objectives(game: &mut Game) {
             }
         })
         .filter(|&count| count > 1)
-        .unwrap_or_else(|| game.teams.len()) as u32;
+        .unwrap_or(game.teams.len()) as u32;
     let reputation = team.reputation;
     let targets = objective_targets(reputation, num_teams);
 

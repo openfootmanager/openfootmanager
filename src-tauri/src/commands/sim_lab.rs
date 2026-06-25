@@ -145,6 +145,13 @@ fn validate_probability(name: &str, value: f64) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_rating(name: &str, value: u8) -> Result<(), String> {
+    if !(10..=99).contains(&value) {
+        return Err(format!("{name} must be between 10 and 99, got {value}"));
+    }
+    Ok(())
+}
+
 /// Run a batch of headless simulations and return aggregate statistics.
 #[tauri::command]
 pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> {
@@ -154,13 +161,29 @@ pub fn run_sim_batch(config: SimBatchConfig) -> Result<SimBatchResults, String> 
             config.games
         ));
     }
-    if let Some(v) = config.shot_accuracy_base { validate_probability("shot_accuracy_base", v)?; }
-    if let Some(v) = config.goal_conversion_base { validate_probability("goal_conversion_base", v)?; }
-    if let Some(v) = config.foul_probability { validate_probability("foul_probability", v)?; }
-    if let Some(v) = config.yellow_card_probability { validate_probability("yellow_card_probability", v)?; }
-    if let Some(v) = config.red_card_probability { validate_probability("red_card_probability", v)?; }
-    if let Some(v) = config.penalty_probability { validate_probability("penalty_probability", v)?; }
-    if let Some(v) = config.injury_probability { validate_probability("injury_probability", v)?; }
+    validate_rating("home_rating", config.home_rating)?;
+    validate_rating("away_rating", config.away_rating)?;
+    if let Some(v) = config.shot_accuracy_base {
+        validate_probability("shot_accuracy_base", v)?;
+    }
+    if let Some(v) = config.goal_conversion_base {
+        validate_probability("goal_conversion_base", v)?;
+    }
+    if let Some(v) = config.foul_probability {
+        validate_probability("foul_probability", v)?;
+    }
+    if let Some(v) = config.yellow_card_probability {
+        validate_probability("yellow_card_probability", v)?;
+    }
+    if let Some(v) = config.red_card_probability {
+        validate_probability("red_card_probability", v)?;
+    }
+    if let Some(v) = config.penalty_probability {
+        validate_probability("penalty_probability", v)?;
+    }
+    if let Some(v) = config.injury_probability {
+        validate_probability("injury_probability", v)?;
+    }
 
     let match_config = build_match_config(&config);
     let base_seed = config.seed.unwrap_or_else(system_seed);
@@ -207,6 +230,9 @@ pub fn run_single_seeded_match(
     home_rating: u8,
     away_rating: u8,
 ) -> Result<SingleMatchResult, String> {
+    validate_rating("home_rating", home_rating)?;
+    validate_rating("away_rating", away_rating)?;
+
     let match_config = MatchConfig::default();
     let mut team_rng = StdRng::seed_from_u64(seed.wrapping_add(0xDEAD_BEEF));
 
@@ -342,6 +368,11 @@ impl Aggregator {
 
     fn into_results(self, games: u32, elapsed: f64, conversion_base: f64) -> SimBatchResults {
         let n = games as f64;
+        let games_per_sec = if elapsed <= 0.0 {
+            0.0
+        } else {
+            games as f64 / elapsed
+        };
 
         let gpg = self.total_goals as f64 / n;
         let shot_acc = if self.total_shots == 0 {
@@ -363,22 +394,14 @@ impl Aggregator {
 
         // Histogram as fractions
         let hist: Vec<f64> = (0u8..=9)
-            .map(|g| {
-                self.goals_per_game_hist
-                    .get(&g)
-                    .copied()
-                    .unwrap_or(0) as f64
-                    / n
-            })
+            .map(|g| self.goals_per_game_hist.get(&g).copied().unwrap_or(0) as f64 / n)
             .collect();
 
         // Scoreline heatmap [0..=5][0..=5] as fractions
         let heatmap: Vec<Vec<f64>> = (0u8..=5)
             .map(|hg| {
                 (0u8..=5)
-                    .map(|ag| {
-                        self.scorelines.get(&(hg, ag)).copied().unwrap_or(0) as f64 / n
-                    })
+                    .map(|ag| self.scorelines.get(&(hg, ag)).copied().unwrap_or(0) as f64 / n)
                     .collect()
             })
             .collect();
@@ -431,7 +454,7 @@ impl Aggregator {
             scoreline_heatmap: heatmap,
             goals_by_bucket: bucket_fracs,
             total_time_secs: elapsed,
-            games_per_sec: games as f64 / elapsed,
+            games_per_sec,
         }
     }
 }
@@ -488,7 +511,13 @@ fn goal_bucket(minute: u8) -> usize {
     }
 }
 
-fn build_team(id: &str, avg_ovr: u8, play_style: PlayStyle, formation: &str, rng: &mut StdRng) -> TeamData {
+fn build_team(
+    id: &str,
+    avg_ovr: u8,
+    play_style: PlayStyle,
+    formation: &str,
+    rng: &mut StdRng,
+) -> TeamData {
     let (n_def, n_mid, n_fwd) = parse_formation(formation);
     let mut players = Vec::with_capacity(11);
 
@@ -497,7 +526,14 @@ fn build_team(id: &str, avg_ovr: u8, play_style: PlayStyle, formation: &str, rng
         players.push(make_player(id, "DEF", i, Position::Defender, avg_ovr, rng));
     }
     for i in 1..=n_mid {
-        players.push(make_player(id, "MID", i, Position::Midfielder, avg_ovr, rng));
+        players.push(make_player(
+            id,
+            "MID",
+            i,
+            Position::Midfielder,
+            avg_ovr,
+            rng,
+        ));
     }
     for i in 1..=n_fwd {
         players.push(make_player(id, "FWD", i, Position::Forward, avg_ovr, rng));
@@ -514,9 +550,9 @@ fn build_team(id: &str, avg_ovr: u8, play_style: PlayStyle, formation: &str, rng
 }
 
 fn parse_formation(formation: &str) -> (u8, u8, u8) {
-    let parts: Vec<u8> = formation
+    let parts: Vec<u16> = formation
         .split('-')
-        .filter_map(|s| s.parse::<u8>().ok())
+        .filter_map(|s| s.parse::<u16>().ok())
         .collect();
     let result = match parts.len() {
         2 => (parts[0], 0, parts[1]),
@@ -528,7 +564,7 @@ fn parse_formation(formation: &str) -> (u8, u8, u8) {
     if result.0 + result.1 + result.2 != 10 {
         return (4, 4, 2);
     }
-    result
+    (result.0 as u8, result.1 as u8, result.2 as u8)
 }
 
 fn make_player(

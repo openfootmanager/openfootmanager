@@ -14,10 +14,7 @@ pub struct RunConfig<'a> {
 }
 
 pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
-    let seed_line = cfg
-        .seed
-        .map(|s| format!(" · seed {s}"))
-        .unwrap_or_default();
+    let seed_line = cfg.seed.map(|s| format!(" · seed {s}")).unwrap_or_default();
 
     let xg = stats.xg_proxy_pg(cfg.goal_conversion_base);
     let goals_vs_xg = stats.gpg() - xg;
@@ -459,12 +456,7 @@ fn goals_histogram(stats: &BenchStats) -> String {
 }
 
 fn scoreline_heatmap(stats: &BenchStats) -> String {
-    let max_count = stats
-        .scorelines
-        .values()
-        .copied()
-        .max()
-        .unwrap_or(1) as f64;
+    let max_count = stats.scorelines.values().copied().max().unwrap_or(1) as f64;
 
     // Build 7×7 grid (0–6 per side), first row/col are headers
     // columns = away goals 0..6, rows = home goals 0..6
@@ -474,7 +466,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
     // Header row
     cells.push_str(r#"<div class="heatmap-cell heatmap-header"></div>"#);
     for ag in 0u8..=6 {
-        let label = if ag == 6 { "6+".to_string() } else { ag.to_string() };
+        let label = if ag == 6 {
+            "6+".to_string()
+        } else {
+            ag.to_string()
+        };
         cells.push_str(&format!(
             r#"<div class="heatmap-cell heatmap-header">{label}</div>"#
         ));
@@ -482,7 +478,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
 
     // Data rows
     for hg in 0u8..=6 {
-        let label = if hg == 6 { "6+".to_string() } else { hg.to_string() };
+        let label = if hg == 6 {
+            "6+".to_string()
+        } else {
+            hg.to_string()
+        };
         cells.push_str(&format!(
             r#"<div class="heatmap-cell heatmap-header">{label}</div>"#
         ));
@@ -494,7 +494,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
             } else {
                 0.1 + (count as f64 / max_count) * 0.85
             };
-            let text_color = if opacity > 0.55 { "#fff" } else { "var(--muted)" };
+            let text_color = if opacity > 0.55 {
+                "#fff"
+            } else {
+                "var(--muted)"
+            };
             cells.push_str(&format!(
                 r#"<div class="heatmap-cell" style="background:rgba(79,142,247,{opacity:.2});color:{text_color}" title="{hg}-{ag}: {count} games ({pct:.1}%)">{pct_text}</div>"#,
                 pct_text = if count == 0 {
@@ -764,8 +768,20 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
     let rows = [
         ("Goals/game", stats.gpg(), 2.3, 3.0, "f64"),
         ("Shots/game", stats.shots_pg(), 18.0, 32.0, "f64"),
-        ("Shots on target %", stats.shot_accuracy_pct(), 32.0, 45.0, "pct"),
-        ("Goal conversion %", stats.goal_conversion_pct(), 20.0, 40.0, "pct"),
+        (
+            "Shots on target %",
+            stats.shot_accuracy_pct(),
+            32.0,
+            45.0,
+            "pct",
+        ),
+        (
+            "Goal conversion %",
+            stats.goal_conversion_pct(),
+            20.0,
+            40.0,
+            "pct",
+        ),
         ("Yellow cards/game", stats.yellows_pg(), 2.0, 4.0, "f64"),
         ("Red cards/game", stats.reds_pg(), 0.05, 0.15, "f64"),
         ("Fouls/game", stats.fouls_pg(), 18.0, 28.0, "f64"),
@@ -773,9 +789,21 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
         ("Goal kicks/game", stats.goal_kicks_pg(), 8.0, 14.0, "f64"),
         ("Crosses/game", stats.crosses_pg(), 15.0, 30.0, "f64"),
         ("Home win %", stats.home_win_pct(), 40.0, 52.0, "pct"),
-        ("Clean sheet %", stats.clean_sheet_home_pct(), 22.0, 35.0, "pct"),
+        (
+            "Clean sheet %",
+            stats.clean_sheet_home_pct(),
+            22.0,
+            35.0,
+            "pct",
+        ),
         ("Penalties/game", stats.penalties_pg(), 0.20, 0.50, "f64"),
-        ("Pen. conversion %", stats.penalty_conversion_pct(), 65.0, 85.0, "pct"),
+        (
+            "Pen. conversion %",
+            stats.penalty_conversion_pct(),
+            65.0,
+            85.0,
+            "pct",
+        ),
         ("BTTS %", stats.btts_pct(), 50.0, 55.0, "pct"),
         ("Open play goals %", stats.open_play_goal_pct(), 60.0, 75.0, "pct"),
         ("Corner goals %", stats.corner_goal_pct(), 10.0, 20.0, "pct"),

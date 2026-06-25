@@ -4,15 +4,20 @@ use domain::manager::Manager;
 use domain::message::MessageCategory;
 use domain::news::{NewsArticle, NewsCategory};
 use domain::player::{
-    Player, PlayerAttributes, PlayerIssueCategory, Position, TransferOffer, TransferOfferStatus,
+    ActiveLoan, LoanOffer, LoanOfferStatus, Player, PlayerAttributes, PlayerIssueCategory,
+    PlayerMovementKind, Position, TransferOffer, TransferOfferStatus,
 };
 use domain::season::TransferWindowStatus;
 use domain::team::Team;
 use ofm_core::clock::GameClock;
+use ofm_core::finances::calc_annual_wages;
 use ofm_core::game::Game;
 use ofm_core::transfers::{
-    TransferNegotiationDecision, counter_offer, evaluate_transfer_market,
-    generate_incoming_transfer_offers, make_transfer_bid, respond_to_offer,
+    LoanOfferDecision, TransferNegotiationDecision, counter_loan_offer, counter_offer,
+    evaluate_transfer_market, exercise_loan_buy_option, generate_incoming_transfer_offers,
+    make_loan_offer, make_transfer_bid, process_loan_development_reports, process_loan_returns,
+    process_pending_loan_registrations, respond_to_loan_offer, respond_to_offer,
+    seed_opening_ai_loan_market,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -72,6 +77,31 @@ fn make_pending_incoming_offer(id: &str, fee: u64) -> TransferOffer {
         negotiation_round: 1,
         suggested_counter_fee: None,
         status: TransferOfferStatus::Pending,
+        date: "2026-08-01".to_string(),
+    }
+}
+
+fn make_pending_incoming_loan_offer(
+    id: &str,
+    wage_contribution_pct: u8,
+    buy_option_fee: Option<u64>,
+) -> LoanOffer {
+    LoanOffer {
+        id: id.to_string(),
+        from_team_id: "team-2".to_string(),
+        parent_team_id: "team-1".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct,
+        buy_option_fee,
+        last_manager_wage_contribution_pct: None,
+        last_manager_end_date: None,
+        last_manager_buy_option_fee: None,
+        negotiation_round: 1,
+        suggested_wage_contribution_pct: None,
+        suggested_end_date: None,
+        suggested_buy_option_fee: None,
+        status: LoanOfferStatus::Pending,
         date: "2026-08-01".to_string(),
     }
 }
@@ -164,6 +194,106 @@ fn attach_transfer_log_league(game: &mut Game) {
 }
 
 #[test]
+fn opening_loan_market_seeds_only_eligible_ai_players() {
+    let mut existing_listing = make_player("existing-listing");
+    existing_listing.loan_listed = true;
+    existing_listing.date_of_birth = "2001-01-01".to_string();
+
+    let mut youngest_eligible = make_player("youngest-eligible");
+    youngest_eligible.date_of_birth = "2006-01-01".to_string();
+
+    let mut older_eligible = make_player("older-eligible");
+    older_eligible.date_of_birth = "2002-01-01".to_string();
+
+    let mut starter = make_player("starter");
+    starter.date_of_birth = "2007-01-01".to_string();
+
+    let mut transfer_listed = make_player("transfer-listed");
+    transfer_listed.date_of_birth = "2008-01-01".to_string();
+    transfer_listed.transfer_listed = true;
+
+    let mut short_contract = make_player("short-contract");
+    short_contract.date_of_birth = "2009-01-01".to_string();
+    short_contract.contract_end = Some("2026-09-01".to_string());
+
+    let mut user_player = make_user_player("user-player");
+    user_player.date_of_birth = "2010-01-01".to_string();
+
+    let mut game = make_game_with_player(
+        existing_listing,
+        vec!["starter".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.players.extend([
+        youngest_eligible,
+        older_eligible,
+        starter,
+        transfer_listed,
+        short_contract,
+        user_player,
+    ]);
+
+    let seeded = seed_opening_ai_loan_market(&mut game);
+
+    assert_eq!(seeded, 1);
+    assert!(
+        game.players
+            .iter()
+            .find(|player| player.id == "existing-listing")
+            .unwrap()
+            .loan_listed
+    );
+    assert!(
+        game.players
+            .iter()
+            .find(|player| player.id == "youngest-eligible")
+            .unwrap()
+            .loan_listed
+    );
+    for excluded in [
+        "older-eligible",
+        "starter",
+        "transfer-listed",
+        "short-contract",
+        "user-player",
+    ] {
+        assert!(
+            !game
+                .players
+                .iter()
+                .find(|player| player.id == excluded)
+                .unwrap()
+                .loan_listed,
+            "{excluded} should not be automatically loan-listed"
+        );
+    }
+}
+
+#[test]
+fn opening_loan_market_is_idempotent_after_each_ai_club_reaches_target() {
+    let mut first = make_player("first");
+    first.date_of_birth = "2005-01-01".to_string();
+    let mut second = make_player("second");
+    second.date_of_birth = "2004-01-01".to_string();
+    let mut third = make_player("third");
+    third.date_of_birth = "2003-01-01".to_string();
+
+    let mut game = make_game_with_player(first, vec![], 5_000_000, 2_000_000);
+    game.players.extend([second, third]);
+
+    assert_eq!(seed_opening_ai_loan_market(&mut game), 2);
+    assert_eq!(seed_opening_ai_loan_market(&mut game), 0);
+    assert_eq!(
+        game.players
+            .iter()
+            .filter(|player| player.loan_listed)
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
     let mut player = make_user_player("player-window-closed");
     player.contract_end = Some("2026-09-01".to_string());
@@ -198,6 +328,1071 @@ fn transfer_bid_is_rejected_when_window_is_closed() {
 }
 
 #[test]
+fn accepted_loan_offer_moves_player_until_return_date() {
+    let mut player = make_player("player-loan-target");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 2;
+    player.stats.minutes_played = 180;
+    player.wage = 520_000;
+
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-loan-target".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+
+    let result = make_loan_offer(&mut game, "player-loan-target", "2027-01-01", 100, None)
+        .expect("listed player should accept strong loan terms");
+
+    assert_eq!(
+        result.decision,
+        ofm_core::transfers::LoanOfferDecision::Accepted
+    );
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-target")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(!player.loan_listed);
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Accepted);
+    let loan = player.active_loan.as_ref().expect("active loan");
+    assert_eq!(loan.parent_team_id, "team-2");
+    assert_eq!(loan.loan_team_id, "team-1");
+    assert_eq!(loan.end_date, "2027-01-01");
+    assert_eq!(loan.wage_contribution_pct, 100);
+    assert_eq!(loan.loan_start_minutes, 180);
+    assert_eq!(loan.loan_start_appearances, 2);
+    assert_eq!(loan.development_reported_minutes, 180);
+    assert_eq!(loan.development_reported_appearances, 2);
+    assert!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .unwrap()
+            .starting_xi_ids
+            .is_empty()
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+    process_loan_returns(&mut game);
+
+    let returned_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-target")
+        .unwrap();
+    assert_eq!(returned_player.team_id.as_deref(), Some("team-2"));
+    assert!(returned_player.active_loan.is_none());
+    assert!(returned_player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanStart
+            && entry.from_team_id.as_deref() == Some("team-2")
+            && entry.to_team_id.as_deref() == Some("team-1")
+    }));
+    assert!(returned_player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanReturn
+            && entry.from_team_id.as_deref() == Some("team-1")
+            && entry.to_team_id.as_deref() == Some("team-2")
+    }));
+}
+
+#[test]
+fn accepted_closed_window_loan_is_registered_when_the_window_opens() {
+    let mut player = make_player("player-scheduled-loan");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.wage = 520_000;
+
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-scheduled-loan".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    let result = make_loan_offer(&mut game, "player-scheduled-loan", "2027-06-30", 100, None)
+        .expect("strong terms should be agreed outside the registration window");
+
+    assert_eq!(result.decision, LoanOfferDecision::Accepted);
+    let scheduled_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-loan")
+        .unwrap();
+    assert_eq!(scheduled_player.team_id.as_deref(), Some("team-2"));
+    assert!(scheduled_player.active_loan.is_none());
+    assert!(!scheduled_player.loan_listed);
+    assert_eq!(
+        scheduled_player.loan_offers[0].status,
+        LoanOfferStatus::PendingRegistration
+    );
+    assert_eq!(scheduled_player.loan_offers[0].start_date, "2027-01-01");
+    assert!(
+        game.news
+            .iter()
+            .all(|article| !article.id.starts_with("loan_news_")),
+        "scheduled agreement should not be reported as a completed loan yet"
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_loan_registrations(&mut game);
+
+    let registered_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-loan")
+        .unwrap();
+    assert_eq!(registered_player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        registered_player.loan_offers[0].status,
+        LoanOfferStatus::Accepted
+    );
+    let active_loan = registered_player.active_loan.as_ref().unwrap();
+    assert_eq!(active_loan.start_date, "2027-01-01");
+    assert_eq!(active_loan.end_date, "2027-06-30");
+
+    let article = game
+        .news
+        .iter()
+        .find(|article| article.id == "loan_news_player-scheduled-loan_team-2_team-1_2027-01-01")
+        .expect("loan registration should create a completed loan news article");
+    assert_eq!(article.date, "2027-01-01");
+    assert_eq!(article.category, NewsCategory::TransferRumour);
+    assert_eq!(
+        article.headline_key.as_deref(),
+        Some("be.news.loanMove.headline")
+    );
+    assert_eq!(article.body_key.as_deref(), Some("be.news.loanMove.body"));
+    assert_eq!(
+        article.team_ids,
+        vec!["team-2".to_string(), "team-1".to_string()]
+    );
+    assert_eq!(
+        article.player_ids,
+        vec!["player-scheduled-loan".to_string()]
+    );
+    assert_eq!(
+        article.i18n_params.get("fromTeam").map(String::as_str),
+        Some("Seller FC")
+    );
+    assert_eq!(
+        article.i18n_params.get("toTeam").map(String::as_str),
+        Some("User FC")
+    );
+    assert_eq!(
+        article.i18n_params.get("endDate").map(String::as_str),
+        Some("2027-06-30")
+    );
+}
+
+#[test]
+fn accepted_post_window_loan_is_scheduled_for_the_next_window() {
+    let mut player = make_player("player-next-window-loan");
+    player.loan_listed = true;
+    player.contract_end = Some("2028-07-31".to_string());
+    player.ovr = 62;
+    player.potential = 74;
+    player.wage = 520_000;
+
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-next-window-loan".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-07-02".to_string());
+    game.season_context.transfer_window.closes_on = Some("2027-08-31".to_string());
+    game.season_context.transfer_window.days_until_opens = Some(290);
+    game.season_context.transfer_window.days_remaining = None;
+
+    let result = make_loan_offer(
+        &mut game,
+        "player-next-window-loan",
+        "2028-06-30",
+        100,
+        None,
+    )
+    .expect("post-window loan should schedule against the next opening date");
+
+    assert_eq!(result.decision, LoanOfferDecision::Accepted);
+    let scheduled_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-next-window-loan")
+        .unwrap();
+    assert_eq!(scheduled_player.team_id.as_deref(), Some("team-2"));
+    assert!(scheduled_player.active_loan.is_none());
+    assert_eq!(
+        scheduled_player.loan_offers[0].status,
+        LoanOfferStatus::PendingRegistration
+    );
+    assert_eq!(scheduled_player.loan_offers[0].start_date, "2027-07-02");
+    assert_eq!(scheduled_player.loan_offers[0].end_date, "2028-06-30");
+}
+
+#[test]
+fn loan_offer_rejects_end_date_after_player_contract() {
+    let mut player = make_player("player-short-contract-loan");
+    player.loan_listed = true;
+    player.contract_end = Some("2026-12-01".to_string());
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.wage = 520_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let error = make_loan_offer(
+        &mut game,
+        "player-short-contract-loan",
+        "2027-01-01",
+        100,
+        None,
+    )
+    .expect_err("loan should not outlive the player's contract");
+
+    assert_eq!(error, "be.error.transfers.invalidLoanEndDate");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-short-contract-loan")
+        .unwrap();
+    assert!(player.active_loan.is_none());
+    assert!(player.loan_offers.is_empty());
+}
+
+#[test]
+fn loan_buy_option_can_be_exercised_from_active_user_loan() {
+    let mut player = make_player("player-loan-to-buy");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.wage = 520_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    attach_transfer_log_league(&mut game);
+
+    let result = make_loan_offer(
+        &mut game,
+        "player-loan-to-buy",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("serious loan-to-buy terms should be accepted");
+
+    assert_eq!(
+        result.decision,
+        ofm_core::transfers::LoanOfferDecision::Accepted
+    );
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-to-buy")
+        .unwrap();
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .and_then(|loan| loan.buy_option_fee),
+        Some(1_250_000)
+    );
+    assert!(player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanStart
+            && entry.from_team_name.as_deref() == Some("Seller FC")
+            && entry.to_team_name.as_deref() == Some("User FC")
+            && entry.fee.is_none()
+            && entry.loan_end_date.as_deref() == Some("2027-01-01")
+    }));
+
+    let buyer_finance_before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team-1")
+        .unwrap()
+        .finance;
+    let seller_finance_before = game
+        .teams
+        .iter()
+        .find(|team| team.id == "team-2")
+        .unwrap()
+        .finance;
+
+    exercise_loan_buy_option(&mut game, "player-loan-to-buy")
+        .expect("active loan buy option should be exercisable");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-to-buy")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(player.active_loan.is_none());
+    assert!(player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanStart
+            && entry.from_team_name.as_deref() == Some("Seller FC")
+            && entry.to_team_name.as_deref() == Some("User FC")
+    }));
+    assert!(player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanToBuy
+            && entry.from_team_id.as_deref() == Some("team-2")
+            && entry.to_team_id.as_deref() == Some("team-1")
+            && entry.fee == Some(1_250_000)
+    }));
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .unwrap()
+            .finance,
+        buyer_finance_before - 1_250_000
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .unwrap()
+            .finance,
+        seller_finance_before + 1_250_000
+    );
+    assert_eq!(
+        game.league
+            .as_ref()
+            .and_then(|league| league.transfer_log.last())
+            .map(|transfer| transfer.fee),
+        Some(1_250_000)
+    );
+    assert!(game.messages.iter().any(|message| {
+        message.id.starts_with("loan_buy_option_player-loan-to-buy")
+            && message.context.player_id.as_deref() == Some("player-loan-to-buy")
+    }));
+}
+
+#[test]
+fn loan_development_report_is_generated_for_parent_club() {
+    let mut player = make_user_player("player-loan-development");
+    player.team_id = Some("team-2".to_string());
+    player.ovr = 60;
+    player.potential = 75;
+    player.stats.minutes_played = 360;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].reputation = 700;
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 8, 31, 12, 0, 0).unwrap();
+
+    process_loan_development_reports(&mut game);
+
+    let report = game
+        .messages
+        .iter()
+        .find(|message| message.id == "loan_development_player-loan-development_2026-08-31")
+        .expect("loan development report");
+    assert_eq!(report.category, MessageCategory::Training);
+    assert_eq!(
+        report.context.player_id.as_deref(),
+        Some("player-loan-development")
+    );
+    assert_eq!(
+        report.i18n_params.get("team").map(String::as_str),
+        Some("Seller FC")
+    );
+    assert_eq!(
+        report.i18n_params.get("attributeGains").map(String::as_str),
+        Some("3")
+    );
+}
+
+#[test]
+fn loan_development_only_counts_minutes_since_last_report() {
+    let mut player = make_user_player("player-loan-development-delta");
+    player.team_id = Some("team-2".to_string());
+    player.ovr = 60;
+    player.potential = 75;
+    player.stats.minutes_played = 900;
+    player.stats.appearances = 8;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 900,
+        loan_start_appearances: 8,
+        development_reported_minutes: 900,
+        development_reported_appearances: 8,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].reputation = 700;
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 8, 31, 12, 0, 0).unwrap();
+
+    process_loan_development_reports(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-development-delta")
+        .unwrap();
+    assert_eq!(player.attributes.shooting, 60);
+    assert_eq!(player.ovr, 60);
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .map(|loan| loan.development_reported_minutes),
+        Some(900)
+    );
+    let first_report = game
+        .messages
+        .iter()
+        .find(|message| message.id == "loan_development_player-loan-development-delta_2026-08-31")
+        .expect("first loan development report");
+    assert_eq!(
+        first_report
+            .i18n_params
+            .get("attributeGains")
+            .map(String::as_str),
+        Some("0")
+    );
+
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-loan-development-delta")
+        .unwrap();
+    player.stats.minutes_played = 1_080;
+    player.stats.appearances = 10;
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 30, 12, 0, 0).unwrap();
+
+    process_loan_development_reports(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-development-delta")
+        .unwrap();
+    assert_eq!(player.attributes.shooting, 61);
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .map(|loan| loan.development_reported_minutes),
+        Some(1_080)
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+    process_loan_returns(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-development-delta")
+        .unwrap();
+    assert_eq!(player.attributes.shooting, 61);
+    assert!(player.active_loan.is_none());
+}
+
+#[test]
+fn ai_loan_club_can_exercise_buy_option_when_loan_expires() {
+    let mut player = make_user_player("player-ai-loan-option");
+    player.team_id = Some("team-2".to_string());
+    player.market_value = 1_000_000;
+    player.ovr = 64;
+    player.potential = 75;
+    player.stats.appearances = 12;
+    player.stats.minutes_played = 1_080;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 60,
+        buy_option_fee: Some(1_200_000),
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+
+    process_loan_returns(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-ai-loan-option")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(player.active_loan.is_none());
+    assert!(player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::LoanToBuy
+            && entry.from_team_id.as_deref() == Some("team-1")
+            && entry.to_team_id.as_deref() == Some("team-2")
+            && entry.fee == Some(1_200_000)
+    }));
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .unwrap()
+            .finance,
+        6_200_000
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .unwrap()
+            .finance,
+        4_800_000
+    );
+    assert_eq!(
+        game.league
+            .as_ref()
+            .and_then(|league| league.transfer_log.last())
+            .map(|transfer| (
+                transfer.from_team_id.as_str(),
+                transfer.to_team_id.as_str(),
+                transfer.fee,
+            )),
+        Some(("team-1", "team-2", 1_200_000))
+    );
+    assert!(game.messages.iter().any(|message| {
+        message
+            .id
+            .starts_with("loan_buy_option_player-ai-loan-option")
+            && message.context.player_id.as_deref() == Some("player-ai-loan-option")
+    }));
+}
+
+#[test]
+fn ai_loan_club_cannot_exercise_buy_option_when_window_is_closed() {
+    let mut player = make_user_player("player-ai-loan-option-closed");
+    player.team_id = Some("team-2".to_string());
+    player.market_value = 1_000_000;
+    player.ovr = 64;
+    player.potential = 75;
+    player.stats.appearances = 12;
+    player.stats.minutes_played = 1_080;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 60,
+        buy_option_fee: Some(1_200_000),
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+
+    process_loan_returns(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-ai-loan-option-closed")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(player.active_loan.is_none());
+    assert!(
+        !player
+            .movement_history
+            .iter()
+            .any(|entry| entry.kind == PlayerMovementKind::LoanToBuy)
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .unwrap()
+            .finance,
+        5_000_000
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .unwrap()
+            .finance,
+        6_000_000
+    );
+    assert!(
+        game.league
+            .as_ref()
+            .map(|league| league.transfer_log.is_empty())
+            .unwrap_or(true)
+    );
+}
+
+#[test]
+fn ai_loan_club_does_not_exercise_buy_option_from_pre_loan_minutes() {
+    let mut player = make_user_player("player-ai-pre-loan-option");
+    player.team_id = Some("team-2".to_string());
+    player.market_value = 1_000_000;
+    player.ovr = 64;
+    player.potential = 75;
+    player.stats.appearances = 12;
+    player.stats.minutes_played = 1_080;
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 60,
+        buy_option_fee: Some(1_200_000),
+        loan_start_minutes: 1_080,
+        loan_start_appearances: 12,
+        development_reported_minutes: 1_080,
+        development_reported_appearances: 12,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+    attach_transfer_log_league(&mut game);
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 2, 12, 0, 0).unwrap();
+
+    process_loan_returns(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-ai-pre-loan-option")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(player.active_loan.is_none());
+    assert!(
+        !player
+            .movement_history
+            .iter()
+            .any(|entry| entry.kind == PlayerMovementKind::LoanToBuy)
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-1")
+            .unwrap()
+            .finance,
+        5_000_000
+    );
+    assert_eq!(
+        game.teams
+            .iter()
+            .find(|team| team.id == "team-2")
+            .unwrap()
+            .finance,
+        6_000_000
+    );
+    assert!(
+        game.league
+            .as_ref()
+            .and_then(|league| league.transfer_log.last())
+            .is_none()
+    );
+}
+
+#[test]
+fn incoming_loan_offer_is_generated_for_loan_listed_user_player() {
+    let mut player = make_user_player("player-user-loan");
+    player.loan_listed = true;
+    player.ovr = 68;
+    player.potential = 80;
+    player.stats.appearances = 0;
+    player.wage = 260_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-user-loan")
+        .unwrap();
+    assert_eq!(player.loan_offers.len(), 1);
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Pending);
+    assert_eq!(player.loan_offers[0].from_team_id, "team-2");
+    assert!(game.messages.iter().any(|message| {
+        message.id.starts_with("loan_offer_")
+            && message.context.player_id.as_deref() == Some("player-user-loan")
+    }));
+}
+
+#[test]
+fn incoming_loan_offers_are_capped_per_user_player_per_day() {
+    let mut player = make_user_player("player-user-loan-flood");
+    player.loan_listed = true;
+    player.ovr = 68;
+    player.potential = 80;
+    player.stats.appearances = 0;
+    player.wage = 260_000;
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams
+        .push(make_ai_team("team-3", "Buyer C", 10_000_000, 5_000_000));
+    game.teams
+        .push(make_ai_team("team-4", "Buyer D", 10_000_000, 5_000_000));
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-user-loan-flood")
+        .unwrap();
+    let pending_offers = player
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.status == LoanOfferStatus::Pending)
+        .count();
+    let loan_messages = game
+        .messages
+        .iter()
+        .filter(|message| {
+            message.id.starts_with("loan_offer_")
+                && message.context.player_id.as_deref() == Some("player-user-loan-flood")
+        })
+        .count();
+
+    assert_eq!(pending_offers, 1);
+    assert_eq!(loan_messages, 1);
+}
+
+#[test]
+fn incoming_loan_offer_does_not_block_permanent_transfer_interest() {
+    let mut loan_player = make_user_player("player-user-loan-mixed-market");
+    loan_player.loan_listed = true;
+    loan_player.ovr = 68;
+    loan_player.potential = 80;
+    loan_player.stats.appearances = 0;
+    loan_player.wage = 260_000;
+
+    let mut contract_risk_player = make_user_player("player-contract-risk-mixed-market");
+    contract_risk_player.contract_end = Some("2026-09-01".to_string());
+    contract_risk_player.market_value = 1_200_000;
+
+    let mut game = make_game_with_player(loan_player, vec![], 5_000_000, 2_000_000);
+    game.players.push(contract_risk_player);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    generate_incoming_transfer_offers(&mut game);
+
+    let loan_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-user-loan-mixed-market")
+        .unwrap();
+    assert_eq!(loan_player.loan_offers.len(), 1);
+    assert_eq!(loan_player.loan_offers[0].from_team_id, "team-2");
+
+    let contract_risk_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-contract-risk-mixed-market")
+        .unwrap();
+    assert_eq!(contract_risk_player.transfer_offers.len(), 1);
+    assert_eq!(
+        contract_risk_player.transfer_offers[0].status,
+        TransferOfferStatus::Pending
+    );
+    assert_eq!(
+        contract_risk_player.transfer_offers[0].from_team_id,
+        "team-2"
+    );
+}
+
+#[test]
+fn accepting_incoming_loan_offer_moves_user_player_to_borrowing_club() {
+    let mut player = make_user_player("player-incoming-loan");
+    player.loan_listed = true;
+    player.wage = 520_000;
+    player.loan_offers.push(LoanOffer {
+        id: "loan-offer-1".to_string(),
+        from_team_id: "team-2".to_string(),
+        parent_team_id: "team-1".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: Some(1_100_000),
+        last_manager_wage_contribution_pct: None,
+        last_manager_end_date: None,
+        last_manager_buy_option_fee: None,
+        negotiation_round: 1,
+        suggested_wage_contribution_pct: None,
+        suggested_end_date: None,
+        suggested_buy_option_fee: None,
+        status: LoanOfferStatus::Pending,
+        date: "2026-08-01".to_string(),
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[0].starting_xi_ids = vec!["player-incoming-loan".to_string()];
+
+    respond_to_loan_offer(&mut game, "player-incoming-loan", "loan-offer-1", true)
+        .expect("incoming loan offer should be acceptable");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-incoming-loan")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Accepted);
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .map(|loan| loan.wage_contribution_pct),
+        Some(75)
+    );
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .and_then(|loan| loan.buy_option_fee),
+        Some(1_100_000)
+    );
+    assert!(game.teams[0].starting_xi_ids.is_empty());
+    assert_eq!(calc_annual_wages(&game, "team-1"), 130_000);
+    assert_eq!(calc_annual_wages(&game, "team-2"), 390_000);
+}
+
+#[test]
+fn countering_incoming_loan_offer_can_execute_accepted_terms() {
+    let mut player = make_user_player("player-counter-loan-accepted");
+    player.loan_listed = true;
+    player.wage = 520_000;
+    player.ovr = 68;
+    player.potential = 78;
+    player
+        .loan_offers
+        .push(make_pending_incoming_loan_offer("loan-counter-1", 65, None));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+
+    let outcome = counter_loan_offer(
+        &mut game,
+        "player-counter-loan-accepted",
+        "loan-counter-1",
+        "2027-01-01",
+        85,
+        Some(1_200_000),
+    )
+    .expect("counter should be accepted");
+
+    assert_eq!(outcome.decision, LoanOfferDecision::Accepted);
+    assert!(outcome.is_terminal);
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-counter-loan-accepted")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Accepted);
+    assert_eq!(
+        player.loan_offers[0].last_manager_wage_contribution_pct,
+        Some(85)
+    );
+    assert_eq!(
+        player
+            .active_loan
+            .as_ref()
+            .map(|loan| (loan.wage_contribution_pct, loan.buy_option_fee)),
+        Some((85, Some(1_200_000)))
+    );
+}
+
+#[test]
+fn countering_incoming_loan_offer_can_keep_talks_live_with_suggested_terms() {
+    let mut player = make_user_player("player-counter-loan-live");
+    player.loan_listed = true;
+    player.wage = 520_000;
+    player.ovr = 60;
+    player.potential = 62;
+    player.loan_offers.push(make_pending_incoming_loan_offer(
+        "loan-counter-live",
+        40,
+        None,
+    ));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let outcome = counter_loan_offer(
+        &mut game,
+        "player-counter-loan-live",
+        "loan-counter-live",
+        "2027-01-01",
+        70,
+        None,
+    )
+    .expect("counter should keep negotiation live");
+
+    assert_eq!(outcome.decision, LoanOfferDecision::CounterOffer);
+    assert!(!outcome.is_terminal);
+    assert_eq!(outcome.suggested_wage_contribution_pct, Some(60));
+    assert_eq!(outcome.suggested_end_date.as_deref(), Some("2027-01-01"));
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-counter-loan-live")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Pending);
+    assert_eq!(player.loan_offers[0].wage_contribution_pct, 60);
+    assert_eq!(
+        player.loan_offers[0].suggested_wage_contribution_pct,
+        Some(60)
+    );
+    assert_eq!(
+        player.loan_offers[0].last_manager_wage_contribution_pct,
+        Some(70)
+    );
+}
+
+#[test]
+fn countering_incoming_loan_offer_rejects_terms_that_do_not_improve() {
+    let mut player = make_user_player("player-counter-loan-no-improve");
+    player.loan_listed = true;
+    player.loan_offers.push(make_pending_incoming_loan_offer(
+        "loan-counter-no-improve",
+        75,
+        Some(1_000_000),
+    ));
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let error = counter_loan_offer(
+        &mut game,
+        "player-counter-loan-no-improve",
+        "loan-counter-no-improve",
+        "2027-01-01",
+        70,
+        Some(1_000_000),
+    )
+    .expect_err("counter should improve the incoming offer");
+
+    assert_eq!(error, "be.error.transfers.loanCounterMustImproveTerms");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-counter-loan-no-improve")
+        .unwrap();
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Pending);
+    assert_eq!(player.loan_offers[0].wage_contribution_pct, 75);
+}
+
+#[test]
+fn incoming_loan_offer_rejects_end_date_after_player_contract() {
+    let mut player = make_user_player("player-incoming-short-contract-loan");
+    player.loan_listed = true;
+    player.contract_end = Some("2026-12-01".to_string());
+    player.wage = 520_000;
+    player.loan_offers.push(LoanOffer {
+        id: "loan-offer-short-contract".to_string(),
+        from_team_id: "team-2".to_string(),
+        parent_team_id: "team-1".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        last_manager_wage_contribution_pct: None,
+        last_manager_end_date: None,
+        last_manager_buy_option_fee: None,
+        negotiation_round: 1,
+        suggested_wage_contribution_pct: None,
+        suggested_end_date: None,
+        suggested_buy_option_fee: None,
+        status: LoanOfferStatus::Pending,
+        date: "2026-08-01".to_string(),
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let error = respond_to_loan_offer(
+        &mut game,
+        "player-incoming-short-contract-loan",
+        "loan-offer-short-contract",
+        true,
+    )
+    .expect_err("incoming loan should not outlive the player's contract");
+
+    assert_eq!(error, "be.error.transfers.invalidLoanEndDate");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-incoming-short-contract-loan")
+        .unwrap();
+    assert!(player.active_loan.is_none());
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(player.loan_offers[0].status, LoanOfferStatus::Pending);
+}
+
+#[test]
+fn permanent_bid_is_rejected_for_active_loan_player() {
+    let mut player = make_player("player-active-loan");
+    player.team_id = Some("team-2".to_string());
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-3".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+
+    let error = make_transfer_bid(&mut game, "player-active-loan", 1_000_000)
+        .expect_err("active loan player should not be purchasable from loan club");
+
+    assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+}
+
+#[test]
 fn expiring_contract_lowers_resistance_to_sale() {
     let mut player = make_player("player-expiring");
     player.contract_end = Some("2026-08-31".to_string());
@@ -215,6 +1410,17 @@ fn expiring_contract_lowers_resistance_to_sale() {
             .and_then(|player| player.team_id.as_deref()),
         Some("team-1")
     );
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-expiring")
+        .unwrap();
+    assert!(player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::PermanentTransfer
+            && entry.from_team_id.as_deref() == Some("team-2")
+            && entry.to_team_id.as_deref() == Some("team-1")
+            && entry.fee == Some(1_000_000)
+    }));
 }
 
 #[test]

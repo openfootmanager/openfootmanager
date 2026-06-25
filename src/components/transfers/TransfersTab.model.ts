@@ -45,25 +45,35 @@ export function deriveTransferCollections(
 ): TransferCollections {
   return {
     myTransferList: gameState.players.filter(
-      (player) => player.team_id === userTeamId && player.transfer_listed,
+      (player) =>
+        player.team_id === userTeamId &&
+        player.transfer_listed &&
+        !player.active_loan,
     ),
     myLoanList: gameState.players.filter(
-      (player) => player.team_id === userTeamId && player.loan_listed,
+      (player) =>
+        player.team_id === userTeamId && player.loan_listed && !player.active_loan,
     ),
     marketPlayers: gameState.players.filter(
-      (player) => player.transfer_listed && player.team_id !== userTeamId,
+      (player) =>
+        player.transfer_listed && player.team_id !== userTeamId && !player.active_loan,
     ),
     freeAgentPlayers: gameState.players.filter(
       (player) => player.team_id === null && !player.retired,
     ),
     loanPlayers: gameState.players.filter(
-      (player) => player.loan_listed && player.team_id !== userTeamId,
+      (player) =>
+        player.loan_listed && player.team_id !== userTeamId && !player.active_loan,
     ),
     playersWithOffers: gameState.players.filter(
       (player) =>
-        player.transfer_offers.length > 0 &&
+        (player.transfer_offers.length > 0 ||
+          (player.loan_offers?.length ?? 0) > 0) &&
         (player.team_id === userTeamId ||
           player.transfer_offers.some(
+            (offer) => offer.from_team_id === userTeamId,
+          ) ||
+          (player.loan_offers ?? []).some(
             (offer) => offer.from_team_id === userTeamId,
           )),
     ),

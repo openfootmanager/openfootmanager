@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
-    ContractExitIntent, ContractRenewalState, Player, PlayerAttributes, Position,
+    ActiveLoan, ContractExitIntent, ContractRenewalState, Player, PlayerAttributes, Position,
     RenewalSessionStatus,
 };
 use domain::season::TransferWindowStatus;
@@ -12,7 +12,8 @@ use ofm_core::contracts::{
     DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision, RenewalOffer,
     clear_contract_exit_intent, delegate_renewals, evaluate_renewal_offer, has_let_expire_intent,
     offer_free_agent_contract, preview_contract_termination, project_free_agent_contract_impact,
-    propose_renewal, set_contract_exit_intent, terminate_contract_now,
+    project_renewal_financial_impact, propose_renewal, set_contract_exit_intent,
+    terminate_contract_now,
 };
 use ofm_core::game::Game;
 
@@ -219,6 +220,75 @@ fn let_expire_intent_persists_and_can_be_cleared() {
         player.morale_core.renewal_state.as_ref().unwrap().status,
         RenewalSessionStatus::Idle
     );
+}
+
+#[test]
+fn borrowed_player_contract_actions_are_not_owned_by_borrowing_club() {
+    let mut game = make_game();
+    game.players[0].team_id = Some("team-1".to_string());
+    game.players[0].active_loan = Some(ActiveLoan {
+        parent_team_id: "team-2".to_string(),
+        loan_team_id: "team-1".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let renewal_error = propose_renewal(
+        &mut game,
+        "player-1",
+        RenewalOffer {
+            weekly_wage: 15_000,
+            contract_years: 3,
+        },
+    )
+    .expect_err("borrowing club should not be able to renew parent-club contract");
+    assert_eq!(renewal_error, "be.error.contracts.playerNotOwnedByClub");
+
+    let exit_error = set_contract_exit_intent(&mut game, "player-1", None)
+        .expect_err("borrowing club should not be able to set contract exit intent");
+    assert_eq!(exit_error, "be.error.contracts.playerNotOwnedByClub");
+
+    let projection_error = project_renewal_financial_impact(&game, "player-1", 15_000)
+        .expect_err("borrowing club should not be able to project parent-club renewal finances");
+    assert_eq!(projection_error, "be.error.contracts.playerNotOwnedByClub");
+
+    let termination_error = preview_contract_termination(&game, "player-1")
+        .expect_err("borrowing club should not be able to terminate parent-club contract");
+    assert_eq!(termination_error, "be.error.contracts.playerNotOwnedByClub");
+}
+
+#[test]
+fn loaned_out_player_termination_is_blocked_until_loan_ends() {
+    let mut game = make_game();
+    game.players[0].team_id = Some("team-2".to_string());
+    game.players[0].active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let projection = project_renewal_financial_impact(&game, "player-1", 15_000)
+        .expect("parent club should still own renewal financial projections");
+    assert_eq!(projection.current_annual_wage_bill, 12_000);
+    assert_eq!(projection.projected_annual_wage_bill, 15_000);
+
+    let error = preview_contract_termination(&game, "player-1")
+        .expect_err("active loans should block contract termination");
+
+    assert_eq!(error, "be.error.contracts.playerOnActiveLoan");
 }
 
 #[test]

@@ -30,6 +30,8 @@ import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
 import PlayerProfileHeroCard from "./PlayerProfileHeroCard";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
+import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
+import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
 import PlayerProfileRecentMatchesCard, {
   type PlayerRecentMatchEntry,
 } from "./PlayerProfileRecentMatchesCard";
@@ -188,6 +190,19 @@ export default function PlayerProfile({
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
   const managerTeamId = gameState.manager.team_id;
+  const contractOwnerTeamId =
+    player.active_loan?.parent_team_id ?? player.team_id ?? null;
+  const isContractOwnerClub = Boolean(
+    managerTeamId && contractOwnerTeamId === managerTeamId,
+  );
+  const isManagerOwnedProfile = player.active_loan
+    ? isContractOwnerClub
+    : isOwnClub || isContractOwnerClub;
+  const isManagerLoanClub = Boolean(
+    managerTeamId && player.active_loan?.loan_team_id === managerTeamId,
+  );
+  const isManagerSquadProfile =
+    isManagerOwnedProfile || isOwnClub || isManagerLoanClub;
   const hasAssistantManager = managerTeamId
     ? gameState.staff.some(
       (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
@@ -254,7 +269,7 @@ export default function PlayerProfile({
 
   useEffect(() => {
     if (
-      !isOwnClub ||
+      !isManagerOwnedProfile ||
       !startWithRenewalModal ||
       showRenewalModal ||
       hasConsumedInitialRenewalIntent
@@ -266,14 +281,14 @@ export default function PlayerProfile({
     openRenewalModal();
   }, [
     hasConsumedInitialRenewalIntent,
-    isOwnClub,
+    isManagerOwnedProfile,
     showRenewalModal,
     startWithRenewalModal,
   ]);
 
   useEffect(() => {
     if (
-      !isOwnClub ||
+      !isManagerOwnedProfile ||
       !startWithTerminationModal ||
       showTerminationModal ||
       hasConsumedInitialTerminationIntent
@@ -285,7 +300,7 @@ export default function PlayerProfile({
     void openTerminationModal();
   }, [
     hasConsumedInitialTerminationIntent,
-    isOwnClub,
+    isManagerOwnedProfile,
     showTerminationModal,
     startWithTerminationModal,
   ]);
@@ -654,7 +669,7 @@ export default function PlayerProfile({
         weakFootValue={weakFootValue}
             annualSuffix={annualSuffix}
         language={i18n.language}
-        isOwnClub={isOwnClub || !onGameUpdate}
+        isOwnClub={isManagerSquadProfile || !onGameUpdate}
         scoutAvailability={scoutAvailability}
         scoutStatus={scoutStatus}
         scoutError={scoutError}
@@ -686,6 +701,16 @@ export default function PlayerProfile({
         t={t}
       />
 
+      {player.active_loan ? (
+        <PlayerProfileLoanStatusBanner
+          loan={player.active_loan}
+          teams={gameState.teams}
+          managerTeamId={managerTeamId}
+          language={i18n.language}
+          t={t}
+        />
+      ) : null}
+
       {/* Injury banner */}
       {player.injury ? (
         <PlayerProfileInjuryBanner injury={player.injury} t={t} />
@@ -705,7 +730,7 @@ export default function PlayerProfile({
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
-          isOwnClub={isOwnClub}
+          isOwnClub={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
           actionSubmitting={contractActionSubmitting}
@@ -725,7 +750,7 @@ export default function PlayerProfile({
 
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
-          isOwnClub={isOwnClub}
+          isOwnClub={isManagerSquadProfile}
           isGk={primaryPosition === "Goalkeeper"}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
@@ -740,6 +765,11 @@ export default function PlayerProfile({
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
+
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          t={t}
+        />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

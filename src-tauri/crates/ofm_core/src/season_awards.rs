@@ -256,7 +256,8 @@ where
 {
     let mut awards: Vec<_> = contexts
         .iter()
-        .filter_map(|context| include(context).then(|| award_entry(context, value(context))))
+        .filter(|context| include(context))
+        .map(|context| award_entry(context, value(context)))
         .collect();
 
     awards.sort_by(|a, b| {
@@ -480,8 +481,10 @@ mod tests {
             ),
         ];
         let mut game = make_game(players, vec![team1, team2]);
-        game.managers.push(make_manager("m1", "Division", "Boss", Some("team1")));
-        game.managers.push(make_manager("m2", "Foreign", "Boss", Some("team2")));
+        game.managers
+            .push(make_manager("m1", "Division", "Boss", Some("team1")));
+        game.managers
+            .push(make_manager("m2", "Foreign", "Boss", Some("team2")));
 
         let division = League::new(
             "div1".to_string(),

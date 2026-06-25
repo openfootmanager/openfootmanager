@@ -34,6 +34,12 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     }
     println!("{}\n", sep.bright_cyan());
 
+    if stats.games == 0 {
+        println!("{}", "  No games simulated.".yellow());
+        println!("{}\n", sep.bright_cyan());
+        return;
+    }
+
     // ── Setup ────────────────────────────────────────────────────────────────
     section("SETUP");
     println!(
@@ -87,22 +93,55 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let cs_a = stats.clean_sheet_away_pct();
     let btts = stats.btts_pct();
 
-    metric("  Avg goals/game   ", gpg, 2, "2.3–3.0", check(gpg, 2.3, 3.0));
+    metric(
+        "  Avg goals/game   ",
+        gpg,
+        2,
+        "2.3–3.0",
+        check(gpg, 2.3, 3.0),
+    );
     metric("  Home goals/game  ", stats.home_gpg(), 2, "", true);
     metric("  Away goals/game  ", stats.away_gpg(), 2, "", true);
-    metric("  Clean sheet Home ", cs_h, 1, "22–35%", check(cs_h, 22.0, 35.0));
-    metric("  Clean sheet Away ", cs_a, 1, "22–35%", check(cs_a, 22.0, 35.0));
-    metric("  BTTS             ", btts, 1, "50–55%", check(btts, 50.0, 55.0));
+    metric(
+        "  Clean sheet Home ",
+        cs_h,
+        1,
+        "22–35%",
+        check(cs_h, 22.0, 35.0),
+    );
+    metric(
+        "  Clean sheet Away ",
+        cs_a,
+        1,
+        "22–35%",
+        check(cs_a, 22.0, 35.0),
+    );
+    metric(
+        "  BTTS             ",
+        btts,
+        1,
+        "50–55%",
+        check(btts, 50.0, 55.0),
+    );
     println!();
 
     // Goals-per-game distribution
     println!("  Goals distribution:");
-    let max_hist = stats.goals_per_game_hist.values().copied().max().unwrap_or(1);
+    let max_hist = stats
+        .goals_per_game_hist
+        .values()
+        .copied()
+        .max()
+        .unwrap_or(1);
     for goals in 0u8..=9 {
         let count = stats.goals_per_game_hist.get(&goals).copied().unwrap_or(0);
-        let pct = count as f64 / stats.games as f64 * 100.0;
+        let pct = pct_of_games(count, stats.games);
         let bar = ascii_bar(count as f64, max_hist as f64, 18);
-        let label = if goals == 9 { "9+".to_string() } else { goals.to_string() };
+        let label = if goals == 9 {
+            "9+".to_string()
+        } else {
+            goals.to_string()
+        };
         println!("  {:>2} goals  {}  {:>5.1}%", label, bar, pct);
     }
     println!();
@@ -112,10 +151,18 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let scorelines = stats.top_scorelines(8);
     let max_sl = scorelines.first().map(|(_, c)| *c).unwrap_or(1);
     for ((hg, ag), count) in &scorelines {
-        let pct = *count as f64 / stats.games as f64 * 100.0;
+        let pct = pct_of_games(*count, stats.games);
         let bar = ascii_bar(*count as f64, max_sl as f64, 18);
-        let hg_label = if *hg >= 6 { "6+".to_string() } else { hg.to_string() };
-        let ag_label = if *ag >= 6 { "6+".to_string() } else { ag.to_string() };
+        let hg_label = if *hg >= 6 {
+            "6+".to_string()
+        } else {
+            hg.to_string()
+        };
+        let ag_label = if *ag >= 6 {
+            "6+".to_string()
+        } else {
+            ag.to_string()
+        };
         println!("  {hg_label}-{ag_label}  {bar}  {:>5.1}%", pct);
     }
     println!();
@@ -127,15 +174,35 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let conv = stats.goal_conversion_pct();
     let xg = stats.xg_proxy_pg(cfg.goal_conversion_base);
 
-    metric("  Shots/game       ", shots, 1, "18–32", check(shots, 18.0, 32.0));
-    metric("  Shots on target %", acc, 1, "32–45%", check(acc, 32.0, 45.0));
-    metric("  Goal conversion %", conv, 1, "20–40%", check(conv, 20.0, 40.0));
+    metric(
+        "  Shots/game       ",
+        shots,
+        1,
+        "18–32",
+        check(shots, 18.0, 32.0),
+    );
+    metric(
+        "  Shots on target %",
+        acc,
+        1,
+        "32–45%",
+        check(acc, 32.0, 45.0),
+    );
+    metric(
+        "  Goal conversion %",
+        conv,
+        1,
+        "20–40%",
+        check(conv, 20.0, 40.0),
+    );
     metric("  xG/game (proxy)  ", xg, 2, "", true);
     let diff = stats.gpg() - xg;
     let diff_label = if diff >= 0.0 {
         format!("{:+.2} (overperforming)", diff).green().to_string()
     } else {
-        format!("{:+.2} (underperforming)", diff).yellow().to_string()
+        format!("{:+.2} (underperforming)", diff)
+            .yellow()
+            .to_string()
     };
     println!("  Goals vs xG           {diff_label}");
     println!();
@@ -150,10 +217,28 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let inj = stats.injuries_pg();
 
     metric("  Yellow cards/game", y, 2, "2.0–4.0", check(y, 2.0, 4.0));
-    metric("  Red cards/game   ", r, 3, "0.05–0.15", check(r, 0.05, 0.15));
+    metric(
+        "  Red cards/game   ",
+        r,
+        3,
+        "0.05–0.15",
+        check(r, 0.05, 0.15),
+    );
     metric("  Fouls/game       ", f, 1, "18–28", check(f, 18.0, 28.0));
-    metric("  Penalties/game   ", p, 2, "0.20–0.50", check(p, 0.20, 0.50));
-    metric("  Pen. conversion %", pc, 1, "65–85%", check(pc, 65.0, 85.0));
+    metric(
+        "  Penalties/game   ",
+        p,
+        2,
+        "0.20–0.50",
+        check(p, 0.20, 0.50),
+    );
+    metric(
+        "  Pen. conversion %",
+        pc,
+        1,
+        "65–85%",
+        check(pc, 65.0, 85.0),
+    );
     metric("  Injuries/game    ", inj, 2, "", true);
     println!();
 
@@ -199,7 +284,9 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
 
     // ── Scoring timeline ─────────────────────────────────────────────────────
     section("SCORING TIMELINE");
-    let bucket_labels = ["1–15 ", "16–30", "31–45", "46–60", "61–75", "76–90", "90+  "];
+    let bucket_labels = [
+        "1–15 ", "16–30", "31–45", "46–60", "61–75", "76–90", "90+  ",
+    ];
     let max_b = stats.goals_by_bucket.iter().copied().max().unwrap_or(1) as f64;
     for (i, &count) in stats.goals_by_bucket.iter().enumerate() {
         let pct = if stats.total_goals > 0 {
@@ -240,6 +327,13 @@ fn ascii_bar(value: f64, max_val: f64, width: usize) -> String {
         "█".repeat(filled).bright_blue(),
         "░".repeat(width - filled).dimmed()
     )
+}
+
+fn pct_of_games(count: u32, games: u32) -> f64 {
+    if games == 0 {
+        return 0.0;
+    }
+    count as f64 / games as f64 * 100.0
 }
 
 fn check(value: f64, lo: f64, hi: f64) -> bool {

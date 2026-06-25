@@ -1,8 +1,8 @@
 mod team_builder;
 pub use team_builder::auto_select_set_pieces;
+use team_builder::build_team_with_bench;
 pub(crate) use team_builder::domain_to_engine_role;
 pub(crate) use team_builder::domain_to_engine_tactics;
-use team_builder::build_team_with_bench;
 
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use crate::game::Game;
 
 use domain::league::StandingEntry;
+use domain::manager::Manager;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{LiveMatchState, MatchCommand, MatchConfig, MatchSnapshot, MinuteResult, Side};
@@ -24,10 +25,10 @@ fn resolve_match_role_assignment(
     starter_ids: &HashSet<String>,
     fallback_id: Option<String>,
 ) -> Option<String> {
-    if let Some(player_id) = assigned_id {
-        if starter_ids.contains(player_id) {
-            return Some(player_id.clone());
-        }
+    if let Some(player_id) = assigned_id
+        && starter_ids.contains(player_id)
+    {
+        return Some(player_id.clone());
     }
 
     fallback_id
@@ -280,12 +281,12 @@ pub fn create_live_match(
     let ai_home = AiProfile {
         reputation: home_rep,
         experience: (home_rep / 10).min(100) as u8,
-        personality: derive_personality(home_rep, &game.manager),
+        personality: derive_personality(home_rep, manager_for_team(game, &home_team_id)),
     };
     let ai_away = AiProfile {
         reputation: away_rep,
         experience: (away_rep / 10).min(100) as u8,
-        personality: derive_personality(away_rep, &game.manager),
+        personality: derive_personality(away_rep, manager_for_team(game, &away_team_id)),
     };
 
     Ok(LiveMatchSession {
@@ -303,21 +304,41 @@ pub fn create_live_match(
     })
 }
 
+fn manager_for_team<'a>(game: &'a Game, team_id: &str) -> Option<&'a Manager> {
+    let manager_id = game
+        .teams
+        .iter()
+        .find(|team| team.id == team_id)
+        .and_then(|team| team.manager_id.as_deref())?;
+
+    game.managers
+        .iter()
+        .find(|manager| manager.id == manager_id)
+        .or_else(|| (game.manager.id == manager_id).then_some(&game.manager))
+}
+
 /// Derive an AI personality from reputation and career statistics.
 /// - Visionary: high reputation (700+) with substantial matches managed (50+)
 /// - Reactive: moderate reputation with a winning record (win rate ≥ 55 %)
 /// - Pragmatist: default
-fn derive_personality(rep: u32, manager: &domain::manager::Manager) -> AiPersonality {
-    let stats = &manager.career_stats;
-    let total = stats.matches_managed;
-    if rep >= 700 && total >= 50 {
-        return AiPersonality::Visionary;
-    }
-    if total >= 20 {
-        let win_rate = stats.wins as f64 / total as f64;
-        if win_rate >= 0.55 {
-            return AiPersonality::Reactive;
+fn derive_personality(rep: u32, manager: Option<&Manager>) -> AiPersonality {
+    if let Some(manager) = manager {
+        let stats = &manager.career_stats;
+        let total = stats.matches_managed;
+        if rep >= 700 && total >= 50 {
+            return AiPersonality::Visionary;
+        }
+        if total >= 20 {
+            let win_rate = stats.wins as f64 / total as f64;
+            if win_rate >= 0.55 {
+                return AiPersonality::Reactive;
+            }
         }
     }
+
+    if rep >= 800 {
+        return AiPersonality::Visionary;
+    }
+
     AiPersonality::Pragmatist
 }
