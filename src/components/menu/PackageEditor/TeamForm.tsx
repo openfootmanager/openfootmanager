@@ -1,20 +1,56 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
-import { LabeledInput, LabeledSelect } from "./primitives";
-import { PLAY_STYLES, makeRange, parseRangeBound } from "./helpers";
+import { ArrowLeft, CheckCircle, ImagePlus, Loader2, X } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
+import { CountryCombobox } from "../../ui/CountryCombobox";
+import { PLAY_STYLES, makeRange, parseRangeBound, toSlug } from "./helpers";
 import type { TeamDef } from "./types";
 
 interface TeamFormProps {
   editingTeam: TeamDef;
   editingTeamIndex: number | null;
   isBusy: boolean;
+  projectDir?: string;
   onBack: () => void;
   onSave: () => void;
   updateField: <K extends keyof TeamDef>(key: K, value: TeamDef[K]) => void;
 }
 
-export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave, updateField }: TeamFormProps) {
+export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField }: TeamFormProps) {
   const { t } = useTranslation();
+  const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editingTeam.logo || !projectDir) { setLogoDataUrl(null); return; }
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editingTeam.logo}` })
+      .then(setLogoDataUrl)
+      .catch(() => setLogoDataUrl(null));
+  }, [editingTeam.logo, projectDir]);
+
+  async function handlePickLogo() {
+    if (!projectDir) return;
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    try {
+      const relPath = await invoke<string>("copy_package_asset", {
+        dir: projectDir,
+        entityId: editingTeam.id || "unnamed-team",
+        srcPath: selected,
+      });
+      updateField("logo", relPath);
+    } catch { /* ignore */ }
+  }
+
+  function handleNameChange(v: string) {
+    updateField("name", v);
+    if (idAutoMode) updateField("id", toSlug(v));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,9 +70,19 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
 
       <div className="flex flex-col gap-3">
         <LabeledInput
+          label={t("worldEditor.teamId")}
+          value={editingTeam.id}
+          onChange={(v) => {
+            setIdAutoMode(false);
+            updateField("id", v);
+          }}
+          placeholder="man-utd"
+          help={t("worldEditor.help.teamId")}
+        />
+        <LabeledInput
           label={t("worldEditor.teamName")}
           value={editingTeam.name}
-          onChange={(v) => updateField("name", v)}
+          onChange={handleNameChange}
         />
         <LabeledInput
           label={t("worldEditor.teamShortName")}
@@ -48,11 +94,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
           value={editingTeam.city}
           onChange={(v) => updateField("city", v)}
         />
-        <LabeledInput
+        <CountryCombobox
           label={t("worldEditor.teamCountry")}
           value={editingTeam.country}
           onChange={(v) => updateField("country", v)}
-          placeholder="ENG"
         />
         <LabeledSelect
           label={t("worldEditor.teamPlayStyle")}
@@ -157,9 +202,42 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
         </div>
       </div>
 
+      {projectDir && (
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>{t("worldEditor.teamLogo")}</label>
+          <div className="flex items-center gap-3">
+            {logoDataUrl ? (
+              <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { void handlePickLogo(); }}
+                className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+              >
+                {t("worldEditor.chooseLogo")}
+              </button>
+              {editingTeam.logo && (
+                <button
+                  type="button"
+                  onClick={() => { updateField("logo", null); setLogoDataUrl(null); }}
+                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={onSave}
-        disabled={isBusy || !editingTeam.name || !editingTeam.city || !editingTeam.country}
+        disabled={isBusy || !editingTeam.id || !editingTeam.name || !editingTeam.city || !editingTeam.country}
         className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isBusy ? (

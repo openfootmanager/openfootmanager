@@ -143,10 +143,19 @@ export function emptyPlayer(): PlayerDef {
     nationality: "",
     position: "Goalkeeper",
     dateOfBirth: null,
-    age: null,
     overall: null,
     attributes: null,
   };
+}
+
+export function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
 }
 
 export function emptyNamesDefinition(): NamesDefinition {

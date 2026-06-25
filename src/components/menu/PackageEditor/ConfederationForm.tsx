@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LabeledInput } from "./primitives";
 import { EntityFormShell } from "./shared";
+import { toSlug } from "./helpers";
 import type { ConfederationDef } from "./types";
 
 interface ConfederationFormProps {
@@ -21,6 +23,7 @@ export function ConfederationForm({
   updateField,
 }: ConfederationFormProps) {
   const { t } = useTranslation();
+  const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
   return (
     <EntityFormShell
       title={editingIndex === null ? t("worldEditor.addConfederation") : t("worldEditor.editConfederation")}
@@ -33,13 +36,16 @@ export function ConfederationForm({
       <LabeledInput
         label={t("worldEditor.confederationId")}
         value={editing.id}
-        onChange={(v) => updateField("id", v)}
+        onChange={(v) => { setIdAutoMode(false); updateField("id", v); }}
         placeholder="europe"
       />
       <LabeledInput
         label={t("worldEditor.confederationName")}
         value={editing.name}
-        onChange={(v) => updateField("name", v)}
+        onChange={(v) => {
+          updateField("name", v);
+          if (idAutoMode) updateField("id", toSlug(v));
+        }}
         placeholder="Europe"
       />
     </EntityFormShell>

@@ -107,9 +107,9 @@ export interface PlayerDef {
   nationality: string;
   position: Position;
   dateOfBirth: string | null;
-  age: number | null;
   overall: number | null;
   attributes: PlayerAttributesDef | null;
+  photo?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +180,7 @@ export interface CompetitionDef {
   seasonStartMonth?: number;
   seasonStartDay?: number;
   nameKey?: string;
+  logo?: string | null;
 }
 
 // ---------------------------------------------------------------------------

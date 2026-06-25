@@ -46,7 +46,7 @@ export function WorldEditorTopBar({
   const navigate = useNavigate();
 
   return (
-    <div className="flex-shrink-0 h-12 flex items-center justify-between px-4 gap-2 border-b border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800">
+    <div className="flex-shrink-0 h-18 flex items-center justify-between px-4 gap-2 border-b border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800">
       {/* Left: back + identity */}
       <div className="flex items-center gap-3 min-w-0">
         <button

@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LabeledInput } from "./primitives";
 import { EntityFormShell } from "./shared";
+import { Select } from "../../ui/Select";
+import { toSlug } from "./helpers";
 import type { ConfederationDef, CountryDef } from "./types";
 
 interface CountryFormProps {
@@ -23,6 +26,7 @@ export function CountryForm({
   updateField,
 }: CountryFormProps) {
   const { t } = useTranslation();
+  const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
 
   const labelClass =
     "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
@@ -41,22 +45,25 @@ export function CountryForm({
       <LabeledInput
         label={t("worldEditor.countryId")}
         value={editing.id}
-        onChange={(v) => updateField("id", v)}
+        onChange={(v) => { setIdAutoMode(false); updateField("id", v); }}
         placeholder="ENG"
       />
       <LabeledInput
         label={t("worldEditor.countryName")}
         value={editing.name}
-        onChange={(v) => updateField("name", v)}
+        onChange={(v) => {
+          updateField("name", v);
+          if (idAutoMode) updateField("id", toSlug(v));
+        }}
         placeholder="England"
       />
       <div className="flex flex-col gap-1">
         <label className={labelClass}>{t("worldEditor.countryConfederation")}</label>
         {confederations.length > 0 ? (
-          <select
+          <Select
             value={editing.confederation}
             onChange={(e) => updateField("confederation", e.target.value)}
-            className={inputClass}
+            fullWidth
           >
             <option value="">—</option>
             {confederations.map((c) => (
@@ -64,7 +71,7 @@ export function CountryForm({
                 {c.name || c.id}
               </option>
             ))}
-          </select>
+          </Select>
         ) : (
           <input
             type="text"

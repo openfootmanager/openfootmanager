@@ -224,7 +224,6 @@ describe("emptyPlayer", () => {
   it("defaults all optional fields to null", () => {
     const p = emptyPlayer();
     expect(p.dateOfBirth).toBeNull();
-    expect(p.age).toBeNull();
     expect(p.overall).toBeNull();
     expect(p.attributes).toBeNull();
   });

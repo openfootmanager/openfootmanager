@@ -108,6 +108,7 @@ export default function WorldEditor() {
   // Layout state
   const [selectedSection, setSelectedSection] = useState<EditTab>("metadata");
   const [formPanel, setFormPanel] = useState<FormPanel>("metadata");
+  const [sectionFormPanels, setSectionFormPanels] = useState<Partial<Record<EditTab, FormPanel>>>({});
 
   // Async state
   const [isBusy, setIsBusy] = useState(false);
@@ -307,11 +308,14 @@ export default function WorldEditor() {
   // ---------------------------------------------------------------------------
 
   function handleSelectSection(section: EditTab) {
+    // Save the current form panel for the section we're leaving
+    setSectionFormPanels((prev) => ({ ...prev, [selectedSection]: formPanel }));
     setSelectedSection(section);
     if (section === "metadata") {
       setFormPanel("metadata");
     } else {
-      setFormPanel("empty");
+      // Restore previous form panel for this section, or default to empty
+      setFormPanel(sectionFormPanels[section] ?? "empty");
     }
   }
 
@@ -806,11 +810,22 @@ export default function WorldEditor() {
   const formContent = (() => {
     if (formPanel === "metadata") {
       return (
-        <div className="max-w-2xl">
+        <div className="max-w-4xl">
           <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
             {t("worldEditor.metadata")}
           </h2>
-          <MetadataForm meta={meta} onChange={(m) => { setMeta(m); setIsDirty(true); }} />
+          <MetadataForm
+            meta={meta}
+            onChange={(m) => { setMeta(m); setIsDirty(true); }}
+            counts={{
+              teams: teams.length,
+              players: players.length,
+              confederations: confederations.length,
+              countries: countries.length,
+              competitions: competitions.length,
+              namePools: Object.keys(names.pools).length,
+            }}
+          />
           <button
             onClick={() => {
               pushHistory(currentSnapshot());
@@ -849,6 +864,7 @@ export default function WorldEditor() {
             editingTeam={editingTeam}
             editingTeamIndex={editingTeamIndex}
             isBusy={isBusy}
+            projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
             onSave={() => { void handleSaveTeam(); }}
             updateField={(key, value) => setEditingTeam((prev) => ({ ...prev, [key]: value }))}
@@ -895,6 +911,8 @@ export default function WorldEditor() {
             editing={editingPlayer}
             editingIndex={editingPlayerIndex}
             isBusy={isBusy}
+            teams={teams}
+            projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
             onSave={() => { void handleSavePlayer(); }}
             updateField={(key, value) => setEditingPlayer((prev) => ({ ...prev, [key]: value }))}
@@ -925,6 +943,8 @@ export default function WorldEditor() {
             editing={editingComp}
             editingIndex={editingCompIndex}
             isBusy={isBusy}
+            teams={teams}
+            projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
             onSave={() => { void handleSaveCompetition(); }}
             updateField={(key, value) => setEditingComp((prev) => ({ ...prev, [key]: value }))}
