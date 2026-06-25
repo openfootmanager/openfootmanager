@@ -134,14 +134,21 @@ describe("parseIsoDateParts", () => {
 });
 
 describe("careerStartReferenceDate", () => {
-  it("seasonStart returns July 1 of the start year", () => {
+  it("seasonStart returns July 1 in non-World-Cup years", () => {
     const date = careerStartReferenceDate(2025, "seasonStart");
     expect(date.getUTCFullYear()).toBe(2025);
     expect(date.getUTCMonth()).toBe(6); // July = 6 (0-indexed)
     expect(date.getUTCDate()).toBe(1);
   });
 
-  it("midSeason adds 120 days to July 1", () => {
+  it("seasonStart returns June 1 in World Cup years", () => {
+    const date = careerStartReferenceDate(2026, "seasonStart"); // 2026 % 4 === 2
+    expect(date.getUTCFullYear()).toBe(2026);
+    expect(date.getUTCMonth()).toBe(5); // June = 5 (0-indexed)
+    expect(date.getUTCDate()).toBe(1);
+  });
+
+  it("midSeason adds 120 days to the season start anchor", () => {
     const seasonStart = careerStartReferenceDate(2025, "seasonStart");
     const midSeason = careerStartReferenceDate(2025, "midSeason");
     const diffMs = midSeason.getTime() - seasonStart.getTime();

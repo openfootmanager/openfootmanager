@@ -122,11 +122,18 @@ export function parseIsoDateParts(isoDob: string): IsoDateParts | null {
   return { year, month, day };
 }
 
+// World Cups fall in the summers of 2022, 2026, 2030, … (every year ≡ 2 mod 4).
+// Matches the backend start_date_for_year rule: June 1 in WC years, July 1 otherwise.
+function isWorldCupYear(year: number): boolean {
+  return year % 4 === 2;
+}
+
 export function careerStartReferenceDate(
   startYear: number,
   startPhase: CareerStartPhase,
 ): Date {
-  const referenceDate = new Date(Date.UTC(startYear, 6, 1));
+  const month = isWorldCupYear(startYear) ? 5 : 6; // 0-indexed: 5=June, 6=July
+  const referenceDate = new Date(Date.UTC(startYear, month, 1));
   if (startPhase === "midSeason") {
     referenceDate.setUTCDate(referenceDate.getUTCDate() + 120);
   }
