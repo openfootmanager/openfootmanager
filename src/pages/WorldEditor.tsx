@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,8 @@ import {
   emptyPlayer,
   emptyTeam,
 } from "../components/menu/PackageEditor/helpers";
+import { useUndoRedo } from "../hooks/useUndoRedo";
+import { useEntityEditor } from "../hooks/useEntityEditor";
 import { MetadataForm } from "../components/menu/PackageEditor/MetadataForm";
 import { TeamForm } from "../components/menu/PackageEditor/TeamForm";
 import { ConfederationForm } from "../components/menu/PackageEditor/ConfederationForm";
@@ -48,7 +50,6 @@ import { EntityListPanel } from "../components/worldEditor/EntityListPanel";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
 const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
-const MAX_HISTORY = 50;
 const MAX_RECENT = 8;
 
 function readRecentProjects(): RecentProject[] {
@@ -122,46 +123,17 @@ export default function WorldEditor() {
   // Recent projects
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
 
-  // Undo/redo history (entity data only, not layout)
-  const undoStack = useRef<EntitySnapshot[]>([]);
-  const redoStack = useRef<EntitySnapshot[]>([]);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-
-  // Per-entity editing buffers
-  const [editingTeam, setEditingTeam] = useState<TeamDef>(emptyTeam());
-  const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
-
-  const [editingConf, setEditingConf] = useState<ConfederationDef>(emptyConfederation());
-  const [editingConfIndex, setEditingConfIndex] = useState<number | null>(null);
-
-  const [editingCountry, setEditingCountry] = useState<CountryDef>(emptyCountry());
-  const [editingCountryIndex, setEditingCountryIndex] = useState<number | null>(null);
-
-  const [editingPlayer, setEditingPlayer] = useState<PlayerDef>(emptyPlayer());
-  const [editingPlayerIndex, setEditingPlayerIndex] = useState<number | null>(null);
-
+  // Names pool (bespoke: key-based, not index-based)
   const [editingPoolKey, setEditingPoolKey] = useState("");
   const [editingPool, setEditingPool] = useState<NamePool>({ first_names: [], last_names: [] });
   const [isNewPool, setIsNewPool] = useState(false);
 
-  const [editingComp, setEditingComp] = useState<CompetitionDef>(emptyCompetition());
-  const [editingCompIndex, setEditingCompIndex] = useState<number | null>(null);
-
   // ---------------------------------------------------------------------------
-  // History helpers
+  // Snapshot helpers
   // ---------------------------------------------------------------------------
 
   function currentSnapshot(): EntitySnapshot {
     return { meta, confederations, countries, teams, players, names, competitions };
-  }
-
-  function pushHistory(snapshot: EntitySnapshot) {
-    undoStack.current = [...undoStack.current.slice(-MAX_HISTORY + 1), snapshot];
-    redoStack.current = [];
-    setCanUndo(true);
-    setCanRedo(false);
-    setIsDirty(true);
   }
 
   function applySnapshot(snapshot: EntitySnapshot) {
@@ -176,44 +148,18 @@ export default function WorldEditor() {
     setIsDirty(true);
   }
 
-  function handleUndo() {
-    if (undoStack.current.length === 0) return;
-    const prev = undoStack.current[undoStack.current.length - 1];
-    undoStack.current = undoStack.current.slice(0, -1);
-    redoStack.current = [currentSnapshot(), ...redoStack.current];
-    applySnapshot(prev);
-    setCanUndo(undoStack.current.length > 0);
-    setCanRedo(true);
-  }
+  // ---------------------------------------------------------------------------
+  // Undo / redo
+  // ---------------------------------------------------------------------------
 
-  function handleRedo() {
-    if (redoStack.current.length === 0) return;
-    const next = redoStack.current[0];
-    redoStack.current = redoStack.current.slice(1);
-    undoStack.current = [...undoStack.current, currentSnapshot()];
-    applySnapshot(next);
-    setCanUndo(true);
-    setCanRedo(redoStack.current.length > 0);
-  }
-
-  // Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z — blocked when an input/textarea is focused
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (!projectDir) return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        handleRedo();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  const { canUndo, canRedo, pushHistory, clearHistory, handleUndo, handleRedo } = useUndoRedo({
+    getSnapshot: currentSnapshot,
+    applySnapshot,
+    enabled: !!projectDir,
+    onDirty: () => setIsDirty(true),
   });
+
+  const captureHistory = () => pushHistory(currentSnapshot());
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -233,10 +179,7 @@ export default function WorldEditor() {
     setNames(data.names ?? emptyNamesDefinition());
     setCompetitions(data.competitions);
     setIssues(data.issues);
-    undoStack.current = [];
-    redoStack.current = [];
-    setCanUndo(false);
-    setCanRedo(false);
+    clearHistory();
     setIsDirty(false);
   }
 
@@ -438,187 +381,78 @@ export default function WorldEditor() {
   }
 
   // ---------------------------------------------------------------------------
-  // Team handlers
+  // Entity editors (select / add / delete / save for each entity type)
   // ---------------------------------------------------------------------------
 
-  function handleSelectTeam(index: number) {
-    setEditingTeam({ ...teams[index] });
-    setEditingTeamIndex(index);
-    setFormPanel("team");
-  }
+  const teamEditor = useEntityEditor({
+    items: teams,
+    setItems: setTeams,
+    empty: emptyTeam,
+    captureHistory,
+    saveItems: (items) => persist({ teams: items }),
+    autoSave,
+    onOpen: () => setFormPanel("team"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
-  function handleAddTeam() {
-    setEditingTeam(emptyTeam());
-    setEditingTeamIndex(null);
-    setFormPanel("team");
-  }
+  const confEditor = useEntityEditor({
+    items: confederations,
+    setItems: setConfederations,
+    empty: emptyConfederation,
+    captureHistory,
+    saveItems: (items) => persist({ confederations: items }),
+    autoSave,
+    onOpen: () => setFormPanel("confederation"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
-  function handleDeleteTeam(index: number) {
-    pushHistory(currentSnapshot());
-    const updated = teams.filter((_, i) => i !== index);
-    setTeams(updated);
-    if (autoSave) void persist({ teams: updated });
-    if (editingTeamIndex === index) setFormPanel("empty");
-  }
+  const countryEditor = useEntityEditor({
+    items: countries,
+    setItems: setCountries,
+    empty: emptyCountry,
+    captureHistory,
+    saveItems: (items) => persist({ countries: items }),
+    autoSave,
+    onOpen: () => setFormPanel("country"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
-  async function handleSaveTeam() {
-    pushHistory(currentSnapshot());
-    const updated =
-      editingTeamIndex === null
-        ? [...teams, editingTeam]
-        : teams.map((t, i) => (i === editingTeamIndex ? editingTeam : t));
-    const newIndex = editingTeamIndex ?? updated.length - 1;
-    setTeams(updated);
-    setEditingTeamIndex(newIndex);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ teams: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
+  const playerEditor = useEntityEditor({
+    items: players,
+    setItems: setPlayers,
+    empty: emptyPlayer,
+    captureHistory,
+    saveItems: (items) => persist({ players: items }),
+    autoSave,
+    onOpen: () => setFormPanel("player"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
-  // ---------------------------------------------------------------------------
-  // Confederation handlers
-  // ---------------------------------------------------------------------------
-
-  function handleSelectConfederation(index: number) {
-    setEditingConf({ ...confederations[index] });
-    setEditingConfIndex(index);
-    setFormPanel("confederation");
-  }
-
-  function handleAddConfederation() {
-    setEditingConf(emptyConfederation());
-    setEditingConfIndex(null);
-    setFormPanel("confederation");
-  }
-
-  function handleDeleteConfederation(index: number) {
-    pushHistory(currentSnapshot());
-    const updated = confederations.filter((_, i) => i !== index);
-    setConfederations(updated);
-    if (autoSave) void persist({ confederations: updated });
-    if (editingConfIndex === index) setFormPanel("empty");
-  }
-
-  async function handleSaveConfederation() {
-    pushHistory(currentSnapshot());
-    const updated =
-      editingConfIndex === null
-        ? [...confederations, editingConf]
-        : confederations.map((c, i) => (i === editingConfIndex ? editingConf : c));
-    const newIndex = editingConfIndex ?? updated.length - 1;
-    setConfederations(updated);
-    setEditingConfIndex(newIndex);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ confederations: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
+  const compEditor = useEntityEditor({
+    items: competitions,
+    setItems: setCompetitions,
+    empty: emptyCompetition,
+    captureHistory,
+    saveItems: (items) => persist({ competitions: items }),
+    autoSave,
+    onOpen: () => setFormPanel("competition"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
   // ---------------------------------------------------------------------------
-  // Country handlers
+  // Country handlers (continued — country editor needs confederation list)
   // ---------------------------------------------------------------------------
 
-  function handleSelectCountry(index: number) {
-    setEditingCountry({ ...countries[index] });
-    setEditingCountryIndex(index);
-    setFormPanel("country");
-  }
-
-  function handleAddCountry() {
-    setEditingCountry(emptyCountry());
-    setEditingCountryIndex(null);
-    setFormPanel("country");
-  }
-
-  function handleDeleteCountry(index: number) {
-    pushHistory(currentSnapshot());
-    const updated = countries.filter((_, i) => i !== index);
-    setCountries(updated);
-    if (autoSave) void persist({ countries: updated });
-    if (editingCountryIndex === index) setFormPanel("empty");
-  }
-
-  async function handleSaveCountry() {
-    pushHistory(currentSnapshot());
-    const updated =
-      editingCountryIndex === null
-        ? [...countries, editingCountry]
-        : countries.map((c, i) => (i === editingCountryIndex ? editingCountry : c));
-    const newIndex = editingCountryIndex ?? updated.length - 1;
-    setCountries(updated);
-    setEditingCountryIndex(newIndex);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ countries: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
+  // Note: countryEditor.editing / handleSave etc. used in render below.
+  // CountryForm also receives confederations for its dropdown.
 
   // ---------------------------------------------------------------------------
-  // Player handlers
-  // ---------------------------------------------------------------------------
-
-  function handleSelectPlayer(index: number) {
-    setEditingPlayer({ ...players[index] });
-    setEditingPlayerIndex(index);
-    setFormPanel("player");
-  }
-
-  function handleAddPlayer() {
-    setEditingPlayer(emptyPlayer());
-    setEditingPlayerIndex(null);
-    setFormPanel("player");
-  }
-
-  function handleDeletePlayer(index: number) {
-    pushHistory(currentSnapshot());
-    const updated = players.filter((_, i) => i !== index);
-    setPlayers(updated);
-    if (autoSave) void persist({ players: updated });
-    if (editingPlayerIndex === index) setFormPanel("empty");
-  }
-
-  async function handleSavePlayer() {
-    pushHistory(currentSnapshot());
-    const updated =
-      editingPlayerIndex === null
-        ? [...players, editingPlayer]
-        : players.map((p, i) => (i === editingPlayerIndex ? editingPlayer : p));
-    const newIndex = editingPlayerIndex ?? updated.length - 1;
-    setPlayers(updated);
-    setEditingPlayerIndex(newIndex);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ players: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Names pool handlers
+  // Names pool handlers (bespoke: key-based identity, rename-on-save)
   // ---------------------------------------------------------------------------
 
   function handleSelectPool(key: string) {
@@ -672,51 +506,6 @@ export default function WorldEditor() {
   }
 
   // ---------------------------------------------------------------------------
-  // Competition handlers
-  // ---------------------------------------------------------------------------
-
-  function handleSelectCompetition(index: number) {
-    setEditingComp({ ...competitions[index] });
-    setEditingCompIndex(index);
-    setFormPanel("competition");
-  }
-
-  function handleAddCompetition() {
-    setEditingComp(emptyCompetition());
-    setEditingCompIndex(null);
-    setFormPanel("competition");
-  }
-
-  function handleDeleteCompetition(index: number) {
-    pushHistory(currentSnapshot());
-    const updated = competitions.filter((_, i) => i !== index);
-    setCompetitions(updated);
-    if (autoSave) void persist({ competitions: updated });
-    if (editingCompIndex === index) setFormPanel("empty");
-  }
-
-  async function handleSaveCompetition() {
-    pushHistory(currentSnapshot());
-    const updated =
-      editingCompIndex === null
-        ? [...competitions, editingComp]
-        : competitions.map((c, i) => (i === editingCompIndex ? editingComp : c));
-    const newIndex = editingCompIndex ?? updated.length - 1;
-    setCompetitions(updated);
-    setEditingCompIndex(newIndex);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ competitions: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Home view (no project open)
   // ---------------------------------------------------------------------------
 
@@ -746,41 +535,41 @@ export default function WorldEditor() {
         {selectedSection === "teams" && (
           <TeamsTab
             teams={teams}
-            onAdd={handleAddTeam}
-            onEdit={handleSelectTeam}
-            onDelete={handleDeleteTeam}
-            selectedIndex={formPanel === "team" ? editingTeamIndex : null}
-            onSelect={handleSelectTeam}
+            onAdd={teamEditor.handleAdd}
+            onEdit={teamEditor.handleSelect}
+            onDelete={teamEditor.handleDelete}
+            selectedIndex={formPanel === "team" ? teamEditor.editingIndex : null}
+            onSelect={teamEditor.handleSelect}
           />
         )}
         {selectedSection === "players" && (
           <PlayersTab
             players={players}
-            onAdd={handleAddPlayer}
-            onEdit={handleSelectPlayer}
-            onDelete={handleDeletePlayer}
-            selectedIndex={formPanel === "player" ? editingPlayerIndex : null}
-            onSelect={handleSelectPlayer}
+            onAdd={playerEditor.handleAdd}
+            onEdit={playerEditor.handleSelect}
+            onDelete={playerEditor.handleDelete}
+            selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
+            onSelect={playerEditor.handleSelect}
           />
         )}
         {selectedSection === "confederations" && (
           <ConfederationsTab
             confederations={confederations}
-            onAdd={handleAddConfederation}
-            onEdit={handleSelectConfederation}
-            onDelete={handleDeleteConfederation}
-            selectedIndex={formPanel === "confederation" ? editingConfIndex : null}
-            onSelect={handleSelectConfederation}
+            onAdd={confEditor.handleAdd}
+            onEdit={confEditor.handleSelect}
+            onDelete={confEditor.handleDelete}
+            selectedIndex={formPanel === "confederation" ? confEditor.editingIndex : null}
+            onSelect={confEditor.handleSelect}
           />
         )}
         {selectedSection === "countries" && (
           <CountriesTab
             countries={countries}
-            onAdd={handleAddCountry}
-            onEdit={handleSelectCountry}
-            onDelete={handleDeleteCountry}
-            selectedIndex={formPanel === "country" ? editingCountryIndex : null}
-            onSelect={handleSelectCountry}
+            onAdd={countryEditor.handleAdd}
+            onEdit={countryEditor.handleSelect}
+            onDelete={countryEditor.handleDelete}
+            selectedIndex={formPanel === "country" ? countryEditor.editingIndex : null}
+            onSelect={countryEditor.handleSelect}
           />
         )}
         {selectedSection === "names" && (
@@ -796,11 +585,11 @@ export default function WorldEditor() {
         {selectedSection === "competitions" && (
           <CompetitionsTab
             competitions={competitions}
-            onAdd={handleAddCompetition}
-            onEdit={handleSelectCompetition}
-            onDelete={handleDeleteCompetition}
-            selectedIndex={formPanel === "competition" ? editingCompIndex : null}
-            onSelect={handleSelectCompetition}
+            onAdd={compEditor.handleAdd}
+            onEdit={compEditor.handleSelect}
+            onDelete={compEditor.handleDelete}
+            selectedIndex={formPanel === "competition" ? compEditor.editingIndex : null}
+            onSelect={compEditor.handleSelect}
           />
         )}
       </EntityListPanel>
@@ -861,13 +650,13 @@ export default function WorldEditor() {
       return (
         <div className="max-w-lg">
           <TeamForm
-            editingTeam={editingTeam}
-            editingTeamIndex={editingTeamIndex}
+            editingTeam={teamEditor.editing}
+            editingTeamIndex={teamEditor.editingIndex}
             isBusy={isBusy}
             projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
-            onSave={() => { void handleSaveTeam(); }}
-            updateField={(key, value) => setEditingTeam((prev) => ({ ...prev, [key]: value }))}
+            onSave={() => { void teamEditor.handleSave(); }}
+            updateField={teamEditor.updateField}
           />
         </div>
       );
@@ -877,12 +666,12 @@ export default function WorldEditor() {
       return (
         <div className="max-w-lg">
           <ConfederationForm
-            editing={editingConf}
-            editingIndex={editingConfIndex}
+            editing={confEditor.editing}
+            editingIndex={confEditor.editingIndex}
             isBusy={isBusy}
             onBack={() => setFormPanel("empty")}
-            onSave={() => { void handleSaveConfederation(); }}
-            updateField={(key, value) => setEditingConf((prev) => ({ ...prev, [key]: value }))}
+            onSave={() => { void confEditor.handleSave(); }}
+            updateField={confEditor.updateField}
           />
         </div>
       );
@@ -892,13 +681,13 @@ export default function WorldEditor() {
       return (
         <div className="max-w-lg">
           <CountryForm
-            editing={editingCountry}
-            editingIndex={editingCountryIndex}
+            editing={countryEditor.editing}
+            editingIndex={countryEditor.editingIndex}
             confederations={confederations}
             isBusy={isBusy}
             onBack={() => setFormPanel("empty")}
-            onSave={() => { void handleSaveCountry(); }}
-            updateField={(key, value) => setEditingCountry((prev) => ({ ...prev, [key]: value }))}
+            onSave={() => { void countryEditor.handleSave(); }}
+            updateField={countryEditor.updateField}
           />
         </div>
       );
@@ -908,14 +697,14 @@ export default function WorldEditor() {
       return (
         <div className="max-w-lg">
           <PlayerForm
-            editing={editingPlayer}
-            editingIndex={editingPlayerIndex}
+            editing={playerEditor.editing}
+            editingIndex={playerEditor.editingIndex}
             isBusy={isBusy}
             teams={teams}
             projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
-            onSave={() => { void handleSavePlayer(); }}
-            updateField={(key, value) => setEditingPlayer((prev) => ({ ...prev, [key]: value }))}
+            onSave={() => { void playerEditor.handleSave(); }}
+            updateField={playerEditor.updateField}
           />
         </div>
       );
@@ -940,14 +729,14 @@ export default function WorldEditor() {
       return (
         <div className="max-w-2xl">
           <CompetitionForm
-            editing={editingComp}
-            editingIndex={editingCompIndex}
+            editing={compEditor.editing}
+            editingIndex={compEditor.editingIndex}
             isBusy={isBusy}
             teams={teams}
             projectDir={projectDir || undefined}
             onBack={() => setFormPanel("empty")}
-            onSave={() => { void handleSaveCompetition(); }}
-            updateField={(key, value) => setEditingComp((prev) => ({ ...prev, [key]: value }))}
+            onSave={() => { void compEditor.handleSave(); }}
+            updateField={compEditor.updateField}
           />
         </div>
       );
