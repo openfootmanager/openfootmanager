@@ -48,9 +48,11 @@ export function PlayerForm({
 
   useEffect(() => {
     if (!editing.photo || !projectDir) { setPhotoDataUrl(null); return; }
+    let cancelled = false;
     invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editing.photo}` })
-      .then(setPhotoDataUrl)
-      .catch(() => setPhotoDataUrl(null));
+      .then((url) => { if (!cancelled) setPhotoDataUrl(url); })
+      .catch(() => { if (!cancelled) setPhotoDataUrl(null); });
+    return () => { cancelled = true; };
   }, [editing.photo, projectDir]);
 
   async function handlePickPhoto() {
