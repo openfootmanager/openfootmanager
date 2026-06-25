@@ -3668,6 +3668,12 @@
       "selectorSource": "La competizione i cui vincitori si qualificano per questa. Inserisci l'ID competizione (es. 'serie-b').",
       "packageId": "Un identificatore univoco per questo mondo (es. 'italia-calcio-2026'). Usato come nome file per il .ofm.",
       "packageType": "Database: un mondo completo. Patch: modifica un mondo esistente. Assets: solo grafica o audio."
-    }
+    },
+    "undo": "Annulla",
+    "redo": "Ripristina",
+    "save": "Salva",
+    "autoSave": "Salvataggio auto",
+    "autoSaveOn": "Salvataggio auto attivo",
+    "autoSaveOff": "Salvataggio auto inattivo"
   }
 }

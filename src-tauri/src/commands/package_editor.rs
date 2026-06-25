@@ -1,9 +1,10 @@
 use ofm_core::generator::{
-    export_directory_to_ofm, load_world_package, CompetitionDefinition, ConfederationDef,
-    CountryDef, NamesDefinition, PlayerDef, TeamDef, WorldMetaDef,
+    export_directory_to_ofm, extract_ofm_to_dir, load_world_package, CompetitionDefinition,
+    ConfederationDef, CountryDef, NamesDefinition, PlayerDef, TeamDef, WorldMetaDef,
 };
 use serde_json::json;
 use std::path::Path;
+use tauri::Manager as _;
 
 // ---------------------------------------------------------------------------
 // Return types
@@ -390,6 +391,32 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
     }
+}
+
+/// Extract a `.ofm` archive to a temporary editing directory.
+/// Returns the path to the extracted directory.
+#[tauri::command]
+pub fn extract_ofm_for_editing(
+    app_handle: tauri::AppHandle,
+    ofm_path: String,
+) -> Result<String, String> {
+    let ofm = Path::new(&ofm_path);
+    let stem = ofm
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("world");
+
+    let base_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let edit_dir = base_dir.join("world-editor-temp").join(stem);
+
+    extract_ofm_to_dir(ofm, &edit_dir)?;
+    edit_dir
+        .to_str()
+        .map(|s: &str| s.to_string())
+        .ok_or_else(|| "Invalid path".to_string())
 }
 
 /// Validate then export a package directory to a .ofm archive.

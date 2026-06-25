@@ -3698,6 +3698,12 @@
       "selectorSource": "La competición cuyos ganadores se clasifican para esta. Introduce el ID de competición (ej. 'segunda-division').",
       "packageId": "Un identificador único para este mundo (ej. 'espana-futbol-2026'). Se usa como nombre de archivo al construir el .ofm.",
       "packageType": "Base de datos: un mundo completo. Parche: modifica un mundo existente. Assets: solo gráficos o audio."
-    }
+    },
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "save": "Guardar",
+    "autoSave": "Autoguardado",
+    "autoSaveOn": "Autoguardado activado",
+    "autoSaveOff": "Autoguardado desactivado"
   }
 }

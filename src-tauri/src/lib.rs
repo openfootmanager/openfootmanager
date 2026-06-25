@@ -291,7 +291,8 @@ pub fn run() {
             create_package_project,
             read_package_project,
             save_package_project,
-            build_ofm
+            build_ofm,
+            extract_ofm_for_editing
         ])
         .run(tauri::generate_context!());
 

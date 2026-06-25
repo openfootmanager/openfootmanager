@@ -3664,6 +3664,12 @@
       "selectorSource": "The competition whose winner(s) qualify for this competition. Enter the competition ID (e.g. 'national-league-one').",
       "packageId": "A unique slug for this world package (e.g. 'england-football-2026'). Used as the file name when building the .ofm file.",
       "packageType": "Database: a full world replacing the default. Patch: modifies an existing world. Assets: graphics or audio only."
-    }
+    },
+    "undo": "Undo",
+    "redo": "Redo",
+    "save": "Save",
+    "autoSave": "Auto-save",
+    "autoSaveOn": "Auto-save is ON",
+    "autoSaveOff": "Auto-save is OFF"
   }
 }

@@ -27,7 +27,10 @@ pub use game::*;
 pub use jobs::*;
 pub use live_match::*;
 pub use messages::*;
-pub use package_editor::{build_ofm, create_package_project, read_package_project, save_package_project};
+pub use package_editor::{
+    build_ofm, create_package_project, extract_ofm_for_editing, read_package_project,
+    save_package_project,
+};
 pub use profiles::*;
 pub use season::*;
 pub use settings::*;

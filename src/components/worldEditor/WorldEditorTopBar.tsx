@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CheckCircle, Package, Loader2, Check, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle, Package, Loader2, AlertCircle,
+  Undo2, Redo2, Save, ToggleLeft, ToggleRight,
+} from "lucide-react";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -10,8 +13,16 @@ interface WorldEditorTopBarProps {
   saveState: SaveState;
   isBusy: boolean;
   issueCount: number;
+  autoSave: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  isDirty: boolean;
   onValidate: () => void;
   onBuild: () => void;
+  onSave: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onToggleAutoSave: () => void;
 }
 
 export function WorldEditorTopBar({
@@ -20,15 +31,23 @@ export function WorldEditorTopBar({
   saveState,
   isBusy,
   issueCount,
+  autoSave,
+  canUndo,
+  canRedo,
+  isDirty,
   onValidate,
   onBuild,
+  onSave,
+  onUndo,
+  onRedo,
+  onToggleAutoSave,
 }: WorldEditorTopBarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
-    <div className="flex-shrink-0 h-12 flex items-center justify-between px-4 gap-4 border-b border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800">
-      {/* Left: back + package identity */}
+    <div className="flex-shrink-0 h-12 flex items-center justify-between px-4 gap-2 border-b border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800">
+      {/* Left: back + identity */}
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={() => navigate("/")}
@@ -42,37 +61,88 @@ export function WorldEditorTopBar({
           {packageName || t("worldEditor.title")}
         </span>
         {packageDir && (
-          <span className="text-xs text-gray-400 dark:text-gray-500 truncate hidden md:block max-w-[240px]">
+          <span className="text-xs text-gray-400 dark:text-gray-500 truncate hidden md:block max-w-[200px]">
             {packageDir}
+          </span>
+        )}
+        {isDirty && saveState === "idle" && (
+          <span className="text-[10px] text-amber-500 dark:text-amber-400 font-medium flex-shrink-0">
+            ●
           </span>
         )}
       </div>
 
-      {/* Right: save indicator + actions */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {saveState === "saving" && (
-          <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            {t("worldEditor.saving")}
-          </span>
-        )}
-        {saveState === "saved" && (
-          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-            <Check className="w-3 h-3" />
-            {t("worldEditor.saved")}
-          </span>
-        )}
-        {saveState === "error" && (
-          <span className="flex items-center gap-1 text-xs text-red-500 dark:text-red-400">
-            <AlertCircle className="w-3 h-3" />
-            {t("worldEditor.unsaved")}
-          </span>
-        )}
+      {/* Right: undo/redo + save indicator + actions */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Undo / Redo */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={onUndo}
+            disabled={!canUndo || isBusy}
+            title={t("worldEditor.undo")}
+            className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo || isBusy}
+            title={t("worldEditor.redo")}
+            className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        <span className="w-px h-5 bg-gray-200 dark:bg-navy-600" />
+
+        {/* Auto-save toggle */}
+        <button
+          onClick={onToggleAutoSave}
+          title={autoSave ? t("worldEditor.autoSaveOn") : t("worldEditor.autoSaveOff")}
+          className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          {autoSave ? (
+            <ToggleRight className="w-4 h-4 text-primary-500" />
+          ) : (
+            <ToggleLeft className="w-4 h-4" />
+          )}
+          <span className="hidden sm:inline text-[11px]">{t("worldEditor.autoSave")}</span>
+        </button>
+
+        {/* Save indicator + manual save */}
+        <button
+          onClick={onSave}
+          disabled={isBusy}
+          title={t("worldEditor.save")}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-xs font-heading font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all disabled:opacity-40"
+        >
+          {saveState === "saving" ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : saveState === "saved" ? (
+            <Save className="w-3.5 h-3.5 text-green-500" />
+          ) : saveState === "error" ? (
+            <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+          ) : (
+            <Save className="w-3.5 h-3.5" />
+          )}
+          {saveState === "saving" ? (
+            <span>{t("worldEditor.saving")}</span>
+          ) : saveState === "saved" ? (
+            <span className="text-green-600 dark:text-green-400">{t("worldEditor.saved")}</span>
+          ) : saveState === "error" ? (
+            <span className="text-red-500">{t("worldEditor.unsaved")}</span>
+          ) : (
+            <span>{t("worldEditor.save")}</span>
+          )}
+        </button>
+
+        <span className="w-px h-5 bg-gray-200 dark:bg-navy-600" />
 
         <button
           onClick={onValidate}
           disabled={isBusy}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-xs font-heading font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all disabled:opacity-50"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-xs font-heading font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all disabled:opacity-50"
         >
           {isBusy ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -92,7 +162,7 @@ export function WorldEditorTopBar({
         <button
           onClick={onBuild}
           disabled={isBusy}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white text-xs font-heading font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white text-xs font-heading font-bold uppercase tracking-wider transition-all disabled:opacity-50"
         >
           {isBusy ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

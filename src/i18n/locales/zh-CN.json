@@ -3665,6 +3665,12 @@
       "selectorSource": "其冠军将参加本赛事的赛事ID（例如 'national-league'）。",
       "packageId": "此世界包的唯一标识符（例如 'china-football-2026'），构建 .ofm 文件时用作文件名。",
       "packageType": "数据库：完整世界。补丁：修改现有世界。资源：仅图形或音频。"
-    }
+    },
+    "undo": "撤销",
+    "redo": "重做",
+    "save": "保存",
+    "autoSave": "自动保存",
+    "autoSaveOn": "自动保存已开启",
+    "autoSaveOff": "自动保存已关闭"
   }
 }

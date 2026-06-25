@@ -3668,6 +3668,12 @@
       "selectorSource": "Der Wettbewerb, dessen Gewinner sich für diesen qualifizieren. Wettbewerbs-ID eingeben (z.B. 'nationale-liga').",
       "packageId": "Ein eindeutiger Slug für dieses Weltpaket (z.B. 'england-fussball-2026'). Wird als Dateiname beim Erstellen der .ofm-Datei verwendet.",
       "packageType": "Datenbank: eine vollständige Welt. Patch: modifiziert eine bestehende Welt. Assets: nur Grafiken oder Audio."
-    }
+    },
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "save": "Speichern",
+    "autoSave": "Autospeichern",
+    "autoSaveOn": "Autospeichern aktiv",
+    "autoSaveOff": "Autospeichern inaktiv"
   }
 }

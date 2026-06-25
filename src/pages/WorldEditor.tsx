@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
@@ -45,6 +45,9 @@ import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/Wor
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import { EntityListPanel } from "../components/worldEditor/EntityListPanel";
 
+const AUTO_SAVE_KEY = "worldEditor.autoSave";
+const MAX_HISTORY = 50;
+
 type FormPanel =
   | "empty"
   | "metadata"
@@ -56,7 +59,26 @@ type FormPanel =
   | "competition"
   | "issues";
 
-export default function PackageEditor() {
+interface EntitySnapshot {
+  meta: WorldMetaDef;
+  confederations: ConfederationDef[];
+  countries: CountryDef[];
+  teams: TeamDef[];
+  players: PlayerDef[];
+  names: NamesDefinition;
+  competitions: CompetitionDef[];
+}
+
+function readAutoSave(): boolean {
+  try {
+    const stored = localStorage.getItem(AUTO_SAVE_KEY);
+    return stored === null ? true : stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+export default function WorldEditor() {
   const { t } = useTranslation();
 
   const [projectDir, setProjectDir] = useState("");
@@ -79,6 +101,16 @@ export default function PackageEditor() {
   const [isBusy, setIsBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Auto-save
+  const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
+
+  // Undo/redo history (entity data only, not layout)
+  const undoStack = useRef<EntitySnapshot[]>([]);
+  const redoStack = useRef<EntitySnapshot[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   // Per-entity editing buffers
   const [editingTeam, setEditingTeam] = useState<TeamDef>(emptyTeam());
@@ -101,6 +133,73 @@ export default function PackageEditor() {
   const [editingCompIndex, setEditingCompIndex] = useState<number | null>(null);
 
   // ---------------------------------------------------------------------------
+  // History helpers
+  // ---------------------------------------------------------------------------
+
+  function currentSnapshot(): EntitySnapshot {
+    return { meta, confederations, countries, teams, players, names, competitions };
+  }
+
+  function pushHistory(snapshot: EntitySnapshot) {
+    undoStack.current = [...undoStack.current.slice(-MAX_HISTORY + 1), snapshot];
+    redoStack.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+    setIsDirty(true);
+  }
+
+  function applySnapshot(snapshot: EntitySnapshot) {
+    setMeta(snapshot.meta);
+    setConfederations(snapshot.confederations);
+    setCountries(snapshot.countries);
+    setTeams(snapshot.teams);
+    setPlayers(snapshot.players);
+    setNames(snapshot.names);
+    setCompetitions(snapshot.competitions);
+    setFormPanel("empty");
+    setIsDirty(true);
+  }
+
+  function handleUndo() {
+    if (undoStack.current.length === 0) return;
+    const prev = undoStack.current[undoStack.current.length - 1];
+    undoStack.current = undoStack.current.slice(0, -1);
+    redoStack.current = [currentSnapshot(), ...redoStack.current];
+    applySnapshot(prev);
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(true);
+  }
+
+  function handleRedo() {
+    if (redoStack.current.length === 0) return;
+    const next = redoStack.current[0];
+    redoStack.current = redoStack.current.slice(1);
+    undoStack.current = [...undoStack.current, currentSnapshot()];
+    applySnapshot(next);
+    setCanUndo(true);
+    setCanRedo(redoStack.current.length > 0);
+  }
+
+  // Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z — blocked when an input/textarea is focused
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!projectDir) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
@@ -118,9 +217,14 @@ export default function PackageEditor() {
     setNames(data.names ?? emptyNamesDefinition());
     setCompetitions(data.competitions);
     setIssues(data.issues);
+    undoStack.current = [];
+    redoStack.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    setIsDirty(false);
   }
 
-  async function persist(overrides?: {
+  const persist = useCallback(async (overrides?: {
     meta?: WorldMetaDef;
     confederations?: ConfederationDef[];
     countries?: CountryDef[];
@@ -128,7 +232,7 @@ export default function PackageEditor() {
     players?: PlayerDef[];
     names?: NamesDefinition;
     competitions?: CompetitionDef[];
-  }) {
+  }) => {
     setSaveState("saving");
     try {
       await invoke("save_package_project", {
@@ -142,11 +246,30 @@ export default function PackageEditor() {
         competitions: overrides?.competitions ?? competitions,
       });
       setSaveState("saved");
+      setIsDirty(false);
       setTimeout(() => setSaveState("idle"), 2000);
     } catch (err) {
       setSaveState("error");
       flashError(resolveBackendError(err));
       throw err;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectDir, meta, confederations, countries, teams, players, names, competitions]);
+
+  function handleToggleAutoSave() {
+    const next = !autoSave;
+    setAutoSave(next);
+    try { localStorage.setItem(AUTO_SAVE_KEY, String(next)); } catch { /* ignore */ }
+  }
+
+  async function handleManualSave() {
+    setIsBusy(true);
+    try {
+      await persist();
+    } catch {
+      // persist handled error
+    } finally {
+      setIsBusy(false);
     }
   }
 
@@ -179,14 +302,7 @@ export default function PackageEditor() {
       const newMeta = emptyMeta();
       await invoke("create_package_project", { dir, meta: newMeta });
       setProjectDir(dir);
-      setMeta(newMeta);
-      setConfederations([]);
-      setCountries([]);
-      setTeams([]);
-      setPlayers([]);
-      setNames(emptyNamesDefinition());
-      setCompetitions([]);
-      setIssues([]);
+      loadProjectState({ meta: newMeta, confederations: [], countries: [], teams: [], players: [], names: null, competitions: [], issues: [] });
       setSelectedSection("metadata");
       setFormPanel("metadata");
     } catch (err) {
@@ -197,9 +313,35 @@ export default function PackageEditor() {
   }
 
   async function handleOpenPackage() {
-    const dir = await open({ directory: true, multiple: false });
-    if (typeof dir !== "string") return;
-    setIsBusy(true);
+    const selected = await open({
+      directory: false,
+      multiple: false,
+      filters: [
+        { name: "World Package", extensions: ["ofm"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    // If user selected an .ofm file, extract it to a temp editing dir first
+    let dir: string;
+    if (typeof selected === "string" && selected.endsWith(".ofm")) {
+      setIsBusy(true);
+      try {
+        dir = await invoke<string>("extract_ofm_for_editing", { ofmPath: selected });
+      } catch (err) {
+        flashError(resolveBackendError(err));
+        setIsBusy(false);
+        return;
+      }
+    } else if (typeof selected === "string") {
+      dir = selected;
+      setIsBusy(true);
+    } else {
+      // User may have cancelled; fall back to directory picker
+      const dirFallback = await open({ directory: true, multiple: false });
+      if (typeof dirFallback !== "string") return;
+      dir = dirFallback;
+      setIsBusy(true);
+    }
     try {
       const data = await invoke<PackageProjectData>("read_package_project", { dir });
       setProjectDir(dir);
@@ -261,13 +403,15 @@ export default function PackageEditor() {
   }
 
   function handleDeleteTeam(index: number) {
+    pushHistory(currentSnapshot());
     const updated = teams.filter((_, i) => i !== index);
     setTeams(updated);
-    void persist({ teams: updated });
+    if (autoSave) void persist({ teams: updated });
     if (editingTeamIndex === index) setFormPanel("empty");
   }
 
   async function handleSaveTeam() {
+    pushHistory(currentSnapshot());
     const updated =
       editingTeamIndex === null
         ? [...teams, editingTeam]
@@ -275,13 +419,15 @@ export default function PackageEditor() {
     const newIndex = editingTeamIndex ?? updated.length - 1;
     setTeams(updated);
     setEditingTeamIndex(newIndex);
-    setIsBusy(true);
-    try {
-      await persist({ teams: updated });
-    } catch {
-      // non-fatal; changes in local state
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ teams: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -302,13 +448,15 @@ export default function PackageEditor() {
   }
 
   function handleDeleteConfederation(index: number) {
+    pushHistory(currentSnapshot());
     const updated = confederations.filter((_, i) => i !== index);
     setConfederations(updated);
-    void persist({ confederations: updated });
+    if (autoSave) void persist({ confederations: updated });
     if (editingConfIndex === index) setFormPanel("empty");
   }
 
   async function handleSaveConfederation() {
+    pushHistory(currentSnapshot());
     const updated =
       editingConfIndex === null
         ? [...confederations, editingConf]
@@ -316,13 +464,15 @@ export default function PackageEditor() {
     const newIndex = editingConfIndex ?? updated.length - 1;
     setConfederations(updated);
     setEditingConfIndex(newIndex);
-    setIsBusy(true);
-    try {
-      await persist({ confederations: updated });
-    } catch {
-      // non-fatal
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ confederations: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -343,13 +493,15 @@ export default function PackageEditor() {
   }
 
   function handleDeleteCountry(index: number) {
+    pushHistory(currentSnapshot());
     const updated = countries.filter((_, i) => i !== index);
     setCountries(updated);
-    void persist({ countries: updated });
+    if (autoSave) void persist({ countries: updated });
     if (editingCountryIndex === index) setFormPanel("empty");
   }
 
   async function handleSaveCountry() {
+    pushHistory(currentSnapshot());
     const updated =
       editingCountryIndex === null
         ? [...countries, editingCountry]
@@ -357,13 +509,15 @@ export default function PackageEditor() {
     const newIndex = editingCountryIndex ?? updated.length - 1;
     setCountries(updated);
     setEditingCountryIndex(newIndex);
-    setIsBusy(true);
-    try {
-      await persist({ countries: updated });
-    } catch {
-      // non-fatal
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ countries: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -384,13 +538,15 @@ export default function PackageEditor() {
   }
 
   function handleDeletePlayer(index: number) {
+    pushHistory(currentSnapshot());
     const updated = players.filter((_, i) => i !== index);
     setPlayers(updated);
-    void persist({ players: updated });
+    if (autoSave) void persist({ players: updated });
     if (editingPlayerIndex === index) setFormPanel("empty");
   }
 
   async function handleSavePlayer() {
+    pushHistory(currentSnapshot());
     const updated =
       editingPlayerIndex === null
         ? [...players, editingPlayer]
@@ -398,13 +554,15 @@ export default function PackageEditor() {
     const newIndex = editingPlayerIndex ?? updated.length - 1;
     setPlayers(updated);
     setEditingPlayerIndex(newIndex);
-    setIsBusy(true);
-    try {
-      await persist({ players: updated });
-    } catch {
-      // non-fatal
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ players: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -427,16 +585,18 @@ export default function PackageEditor() {
   }
 
   function handleDeletePool(key: string) {
+    pushHistory(currentSnapshot());
     const updated: NamesDefinition = {
       ...names,
       pools: Object.fromEntries(Object.entries(names.pools).filter(([k]) => k !== key)),
     };
     setNames(updated);
-    void persist({ names: updated });
+    if (autoSave) void persist({ names: updated });
     if (editingPoolKey === key) setFormPanel("empty");
   }
 
   async function handleSavePool(key: string, pool: NamePool) {
+    pushHistory(currentSnapshot());
     const updatedPools = isNewPool
       ? { ...names.pools, [key]: pool }
       : Object.fromEntries(
@@ -448,13 +608,15 @@ export default function PackageEditor() {
     setNames(updated);
     setEditingPoolKey(key);
     setIsNewPool(false);
-    setIsBusy(true);
-    try {
-      await persist({ names: updated });
-    } catch {
-      // non-fatal
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ names: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -475,13 +637,15 @@ export default function PackageEditor() {
   }
 
   function handleDeleteCompetition(index: number) {
+    pushHistory(currentSnapshot());
     const updated = competitions.filter((_, i) => i !== index);
     setCompetitions(updated);
-    void persist({ competitions: updated });
+    if (autoSave) void persist({ competitions: updated });
     if (editingCompIndex === index) setFormPanel("empty");
   }
 
   async function handleSaveCompetition() {
+    pushHistory(currentSnapshot());
     const updated =
       editingCompIndex === null
         ? [...competitions, editingComp]
@@ -489,13 +653,15 @@ export default function PackageEditor() {
     const newIndex = editingCompIndex ?? updated.length - 1;
     setCompetitions(updated);
     setEditingCompIndex(newIndex);
-    setIsBusy(true);
-    try {
-      await persist({ competitions: updated });
-    } catch {
-      // non-fatal
-    } finally {
-      setIsBusy(false);
+    if (autoSave) {
+      setIsBusy(true);
+      try {
+        await persist({ competitions: updated });
+      } catch {
+        // non-fatal
+      } finally {
+        setIsBusy(false);
+      }
     }
   }
 
@@ -595,9 +761,12 @@ export default function PackageEditor() {
           <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
             {t("worldEditor.metadata")}
           </h2>
-          <MetadataForm meta={meta} onChange={setMeta} />
+          <MetadataForm meta={meta} onChange={(m) => { setMeta(m); setIsDirty(true); }} />
           <button
-            onClick={() => { void persist({ meta }); }}
+            onClick={() => {
+              pushHistory(currentSnapshot());
+              void persist({ meta });
+            }}
             disabled={isBusy}
             className="mt-6 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide text-sm transition-all disabled:opacity-60"
           >
@@ -735,8 +904,16 @@ export default function PackageEditor() {
           saveState={saveState}
           isBusy={isBusy}
           issueCount={issues.length}
+          autoSave={autoSave}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          isDirty={isDirty}
           onValidate={() => { void handleValidate(); }}
           onBuild={() => { void handleBuild(); }}
+          onSave={() => { void handleManualSave(); }}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onToggleAutoSave={handleToggleAutoSave}
         />
       }
       sidebar={
