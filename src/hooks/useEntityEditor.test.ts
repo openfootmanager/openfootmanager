@@ -131,6 +131,22 @@ describe("useEntityEditor", () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    it("decrements editingIndex when an item before it is deleted", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(2); }); // editing index 2 (C)
+      act(() => { hook.result.current.handleDelete(1); }); // delete index 1 (B)
+      expect(hook.result.current.editingIndex).toBe(1); // C is now at index 1
+    });
+
+    it("does NOT decrement editingIndex when an item after it is deleted", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); }); // editing index 0 (A)
+      act(() => { hook.result.current.handleDelete(2); }); // delete index 2 (C)
+      expect(hook.result.current.editingIndex).toBe(0); // A is still at index 0
+    });
+
     it("calls saveItems when autoSave is true", async () => {
       const items: Item[] = [{ id: "a", name: "A" }];
       const { hook, saveItems } = makeHook({ items, autoSave: true });
@@ -214,6 +230,30 @@ describe("useEntityEditor", () => {
       await act(async () => { await hook.result.current.handleSave(); });
       expect(setIsBusy).toHaveBeenCalledWith(true);
       expect(setIsBusy).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  describe("syncEditing", () => {
+    it("refreshes editing from newItems at the current editingIndex", () => {
+      const items: Item[] = [{ id: "a", name: "Old" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(0); });
+      act(() => { hook.result.current.syncEditing([{ id: "a", name: "Restored" }]); });
+      expect(hook.result.current.editing).toEqual({ id: "a", name: "Restored" });
+    });
+
+    it("is a no-op when editingIndex is null", () => {
+      const { hook } = makeHook();
+      act(() => { hook.result.current.syncEditing([{ id: "a", name: "X" }]); });
+      expect(hook.result.current.editing).toEqual(emptyItem());
+    });
+
+    it("is a no-op when editingIndex is out of bounds in newItems", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(1); });
+      act(() => { hook.result.current.syncEditing([{ id: "a", name: "A" }]); }); // newItems has only 1 element
+      expect(hook.result.current.editing).toEqual({ id: "b", name: "B" }); // unchanged
     });
   });
 });

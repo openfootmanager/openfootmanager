@@ -38,7 +38,17 @@ export function useEntityEditor<T>(options: {
     const updated = items.filter((_, i) => i !== index);
     setItems(updated);
     if (autoSave) void saveItems(updated);
-    if (editingIndex === index) onClose();
+    if (editingIndex === index) {
+      onClose();
+    } else if (editingIndex !== null && index < editingIndex) {
+      setEditingIndex(editingIndex - 1);
+    }
+  }
+
+  function syncEditing(newItems: T[]) {
+    if (editingIndex !== null && editingIndex < newItems.length) {
+      setEditing({ ...newItems[editingIndex] });
+    }
   }
 
   async function handleSave() {
@@ -62,5 +72,5 @@ export function useEntityEditor<T>(options: {
     }
   }
 
-  return { editing, editingIndex, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleSave };
+  return { editing, editingIndex, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleSave, syncEditing };
 }
