@@ -330,7 +330,7 @@ export default function TacticsCommandBar({
                 {t("tactics.formation")}
               </div>
               <Select
-                value={formation}
+                value={FORMATIONS.includes(formation) ? formation : FORMATIONS[0]}
                 onChange={(e) => onFormationChange(e.target.value)}
                 fullWidth
                 aria-label={t("tactics.formation")}

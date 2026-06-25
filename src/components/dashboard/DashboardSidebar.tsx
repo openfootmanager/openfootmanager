@@ -71,7 +71,11 @@ function NavItem({
     <button
       onClick={onClick}
       title={collapsed ? label : undefined}
-      aria-label={label}
+      aria-label={
+        badge !== undefined && badge !== 0 && badge !== ""
+          ? `${label} (${badge})`
+          : label
+      }
       className={buttonClassName}
     >
       <div
