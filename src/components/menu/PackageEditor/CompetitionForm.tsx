@@ -52,10 +52,6 @@ export function CompetitionForm({
   );
   const [selector, setSelector] = useState<SelectorSpec>(selectorFromComp(editing));
 
-  const labelClass =
-    "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
-  const inputClass =
-    "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition";
   const textareaClass =
     "w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm font-mono text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition resize-none";
 
@@ -84,6 +80,35 @@ export function CompetitionForm({
   const selectorNeedsRegion = selector.kind === "allInRegion";
   const selectorNeedsSource = selector.kind === "championsOf";
 
+  const competitionTypeLabels: Record<string, string> = {
+    League: t("teamSelect.kinds.League"),
+    Cup: t("teamSelect.kinds.Cup"),
+    ContinentalClub: t("teamSelect.kinds.ContinentalClub"),
+    InternationalClub: t("teamSelect.kinds.InternationalClub"),
+    InternationalNation: t("teamSelect.kinds.InternationalNation"),
+    FriendlyCup: t("teamSelect.kinds.FriendlyCup"),
+  };
+
+  const competitionScopeLabels: Record<string, string> = {
+    Domestic: t("teamSelect.scopes.Domestic"),
+    Regional: t("teamSelect.scopes.Regional"),
+    Continental: t("teamSelect.scopes.Continental"),
+    International: t("teamSelect.scopes.International"),
+  };
+
+  const competitionFormatLabels: Record<string, string> = {
+    LeagueTable: t("worldEditor.competitionFormats.LeagueTable"),
+    Knockout: t("worldEditor.competitionFormats.Knockout"),
+    GroupAndKnockout: t("worldEditor.competitionFormats.GroupAndKnockout"),
+  };
+
+  const selectorKindLabels: Record<string, string> = {
+    topByReputation: t("worldEditor.selectorKinds.topByReputation"),
+    allInCountry: t("worldEditor.selectorKinds.allInCountry"),
+    allInRegion: t("worldEditor.selectorKinds.allInRegion"),
+    championsOf: t("worldEditor.selectorKinds.championsOf"),
+  };
+
   return (
     <EntityFormShell
       title={editingIndex === null ? t("worldEditor.addCompetition") : t("worldEditor.editCompetition")}
@@ -98,6 +123,7 @@ export function CompetitionForm({
         value={editing.id}
         onChange={(v) => updateField("id", v)}
         placeholder="premier-league"
+        help={t("worldEditor.help.competitionId")}
       />
       <LabeledInput
         label={t("worldEditor.competitionName")}
@@ -106,61 +132,44 @@ export function CompetitionForm({
         placeholder="Premier League"
       />
 
-      <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.competitionType")}</label>
-        <select
-          value={editing.type}
-          onChange={(e) => updateField("type", e.target.value as CompetitionDef["type"])}
-          className={inputClass}
-        >
-          {COMPETITION_TYPES.map((ct) => (
-            <option key={ct} value={ct}>
-              {t(`teamSelect.kinds.${ct}`)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <LabeledSelect
+        label={t("worldEditor.competitionType")}
+        value={editing.type}
+        options={COMPETITION_TYPES}
+        optionLabels={competitionTypeLabels}
+        onChange={(v) => updateField("type", v as CompetitionDef["type"])}
+        help={t("worldEditor.help.competitionType")}
+      />
 
-      <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.competitionScope")}</label>
-        <select
-          value={editing.scope}
-          onChange={(e) => updateField("scope", e.target.value as CompetitionDef["scope"])}
-          className={inputClass}
-        >
-          {COMPETITION_SCOPES.map((cs) => (
-            <option key={cs} value={cs}>
-              {t(`teamSelect.scopes.${cs}`)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <LabeledSelect
+        label={t("worldEditor.competitionScope")}
+        value={editing.scope}
+        options={COMPETITION_SCOPES}
+        optionLabels={competitionScopeLabels}
+        onChange={(v) => updateField("scope", v as CompetitionDef["scope"])}
+        help={t("worldEditor.help.competitionScope")}
+      />
 
-      <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.competitionFormat")}</label>
-        <select
-          value={editing.format.kind}
-          onChange={(e) =>
-            updateField("format", {
-              ...editing.format,
-              kind: e.target.value as CompetitionDef["format"]["kind"],
-            })
-          }
-          className={inputClass}
-        >
-          {COMPETITION_FORMATS.map((cf) => (
-            <option key={cf} value={cf}>
-              {t(`packageEditor.competitionFormats.${cf}`)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <LabeledSelect
+        label={t("worldEditor.competitionFormat")}
+        value={editing.format.kind}
+        options={COMPETITION_FORMATS}
+        optionLabels={competitionFormatLabels}
+        onChange={(v) =>
+          updateField("format", {
+            ...editing.format,
+            kind: v as CompetitionDef["format"]["kind"],
+          })
+        }
+        help={t("worldEditor.help.competitionFormat")}
+      />
 
       <LabeledInput
         label={t("worldEditor.competitionPriority")}
         value={editing.priority.toString()}
         type="number"
         onChange={(v) => updateField("priority", parseInt(v, 10) || 0)}
+        help={t("worldEditor.help.competitionPriority")}
       />
 
       <LabeledInput
@@ -194,7 +203,9 @@ export function CompetitionForm({
 
       {/* Participant mode toggle */}
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("worldEditor.competitionParticipantsMode")}</label>
+        <p className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+          {t("worldEditor.competitionParticipantsMode")}
+        </p>
         <div className="flex gap-2">
           {(["explicit", "selector"] as const).map((mode) => (
             <button
@@ -213,11 +224,18 @@ export function CompetitionForm({
             </button>
           ))}
         </div>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed mt-0.5">
+          {participantMode === "explicit"
+            ? t("worldEditor.help.participantsExplicit")
+            : t("worldEditor.help.participantsSelector")}
+        </p>
       </div>
 
       {participantMode === "explicit" && (
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.competitionExplicitTeams")}</label>
+          <label className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+            {t("worldEditor.competitionExplicitTeams")}
+          </label>
           <textarea
             rows={5}
             value={explicitText}
@@ -234,7 +252,9 @@ export function CompetitionForm({
             label={t("worldEditor.competitionSelectorKind")}
             value={selector.kind}
             options={SELECTOR_KINDS}
+            optionLabels={selectorKindLabels}
             onChange={(v) => updateSelector({ kind: v as SelectorKind })}
+            help={t("worldEditor.help.selectorKind")}
           />
           {selectorNeedsCountry && (
             <LabeledInput
@@ -268,6 +288,7 @@ export function CompetitionForm({
               value={selector.sourceCompetition ?? ""}
               onChange={(v) => updateSelector({ sourceCompetition: v || undefined })}
               placeholder="premier-league"
+              help={t("worldEditor.help.selectorSource")}
             />
           )}
         </div>

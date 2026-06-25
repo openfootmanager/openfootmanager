@@ -3655,6 +3655,19 @@
     "sectionTeams": "Equipas",
     "sectionPlayers": "Jogadores",
     "sectionNames": "Pools de nomes",
-    "sectionCompetitionsList": "Competições"
+    "sectionCompetitionsList": "Competições",
+    "help": {
+      "competitionId": "Um identificador único para esta competição (ex. 'primeira-liga'). Use minúsculas e hífenes.",
+      "competitionType": "Liga: época regular. Taça: torneio eliminatório. Continental/Internacional: competições entre países. Amigável: jogos de exibição.",
+      "competitionScope": "Doméstico: num país. Regional: numa região. Continental: num continente. Internacional: mundial.",
+      "competitionFormat": "Tabela: todos contra todos. Eliminatória: fase a eliminar. Grupos + Eliminatória: fase de grupos seguida de eliminatória.",
+      "competitionPriority": "Maior prioridade = processado primeiro. Controla a ordem de agendamento (1–100).",
+      "participantsExplicit": "Liste exatamente os IDs das equipas participantes. Um ID por linha.",
+      "participantsSelector": "O motor seleciona automaticamente as equipas com base numa regra. Ideal para ligas que mudam entre épocas.",
+      "selectorKind": "topByReputation: as N equipas com maior reputação. allInCountry: todas num país. allInRegion: todas numa região. championsOf: vencedores de outra competição.",
+      "selectorSource": "A competição cujos vencedores se qualificam para esta. Insira o ID da competição (ex. 'segunda-liga').",
+      "packageId": "Um identificador único para este mundo (ex. 'portugal-futebol-2026'). Usado como nome de ficheiro para o .ofm.",
+      "packageType": "Base de dados: um mundo completo. Patch: modifica um mundo existente. Assets: apenas gráficos ou áudio."
+    }
   }
 }

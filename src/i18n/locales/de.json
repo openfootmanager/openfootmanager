@@ -3655,6 +3655,19 @@
     "sectionTeams": "Teams",
     "sectionPlayers": "Spieler",
     "sectionNames": "Namens-Pools",
-    "sectionCompetitionsList": "Wettbewerbe"
+    "sectionCompetitionsList": "Wettbewerbe",
+    "help": {
+      "competitionId": "Ein eindeutiger Slug für diesen Wettbewerb, intern verwendet (z.B. 'bundesliga'). Muss Kleinbuchstaben und Bindestriche enthalten.",
+      "competitionType": "Liga: reguläre Saison. Pokal: Ausscheidungsturnier. Kontinental/International: länderübergreifende Wettbewerbe. Freundschaft: Freundschaftsspiele.",
+      "competitionScope": "Inland: innerhalb eines Landes. Regional: innerhalb einer Region. Kontinental: über einen Kontinent. International: weltweit.",
+      "competitionFormat": "Ligatabelle: Rundensystem. K.o.-Runde: Direktausscheidung. Gruppe + K.o.: Gruppenphase gefolgt von K.o.-Runden.",
+      "competitionPriority": "Höhere Priorität bedeutet frühere Verarbeitung. Für die Reihenfolge im Spielplan verwenden (1–100).",
+      "participantsExplicit": "Gib genau die Team-IDs an, die teilnehmen. Eine ID pro Zeile eingeben.",
+      "participantsSelector": "Die Engine wählt Teams automatisch nach einer Regel. Ideal für Ligen, die sich zwischen Saisons verändern.",
+      "selectorKind": "topByReputation: die N Teams mit dem höchsten Ruf. allInCountry: alle Teams in einem Land. allInRegion: alle Teams in einer Region. championsOf: Gewinner eines anderen Wettbewerbs.",
+      "selectorSource": "Der Wettbewerb, dessen Gewinner sich für diesen qualifizieren. Wettbewerbs-ID eingeben (z.B. 'nationale-liga').",
+      "packageId": "Ein eindeutiger Slug für dieses Weltpaket (z.B. 'england-fussball-2026'). Wird als Dateiname beim Erstellen der .ofm-Datei verwendet.",
+      "packageType": "Datenbank: eine vollständige Welt. Patch: modifiziert eine bestehende Welt. Assets: nur Grafiken oder Audio."
+    }
   }
 }

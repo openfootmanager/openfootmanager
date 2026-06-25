@@ -3651,6 +3651,19 @@
     "sectionTeams": "Teams",
     "sectionPlayers": "Players",
     "sectionNames": "Name Pools",
-    "sectionCompetitionsList": "Competitions"
+    "sectionCompetitionsList": "Competitions",
+    "help": {
+      "competitionId": "A unique slug for this competition, used internally (e.g. 'premier-league'). Must be lowercase with hyphens.",
+      "competitionType": "League: regular season. Cup: knockout tournament. Continental/International: cross-country competitions. Friendly: exhibition matches.",
+      "competitionScope": "Domestic: within one country. Regional: within a confederation region. Continental: across a continent. International: worldwide.",
+      "competitionFormat": "League Table: round-robin standings. Knockout: single-elimination bracket. Group + Knockout: group stage followed by knockout rounds.",
+      "competitionPriority": "Higher priority competitions are processed first. Use this to control scheduling order (1–100).",
+      "participantsExplicit": "List the exact team IDs that will participate. Enter one ID per line.",
+      "participantsSelector": "Let the engine automatically pick teams based on a rule. Great for leagues that grow or change between seasons.",
+      "selectorKind": "topByReputation: pick the N highest-reputation teams. allInCountry: every team in a country. allInRegion: every team in a region. championsOf: winners of another competition.",
+      "selectorSource": "The competition whose winner(s) qualify for this competition. Enter the competition ID (e.g. 'national-league-one').",
+      "packageId": "A unique slug for this world package (e.g. 'england-football-2026'). Used as the file name when building the .ofm file.",
+      "packageType": "Database: a full world replacing the default. Patch: modifies an existing world. Assets: graphics or audio only."
+    }
   }
 }

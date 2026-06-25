@@ -3655,6 +3655,19 @@
     "sectionTeams": "Squadre",
     "sectionPlayers": "Giocatori",
     "sectionNames": "Pool di nomi",
-    "sectionCompetitionsList": "Competizioni"
+    "sectionCompetitionsList": "Competizioni",
+    "help": {
+      "competitionId": "Un identificatore univoco per questa competizione (es. 'serie-a'). Usa minuscole e trattini.",
+      "competitionType": "Campionato: stagione regolare. Coppa: torneo ad eliminazione. Continentale/Internazionale: competizioni tra paesi. Amichevole: partite di esibizione.",
+      "competitionScope": "Domestico: in un paese. Regionale: in una regione. Continentale: su un continente. Internazionale: mondiale.",
+      "competitionFormat": "Girone: tutti contro tutti. Eliminazione diretta: a bracket. Gironi + Eliminazione: fase a gironi poi eliminazione.",
+      "competitionPriority": "Priorità più alta = elaborato prima. Controlla l'ordine di programmazione (1–100).",
+      "participantsExplicit": "Elenca esattamente gli ID delle squadre partecipanti. Un ID per riga.",
+      "participantsSelector": "Il motore seleziona automaticamente le squadre in base a una regola. Ideale per campionati che cambiano tra stagioni.",
+      "selectorKind": "topByReputation: le N squadre con maggior reputazione. allInCountry: tutte in un paese. allInRegion: tutte in una regione. championsOf: vincitori di un'altra competizione.",
+      "selectorSource": "La competizione i cui vincitori si qualificano per questa. Inserisci l'ID competizione (es. 'serie-b').",
+      "packageId": "Un identificatore univoco per questo mondo (es. 'italia-calcio-2026'). Usato come nome file per il .ofm.",
+      "packageType": "Database: un mondo completo. Patch: modifica un mondo esistente. Assets: solo grafica o audio."
+    }
   }
 }

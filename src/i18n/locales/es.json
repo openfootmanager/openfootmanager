@@ -3685,6 +3685,19 @@
     "sectionTeams": "Equipos",
     "sectionPlayers": "Jugadores",
     "sectionNames": "Grupos de nombres",
-    "sectionCompetitionsList": "Competiciones"
+    "sectionCompetitionsList": "Competiciones",
+    "help": {
+      "competitionId": "Un identificador único para esta competición (ej. 'primera-division'). Usa minúsculas y guiones.",
+      "competitionType": "Liga: temporada regular. Copa: torneo eliminatorio. Continental/Internacional: competiciones entre países. Amistoso: partidos de exhibición.",
+      "competitionScope": "Doméstico: dentro de un país. Regional: dentro de una región. Continental: a través de un continente. Internacional: mundial.",
+      "competitionFormat": "Tabla de liga: todos contra todos. Eliminatoria: eliminación directa. Grupos + Eliminatoria: fase de grupos seguida de eliminatorias.",
+      "competitionPriority": "Mayor prioridad = procesado antes. Controla el orden de programación (1–100).",
+      "participantsExplicit": "Lista exactamente los IDs de equipo que participarán. Un ID por línea.",
+      "participantsSelector": "El motor selecciona equipos automáticamente según una regla. Ideal para ligas que cambian entre temporadas.",
+      "selectorKind": "topByReputation: los N equipos de mayor reputación. allInCountry: todos los equipos de un país. allInRegion: todos los de una región. championsOf: ganadores de otra competición.",
+      "selectorSource": "La competición cuyos ganadores se clasifican para esta. Introduce el ID de competición (ej. 'segunda-division').",
+      "packageId": "Un identificador único para este mundo (ej. 'espana-futbol-2026'). Se usa como nombre de archivo al construir el .ofm.",
+      "packageType": "Base de datos: un mundo completo. Parche: modifica un mundo existente. Assets: solo gráficos o audio."
+    }
   }
 }

@@ -3652,6 +3652,19 @@
     "sectionTeams": "球队",
     "sectionPlayers": "球员",
     "sectionNames": "名字池",
-    "sectionCompetitionsList": "赛事"
+    "sectionCompetitionsList": "赛事",
+    "help": {
+      "competitionId": "此赛事的唯一标识符（例如 'super-league'）。使用小写字母和连字符。",
+      "competitionType": "联赛：常规赛季。杯赛：淘汰赛。洲际/国际：跨国赛事。友谊赛：表演赛。",
+      "competitionScope": "国内：限于一个国家。地区：在一个地区内。洲际：跨洲赛事。国际：全球范围。",
+      "competitionFormat": "积分榜：主客场循环赛。淘汰赛：单败淘汰制。小组赛+淘汰赛：先分组后淘汰。",
+      "competitionPriority": "优先级越高，处理越早。用于控制赛程顺序（1–100）。",
+      "participantsExplicit": "逐一列出参赛球队的ID，每行一个ID。",
+      "participantsSelector": "由引擎根据规则自动选择球队，适合每赛季参赛队伍变化的联赛。",
+      "selectorKind": "topByReputation：声誉最高的N支球队。allInCountry：某国所有球队。allInRegion：某地区所有球队。championsOf：另一赛事的冠军。",
+      "selectorSource": "其冠军将参加本赛事的赛事ID（例如 'national-league'）。",
+      "packageId": "此世界包的唯一标识符（例如 'china-football-2026'），构建 .ofm 文件时用作文件名。",
+      "packageType": "数据库：完整世界。补丁：修改现有世界。资源：仅图形或音频。"
+    }
   }
 }
