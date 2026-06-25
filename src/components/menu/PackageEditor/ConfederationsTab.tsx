@@ -7,9 +7,11 @@ interface ConfederationsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }
 
-export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete }: ConfederationsTabProps) {
+export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, selectedIndex, onSelect }: ConfederationsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -27,6 +29,8 @@ export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete }: C
           onDelete={() => onDelete(i)}
           editLabel={t("packageEditor.editConfederation")}
           deleteLabel={t("packageEditor.deleteConfederation")}
+          isSelected={selectedIndex === i}
+          onClick={onSelect ? () => onSelect(i) : undefined}
         />
       ))}
     </EntityListShell>

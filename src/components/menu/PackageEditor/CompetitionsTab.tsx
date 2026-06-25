@@ -7,9 +7,11 @@ interface CompetitionsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }
 
-export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete }: CompetitionsTabProps) {
+export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CompetitionsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -35,6 +37,8 @@ export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete }: Compe
           onDelete={() => onDelete(i)}
           editLabel={t("packageEditor.editCompetition")}
           deleteLabel={t("packageEditor.deleteCompetition")}
+          isSelected={selectedIndex === i}
+          onClick={onSelect ? () => onSelect(i) : undefined}
         />
       ))}
     </EntityListShell>

@@ -10,6 +10,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MatchSimulation = lazy(() => import("./pages/MatchSimulation"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SimLab = lazy(() => import("./pages/SimLab"));
+const PackageEditorPage = lazy(() => import("./pages/PackageEditor"));
 
 function LazyFallback() {
   return (
@@ -62,6 +63,7 @@ function App() {
           <Route path="/match" element={<MatchSimulation />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/sim-lab" element={<SimLab />} />
+          <Route path="/package-editor" element={<PackageEditorPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

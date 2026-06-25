@@ -33,7 +33,7 @@ export function EntityListShell({
         <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">{emptyLabel}</p>
       )}
 
-      <div className="flex flex-col gap-2 max-h-[38vh] overflow-y-auto pr-1">{children}</div>
+      <div className="flex flex-col gap-2">{children}</div>
     </div>
   );
 }
@@ -50,6 +50,8 @@ interface EntityRowProps {
   onDelete: () => void;
   editLabel: string;
   deleteLabel: string;
+  isSelected?: boolean;
+  onClick?: () => void;
 }
 
 export function EntityRow({
@@ -60,9 +62,18 @@ export function EntityRow({
   onDelete,
   editLabel,
   deleteLabel,
+  isSelected,
+  onClick,
 }: EntityRowProps) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700">
+    <div
+      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+        isSelected
+          ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
+          : "border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 hover:border-gray-300 dark:hover:border-navy-500"
+      } ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       {badge}
       <div className="flex-1 min-w-0">
         <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">
@@ -73,14 +84,14 @@ export function EntityRow({
         )}
       </div>
       <button
-        onClick={onEdit}
+        onClick={(e) => { e.stopPropagation(); onEdit(); }}
         className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
         title={editLabel}
       >
         <Edit2 className="w-4 h-4" />
       </button>
       <button
-        onClick={onDelete}
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
         title={deleteLabel}
       >
@@ -127,7 +138,7 @@ export function EntityFormShell({
         </h2>
       </div>
 
-      <div className="flex flex-col gap-3 max-h-[55vh] overflow-y-auto pr-1">{children}</div>
+      <div className="flex flex-col gap-3">{children}</div>
 
       <button
         onClick={onSave}

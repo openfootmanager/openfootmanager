@@ -32,7 +32,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
         </h2>
       </div>
 
-      <div className="flex flex-col gap-3 max-h-[55vh] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-3">
         <LabeledInput
           label={t("packageEditor.teamName")}
           value={editingTeam.name}

@@ -24,7 +24,8 @@
     "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}",
     "openDiscord": "Discord-Community öffnen",
     "openGithub": "GitHub-Repository öffnen",
-    "packageEditor": "Paket-Editor"
+    "packageEditor": "Paket-Editor",
+    "mainMenu": "Hauptmenü"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3634,6 +3635,26 @@
       "allInCountry": "Alle im Land",
       "allInRegion": "Alle in Region",
       "championsOf": "Meister von"
-    }
+    },
+    "homeSubtitle": "Erstelle oder öffne ein Paket, um loszulegen",
+    "newPackageDesc": "Neues Paket aus einem leeren Ordner erstellen",
+    "openPackageDesc": "Vorhandenes Paketverzeichnis laden",
+    "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
+    "issuesBadge": "{{count}} Problem(e)",
+    "issuesTitle": "Validierungsprobleme",
+    "noIssues": "Keine Probleme — Paket ist gültig",
+    "saving": "Speichern…",
+    "saved": "Gespeichert",
+    "unsaved": "Ungespeicherte Änderungen",
+    "sectionPackage": "Paket",
+    "sectionWorld": "Welt",
+    "sectionClubs": "Vereine",
+    "sectionCompetitions": "Wettbewerbe",
+    "sectionConfederations": "Konföderationen",
+    "sectionCountries": "Länder",
+    "sectionTeams": "Teams",
+    "sectionPlayers": "Spieler",
+    "sectionNames": "Namens-Pools",
+    "sectionCompetitionsList": "Wettbewerbe"
   }
 }

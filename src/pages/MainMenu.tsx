@@ -57,7 +57,6 @@ const ProfileSaveConfirm = lazy(
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
 const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
-const PackageEditor = lazy(() => import("../components/menu/PackageEditor"));
 
 interface SaveEntry {
   id: string;
@@ -300,9 +299,7 @@ export default function MainMenu() {
   const setGameState = useGameStore((state) => state.setGameState);
   const { t } = useTranslation();
 
-  const [menuState, setMenuState] = useState<
-    "main" | "create" | "world" | "load" | "editor"
-  >("main");
+  const [menuState, setMenuState] = useState<"main" | "create" | "world" | "load">("main");
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
@@ -957,7 +954,7 @@ export default function MainMenu() {
               </button>
 
               <button
-                onClick={() => setMenuState("editor")}
+                onClick={() => navigate("/package-editor")}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
               >
                 <div className="flex items-center gap-3">
@@ -1086,11 +1083,6 @@ export default function MainMenu() {
           )}
 
           {/* Package Editor */}
-          {menuState === "editor" && (
-            <Suspense fallback={<MenuPanelFallback />}>
-              <PackageEditor onBack={() => setMenuState("main")} />
-            </Suspense>
-          )}
 
         </div>
       </div>

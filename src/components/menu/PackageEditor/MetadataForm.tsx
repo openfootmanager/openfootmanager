@@ -13,7 +13,7 @@ export function MetadataForm({ meta, onChange }: MetadataFormProps) {
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
 
   return (
-    <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-1">
+    <div className="flex flex-col gap-3">
       <LabeledInput
         label={t("packageEditor.packageId")}
         value={meta.id}

@@ -7,9 +7,11 @@ interface NamesTabProps {
   onAdd: () => void;
   onEdit: (key: string) => void;
   onDelete: (key: string) => void;
+  selectedKey?: string | null;
+  onSelect?: (key: string) => void;
 }
 
-export function NamesTab({ names, onAdd, onEdit, onDelete }: NamesTabProps) {
+export function NamesTab({ names, onAdd, onEdit, onDelete, selectedKey, onSelect }: NamesTabProps) {
   const { t } = useTranslation();
   const poolKeys = Object.keys(names.pools);
   return (
@@ -30,6 +32,8 @@ export function NamesTab({ names, onAdd, onEdit, onDelete }: NamesTabProps) {
             onDelete={() => onDelete(key)}
             editLabel={t("packageEditor.editPool")}
             deleteLabel={t("packageEditor.deletePool")}
+            isSelected={selectedKey === key}
+            onClick={onSelect ? () => onSelect(key) : undefined}
           />
         );
       })}

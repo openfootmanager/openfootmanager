@@ -7,9 +7,11 @@ interface TeamsTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }
 
-export function TeamsTab({ teams, onAdd, onEdit, onDelete }: TeamsTabProps) {
+export function TeamsTab({ teams, onAdd, onEdit, onDelete, selectedIndex, onSelect }: TeamsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -33,6 +35,8 @@ export function TeamsTab({ teams, onAdd, onEdit, onDelete }: TeamsTabProps) {
           onDelete={() => onDelete(i)}
           editLabel={t("packageEditor.editTeam")}
           deleteLabel={t("packageEditor.deleteTeam")}
+          isSelected={selectedIndex === i}
+          onClick={onSelect ? () => onSelect(i) : undefined}
         />
       ))}
     </EntityListShell>

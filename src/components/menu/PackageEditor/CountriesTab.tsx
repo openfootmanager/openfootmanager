@@ -7,9 +7,11 @@ interface CountriesTabProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  selectedIndex?: number | null;
+  onSelect?: (index: number) => void;
 }
 
-export function CountriesTab({ countries, onAdd, onEdit, onDelete }: CountriesTabProps) {
+export function CountriesTab({ countries, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CountriesTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -29,6 +31,8 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete }: CountriesTa
           onDelete={() => onDelete(i)}
           editLabel={t("packageEditor.editCountry")}
           deleteLabel={t("packageEditor.deleteCountry")}
+          isSelected={selectedIndex === i}
+          onClick={onSelect ? () => onSelect(i) : undefined}
         />
       ))}
     </EntityListShell>

@@ -24,7 +24,8 @@
     "failedStartGame": "Не удалось начать игру: {{error}}",
     "openDiscord": "Открыть сообщество в Discord",
     "openGithub": "Открыть репозиторий на GitHub",
-    "packageEditor": "Редактор Пакетов"
+    "packageEditor": "Редактор Пакетов",
+    "mainMenu": "Главное меню"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3630,6 +3631,26 @@
       "allInCountry": "Все в стране",
       "allInRegion": "Все в регионе",
       "championsOf": "Чемпионы"
-    }
+    },
+    "homeSubtitle": "Создайте или откройте пакет для начала работы",
+    "newPackageDesc": "Создать новый пакет из пустой папки",
+    "openPackageDesc": "Загрузить существующую директорию пакета",
+    "noItemSelected": "Выберите элемент из списка или нажмите Добавить",
+    "issuesBadge": "{{count}} проблем(а)",
+    "issuesTitle": "Ошибки валидации",
+    "noIssues": "Ошибок нет — пакет действителен",
+    "saving": "Сохранение…",
+    "saved": "Сохранено",
+    "unsaved": "Несохранённые изменения",
+    "sectionPackage": "Пакет",
+    "sectionWorld": "Мир",
+    "sectionClubs": "Клубы",
+    "sectionCompetitions": "Соревнования",
+    "sectionConfederations": "Конфедерации",
+    "sectionCountries": "Страны",
+    "sectionTeams": "Команды",
+    "sectionPlayers": "Игроки",
+    "sectionNames": "Пулы имён",
+    "sectionCompetitionsList": "Соревнования"
   }
 }

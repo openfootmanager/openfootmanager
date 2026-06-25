@@ -24,7 +24,8 @@
     "failedStartGame": "Échec du démarrage du jeu : {{error}}",
     "openDiscord": "Ouvrir la communauté Discord",
     "openGithub": "Ouvrir le dépôt GitHub",
-    "packageEditor": "Éditeur de Paquets"
+    "packageEditor": "Éditeur de Paquets",
+    "mainMenu": "Menu principal"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3634,6 +3635,26 @@
       "allInCountry": "Tous dans le pays",
       "allInRegion": "Tous dans la région",
       "championsOf": "Champions de"
-    }
+    },
+    "homeSubtitle": "Créez ou ouvrez un paquet pour commencer",
+    "newPackageDesc": "Démarrer un nouveau paquet depuis un dossier vide",
+    "openPackageDesc": "Charger un répertoire de paquet existant",
+    "noItemSelected": "Sélectionnez un élément dans la liste ou cliquez sur Ajouter",
+    "issuesBadge": "{{count}} problème(s)",
+    "issuesTitle": "Problèmes de validation",
+    "noIssues": "Aucun problème — le paquet est valide",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "unsaved": "Modifications non enregistrées",
+    "sectionPackage": "Paquet",
+    "sectionWorld": "Monde",
+    "sectionClubs": "Clubs",
+    "sectionCompetitions": "Compétitions",
+    "sectionConfederations": "Confédérations",
+    "sectionCountries": "Pays",
+    "sectionTeams": "Équipes",
+    "sectionPlayers": "Joueurs",
+    "sectionNames": "Pools de noms",
+    "sectionCompetitionsList": "Compétitions"
   }
 }
