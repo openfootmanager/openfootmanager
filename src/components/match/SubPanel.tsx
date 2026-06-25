@@ -7,7 +7,7 @@ import {
   PLAY_STYLES,
 } from "./types";
 import { getPlayerName } from "./helpers";
-import { Badge } from "../ui";
+import { Badge, Select } from "../ui";
 import {
   RefreshCw,
   AlertTriangle,
@@ -25,16 +25,22 @@ import {
   type MatchScenarioId,
 } from "./SubPanel.helpers";
 
-// Parse formation string into player rows from GK (index 0) to FWD (last index).
-// Midfielders are distributed across middle rows according to the formation numbers.
-function buildFormationPitchRows(
+// Build flat array of { player, x, y } slots for the pitch.
+// GK sits at y=85% (bottom), FWD at y=15% (top); x evenly distributed per row.
+function buildSubPanelPitchSlots(
   formation: string,
   players: EnginePlayerData[],
   sentOff: string[],
-): EnginePlayerData[][] {
+): { player: EnginePlayerData; x: number; y: number }[] {
   const active = players.filter((p) => !sentOff.includes(p.id));
   const nums = formation.split("-").map(Number);
-  if (!nums.length || nums.some((n) => isNaN(n))) return [active];
+  if (!nums.length || nums.some((n) => isNaN(n))) {
+    return active.map((p, i) => ({
+      player: p,
+      x: Math.round((100 * (i + 1)) / (active.length + 1)),
+      y: 50,
+    }));
+  }
 
   const gks = active.filter((p) => p.position === "Goalkeeper");
   const defs = active.filter((p) => p.position === "Defender");
@@ -44,33 +50,62 @@ function buildFormationPitchRows(
   const rows: EnginePlayerData[][] = [gks];
   const n = nums.length;
   let midCursor = 0;
-
   for (let i = 0; i < n; i++) {
     const count = nums[i];
-    if (i === 0) {
-      rows.push(defs.slice(0, count));
-    } else if (i === n - 1) {
-      rows.push(fwds.slice(0, count));
-    } else {
+    if (i === 0) rows.push(defs.slice(0, count));
+    else if (i === n - 1) rows.push(fwds.slice(0, count));
+    else {
       rows.push(mids.slice(midCursor, midCursor + count));
       midCursor += count;
     }
   }
 
-  return rows;
+  const bottom = 85,
+    top = 15;
+  const step = rows.length > 1 ? (bottom - top) / (rows.length - 1) : 0;
+  return rows.flatMap((rowPlayers, rowIdx) => {
+    const y = Math.round(bottom - rowIdx * step);
+    return rowPlayers.map((p, colIdx) => ({
+      player: p,
+      x:
+        rowPlayers.length === 1
+          ? 50
+          : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
+      y,
+    }));
+  });
 }
 
-// Distribute row y-positions evenly from 85% (GK, bottom) to 12% (FWD, top).
-function getRowYPositions(numRows: number): number[] {
-  if (numRows === 0) return [];
-  if (numRows === 1) return [50];
-  const bottom = 85;
-  const top = 12;
-  const step = (bottom - top) / (numRows - 1);
-  return Array.from({ length: numRows }, (_, i) =>
-    Math.round(bottom - i * step),
+const CompareBar = ({
+  label,
+  valA,
+  valB,
+}: {
+  label: string;
+  valA: number;
+  valB: number;
+}) => {
+  const diff = valB - valA;
+  return (
+    <div className="flex items-center gap-1.5 py-0.5 text-xs">
+      <span className="w-7 text-right font-heading text-gray-500">{label}</span>
+      <span className="w-5 text-right tabular-nums text-red-400">{valA}</span>
+      <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-navy-600">
+        <div className="h-full bg-red-500/60" style={{ width: `${valA}%` }} />
+      </div>
+      <div className="flex h-1.5 flex-1 justify-end overflow-hidden rounded-full bg-navy-600">
+        <div className="h-full bg-green-500/60" style={{ width: `${valB}%` }} />
+      </div>
+      <span className="w-5 tabular-nums text-green-400">{valB}</span>
+      <span
+        className={`w-6 text-right tabular-nums font-heading font-bold ${diff > 0 ? "text-green-400" : diff < 0 ? "text-red-400" : "text-gray-600"}`}
+      >
+        {diff > 0 ? "+" : ""}
+        {diff}
+      </span>
+    </div>
   );
-}
+};
 
 export function SubPanel({
   snapshot,
@@ -125,12 +160,11 @@ export function SubPanel({
     return [{ rec, offPlayer, onPlayer }];
   });
 
-  const pitchRows = buildFormationPitchRows(
+  const pitchSlots = buildSubPanelPitchSlots(
     team.formation,
     team.players,
     snapshot.sent_off,
   );
-  const rowYs = getRowYPositions(pitchRows.length);
 
   const condColor = (c: number) =>
     c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
@@ -153,13 +187,6 @@ export function SubPanel({
         return <RefreshCw className="h-3.5 w-3.5 text-gray-400" />;
     }
   };
-
-  const getImpactToneClassName = (delta: number) =>
-    delta > 0
-      ? "text-success-400"
-      : delta < 0
-        ? "text-red-400"
-        : "text-gray-500 dark:text-gray-400";
 
   const handleClearSelection = () => {
     setSelectedOff(null);
@@ -211,9 +238,6 @@ export function SubPanel({
       );
     }
   };
-
-  const selectClass =
-    "rounded-lg border border-gray-300 dark:border-navy-600 bg-white dark:bg-navy-800 px-2 py-1 text-[11px] font-heading font-bold text-gray-700 dark:text-gray-300 cursor-pointer hover:border-primary-400 transition-colors focus:outline-none focus:ring-1 focus:ring-primary-500";
 
   return (
     <div
@@ -312,7 +336,7 @@ export function SubPanel({
 
               {/* Quick formation & play style selects */}
               <div className="ml-auto flex items-center gap-2">
-                <select
+                <Select
                   value={
                     FORMATIONS.includes(team.formation)
                       ? team.formation
@@ -320,26 +344,26 @@ export function SubPanel({
                   }
                   onChange={(e) => onFormationChange(e.target.value)}
                   aria-label={t("tactics.formation")}
-                  className={selectClass}
+                  selectSize="xs"
                 >
                   {FORMATIONS.map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>
                   ))}
-                </select>
-                <select
+                </Select>
+                <Select
                   value={team.play_style}
                   onChange={(e) => onPlayStyleChange(e.target.value)}
                   aria-label={t("tactics.playStyle")}
-                  className={selectClass}
+                  selectSize="xs"
                 >
                   {PLAY_STYLES.map((style) => (
                     <option key={style} value={style}>
                       {t(`common.playStyles.${style}`, style)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 
@@ -355,51 +379,156 @@ export function SubPanel({
                   </p>
                 </div>
 
-                {/* Formation pitch */}
-                <div className="relative mx-4 mt-3 h-[200px] shrink-0 overflow-hidden rounded-xl border border-primary-500/10 bg-gradient-to-b from-primary-100 to-primary-50 p-3 transition-colors duration-300 dark:from-primary-900/30 dark:to-primary-800/10">
-                  {/* Pitch markings */}
-                  <div className="absolute inset-x-3 top-1/2 border-t border-gray-300 dark:border-white/5" />
-                  <div className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-300 dark:border-white/5" />
-                  <div className="absolute inset-x-1/4 bottom-3 h-8 border-x border-b border-gray-300 dark:border-white/5" />
-                  {/* Players positioned by formation row */}
-                  {pitchRows.map((rowPlayers, rowIdx) => {
-                    const y = rowYs[rowIdx] ?? 50;
-                    return (
-                      <div
-                        key={rowIdx}
-                        className="absolute left-0 right-0 flex justify-center gap-2 px-2"
-                        style={{
-                          top: `${y}%`,
-                          transform: "translateY(-50%)",
-                        }}
+                {/* Formation pitch — SVG field markings, tokens with initials */}
+                <div className="relative mx-4 mt-3 h-[210px] shrink-0 overflow-hidden rounded-xl bg-gradient-to-b from-primary-500 to-primary-700">
+                  <svg
+                    className="absolute inset-0 h-full w-full"
+                    viewBox="0 0 100 140"
+                    preserveAspectRatio="none"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="sub-pitch-surface"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
                       >
-                        {rowPlayers.map((p) => {
-                          const isSelected = selectedOff === p.id;
-                          const isSubOn = subbedOnIds.has(p.id);
-                          return (
-                            <button
-                              key={p.id}
-                              onClick={() => handleSelectOffPlayer(p.id)}
-                              className={`flex cursor-pointer flex-col items-center gap-0.5 transition-all hover:scale-110 ${isSelected ? "scale-110" : ""}`}
-                            >
-                              <div
-                                className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-heading text-[9px] font-bold text-white transition-all ${
-                                  isSelected
-                                    ? "border-red-300 bg-red-500/80 ring-2 ring-red-500/50"
-                                    : p.condition < 50
-                                      ? "border-yellow-400 bg-yellow-600/70"
-                                      : "border-primary-300/50 bg-primary-500/60"
-                                }`}
-                              >
-                                {isSubOn ? "▲" : Math.round(p.condition)}
-                              </div>
-                              <span className="max-w-[48px] truncate text-center font-medium text-[8px] text-gray-700 dark:text-white/70">
-                                {p.name.split(" ").pop()}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                        <stop
+                          offset="0%"
+                          stopColor="rgba(63,172,99,0.35)"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="rgba(31,109,61,0.25)"
+                        />
+                      </linearGradient>
+                      <pattern
+                        id="sub-pitch-stripes"
+                        x="0"
+                        y="0"
+                        width="100"
+                        height="10"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <rect
+                          x="0"
+                          y="0"
+                          width="100"
+                          height="5"
+                          fill="rgba(255,255,255,0.04)"
+                        />
+                      </pattern>
+                    </defs>
+                    <rect
+                      x="0"
+                      y="0"
+                      width="100"
+                      height="140"
+                      fill="url(#sub-pitch-surface)"
+                    />
+                    <rect
+                      x="0"
+                      y="0"
+                      width="100"
+                      height="140"
+                      fill="url(#sub-pitch-stripes)"
+                    />
+                    <rect
+                      x="4"
+                      y="4"
+                      width="92"
+                      height="132"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <line
+                      x1="4"
+                      y1="70"
+                      x2="96"
+                      y2="70"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <circle
+                      cx="50"
+                      cy="70"
+                      r="11"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <rect
+                      x="18"
+                      y="4"
+                      width="64"
+                      height="18"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <rect
+                      x="18"
+                      y="118"
+                      width="64"
+                      height="18"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <rect
+                      x="30"
+                      y="4"
+                      width="40"
+                      height="8"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                    <rect
+                      x="30"
+                      y="128"
+                      width="40"
+                      height="8"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth="0.6"
+                    />
+                  </svg>
+                  {pitchSlots.map(({ player: p, x, y }) => {
+                    const isSelected = selectedOff === p.id;
+                    const isSubOn = subbedOnIds.has(p.id);
+                    const initials = p.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => handleSelectOffPlayer(p.id)}
+                        className={`absolute z-20 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer flex-col items-center gap-0.5 transition-all hover:scale-110 ${isSelected ? "scale-110" : ""}`}
+                        style={{ left: `${x}%`, top: `${y}%` }}
+                      >
+                        <div
+                          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-heading text-[9px] font-bold text-white shadow-md transition-all ${
+                            isSelected
+                              ? "border-red-300 bg-red-500/80 ring-2 ring-red-500/50"
+                              : p.condition < 50
+                                ? "border-yellow-400/80 bg-yellow-600/70"
+                                : "border-white/30 bg-navy-800/80"
+                          }`}
+                        >
+                          {isSubOn ? "▲" : initials}
+                        </div>
+                        <span
+                          className={`max-w-[44px] truncate text-center font-heading text-[8px] font-bold drop-shadow ${isSelected ? "text-red-300" : "text-white/80"}`}
+                        >
+                          {p.name.split(" ").pop()}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -694,52 +823,19 @@ export function SubPanel({
             {/* Sticky footer: comparison summary + confirm / cancel */}
             <div className="shrink-0 border-t border-gray-200 bg-gray-50/60 px-4 py-3 dark:border-navy-700 dark:bg-navy-900/30">
               {selectedPlayer && comparedPlayer ? (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  {/* Player names */}
-                  <div className="flex items-center gap-2">
+                <div>
+                  {/* Player names + position match + action buttons */}
+                  <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
-                      <span className="max-w-[130px] truncate font-heading text-sm font-bold text-red-400">
+                      <span className="max-w-[110px] truncate font-heading text-sm font-bold text-red-400">
                         {selectedPlayer.name}
                       </span>
-                    </div>
-                    <span className="text-gray-400">→</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="max-w-[130px] truncate font-heading text-sm font-bold text-green-400">
+                      <span className="text-gray-400">→</span>
+                      <span className="max-w-[110px] truncate font-heading text-sm font-bold text-green-400">
                         {comparedPlayer.name}
                       </span>
                       <UserPlus className="h-3.5 w-3.5 shrink-0 text-green-400" />
-                    </div>
-                  </div>
-                  {/* Key stat deltas */}
-                  <div className="flex items-center gap-4 text-xs">
-                    <div>
-                      <span className="font-heading text-gray-500 dark:text-gray-400">
-                        {t("common.ovr")}
-                      </span>
-                      <span
-                        className={`ml-1 font-heading font-bold tabular-nums ${getImpactToneClassName(comparedPlayer.ovr - selectedPlayer.ovr)}`}
-                      >
-                        {comparedPlayer.ovr - selectedPlayer.ovr > 0
-                          ? "+"
-                          : ""}
-                        {comparedPlayer.ovr - selectedPlayer.ovr}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-heading text-gray-500 dark:text-gray-400">
-                        {t("match.fitness")}
-                      </span>
-                      <span
-                        className={`ml-1 font-heading font-bold tabular-nums ${getImpactToneClassName(Math.round(comparedPlayer.condition - selectedPlayer.condition))}`}
-                      >
-                        {comparedPlayer.condition - selectedPlayer.condition > 0
-                          ? "+"
-                          : ""}
-                        {Math.round(
-                          comparedPlayer.condition - selectedPlayer.condition,
-                        )}
-                      </span>
                     </div>
                     <span
                       className={`font-heading text-[10px] font-bold uppercase tracking-wide ${
@@ -752,23 +848,55 @@ export function SubPanel({
                         ? t("match.fitExact")
                         : t("match.fitAdjusted")}
                     </span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:border-navy-500 dark:text-gray-300 dark:hover:bg-navy-600"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmSubstitution}
+                        className="rounded-lg bg-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400"
+                      >
+                        {t("match.confirmSubstitution")}
+                      </button>
+                    </div>
                   </div>
-                  {/* Actions */}
-                  <div className="ml-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleClearSelection}
-                      className="rounded-lg border border-gray-300 px-3 py-2 font-heading text-xs font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:border-navy-500 dark:text-gray-300 dark:hover:bg-navy-600"
-                    >
-                      {t("common.cancel")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmSubstitution}
-                      className="rounded-lg bg-green-500 px-3 py-2 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400"
-                    >
-                      {t("match.confirmSubstitution")}
-                    </button>
+                  {/* Attribute comparison bars */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <CompareBar
+                      label="OVR"
+                      valA={selectedPlayer.ovr}
+                      valB={comparedPlayer.ovr}
+                    />
+                    <CompareBar
+                      label="PAC"
+                      valA={selectedPlayer.pace}
+                      valB={comparedPlayer.pace}
+                    />
+                    <CompareBar
+                      label="PAS"
+                      valA={selectedPlayer.passing}
+                      valB={comparedPlayer.passing}
+                    />
+                    <CompareBar
+                      label="SHO"
+                      valA={selectedPlayer.shooting}
+                      valB={comparedPlayer.shooting}
+                    />
+                    <CompareBar
+                      label="TAC"
+                      valA={selectedPlayer.tackling}
+                      valB={comparedPlayer.tackling}
+                    />
+                    <CompareBar
+                      label="FIT"
+                      valA={Math.round(selectedPlayer.condition)}
+                      valB={Math.round(comparedPlayer.condition)}
+                    />
                   </div>
                 </div>
               ) : selectedPlayer ? (

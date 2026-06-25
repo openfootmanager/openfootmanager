@@ -220,8 +220,8 @@ describe("SubPanel", () => {
 
         render(<SubPanel {...props} />);
 
-        const formationSelect = screen.getByRole("combobox", { name: "tactics.formation" });
-        fireEvent.change(formationSelect, { target: { value: "4-3-3" } });
+        fireEvent.click(screen.getByRole("combobox", { name: "tactics.formation" }));
+        fireEvent.click(screen.getByRole("option", { name: "4-3-3" }));
 
         expect(props.onFormationChange).toHaveBeenCalledWith("4-3-3");
     });
