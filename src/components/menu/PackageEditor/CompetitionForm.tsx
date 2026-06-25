@@ -56,7 +56,7 @@ export function CompetitionForm({
   useEffect(() => {
     if (!editing.logo || !projectDir) { setLogoDataUrl(null); return; }
     let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editing.logo}` })
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editing.logo}`, baseDir: projectDir })
       .then((url) => { if (!cancelled) setLogoDataUrl(url); })
       .catch(() => { if (!cancelled) setLogoDataUrl(null); });
     return () => { cancelled = true; };

@@ -498,13 +498,27 @@ pub fn copy_package_asset(
 
 /// Read a local file and return it as a data URL (`data:<mime>;base64,<data>`).
 /// Used by the package editor to display local images without the asset protocol.
+/// `base_dir` is required and the resolved path must be within it, preventing
+/// a malicious package from using a crafted logo path to read arbitrary files.
 #[tauri::command]
-pub fn read_file_as_data_url(path: String) -> Result<String, String> {
+pub fn read_file_as_data_url(path: String, base_dir: String) -> Result<String, String> {
     use base64::Engine as _;
 
-    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let file_path = Path::new(&path);
+    let abs_base = Path::new(&base_dir)
+        .canonicalize()
+        .map_err(|_| "be.error.invalidPath".to_string())?;
+    let abs_path = file_path
+        .canonicalize()
+        .map_err(|_| "be.error.invalidPath".to_string())?;
 
-    let ext = Path::new(&path)
+    if !abs_path.starts_with(&abs_base) {
+        return Err("be.error.invalidPath".to_string());
+    }
+
+    let bytes = std::fs::read(&abs_path).map_err(|e| e.to_string())?;
+
+    let ext = abs_path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")

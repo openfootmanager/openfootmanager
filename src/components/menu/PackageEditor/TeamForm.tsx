@@ -26,7 +26,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
   useEffect(() => {
     if (!editingTeam.logo || !projectDir) { setLogoDataUrl(null); return; }
     let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editingTeam.logo}` })
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editingTeam.logo}`, baseDir: projectDir })
       .then((url) => { if (!cancelled) setLogoDataUrl(url); })
       .catch(() => { if (!cancelled) setLogoDataUrl(null); });
     return () => { cancelled = true; };
