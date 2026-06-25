@@ -125,6 +125,8 @@ export function MetadataForm({ meta, onChange, counts }: MetadataFormProps) {
           label={t("worldEditor.description")}
           value={meta.description}
           onChange={(v) => set({ description: v })}
+          multiline
+          rows={3}
         />
         <div className="grid grid-cols-2 gap-3">
           <LabeledInput

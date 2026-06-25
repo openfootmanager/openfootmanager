@@ -14,22 +14,34 @@ interface LabeledInputProps {
   type?: string;
   placeholder?: string;
   help?: string;
+  multiline?: boolean;
+  rows?: number;
 }
 
-export function LabeledInput({ label, value, onChange, type = "text", placeholder, help }: LabeledInputProps) {
+export function LabeledInput({ label, value, onChange, type = "text", placeholder, help, multiline, rows = 3 }: LabeledInputProps) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
         <label className={labelClass}>{label}</label>
         {help && <InlineHelp text={help} />}
       </div>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={inputClass}
-      />
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={rows}
+          className={`${inputClass} resize-none`}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={inputClass}
+        />
+      )}
     </div>
   );
 }

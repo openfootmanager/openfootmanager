@@ -272,6 +272,7 @@ pub fn generate_club_defs(config: &WorldGenConfig, rng: &mut impl Rng) -> Vec<Te
                 reputation_range: Some([rep_lo, rep_hi]),
                 finance_range: Some([fin_lo, fin_hi]),
                 logo: None,
+                kit_pattern: None,
             });
         }
     }

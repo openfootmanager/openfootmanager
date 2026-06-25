@@ -3,6 +3,8 @@ export interface TeamColorsDef {
   secondary: string;
 }
 
+export type KitPattern = "Solid" | "Stripes" | "Hoops" | "HalfAndHalf" | "Diagonal";
+
 export interface TeamDef {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export interface TeamDef {
   reputationRange: [number, number] | null;
   financeRange: [number, number] | null;
   logo: string | null;
+  kitPattern: KitPattern | null;
 }
 
 export interface WorldMetaDef {

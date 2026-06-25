@@ -63,6 +63,9 @@ pub struct TeamDef {
     /// Populated with an absolute path after the package is extracted.
     #[serde(default)]
     pub logo: Option<String>,
+    /// Kit jersey pattern (Solid, Stripes, Hoops, HalfAndHalf, Diagonal).
+    #[serde(default, alias = "kit_pattern")]
+    pub kit_pattern: Option<String>,
 }
 
 fn default_play_style() -> String {

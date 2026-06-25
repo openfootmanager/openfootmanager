@@ -5,9 +5,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { CountryCombobox } from "../../ui/CountryCombobox";
+import JerseyIcon from "../../ui/JerseyIcon";
 import { PLAY_STYLES, makeRange, parseRangeBound, toSlug } from "./helpers";
-import type { TeamDef } from "./types";
+import type { KitPattern, TeamDef } from "./types";
 import { TeamPreviewCard } from "./TeamPreviewCard";
+
+const KIT_PATTERNS: KitPattern[] = ["Solid", "Stripes", "Hoops", "HalfAndHalf", "Diagonal"];
 
 interface TeamFormProps {
   editingTeam: TeamDef;
@@ -121,9 +124,13 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
               {t("worldEditor.teamPrimaryColor")}
             </label>
             <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
-                style={{ background: editingTeam.colors.primary }}
+              <input
+                type="color"
+                value={/^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.primary) ? editingTeam.colors.primary : "#000000"}
+                onChange={(e) =>
+                  updateField("colors", { ...editingTeam.colors, primary: e.target.value })
+                }
+                className="w-9 h-9 rounded-lg border border-gray-200 dark:border-navy-600 cursor-pointer p-0.5 bg-white dark:bg-navy-700 flex-shrink-0"
               />
               <input
                 type="text"
@@ -131,7 +138,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 onChange={(e) =>
                   updateField("colors", { ...editingTeam.colors, primary: e.target.value })
                 }
-                className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+                className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition font-mono"
                 placeholder="#cc0000"
               />
             </div>
@@ -141,9 +148,13 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
               {t("worldEditor.teamSecondaryColor")}
             </label>
             <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
-                style={{ background: editingTeam.colors.secondary }}
+              <input
+                type="color"
+                value={/^#[0-9a-fA-F]{6}$/.test(editingTeam.colors.secondary) ? editingTeam.colors.secondary : "#ffffff"}
+                onChange={(e) =>
+                  updateField("colors", { ...editingTeam.colors, secondary: e.target.value })
+                }
+                className="w-9 h-9 rounded-lg border border-gray-200 dark:border-navy-600 cursor-pointer p-0.5 bg-white dark:bg-navy-700 flex-shrink-0"
               />
               <input
                 type="text"
@@ -151,10 +162,43 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
                 onChange={(e) =>
                   updateField("colors", { ...editingTeam.colors, secondary: e.target.value })
                 }
-                className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
+                className="flex-1 rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition font-mono"
                 placeholder="#ffffff"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Kit pattern selector */}
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>{t("worldEditor.teamKitPattern")}</label>
+          <div className="flex gap-2 flex-wrap">
+            {KIT_PATTERNS.map((pattern) => {
+              const isSelected = (editingTeam.kitPattern ?? "Solid") === pattern;
+              return (
+                <button
+                  key={pattern}
+                  type="button"
+                  onClick={() => updateField("kitPattern", pattern)}
+                  title={pattern}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                    isSelected
+                      ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
+                      : "border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
+                  }`}
+                >
+                  <JerseyIcon
+                    primaryColor={editingTeam.colors.primary || "#cc0000"}
+                    secondaryColor={editingTeam.colors.secondary || "#ffffff"}
+                    pattern={pattern}
+                    size="sm"
+                  />
+                  <span className="text-[9px] font-heading font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {pattern === "HalfAndHalf" ? "½+½" : pattern}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

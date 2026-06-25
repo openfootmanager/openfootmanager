@@ -10,6 +10,7 @@ interface EntityListShellProps {
   emptyLabel: string;
   isEmpty: boolean;
   children: React.ReactNode;
+  searchSlot?: React.ReactNode;
 }
 
 export function EntityListShell({
@@ -18,6 +19,7 @@ export function EntityListShell({
   emptyLabel,
   isEmpty,
   children,
+  searchSlot,
 }: EntityListShellProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -28,6 +30,8 @@ export function EntityListShell({
         <Plus className="w-4 h-4" />
         <span className="font-heading font-bold uppercase tracking-wider">{addLabel}</span>
       </button>
+
+      {searchSlot && <div>{searchSlot}</div>}
 
       {isEmpty && (
         <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">{emptyLabel}</p>

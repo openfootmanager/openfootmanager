@@ -98,6 +98,7 @@ export function emptyTeam(): TeamDef {
     reputationRange: null,
     financeRange: null,
     logo: null,
+    kitPattern: null,
   };
 }
 

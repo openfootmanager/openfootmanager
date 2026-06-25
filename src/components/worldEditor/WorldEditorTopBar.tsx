@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import i18n, { SUPPORTED_LANGUAGES } from "../../i18n";
 import {
   ArrowLeft, CheckCircle, Package, Loader2, AlertCircle,
   Undo2, Redo2, Save, ToggleLeft, ToggleRight,
 } from "lucide-react";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -171,6 +173,23 @@ export function WorldEditorTopBar({
           )}
           {t("worldEditor.build")}
         </button>
+
+        <span className="w-px h-5 bg-gray-200 dark:bg-navy-600" />
+
+        {/* Language picker */}
+        <select
+          value={i18n.language}
+          onChange={(e) => { void i18n.changeLanguage(e.target.value); }}
+          className="text-xs rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-400 transition cursor-pointer"
+          title={t("settings.language")}
+        >
+          {SUPPORTED_LANGUAGES.map(({ code, labelKey }) => (
+            <option key={code} value={code}>{t(labelKey)}</option>
+          ))}
+        </select>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
       </div>
     </div>
   );

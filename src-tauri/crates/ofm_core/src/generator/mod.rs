@@ -545,6 +545,11 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
     };
     team.play_style = play_style_from_str(&tdef.play_style);
     team.media.logo = tdef.logo.clone();
+    if let Some(ref pattern_str) = tdef.kit_pattern {
+        if let Ok(pattern) = pattern_str.parse() {
+            team.kit_pattern = pattern;
+        }
+    }
     team
 }
 

@@ -49,6 +49,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       reputationRange: [400, 650],
       financeRange: [800000, 3000000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "westbrook-united",
@@ -62,6 +63,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       reputationRange: [350, 600],
       financeRange: [600000, 2500000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "eastgate-city",
@@ -75,6 +77,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       reputationRange: [300, 550],
       financeRange: [500000, 2000000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "southfield-rovers",
@@ -88,6 +91,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
       reputationRange: [280, 500],
       financeRange: [400000, 1500000],
       logo: null,
+      kitPattern: null,
     },
   ],
   players: [] as PlayerDef[],
@@ -140,6 +144,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       reputationRange: [600, 850],
       financeRange: [2000000, 8000000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "puerto-fc",
@@ -153,6 +158,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       reputationRange: [550, 800],
       financeRange: [1500000, 6000000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "real-camino",
@@ -166,6 +172,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       reputationRange: [400, 650],
       financeRange: [800000, 3500000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "atletico-sur",
@@ -179,6 +186,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
       reputationRange: [350, 600],
       financeRange: [700000, 2500000],
       logo: null,
+      kitPattern: null,
     },
   ],
   players: [] as PlayerDef[],
@@ -236,6 +244,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       reputationRange: [500, 750],
       financeRange: [1000000, 4000000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "copa-verde",
@@ -249,6 +258,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       reputationRange: [480, 720],
       financeRange: [900000, 3500000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "la-celeste-fc",
@@ -262,6 +272,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       reputationRange: [420, 680],
       financeRange: [700000, 2500000],
       logo: null,
+      kitPattern: null,
     },
     {
       id: "la-roja-fc",
@@ -275,6 +286,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
       reputationRange: [380, 630],
       financeRange: [600000, 2000000],
       logo: null,
+      kitPattern: null,
     },
   ],
   players: [] as PlayerDef[],

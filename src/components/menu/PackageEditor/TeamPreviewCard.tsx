@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
-import type { TeamDef } from "./types";
+import JerseyIcon from "../../ui/JerseyIcon";
+import type { KitPattern, TeamDef } from "./types";
 
 const REP_TIERS = [
   { min: 850, label: "Elite", color: "text-amber-500" },
@@ -71,21 +72,34 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
           )}
         </div>
 
-        {/* Colors */}
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-5 h-5 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
-            style={{ background: primaryColor }}
-            title={t("worldEditor.teamPrimaryColor")}
+        {/* Colors + Jersey */}
+        <div className="flex items-center gap-2">
+          <JerseyIcon
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            pattern={(team.kitPattern ?? "Solid") as KitPattern}
+            size="md"
           />
-          <div
-            className="w-5 h-5 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
-            style={{ background: secondaryColor }}
-            title={t("worldEditor.teamSecondaryColor")}
-          />
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono ml-1">
-            {primaryColor} · {secondaryColor}
-          </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <div
+                className="w-4 h-4 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
+                style={{ background: primaryColor }}
+                title={t("worldEditor.teamPrimaryColor")}
+              />
+              <div
+                className="w-4 h-4 rounded border border-gray-200 dark:border-navy-600 flex-shrink-0"
+                style={{ background: secondaryColor }}
+                title={t("worldEditor.teamSecondaryColor")}
+              />
+            </div>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono">
+              {primaryColor}
+            </span>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono">
+              {secondaryColor}
+            </span>
+          </div>
         </div>
 
         {/* Location */}
