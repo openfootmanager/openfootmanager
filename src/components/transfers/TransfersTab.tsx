@@ -346,7 +346,7 @@ export default function TransfersTab({
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       {/* Budget header */}
       {myTeam && (
         <Card accent="primary" className="mb-5">

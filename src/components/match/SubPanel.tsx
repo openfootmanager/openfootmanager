@@ -20,6 +20,7 @@ import {
   type MatchScenarioId,
   type RecommendationReasonId,
 } from "./SubPanel.helpers";
+import { FORMATIONS } from "./types";
 
 export function SubPanel({
   snapshot,
@@ -165,7 +166,6 @@ export function SubPanel({
     return "text-gray-500 dark:text-gray-400";
   };
 
-  const formationOptions = ["4-4-2", "4-3-3", "3-5-2", "4-5-1", "4-2-3-1", "3-4-3"];
   const playStyleOptions = [
     "Balanced",
     "Attacking",
@@ -235,11 +235,11 @@ export function SubPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-600 shadow-2xl w-[1100px] max-h-[90vh] flex flex-col overflow-hidden transition-colors duration-300"
+        className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-600 shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden transition-colors duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -316,7 +316,7 @@ export function SubPanel({
               </div>
 
               {/* Mini pitch visualization */}
-              <div className="mx-4 mt-3 bg-gradient-to-b from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/10 rounded-xl p-3 relative border border-primary-500/10 min-h-[200px] transition-colors duration-300">
+              <div className="mx-4 mt-3 bg-gradient-to-b from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/10 rounded-xl p-3 relative border border-primary-500/10 h-[160px] transition-colors duration-300">
                 <div className="absolute inset-x-3 top-1/2 border-t border-gray-300 dark:border-white/5" />
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 border border-gray-300 dark:border-white/5 rounded-full" />
                 {positions.map((pos, rowIdx) => {
@@ -565,7 +565,7 @@ export function SubPanel({
                       {t("match.formation")}
                     </p>
                     <div className="flex flex-wrap gap-1">
-                      {formationOptions.map((formation) => (
+                      {FORMATIONS.map((formation) => (
                         <button
                           key={formation}
                           type="button"

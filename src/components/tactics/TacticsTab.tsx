@@ -1042,7 +1042,7 @@ export default function TacticsTab({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[118rem] flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <div
         ref={dragPreviewRef}
         aria-hidden="true"

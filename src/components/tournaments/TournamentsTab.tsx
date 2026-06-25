@@ -423,7 +423,7 @@ export default function TournamentsTab({
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>

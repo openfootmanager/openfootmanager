@@ -579,7 +579,7 @@ export default function TeamSelection() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl space-y-5 p-6">
+      <div className="space-y-5 p-6">
         {scopeMessage && (
           <Card accent="accent">
             <CardBody className="py-3">
