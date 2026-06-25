@@ -318,8 +318,10 @@ fn write_cache_file_atomically(cache_path: &Path, bytes: &[u8]) -> Result<(), St
     temp_file_name.push(format!(".{}.tmp", counter));
     let temp_path = cache_path.with_file_name(temp_file_name);
 
-    fs::write(&temp_path, bytes)
-        .map_err(|error| format!("failed to write portrait cache temp file: {error}"))?;
+    if let Err(error) = fs::write(&temp_path, bytes) {
+        let _ = fs::remove_file(&temp_path);
+        return Err(format!("failed to write portrait cache temp file: {error}"));
+    }
 
     match fs::rename(&temp_path, cache_path) {
         Ok(()) => Ok(()),

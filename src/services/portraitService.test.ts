@@ -328,7 +328,13 @@ describe("portraitService prewarm planning", () => {
     });
     const subject = player("single-cache-1", "team-a");
 
-    await getRuntimeGeneratedPlayerPortrait(subject);
+    const first = getRuntimeGeneratedPlayerPortrait(subject);
+    const second = getRuntimeGeneratedPlayerPortrait(subject);
+
+    expect(first).toBe(second);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    await first;
     await getRuntimeGeneratedPlayerPortrait(subject);
 
     expect(invokeMock).toHaveBeenCalledTimes(2);
