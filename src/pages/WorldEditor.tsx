@@ -144,8 +144,16 @@ export default function WorldEditor() {
     setPlayers(snapshot.players);
     setNames(snapshot.names);
     setCompetitions(snapshot.competitions);
-    setFormPanel("empty");
     setIsDirty(true);
+    // Sync each editor's in-progress buffer from the restored snapshot so
+    // the open form shows post-undo values rather than pre-undo ones.
+    // Safe forward reference: applySnapshot is only called from keyboard
+    // events, never during render, so editors are already initialised.
+    teamEditor.syncEditing(snapshot.teams);
+    confEditor.syncEditing(snapshot.confederations);
+    countryEditor.syncEditing(snapshot.countries);
+    playerEditor.syncEditing(snapshot.players);
+    compEditor.syncEditing(snapshot.competitions);
   }
 
   // ---------------------------------------------------------------------------
