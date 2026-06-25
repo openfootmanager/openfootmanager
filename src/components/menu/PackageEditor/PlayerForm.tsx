@@ -57,7 +57,7 @@ export function PlayerForm({
     if (!projectDir) return;
     const selected = await open({
       multiple: false,
-      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }],
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
     });
     if (!selected || Array.isArray(selected)) return;
     try {
