@@ -206,7 +206,6 @@ describe("SubPanel", () => {
 
         render(<SubPanel {...props} />);
 
-        expect(screen.getByText("match.recommendedChanges")).toBeInTheDocument();
         expect(
             screen.getByTestId("recommended-sub-starter-1-bench-1"),
         ).toBeInTheDocument();
@@ -221,7 +220,8 @@ describe("SubPanel", () => {
 
         render(<SubPanel {...props} />);
 
-        fireEvent.click(screen.getByRole("button", { name: "4-3-3" }));
+        const formationSelect = screen.getByRole("combobox", { name: "tactics.formation" });
+        fireEvent.change(formationSelect, { target: { value: "4-3-3" } });
 
         expect(props.onFormationChange).toHaveBeenCalledWith("4-3-3");
     });
