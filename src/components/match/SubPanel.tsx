@@ -2,11 +2,11 @@ import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type MatchSnapshot,
-  type EnginePlayerData,
   FORMATIONS,
   PLAY_STYLES,
 } from "./types";
 import { getPlayerName } from "./helpers";
+import { FormationPitch } from "./FormationPitch";
 import { Badge, Select } from "../ui";
 import {
   RefreshCw,
@@ -24,57 +24,6 @@ import {
   getMatchScenario,
   type MatchScenarioId,
 } from "./SubPanel.helpers";
-
-// Build flat array of { player, x, y } slots for the pitch.
-// GK sits at y=85% (bottom), FWD at y=15% (top); x evenly distributed per row.
-function buildSubPanelPitchSlots(
-  formation: string,
-  players: EnginePlayerData[],
-  sentOff: string[],
-): { player: EnginePlayerData; x: number; y: number }[] {
-  const active = players.filter((p) => !sentOff.includes(p.id));
-  const nums = formation.split("-").map(Number);
-  if (!nums.length || nums.some((n) => isNaN(n))) {
-    return active.map((p, i) => ({
-      player: p,
-      x: Math.round((100 * (i + 1)) / (active.length + 1)),
-      y: 50,
-    }));
-  }
-
-  const gks = active.filter((p) => p.position === "Goalkeeper");
-  const defs = active.filter((p) => p.position === "Defender");
-  const mids = active.filter((p) => p.position === "Midfielder");
-  const fwds = active.filter((p) => p.position === "Forward");
-
-  const rows: EnginePlayerData[][] = [gks];
-  const n = nums.length;
-  let midCursor = 0;
-  for (let i = 0; i < n; i++) {
-    const count = nums[i];
-    if (i === 0) rows.push(defs.slice(0, count));
-    else if (i === n - 1) rows.push(fwds.slice(0, count));
-    else {
-      rows.push(mids.slice(midCursor, midCursor + count));
-      midCursor += count;
-    }
-  }
-
-  const bottom = 85,
-    top = 15;
-  const step = rows.length > 1 ? (bottom - top) / (rows.length - 1) : 0;
-  return rows.flatMap((rowPlayers, rowIdx) => {
-    const y = Math.round(bottom - rowIdx * step);
-    return rowPlayers.map((p, colIdx) => ({
-      player: p,
-      x:
-        rowPlayers.length === 1
-          ? 50
-          : Math.round((100 * (colIdx + 1)) / (rowPlayers.length + 1)),
-      y,
-    }));
-  });
-}
 
 const CompareBar = ({
   label,
@@ -159,12 +108,6 @@ export function SubPanel({
     if (!offPlayer || !onPlayer) return [];
     return [{ rec, offPlayer, onPlayer }];
   });
-
-  const pitchSlots = buildSubPanelPitchSlots(
-    team.formation,
-    team.players,
-    snapshot.sent_off,
-  );
 
   const condColor = (c: number) =>
     c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
@@ -379,159 +322,16 @@ export function SubPanel({
                   </p>
                 </div>
 
-                {/* Formation pitch — SVG field markings, tokens with initials */}
-                <div className="relative mx-4 mt-3 h-[210px] shrink-0 overflow-hidden rounded-xl bg-gradient-to-b from-primary-500 to-primary-700">
-                  <svg
-                    className="absolute inset-0 h-full w-full"
-                    viewBox="0 0 100 140"
-                    preserveAspectRatio="none"
-                  >
-                    <defs>
-                      <linearGradient
-                        id="sub-pitch-surface"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="rgba(63,172,99,0.35)"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="rgba(31,109,61,0.25)"
-                        />
-                      </linearGradient>
-                      <pattern
-                        id="sub-pitch-stripes"
-                        x="0"
-                        y="0"
-                        width="100"
-                        height="10"
-                        patternUnits="userSpaceOnUse"
-                      >
-                        <rect
-                          x="0"
-                          y="0"
-                          width="100"
-                          height="5"
-                          fill="rgba(255,255,255,0.04)"
-                        />
-                      </pattern>
-                    </defs>
-                    <rect
-                      x="0"
-                      y="0"
-                      width="100"
-                      height="140"
-                      fill="url(#sub-pitch-surface)"
-                    />
-                    <rect
-                      x="0"
-                      y="0"
-                      width="100"
-                      height="140"
-                      fill="url(#sub-pitch-stripes)"
-                    />
-                    <rect
-                      x="4"
-                      y="4"
-                      width="92"
-                      height="132"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <line
-                      x1="4"
-                      y1="70"
-                      x2="96"
-                      y2="70"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <circle
-                      cx="50"
-                      cy="70"
-                      r="11"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <rect
-                      x="18"
-                      y="4"
-                      width="64"
-                      height="18"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <rect
-                      x="18"
-                      y="118"
-                      width="64"
-                      height="18"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <rect
-                      x="30"
-                      y="4"
-                      width="40"
-                      height="8"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                    <rect
-                      x="30"
-                      y="128"
-                      width="40"
-                      height="8"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.55)"
-                      strokeWidth="0.6"
-                    />
-                  </svg>
-                  {pitchSlots.map(({ player: p, x, y }) => {
-                    const isSelected = selectedOff === p.id;
-                    const isSubOn = subbedOnIds.has(p.id);
-                    const initials = p.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase();
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => handleSelectOffPlayer(p.id)}
-                        className={`absolute z-20 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer flex-col items-center gap-0.5 transition-all hover:scale-110 ${isSelected ? "scale-110" : ""}`}
-                        style={{ left: `${x}%`, top: `${y}%` }}
-                      >
-                        <div
-                          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-heading text-[9px] font-bold text-white shadow-md transition-all ${
-                            isSelected
-                              ? "border-red-300 bg-red-500/80 ring-2 ring-red-500/50"
-                              : p.condition < 50
-                                ? "border-yellow-400/80 bg-yellow-600/70"
-                                : "border-white/30 bg-navy-800/80"
-                          }`}
-                        >
-                          {isSubOn ? "▲" : initials}
-                        </div>
-                        <span
-                          className={`max-w-[44px] truncate text-center font-heading text-[8px] font-bold drop-shadow ${isSelected ? "text-red-300" : "text-white/80"}`}
-                        >
-                          {p.name.split(" ").pop()}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* Formation pitch */}
+                <FormationPitch
+                  formation={team.formation}
+                  players={team.players}
+                  sentOff={snapshot.sent_off}
+                  selectedId={selectedOff}
+                  subbedOnIds={subbedOnIds}
+                  onPlayerClick={handleSelectOffPlayer}
+                  className="mx-4 mt-3 h-[210px] shrink-0"
+                />
 
                 {/* On-field player table */}
                 <div className="min-h-0 flex-1 overflow-auto px-4 py-2">
