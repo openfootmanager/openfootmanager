@@ -723,7 +723,11 @@ export default function MainMenu() {
     try {
       const managerName = await invoke<string>("load_game", { saveId });
       const activeGame = await invoke<GameStateData>("get_active_game");
-      await prewarmManagerSquadPortraits(activeGame);
+      try {
+        await prewarmManagerSquadPortraits(activeGame);
+      } catch (portraitError) {
+        console.warn("Portrait prewarm failed during save load:", portraitError);
+      }
       setGameState(activeGame);
       setGameActive(true, managerName);
       navigate("/dashboard");

@@ -244,6 +244,14 @@ export function queueBackgroundPortraitPrewarm(
   let cancelled = false;
   let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
 
+  const finish = () => {
+    queuedBackgroundPrewarmKeys.delete(key);
+    if (timeoutId !== null) {
+      globalThis.clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
   const scheduleBatch = (startIndex: number, delay: number) => {
     timeoutId = globalThis.setTimeout(() => runBatch(startIndex), delay);
   };
@@ -251,20 +259,28 @@ export function queueBackgroundPortraitPrewarm(
   const runBatch = (startIndex: number) => {
     timeoutId = null;
     if (cancelled) {
+      finish();
       return;
     }
 
     const batch = players.slice(startIndex, startIndex + batchSize);
     if (batch.length === 0) {
+      finish();
       return;
     }
 
-    void prewarmPlayerPortraits(batch).then((result) => {
-      if (cancelled) {
-        return;
-      }
+    void prewarmPlayerPortraits(batch)
+      .then((result) => {
+        if (cancelled) {
+          finish();
+          return;
+        }
 
-      if (result) {
+        if (!result) {
+          finish();
+          return;
+        }
+
         console.debug("[portraits] background prewarm batch", {
           startIndex,
           requested: result.requestedCount,
@@ -274,23 +290,24 @@ export function queueBackgroundPortraitPrewarm(
           renderMs: result.renderMs,
           elapsedMs: result.elapsedMs,
         });
-      }
 
-      if (startIndex + batchSize < players.length) {
-        scheduleBatch(startIndex + batchSize, batchDelayMs);
-      }
-    });
+        if (startIndex + batchSize < players.length) {
+          scheduleBatch(startIndex + batchSize, batchDelayMs);
+        } else {
+          finish();
+        }
+      })
+      .catch((error) => {
+        console.warn("Background runtime player portrait prewarm failed", error);
+        finish();
+      });
   };
 
   scheduleBatch(0, delayMs);
 
   return () => {
     cancelled = true;
-    queuedBackgroundPrewarmKeys.delete(key);
-    if (timeoutId !== null) {
-      globalThis.clearTimeout(timeoutId);
-      timeoutId = null;
-    }
+    finish();
   };
 }
 
@@ -316,8 +333,10 @@ export function getRuntimeGeneratedPlayerPortrait(
     }))
     .catch((error) => {
       console.warn("Failed to generate runtime player portrait", error);
-      runtimePortraitRequests.delete(key);
       return null;
+    })
+    .finally(() => {
+      runtimePortraitRequests.delete(key);
     });
 
   runtimePortraitRequests.set(key, request);

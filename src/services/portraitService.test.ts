@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData } from "../store/gameStore";
 import {
+  getRuntimeGeneratedPlayerPortrait,
   getBackgroundPortraitPrewarmKey,
   prewarmPlayerPortraits,
   queueBackgroundPortraitPrewarm,
@@ -271,5 +272,65 @@ describe("portraitService prewarm planning", () => {
     await vi.advanceTimersByTimeAsync(150);
 
     expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops background prewarm and releases the queue key when a batch fails", async () => {
+    vi.useFakeTimers();
+    invokeMock.mockRejectedValueOnce(new Error("backend unavailable"));
+    const state = gameState([
+      player("a-fail-1", "team-a"),
+      player("b-fail-1", "team-b"),
+      player("b-fail-2", "team-b"),
+      player("b-fail-3", "team-b"),
+      player("b-fail-4", "team-b"),
+      player("b-fail-5", "team-b"),
+      player("c-fail-1", "team-c"),
+    ]);
+    state.manager.id = "manager-failed-batch";
+
+    queueBackgroundPortraitPrewarm(state, { delayMs: 1 });
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(150);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    invokeMock.mockResolvedValueOnce({
+      generator: "runtime-component-recipe-rust-v1",
+      requestedCount: 4,
+      generatedCount: 0,
+      cachedCount: 4,
+      failedCount: 0,
+      renderMs: 0,
+      elapsedMs: 1.2,
+      records: [],
+    });
+
+    queueBackgroundPortraitPrewarm(state, { delayMs: 1 });
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("dedupes only in-flight single portrait requests", async () => {
+    invokeMock.mockResolvedValue({
+      generator: "runtime-component-recipe-rust-v1",
+      cacheKey: "cache-a",
+      sourceId: "source-a",
+      cachePath: "/tmp/cache-a.webp",
+      dataUrl: null,
+      generated: true,
+      renderMs: 4.1,
+      elapsedMs: 5.2,
+      width: 384,
+      height: 384,
+    });
+    const subject = player("single-cache-1", "team-a");
+
+    await getRuntimeGeneratedPlayerPortrait(subject);
+    await getRuntimeGeneratedPlayerPortrait(subject);
+
+    expect(invokeMock).toHaveBeenCalledTimes(2);
   });
 });

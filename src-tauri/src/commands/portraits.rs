@@ -1,7 +1,9 @@
 use image::{Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::time::Instant;
 use tauri::{AppHandle, Manager};
@@ -90,6 +92,7 @@ struct PixelF {
 }
 
 static SOURCES: OnceLock<Result<Vec<PortraitSource>, String>> = OnceLock::new();
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 const SOURCE_BYTES: &[(&str, &[u8])] = &[
     (
@@ -289,8 +292,7 @@ fn ensure_portrait_file(
     let portrait = render_recipe(&source.image, &recipe);
     let render_ms = elapsed_ms(render_started);
     let bytes = encode_webp(&portrait, 88.0)?;
-    fs::write(&cache_path, &bytes)
-        .map_err(|error| format!("failed to write portrait cache: {error}"))?;
+    write_cache_file_atomically(&cache_path, &bytes)?;
 
     Ok((
         PrewarmPlayerPortraitRecord {
@@ -305,6 +307,31 @@ fn ensure_portrait_file(
         },
         include_bytes.then_some(bytes),
     ))
+}
+
+fn write_cache_file_atomically(cache_path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let file_name = cache_path
+        .file_name()
+        .ok_or_else(|| "portrait cache path has no file name".to_string())?;
+    let counter = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mut temp_file_name = file_name.to_os_string();
+    temp_file_name.push(format!(".{}.tmp", counter));
+    let temp_path = cache_path.with_file_name(temp_file_name);
+
+    fs::write(&temp_path, bytes)
+        .map_err(|error| format!("failed to write portrait cache temp file: {error}"))?;
+
+    match fs::rename(&temp_path, cache_path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::AlreadyExists && cache_path.exists() => {
+            let _ = fs::remove_file(&temp_path);
+            Ok(())
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&temp_path);
+            Err(format!("failed to publish portrait cache: {error}"))
+        }
+    }
 }
 
 fn portrait_sources() -> Result<&'static [PortraitSource], String> {
@@ -693,6 +720,29 @@ mod tests {
         assert!(bytes.starts_with(b"RIFF"));
         assert_eq!(&bytes[8..12], b"WEBP");
         assert!(bytes.len() > 1_000);
+    }
+
+    #[test]
+    fn atomic_cache_write_publishes_final_file_without_temp_leftovers() {
+        let temp = std::env::temp_dir().join(format!(
+            "ofm-portrait-atomic-{}",
+            stable_hash_bytes(format!("{:?}", std::time::SystemTime::now()).as_bytes())
+        ));
+        fs::create_dir_all(&temp).expect("temp cache dir should be created");
+        let cache_path = temp.join("portrait.webp");
+
+        write_cache_file_atomically(&cache_path, b"portrait-bytes")
+            .expect("atomic cache write should succeed");
+
+        assert_eq!(fs::read(&cache_path).unwrap(), b"portrait-bytes");
+        let temp_leftovers = fs::read_dir(&temp)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp"))
+            .count();
+        assert_eq!(temp_leftovers, 0);
+
+        let _ = fs::remove_dir_all(temp);
     }
 
     #[test]
