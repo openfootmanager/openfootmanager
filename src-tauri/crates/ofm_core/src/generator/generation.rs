@@ -635,6 +635,13 @@ pub(super) fn generate_player_from_def(
     player.contract_end = Some(contract_end);
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
+    if let Some(ref foot_str) = def.footedness {
+        player.footedness = match foot_str.as_str() {
+            "Left" => domain::player::Footedness::Left,
+            "Both" => domain::player::Footedness::Both,
+            _ => domain::player::Footedness::Right,
+        };
+    }
 
     let temp_ovr = {
         use crate::player_rating::natural_ovr;

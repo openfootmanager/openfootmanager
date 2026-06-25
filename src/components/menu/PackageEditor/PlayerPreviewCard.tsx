@@ -1,7 +1,8 @@
 import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
-import type { PlayerDef, Position } from "./types";
+import { GeneratedCrest } from "../../ui/GeneratedCrest";
+import type { PlayerDef, Position, TeamDef } from "./types";
 
 const POSITION_ABBR: Record<Position, string> = {
   Goalkeeper: "GK",
@@ -43,13 +44,34 @@ const POSITION_COLOR: Record<Position, string> = {
   Striker: "bg-red-600",
 };
 
-const KEY_ATTRS = [
-  { key: "pace",      abbr: "PAC" },
-  { key: "shooting",  abbr: "SHO" },
-  { key: "passing",   abbr: "PAS" },
-  { key: "dribbling", abbr: "DRI" },
-  { key: "defending", abbr: "DEF" },
-  { key: "strength",  abbr: "PHY" },
+const ALL_ATTRS = [
+  { group: "Physical", keys: [
+    { key: "pace",      abbr: "PAC" },
+    { key: "stamina",   abbr: "STA" },
+    { key: "strength",  abbr: "PHY" },
+    { key: "agility",   abbr: "AGI" },
+  ]},
+  { group: "Technical", keys: [
+    { key: "shooting",  abbr: "SHO" },
+    { key: "passing",   abbr: "PAS" },
+    { key: "dribbling", abbr: "DRI" },
+    { key: "tackling",  abbr: "TAC" },
+    { key: "defending", abbr: "DEF" },
+  ]},
+  { group: "Mental", keys: [
+    { key: "positioning", abbr: "POS" },
+    { key: "vision",      abbr: "VIS" },
+    { key: "decisions",   abbr: "DEC" },
+    { key: "composure",   abbr: "COM" },
+    { key: "aggression",  abbr: "AGG" },
+    { key: "teamwork",    abbr: "TW"  },
+    { key: "leadership",  abbr: "LDR" },
+  ]},
+  { group: "GK", keys: [
+    { key: "handling",  abbr: "HAN" },
+    { key: "reflexes",  abbr: "REF" },
+    { key: "aerial",    abbr: "AER" },
+  ]},
 ] as const;
 
 function attrColor(val: number): string {
@@ -70,9 +92,10 @@ function calcAge(dob: string | null): number | null {
 interface PlayerPreviewCardProps {
   editing: PlayerDef;
   photoDataUrl: string | null;
+  teams?: TeamDef[];
 }
 
-export function PlayerPreviewCard({ editing, photoDataUrl }: PlayerPreviewCardProps) {
+export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPreviewCardProps) {
   const { t } = useTranslation();
 
   const displayName =
@@ -85,6 +108,9 @@ export function PlayerPreviewCard({ editing, photoDataUrl }: PlayerPreviewCardPr
 
   const age = calcAge(editing.dateOfBirth);
   const initials = displayName ? displayName.slice(0, 2).toUpperCase() : "?";
+
+  const club = teams?.find((t) => t.id === editing.club);
+  const clubName = club?.name ?? editing.club;
 
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-navy-600 overflow-hidden bg-white dark:bg-navy-700 shadow-sm select-none">
@@ -123,7 +149,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl }: PlayerPreviewCardPr
 
       <div className="p-3 flex flex-col gap-2.5">
         {/* Overall rating */}
-        {editing.overall !== null && (
+        {editing.overall !== null && editing.attributes === null && (
           <div className="flex items-baseline gap-1.5">
             <span className="text-[10px] uppercase tracking-wide text-gray-400">OVR</span>
             <span
@@ -138,29 +164,43 @@ export function PlayerPreviewCard({ editing, photoDataUrl }: PlayerPreviewCardPr
             >
               {editing.overall}
             </span>
+            <span className="text-[10px] text-gray-400">Generated</span>
           </div>
         )}
 
-        {/* Attribute bars */}
+        {/* Full attribute breakdown */}
         {editing.attributes && (
-          <div className="flex flex-col gap-1">
-            {KEY_ATTRS.map(({ key, abbr: label }) => {
-              const val = editing.attributes![key as keyof typeof editing.attributes];
-              if (val == null) return null;
+          <div className="flex flex-col gap-2">
+            {ALL_ATTRS.map(({ group, keys }) => {
+              const anySet = keys.some((k) => editing.attributes![k.key as keyof typeof editing.attributes] != null);
+              if (!anySet) return null;
               return (
-                <div key={key} className="flex items-center gap-1.5">
-                  <span className="w-8 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex-shrink-0">
-                    {label}
-                  </span>
-                  <div className="flex-1 h-1.5 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${attrColor(val)}`}
-                      style={{ width: `${(val / 99) * 100}%` }}
-                    />
+                <div key={group}>
+                  <p className="text-[9px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+                    {group}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    {keys.map(({ key, abbr: label }) => {
+                      const val = editing.attributes![key as keyof typeof editing.attributes] as number | undefined;
+                      if (val == null) return null;
+                      return (
+                        <div key={key} className="flex items-center gap-1">
+                          <span className="w-7 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex-shrink-0">
+                            {label}
+                          </span>
+                          <div className="flex-1 h-1 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${attrColor(val)}`}
+                              style={{ width: `${(val / 99) * 100}%` }}
+                            />
+                          </div>
+                          <span className="w-5 text-right text-[9px] font-bold tabular-nums text-gray-700 dark:text-gray-200 flex-shrink-0">
+                            {val}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span className="w-6 text-right text-[10px] font-bold tabular-nums text-gray-700 dark:text-gray-200 flex-shrink-0">
-                    {val}
-                  </span>
                 </div>
               );
             })}
@@ -168,15 +208,36 @@ export function PlayerPreviewCard({ editing, photoDataUrl }: PlayerPreviewCardPr
         )}
 
         {/* Bio info */}
-        <div className="flex flex-col gap-0.5 text-[11px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-navy-600">
+        <div className="flex flex-col gap-1 text-[11px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-navy-600">
           {editing.nationality && (
             <p>{t("worldEditor.playerNationality")}: <span className="text-gray-700 dark:text-gray-200">{editing.nationality}</span></p>
           )}
           {editing.club && (
-            <p>{t("worldEditor.playerClub")}: <span className="text-gray-700 dark:text-gray-200">{editing.club}</span></p>
+            <div className="flex items-center gap-1.5">
+              <span className="shrink-0">{t("worldEditor.playerClub")}:</span>
+              {club ? (
+                <div className="flex items-center gap-1 min-w-0">
+                  <GeneratedCrest
+                    name={club.name || club.id}
+                    label={club.shortName || club.name?.slice(0, 3) || "?"}
+                    colors={club.colors}
+                    className="w-4 h-4 flex-shrink-0"
+                  />
+                  <span className="text-gray-700 dark:text-gray-200 truncate">{clubName}</span>
+                </div>
+              ) : (
+                <span className="text-gray-700 dark:text-gray-200">{editing.club}</span>
+              )}
+            </div>
           )}
-          {age !== null && (
-            <p>{t("worldEditor.playerDateOfBirth")}: <span className="text-gray-700 dark:text-gray-200">{age}y</span></p>
+          {editing.dateOfBirth && (
+            <p>
+              {t("worldEditor.playerDateOfBirth")}: <span className="text-gray-700 dark:text-gray-200">{editing.dateOfBirth}</span>
+              {age !== null && <span className="text-gray-400 dark:text-gray-500"> ({age}y)</span>}
+            </p>
+          )}
+          {editing.foot && editing.foot !== "Right" && (
+            <p>{t("worldEditor.playerFoot")}: <span className="text-gray-700 dark:text-gray-200">{editing.foot}</span></p>
           )}
         </div>
       </div>

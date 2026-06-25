@@ -10,7 +10,9 @@ import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { Select } from "../../ui/Select";
 import { POSITIONS, emptyAttributes, toSlug } from "./helpers";
-import type { PlayerDef, TeamDef } from "./types";
+import type { Footedness, PlayerDef, TeamDef } from "./types";
+
+const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
 
 const ATTR_GROUPS = [
@@ -172,13 +174,21 @@ export function PlayerForm({
         onChange={(v) => updateField("nationality", v)}
       />
 
-      <LabeledSelect
-        label={t("worldEditor.playerPosition")}
-        value={editing.position}
-        options={POSITIONS}
-        optionLabels={positionLabels}
-        onChange={(v) => updateField("position", v as PlayerDef["position"])}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <LabeledSelect
+          label={t("worldEditor.playerPosition")}
+          value={editing.position}
+          options={POSITIONS}
+          optionLabels={positionLabels}
+          onChange={(v) => updateField("position", v as PlayerDef["position"])}
+        />
+        <LabeledSelect
+          label={t("worldEditor.playerFoot")}
+          value={editing.foot ?? "Right"}
+          options={FOOT_OPTIONS}
+          onChange={(v) => updateField("foot", v as Footedness)}
+        />
+      </div>
       <div className="flex flex-col gap-1">
         <label className={labelClass}>{t("worldEditor.playerDateOfBirth")}</label>
         <DatePicker
@@ -275,7 +285,7 @@ export function PlayerForm({
     </EntityFormShell>
     </div>
     <div className="w-52 flex-shrink-0 sticky top-0">
-      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} />
+      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} teams={teams} />
     </div>
     </div>
   );

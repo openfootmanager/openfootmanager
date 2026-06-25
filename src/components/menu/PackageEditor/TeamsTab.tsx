@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
+import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { EntityListShell, EntityRow } from "./shared";
 import type { TeamDef } from "./types";
 
@@ -54,9 +55,11 @@ export function TeamsTab({ teams, onAdd, onEdit, onDelete, selectedIndex, onSele
           title={team.name}
           subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
           badge={
-            <div
-              className="w-8 h-8 rounded-lg flex-shrink-0 border border-gray-200 dark:border-navy-600"
-              style={{ background: team.colors.primary }}
+            <GeneratedCrest
+              name={team.name || team.id}
+              label={team.shortName || team.name?.slice(0, 3) || "?"}
+              colors={team.colors}
+              className="w-9 h-9"
             />
           }
           onEdit={() => onEdit(i)}

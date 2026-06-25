@@ -73,6 +73,9 @@ pub struct PlayerDef {
     /// Optional path to a profile photo, relative to the package root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub photo: Option<String>,
+    /// Preferred foot ("Left", "Right", "Both"). Defaults to "Right" if omitted.
+    #[serde(default)]
+    pub footedness: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).

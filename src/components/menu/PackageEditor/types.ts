@@ -101,6 +101,8 @@ export interface PlayerAttributesDef {
   aerial: number;
 }
 
+export type Footedness = "Left" | "Right" | "Both";
+
 export interface PlayerDef {
   id: string;
   name: string;
@@ -113,6 +115,7 @@ export interface PlayerDef {
   overall: number | null;
   attributes: PlayerAttributesDef | null;
   photo?: string | null;
+  foot?: Footedness | null;
 }
 
 // ---------------------------------------------------------------------------
