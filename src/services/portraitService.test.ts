@@ -78,6 +78,25 @@ describe("portraitService prewarm planning", () => {
     ]);
   });
 
+  it("skips players with imported face media during prewarm planning", () => {
+    const importedFacePlayer = player("a-1", "team-a");
+    importedFacePlayer.media = {
+      face: "assets/worlds/test-world/players/a-1.png",
+    };
+    const state = gameState([
+      importedFacePlayer,
+      player("a-2", "team-a"),
+      player("b-1", "team-b"),
+    ]);
+
+    expect(selectManagerSquadPortraitPlayers(state).map((p) => p.id)).toEqual([
+      "a-2",
+    ]);
+    expect(selectBackgroundPortraitPlayers(state).map((p) => p.id)).toEqual([
+      "b-1",
+    ]);
+  });
+
   it("prioritizes next opponent players before other world players in background", () => {
     const state = gameState([
       player("a-1", "team-a"),

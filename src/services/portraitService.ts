@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 
 import { findNextFixture } from "../lib/fixtures";
+import { resolveLocalMediaPath } from "../lib/mediaAssets";
 import type { GameStateData, PlayerData } from "../store/gameStore";
 
 export interface PlayerPortraitIdentity {
@@ -101,7 +102,7 @@ function toPortraitRequest(player: PlayerPortraitIdentity) {
 }
 
 function isPortraitEligiblePlayer(player: PlayerData): boolean {
-  return !player.retired;
+  return !player.retired && !resolveLocalMediaPath(player.media?.face);
 }
 
 export function selectManagerSquadPortraitPlayers(
