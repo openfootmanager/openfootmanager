@@ -138,7 +138,7 @@ export function WorldEditorFormPanel({
 
   if (formPanel === "team") {
     return (
-      <div className="max-w-lg">
+      <div className="max-w-3xl">
         <TeamForm
           editingTeam={teamEditor.editing}
           editingTeamIndex={teamEditor.editingIndex}
@@ -185,7 +185,7 @@ export function WorldEditorFormPanel({
 
   if (formPanel === "player") {
     return (
-      <div className="max-w-lg">
+      <div className="max-w-3xl">
         <PlayerForm
           editing={playerEditor.editing}
           editingIndex={playerEditor.editingIndex}

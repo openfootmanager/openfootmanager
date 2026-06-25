@@ -11,6 +11,7 @@ import { CountryCombobox } from "../../ui/CountryCombobox";
 import { Select } from "../../ui/Select";
 import { POSITIONS, emptyAttributes, toSlug } from "./helpers";
 import type { PlayerDef, TeamDef } from "./types";
+import { PlayerPreviewCard } from "./PlayerPreviewCard";
 
 const ATTR_GROUPS = [
   { label: "Physical", keys: ["pace", "stamina", "strength", "agility"] },
@@ -102,6 +103,8 @@ export function PlayerForm({
   const positionLabels = Object.fromEntries(POSITIONS.map((p) => [p, t(`common.positions.${p}`)])) as Record<string, string>;
 
   return (
+    <div className="flex gap-6 items-start">
+    <div className="flex-1 min-w-0">
     <EntityFormShell
       title={editingIndex === null ? t("worldEditor.addPlayer") : t("worldEditor.editPlayer")}
       onBack={onBack}
@@ -270,5 +273,10 @@ export function PlayerForm({
         </div>
       )}
     </EntityFormShell>
+    </div>
+    <div className="w-52 flex-shrink-0 sticky top-0">
+      <PlayerPreviewCard editing={editing} photoDataUrl={photoDataUrl} />
+    </div>
+    </div>
   );
 }

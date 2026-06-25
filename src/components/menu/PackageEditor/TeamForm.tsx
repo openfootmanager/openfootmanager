@@ -7,6 +7,7 @@ import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { PLAY_STYLES, makeRange, parseRangeBound, toSlug } from "./helpers";
 import type { TeamDef } from "./types";
+import { TeamPreviewCard } from "./TeamPreviewCard";
 
 interface TeamFormProps {
   editingTeam: TeamDef;
@@ -55,7 +56,8 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex gap-6 items-start">
+    <div className="flex-1 min-w-0 flex flex-col gap-4">
       <div className="flex items-center gap-2 mb-2">
         <button
           onClick={onBack}
@@ -255,6 +257,10 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
         )}
         {t("worldEditor.saveTeam")}
       </button>
+    </div>
+    <div className="w-52 flex-shrink-0 sticky top-0">
+      <TeamPreviewCard team={editingTeam} logoDataUrl={logoDataUrl} />
+    </div>
     </div>
   );
 }
