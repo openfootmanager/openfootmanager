@@ -23,7 +23,8 @@
     "worldEditor.confederationId",
     "worldEditor.countryId",
     "worldEditor.playerId",
-    "worldEditor.competitionId"
+    "worldEditor.competitionId",
+    "worldEditor.teamId"
   ],
   "de": [
     "nations.eng",
@@ -118,7 +119,16 @@
     "packageEditor.competitionName",
     "packageEditor.playerPosition",
     "packageEditor.competitionFormat",
-    "packageEditor.competitionSelectorRegion"
+    "packageEditor.competitionSelectorRegion",
+    "worldEditor.version",
+    "worldEditor.confederationName",
+    "worldEditor.countryName",
+    "worldEditor.playerPosition",
+    "worldEditor.competitionName",
+    "worldEditor.competitionFormat",
+    "worldEditor.competitionExplicitTeams",
+    "worldEditor.competitionSelectorRegion",
+    "worldEditor.sectionTeams"
   ],
   "fr": [
     "nations.pt",
@@ -223,7 +233,18 @@
     "packageEditor.description",
     "packageEditor.competitionType",
     "packageEditor.competitionFormat",
-    "packageEditor.competitionParticipantsMode"
+    "packageEditor.competitionParticipantsMode",
+    "worldEditor.description",
+    "worldEditor.version",
+    "worldEditor.playerClub",
+    "worldEditor.competitionType",
+    "worldEditor.competitionFormat",
+    "worldEditor.competitionParticipantsMode",
+    "worldEditor.sectionClubs",
+    "worldEditor.licensePermissions",
+    "worldEditor.licenseConditions",
+    "worldEditor.licenseLimitations",
+    "worldEditor.worldDesc"
   ],
   "it": [
     "nations.sn",
@@ -284,7 +305,8 @@
     "playerProfile.renewalRound",
     "match.max",
     "scouting.morale",
-    "training.groups.groupFocus"
+    "training.groups.groupFocus",
+    "worldEditor.playerClub"
   ],
   "es": [
     "nations.pt",
@@ -340,7 +362,9 @@
     "match.phases.Finished",
     "sacked.teamLabel",
     "squad.kitPatterns.Diagonal",
-    "packageEditor.competitionSelector"
+    "packageEditor.competitionSelector",
+    "worldEditor.playerClub",
+    "worldEditor.competitionSelector"
   ],
   "pt-BR": [
     "nations.pt",
