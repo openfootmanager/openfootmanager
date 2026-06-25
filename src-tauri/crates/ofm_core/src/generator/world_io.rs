@@ -331,6 +331,54 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     Ok(manifest_path.to_string_lossy().to_string())
 }
 
+/// Pack a directory tree into a `.ofm` zip archive. All files under `dir` are
+/// included; asset files (images, etc.) are carried along with data files.
+pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> {
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+
+    let file =
+        std::fs::File::create(output).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options =
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+    fn add_dir(
+        zip: &mut zip::ZipWriter<std::fs::File>,
+        base: &Path,
+        current: &Path,
+        options: SimpleFileOptions,
+    ) -> Result<(), String> {
+        let Ok(entries) = std::fs::read_dir(current) else {
+            return Ok(());
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                add_dir(zip, base, &path, options)?;
+            } else {
+                let rel = path
+                    .strip_prefix(base)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let data = std::fs::read(&path)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+                zip.start_file(rel, options)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+                zip.write_all(&data)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+            }
+        }
+        Ok(())
+    }
+
+    add_dir(&mut zip, dir, dir, options)?;
+    zip.finish()
+        .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+    Ok(())
+}
+
 /// Scan a directory for `.json` world database files and return their metadata.
 pub fn scan_world_databases(dir: &std::path::Path) -> Vec<WorldDatabaseInfo> {
     let mut results = Vec::new();

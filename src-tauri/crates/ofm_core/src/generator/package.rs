@@ -76,6 +76,9 @@ pub struct PlayerDef {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldMetaDef {
+    /// Stable slug used as the install key (e.g. `"premier-league-2026"`).
+    #[serde(default)]
+    pub id: String,
     #[serde(default)]
     pub name: String,
     #[serde(default)]
@@ -86,6 +89,47 @@ pub struct WorldMetaDef {
     pub default_active_competitions: Vec<String>,
     #[serde(default)]
     pub base_year: Option<i32>,
+    /// Semantic version string (e.g. `"1.0.0"`).
+    #[serde(default)]
+    pub version: String,
+    /// Package author / creator.
+    #[serde(default)]
+    pub author: String,
+    /// Monotonic format version for future compatibility.
+    #[serde(default)]
+    pub format_version: u32,
+    /// SPDX license expression (e.g. `"CC-BY-4.0"`).
+    #[serde(default)]
+    pub license: String,
+    /// Minimum game version required (semver, e.g. `"0.3.0"`). Empty = no requirement.
+    #[serde(default)]
+    pub game_min_version: String,
+    /// Package type: `"database"` | `"patch"` | `"assets"`. Defaults to `"database"`.
+    #[serde(default = "default_package_type")]
+    pub package_type: String,
+}
+
+fn default_package_type() -> String {
+    "database".to_string()
+}
+
+/// A package summarised for display and install management.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageInfo {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub license: String,
+    pub game_min_version: String,
+    pub package_type: String,
+    pub team_count: usize,
+    pub player_count: usize,
+    pub competition_count: usize,
+    /// Absolute path to the installed `.ofm` file.
+    pub installed_path: String,
 }
 
 /// Everything a package declares, aggregated across all its files.
@@ -280,7 +324,10 @@ fn translation_locale_from_filename(name: &str) -> Option<&str> {
     Some(&name[start..end])
 }
 
-pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
+/// Load and classify all files in `dir`, running only id-uniqueness checks.
+/// Cross-reference validation is deliberately deferred so callers can merge
+/// multiple packages before running references (which may span packages).
+pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     let mut files = Vec::new();
     collect_data_files(dir, &mut files);
     files.sort();
@@ -336,6 +383,15 @@ pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
     package.competitions.sort_by(|a, b| a.id.cmp(&b.id));
 
     errors.extend(validate_ids(&package));
+    (package, errors)
+}
+
+/// Load a world package from a directory: walk it recursively, classify each
+/// file by its `schema`, and validate ids. Returns the aggregated package and
+/// every problem found. Collections are sorted by id so the result is
+/// independent of file-discovery order (and therefore of folder layout).
+pub fn load_world_package(dir: &Path) -> (WorldPackage, Vec<PackageError>) {
+    let (package, mut errors) = load_world_package_files(dir);
     errors.extend(validate_references(&package));
     (package, errors)
 }
@@ -494,6 +550,253 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
             }
         })
         .collect()
+}
+
+/// Merge multiple packages into one, with last-wins semantics for duplicate ids,
+/// then run full id + reference validation on the combined result. This is the
+/// primitive that makes cross-package references work: a Champions League
+/// package can reference teams defined in a Premier League package as long as
+/// both are included in the stack.
+pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<PackageError>) {
+    use std::collections::BTreeMap;
+
+    let mut merged = WorldPackage::default();
+    let mut confeds: BTreeMap<String, ConfederationDef> = BTreeMap::new();
+    let mut countries: BTreeMap<String, CountryDef> = BTreeMap::new();
+    let mut teams: BTreeMap<String, TeamDef> = BTreeMap::new();
+    let mut players: BTreeMap<String, PlayerDef> = BTreeMap::new();
+    let mut competitions: BTreeMap<String, CompetitionDefinition> = BTreeMap::new();
+
+    for package in packages {
+        if package.meta.is_some() {
+            merged.meta = package.meta;
+        }
+        for c in package.confederations {
+            confeds.insert(c.id.clone(), c);
+        }
+        for c in package.countries {
+            countries.insert(c.id.clone(), c);
+        }
+        for t in package.teams {
+            teams.insert(t.id.clone(), t);
+        }
+        for p in package.players {
+            players.insert(p.id.clone(), p);
+        }
+        for c in package.competitions {
+            competitions.insert(c.id.clone(), c);
+        }
+        if package.names.is_some() {
+            merged.names = package.names;
+        }
+        for (locale, bundle) in package.extra_translations {
+            merged.extra_translations.insert(locale, bundle);
+        }
+    }
+
+    merged.confederations = confeds.into_values().collect();
+    merged.countries = countries.into_values().collect();
+    merged.teams = teams.into_values().collect();
+    merged.players = players.into_values().collect();
+    merged.competitions = competitions.into_values().collect();
+
+    let mut errors = validate_ids(&merged);
+    errors.extend(validate_references(&merged));
+    (merged, errors)
+}
+
+// ---------------------------------------------------------------------------
+// Package lockfile
+// ---------------------------------------------------------------------------
+
+/// Records which `.ofm` package was used to build a save, for reproducibility.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct PackageLock {
+    pub id: String,
+    pub version: String,
+    /// SHA-256 hex digest of the installed `.ofm` file bytes.
+    pub hash: String,
+}
+
+/// Compute the SHA-256 hex digest of a file's bytes. Returns `None` on I/O error.
+pub fn hash_package_file(path: &std::path::Path) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    let bytes = std::fs::read(path).ok()?;
+    Some(hex::encode(Sha256::digest(&bytes)))
+}
+
+// ---------------------------------------------------------------------------
+// .ofm archive support
+// ---------------------------------------------------------------------------
+
+/// Maximum size of an `.ofm` file on disk (256 MB).
+pub const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
+/// Maximum total uncompressed size of all entries (1 GB — zip-bomb guard).
+pub const MAX_UNCOMPRESSED_BYTES: u64 = 1024 * 1024 * 1024;
+/// Maximum number of files in an archive.
+pub const MAX_FILE_COUNT: usize = 10_000;
+
+const ZIPSLIP_ERROR: &str = "be.error.package.zipSlip";
+const SYMLINK_ERROR: &str = "be.error.package.symlinkDetected";
+const TOO_MANY_FILES_ERROR: &str = "be.error.package.tooManyFiles";
+const ARCHIVE_TOO_LARGE_ERROR: &str = "be.error.package.archiveTooLarge";
+
+/// Return the destination path for a zip entry, or `None` if the entry name
+/// is unsafe (zip-slip attempt: absolute path, `..` component, etc.).
+fn safe_entry_path(base: &Path, entry_name: &str) -> Option<PathBuf> {
+    if entry_name.starts_with('/') || entry_name.starts_with('\\') {
+        return None;
+    }
+    let entry_path = Path::new(entry_name);
+    for component in entry_path.components() {
+        match component {
+            std::path::Component::Normal(_) | std::path::Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    if entry_name.ends_with('/') || entry_name.ends_with('\\') {
+        return None;
+    }
+    Some(base.join(entry_name))
+}
+
+/// Extract a `.ofm` zip archive to a temp directory, load the package from it,
+/// clean up, and return. Zip-slip paths are silently skipped.
+pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    use std::io::Read;
+
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]),
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]),
+    };
+    let temp_dir =
+        std::env::temp_dir().join(format!("ofm-extract-{}", uuid::Uuid::new_v4()));
+    if std::fs::create_dir_all(&temp_dir).is_err() {
+        return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]);
+    }
+
+    if archive.len() > MAX_FILE_COUNT {
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        return (
+            WorldPackage::default(),
+            vec![PackageError::new(TOO_MANY_FILES_ERROR, "")],
+        );
+    }
+
+    let mut extract_errors = Vec::new();
+    let mut total_uncompressed: u64 = 0;
+    for i in 0..archive.len() {
+        let Ok(mut entry) = archive.by_index(i) else {
+            continue;
+        };
+        if entry.is_dir() {
+            continue;
+        }
+        if entry.is_symlink() {
+            let name = entry.name().to_string();
+            extract_errors.push(PackageError::new(SYMLINK_ERROR, &name));
+            continue;
+        }
+        let entry_name = entry.name().to_string();
+        let Some(dest) = safe_entry_path(&temp_dir, &entry_name) else {
+            extract_errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
+            continue;
+        };
+        if let Some(parent) = dest.parent() {
+            if std::fs::create_dir_all(parent).is_err() {
+                extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+                continue;
+            }
+        }
+        // Read in 64 KB chunks and count actual decompressed bytes.
+        // entry.size() comes from the zip central-directory header, which an
+        // attacker can set to 0, so we must count bytes as they are read.
+        let mut buf = Vec::new();
+        let mut read_ok = true;
+        loop {
+            let mut chunk = [0u8; 65536];
+            match entry.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(n) => {
+                    total_uncompressed = total_uncompressed.saturating_add(n as u64);
+                    if total_uncompressed > MAX_UNCOMPRESSED_BYTES {
+                        let _ = std::fs::remove_dir_all(&temp_dir);
+                        return (
+                            WorldPackage::default(),
+                            vec![PackageError::new(ARCHIVE_TOO_LARGE_ERROR, "")],
+                        );
+                    }
+                    buf.extend_from_slice(&chunk[..n]);
+                }
+                Err(_) => {
+                    read_ok = false;
+                    break;
+                }
+            }
+        }
+        if !read_ok {
+            extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+            continue;
+        }
+        if std::fs::write(&dest, &buf).is_err() {
+            extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+        }
+    }
+
+    // Load whatever was successfully extracted, even if some entries had errors.
+    let (package, load_errors) = load_world_package_files(&temp_dir);
+    let _ = std::fs::remove_dir_all(&temp_dir);
+
+    // Prepend extraction-level errors before the parse/validate errors.
+    let mut all_errors = extract_errors;
+    all_errors.extend(load_errors);
+    (package, all_errors)
+}
+
+/// Read only the `schema: world` metadata entry from an `.ofm` archive without
+/// fully extracting it. Used by the package manager to list installed packages
+/// without extraction overhead.
+pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
+    use std::io::Read;
+
+    let file = std::fs::File::open(path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let count = archive.len();
+
+    for i in 0..count {
+        let Ok(mut entry) = archive.by_index(i) else {
+            continue;
+        };
+        if entry.is_dir() {
+            continue;
+        }
+        let name = entry.name().to_string();
+        let lower = name.to_ascii_lowercase();
+        if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
+            continue;
+        }
+        let mut text = String::new();
+        if entry.read_to_string(&mut text).is_err() {
+            continue;
+        }
+        let Ok(value) = super::parse_definition_str::<Value>(&text) else {
+            continue;
+        };
+        let Some(map) = value.as_mapping() else {
+            continue;
+        };
+        if map.get("schema").and_then(Value::as_str) != Some("world") {
+            continue;
+        }
+        if let Ok(meta) = serde_yaml::from_value::<WorldMetaDef>(value) {
+            return Some(meta);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
