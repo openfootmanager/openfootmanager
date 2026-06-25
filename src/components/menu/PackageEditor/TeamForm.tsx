@@ -156,51 +156,57 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <LabeledInput
-            label={t("worldEditor.teamRepMin")}
-            value={editingTeam.reputationRange?.[0]?.toString() ?? ""}
-            type="number"
-            onChange={(v) =>
-              updateField(
-                "reputationRange",
-                makeRange(parseRangeBound(v), editingTeam.reputationRange?.[1] ?? null),
-              )
-            }
-          />
-          <LabeledInput
-            label={t("worldEditor.teamRepMax")}
-            value={editingTeam.reputationRange?.[1]?.toString() ?? ""}
-            type="number"
-            onChange={(v) =>
-              updateField(
-                "reputationRange",
-                makeRange(editingTeam.reputationRange?.[0] ?? null, parseRangeBound(v)),
-              )
-            }
-          />
-          <LabeledInput
-            label={t("worldEditor.teamFinMin")}
-            value={editingTeam.financeRange?.[0]?.toString() ?? ""}
-            type="number"
-            onChange={(v) =>
-              updateField(
-                "financeRange",
-                makeRange(parseRangeBound(v), editingTeam.financeRange?.[1] ?? null),
-              )
-            }
-          />
-          <LabeledInput
-            label={t("worldEditor.teamFinMax")}
-            value={editingTeam.financeRange?.[1]?.toString() ?? ""}
-            type="number"
-            onChange={(v) =>
-              updateField(
-                "financeRange",
-                makeRange(editingTeam.financeRange?.[0] ?? null, parseRangeBound(v)),
-              )
-            }
-          />
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput
+              label={t("worldEditor.teamRepMin")}
+              value={editingTeam.reputationRange?.[0]?.toString() ?? ""}
+              type="number"
+              help={t("worldEditor.help.teamReputationRange")}
+              onChange={(v) =>
+                updateField(
+                  "reputationRange",
+                  makeRange(parseRangeBound(v), editingTeam.reputationRange?.[1] ?? null),
+                )
+              }
+            />
+            <LabeledInput
+              label={t("worldEditor.teamRepMax")}
+              value={editingTeam.reputationRange?.[1]?.toString() ?? ""}
+              type="number"
+              onChange={(v) =>
+                updateField(
+                  "reputationRange",
+                  makeRange(editingTeam.reputationRange?.[0] ?? null, parseRangeBound(v)),
+                )
+              }
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput
+              label={t("worldEditor.teamFinMin")}
+              value={editingTeam.financeRange?.[0]?.toString() ?? ""}
+              type="number"
+              help={t("worldEditor.help.teamFinanceRange")}
+              onChange={(v) =>
+                updateField(
+                  "financeRange",
+                  makeRange(parseRangeBound(v), editingTeam.financeRange?.[1] ?? null),
+                )
+              }
+            />
+            <LabeledInput
+              label={t("worldEditor.teamFinMax")}
+              value={editingTeam.financeRange?.[1]?.toString() ?? ""}
+              type="number"
+              onChange={(v) =>
+                updateField(
+                  "financeRange",
+                  makeRange(editingTeam.financeRange?.[0] ?? null, parseRangeBound(v)),
+                )
+              }
+            />
+          </div>
         </div>
       </div>
 

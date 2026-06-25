@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
+import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { Select } from "../../ui/Select";
@@ -175,12 +176,13 @@ export function PlayerForm({
         optionLabels={positionLabels}
         onChange={(v) => updateField("position", v as PlayerDef["position"])}
       />
-      <LabeledInput
-        label={t("worldEditor.playerDateOfBirth")}
-        value={editing.dateOfBirth ?? ""}
-        onChange={(v) => updateField("dateOfBirth", v || null)}
-        placeholder="2000-01-01"
-      />
+      <div className="flex flex-col gap-1">
+        <label className={labelClass}>{t("worldEditor.playerDateOfBirth")}</label>
+        <DatePicker
+          value={editing.dateOfBirth ?? ""}
+          onChange={(v) => updateField("dateOfBirth", v || null)}
+        />
+      </div>
 
       <div className="flex items-center gap-2 py-1">
         <Checkbox
