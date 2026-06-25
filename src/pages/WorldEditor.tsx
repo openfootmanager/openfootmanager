@@ -1,8 +1,6 @@
 import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useTranslation } from "react-i18next";
-import { MousePointerClick } from "lucide-react";
 import { resolveBackendError } from "../utils/backendI18n";
 import {
   emptyCompetition,
@@ -15,26 +13,12 @@ import {
 } from "../components/menu/PackageEditor/helpers";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
-import { MetadataForm } from "../components/menu/PackageEditor/MetadataForm";
-import { TeamForm } from "../components/menu/PackageEditor/TeamForm";
-import { ConfederationForm } from "../components/menu/PackageEditor/ConfederationForm";
-import { CountryForm } from "../components/menu/PackageEditor/CountryForm";
-import { PlayerForm } from "../components/menu/PackageEditor/PlayerForm";
-import { NamesPoolForm } from "../components/menu/PackageEditor/NamesPoolForm";
-import { CompetitionForm } from "../components/menu/PackageEditor/CompetitionForm";
-import { TeamsTab } from "../components/menu/PackageEditor/TeamsTab";
-import { PlayersTab } from "../components/menu/PackageEditor/PlayersTab";
-import { ConfederationsTab } from "../components/menu/PackageEditor/ConfederationsTab";
-import { CountriesTab } from "../components/menu/PackageEditor/CountriesTab";
-import { NamesTab } from "../components/menu/PackageEditor/NamesTab";
-import { CompetitionsTab } from "../components/menu/PackageEditor/CompetitionsTab";
-import { IssueList } from "../components/menu/PackageEditor/IssueList";
+import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
 import type {
   CompetitionDef,
   ConfederationDef,
   CountryDef,
   EditTab,
-  NamePool,
   NamesDefinition,
   PackageProjectData,
   PlayerDef,
@@ -46,7 +30,8 @@ import type { SamplePackage } from "../components/menu/PackageEditor/sampleData"
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
-import { EntityListPanel } from "../components/worldEditor/EntityListPanel";
+import { WorldEditorFormPanel, type FormPanel } from "../components/worldEditor/WorldEditorFormPanel";
+import { WorldEditorListContent } from "../components/worldEditor/WorldEditorListContent";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
 const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
@@ -60,17 +45,6 @@ function readRecentProjects(): RecentProject[] {
     return [];
   }
 }
-
-type FormPanel =
-  | "empty"
-  | "metadata"
-  | "team"
-  | "confederation"
-  | "country"
-  | "player"
-  | "names-pool"
-  | "competition"
-  | "issues";
 
 interface EntitySnapshot {
   meta: WorldMetaDef;
@@ -92,8 +66,6 @@ function readAutoSave(): boolean {
 }
 
 export default function WorldEditor() {
-  const { t } = useTranslation();
-
   const [projectDir, setProjectDir] = useState("");
 
   // Entity state
@@ -122,11 +94,6 @@ export default function WorldEditor() {
 
   // Recent projects
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
-
-  // Names pool (bespoke: key-based, not index-based)
-  const [editingPoolKey, setEditingPoolKey] = useState("");
-  const [editingPool, setEditingPool] = useState<NamePool>({ first_names: [], last_names: [] });
-  const [isNewPool, setIsNewPool] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Snapshot helpers
@@ -259,13 +226,11 @@ export default function WorldEditor() {
   // ---------------------------------------------------------------------------
 
   function handleSelectSection(section: EditTab) {
-    // Save the current form panel for the section we're leaving
     setSectionFormPanels((prev) => ({ ...prev, [selectedSection]: formPanel }));
     setSelectedSection(section);
     if (section === "metadata") {
       setFormPanel("metadata");
     } else {
-      // Restore previous form panel for this section, or default to empty
       setFormPanel(sectionFormPanels[section] ?? "empty");
     }
   }
@@ -278,15 +243,14 @@ export default function WorldEditor() {
   // Top-level project handlers
   // ---------------------------------------------------------------------------
 
-  async function handleNewPackage(meta: WorldMetaDef, sample: SamplePackage | null) {
+  async function handleNewPackage(newMeta: WorldMetaDef, sample: SamplePackage | null) {
     setIsBusy(true);
     try {
-      const dir = await invoke<string>("create_world_project", { slug: meta.id, meta });
+      const dir = await invoke<string>("create_world_project", { slug: newMeta.id, meta: newMeta });
       if (sample) {
-        // Populate with sample entities
         await invoke("save_package_project", {
           dir,
-          meta,
+          meta: newMeta,
           confederations: sample.confederations,
           countries: sample.countries,
           teams: sample.teams,
@@ -298,7 +262,7 @@ export default function WorldEditor() {
       const data = await invoke<PackageProjectData>("read_package_project", { dir });
       setProjectDir(dir);
       loadProjectState(data);
-      addRecentProject(dir, meta.name || meta.id);
+      addRecentProject(dir, newMeta.name || newMeta.id);
       setSelectedSection("metadata");
       setFormPanel("metadata");
     } catch (err) {
@@ -350,7 +314,6 @@ export default function WorldEditor() {
       await openFromPath(selected);
       return;
     }
-    // Fallback to directory picker if user cancelled or selected non-file
     const dirFallback = await open({ directory: true, multiple: false });
     if (typeof dirFallback === "string") {
       await openFromPath(dirFallback);
@@ -389,7 +352,7 @@ export default function WorldEditor() {
   }
 
   // ---------------------------------------------------------------------------
-  // Entity editors (select / add / delete / save for each entity type)
+  // Entity editors
   // ---------------------------------------------------------------------------
 
   const teamEditor = useEntityEditor({
@@ -453,65 +416,27 @@ export default function WorldEditor() {
   });
 
   // ---------------------------------------------------------------------------
-  // Country handlers (continued — country editor needs confederation list)
+  // Names pool
   // ---------------------------------------------------------------------------
 
-  // Note: countryEditor.editing / handleSave etc. used in render below.
-  // CountryForm also receives confederations for its dropdown.
-
-  // ---------------------------------------------------------------------------
-  // Names pool handlers (bespoke: key-based identity, rename-on-save)
-  // ---------------------------------------------------------------------------
-
-  function handleSelectPool(key: string) {
-    setEditingPoolKey(key);
-    setEditingPool({ ...names.pools[key] });
-    setIsNewPool(false);
-    setFormPanel("names-pool");
-  }
-
-  function handleAddPool() {
-    setEditingPoolKey("");
-    setEditingPool({ first_names: [], last_names: [] });
-    setIsNewPool(true);
-    setFormPanel("names-pool");
-  }
-
-  function handleDeletePool(key: string) {
-    pushHistory(currentSnapshot());
-    const updated: NamesDefinition = {
-      ...names,
-      pools: Object.fromEntries(Object.entries(names.pools).filter(([k]) => k !== key)),
-    };
-    setNames(updated);
-    if (autoSave) void persist({ names: updated });
-    if (editingPoolKey === key) setFormPanel("empty");
-  }
-
-  async function handleSavePool(key: string, pool: NamePool) {
-    pushHistory(currentSnapshot());
-    const updatedPools = isNewPool
-      ? { ...names.pools, [key]: pool }
-      : Object.fromEntries(
-          Object.entries(names.pools).map(([k, v]) =>
-            k === editingPoolKey ? [key, pool] : [k, v],
-          ),
-        );
-    const updated: NamesDefinition = { ...names, pools: updatedPools };
-    setNames(updated);
-    setEditingPoolKey(key);
-    setIsNewPool(false);
-    if (autoSave) {
-      setIsBusy(true);
-      try {
-        await persist({ names: updated });
-      } catch {
-        // non-fatal
-      } finally {
-        setIsBusy(false);
-      }
-    }
-  }
+  const {
+    editingPoolKey,
+    editingPool,
+    isNewPool,
+    handleSelectPool,
+    handleAddPool,
+    handleDeletePool,
+    handleSavePool,
+  } = useNamesPoolEditor({
+    names,
+    setNames,
+    autoSave,
+    captureHistory,
+    saveNames: (n) => persist({ names: n }),
+    onOpen: () => setFormPanel("names-pool"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
 
   // ---------------------------------------------------------------------------
   // Home view (no project open)
@@ -523,7 +448,7 @@ export default function WorldEditor() {
         isBusy={isBusy}
         errorMsg={errorMsg}
         recentProjects={recentProjects}
-        onNewPackage={(meta, sample) => { void handleNewPackage(meta, sample); }}
+        onNewPackage={(m, sample) => { void handleNewPackage(m, sample); }}
         onOpenPackage={() => { void handleOpenPackage(); }}
         onOpenRecent={(path) => { void openFromPath(path); }}
       />
@@ -534,232 +459,25 @@ export default function WorldEditor() {
   // 3-column editor layout
   // ---------------------------------------------------------------------------
 
-  const showingIssues = formPanel === "issues";
-
-  // Col 2: entity list (null when Metadata is selected)
   const listPanel =
     selectedSection === "metadata" ? null : (
-      <EntityListPanel>
-        {selectedSection === "teams" && (
-          <TeamsTab
-            teams={teams}
-            onAdd={teamEditor.handleAdd}
-            onEdit={teamEditor.handleSelect}
-            onDelete={teamEditor.handleDelete}
-            selectedIndex={formPanel === "team" ? teamEditor.editingIndex : null}
-            onSelect={teamEditor.handleSelect}
-          />
-        )}
-        {selectedSection === "players" && (
-          <PlayersTab
-            players={players}
-            onAdd={playerEditor.handleAdd}
-            onEdit={playerEditor.handleSelect}
-            onDelete={playerEditor.handleDelete}
-            selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
-            onSelect={playerEditor.handleSelect}
-          />
-        )}
-        {selectedSection === "confederations" && (
-          <ConfederationsTab
-            confederations={confederations}
-            onAdd={confEditor.handleAdd}
-            onEdit={confEditor.handleSelect}
-            onDelete={confEditor.handleDelete}
-            selectedIndex={formPanel === "confederation" ? confEditor.editingIndex : null}
-            onSelect={confEditor.handleSelect}
-          />
-        )}
-        {selectedSection === "countries" && (
-          <CountriesTab
-            countries={countries}
-            onAdd={countryEditor.handleAdd}
-            onEdit={countryEditor.handleSelect}
-            onDelete={countryEditor.handleDelete}
-            selectedIndex={formPanel === "country" ? countryEditor.editingIndex : null}
-            onSelect={countryEditor.handleSelect}
-          />
-        )}
-        {selectedSection === "names" && (
-          <NamesTab
-            names={names}
-            onAdd={handleAddPool}
-            onEdit={handleSelectPool}
-            onDelete={handleDeletePool}
-            selectedKey={formPanel === "names-pool" ? editingPoolKey : null}
-            onSelect={handleSelectPool}
-          />
-        )}
-        {selectedSection === "competitions" && (
-          <CompetitionsTab
-            competitions={competitions}
-            onAdd={compEditor.handleAdd}
-            onEdit={compEditor.handleSelect}
-            onDelete={compEditor.handleDelete}
-            selectedIndex={formPanel === "competition" ? compEditor.editingIndex : null}
-            onSelect={compEditor.handleSelect}
-          />
-        )}
-      </EntityListPanel>
+      <WorldEditorListContent
+        selectedSection={selectedSection}
+        formPanel={formPanel}
+        teams={teams}
+        players={players}
+        confederations={confederations}
+        countries={countries}
+        competitions={competitions}
+        names={names}
+        teamEditor={teamEditor}
+        playerEditor={playerEditor}
+        confEditor={confEditor}
+        countryEditor={countryEditor}
+        compEditor={compEditor}
+        namesEditor={{ editingPoolKey, handleAddPool, handleSelectPool, handleDeletePool }}
+      />
     );
-
-  // Col 3: form or empty state
-  const formContent = (() => {
-    if (formPanel === "metadata") {
-      return (
-        <div className="max-w-4xl">
-          <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
-            {t("worldEditor.metadata")}
-          </h2>
-          <MetadataForm
-            meta={meta}
-            onChange={(m) => { setMeta(m); setIsDirty(true); }}
-            counts={{
-              teams: teams.length,
-              players: players.length,
-              confederations: confederations.length,
-              countries: countries.length,
-              competitions: competitions.length,
-              namePools: Object.keys(names.pools).length,
-            }}
-          />
-          <button
-            onClick={() => {
-              pushHistory(currentSnapshot());
-              void persist({ meta });
-            }}
-            disabled={isBusy}
-            className="mt-6 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-heading font-bold uppercase tracking-wide text-sm transition-all disabled:opacity-60"
-          >
-            {t("common.save")}
-          </button>
-        </div>
-      );
-    }
-
-    if (formPanel === "issues") {
-      return (
-        <div className="max-w-2xl">
-          <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
-            {t("worldEditor.issuesTitle")}
-          </h2>
-          {issues.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              {t("worldEditor.noIssues")}
-            </p>
-          ) : (
-            <IssueList issues={issues} />
-          )}
-        </div>
-      );
-    }
-
-    if (formPanel === "team") {
-      return (
-        <div className="max-w-lg">
-          <TeamForm
-            editingTeam={teamEditor.editing}
-            editingTeamIndex={teamEditor.editingIndex}
-            isBusy={isBusy}
-            projectDir={projectDir || undefined}
-            onBack={() => setFormPanel("empty")}
-            onSave={() => { void teamEditor.handleSave(); }}
-            updateField={teamEditor.updateField}
-          />
-        </div>
-      );
-    }
-
-    if (formPanel === "confederation") {
-      return (
-        <div className="max-w-lg">
-          <ConfederationForm
-            editing={confEditor.editing}
-            editingIndex={confEditor.editingIndex}
-            isBusy={isBusy}
-            onBack={() => setFormPanel("empty")}
-            onSave={() => { void confEditor.handleSave(); }}
-            updateField={confEditor.updateField}
-          />
-        </div>
-      );
-    }
-
-    if (formPanel === "country") {
-      return (
-        <div className="max-w-lg">
-          <CountryForm
-            editing={countryEditor.editing}
-            editingIndex={countryEditor.editingIndex}
-            confederations={confederations}
-            isBusy={isBusy}
-            onBack={() => setFormPanel("empty")}
-            onSave={() => { void countryEditor.handleSave(); }}
-            updateField={countryEditor.updateField}
-          />
-        </div>
-      );
-    }
-
-    if (formPanel === "player") {
-      return (
-        <div className="max-w-lg">
-          <PlayerForm
-            editing={playerEditor.editing}
-            editingIndex={playerEditor.editingIndex}
-            isBusy={isBusy}
-            teams={teams}
-            projectDir={projectDir || undefined}
-            onBack={() => setFormPanel("empty")}
-            onSave={() => { void playerEditor.handleSave(); }}
-            updateField={playerEditor.updateField}
-          />
-        </div>
-      );
-    }
-
-    if (formPanel === "names-pool") {
-      return (
-        <div className="max-w-lg">
-          <NamesPoolForm
-            poolKey={editingPoolKey}
-            pool={editingPool}
-            isNew={isNewPool}
-            isBusy={isBusy}
-            onBack={() => setFormPanel("empty")}
-            onSave={(key, pool) => { void handleSavePool(key, pool); }}
-          />
-        </div>
-      );
-    }
-
-    if (formPanel === "competition") {
-      return (
-        <div className="max-w-2xl">
-          <CompetitionForm
-            editing={compEditor.editing}
-            editingIndex={compEditor.editingIndex}
-            isBusy={isBusy}
-            teams={teams}
-            projectDir={projectDir || undefined}
-            onBack={() => setFormPanel("empty")}
-            onSave={() => { void compEditor.handleSave(); }}
-            updateField={compEditor.updateField}
-          />
-        </div>
-      );
-    }
-
-    // Empty state
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center gap-3">
-        <MousePointerClick className="w-10 h-10 text-gray-300 dark:text-navy-600" />
-        <p className="text-sm text-gray-400 dark:text-gray-500">
-          {t("worldEditor.noItemSelected")}
-        </p>
-      </div>
-    );
-  })();
 
   return (
     <WorldEditorLayout
@@ -794,11 +512,41 @@ export default function WorldEditor() {
           competitionCount={competitions.length}
           issueCount={issues.length}
           onShowIssues={handleShowIssues}
-          showingIssues={showingIssues}
+          showingIssues={formPanel === "issues"}
         />
       }
       listPanel={listPanel}
-      formPanel={formContent}
+      formPanel={
+        <WorldEditorFormPanel
+          formPanel={formPanel}
+          isBusy={isBusy}
+          projectDir={projectDir}
+          meta={meta}
+          onMetaChange={(m) => { setMeta(m); setIsDirty(true); }}
+          onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }); }}
+          counts={{
+            teams: teams.length,
+            players: players.length,
+            confederations: confederations.length,
+            countries: countries.length,
+            competitions: competitions.length,
+            namePools: Object.keys(names.pools).length,
+          }}
+          issues={issues}
+          teamEditor={teamEditor}
+          confEditor={confEditor}
+          countryEditor={countryEditor}
+          playerEditor={playerEditor}
+          compEditor={compEditor}
+          confederations={confederations}
+          teams={teams}
+          editingPoolKey={editingPoolKey}
+          editingPool={editingPool}
+          isNewPool={isNewPool}
+          onSavePool={(key, pool) => { void handleSavePool(key, pool); }}
+          onBack={() => setFormPanel("empty")}
+        />
+      }
     />
   );
 }
