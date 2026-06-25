@@ -65,7 +65,7 @@ export function PlayerForm({
     try {
       const relPath = await invoke<string>("copy_package_asset", {
         dir: projectDir,
-        entityId: editing.id || "unnamed-player",
+        entityId: editing.id || `unnamed-player-${Date.now()}`,
         srcPath: selected,
       });
       updateField("photo", relPath);

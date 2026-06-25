@@ -72,7 +72,7 @@ export function CompetitionForm({
     try {
       const relPath = await invoke<string>("copy_package_asset", {
         dir: projectDir,
-        entityId: editing.id || "unnamed-competition",
+        entityId: editing.id || `unnamed-competition-${Date.now()}`,
         srcPath: selected,
       });
       updateField("logo", relPath);

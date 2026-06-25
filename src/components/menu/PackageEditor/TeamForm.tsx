@@ -42,7 +42,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
     try {
       const relPath = await invoke<string>("copy_package_asset", {
         dir: projectDir,
-        entityId: editingTeam.id || "unnamed-team",
+        entityId: editingTeam.id || `unnamed-team-${Date.now()}`,
         srcPath: selected,
       });
       updateField("logo", relPath);

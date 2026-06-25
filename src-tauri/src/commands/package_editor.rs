@@ -458,6 +458,13 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
     export_directory_to_ofm(dir_path, out_path)
 }
 
+fn sanitize_entity_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || id.contains('/') || id.contains('\\') || id.contains("..") {
+        return Err("be.error.invalidPath".to_string());
+    }
+    Ok(())
+}
+
 /// Copy a local image file into `<dir>/assets/images/<entity_id>.<ext>` and
 /// return the relative path from the package root (e.g. `assets/images/man-utd.png`).
 /// The destination is namespaced by `entity_id` so two entities picking files
@@ -468,6 +475,8 @@ pub fn copy_package_asset(
     entity_id: String,
     src_path: String,
 ) -> Result<String, String> {
+    sanitize_entity_id(&entity_id)?;
+
     let pkg_dir = Path::new(&dir);
     let src = Path::new(&src_path);
 
