@@ -85,6 +85,8 @@ fn write_game_to_connection(
         serde_json::to_string(&game.world_history).map_err(|_| game_persistence_write_error())?;
     let extra_translations_json = serde_json::to_string(&game.extra_translations)
         .map_err(|_| game_persistence_write_error())?;
+    let package_lockfile_json = serde_json::to_string(&game.package_lockfile)
+        .map_err(|_| game_persistence_write_error())?;
     let manager_id = if game.manager_id.is_empty() {
         game.manager.id.clone()
     } else {
@@ -128,6 +130,7 @@ fn write_game_to_connection(
             active_competition_ids_json: serde_json::to_string(&game.active_competition_ids)
                 .map_err(|_| game_persistence_write_error())?,
             extra_translations_json,
+            package_lockfile_json,
         },
     )?;
 
@@ -329,6 +332,8 @@ impl GamePersistenceReader {
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             extra_translations: serde_json::from_str(&meta.extra_translations_json)
                 .unwrap_or_default(),
+            package_lockfile: serde_json::from_str(&meta.package_lockfile_json)
+                .unwrap_or_default(),
         };
         game.promote_legacy_league();
         ofm_core::season_context::refresh_game_context(&mut game);
@@ -373,6 +378,7 @@ mod tests {
             active_region_ids_json: "[]".to_string(),
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
+            package_lockfile_json: "[]".to_string(),
         }
     }
 

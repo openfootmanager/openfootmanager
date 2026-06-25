@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 39;
+pub const MIGRATION_COUNT: usize = 40;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -85,6 +85,8 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v038_national_team_name_key.sql")),
         // V39: Persist extra translations bundle from world packages
         M::up(include_str!("sql/v039_game_extra_translations.sql")),
+        // V40: Persist installed-package lockfile (id, version, hash) for save reproducibility
+        M::up(include_str!("sql/v040_game_package_lockfile.sql")),
     ])
 }
 
