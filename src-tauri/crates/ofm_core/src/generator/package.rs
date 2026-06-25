@@ -70,6 +70,9 @@ pub struct PlayerDef {
     pub overall: Option<u8>,
     #[serde(default)]
     pub attributes: Option<PlayerAttributes>,
+    /// Optional path to a profile photo, relative to the package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub photo: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).

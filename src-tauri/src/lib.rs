@@ -293,7 +293,9 @@ pub fn run() {
             read_package_project,
             save_package_project,
             build_ofm,
-            extract_ofm_for_editing
+            extract_ofm_for_editing,
+            copy_package_asset,
+            read_file_as_data_url
         ])
         .run(tauri::generate_context!());
 

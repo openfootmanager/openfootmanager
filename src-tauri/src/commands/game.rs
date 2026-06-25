@@ -673,6 +673,7 @@ fn build_foundation_competition_plan(
                         season_start_month: Some(month),
                         season_start_day: Some(1),
                         name_key: None,
+                        logo: None,
                     }
                 };
                 let tier_suffix = format!("d{}", tier + 1);
@@ -734,6 +735,7 @@ fn build_foundation_competition_plan(
                         season_start_month: Some(league_month),
                         season_start_day: Some(1),
                         name_key: Some(division_tier_name_key(tier, division_count).to_string()),
+                        logo: None,
                     },
                     league_start,
                 ));
@@ -765,6 +767,7 @@ fn build_foundation_competition_plan(
                 season_start_month: Some(cup_actual_start.month() as u8),
                 season_start_day: Some(cup_actual_start.day() as u8),
                 name_key: Some("tournaments.competitions.nationalCup".to_string()),
+                logo: None,
             },
             cup_actual_start,
         ));
@@ -811,6 +814,7 @@ fn build_foundation_competition_plan(
                 berths: Vec::new(),
                 season_start_month: Some(10),
                 season_start_day: Some(1),
+                logo: None,
             },
             continental_start,
         ));
@@ -3298,6 +3302,7 @@ competitions:
                 season_start_month: None,
                 season_start_day: None,
                 name_key: None,
+                logo: None,
             }],
         });
         let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();

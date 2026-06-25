@@ -72,6 +72,9 @@ pub struct CompetitionDefinition {
     /// translation is provided in the package's `translations.{locale}.json` file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_key: Option<String>,
+    /// Optional path to a logo/badge image, relative to the package root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo: Option<String>,
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -963,6 +966,7 @@ mod tests {
             season_start_month: None,
             season_start_day: None,
             name_key: None,
+            logo: None,
         }
     }
 
@@ -1256,6 +1260,7 @@ mod tests {
             season_start_month: None,
             season_start_day: None,
             name_key: None,
+            logo: None,
         }
     }
 

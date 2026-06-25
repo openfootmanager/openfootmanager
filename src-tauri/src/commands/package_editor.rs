@@ -289,6 +289,7 @@ mod tests {
                 reflexes: 15,
                 aerial: 65,
             }),
+            photo: None,
         }];
 
         let mut pools = HashMap::new();
@@ -337,6 +338,7 @@ mod tests {
             season_start_month: None,
             season_start_day: None,
             name_key: None,
+            logo: None,
         }];
 
         save_package_project(
@@ -454,4 +456,60 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
     }
 
     export_directory_to_ofm(dir_path, out_path)
+}
+
+/// Copy a local image file into `<dir>/assets/images/<entity_id>.<ext>` and
+/// return the relative path from the package root (e.g. `assets/images/man-utd.png`).
+/// The destination is namespaced by `entity_id` so two entities picking files
+/// with the same source name cannot overwrite each other.
+#[tauri::command]
+pub fn copy_package_asset(
+    dir: String,
+    entity_id: String,
+    src_path: String,
+) -> Result<String, String> {
+    let pkg_dir = Path::new(&dir);
+    let src = Path::new(&src_path);
+
+    let ext = src
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+
+    let assets_dir = pkg_dir.join("assets").join("images");
+    std::fs::create_dir_all(&assets_dir).map_err(|e| e.to_string())?;
+
+    let dest_name = format!("{}.{}", entity_id, ext);
+    let dest = assets_dir.join(&dest_name);
+    std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+
+    Ok(format!("assets/images/{}", dest_name))
+}
+
+/// Read a local file and return it as a data URL (`data:<mime>;base64,<data>`).
+/// Used by the package editor to display local images without the asset protocol.
+#[tauri::command]
+pub fn read_file_as_data_url(path: String) -> Result<String, String> {
+    use base64::Engine as _;
+
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+
+    let ext = Path::new(&path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        _ => "application/octet-stream",
+    };
+
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{};base64,{}", mime, encoded))
 }

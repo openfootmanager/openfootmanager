@@ -28,8 +28,8 @@ pub use jobs::*;
 pub use live_match::*;
 pub use messages::*;
 pub use package_editor::{
-    build_ofm, create_package_project, create_world_project, extract_ofm_for_editing,
-    read_package_project, save_package_project,
+    build_ofm, copy_package_asset, create_package_project, create_world_project,
+    extract_ofm_for_editing, read_file_as_data_url, read_package_project, save_package_project,
 };
 pub use profiles::*;
 pub use season::*;
