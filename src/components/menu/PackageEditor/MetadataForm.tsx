@@ -15,30 +15,30 @@ export function MetadataForm({ meta, onChange }: MetadataFormProps) {
   return (
     <div className="flex flex-col gap-3">
       <LabeledInput
-        label={t("packageEditor.packageId")}
+        label={t("worldEditor.packageId")}
         value={meta.id}
         onChange={(v) => set({ id: v })}
         placeholder="my-package"
       />
       <LabeledInput
-        label={t("packageEditor.packageName")}
+        label={t("worldEditor.packageName")}
         value={meta.name}
         onChange={(v) => set({ name: v })}
       />
       <LabeledInput
-        label={t("packageEditor.description")}
+        label={t("worldEditor.description")}
         value={meta.description}
         onChange={(v) => set({ description: v })}
       />
       <div className="grid grid-cols-2 gap-3">
         <LabeledInput
-          label={t("packageEditor.version")}
+          label={t("worldEditor.version")}
           value={meta.version}
           onChange={(v) => set({ version: v })}
           placeholder="1.0.0"
         />
         <LabeledInput
-          label={t("packageEditor.baseYear")}
+          label={t("worldEditor.baseYear")}
           value={meta.baseYear?.toString() ?? ""}
           type="number"
           onChange={(v) => set({ baseYear: v === "" ? null : parseInt(v) })}
@@ -46,24 +46,24 @@ export function MetadataForm({ meta, onChange }: MetadataFormProps) {
         />
       </div>
       <LabeledInput
-        label={t("packageEditor.author")}
+        label={t("worldEditor.author")}
         value={meta.author}
         onChange={(v) => set({ author: v })}
       />
       <LabeledInput
-        label={t("packageEditor.license")}
+        label={t("worldEditor.license")}
         value={meta.license}
         onChange={(v) => set({ license: v })}
         placeholder="CC-BY-4.0"
       />
       <LabeledSelect
-        label={t("packageEditor.packageType")}
+        label={t("worldEditor.packageType")}
         value={meta.packageType}
         options={PACKAGE_TYPES}
         onChange={(v) => set({ packageType: v })}
       />
       <LabeledInput
-        label={t("packageEditor.gameMinVersion")}
+        label={t("worldEditor.gameMinVersion")}
         value={meta.gameMinVersion}
         onChange={(v) => set({ gameMinVersion: v })}
         placeholder="0.3.0"

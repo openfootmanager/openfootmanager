@@ -2,19 +2,19 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Package, FolderOpen, Loader2 } from "lucide-react";
 
-interface PackageEditorHomeProps {
+interface WorldEditorHomeProps {
   isBusy: boolean;
   errorMsg: string | null;
   onNewPackage: () => void;
   onOpenPackage: () => void;
 }
 
-export function PackageEditorHome({
+export function WorldEditorHome({
   isBusy,
   errorMsg,
   onNewPackage,
   onOpenPackage,
-}: PackageEditorHomeProps) {
+}: WorldEditorHomeProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -37,10 +37,10 @@ export function PackageEditorHome({
           <div className="text-center mb-4">
             <Package className="w-12 h-12 text-primary-500 mx-auto mb-3" />
             <h1 className="text-2xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
-              {t("packageEditor.title")}
+              {t("worldEditor.title")}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {t("packageEditor.homeSubtitle")}
+              {t("worldEditor.homeSubtitle")}
             </p>
           </div>
 
@@ -62,10 +62,10 @@ export function PackageEditorHome({
             )}
             <div className="text-left">
               <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                {t("packageEditor.newPackage")}
+                {t("worldEditor.newPackage")}
               </p>
               <p className="text-sm text-primary-100 mt-0.5">
-                {t("packageEditor.newPackageDesc")}
+                {t("worldEditor.newPackageDesc")}
               </p>
             </div>
           </button>
@@ -78,10 +78,10 @@ export function PackageEditorHome({
             <FolderOpen className="w-7 h-7 text-accent-500 dark:text-accent-400 flex-shrink-0" />
             <div className="text-left">
               <p className="font-heading font-bold text-lg uppercase tracking-wide">
-                {t("packageEditor.openPackage")}
+                {t("worldEditor.openPackage")}
               </p>
               <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-                {t("packageEditor.openPackageDesc")}
+                {t("worldEditor.openPackageDesc")}
               </p>
             </div>
           </button>

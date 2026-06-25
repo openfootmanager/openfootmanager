@@ -24,8 +24,8 @@
     "failedStartGame": "启动游戏失败：{{error}}",
     "openDiscord": "打开 Discord 社区",
     "openGithub": "打开 GitHub 仓库",
-    "packageEditor": "包编辑器",
-    "mainMenu": "主菜单"
+    "mainMenu": "主菜单",
+    "worldEditor": "世界编辑器"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3513,10 +3513,10 @@
     "rating": "评分",
     "winRate": "胜率"
   },
-  "packageEditor": {
-    "title": "包编辑器",
-    "newPackage": "新建包",
-    "openPackage": "打开包",
+  "worldEditor": {
+    "title": "世界编辑器",
+    "newPackage": "新建世界",
+    "openPackage": "打开世界",
     "metadata": "元数据",
     "teams": "球队 ({{count}})",
     "addTeam": "添加球队",
@@ -3524,7 +3524,7 @@
     "deleteTeam": "删除",
     "validate": "验证",
     "build": "导出为 .ofm",
-    "buildSuccess": "包创建成功",
+    "buildSuccess": "世界构建成功",
     "noTeams": "没有球队。添加第一支。",
     "saveSuccess": "已保存",
     "saveTeam": "保存球队",
@@ -3633,13 +3633,13 @@
       "allInRegion": "地区内全部",
       "championsOf": "冠军队"
     },
-    "homeSubtitle": "创建或打开一个包以开始",
-    "newPackageDesc": "从空文件夹创建新包",
-    "openPackageDesc": "加载现有的包目录",
+    "homeSubtitle": "创建或打开一个世界",
+    "newPackageDesc": "从零开始创建新世界",
+    "openPackageDesc": "打开现有世界文件夹或 .ofm 文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
     "issuesTitle": "验证问题",
-    "noIssues": "无问题 — 包有效",
+    "noIssues": "没有问题 — 世界有效",
     "saving": "保存中…",
     "saved": "已保存",
     "unsaved": "未保存的更改",

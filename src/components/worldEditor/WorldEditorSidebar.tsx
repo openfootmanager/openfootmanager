@@ -14,7 +14,7 @@ interface SidebarGroup {
   items: SidebarItem[];
 }
 
-interface PackageEditorSidebarProps {
+interface WorldEditorSidebarProps {
   selectedSection: EditTab;
   onSelectSection: (section: EditTab) => void;
   confederationCount: number;
@@ -28,7 +28,7 @@ interface PackageEditorSidebarProps {
   showingIssues: boolean;
 }
 
-export function PackageEditorSidebar({
+export function WorldEditorSidebar({
   selectedSection,
   onSelectSection,
   confederationCount,
@@ -40,37 +40,37 @@ export function PackageEditorSidebar({
   issueCount,
   onShowIssues,
   showingIssues,
-}: PackageEditorSidebarProps) {
+}: WorldEditorSidebarProps) {
   const { t } = useTranslation();
 
   const groups: SidebarGroup[] = [
     {
       groupKey: "package",
-      label: t("packageEditor.sectionPackage"),
-      items: [{ key: "metadata", label: t("packageEditor.metadata") }],
+      label: t("worldEditor.sectionPackage"),
+      items: [{ key: "metadata", label: t("worldEditor.metadata") }],
     },
     {
       groupKey: "world",
-      label: t("packageEditor.sectionWorld"),
+      label: t("worldEditor.sectionWorld"),
       items: [
-        { key: "confederations", label: t("packageEditor.sectionConfederations"), count: confederationCount },
-        { key: "countries", label: t("packageEditor.sectionCountries"), count: countryCount },
+        { key: "confederations", label: t("worldEditor.sectionConfederations"), count: confederationCount },
+        { key: "countries", label: t("worldEditor.sectionCountries"), count: countryCount },
       ],
     },
     {
       groupKey: "clubs",
-      label: t("packageEditor.sectionClubs"),
+      label: t("worldEditor.sectionClubs"),
       items: [
-        { key: "teams", label: t("packageEditor.sectionTeams"), count: teamCount },
-        { key: "players", label: t("packageEditor.sectionPlayers"), count: playerCount },
-        { key: "names", label: t("packageEditor.sectionNames"), count: namePoolCount },
+        { key: "teams", label: t("worldEditor.sectionTeams"), count: teamCount },
+        { key: "players", label: t("worldEditor.sectionPlayers"), count: playerCount },
+        { key: "names", label: t("worldEditor.sectionNames"), count: namePoolCount },
       ],
     },
     {
       groupKey: "competitions",
-      label: t("packageEditor.sectionCompetitions"),
+      label: t("worldEditor.sectionCompetitions"),
       items: [
-        { key: "competitions", label: t("packageEditor.sectionCompetitionsList"), count: competitionCount },
+        { key: "competitions", label: t("worldEditor.sectionCompetitionsList"), count: competitionCount },
       ],
     },
   ];
@@ -128,8 +128,8 @@ export function PackageEditorSidebar({
         >
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {issueCount > 0
-            ? t("packageEditor.issuesBadge", { count: issueCount })
-            : t("packageEditor.noIssues")}
+            ? t("worldEditor.issuesBadge", { count: issueCount })
+            : t("worldEditor.noIssues")}
         </button>
       </div>
     </div>

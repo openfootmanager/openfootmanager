@@ -1,4 +1,4 @@
-interface PackageEditorLayoutProps {
+interface WorldEditorLayoutProps {
   topBar: React.ReactNode;
   sidebar: React.ReactNode;
   /** null = hidden (Metadata spans full content width) */
@@ -6,12 +6,12 @@ interface PackageEditorLayoutProps {
   formPanel: React.ReactNode;
 }
 
-export function PackageEditorLayout({
+export function WorldEditorLayout({
   topBar,
   sidebar,
   listPanel,
   formPanel,
-}: PackageEditorLayoutProps) {
+}: WorldEditorLayoutProps) {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-navy-900 overflow-hidden">
       {topBar}

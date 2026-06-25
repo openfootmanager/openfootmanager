@@ -24,8 +24,8 @@
     "failedStartGame": "Échec du démarrage du jeu : {{error}}",
     "openDiscord": "Ouvrir la communauté Discord",
     "openGithub": "Ouvrir le dépôt GitHub",
-    "packageEditor": "Éditeur de Paquets",
-    "mainMenu": "Menu principal"
+    "mainMenu": "Menu principal",
+    "worldEditor": "Éditeur de Monde"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3516,10 +3516,10 @@
     "rating": "Note",
     "winRate": "Taux de victoire"
   },
-  "packageEditor": {
-    "title": "Éditeur de Paquets",
-    "newPackage": "Nouveau Paquet",
-    "openPackage": "Ouvrir un Paquet",
+  "worldEditor": {
+    "title": "Éditeur de Monde",
+    "newPackage": "Nouveau Monde",
+    "openPackage": "Ouvrir un Monde",
     "metadata": "Métadonnées",
     "teams": "Équipes ({{count}})",
     "addTeam": "Ajouter une Équipe",
@@ -3527,7 +3527,7 @@
     "deleteTeam": "Supprimer",
     "validate": "Valider",
     "build": "Exporter en .ofm",
-    "buildSuccess": "Paquet créé avec succès",
+    "buildSuccess": "Monde créé avec succès",
     "noTeams": "Aucune équipe. Ajoutez votre première.",
     "saveSuccess": "Enregistré",
     "saveTeam": "Enregistrer l'équipe",
@@ -3636,13 +3636,13 @@
       "allInRegion": "Tous dans la région",
       "championsOf": "Champions de"
     },
-    "homeSubtitle": "Créez ou ouvrez un paquet pour commencer",
-    "newPackageDesc": "Démarrer un nouveau paquet depuis un dossier vide",
-    "openPackageDesc": "Charger un répertoire de paquet existant",
+    "homeSubtitle": "Créez ou ouvrez un monde",
+    "newPackageDesc": "Créer un nouveau monde de zéro",
+    "openPackageDesc": "Ouvrir un dossier monde ou fichier .ofm existant",
     "noItemSelected": "Sélectionnez un élément dans la liste ou cliquez sur Ajouter",
     "issuesBadge": "{{count}} problème(s)",
     "issuesTitle": "Problèmes de validation",
-    "noIssues": "Aucun problème — le paquet est valide",
+    "noIssues": "Aucun problème — le monde est valide",
     "saving": "Enregistrement…",
     "saved": "Enregistré",
     "unsaved": "Modifications non enregistrées",

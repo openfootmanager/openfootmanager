@@ -15,9 +15,9 @@ export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete, selecte
   const { t } = useTranslation();
   return (
     <EntityListShell
-      addLabel={t("packageEditor.addCompetition")}
+      addLabel={t("worldEditor.addCompetition")}
       onAdd={onAdd}
-      emptyLabel={t("packageEditor.noCompetitions")}
+      emptyLabel={t("worldEditor.noCompetitions")}
       isEmpty={competitions.length === 0}
     >
       {competitions.map((comp, i) => (
@@ -35,8 +35,8 @@ export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete, selecte
           }
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
-          editLabel={t("packageEditor.editCompetition")}
-          deleteLabel={t("packageEditor.deleteCompetition")}
+          editLabel={t("worldEditor.editCompetition")}
+          deleteLabel={t("worldEditor.deleteCompetition")}
           isSelected={selectedIndex === i}
           onClick={onSelect ? () => onSelect(i) : undefined}
         />

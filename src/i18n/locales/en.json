@@ -24,8 +24,8 @@
     "failedStartGame": "Failed to start game: {{error}}",
     "openDiscord": "Open Discord community",
     "openGithub": "Open GitHub repository",
-    "packageEditor": "Package Editor",
-    "mainMenu": "Main Menu"
+    "mainMenu": "Main Menu",
+    "worldEditor": "World Editor"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3512,10 +3512,10 @@
     "rating": "Rating",
     "winRate": "Win rate"
   },
-  "packageEditor": {
-    "title": "Package Editor",
-    "newPackage": "New Package",
-    "openPackage": "Open Package",
+  "worldEditor": {
+    "title": "World Editor",
+    "newPackage": "New World",
+    "openPackage": "Open World",
     "metadata": "Metadata",
     "teams": "Teams ({{count}})",
     "addTeam": "Add Team",
@@ -3523,7 +3523,7 @@
     "deleteTeam": "Delete",
     "validate": "Validate",
     "build": "Build .ofm",
-    "buildSuccess": "Package built successfully",
+    "buildSuccess": "World built successfully",
     "noTeams": "No teams yet. Add your first team.",
     "saveSuccess": "Saved",
     "saveTeam": "Save Team",
@@ -3632,13 +3632,13 @@
       "allInRegion": "All in Region",
       "championsOf": "Champions Of"
     },
-    "homeSubtitle": "Create or open a package to get started",
-    "newPackageDesc": "Start a new package from an empty folder",
-    "openPackageDesc": "Load an existing package directory",
+    "homeSubtitle": "Create or open a world to get started",
+    "newPackageDesc": "Start a new world from scratch",
+    "openPackageDesc": "Open an existing world folder or .ofm file",
     "noItemSelected": "Select an item from the list, or click Add to create one",
     "issuesBadge": "{{count}} issues",
     "issuesTitle": "Validation Issues",
-    "noIssues": "No issues — package is valid",
+    "noIssues": "No issues — world is valid",
     "saving": "Saving…",
     "saved": "Saved",
     "unsaved": "Unsaved changes",

@@ -15,9 +15,9 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete, selectedIndex
   const { t } = useTranslation();
   return (
     <EntityListShell
-      addLabel={t("packageEditor.addCountry")}
+      addLabel={t("worldEditor.addCountry")}
       onAdd={onAdd}
-      emptyLabel={t("packageEditor.noCountries")}
+      emptyLabel={t("worldEditor.noCountries")}
       isEmpty={countries.length === 0}
     >
       {countries.map((country, i) => (
@@ -29,8 +29,8 @@ export function CountriesTab({ countries, onAdd, onEdit, onDelete, selectedIndex
             .join(" · ")}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
-          editLabel={t("packageEditor.editCountry")}
-          deleteLabel={t("packageEditor.deleteCountry")}
+          editLabel={t("worldEditor.editCountry")}
+          deleteLabel={t("worldEditor.deleteCountry")}
           isSelected={selectedIndex === i}
           onClick={onSelect ? () => onSelect(i) : undefined}
         />

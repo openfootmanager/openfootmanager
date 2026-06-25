@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle, Package, Loader2, Check, AlertCircle } from "lu
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
-interface PackageEditorTopBarProps {
+interface WorldEditorTopBarProps {
   packageName: string;
   packageDir: string;
   saveState: SaveState;
@@ -14,7 +14,7 @@ interface PackageEditorTopBarProps {
   onBuild: () => void;
 }
 
-export function PackageEditorTopBar({
+export function WorldEditorTopBar({
   packageName,
   packageDir,
   saveState,
@@ -22,7 +22,7 @@ export function PackageEditorTopBar({
   issueCount,
   onValidate,
   onBuild,
-}: PackageEditorTopBarProps) {
+}: WorldEditorTopBarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -39,7 +39,7 @@ export function PackageEditorTopBar({
         </button>
         <span className="text-gray-300 dark:text-navy-500 flex-shrink-0">·</span>
         <span className="font-heading font-bold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-          {packageName || t("packageEditor.title")}
+          {packageName || t("worldEditor.title")}
         </span>
         {packageDir && (
           <span className="text-xs text-gray-400 dark:text-gray-500 truncate hidden md:block max-w-[240px]">
@@ -53,19 +53,19 @@ export function PackageEditorTopBar({
         {saveState === "saving" && (
           <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
             <Loader2 className="w-3 h-3 animate-spin" />
-            {t("packageEditor.saving")}
+            {t("worldEditor.saving")}
           </span>
         )}
         {saveState === "saved" && (
           <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
             <Check className="w-3 h-3" />
-            {t("packageEditor.saved")}
+            {t("worldEditor.saved")}
           </span>
         )}
         {saveState === "error" && (
           <span className="flex items-center gap-1 text-xs text-red-500 dark:text-red-400">
             <AlertCircle className="w-3 h-3" />
-            {t("packageEditor.unsaved")}
+            {t("worldEditor.unsaved")}
           </span>
         )}
 
@@ -81,7 +81,7 @@ export function PackageEditorTopBar({
           ) : (
             <CheckCircle className="w-3.5 h-3.5" />
           )}
-          {t("packageEditor.validate")}
+          {t("worldEditor.validate")}
           {issueCount > 0 && (
             <span className="ml-0.5 bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none">
               {issueCount}
@@ -99,7 +99,7 @@ export function PackageEditorTopBar({
           ) : (
             <Package className="w-3.5 h-3.5" />
           )}
-          {t("packageEditor.build")}
+          {t("worldEditor.build")}
         </button>
       </div>
     </div>

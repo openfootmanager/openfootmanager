@@ -19,11 +19,11 @@
     "tactics.playerRoles.Carrilero",
     "tactics.playerRoles.Mezzala",
     "worldSelect.packageVersion",
-    "packageEditor.typePatch",
-    "packageEditor.confederationId",
-    "packageEditor.countryId",
-    "packageEditor.playerId",
-    "packageEditor.competitionId"
+    "worldEditor.typePatch",
+    "worldEditor.confederationId",
+    "worldEditor.countryId",
+    "worldEditor.playerId",
+    "worldEditor.competitionId"
   ],
   "de": [
     "nations.eng",

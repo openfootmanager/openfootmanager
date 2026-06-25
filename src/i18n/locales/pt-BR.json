@@ -24,8 +24,8 @@
     "failedStartGame": "Falha ao iniciar o jogo: {{error}}",
     "openDiscord": "Abrir comunidade Discord",
     "openGithub": "Abrir repositório GitHub",
-    "packageEditor": "Editor de Pacotes",
-    "mainMenu": "Menu principal"
+    "mainMenu": "Menu principal",
+    "worldEditor": "Editor de Mundo"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3516,10 +3516,10 @@
     "rating": "Nota",
     "winRate": "Aproveitamento"
   },
-  "packageEditor": {
-    "title": "Editor de Pacotes",
-    "newPackage": "Novo Pacote",
-    "openPackage": "Abrir Pacote",
+  "worldEditor": {
+    "title": "Editor de Mundo",
+    "newPackage": "Novo Mundo",
+    "openPackage": "Abrir Mundo",
     "metadata": "Metadados",
     "teams": "Times ({{count}})",
     "addTeam": "Adicionar Time",
@@ -3527,7 +3527,7 @@
     "deleteTeam": "Excluir",
     "validate": "Validar",
     "build": "Exportar para .ofm",
-    "buildSuccess": "Pacote criado com sucesso",
+    "buildSuccess": "Mundo criado com sucesso",
     "noTeams": "Nenhum time. Adicione o primeiro.",
     "saveSuccess": "Salvo",
     "saveTeam": "Salvar time",
@@ -3636,13 +3636,13 @@
       "allInRegion": "Todos na região",
       "championsOf": "Campeões de"
     },
-    "homeSubtitle": "Crie ou abra um pacote para começar",
-    "newPackageDesc": "Iniciar um novo pacote a partir de uma pasta vazia",
-    "openPackageDesc": "Carregar um diretório de pacote existente",
+    "homeSubtitle": "Crie ou abra um mundo",
+    "newPackageDesc": "Criar um novo mundo do zero",
+    "openPackageDesc": "Abrir uma pasta de mundo ou arquivo .ofm existente",
     "noItemSelected": "Selecione um item da lista ou clique em Adicionar",
     "issuesBadge": "{{count}} problema(s)",
     "issuesTitle": "Problemas de validação",
-    "noIssues": "Sem problemas — o pacote é válido",
+    "noIssues": "Sem problemas — o mundo é válido",
     "saving": "Salvando…",
     "saved": "Salvo",
     "unsaved": "Alterações não salvas",

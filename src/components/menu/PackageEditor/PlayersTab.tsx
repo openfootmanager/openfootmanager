@@ -15,9 +15,9 @@ export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, on
   const { t } = useTranslation();
   return (
     <EntityListShell
-      addLabel={t("packageEditor.addPlayer")}
+      addLabel={t("worldEditor.addPlayer")}
       onAdd={onAdd}
-      emptyLabel={t("packageEditor.noPlayers")}
+      emptyLabel={t("worldEditor.noPlayers")}
       isEmpty={players.length === 0}
     >
       {players.map((player, i) => (
@@ -36,8 +36,8 @@ export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, on
           }
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
-          editLabel={t("packageEditor.editPlayer")}
-          deleteLabel={t("packageEditor.deletePlayer")}
+          editLabel={t("worldEditor.editPlayer")}
+          deleteLabel={t("worldEditor.deletePlayer")}
           isSelected={selectedIndex === i}
           onClick={onSelect ? () => onSelect(i) : undefined}
         />

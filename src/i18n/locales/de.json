@@ -24,8 +24,8 @@
     "failedStartGame": "Spiel konnte nicht gestartet werden: {{error}}",
     "openDiscord": "Discord-Community öffnen",
     "openGithub": "GitHub-Repository öffnen",
-    "packageEditor": "Paket-Editor",
-    "mainMenu": "Hauptmenü"
+    "mainMenu": "Hauptmenü",
+    "worldEditor": "Welt-Editor"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3516,10 +3516,10 @@
     "rating": "Bewertung",
     "winRate": "Siegquote"
   },
-  "packageEditor": {
-    "title": "Paket-Editor",
-    "newPackage": "Neues Paket",
-    "openPackage": "Paket öffnen",
+  "worldEditor": {
+    "title": "Welt-Editor",
+    "newPackage": "Neue Welt",
+    "openPackage": "Welt öffnen",
     "metadata": "Metadaten",
     "teams": "Vereine ({{count}})",
     "addTeam": "Verein hinzufügen",
@@ -3527,7 +3527,7 @@
     "deleteTeam": "Löschen",
     "validate": "Validieren",
     "build": "Als .ofm exportieren",
-    "buildSuccess": "Paket erfolgreich erstellt",
+    "buildSuccess": "Welt erfolgreich erstellt",
     "noTeams": "Noch keine Vereine. Fügen Sie den ersten hinzu.",
     "saveSuccess": "Gespeichert",
     "saveTeam": "Verein speichern",
@@ -3636,13 +3636,13 @@
       "allInRegion": "Alle in Region",
       "championsOf": "Meister von"
     },
-    "homeSubtitle": "Erstelle oder öffne ein Paket, um loszulegen",
-    "newPackageDesc": "Neues Paket aus einem leeren Ordner erstellen",
-    "openPackageDesc": "Vorhandenes Paketverzeichnis laden",
+    "homeSubtitle": "Erstelle oder öffne eine Welt",
+    "newPackageDesc": "Neue Welt von Grund auf erstellen",
+    "openPackageDesc": "Vorhandenen Weltordner oder .ofm-Datei öffnen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
     "issuesBadge": "{{count}} Problem(e)",
     "issuesTitle": "Validierungsprobleme",
-    "noIssues": "Keine Probleme — Paket ist gültig",
+    "noIssues": "Keine Probleme – Welt ist gültig",
     "saving": "Speichern…",
     "saved": "Gespeichert",
     "unsaved": "Ungespeicherte Änderungen",

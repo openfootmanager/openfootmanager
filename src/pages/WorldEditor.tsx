@@ -39,11 +39,11 @@ import type {
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
-import { PackageEditorHome } from "../components/packageEditor/PackageEditorHome";
-import { PackageEditorLayout } from "../components/packageEditor/PackageEditorLayout";
-import { PackageEditorTopBar, type SaveState } from "../components/packageEditor/PackageEditorTopBar";
-import { PackageEditorSidebar } from "../components/packageEditor/PackageEditorSidebar";
-import { EntityListPanel } from "../components/packageEditor/EntityListPanel";
+import { WorldEditorHome } from "../components/worldEditor/WorldEditorHome";
+import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
+import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
+import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
+import { EntityListPanel } from "../components/worldEditor/EntityListPanel";
 
 type FormPanel =
   | "empty"
@@ -505,7 +505,7 @@ export default function PackageEditor() {
 
   if (!projectDir) {
     return (
-      <PackageEditorHome
+      <WorldEditorHome
         isBusy={isBusy}
         errorMsg={errorMsg}
         onNewPackage={() => { void handleNewPackage(); }}
@@ -593,7 +593,7 @@ export default function PackageEditor() {
       return (
         <div className="max-w-2xl">
           <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
-            {t("packageEditor.metadata")}
+            {t("worldEditor.metadata")}
           </h2>
           <MetadataForm meta={meta} onChange={setMeta} />
           <button
@@ -611,11 +611,11 @@ export default function PackageEditor() {
       return (
         <div className="max-w-2xl">
           <h2 className="text-lg font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-5">
-            {t("packageEditor.issuesTitle")}
+            {t("worldEditor.issuesTitle")}
           </h2>
           {issues.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              {t("packageEditor.noIssues")}
+              {t("worldEditor.noIssues")}
             </p>
           ) : (
             <IssueList issues={issues} />
@@ -720,16 +720,16 @@ export default function PackageEditor() {
       <div className="flex flex-col items-center justify-center h-full text-center gap-3">
         <MousePointerClick className="w-10 h-10 text-gray-300 dark:text-navy-600" />
         <p className="text-sm text-gray-400 dark:text-gray-500">
-          {t("packageEditor.noItemSelected")}
+          {t("worldEditor.noItemSelected")}
         </p>
       </div>
     );
   })();
 
   return (
-    <PackageEditorLayout
+    <WorldEditorLayout
       topBar={
-        <PackageEditorTopBar
+        <WorldEditorTopBar
           packageName={meta.name || meta.id}
           packageDir={projectDir}
           saveState={saveState}
@@ -740,7 +740,7 @@ export default function PackageEditor() {
         />
       }
       sidebar={
-        <PackageEditorSidebar
+        <WorldEditorSidebar
           selectedSection={selectedSection}
           onSelectSection={handleSelectSection}
           confederationCount={confederations.length}

@@ -954,13 +954,13 @@ export default function MainMenu() {
               </button>
 
               <button
-                onClick={() => navigate("/package-editor")}
+                onClick={() => navigate("/world-editor")}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
               >
                 <div className="flex items-center gap-3">
                   <Package className="w-6 h-6 text-accent-500 dark:text-accent-400" />
                   <span className="font-heading font-bold text-lg uppercase tracking-wide">
-                    {t("menu.packageEditor")}
+                    {t("menu.worldEditor")}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all text-accent-500" />

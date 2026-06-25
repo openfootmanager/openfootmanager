@@ -24,8 +24,8 @@
     "failedStartGame": "Не удалось начать игру: {{error}}",
     "openDiscord": "Открыть сообщество в Discord",
     "openGithub": "Открыть репозиторий на GitHub",
-    "packageEditor": "Редактор Пакетов",
-    "mainMenu": "Главное меню"
+    "mainMenu": "Главное меню",
+    "worldEditor": "Редактор мира"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3512,10 +3512,10 @@
     "rating": "Рейтинг",
     "winRate": "Процент побед"
   },
-  "packageEditor": {
-    "title": "Редактор Пакетов",
-    "newPackage": "Новый Пакет",
-    "openPackage": "Открыть Пакет",
+  "worldEditor": {
+    "title": "Редактор мира",
+    "newPackage": "Новый мир",
+    "openPackage": "Открыть мир",
     "metadata": "Метаданные",
     "teams": "Команды ({{count}})",
     "addTeam": "Добавить Команду",
@@ -3523,7 +3523,7 @@
     "deleteTeam": "Удалить",
     "validate": "Проверить",
     "build": "Экспорт в .ofm",
-    "buildSuccess": "Пакет успешно создан",
+    "buildSuccess": "Мир успешно создан",
     "noTeams": "Нет команд. Добавьте первую.",
     "saveSuccess": "Сохранено",
     "saveTeam": "Сохранить команду",
@@ -3632,13 +3632,13 @@
       "allInRegion": "Все в регионе",
       "championsOf": "Чемпионы"
     },
-    "homeSubtitle": "Создайте или откройте пакет для начала работы",
-    "newPackageDesc": "Создать новый пакет из пустой папки",
-    "openPackageDesc": "Загрузить существующую директорию пакета",
+    "homeSubtitle": "Создайте или откройте мир",
+    "newPackageDesc": "Создать новый мир с нуля",
+    "openPackageDesc": "Открыть существующую папку мира или файл .ofm",
     "noItemSelected": "Выберите элемент из списка или нажмите Добавить",
     "issuesBadge": "{{count}} проблем(а)",
     "issuesTitle": "Ошибки валидации",
-    "noIssues": "Ошибок нет — пакет действителен",
+    "noIssues": "Нет проблем — мир действителен",
     "saving": "Сохранение…",
     "saved": "Сохранено",
     "unsaved": "Несохранённые изменения",

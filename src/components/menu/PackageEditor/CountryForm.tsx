@@ -31,27 +31,27 @@ export function CountryForm({
 
   return (
     <EntityFormShell
-      title={editingIndex === null ? t("packageEditor.addCountry") : t("packageEditor.editCountry")}
+      title={editingIndex === null ? t("worldEditor.addCountry") : t("worldEditor.editCountry")}
       onBack={onBack}
       onSave={onSave}
       isBusy={isBusy}
       saveDisabled={!editing.id || !editing.name}
-      saveLabel={t("packageEditor.saveCountry")}
+      saveLabel={t("worldEditor.saveCountry")}
     >
       <LabeledInput
-        label={t("packageEditor.countryId")}
+        label={t("worldEditor.countryId")}
         value={editing.id}
         onChange={(v) => updateField("id", v)}
         placeholder="ENG"
       />
       <LabeledInput
-        label={t("packageEditor.countryName")}
+        label={t("worldEditor.countryName")}
         value={editing.name}
         onChange={(v) => updateField("name", v)}
         placeholder="England"
       />
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.countryConfederation")}</label>
+        <label className={labelClass}>{t("worldEditor.countryConfederation")}</label>
         {confederations.length > 0 ? (
           <select
             value={editing.confederation}

@@ -15,9 +15,9 @@ export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, sel
   const { t } = useTranslation();
   return (
     <EntityListShell
-      addLabel={t("packageEditor.addConfederation")}
+      addLabel={t("worldEditor.addConfederation")}
       onAdd={onAdd}
-      emptyLabel={t("packageEditor.noConfederations")}
+      emptyLabel={t("worldEditor.noConfederations")}
       isEmpty={confederations.length === 0}
     >
       {confederations.map((conf, i) => (
@@ -27,8 +27,8 @@ export function ConfederationsTab({ confederations, onAdd, onEdit, onDelete, sel
           subtitle={conf.name ? conf.id : undefined}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
-          editLabel={t("packageEditor.editConfederation")}
-          deleteLabel={t("packageEditor.deleteConfederation")}
+          editLabel={t("worldEditor.editConfederation")}
+          deleteLabel={t("worldEditor.deleteConfederation")}
           isSelected={selectedIndex === i}
           onClick={onSelect ? () => onSelect(i) : undefined}
         />

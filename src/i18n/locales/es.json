@@ -24,8 +24,8 @@
     "failedStartGame": "Error al iniciar el juego: {{error}}",
     "openDiscord": "Abrir comunidad de Discord",
     "openGithub": "Abrir repositorio de GitHub",
-    "packageEditor": "Editor de Paquetes",
-    "mainMenu": "Menú principal"
+    "mainMenu": "Menú principal",
+    "worldEditor": "Editor de Mundos"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -3546,10 +3546,10 @@
     "rating": "Valoración",
     "winRate": "Porcentaje de victorias"
   },
-  "packageEditor": {
-    "title": "Editor de Paquetes",
-    "newPackage": "Nuevo Paquete",
-    "openPackage": "Abrir Paquete",
+  "worldEditor": {
+    "title": "Editor de Mundos",
+    "newPackage": "Nuevo Mundo",
+    "openPackage": "Abrir Mundo",
     "metadata": "Metadatos",
     "teams": "Equipos ({{count}})",
     "addTeam": "Añadir Equipo",
@@ -3557,7 +3557,7 @@
     "deleteTeam": "Eliminar",
     "validate": "Validar",
     "build": "Exportar .ofm",
-    "buildSuccess": "Paquete creado exitosamente",
+    "buildSuccess": "Mundo creado con éxito",
     "noTeams": "Sin equipos aún. Añade el primero.",
     "saveSuccess": "Guardado",
     "saveTeam": "Guardar equipo",
@@ -3666,13 +3666,13 @@
       "allInRegion": "Todos en la región",
       "championsOf": "Campeones de"
     },
-    "homeSubtitle": "Crea o abre un paquete para empezar",
-    "newPackageDesc": "Iniciar un nuevo paquete desde una carpeta vacía",
-    "openPackageDesc": "Cargar un directorio de paquete existente",
+    "homeSubtitle": "Crea o abre un mundo",
+    "newPackageDesc": "Crear un nuevo mundo desde cero",
+    "openPackageDesc": "Abrir una carpeta de mundo o archivo .ofm existente",
     "noItemSelected": "Selecciona un elemento de la lista o haz clic en Añadir",
     "issuesBadge": "{{count}} problema(s)",
     "issuesTitle": "Problemas de validación",
-    "noIssues": "Sin problemas — el paquete es válido",
+    "noIssues": "Sin problemas — el mundo es válido",
     "saving": "Guardando…",
     "saved": "Guardado",
     "unsaved": "Cambios sin guardar",

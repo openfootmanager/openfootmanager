@@ -16,9 +16,9 @@ export function NamesTab({ names, onAdd, onEdit, onDelete, selectedKey, onSelect
   const poolKeys = Object.keys(names.pools);
   return (
     <EntityListShell
-      addLabel={t("packageEditor.addPool")}
+      addLabel={t("worldEditor.addPool")}
       onAdd={onAdd}
-      emptyLabel={t("packageEditor.noPools")}
+      emptyLabel={t("worldEditor.noPools")}
       isEmpty={poolKeys.length === 0}
     >
       {poolKeys.map((key) => {
@@ -30,8 +30,8 @@ export function NamesTab({ names, onAdd, onEdit, onDelete, selectedKey, onSelect
             subtitle={`${pool.first_names.length} first · ${pool.last_names.length} last`}
             onEdit={() => onEdit(key)}
             onDelete={() => onDelete(key)}
-            editLabel={t("packageEditor.editPool")}
-            deleteLabel={t("packageEditor.deletePool")}
+            editLabel={t("worldEditor.editPool")}
+            deleteLabel={t("worldEditor.deletePool")}
             isSelected={selectedKey === key}
             onClick={onSelect ? () => onSelect(key) : undefined}
           />

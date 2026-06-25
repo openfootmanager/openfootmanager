@@ -57,61 +57,61 @@ export function PlayerForm({
 
   return (
     <EntityFormShell
-      title={editingIndex === null ? t("packageEditor.addPlayer") : t("packageEditor.editPlayer")}
+      title={editingIndex === null ? t("worldEditor.addPlayer") : t("worldEditor.editPlayer")}
       onBack={onBack}
       onSave={onSave}
       isBusy={isBusy}
       saveDisabled={!editing.id}
-      saveLabel={t("packageEditor.savePlayer")}
+      saveLabel={t("worldEditor.savePlayer")}
     >
       <LabeledInput
-        label={t("packageEditor.playerId")}
+        label={t("worldEditor.playerId")}
         value={editing.id}
         onChange={(v) => updateField("id", v)}
         placeholder="player-001"
       />
       <LabeledInput
-        label={t("packageEditor.playerFirstName")}
+        label={t("worldEditor.playerFirstName")}
         value={editing.firstName}
         onChange={(v) => updateField("firstName", v)}
       />
       <LabeledInput
-        label={t("packageEditor.playerLastName")}
+        label={t("worldEditor.playerLastName")}
         value={editing.lastName}
         onChange={(v) => updateField("lastName", v)}
       />
       <LabeledInput
-        label={t("packageEditor.playerName")}
+        label={t("worldEditor.playerName")}
         value={editing.name}
         onChange={(v) => updateField("name", v)}
         placeholder="Match display name"
       />
       <LabeledInput
-        label={t("packageEditor.playerClub")}
+        label={t("worldEditor.playerClub")}
         value={editing.club}
         onChange={(v) => updateField("club", v)}
         placeholder="team-id"
       />
       <LabeledInput
-        label={t("packageEditor.playerNationality")}
+        label={t("worldEditor.playerNationality")}
         value={editing.nationality}
         onChange={(v) => updateField("nationality", v)}
         placeholder="ENG"
       />
       <LabeledSelect
-        label={t("packageEditor.playerPosition")}
+        label={t("worldEditor.playerPosition")}
         value={editing.position}
         options={POSITIONS}
         onChange={(v) => updateField("position", v as PlayerDef["position"])}
       />
       <LabeledInput
-        label={t("packageEditor.playerDateOfBirth")}
+        label={t("worldEditor.playerDateOfBirth")}
         value={editing.dateOfBirth ?? ""}
         onChange={(v) => updateField("dateOfBirth", v || null)}
         placeholder="2000-01-01"
       />
       <LabeledInput
-        label={t("packageEditor.playerAge")}
+        label={t("worldEditor.playerAge")}
         value={editing.age?.toString() ?? ""}
         type="number"
         onChange={(v) => updateField("age", v === "" ? null : parseInt(v, 10) || null)}
@@ -126,13 +126,13 @@ export function PlayerForm({
           className="w-4 h-4 rounded border-gray-300 dark:border-navy-600 text-primary-500 focus:ring-primary-400"
         />
         <label htmlFor="use-attributes" className={labelClass}>
-          {t("packageEditor.playerUseAttributes")}
+          {t("worldEditor.playerUseAttributes")}
         </label>
       </div>
 
       {!useAttributes && (
         <LabeledInput
-          label={t("packageEditor.playerOverall")}
+          label={t("worldEditor.playerOverall")}
           value={editing.overall?.toString() ?? ""}
           type="number"
           onChange={(v) => updateField("overall", v === "" ? null : Math.min(99, Math.max(1, parseInt(v, 10) || 1)))}

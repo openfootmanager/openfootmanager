@@ -86,28 +86,28 @@ export function CompetitionForm({
 
   return (
     <EntityFormShell
-      title={editingIndex === null ? t("packageEditor.addCompetition") : t("packageEditor.editCompetition")}
+      title={editingIndex === null ? t("worldEditor.addCompetition") : t("worldEditor.editCompetition")}
       onBack={onBack}
       onSave={onSave}
       isBusy={isBusy}
       saveDisabled={!editing.id || !editing.name}
-      saveLabel={t("packageEditor.saveCompetition")}
+      saveLabel={t("worldEditor.saveCompetition")}
     >
       <LabeledInput
-        label={t("packageEditor.competitionId")}
+        label={t("worldEditor.competitionId")}
         value={editing.id}
         onChange={(v) => updateField("id", v)}
         placeholder="premier-league"
       />
       <LabeledInput
-        label={t("packageEditor.competitionName")}
+        label={t("worldEditor.competitionName")}
         value={editing.name}
         onChange={(v) => updateField("name", v)}
         placeholder="Premier League"
       />
 
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.competitionType")}</label>
+        <label className={labelClass}>{t("worldEditor.competitionType")}</label>
         <select
           value={editing.type}
           onChange={(e) => updateField("type", e.target.value as CompetitionDef["type"])}
@@ -122,7 +122,7 @@ export function CompetitionForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.competitionScope")}</label>
+        <label className={labelClass}>{t("worldEditor.competitionScope")}</label>
         <select
           value={editing.scope}
           onChange={(e) => updateField("scope", e.target.value as CompetitionDef["scope"])}
@@ -137,7 +137,7 @@ export function CompetitionForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.competitionFormat")}</label>
+        <label className={labelClass}>{t("worldEditor.competitionFormat")}</label>
         <select
           value={editing.format.kind}
           onChange={(e) =>
@@ -157,21 +157,21 @@ export function CompetitionForm({
       </div>
 
       <LabeledInput
-        label={t("packageEditor.competitionPriority")}
+        label={t("worldEditor.competitionPriority")}
         value={editing.priority.toString()}
         type="number"
         onChange={(v) => updateField("priority", parseInt(v, 10) || 0)}
       />
 
       <LabeledInput
-        label={t("packageEditor.competitionCountryId")}
+        label={t("worldEditor.competitionCountryId")}
         value={editing.countryId ?? ""}
         onChange={(v) => updateField("countryId", v || undefined)}
         placeholder="ENG"
       />
 
       <LabeledInput
-        label={t("packageEditor.competitionRegionId")}
+        label={t("worldEditor.competitionRegionId")}
         value={editing.regionId ?? ""}
         onChange={(v) => updateField("regionId", v || undefined)}
         placeholder="europe"
@@ -179,13 +179,13 @@ export function CompetitionForm({
 
       <div className="grid grid-cols-2 gap-3">
         <LabeledInput
-          label={t("packageEditor.competitionSeasonMonth")}
+          label={t("worldEditor.competitionSeasonMonth")}
           value={editing.seasonStartMonth?.toString() ?? ""}
           type="number"
           onChange={(v) => updateField("seasonStartMonth", v ? parseInt(v, 10) : undefined)}
         />
         <LabeledInput
-          label={t("packageEditor.competitionSeasonDay")}
+          label={t("worldEditor.competitionSeasonDay")}
           value={editing.seasonStartDay?.toString() ?? ""}
           type="number"
           onChange={(v) => updateField("seasonStartDay", v ? parseInt(v, 10) : undefined)}
@@ -194,7 +194,7 @@ export function CompetitionForm({
 
       {/* Participant mode toggle */}
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.competitionParticipantsMode")}</label>
+        <label className={labelClass}>{t("worldEditor.competitionParticipantsMode")}</label>
         <div className="flex gap-2">
           {(["explicit", "selector"] as const).map((mode) => (
             <button
@@ -208,8 +208,8 @@ export function CompetitionForm({
               }`}
             >
               {mode === "explicit"
-                ? t("packageEditor.competitionExplicit")
-                : t("packageEditor.competitionSelector")}
+                ? t("worldEditor.competitionExplicit")
+                : t("worldEditor.competitionSelector")}
             </button>
           ))}
         </div>
@@ -217,7 +217,7 @@ export function CompetitionForm({
 
       {participantMode === "explicit" && (
         <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("packageEditor.competitionExplicitTeams")}</label>
+          <label className={labelClass}>{t("worldEditor.competitionExplicitTeams")}</label>
           <textarea
             rows={5}
             value={explicitText}
@@ -231,14 +231,14 @@ export function CompetitionForm({
       {participantMode === "selector" && (
         <div className="flex flex-col gap-3">
           <LabeledSelect
-            label={t("packageEditor.competitionSelectorKind")}
+            label={t("worldEditor.competitionSelectorKind")}
             value={selector.kind}
             options={SELECTOR_KINDS}
             onChange={(v) => updateSelector({ kind: v as SelectorKind })}
           />
           {selectorNeedsCountry && (
             <LabeledInput
-              label={t("packageEditor.competitionSelectorCountry")}
+              label={t("worldEditor.competitionSelectorCountry")}
               value={selector.country ?? ""}
               onChange={(v) => updateSelector({ country: v || undefined })}
               placeholder="ENG"
@@ -246,7 +246,7 @@ export function CompetitionForm({
           )}
           {selectorNeedsRegion && (
             <LabeledInput
-              label={t("packageEditor.competitionSelectorRegion")}
+              label={t("worldEditor.competitionSelectorRegion")}
               value={selector.region ?? ""}
               onChange={(v) => updateSelector({ region: v || undefined })}
               placeholder="europe"
@@ -254,7 +254,7 @@ export function CompetitionForm({
           )}
           {(selectorNeedsCount || selectorNeedsCountry || selectorNeedsRegion) && (
             <LabeledInput
-              label={t("packageEditor.competitionSelectorCount")}
+              label={t("worldEditor.competitionSelectorCount")}
               value={selector.count?.toString() ?? ""}
               type="number"
               onChange={(v) =>
@@ -264,7 +264,7 @@ export function CompetitionForm({
           )}
           {selectorNeedsSource && (
             <LabeledInput
-              label={t("packageEditor.competitionSelectorSource")}
+              label={t("worldEditor.competitionSelectorSource")}
               value={selector.sourceCompetition ?? ""}
               onChange={(v) => updateSelector({ sourceCompetition: v || undefined })}
               placeholder="premier-league"

@@ -27,41 +27,41 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
         </button>
         <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-white">
           {editingTeamIndex === null
-            ? t("packageEditor.addTeam")
-            : t("packageEditor.editTeam")}
+            ? t("worldEditor.addTeam")
+            : t("worldEditor.editTeam")}
         </h2>
       </div>
 
       <div className="flex flex-col gap-3">
         <LabeledInput
-          label={t("packageEditor.teamName")}
+          label={t("worldEditor.teamName")}
           value={editingTeam.name}
           onChange={(v) => updateField("name", v)}
         />
         <LabeledInput
-          label={t("packageEditor.teamShortName")}
+          label={t("worldEditor.teamShortName")}
           value={editingTeam.shortName}
           onChange={(v) => updateField("shortName", v)}
         />
         <LabeledInput
-          label={t("packageEditor.teamCity")}
+          label={t("worldEditor.teamCity")}
           value={editingTeam.city}
           onChange={(v) => updateField("city", v)}
         />
         <LabeledInput
-          label={t("packageEditor.teamCountry")}
+          label={t("worldEditor.teamCountry")}
           value={editingTeam.country}
           onChange={(v) => updateField("country", v)}
           placeholder="ENG"
         />
         <LabeledSelect
-          label={t("packageEditor.teamPlayStyle")}
+          label={t("worldEditor.teamPlayStyle")}
           value={editingTeam.playStyle}
           options={PLAY_STYLES}
           onChange={(v) => updateField("playStyle", v)}
         />
         <LabeledInput
-          label={t("packageEditor.teamStadium")}
+          label={t("worldEditor.teamStadium")}
           value={editingTeam.stadiumName}
           onChange={(v) => updateField("stadiumName", v)}
         />
@@ -69,7 +69,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
         <div className="flex gap-3">
           <div className="flex flex-col gap-1 flex-1">
             <label className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-              {t("packageEditor.teamPrimaryColor")}
+              {t("worldEditor.teamPrimaryColor")}
             </label>
             <div className="flex items-center gap-2">
               <div
@@ -89,7 +89,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
           </div>
           <div className="flex flex-col gap-1 flex-1">
             <label className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-              {t("packageEditor.teamSecondaryColor")}
+              {t("worldEditor.teamSecondaryColor")}
             </label>
             <div className="flex items-center gap-2">
               <div
@@ -111,7 +111,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
 
         <div className="grid grid-cols-2 gap-3">
           <LabeledInput
-            label={t("packageEditor.teamRepMin")}
+            label={t("worldEditor.teamRepMin")}
             value={editingTeam.reputationRange?.[0]?.toString() ?? ""}
             type="number"
             onChange={(v) =>
@@ -122,7 +122,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
             }
           />
           <LabeledInput
-            label={t("packageEditor.teamRepMax")}
+            label={t("worldEditor.teamRepMax")}
             value={editingTeam.reputationRange?.[1]?.toString() ?? ""}
             type="number"
             onChange={(v) =>
@@ -133,7 +133,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
             }
           />
           <LabeledInput
-            label={t("packageEditor.teamFinMin")}
+            label={t("worldEditor.teamFinMin")}
             value={editingTeam.financeRange?.[0]?.toString() ?? ""}
             type="number"
             onChange={(v) =>
@@ -144,7 +144,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
             }
           />
           <LabeledInput
-            label={t("packageEditor.teamFinMax")}
+            label={t("worldEditor.teamFinMax")}
             value={editingTeam.financeRange?.[1]?.toString() ?? ""}
             type="number"
             onChange={(v) =>
@@ -167,7 +167,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, onBack, onSave
         ) : (
           <CheckCircle className="w-4 h-4" />
         )}
-        {t("packageEditor.saveTeam")}
+        {t("worldEditor.saveTeam")}
       </button>
     </div>
   );

@@ -23,21 +23,21 @@ export function ConfederationForm({
   const { t } = useTranslation();
   return (
     <EntityFormShell
-      title={editingIndex === null ? t("packageEditor.addConfederation") : t("packageEditor.editConfederation")}
+      title={editingIndex === null ? t("worldEditor.addConfederation") : t("worldEditor.editConfederation")}
       onBack={onBack}
       onSave={onSave}
       isBusy={isBusy}
       saveDisabled={!editing.id || !editing.name}
-      saveLabel={t("packageEditor.saveConfederation")}
+      saveLabel={t("worldEditor.saveConfederation")}
     >
       <LabeledInput
-        label={t("packageEditor.confederationId")}
+        label={t("worldEditor.confederationId")}
         value={editing.id}
         onChange={(v) => updateField("id", v)}
         placeholder="europe"
       />
       <LabeledInput
-        label={t("packageEditor.confederationName")}
+        label={t("worldEditor.confederationName")}
         value={editing.name}
         onChange={(v) => updateField("name", v)}
         placeholder="Europe"

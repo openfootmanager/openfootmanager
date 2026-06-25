@@ -34,21 +34,21 @@ export function NamesPoolForm({ poolKey, pool, isNew, isBusy, onBack, onSave }: 
 
   return (
     <EntityFormShell
-      title={isNew ? t("packageEditor.addPool") : t("packageEditor.editPool")}
+      title={isNew ? t("worldEditor.addPool") : t("worldEditor.editPool")}
       onBack={onBack}
       onSave={handleSave}
       isBusy={isBusy}
       saveDisabled={!key.trim()}
-      saveLabel={t("packageEditor.savePool")}
+      saveLabel={t("worldEditor.savePool")}
     >
       <LabeledInput
-        label={t("packageEditor.poolKey")}
+        label={t("worldEditor.poolKey")}
         value={key}
         onChange={setKey}
         placeholder="ENG"
       />
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.poolFirstNames")}</label>
+        <label className={labelClass}>{t("worldEditor.poolFirstNames")}</label>
         <textarea
           rows={6}
           value={firstText}
@@ -58,7 +58,7 @@ export function NamesPoolForm({ poolKey, pool, isNew, isBusy, onBack, onSave }: 
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelClass}>{t("packageEditor.poolLastNames")}</label>
+        <label className={labelClass}>{t("worldEditor.poolLastNames")}</label>
         <textarea
           rows={6}
           value={lastText}
