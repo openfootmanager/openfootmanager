@@ -167,10 +167,6 @@ pub async fn terminate_contract_now(
     terminate_contract_now_internal(&state, &player_id)
 }
 
-// The functions below cannot use update_game because their ofm_core callees
-// (propose_renewal, offer_free_agent_contract, delegate_renewals) call
-// cool_stale_renewal_session before validation completes, meaning they mutate
-// state before any Err return. Using update_game would persist partial mutations.
 pub fn propose_renewal_internal(
     state: &StateManager,
     player_id: &str,
@@ -182,31 +178,34 @@ pub fn propose_renewal_internal(
         player_id, weekly_wage, contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let outcome = ofm_core::contracts::propose_renewal(
-        &mut game,
-        player_id,
-        RenewalOffer {
-            weekly_wage,
-            contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(RenewalCommandResponse {
-        outcome: outcome.decision,
-        game,
-        suggested_wage: outcome.suggested_wage,
-        suggested_years: outcome.suggested_years,
-        session_status: serialize_session_status(outcome.session_status),
-        is_terminal: outcome.is_terminal,
-        cooled_off: outcome.cooled_off,
-        feedback: outcome.feedback,
-    })
+    // Clone inside the closure so the ofm_core callee can mutate the candidate
+    // freely (it touches state before validation); *current is only overwritten
+    // on success, keeping the write atomic under the held lock.
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let outcome = ofm_core::contracts::propose_renewal(
+                &mut game,
+                player_id,
+                RenewalOffer {
+                    weekly_wage,
+                    contract_years,
+                },
+            )?;
+            *current = game.clone();
+            Ok(RenewalCommandResponse {
+                outcome: outcome.decision,
+                game,
+                suggested_wage: outcome.suggested_wage,
+                suggested_years: outcome.suggested_years,
+                session_status: serialize_session_status(outcome.session_status),
+                is_terminal: outcome.is_terminal,
+                cooled_off: outcome.cooled_off,
+                feedback: outcome.feedback,
+            })
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn delegate_renewals_internal(
@@ -220,22 +219,22 @@ pub fn delegate_renewals_internal(
         player_ids, max_wage_increase_pct, max_contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let report = ofm_core::contracts::delegate_renewals(
-        &mut game,
-        DelegatedRenewalOptions {
-            player_ids,
-            max_wage_increase_pct,
-            max_contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(DelegatedRenewalCommandResponse { game, report })
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let report = ofm_core::contracts::delegate_renewals(
+                &mut game,
+                DelegatedRenewalOptions {
+                    player_ids,
+                    max_wage_increase_pct,
+                    max_contract_years,
+                },
+            )?;
+            *current = game.clone();
+            Ok(DelegatedRenewalCommandResponse { game, report })
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn preview_renewal_financial_impact_internal(
@@ -269,31 +268,31 @@ pub fn offer_free_agent_contract_internal(
         player_id, weekly_wage, contract_years
     );
 
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let outcome = ofm_core::contracts::offer_free_agent_contract(
-        &mut game,
-        player_id,
-        RenewalOffer {
-            weekly_wage,
-            contract_years,
-        },
-    )?;
-
-    state.set_game(game.clone());
-
-    Ok(FreeAgentContractCommandResponse {
-        outcome: outcome.decision,
-        game,
-        suggested_wage: outcome.suggested_wage,
-        suggested_years: outcome.suggested_years,
-        session_status: serialize_session_status(outcome.session_status),
-        is_terminal: outcome.is_terminal,
-        cooled_off: outcome.cooled_off,
-        feedback: outcome.feedback,
-    })
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let outcome = ofm_core::contracts::offer_free_agent_contract(
+                &mut game,
+                player_id,
+                RenewalOffer {
+                    weekly_wage,
+                    contract_years,
+                },
+            )?;
+            *current = game.clone();
+            Ok(FreeAgentContractCommandResponse {
+                outcome: outcome.decision,
+                game,
+                suggested_wage: outcome.suggested_wage,
+                suggested_years: outcome.suggested_years,
+                session_status: serialize_session_status(outcome.session_status),
+                is_terminal: outcome.is_terminal,
+                cooled_off: outcome.cooled_off,
+                feedback: outcome.feedback,
+            })
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn preview_free_agent_contract_impact_internal(

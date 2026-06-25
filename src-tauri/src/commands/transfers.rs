@@ -99,14 +99,15 @@ pub fn make_transfer_bid_internal(
         "[cmd] make_transfer_bid: player_id={}, fee={}",
         player_id, fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::make_transfer_bid(&mut game, player_id, fee)?;
-    state.set_game(game.clone());
-
-    Ok(map_transfer_negotiation_response(result, game))
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let result = ofm_core::transfers::make_transfer_bid(&mut game, player_id, fee)?;
+            *current = game.clone();
+            Ok(map_transfer_negotiation_response(result, game))
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
