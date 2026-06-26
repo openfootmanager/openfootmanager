@@ -470,6 +470,7 @@ export default function WorldEditor() {
         countries={countries}
         competitions={competitions}
         names={names}
+        projectDir={projectDir || undefined}
         teamEditor={teamEditor}
         playerEditor={playerEditor}
         confEditor={confEditor}

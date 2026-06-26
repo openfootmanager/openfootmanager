@@ -1,4 +1,5 @@
-import { Plus, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // EntityListShell
@@ -69,6 +70,24 @@ export function EntityRow({
   isSelected,
   onClick,
 }: EntityRowProps) {
+  const [confirming, setConfirming] = useState(false);
+
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    setConfirming(true);
+  }
+
+  function handleConfirmDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    setConfirming(false);
+    onDelete();
+  }
+
+  function handleCancelDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    setConfirming(false);
+  }
+
   return (
     <div
       className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
@@ -76,7 +95,7 @@ export function EntityRow({
           ? "border-primary-400 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10"
           : "border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 hover:border-gray-300 dark:hover:border-navy-500"
       } ${onClick ? "cursor-pointer" : ""}`}
-      onClick={onClick}
+      onClick={confirming ? undefined : onClick}
     >
       {badge}
       <div className="flex-1 min-w-0">
@@ -87,20 +106,41 @@ export function EntityRow({
           <p className="text-[10px] text-gray-400 dark:text-gray-500">{subtitle}</p>
         )}
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
-        title={editLabel}
-      >
-        <Edit2 className="w-4 h-4" />
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-        title={deleteLabel}
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      {confirming ? (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={handleConfirmDelete}
+            className="p-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
+            title="Confirm delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleCancelDelete}
+            className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            title="Cancel"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
+            title={editLabel}
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleDeleteClick}
+            className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+            title={deleteLabel}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

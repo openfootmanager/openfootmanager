@@ -1,9 +1,73 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { EntityListShell, EntityRow } from "./shared";
-import type { PlayerDef } from "./types";
+import type { PlayerDef, Position } from "./types";
+
+const POS_COLOR: Record<string, string> = {
+  Goalkeeper: "bg-amber-500",
+  Defender: "bg-blue-600",
+  CenterBack: "bg-blue-600",
+  RightBack: "bg-blue-600",
+  LeftBack: "bg-blue-600",
+  RightWingBack: "bg-blue-500",
+  LeftWingBack: "bg-blue-500",
+  Midfielder: "bg-green-600",
+  DefensiveMidfielder: "bg-green-700",
+  CentralMidfielder: "bg-green-600",
+  AttackingMidfielder: "bg-green-500",
+  RightMidfielder: "bg-green-600",
+  LeftMidfielder: "bg-green-600",
+  RightWinger: "bg-red-500",
+  LeftWinger: "bg-red-500",
+  Forward: "bg-red-600",
+  Striker: "bg-red-600",
+};
+
+interface PlayerAvatarCellProps {
+  player: PlayerDef;
+  posAbbr: string;
+  projectDir?: string;
+}
+
+function PlayerAvatarCell({ player, posAbbr, projectDir }: PlayerAvatarCellProps) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!player.photo || !projectDir) { setPhotoUrl(null); return; }
+    let cancelled = false;
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${player.photo}`, baseDir: projectDir })
+      .then((url) => { if (!cancelled) setPhotoUrl(url); })
+      .catch(() => { if (!cancelled) setPhotoUrl(null); });
+    return () => { cancelled = true; };
+  }, [player.photo, projectDir]);
+
+  const name = player.name || `${player.firstName} ${player.lastName}`.trim() || player.id;
+  const posColor = POS_COLOR[player.position] ?? "bg-gray-500";
+
+  return (
+    <div className="relative flex-shrink-0">
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt=""
+          className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-navy-600"
+        />
+      ) : (
+        <GeneratedAvatar
+          name={name}
+          initials={name.slice(0, 2).toUpperCase()}
+          className="w-9 h-9"
+        />
+      )}
+      <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white px-0.5 rounded leading-tight ${posColor}`}>
+        {posAbbr}
+      </span>
+    </div>
+  );
+}
 
 interface PlayersTabProps {
   players: PlayerDef[];
@@ -12,9 +76,10 @@ interface PlayersTabProps {
   onDelete: (index: number) => void;
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
+  projectDir?: string;
 }
 
-export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, onSelect }: PlayersTabProps) {
+export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir }: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -60,26 +125,13 @@ export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, on
           subtitle={[t(`common.positions.${player.position}`), player.club]
             .filter(Boolean)
             .join(" · ")}
-          badge={(() => {
-            const name = player.name || `${player.firstName} ${player.lastName}`.trim() || player.id;
-            return (
-              <div className="relative flex-shrink-0">
-                <GeneratedAvatar
-                  name={name}
-                  initials={name.slice(0, 2).toUpperCase()}
-                  className="w-9 h-9"
-                />
-                <span className={`absolute -bottom-0.5 -right-0.5 text-[7px] font-bold text-white px-0.5 rounded leading-tight ${
-                  player.position === "Goalkeeper" ? "bg-amber-500" :
-                  ["Defender","CenterBack","RightBack","LeftBack","RightWingBack","LeftWingBack"].includes(player.position) ? "bg-blue-600" :
-                  ["Midfielder","DefensiveMidfielder","CentralMidfielder","AttackingMidfielder","RightMidfielder","LeftMidfielder"].includes(player.position) ? "bg-green-600" :
-                  "bg-red-600"
-                }`}>
-                  {t(`common.posAbbr.${player.position}`, { defaultValue: player.position.slice(0, 2).toUpperCase() })}
-                </span>
-              </div>
-            );
-          })()}
+          badge={
+            <PlayerAvatarCell
+              player={player}
+              posAbbr={t(`common.posAbbr.${player.position as Position}`, { defaultValue: player.position.slice(0, 2).toUpperCase() })}
+              projectDir={projectDir}
+            />
+          }
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
           editLabel={t("worldEditor.editPlayer")}

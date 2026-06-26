@@ -82,6 +82,34 @@ function attrColor(val: number): string {
   return "bg-red-500";
 }
 
+function estimateAttributesFromOvr(overall: number, position: Position): PlayerAttributesDef {
+  const b = Math.max(30, Math.min(97, overall));
+  const isGK = position === "Goalkeeper";
+  const isDef = ["Defender", "CenterBack", "RightBack", "LeftBack", "RightWingBack", "LeftWingBack"].includes(position);
+  const isFwd = ["Forward", "Striker", "RightWinger", "LeftWinger"].includes(position);
+  return {
+    pace: b,
+    stamina: b,
+    strength: b,
+    agility: b,
+    passing: b,
+    shooting: isGK ? 30 : b,
+    tackling: (isGK || isFwd) ? Math.max(20, b - 15) : b,
+    dribbling: isGK ? 30 : b,
+    defending: isGK ? 35 : isDef ? Math.min(97, b + 3) : b,
+    positioning: b,
+    vision: b,
+    decisions: b,
+    composure: b,
+    aggression: Math.max(30, b - 10),
+    teamwork: b,
+    leadership: Math.max(25, b - 10),
+    handling: isGK ? b : 20,
+    reflexes: isGK ? b : 30,
+    aerial: isGK ? b : isDef ? b : Math.max(30, b - 10),
+  };
+}
+
 function calcAge(dob: string | null): number | null {
   if (!dob) return null;
   const ms = Date.now() - new Date(dob).getTime();
@@ -111,6 +139,10 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
 
   const club = teams?.find((t) => t.id === editing.club);
   const clubName = club?.name ?? editing.club;
+
+  const displayAttrs = editing.attributes
+    ?? (editing.overall !== null ? estimateAttributesFromOvr(editing.overall, editing.position) : null);
+  const isEstimated = !editing.attributes && editing.overall !== null;
 
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-navy-600 overflow-hidden bg-white dark:bg-navy-700 shadow-sm select-none">
@@ -148,12 +180,12 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
       </div>
 
       <div className="p-3 flex flex-col gap-2.5">
-        {/* Overall rating */}
-        {editing.overall !== null && editing.attributes === null && (
+        {/* Overall rating badge */}
+        {editing.overall !== null && (
           <div className="flex items-baseline gap-1.5">
             <span className="text-[10px] uppercase tracking-wide text-gray-400">OVR</span>
             <span
-              className="text-3xl font-heading font-black leading-none"
+              className="text-2xl font-heading font-black leading-none"
               style={{
                 color: editing.overall >= 80
                   ? "var(--color-success-500, #22c55e)"
@@ -164,15 +196,17 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
             >
               {editing.overall}
             </span>
-            <span className="text-[10px] text-gray-400">Generated</span>
+            {isEstimated && (
+              <span className="text-[9px] text-gray-400 italic">est.</span>
+            )}
           </div>
         )}
 
         {/* Full attribute breakdown */}
-        {editing.attributes && (
+        {displayAttrs && (
           <div className="flex flex-col gap-2">
             {ALL_ATTRS.map(({ group, keys }) => {
-              const anySet = keys.some((k) => editing.attributes![k.key as keyof typeof editing.attributes] != null);
+              const anySet = keys.some((k) => displayAttrs[k.key as keyof typeof displayAttrs] != null);
               if (!anySet) return null;
               return (
                 <div key={group}>
@@ -181,7 +215,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
                   </p>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     {keys.map(({ key, abbr: label }) => {
-                      const val = editing.attributes![key as keyof typeof editing.attributes] as number | undefined;
+                      const val = displayAttrs[key as keyof typeof displayAttrs] as number | undefined;
                       if (val == null) return null;
                       return (
                         <div key={key} className="flex items-center gap-1">

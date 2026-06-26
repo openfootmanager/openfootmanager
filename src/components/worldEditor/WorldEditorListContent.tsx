@@ -32,6 +32,7 @@ interface WorldEditorListContentProps {
   countries: CountryDef[];
   competitions: CompetitionDef[];
   names: NamesDefinition;
+  projectDir?: string;
   teamEditor: ListEditorAPI;
   playerEditor: ListEditorAPI;
   confEditor: ListEditorAPI;
@@ -54,6 +55,7 @@ export function WorldEditorListContent({
   countries,
   competitions,
   names,
+  projectDir,
   teamEditor,
   playerEditor,
   confEditor,
@@ -81,6 +83,7 @@ export function WorldEditorListContent({
           onDelete={playerEditor.handleDelete}
           selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
           onSelect={playerEditor.handleSelect}
+          projectDir={projectDir}
         />
       )}
       {selectedSection === "confederations" && (
