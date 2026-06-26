@@ -3727,5 +3727,18 @@
     "chooseLogo": "Bild auswählen…",
     "removeLogo": "Entfernen",
     "openInEditor": "Bearbeiten"
+  },
+  "packageBuild": {
+    "title": "Welt aufbauen",
+    "databases": "Datenbanken",
+    "patches": "Patches",
+    "noPackages": "Keine Datenbankpakete installiert. Installiere eines, um deine Welt zu definieren.",
+    "randomFallback": "Keine Datenbank aktiv — eine prozedurale Zufallswelt wird generiert.",
+    "patchOnlyError": "Füge ein Datenbankpaket hinzu oder fahre mit der Zufallsweltgenerierung fort.",
+    "next": "Weiter"
+  },
+  "generation": {
+    "title": "Generierung & Vervollständigung",
+    "coverage": "Deine Pakete umfassen"
   }
 }

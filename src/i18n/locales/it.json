@@ -3727,5 +3727,18 @@
     "chooseLogo": "Scegli immagine…",
     "removeLogo": "Rimuovi",
     "openInEditor": "Modifica"
+  },
+  "packageBuild": {
+    "title": "Costruisci il tuo mondo",
+    "databases": "Database",
+    "patches": "Patch",
+    "noPackages": "Nessun pacchetto database installato. Installane uno per definire il tuo mondo.",
+    "randomFallback": "Nessun database attivo — verrà generato un mondo casuale.",
+    "patchOnlyError": "Aggiungi un pacchetto database o usa la generazione casuale.",
+    "next": "Avanti"
+  },
+  "generation": {
+    "title": "Generazione e Completamento",
+    "coverage": "I tuoi pacchetti coprono"
   }
 }

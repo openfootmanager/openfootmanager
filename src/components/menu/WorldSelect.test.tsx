@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentPropsWithoutRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import WorldSelect from "./WorldSelect";
+import GenerationStep from "./WorldSelect";
+import type { PackageInfo } from "./WorldSelect";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -34,41 +35,44 @@ vi.mock("../../utils/backendI18n", () => ({
   resolveBackendText: (value: string) => value,
 }));
 
-describe("WorldSelect", () => {
-  it("shows the selected world history mode, configurable depth, and mid-season inheritance summary", () => {
+const baseProps = {
+  isStarting: false,
+  startYear: 2032,
+  startPhase: "midSeason" as const,
+  historyDepthYears: 24,
+  onChangeHistoryDepthYears: vi.fn(),
+  onStart: vi.fn(),
+  onBack: vi.fn(),
+  onClose: vi.fn(),
+};
+
+const dbPackage: PackageInfo = {
+  id: "pkg-db",
+  name: "Premier League",
+  version: "1.0.0",
+  author: "Test",
+  description: "",
+  license: "MIT",
+  game_min_version: "1.0.0",
+  package_type: "database",
+  team_count: 20,
+  player_count: 480,
+  competition_count: 1,
+  installed_path: "/path/to/pkg",
+};
+
+describe("GenerationStep (WorldSelect)", () => {
+  it("shows history depth selector and summary when no database packages are active", () => {
     const onChangeHistoryDepthYears = vi.fn();
 
     render(
-      <WorldSelect
-        worldDatabases={[
-          {
-            id: "random",
-            name: "Random World",
-            description: "Fresh roster baseline",
-            team_count: 16,
-            player_count: 352,
-            source: "builtin",
-            path: "",
-            history_mode: "reference",
-          },
-        ]}
-        selectedWorldId="random"
-        isLoadingWorlds={false}
-        isStarting={false}
-        startYear={2032}
-        startPhase="midSeason"
-        historyDepthYears={24}
-        onSelectWorld={vi.fn()}
+      <GenerationStep
+        {...baseProps}
         onChangeHistoryDepthYears={onChangeHistoryDepthYears}
-        onStart={vi.fn()}
-        onBack={vi.fn()}
-        onClose={vi.fn()}
+        activePackages={[]}
       />,
     );
 
-    expect(
-      screen.getAllByText("worldSelect.historyMode.generated"),
-    ).toHaveLength(2);
     expect(
       screen.getByText("worldSelect.summary.midSeason.generated:2032:24"),
     ).toBeInTheDocument();
@@ -82,38 +86,16 @@ describe("WorldSelect", () => {
     expect(onChangeHistoryDepthYears).toHaveBeenCalledWith(6);
   });
 
-  it("shows the generated history control as inactive for reference worlds", () => {
+  it("hides history depth selector and shows coverage section when database packages are active", () => {
     render(
-      <WorldSelect
-        worldDatabases={[
-          {
-            id: "historic",
-            name: "Historical Snapshot",
-            description: "Reference world",
-            team_count: 20,
-            player_count: 480,
-            source: "builtin",
-            path: "",
-            history_mode: "reference",
-          },
-        ]}
-        selectedWorldId="historic"
-        isLoadingWorlds={false}
-        isStarting={false}
-        startYear={2032}
+      <GenerationStep
+        {...baseProps}
         startPhase="seasonStart"
-        historyDepthYears={12}
-        onSelectWorld={vi.fn()}
-        onChangeHistoryDepthYears={vi.fn()}
-        onStart={vi.fn()}
-        onBack={vi.fn()}
-        onClose={vi.fn()}
+        activePackages={[dbPackage]}
       />,
     );
 
-    expect(screen.getByText("worldSelect.historyDepth.reference")).toBeInTheDocument();
-    expect(
-      screen.getByText("worldSelect.historyDepth.option:12").closest("button"),
-    ).toBeDisabled();
+    expect(screen.getByText("generation.coverage")).toBeInTheDocument();
+    expect(screen.queryByText("worldSelect.historyDepth.label")).not.toBeInTheDocument();
   });
 });

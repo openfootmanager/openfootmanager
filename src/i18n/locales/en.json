@@ -3723,5 +3723,18 @@
     "playerPhoto": "Player Photo",
     "chooseLogo": "Choose Image…",
     "removeLogo": "Remove"
+  },
+  "packageBuild": {
+    "title": "Build Your World",
+    "databases": "Databases",
+    "patches": "Patches",
+    "noPackages": "No database packages installed. Install one to define your world.",
+    "randomFallback": "No database active — a random procedural world will be generated.",
+    "patchOnlyError": "Add a database package or proceed with random world generation.",
+    "next": "Next"
+  },
+  "generation": {
+    "title": "Generation & Completion",
+    "coverage": "Your packages cover"
   }
 }

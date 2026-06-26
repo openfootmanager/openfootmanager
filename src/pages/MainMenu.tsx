@@ -15,7 +15,6 @@ import type {
 import type {
   PackageInfo,
   PackageIssue,
-  WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -55,7 +54,8 @@ const ProfileSaveConfirm = lazy(
   () => import("../components/menu/ProfileSaveConfirm"),
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
-const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
+const PackageBuildStep = lazy(() => import("../components/menu/PackageBuildStep"));
+const GenerationStep = lazy(() => import("../components/menu/WorldSelect"));
 
 interface SaveEntry {
   id: string;
@@ -287,7 +287,7 @@ export default function MainMenu() {
   const setGameState = useGameStore((state) => state.setGameState);
   const { t } = useTranslation();
 
-  const [menuState, setMenuState] = useState<"main" | "create" | "world" | "load">("main");
+  const [menuState, setMenuState] = useState<"main" | "create" | "packages" | "generation" | "load">("main");
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
@@ -309,11 +309,6 @@ export default function MainMenu() {
   const [formErrors, setFormErrors] = useState<
     Partial<Record<keyof CreateManagerFormData, string>>
   >({});
-
-  // World database state
-  const [worldDatabases, setWorldDatabases] = useState<WorldDatabaseInfo[]>([]);
-  const [selectedWorldId, setSelectedWorldId] = useState<string>("random");
-  const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
 
   // Installed packages state
   const [installedPackages, setInstalledPackages] = useState<PackageInfo[]>([]);
@@ -464,42 +459,9 @@ export default function MainMenu() {
       return;
     }
     void autoSaveProfile();
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
-  const loadWorldDatabases = async () => {
-    setIsLoadingWorlds(true);
-    try {
-      const dbs = await invoke<WorldDatabaseInfo[]>("list_world_databases");
-      setWorldDatabases(dbs);
-    } catch (error) {
-      console.error("Failed to load world databases:", error);
-      // Always have random available even if scan fails
-      setWorldDatabases([
-        {
-          id: "random",
-          name: t("worldSelect.randomWorld"),
-          description: t("worldSelect.randomDescription"),
-          team_count: 440,
-          player_count: 9680,
-          history_mode: "generated",
-          base_year: null,
-          snapshot_date: null,
-          source: "builtin",
-          path: "",
-        },
-      ]);
-    } finally {
-      setIsLoadingWorlds(false);
-    }
-  };
-
-  const resolveWorldSource = (): string | undefined => {
-    if (selectedWorldId === "random") return undefined;
-    const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
-    if (selectedDb?.path) return `file:${selectedDb.path}`;
-    return selectedWorldId;
-  };
 
   const loadInstalledPackages = async () => {
     try {
@@ -511,8 +473,8 @@ export default function MainMenu() {
   };
 
   useEffect(() => {
-    if (menuState === "world") {
-      loadInstalledPackages();
+    if (menuState === "packages") {
+      void loadInstalledPackages();
     }
   }, [menuState]);
 
@@ -567,15 +529,12 @@ export default function MainMenu() {
 
     setIsStarting(true);
     try {
-      const worldSource = resolveWorldSource();
-
       const game = await invoke<GameStateData>("start_new_game", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         dob: formData.dob,
         nationality: formData.nationality,
         startupOptions,
-        worldSource,
         packageIds: activePackageIds.length > 0 ? activePackageIds : undefined,
       });
       applyExtraTranslations(game.extra_translations);
@@ -648,10 +607,9 @@ export default function MainMenu() {
     form.dob !== profile.date_of_birth ||
     form.nationality !== profile.nationality;
 
-  const proceedToWorldSelect = () => {
+  const proceedToPackages = () => {
     setShowProfileConfirm(false);
-    setMenuState("world");
-    loadWorldDatabases();
+    setMenuState("packages");
   };
 
   const handleUpdateProfile = async () => {
@@ -671,13 +629,13 @@ export default function MainMenu() {
     } catch (error) {
       console.error("Failed to update manager profile:", error);
     }
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
   const handleSaveAsNewProfile = () => {
     void autoSaveProfile(true);
     setLoadedProfile(null);
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
   const handleDeleteProfile = async (id: string) => {
@@ -854,35 +812,43 @@ export default function MainMenu() {
                 loadedProfile={loadedProfile}
                 onUpdate={() => { void handleUpdateProfile(); }}
                 onSaveNew={() => { void handleSaveAsNewProfile(); }}
-                onSkip={proceedToWorldSelect}
+                onSkip={proceedToPackages}
                 onClose={() => setShowProfileConfirm(false)}
               />
             </Suspense>
           )}
 
-          {/* Step 2: World Database Selection */}
-          {menuState === "world" && (
+          {/* Step 2a: Build Your World (package selection) */}
+          {menuState === "packages" && (
             <Suspense fallback={<MenuPanelFallback />}>
-              <WorldSelect
-                worldDatabases={worldDatabases}
-                selectedWorldId={selectedWorldId}
-                isLoadingWorlds={isLoadingWorlds}
+              <PackageBuildStep
+                installedPackages={installedPackages}
+                activePackageIds={activePackageIds}
+                isInstallingPackage={isInstallingPackage}
+                packageStackErrors={packageStackErrors}
+                onTogglePackage={handleTogglePackage}
+                onInstallPackage={handleInstallPackage}
+                onUninstallPackage={handleUninstallPackage}
+                onNext={() => setMenuState("generation")}
+                onBack={() => setMenuState("create")}
+                onClose={() => setMenuState("main")}
+              />
+            </Suspense>
+          )}
+
+          {/* Step 2b: Generation & Completion */}
+          {menuState === "generation" && (
+            <Suspense fallback={<MenuPanelFallback />}>
+              <GenerationStep
                 isStarting={isStarting}
                 startYear={parseCareerStartYear(formData.startYear) ?? MIN_CAREER_START_YEAR}
                 startPhase={formData.startPhase}
                 historyDepthYears={historyDepthYears}
-                onSelectWorld={setSelectedWorldId}
                 onChangeHistoryDepthYears={setHistoryDepthYears}
                 onStart={handleStartGame}
-                onBack={() => setMenuState("create")}
+                onBack={() => setMenuState("packages")}
                 onClose={() => setMenuState("main")}
-                installedPackages={installedPackages}
-                activePackageIds={activePackageIds}
-                onTogglePackage={handleTogglePackage}
-                onInstallPackage={handleInstallPackage}
-                onUninstallPackage={handleUninstallPackage}
-                isInstallingPackage={isInstallingPackage}
-                packageStackErrors={packageStackErrors}
+                activePackages={installedPackages.filter((p) => activePackageIds.includes(p.id))}
               />
             </Suspense>
           )}

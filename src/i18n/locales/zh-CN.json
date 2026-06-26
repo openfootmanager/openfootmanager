@@ -3724,5 +3724,18 @@
     "chooseLogo": "选择图片…",
     "removeLogo": "移除",
     "openInEditor": "编辑"
+  },
+  "packageBuild": {
+    "title": "构建您的世界",
+    "databases": "数据库",
+    "patches": "补丁",
+    "noPackages": "未安装数据库包。请安装一个以定义您的世界。",
+    "randomFallback": "无活跃数据库——将生成随机世界。",
+    "patchOnlyError": "请添加数据库包或使用随机世界生成。",
+    "next": "下一步"
+  },
+  "generation": {
+    "title": "生成与完善",
+    "coverage": "您的包涵盖"
   }
 }

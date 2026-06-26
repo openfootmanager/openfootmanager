@@ -3757,5 +3757,18 @@
     "chooseLogo": "Elegir imagen…",
     "removeLogo": "Eliminar",
     "openInEditor": "Editar"
+  },
+  "packageBuild": {
+    "title": "Construye tu mundo",
+    "databases": "Bases de datos",
+    "patches": "Parches",
+    "noPackages": "No hay paquetes de base de datos instalados. Instala uno para definir tu mundo.",
+    "randomFallback": "Sin base de datos activa — se generará un mundo aleatorio.",
+    "patchOnlyError": "Añade un paquete de base de datos o usa la generación aleatoria.",
+    "next": "Siguiente"
+  },
+  "generation": {
+    "title": "Generación y Completado",
+    "coverage": "Tus paquetes incluyen"
   }
 }
