@@ -311,19 +311,29 @@ export default function WorldEditor() {
   }
 
   async function handleOpenPackage() {
-    const selected = await open({
-      directory: false,
-      multiple: false,
-      filters: [
-        { name: "World Package", extensions: ["ofm"] },
-        { name: "All Files", extensions: ["*"] },
-      ],
-    });
+    let selected: string | string[] | null;
+    try {
+      selected = await open({
+        directory: false,
+        multiple: false,
+        filters: [
+          { name: "World Package", extensions: ["ofm"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+      });
+    } catch {
+      return;
+    }
     if (typeof selected === "string") {
       await openFromPath(selected);
       return;
     }
-    const dirFallback = await open({ directory: true, multiple: false });
+    let dirFallback: string | string[] | null;
+    try {
+      dirFallback = await open({ directory: true, multiple: false });
+    } catch {
+      return;
+    }
     if (typeof dirFallback === "string") {
       await openFromPath(dirFallback);
     }

@@ -37,7 +37,7 @@ export function useEntityEditor<T>(options: {
     captureHistory();
     const updated = items.filter((_, i) => i !== index);
     setItems(updated);
-    if (autoSave) void saveItems(updated);
+    if (autoSave) void saveItems(updated).catch(() => { /* persist already showed the error */ });
     if (editingIndex === index) {
       onClose();
     } else if (editingIndex !== null && index < editingIndex) {
