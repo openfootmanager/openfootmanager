@@ -555,7 +555,7 @@ export default function WorldEditor() {
           projectDir={projectDir}
           meta={meta}
           onMetaChange={(m) => { setMeta(m); setIsDirty(true); }}
-          onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }); }}
+          onSaveMetadata={() => { pushHistory(currentSnapshot()); void persist({ meta }).catch(() => {}); }}
           counts={{
             teams: teams.length,
             players: players.length,
