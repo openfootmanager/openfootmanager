@@ -33,6 +33,7 @@ export interface WorldMetaDef {
   formatVersion: number;
   defaultActiveRegions: string[];
   defaultActiveCompetitions: string[];
+  logo: string | null;
 }
 
 export interface PackageIssue {

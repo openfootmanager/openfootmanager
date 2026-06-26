@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Info, XCircle, Globe } from "lucide-react";
+import { CheckCircle2, Info, XCircle, Globe, ImagePlus, X } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
 import { PACKAGE_TYPES } from "./helpers";
 import type { WorldMetaDef } from "./types";
@@ -73,11 +75,39 @@ interface MetadataFormProps {
   meta: WorldMetaDef;
   onChange: (m: WorldMetaDef) => void;
   counts?: EntityCounts;
+  projectDir?: string;
 }
 
-export function MetadataForm({ meta, onChange, counts }: MetadataFormProps) {
+export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!meta.logo || !projectDir) { setLogoDataUrl(null); return; }
+    let cancelled = false;
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${meta.logo}`, baseDir: projectDir })
+      .then((url) => { if (!cancelled) setLogoDataUrl(url); })
+      .catch(() => { if (!cancelled) setLogoDataUrl(null); });
+    return () => { cancelled = true; };
+  }, [meta.logo, projectDir]);
+
+  async function handlePickLogo() {
+    if (!projectDir) return;
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    try {
+      const relPath = await invoke<string>("copy_package_asset", {
+        dir: projectDir,
+        entityId: meta.id || "package-logo",
+        srcPath: selected,
+      });
+      set({ logo: relPath });
+    } catch { /* ignore */ }
+  }
 
   const isKnownLicense = SPDX_LICENSES.some(
     (l) => l.id !== "__custom__" && l.id === meta.license,
@@ -149,6 +179,39 @@ export function MetadataForm({ meta, onChange, counts }: MetadataFormProps) {
           onChange={(v) => set({ author: v })}
         />
 
+        {projectDir && (
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>{t("worldEditor.packageLogo")}</label>
+            <div className="flex items-center gap-3">
+              {logoDataUrl ? (
+                <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                  <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { void handlePickLogo(); }}
+                  className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+                >
+                  {t("worldEditor.chooseLogo")}
+                </button>
+                {meta.logo && (
+                  <button
+                    type="button"
+                    onClick={() => { set({ logo: null }); setLogoDataUrl(null); }}
+                    className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* License picker */}
         <div className="flex flex-col gap-1">
           <label className={labelClass}>{t("worldEditor.license")}</label>
@@ -192,9 +255,13 @@ export function MetadataForm({ meta, onChange, counts }: MetadataFormProps) {
         <div className="flex flex-col gap-1.5">
           <p className={labelClass}>{t("worldEditor.licensePreview")}</p>
           <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 p-4 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
-              <Globe className="w-5 h-5 text-white" />
-            </div>
+            {logoDataUrl ? (
+              <img src={logoDataUrl} alt="" className="w-9 h-9 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
+                <Globe className="w-5 h-5 text-white" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">

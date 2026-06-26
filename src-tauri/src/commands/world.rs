@@ -188,6 +188,8 @@ fn package_info_from_path(
     if !errors.is_empty() {
         return None;
     }
+    let logo_data_url = meta.logo.as_deref()
+        .and_then(|logo| ofm_core::generator::read_logo_from_ofm(path, logo));
     Some(ofm_core::generator::PackageInfo {
         id,
         name: meta.name,
@@ -201,6 +203,7 @@ fn package_info_from_path(
         player_count: package.players.len(),
         competition_count: package.competitions.len(),
         installed_path: path.to_string_lossy().to_string(),
+        logo_data_url,
     })
 }
 
@@ -265,6 +268,8 @@ pub fn install_package(
     let dest = packages_dir.join(format!("{id}.ofm"));
     std::fs::copy(src, &dest).map_err(|_| "be.error.package.installFailed".to_string())?;
 
+    let logo_data_url = meta.logo.as_deref()
+        .and_then(|logo| ofm_core::generator::read_logo_from_ofm(&dest, logo));
     Ok(ofm_core::generator::PackageInfo {
         id,
         name: meta.name,
@@ -278,6 +283,7 @@ pub fn install_package(
         player_count: package.players.len(),
         competition_count: package.competitions.len(),
         installed_path: dest.to_string_lossy().to_string(),
+        logo_data_url,
     })
 }
 

@@ -37,6 +37,7 @@ export interface PackageInfo {
   player_count: number;
   competition_count: number;
   installed_path: string;
+  logo_data_url?: string;
 }
 
 interface WorldSelectProps {
@@ -312,6 +313,13 @@ export default function WorldSelect({
                 >
                   {isActive && <div className="w-2 h-2 rounded-sm bg-white" />}
                 </button>
+                {pkg.logo_data_url ? (
+                  <img src={pkg.logo_data_url} alt="" className="w-8 h-8 rounded object-contain flex-shrink-0 mt-0.5 border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800" />
+                ) : (
+                  <div className="w-8 h-8 rounded bg-primary-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Package className="w-4 h-4 text-primary-500" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-heading font-bold text-sm uppercase tracking-wide text-gray-800 dark:text-gray-200 truncate">

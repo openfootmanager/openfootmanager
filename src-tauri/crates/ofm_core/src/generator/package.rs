@@ -113,6 +113,9 @@ pub struct WorldMetaDef {
     /// Package type: `"database"` | `"patch"` | `"assets"`. Defaults to `"database"`.
     #[serde(default = "default_package_type")]
     pub package_type: String,
+    /// Relative path to the package logo image within the package (e.g. `"assets/images/logo.png"`).
+    #[serde(default)]
+    pub logo: Option<String>,
 }
 
 fn default_package_type() -> String {
@@ -136,6 +139,9 @@ pub struct PackageInfo {
     pub competition_count: usize,
     /// Absolute path to the installed `.ofm` file.
     pub installed_path: String,
+    /// Logo encoded as a data URL (`data:<mime>;base64,...`), if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo_data_url: Option<String>,
 }
 
 /// Everything a package declares, aggregated across all its files.
@@ -801,6 +807,43 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
         if let Ok(meta) = serde_yaml::from_value::<WorldMetaDef>(value) {
             return Some(meta);
         }
+    }
+    None
+}
+
+/// Read a logo file from an `.ofm` archive and return it encoded as a data URL.
+/// The `logo_path` is the relative path stored in `WorldMetaDef.logo`.
+pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String> {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use std::io::Read;
+
+    let file = std::fs::File::open(archive_path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let logo_lower = logo_path.to_ascii_lowercase();
+    let count = archive.len();
+    for i in 0..count {
+        let Ok(mut entry) = archive.by_index(i) else { continue };
+        if entry.is_dir() { continue }
+        let entry_lower = entry.name().to_ascii_lowercase();
+        // Match the relative path or the file's trailing suffix.
+        if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        if entry.read_to_end(&mut bytes).is_err() { continue }
+        let ext = Path::new(logo_path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("png")
+            .to_ascii_lowercase();
+        let mime = match ext.as_str() {
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "svg" => "image/svg+xml",
+            _ => "image/png",
+        };
+        return Some(format!("data:{mime};base64,{}", STANDARD.encode(&bytes)));
     }
     None
 }

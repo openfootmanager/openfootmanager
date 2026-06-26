@@ -82,6 +82,7 @@ export function emptyMeta(): WorldMetaDef {
     formatVersion: 1,
     defaultActiveRegions: [],
     defaultActiveCompetitions: [],
+    logo: null,
   };
 }
 

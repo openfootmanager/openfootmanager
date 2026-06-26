@@ -107,6 +107,7 @@ export function WorldEditorFormPanel({
           meta={meta}
           onChange={(m) => onMetaChange(m)}
           counts={counts}
+          projectDir={projectDir || undefined}
         />
         <button
           onClick={onSaveMetadata}

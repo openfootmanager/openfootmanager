@@ -104,6 +104,7 @@ export function WorldEditorHome({
       formatVersion: 1,
       defaultActiveRegions: [],
       defaultActiveCompetitions: pendingSample?.meta.defaultActiveCompetitions ?? [],
+      logo: null,
     };
     onNewPackage(meta, pendingSample);
   }

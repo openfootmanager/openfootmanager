@@ -33,6 +33,7 @@ export const MINI_LEAGUE_SAMPLE: SamplePackage = {
     formatVersion: 1,
     defaultActiveRegions: [],
     defaultActiveCompetitions: ["northshire-premier"],
+    logo: null,
   },
   confederations: [{ id: "europe", name: "Europe" }],
   countries: [{ id: "ENG", name: "England", confederation: "europe" }],
@@ -128,6 +129,7 @@ export const IBERIA_MINI_SAMPLE: SamplePackage = {
     formatVersion: 1,
     defaultActiveRegions: [],
     defaultActiveCompetitions: ["iberia-primera"],
+    logo: null,
   },
   confederations: [{ id: "europe", name: "Europe" }],
   countries: [{ id: "ESP", name: "Spain", confederation: "europe" }],
@@ -223,6 +225,7 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
     formatVersion: 1,
     defaultActiveRegions: [],
     defaultActiveCompetitions: ["copa-del-sur"],
+    logo: null,
   },
   confederations: [{ id: "south-america", name: "South America" }],
   countries: [
