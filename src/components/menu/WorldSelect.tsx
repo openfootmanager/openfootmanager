@@ -1,7 +1,7 @@
-import { useId, useRef } from "react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
-import { X, ChevronRight, Globe, Shuffle, Upload, Database, Users, ArrowLeft, Loader2, FolderOpen, Package, PackagePlus, Trash2, Trophy } from "lucide-react";
+import { X, ChevronRight, Globe, Shuffle, Users, ArrowLeft, Loader2, Package, PackagePlus, Trash2, Trophy } from "lucide-react";
 import { resolveBackendText } from "../../utils/backendI18n";
 import type { CareerStartPhase } from "./CreateManagerForm";
 
@@ -16,12 +16,6 @@ export interface WorldDatabaseInfo {
   snapshot_date?: string | null;
   source: string;
   path: string;
-}
-
-export interface CompetitionDefinitionIssue {
-  code: string;
-  competition_id: string;
-  params: Record<string, string>;
 }
 
 export interface PackageIssue {
@@ -55,17 +49,9 @@ interface WorldSelectProps {
   historyDepthYears: number;
   onSelectWorld: (id: string) => void;
   onChangeHistoryDepthYears: (value: number) => void;
-  onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onStart: () => void;
   onBack: () => void;
   onClose: () => void;
-  competitionDefsFileName?: string | null;
-  competitionDefsErrors?: CompetitionDefinitionIssue[];
-  onImportCompetitionDefs?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClearCompetitionDefs?: () => void;
-  onImportPackage?: () => void;
-  isInspectingPackage?: boolean;
-  packageErrors?: PackageIssue[];
   installedPackages?: PackageInfo[];
   activePackageIds?: string[];
   onTogglePackage?: (id: string) => void;
@@ -97,18 +83,12 @@ function worldHistoryMode(db: WorldDatabaseInfo | undefined): "generated" | "ref
 
 export default function WorldSelect({
   worldDatabases, selectedWorldId, isLoadingWorlds, isStarting, startYear, startPhase,
-  historyDepthYears, onSelectWorld, onChangeHistoryDepthYears, onImportFile, onStart, onBack, onClose,
-  competitionDefsFileName, competitionDefsErrors, onImportCompetitionDefs, onClearCompetitionDefs,
-  onImportPackage, isInspectingPackage, packageErrors,
+  historyDepthYears, onSelectWorld, onChangeHistoryDepthYears, onStart, onBack, onClose,
   installedPackages, activePackageIds, onTogglePackage, onInstallPackage, onUninstallPackage,
   isInstallingPackage, packageStackErrors,
 }: WorldSelectProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const competitionDefsInputRef = useRef<HTMLInputElement>(null);
-  const hasCompetitionDefErrors = (competitionDefsErrors?.length ?? 0) > 0;
-  const hasPackageErrors = (packageErrors?.length ?? 0) > 0;
   const hasPackageStackErrors = (packageStackErrors?.length ?? 0) > 0;
   const activePackages = installedPackages?.filter((p) => activePackageIds?.includes(p.id)) ?? [];
   const hasPatchOnlyPackages =
@@ -162,15 +142,8 @@ export default function WorldSelect({
                 : "bg-white dark:bg-navy-700 border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-500"
                 }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${db.id === "random"
-                ? "bg-accent-500/10 text-accent-500"
-                : db.source === "imported"
-                  ? "bg-purple-500/10 text-purple-500"
-                  : "bg-primary-500/10 text-primary-500"
-                }`}>
-                {db.id === "random" ? <Shuffle className="w-5 h-5" /> :
-                  db.source === "imported" ? <Upload className="w-5 h-5" /> :
-                    <Database className="w-5 h-5" />}
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${db.id === "random" ? "bg-accent-500/10 text-accent-500" : "bg-primary-500/10 text-primary-500"}`}>
+                {db.id === "random" ? <Shuffle className="w-5 h-5" /> : <Globe className="w-5 h-5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -284,114 +257,6 @@ export default function WorldSelect({
           })}
         </div>
       </div>
-
-      {/* Import button */}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors"
-      >
-        <Upload className="w-4 h-4" />
-        <span className="font-heading font-bold uppercase tracking-wider">{t('worldSelect.importFile')}</span>
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json"
-        className="hidden"
-        onChange={onImportFile}
-      />
-
-      {/* Import a modular world package (folder) via the native picker */}
-      {onImportPackage && (
-        <div className="space-y-2">
-          <button
-            onClick={onImportPackage}
-            disabled={isInspectingPackage}
-            className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {isInspectingPackage ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <FolderOpen className="w-4 h-4" />
-            )}
-            <span className="font-heading font-bold uppercase tracking-wider">
-              {t("worldSelect.importPackage")}
-            </span>
-          </button>
-          {hasPackageErrors && (
-            <div
-              className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs"
-              data-testid="package-errors"
-            >
-              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
-                {t("worldSelect.packageErrorsTitle")}
-              </p>
-              <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
-                {packageErrors!.map((issue, index) => (
-                  <li key={index}>
-                    {issue.file ? `[${issue.file}] ` : ""}
-                    {t(issue.code, issue.params)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Optional custom competitions file */}
-      {onImportCompetitionDefs && (
-        <div className="space-y-2">
-          <input
-            ref={competitionDefsInputRef}
-            type="file"
-            accept=".json,.yaml,.yml"
-            className="hidden"
-            onChange={onImportCompetitionDefs}
-            data-testid="competition-defs-input"
-          />
-          {competitionDefsFileName ? (
-            <div className="flex items-center justify-between gap-2 w-full py-2 px-3 border border-gray-200 dark:border-navy-600 rounded-xl text-sm">
-              <span className="flex items-center gap-2 truncate text-gray-700 dark:text-gray-200">
-                <Database className="w-4 h-4 shrink-0" />
-                <span className="truncate">{competitionDefsFileName}</span>
-              </span>
-              <button
-                onClick={onClearCompetitionDefs}
-                className="shrink-0 font-heading font-bold uppercase tracking-wider text-xs text-gray-400 hover:text-red-500 transition-colors"
-              >
-                {t('worldSelect.removeCompetitions')}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => competitionDefsInputRef.current?.click()}
-              className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-gray-300 dark:border-navy-500 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 hover:border-primary-400 dark:hover:border-primary-500 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              <span className="font-heading font-bold uppercase tracking-wider">{t('worldSelect.importCompetitions')}</span>
-            </button>
-          )}
-          {hasCompetitionDefErrors && (
-            <div
-              className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs"
-              data-testid="competition-defs-errors"
-            >
-              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
-                {t('worldSelect.competitionsErrorsTitle')}
-              </p>
-              <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
-                {competitionDefsErrors!.map((issue, index) => (
-                  <li key={index}>
-                    {issue.competition_id ? `[${issue.competition_id}] ` : ''}
-                    {t(issue.code, issue.params)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Installed .ofm packages section */}
       {(onInstallPackage || (installedPackages && installedPackages.length > 0)) && (
@@ -513,7 +378,7 @@ export default function WorldSelect({
         className="w-full"
         iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
         onClick={onStart}
-        disabled={isStarting || hasCompetitionDefErrors || hasPackageErrors || hasPackageStackErrors || hasPatchOnlyPackages}
+        disabled={isStarting || hasPackageStackErrors || hasPatchOnlyPackages}
       >
         {isStarting ? t('worldSelect.creatingWorld') : t('worldSelect.startCareer')}
       </Button>

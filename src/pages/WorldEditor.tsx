@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { resolveBackendError } from "../utils/backendI18n";
@@ -66,6 +68,7 @@ function readAutoSave(): boolean {
 }
 
 export default function WorldEditor() {
+  const { t } = useTranslation();
   const [projectDir, setProjectDir] = useState("");
 
   // Entity state
@@ -86,6 +89,7 @@ export default function WorldEditor() {
   // Async state
   const [isBusy, setIsBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isDirty, setIsDirty] = useState(false);
 
@@ -143,6 +147,11 @@ export default function WorldEditor() {
   function flashError(msg: string) {
     setErrorMsg(msg);
     setTimeout(() => setErrorMsg(null), 5000);
+  }
+
+  function flashSuccess(msg: string) {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 5000);
   }
 
   function loadProjectState(data: PackageProjectData) {
@@ -343,9 +352,15 @@ export default function WorldEditor() {
     setIsBusy(true);
     try {
       await persist();
-      await invoke("build_ofm", { dir: projectDir, output: outPath });
     } catch {
-      // persist already handled the error
+      setIsBusy(false);
+      return;
+    }
+    try {
+      await invoke("build_ofm", { dir: projectDir, output: outPath });
+      flashSuccess(t("worldEditor.buildSuccess"));
+    } catch (err) {
+      flashError(resolveBackendError(err));
     } finally {
       setIsBusy(false);
     }
@@ -481,6 +496,7 @@ export default function WorldEditor() {
     );
 
   return (
+    <>
     <WorldEditorLayout
       topBar={
         <WorldEditorTopBar
@@ -549,5 +565,24 @@ export default function WorldEditor() {
         />
       }
     />
+
+    {/* Floating notifications */}
+    {(errorMsg || successMsg) && (
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+        {errorMsg && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-4 py-3 shadow-lg text-sm text-red-700 dark:text-red-300">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="flex items-center gap-2 rounded-xl border border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10 px-4 py-3 shadow-lg text-sm text-green-700 dark:text-green-300">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+      </div>
+    )}
+    </>
   );
 }

@@ -60,7 +60,6 @@ describe("WorldSelect", () => {
         historyDepthYears={24}
         onSelectWorld={vi.fn()}
         onChangeHistoryDepthYears={onChangeHistoryDepthYears}
-        onImportFile={vi.fn()}
         onStart={vi.fn()}
         onBack={vi.fn()}
         onClose={vi.fn()}
@@ -106,7 +105,6 @@ describe("WorldSelect", () => {
         historyDepthYears={12}
         onSelectWorld={vi.fn()}
         onChangeHistoryDepthYears={vi.fn()}
-        onImportFile={vi.fn()}
         onStart={vi.fn()}
         onBack={vi.fn()}
         onClose={vi.fn()}
@@ -117,98 +115,5 @@ describe("WorldSelect", () => {
     expect(
       screen.getByText("worldSelect.historyDepth.option:12").closest("button"),
     ).toBeDisabled();
-  });
-
-  const baseWorldProps = {
-    worldDatabases: [
-      {
-        id: "random",
-        name: "Random World",
-        description: "Fresh roster baseline",
-        team_count: 16,
-        player_count: 352,
-        source: "builtin",
-        path: "",
-      },
-    ],
-    selectedWorldId: "random",
-    isLoadingWorlds: false,
-    isStarting: false,
-    startYear: 2032,
-    startPhase: "midSeason" as const,
-    historyDepthYears: 12,
-    onSelectWorld: vi.fn(),
-    onChangeHistoryDepthYears: vi.fn(),
-    onImportFile: vi.fn(),
-    onStart: vi.fn(),
-    onBack: vi.fn(),
-    onClose: vi.fn(),
-  };
-
-  it("offers the competitions file picker and lists validation errors", () => {
-    render(
-      <WorldSelect
-        {...baseWorldProps}
-        onImportCompetitionDefs={vi.fn()}
-        onClearCompetitionDefs={vi.fn()}
-        competitionDefsFileName="my-comps.json"
-        competitionDefsErrors={[
-          { code: "be.error.competitionDef.unknownTeam", competition_id: "tr-1", params: { team: "ghost" } },
-        ]}
-      />,
-    );
-
-    expect(screen.getByText("my-comps.json")).toBeInTheDocument();
-    const errorBox = screen.getByTestId("competition-defs-errors");
-    expect(errorBox).toHaveTextContent("be.error.competitionDef.unknownTeam");
-    expect(errorBox).toHaveTextContent("[tr-1]");
-    // A file with errors blocks starting the career.
-    expect(
-      screen.getByText("worldSelect.startCareer").closest("button"),
-    ).toBeDisabled();
-  });
-
-  it("hides the competitions picker when no handler is provided", () => {
-    render(<WorldSelect {...baseWorldProps} />);
-    expect(screen.queryByTestId("competition-defs-input")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("worldSelect.startCareer").closest("button"),
-    ).not.toBeDisabled();
-  });
-
-  it("triggers the package import handler and lists package errors", () => {
-    const onImportPackage = vi.fn();
-
-    render(
-      <WorldSelect
-        {...baseWorldProps}
-        onImportPackage={onImportPackage}
-        packageErrors={[
-          {
-            code: "be.error.package.unknownTeam",
-            file: "players/star.json",
-            params: { player: "x", team: "ghost" },
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByText("worldSelect.importPackage"));
-    expect(onImportPackage).toHaveBeenCalledTimes(1);
-
-    const errorBox = screen.getByTestId("package-errors");
-    expect(errorBox).toHaveTextContent("be.error.package.unknownTeam");
-    expect(errorBox).toHaveTextContent("[players/star.json]");
-    // A package with problems blocks starting the career.
-    expect(
-      screen.getByText("worldSelect.startCareer").closest("button"),
-    ).toBeDisabled();
-  });
-
-  it("hides the package import button when no handler is provided", () => {
-    render(<WorldSelect {...baseWorldProps} />);
-    expect(
-      screen.queryByText("worldSelect.importPackage"),
-    ).not.toBeInTheDocument();
   });
 });

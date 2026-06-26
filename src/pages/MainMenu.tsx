@@ -13,7 +13,6 @@ import type {
   CreateManagerFormData,
 } from "../components/menu/CreateManagerForm";
 import type {
-  CompetitionDefinitionIssue,
   PackageInfo,
   PackageIssue,
   WorldDatabaseInfo,
@@ -84,18 +83,7 @@ type StartupOptionsPayload = {
   historyDepthYears: number;
 };
 
-function historyModeFromMetadata(
-  metadata: unknown,
-): WorldDatabaseInfo["history_mode"] {
-  const kind =
-    metadata && typeof metadata === "object" && "kind" in metadata
-      ? (metadata as { kind?: unknown }).kind
-      : undefined;
 
-  if (kind === "historicalSnapshot") return "reference";
-  if (kind === "rosterBaseline") return "hybrid";
-  return undefined;
-}
 
 function defaultCareerStartYear(): string {
   return String(new Date().getFullYear());
@@ -325,13 +313,6 @@ export default function MainMenu() {
   // World database state
   const [worldDatabases, setWorldDatabases] = useState<WorldDatabaseInfo[]>([]);
   const [selectedWorldId, setSelectedWorldId] = useState<string>("random");
-  const [competitionDefsJson, setCompetitionDefsJson] = useState<string | null>(null);
-  const [competitionDefsFileName, setCompetitionDefsFileName] = useState<string | null>(null);
-  const [competitionDefsErrors, setCompetitionDefsErrors] = useState<
-    CompetitionDefinitionIssue[]
-  >([]);
-  const [packageErrors, setPackageErrors] = useState<PackageIssue[]>([]);
-  const [isInspectingPackage, setIsInspectingPackage] = useState(false);
   const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
 
   // Installed packages state
@@ -513,162 +494,11 @@ export default function MainMenu() {
     }
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const json = reader.result as string;
-        const parsed = JSON.parse(json);
-        const path = await invoke<string>("write_temp_database", { json });
-        const info: WorldDatabaseInfo = {
-          id: `file:${file.name}`,
-          name: parsed.name || file.name.replace(".json", ""),
-          description: parsed.description || t("menu.importedDescription"),
-          team_count: parsed.teams?.length ?? 0,
-          player_count: parsed.players?.length ?? 0,
-          history_mode: historyModeFromMetadata(parsed.metadata) ?? "hybrid",
-          base_year:
-            typeof parsed.metadata?.base_year === "number"
-              ? parsed.metadata.base_year
-              : null,
-          snapshot_date:
-            typeof parsed.metadata?.snapshot_date === "string"
-              ? parsed.metadata.snapshot_date
-              : null,
-          source: "imported",
-          path,
-        };
-        setWorldDatabases((prev) => {
-          const filtered = prev.filter((d) => d.source !== "imported");
-          return [...filtered, info];
-        });
-        setSelectedWorldId(info.id);
-      } catch (err) {
-        alert(t("menu.invalidWorldDb", { error: String(err) }));
-      }
-    };
-    reader.readAsText(file);
-    // Reset input so the same file can be re-selected
-    e.target.value = "";
-  };
-
-  // Resolve the chosen world into a backend world source (writing imported
-  // worlds to a temp path), shared by validation and game start.
-  const resolveWorldSource = async (): Promise<string | undefined> => {
-    if (selectedWorldId === "random") {
-      return undefined;
-    }
-    if (
-      selectedWorldId.startsWith("file:") &&
-      sessionStorage.getItem("imported_world_json")
-    ) {
-      const json = sessionStorage.getItem("imported_world_json")!;
-      const path = await invoke<string>("write_temp_database", { json });
-      return `file:${path}`;
-    }
+  const resolveWorldSource = (): string | undefined => {
+    if (selectedWorldId === "random") return undefined;
     const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
-    if (selectedDb?.path) {
-      return `file:${selectedDb.path}`;
-    }
+    if (selectedDb?.path) return `file:${selectedDb.path}`;
     return selectedWorldId;
-  };
-
-  const handleImportCompetitionDefs = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const json = reader.result as string;
-      setCompetitionDefsJson(json);
-      setCompetitionDefsFileName(file.name);
-      setCompetitionDefsErrors([]);
-      try {
-        const worldSource = await resolveWorldSource();
-        const issues = await invoke<CompetitionDefinitionIssue[]>(
-          "validate_competition_definitions",
-          { worldSource, definitionsJson: json },
-        );
-        setCompetitionDefsErrors(issues);
-      } catch (err) {
-        setCompetitionDefsErrors([
-          {
-            code:
-              typeof err === "string"
-                ? err
-                : "be.error.competitionDef.parseFailed",
-            competition_id: "",
-            params: {},
-          },
-        ]);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleClearCompetitionDefs = () => {
-    setCompetitionDefsJson(null);
-    setCompetitionDefsFileName(null);
-    setCompetitionDefsErrors([]);
-  };
-
-  // Import a modular world package (a folder) via the native directory picker.
-  // The backend validates it; valid packages become a selectable world whose
-  // source is the directory path (load_world_data detects a dir = package).
-  const handleImportPackage = async () => {
-    setPackageErrors([]);
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: t("worldSelect.importPackage"),
-    });
-    if (typeof selected !== "string") {
-      return;
-    }
-    setIsInspectingPackage(true);
-    try {
-      const inspection = await invoke<{
-        name: string;
-        teamCount: number;
-        playerCount: number;
-        issues: PackageIssue[];
-      }>("inspect_world_package", { path: selected });
-      if (inspection.issues.length > 0) {
-        setPackageErrors(inspection.issues);
-        return;
-      }
-      const info: WorldDatabaseInfo = {
-        id: `package:${selected}`,
-        name: inspection.name,
-        description: t("menu.importedPackageDescription"),
-        team_count: inspection.teamCount,
-        player_count: inspection.playerCount,
-        history_mode: "hybrid",
-        base_year: null,
-        snapshot_date: null,
-        source: "imported",
-        path: selected,
-      };
-      setWorldDatabases((prev) => [
-        ...prev.filter((db) => db.source !== "imported"),
-        info,
-      ]);
-      setSelectedWorldId(info.id);
-    } catch (err) {
-      setPackageErrors([
-        {
-          code: typeof err === "string" ? err : "be.error.package.invalid",
-          file: "",
-          params: {},
-        },
-      ]);
-    } finally {
-      setIsInspectingPackage(false);
-    }
   };
 
   const loadInstalledPackages = async () => {
@@ -737,7 +567,7 @@ export default function MainMenu() {
 
     setIsStarting(true);
     try {
-      const worldSource = await resolveWorldSource();
+      const worldSource = resolveWorldSource();
 
       const game = await invoke<GameStateData>("start_new_game", {
         firstName: formData.firstName,
@@ -746,7 +576,6 @@ export default function MainMenu() {
         nationality: formData.nationality,
         startupOptions,
         worldSource,
-        competitionDefinitionsJson: competitionDefsJson ?? undefined,
         packageIds: activePackageIds.length > 0 ? activePackageIds : undefined,
       });
       applyExtraTranslations(game.extra_translations);
@@ -1044,17 +873,9 @@ export default function MainMenu() {
                 historyDepthYears={historyDepthYears}
                 onSelectWorld={setSelectedWorldId}
                 onChangeHistoryDepthYears={setHistoryDepthYears}
-                onImportFile={handleImportFile}
                 onStart={handleStartGame}
                 onBack={() => setMenuState("create")}
                 onClose={() => setMenuState("main")}
-                competitionDefsFileName={competitionDefsFileName}
-                competitionDefsErrors={competitionDefsErrors}
-                onImportCompetitionDefs={handleImportCompetitionDefs}
-                onClearCompetitionDefs={handleClearCompetitionDefs}
-                onImportPackage={handleImportPackage}
-                isInspectingPackage={isInspectingPackage}
-                packageErrors={packageErrors}
                 installedPackages={installedPackages}
                 activePackageIds={activePackageIds}
                 onTogglePackage={handleTogglePackage}
