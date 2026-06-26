@@ -3739,6 +3739,10 @@
   },
   "generation": {
     "title": "Generierung & Vervollständigung",
-    "coverage": "Deine Pakete umfassen"
+    "coverage": "Deine Pakete umfassen",
+    "fillWithGenerated": {
+      "label": "Mit KI-Vereinen auffüllen",
+      "hint": "Prozedural generierte Teams hinzufügen, um die Meisterschaft auf 20 Vereine aufzufüllen"
+    }
   }
 }

@@ -3736,6 +3736,10 @@
   },
   "generation": {
     "title": "生成与完善",
-    "coverage": "您的包涵盖"
+    "coverage": "您的包涵盖",
+    "fillWithGenerated": {
+      "label": "用AI俱乐部填充",
+      "hint": "添加程序生成的球队，将联赛补全至20支俱乐部"
+    }
   }
 }

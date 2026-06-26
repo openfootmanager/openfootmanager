@@ -44,6 +44,8 @@ const baseProps = {
   onStart: vi.fn(),
   onBack: vi.fn(),
   onClose: vi.fn(),
+  fillWithGenerated: false,
+  onToggleFill: vi.fn(),
 };
 
 const dbPackage: PackageInfo = {

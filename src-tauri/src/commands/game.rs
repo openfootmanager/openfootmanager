@@ -1364,6 +1364,7 @@ pub async fn start_new_game(
     world_source: Option<String>,
     competition_definitions_json: Option<String>,
     package_ids: Option<Vec<String>>,
+    fill_with_generated: Option<bool>,
 ) -> Result<Game, String> {
     // Validate inputs
     let first_name = first_name.trim().to_string();
@@ -1394,6 +1395,16 @@ pub async fn start_new_game(
     } else {
         (load_world_data(world_source.as_deref())?, vec![])
     };
+
+    // Fill with generated clubs when the user opted in and a package world is
+    // under-populated. Runs before the competition-definitions override so any
+    // expanded participant lists are visible to downstream validation.
+    if fill_with_generated.unwrap_or(false)
+        && package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
+    {
+        const FILL_TARGET: usize = 20;
+        ofm_core::generator::fill_world_to_minimum(&mut world, FILL_TARGET);
+    }
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via

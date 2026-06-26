@@ -3739,6 +3739,10 @@
   },
   "generation": {
     "title": "Génération et Complétion",
-    "coverage": "Vos paquets couvrent"
+    "coverage": "Vos paquets couvrent",
+    "fillWithGenerated": {
+      "label": "Compléter avec des clubs IA",
+      "hint": "Ajouter des équipes générées procéduralement pour compléter le championnat à 20 clubs"
+    }
   }
 }

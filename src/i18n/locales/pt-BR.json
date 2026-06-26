@@ -3739,6 +3739,10 @@
   },
   "generation": {
     "title": "Geração e Conclusão",
-    "coverage": "Seus pacotes cobrem"
+    "coverage": "Seus pacotes cobrem",
+    "fillWithGenerated": {
+      "label": "Preencher com clubes de IA",
+      "hint": "Adicionar times gerados proceduralmente para completar o campeonato com 20 clubes"
+    }
   }
 }

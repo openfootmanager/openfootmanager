@@ -3739,6 +3739,10 @@
   },
   "generation": {
     "title": "Geração e Conclusão",
-    "coverage": "Os teus pacotes cobrem"
+    "coverage": "Os teus pacotes cobrem",
+    "fillWithGenerated": {
+      "label": "Preencher com clubes de IA",
+      "hint": "Adicionar equipas geradas proceduralmente para completar o campeonato com 20 clubes"
+    }
   }
 }

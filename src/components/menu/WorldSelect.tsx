@@ -102,6 +102,8 @@ interface GenerationStepProps {
   onClose: () => void;
   /** Pre-filtered active packages from MainMenu state. */
   activePackages: PackageInfo[];
+  fillWithGenerated: boolean;
+  onToggleFill: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +120,8 @@ export default function GenerationStep({
   onBack,
   onClose,
   activePackages,
+  fillWithGenerated,
+  onToggleFill,
 }: GenerationStepProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
@@ -206,6 +210,36 @@ export default function GenerationStep({
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Fill toggle — shown when package world has fewer than 20 teams */}
+      {hasActiveDatabases && totalTeams < 20 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-navy-600 dark:bg-navy-700/60">
+          <button
+            type="button"
+            onClick={onToggleFill}
+            className="flex items-start gap-3 w-full text-left"
+          >
+            <span
+              className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+                fillWithGenerated
+                  ? "bg-accent-500 border-accent-500"
+                  : "border-gray-300 dark:border-navy-500"
+              }`}
+              aria-hidden
+            >
+              {fillWithGenerated && <span className="w-2 h-2 rounded-sm bg-white" />}
+            </span>
+            <div>
+              <p className="text-sm font-heading font-bold uppercase tracking-[0.18em] text-gray-700 dark:text-gray-300">
+                {t("generation.fillWithGenerated.label")}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                {t("generation.fillWithGenerated.hint")}
+              </p>
+            </div>
+          </button>
         </div>
       )}
 

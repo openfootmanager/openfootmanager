@@ -3735,6 +3735,10 @@
   },
   "generation": {
     "title": "Generation & Completion",
-    "coverage": "Your packages cover"
+    "coverage": "Your packages cover",
+    "fillWithGenerated": {
+      "label": "Fill with AI clubs",
+      "hint": "Add procedurally generated teams to complete the championship to 20 clubs"
+    }
   }
 }

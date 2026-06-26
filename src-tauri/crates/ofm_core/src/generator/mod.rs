@@ -887,6 +887,58 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     world
 }
 
+/// Fill a package-built world up to `target` teams by adding procedurally
+/// generated clubs. Only competitions whose explicit participant list exactly
+/// matches the original team roster are expanded — selective competitions
+/// (cups, qualifying rounds with a subset of teams) are left untouched.
+pub fn fill_world_to_minimum(world: &mut WorldData, target: usize) {
+    use std::collections::HashSet;
+
+    let existing = world.teams.len();
+    if existing >= target {
+        return;
+    }
+    let needed = target - existing;
+
+    let mut rng = rand::rng();
+    let names_def = default_names_definition();
+    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
+    let country = world
+        .teams
+        .first()
+        .map(|t| t.country.clone())
+        .unwrap_or_else(|| "??".to_string());
+
+    let original_team_ids: HashSet<String> =
+        world.teams.iter().map(|t| t.id.clone()).collect();
+
+    let mut new_team_ids: Vec<String> = Vec::new();
+    for def in &filler_club_defs(&country, needed, &mut rng) {
+        let (team, team_players, team_staff) =
+            build_club(def, &country_codes, &names_def, &mut rng);
+        new_team_ids.push(team.id.clone());
+        world.teams.push(team);
+        world.players.extend(team_players);
+        world.staff.extend(team_staff);
+    }
+
+    if let Some(defs) = world.competition_definitions.as_mut() {
+        for comp in &mut defs.competitions {
+            if let Some(explicit) = comp.participants.explicit.as_mut() {
+                let is_full_roster = explicit.len() == original_team_ids.len()
+                    && explicit.iter().all(|id| original_team_ids.contains(id));
+                if is_full_roster {
+                    explicit.extend(new_team_ids.iter().cloned());
+                }
+            }
+        }
+    }
+
+    world
+        .build_notices
+        .push("be.error.notice.fallbackTeamsFilled".to_string());
+}
+
 /// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).
 fn find_definition_file(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
     ["json", "yaml", "yml"]

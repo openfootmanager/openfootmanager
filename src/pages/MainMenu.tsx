@@ -318,6 +318,7 @@ export default function MainMenu() {
   const [historyDepthYears, setHistoryDepthYears] = useState(
     initialHistoryDepthYears,
   );
+  const [fillWithGenerated, setFillWithGenerated] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -536,6 +537,7 @@ export default function MainMenu() {
         nationality: formData.nationality,
         startupOptions,
         packageIds: activePackageIds.length > 0 ? activePackageIds : undefined,
+        fillWithGenerated: fillWithGenerated || undefined,
       });
       applyExtraTranslations(game.extra_translations);
       setGameState(game);
@@ -849,6 +851,8 @@ export default function MainMenu() {
                 onBack={() => setMenuState("packages")}
                 onClose={() => setMenuState("main")}
                 activePackages={installedPackages.filter((p) => activePackageIds.includes(p.id))}
+                fillWithGenerated={fillWithGenerated}
+                onToggleFill={() => setFillWithGenerated((v) => !v)}
               />
             </Suspense>
           )}
