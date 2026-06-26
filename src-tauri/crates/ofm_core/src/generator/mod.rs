@@ -754,7 +754,17 @@ fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Ve
 /// Call only after [`package::load_world_package`] reports no errors.
 pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldData {
     let mut rng = rand::rng();
-    let names_def = package.names.clone().unwrap_or_else(default_names_definition);
+    let names_def = {
+        let mut merged = default_names_definition();
+        if let Some(pkg_names) = &package.names {
+            for (key, pool) in &pkg_names.pools {
+                if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
+                    merged.pools.insert(key.clone(), pool.clone());
+                }
+            }
+        }
+        merged
+    };
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
     // Group hand-authored players by the club they belong to.
