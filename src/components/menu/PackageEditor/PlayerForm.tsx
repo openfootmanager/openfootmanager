@@ -16,10 +16,10 @@ const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
 
 const ATTR_GROUPS = [
-  { label: "Physical", keys: ["pace", "stamina", "strength", "agility"] },
-  { label: "Technical", keys: ["passing", "shooting", "tackling", "dribbling", "defending"] },
-  { label: "Mental", keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
-  { label: "Goalkeeper", keys: ["handling", "reflexes", "aerial"] },
+  { groupKey: "physical",   keys: ["pace", "stamina", "strength", "agility"] },
+  { groupKey: "technical",  keys: ["passing", "shooting", "tackling", "dribbling", "defending"] },
+  { groupKey: "mental",     keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
+  { groupKey: "goalkeeper", keys: ["handling", "reflexes", "aerial"] },
 ] as const;
 
 type AttrKey = typeof ATTR_GROUPS[number]["keys"][number];
@@ -141,6 +141,40 @@ export function PlayerForm({
         placeholder="Match display name"
       />
 
+      {/* Photo */}
+      {projectDir && (
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>{t("worldEditor.playerPhoto")}</label>
+          <div className="flex items-center gap-3">
+            {photoDataUrl ? (
+              <img src={photoDataUrl} alt="" className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-full border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { void handlePickPhoto(); }}
+                className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+              >
+                {t("worldEditor.chooseLogo")}
+              </button>
+              {editing.photo && (
+                <button
+                  type="button"
+                  onClick={() => { updateField("photo", null); setPhotoDataUrl(null); }}
+                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Club picker */}
       <div className="flex flex-col gap-1">
         <label className={labelClass}>{t("worldEditor.playerClub")}</label>
@@ -225,14 +259,14 @@ export function PlayerForm({
 
       {useAttributes && (
         <div className="flex flex-col gap-3">
-          {ATTR_GROUPS.map(({ label, keys }) => (
-            <div key={label}>
-              <p className={`${labelClass} mb-1`}>{label}</p>
+          {ATTR_GROUPS.map(({ groupKey, keys }) => (
+            <div key={groupKey}>
+              <p className={`${labelClass} mb-1`}>{t(`common.attrGroups.${groupKey}`)}</p>
               <div className="grid grid-cols-2 gap-2">
                 {keys.map((key) => (
                   <div key={key} className="flex flex-col gap-0.5">
-                    <label className="text-[9px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                      {key}
+                    <label className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                      {t(`common.attributes.${key}`)}
                     </label>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -252,39 +286,6 @@ export function PlayerForm({
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {projectDir && (
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.playerPhoto")}</label>
-          <div className="flex items-center gap-3">
-            {photoDataUrl ? (
-              <img src={photoDataUrl} alt="" className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-full border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { void handlePickPhoto(); }}
-                className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
-              >
-                {t("worldEditor.chooseLogo")}
-              </button>
-              {editing.photo && (
-                <button
-                  type="button"
-                  onClick={() => { updateField("photo", null); setPhotoDataUrl(null); }}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       )}
     </EntityFormShell>

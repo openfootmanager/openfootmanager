@@ -3563,6 +3563,7 @@
     "teamRepMax": "Max. Ansehen",
     "teamFinMin": "Min. Budget",
     "teamFinMax": "Max. Budget",
+    "teamBudget": "Budget",
     "confederations": "Konf. ({{count}})",
     "addConfederation": "Konföderation hinzufügen",
     "editConfederation": "Konföderation bearbeiten",

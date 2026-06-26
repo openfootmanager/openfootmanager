@@ -93,10 +93,10 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
                 title={t("worldEditor.teamSecondaryColor")}
               />
             </div>
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
               {primaryColor}
             </span>
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
               {secondaryColor}
             </span>
           </div>
@@ -104,22 +104,22 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
 
         {/* Location */}
         {(team.city || team.country) && (
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {[team.city, team.country].filter(Boolean).join(", ")}
           </p>
         )}
 
         {/* Play style */}
         {team.playStyle && (
-          <p className="text-[10px] font-heading font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-            {team.playStyle}
+          <p className="text-[11px] font-heading font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            {t(`common.playStyles.${team.playStyle}`, { defaultValue: team.playStyle })}
           </p>
         )}
 
         {/* Reputation */}
         {team.reputationRange && (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between text-[10px]">
+            <div className="flex items-center justify-between text-[11px]">
               <span className="text-gray-400 uppercase tracking-wide">
                 {t("worldEditor.teamRepMin").replace(" Reputation", "").replace(" Rep", "")} Rep
               </span>
@@ -127,7 +127,7 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
                 <span className={`font-bold uppercase ${tier.color}`}>{tier.label}</span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-[10px] text-gray-500">
+            <div className="flex items-center gap-1 text-[11px] text-gray-500">
               <span>{team.reputationRange[0]}</span>
               <div className="flex-1 h-1.5 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden mx-1">
                 <div
@@ -142,8 +142,8 @@ export function TeamPreviewCard({ team, logoDataUrl }: TeamPreviewCardProps) {
 
         {/* Budget */}
         {team.financeRange && (
-          <div className="text-[10px] text-gray-400">
-            <span className="uppercase tracking-wide">Budget </span>
+          <div className="text-[11px] text-gray-400">
+            <span className="uppercase tracking-wide">{t("worldEditor.teamBudget")} </span>
             <span className="text-gray-600 dark:text-gray-300 font-mono">
               {formatBudget(team.financeRange[0])}–{formatBudget(team.financeRange[1])}
             </span>

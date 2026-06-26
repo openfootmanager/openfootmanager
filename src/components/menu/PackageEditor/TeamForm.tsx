@@ -96,6 +96,40 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
           value={editingTeam.shortName}
           onChange={(v) => updateField("shortName", v)}
         />
+
+        {projectDir && (
+          <div className="flex flex-col gap-1">
+            <label className={labelClass}>{t("worldEditor.teamLogo")}</label>
+            <div className="flex items-center gap-3">
+              {logoDataUrl ? (
+                <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+                  <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { void handlePickLogo(); }}
+                  className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
+                >
+                  {t("worldEditor.chooseLogo")}
+                </button>
+                {editingTeam.logo && (
+                  <button
+                    type="button"
+                    onClick={() => { updateField("logo", null); setLogoDataUrl(null); }}
+                    className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <LabeledInput
           label={t("worldEditor.teamCity")}
           value={editingTeam.city}
@@ -255,39 +289,6 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
           </div>
         </div>
       </div>
-
-      {projectDir && (
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.teamLogo")}</label>
-          <div className="flex items-center gap-3">
-            {logoDataUrl ? (
-              <img src={logoDataUrl} alt="" className="w-12 h-12 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-lg border border-dashed border-gray-300 dark:border-navy-600 bg-gray-50 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
-                <ImagePlus className="w-5 h-5 text-gray-300 dark:text-navy-500" />
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { void handlePickLogo(); }}
-                className="px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-navy-600 transition"
-              >
-                {t("worldEditor.chooseLogo")}
-              </button>
-              {editingTeam.logo && (
-                <button
-                  type="button"
-                  onClick={() => { updateField("logo", null); setLogoDataUrl(null); }}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <button
         onClick={onSave}

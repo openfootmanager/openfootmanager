@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { EntityListShell, EntityRow } from "./shared";
-import type { PlayerDef, Position } from "./types";
+import type { PlayerDef, Position, TeamDef } from "./types";
 
 const POS_COLOR: Record<string, string> = {
   Goalkeeper: "bg-amber-500",
@@ -71,6 +71,7 @@ function PlayerAvatarCell({ player, posAbbr, projectDir }: PlayerAvatarCellProps
 
 interface PlayersTabProps {
   players: PlayerDef[];
+  teams?: TeamDef[];
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
@@ -79,7 +80,7 @@ interface PlayersTabProps {
   projectDir?: string;
 }
 
-export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir }: PlayersTabProps) {
+export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir }: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -122,9 +123,10 @@ export function PlayersTab({ players, onAdd, onEdit, onDelete, selectedIndex, on
         <EntityRow
           key={i}
           title={player.name || `${player.firstName} ${player.lastName}`.trim() || player.id}
-          subtitle={[t(`common.positions.${player.position}`), player.club]
-            .filter(Boolean)
-            .join(" · ")}
+          subtitle={[
+            t(`common.positions.${player.position}`),
+            player.club ? (teams?.find((tm) => tm.id === player.club)?.name ?? player.club) : null,
+          ].filter(Boolean).join(" · ")}
           badge={
             <PlayerAvatarCell
               player={player}

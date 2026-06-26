@@ -2,27 +2,7 @@ import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
-import type { PlayerDef, Position, TeamDef } from "./types";
-
-const POSITION_ABBR: Record<Position, string> = {
-  Goalkeeper: "GK",
-  Defender: "DEF",
-  Midfielder: "MID",
-  Forward: "FWD",
-  RightBack: "RB",
-  CenterBack: "CB",
-  LeftBack: "LB",
-  RightWingBack: "RWB",
-  LeftWingBack: "LWB",
-  DefensiveMidfielder: "CDM",
-  CentralMidfielder: "CM",
-  AttackingMidfielder: "CAM",
-  RightMidfielder: "RM",
-  LeftMidfielder: "LM",
-  RightWinger: "RW",
-  LeftWinger: "LW",
-  Striker: "ST",
-};
+import type { PlayerAttributesDef, PlayerDef, Position, TeamDef } from "./types";
 
 const POSITION_COLOR: Record<Position, string> = {
   Goalkeeper: "bg-amber-500",
@@ -44,34 +24,11 @@ const POSITION_COLOR: Record<Position, string> = {
   Striker: "bg-red-600",
 };
 
-const ALL_ATTRS = [
-  { group: "Physical", keys: [
-    { key: "pace",      abbr: "PAC" },
-    { key: "stamina",   abbr: "STA" },
-    { key: "strength",  abbr: "PHY" },
-    { key: "agility",   abbr: "AGI" },
-  ]},
-  { group: "Technical", keys: [
-    { key: "shooting",  abbr: "SHO" },
-    { key: "passing",   abbr: "PAS" },
-    { key: "dribbling", abbr: "DRI" },
-    { key: "tackling",  abbr: "TAC" },
-    { key: "defending", abbr: "DEF" },
-  ]},
-  { group: "Mental", keys: [
-    { key: "positioning", abbr: "POS" },
-    { key: "vision",      abbr: "VIS" },
-    { key: "decisions",   abbr: "DEC" },
-    { key: "composure",   abbr: "COM" },
-    { key: "aggression",  abbr: "AGG" },
-    { key: "teamwork",    abbr: "TW"  },
-    { key: "leadership",  abbr: "LDR" },
-  ]},
-  { group: "GK", keys: [
-    { key: "handling",  abbr: "HAN" },
-    { key: "reflexes",  abbr: "REF" },
-    { key: "aerial",    abbr: "AER" },
-  ]},
+const ALL_ATTR_GROUPS = [
+  { groupKey: "physical",    keys: ["pace", "stamina", "strength", "agility"] },
+  { groupKey: "technical",   keys: ["shooting", "passing", "dribbling", "tackling", "defending"] },
+  { groupKey: "mental",      keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
+  { groupKey: "goalkeeper",  keys: ["handling", "reflexes", "aerial"] },
 ] as const;
 
 function attrColor(val: number): string {
@@ -131,7 +88,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
     [editing.firstName, editing.lastName].filter(Boolean).join(" ") ||
     null;
 
-  const abbr = POSITION_ABBR[editing.position] ?? editing.position;
+  const abbr = t(`common.posAbbr.${editing.position}`, { defaultValue: editing.position.slice(0, 2).toUpperCase() });
   const posColor = POSITION_COLOR[editing.position] ?? "bg-gray-500";
 
   const age = calcAge(editing.dateOfBirth);
@@ -197,7 +154,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
               {editing.overall}
             </span>
             {isEstimated && (
-              <span className="text-[9px] text-gray-400 italic">est.</span>
+              <span className="text-[10px] text-gray-400 italic">est.</span>
             )}
           </div>
         )}
@@ -205,21 +162,22 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
         {/* Full attribute breakdown */}
         {displayAttrs && (
           <div className="flex flex-col gap-2">
-            {ALL_ATTRS.map(({ group, keys }) => {
-              const anySet = keys.some((k) => displayAttrs[k.key as keyof typeof displayAttrs] != null);
+            {ALL_ATTR_GROUPS.map(({ groupKey, keys }) => {
+              const anySet = keys.some((k) => displayAttrs[k as keyof typeof displayAttrs] != null);
               if (!anySet) return null;
               return (
-                <div key={group}>
-                  <p className="text-[9px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
-                    {group}
+                <div key={groupKey}>
+                  <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+                    {t(`common.attrGroups.${groupKey}`)}
                   </p>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                    {keys.map(({ key, abbr: label }) => {
+                    {keys.map((key) => {
                       const val = displayAttrs[key as keyof typeof displayAttrs] as number | undefined;
                       if (val == null) return null;
+                      const label = t(`common.attributes.${key}`).slice(0, 3).toUpperCase();
                       return (
                         <div key={key} className="flex items-center gap-1">
-                          <span className="w-7 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex-shrink-0">
+                          <span className="w-7 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex-shrink-0">
                             {label}
                           </span>
                           <div className="flex-1 h-1 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden">
@@ -228,7 +186,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
                               style={{ width: `${(val / 99) * 100}%` }}
                             />
                           </div>
-                          <span className="w-5 text-right text-[9px] font-bold tabular-nums text-gray-700 dark:text-gray-200 flex-shrink-0">
+                          <span className="w-5 text-right text-[10px] font-bold tabular-nums text-gray-700 dark:text-gray-200 flex-shrink-0">
                             {val}
                           </span>
                         </div>
@@ -242,7 +200,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
         )}
 
         {/* Bio info */}
-        <div className="flex flex-col gap-1 text-[11px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-navy-600">
+        <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-navy-600">
           {editing.nationality && (
             <p>{t("worldEditor.playerNationality")}: <span className="text-gray-700 dark:text-gray-200">{editing.nationality}</span></p>
           )}

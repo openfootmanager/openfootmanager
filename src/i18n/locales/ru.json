@@ -3559,6 +3559,7 @@
     "teamRepMax": "Репутация макс.",
     "teamFinMin": "Бюджет мин.",
     "teamFinMax": "Бюджет макс.",
+    "teamBudget": "Бюджет",
     "confederations": "Конф. ({{count}})",
     "addConfederation": "Добавить конфедерацию",
     "editConfederation": "Редактировать конфедерацию",

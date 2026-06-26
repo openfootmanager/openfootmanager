@@ -78,6 +78,7 @@ export function WorldEditorListContent({
       {selectedSection === "players" && (
         <PlayersTab
           players={players}
+          teams={teams}
           onAdd={playerEditor.handleAdd}
           onEdit={playerEditor.handleSelect}
           onDelete={playerEditor.handleDelete}

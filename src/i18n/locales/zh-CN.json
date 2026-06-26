@@ -3560,6 +3560,7 @@
     "teamRepMax": "声誉最大值",
     "teamFinMin": "预算最小值",
     "teamFinMax": "预算最大值",
+    "teamBudget": "预算",
     "confederations": "联合会 ({{count}})",
     "addConfederation": "添加联合会",
     "editConfederation": "编辑联合会",

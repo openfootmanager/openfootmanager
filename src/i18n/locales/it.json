@@ -3563,6 +3563,7 @@
     "teamRepMax": "Reputazione Max.",
     "teamFinMin": "Budget Min.",
     "teamFinMax": "Budget Max.",
+    "teamBudget": "Budget",
     "confederations": "Conf. ({{count}})",
     "addConfederation": "Aggiungi Confederazione",
     "editConfederation": "Modifica Confederazione",
