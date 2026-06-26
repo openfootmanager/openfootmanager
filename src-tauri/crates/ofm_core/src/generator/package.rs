@@ -1069,6 +1069,42 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
     None
 }
 
+/// Extract a logo from an OFM archive and write it to `dest_dir/{filename}`.
+/// Returns the destination path if the logo was found and written successfully.
+pub fn extract_logo_from_ofm(
+    archive_path: &Path,
+    logo_path: &str,
+    dest_dir: &Path,
+) -> Option<std::path::PathBuf> {
+    use std::io::Read;
+
+    let file = std::fs::File::open(archive_path).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let logo_lower = logo_path.to_ascii_lowercase();
+    for i in 0..archive.len() {
+        let Ok(mut entry) = archive.by_index(i) else {
+            continue;
+        };
+        if entry.is_dir() {
+            continue;
+        }
+        let entry_lower = entry.name().to_ascii_lowercase();
+        if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        if entry.read_to_end(&mut bytes).is_err() {
+            continue;
+        }
+        let filename = Path::new(logo_path).file_name()?.to_str()?;
+        std::fs::create_dir_all(dest_dir).ok()?;
+        let dest = dest_dir.join(filename);
+        std::fs::write(&dest, &bytes).ok()?;
+        return Some(dest);
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -212,15 +212,39 @@ fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::Wo
 fn load_world_data_from_package_ids(
     packages_dir: &std::path::Path,
     package_ids: &[String],
+    assets_dir: Option<&std::path::Path>,
 ) -> Result<(ofm_core::generator::WorldData, Vec<ofm_core::generator::PackageLock>), String> {
+    use std::collections::HashMap;
+
     let mut loaded = Vec::with_capacity(package_ids.len());
     let mut lockfile = Vec::with_capacity(package_ids.len());
+    // logo_path (relative, from package def) → absolute filesystem path after extraction
+    let mut logo_map: HashMap<String, std::path::PathBuf> = HashMap::new();
+
     for id in package_ids {
         let path = packages_dir.join(format!("{id}.ofm"));
         let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
         if !errors.is_empty() {
             return Err("be.error.package.invalid".to_string());
         }
+
+        // Extract team logos to the app-data assets directory so the webview
+        // can serve them via the asset:// protocol.
+        if let Some(dir) = assets_dir {
+            let dest_dir = dir.join(id).join("teams");
+            for tdef in &pkg.teams {
+                if let Some(ref logo) = tdef.logo {
+                    if !logo.is_empty() && !logo_map.contains_key(logo) {
+                        if let Some(dest) = ofm_core::generator::extract_logo_from_ofm(
+                            &path, logo, &dest_dir,
+                        ) {
+                            logo_map.insert(logo.clone(), dest);
+                        }
+                    }
+                }
+            }
+        }
+
         let version = pkg.meta.as_ref().map(|m| m.version.clone()).unwrap_or_default();
         let hash = ofm_core::generator::hash_package_file(&path).unwrap_or_default();
         lockfile.push(ofm_core::generator::PackageLock { id: id.clone(), version, hash });
@@ -230,10 +254,23 @@ fn load_world_data_from_package_ids(
     if !errors.is_empty() {
         return Err("be.error.package.invalid".to_string());
     }
-    let world = ofm_core::generator::build_world_from_package(&merged)?;
+    let mut world = ofm_core::generator::build_world_from_package(&merged)?;
     if world.teams.is_empty() {
         return Err("be.error.package.noDatabasePackage".to_string());
     }
+
+    // Rewrite relative logo paths to absolute filesystem paths so the asset://
+    // protocol can serve them from app-data storage.
+    if !logo_map.is_empty() {
+        for team in &mut world.teams {
+            if let Some(ref logo) = team.media.logo.clone() {
+                if let Some(dest) = logo_map.get(logo) {
+                    team.media.logo = dest.to_str().map(str::to_string);
+                }
+            }
+        }
+    }
+
     Ok((world, lockfile))
 }
 
@@ -1386,12 +1423,13 @@ pub async fn start_new_game(
 
     let startup_options = normalize_startup_options(startup_options)?;
     let (mut world, package_lockfile) = if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
-        let packages_dir = app_handle
+        let app_data_dir = app_handle
             .path()
             .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("packages");
-        load_world_data_from_package_ids(&packages_dir, ids)?
+            .map_err(|e| e.to_string())?;
+        let packages_dir = app_data_dir.join("packages");
+        let assets_dir = app_data_dir.join("package-assets");
+        load_world_data_from_package_ids(&packages_dir, ids, Some(&assets_dir))?
     } else {
         (load_world_data(world_source.as_deref())?, vec![])
     };

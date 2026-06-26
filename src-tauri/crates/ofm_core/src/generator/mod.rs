@@ -12,10 +12,11 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    hash_package_file, load_world_package, load_world_package_files, load_world_package_from_ofm,
-    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
-    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
-    PackageLock, PlayerDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
+    extract_logo_from_ofm, hash_package_file, load_world_package, load_world_package_files,
+    load_world_package_from_ofm, merge_world_packages, read_logo_from_ofm,
+    read_package_manifest_from_ofm, validate_package_stack, validate_references, ConflictSeverity,
+    ConfederationDef, CountryDef, PackageError, PackageInfo, PackageLock, PlayerDef, StackConflict,
+    WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
 };
 pub use world_io::*;
 
