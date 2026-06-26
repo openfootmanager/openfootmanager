@@ -74,6 +74,7 @@ pub fn export_world_database_internal(
             snapshot_date: Some(game.clock.current_date.to_rfc3339()),
         },
         extra_translations: game.extra_translations.clone(),
+        build_notices: Vec::new(),
     };
 
     ofm_core::generator::export_world_package(&world, export_path)
@@ -326,6 +327,57 @@ pub fn uninstall_package(
             .map_err(|_| "be.error.package.installFailed".to_string())?;
     }
     Ok(())
+}
+
+/// Serialisable conflict info returned to the frontend.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictInfo {
+    pub severity: String,
+    pub code: String,
+    pub entity_kind: String,
+    pub entity_id: String,
+    pub packages: Vec<String>,
+}
+
+impl From<ofm_core::generator::StackConflict> for ConflictInfo {
+    fn from(c: ofm_core::generator::StackConflict) -> Self {
+        Self {
+            severity: match c.severity {
+                ofm_core::generator::ConflictSeverity::Warning => "warning".to_string(),
+                ofm_core::generator::ConflictSeverity::Error => "error".to_string(),
+            },
+            code: c.code,
+            entity_kind: c.entity_kind,
+            entity_id: c.entity_id,
+            packages: c.packages,
+        }
+    }
+}
+
+/// Validate a stack of installed packages by id and return any conflicts.
+/// Called live from WorldSelect as the user adds/removes packages.
+#[tauri::command]
+pub fn check_package_stack(
+    app_handle: tauri::AppHandle,
+    package_ids: Vec<String>,
+) -> Result<Vec<ConflictInfo>, String> {
+    let packages_dir = packages_dir(&app_handle)?;
+    let mut loaded = Vec::with_capacity(package_ids.len());
+    for id in &package_ids {
+        let path = packages_dir.join(format!("{id}.ofm"));
+        let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
+        if !errors.is_empty() {
+            return Err("be.error.package.invalid".to_string());
+        }
+        loaded.push(pkg);
+    }
+    let refs: Vec<&ofm_core::generator::WorldPackage> = loaded.iter().collect();
+    let conflicts = ofm_core::generator::validate_package_stack(&refs)
+        .into_iter()
+        .map(ConflictInfo::from)
+        .collect();
+    Ok(conflicts)
 }
 
 #[cfg(test)]

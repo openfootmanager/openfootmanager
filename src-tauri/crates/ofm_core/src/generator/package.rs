@@ -173,6 +173,8 @@ const DUPLICATE_ID: &str = "be.error.package.duplicateId";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
 const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
+const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
+const REVERSED_RANGE: &str = "be.error.package.reversedRange";
 
 /// A structured problem found while loading a package. `code` is an i18n key,
 /// `file` locates the offending file (empty for aggregate-level problems), and
@@ -516,6 +518,46 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     }
 
     errors.extend(validate_competition_references(package));
+
+    // Check that every id in defaultActiveCompetitions exists as a competition
+    // in the same package. Missing ids are silently ignored at runtime (normalize_world
+    // fills defaultActive from all competitions), but they indicate a typo or
+    // incomplete package that the editor should surface.
+    if let Some(meta) = &package.meta {
+        let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
+        for id in &meta.default_active_competitions {
+            if !id.is_empty() && !comp_ids.contains(id.as_str()) {
+                errors.push(
+                    PackageError::new(UNKNOWN_COMPETITION, "")
+                        .with("id", id)
+                        .with("field", "defaultActiveCompetitions"),
+                );
+            }
+        }
+    }
+
+    // Check for reversed reputation / finance ranges (min > max).
+    for team in &package.teams {
+        if let Some([min, max]) = team.reputation_range {
+            if min > max {
+                errors.push(
+                    PackageError::new(REVERSED_RANGE, "")
+                        .with("team", &team.id)
+                        .with("field", "reputationRange"),
+                );
+            }
+        }
+        if let Some([min, max]) = team.finance_range {
+            if min > max {
+                errors.push(
+                    PackageError::new(REVERSED_RANGE, "")
+                        .with("team", &team.id)
+                        .with("field", "financeRange"),
+                );
+            }
+        }
+    }
+
     errors
 }
 
@@ -564,13 +606,154 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         .collect()
 }
 
-/// Merge multiple packages into one, with last-wins semantics for duplicate ids,
-/// then run full id + reference validation on the combined result. This is the
-/// primitive that makes cross-package references work: a Champions League
-/// package can reference teams defined in a Premier League package as long as
-/// both are included in the stack.
+// ---------------------------------------------------------------------------
+// Package stack conflict detection
+// ---------------------------------------------------------------------------
+
+/// Severity of a conflict detected between two or more stacked packages.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictSeverity {
+    /// The conflict may produce unexpected results but does not block game start.
+    Warning,
+    /// The conflict blocks game start and must be resolved.
+    Error,
+}
+
+/// Describes a single conflict between packages in a stack.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackConflict {
+    pub severity: ConflictSeverity,
+    /// Human-readable i18n key for the conflict kind.
+    pub code: String,
+    /// Entity type ("team", "competition", …).
+    pub entity_kind: String,
+    /// The conflicting entity id.
+    pub entity_id: String,
+    /// Package ids involved in the conflict (winner listed last).
+    pub packages: Vec<String>,
+}
+
+impl StackConflict {
+    fn db_clash(entity_kind: &str, entity_id: &str, pkg_a: &str, pkg_b: &str) -> Self {
+        Self {
+            severity: ConflictSeverity::Warning,
+            code: "be.conflict.duplicateId".to_string(),
+            entity_kind: entity_kind.to_string(),
+            entity_id: entity_id.to_string(),
+            packages: vec![pkg_a.to_string(), pkg_b.to_string()],
+        }
+    }
+}
+
+/// Inspect a slice of packages for cross-package id conflicts **before** merging.
+///
+/// Rules:
+/// - Two `database` packages declaring the **same id with different content** →
+///   `Warning` (last-wins, but the user should know).
+/// - Two `database` packages declaring the **same id with identical content** →
+///   no conflict (safe dedup).
+/// - A `patch` package overriding any id from a `database` package →
+///   no conflict (intentional override).
+/// - Two `patch` packages clashing → `Warning`.
+/// - Packages with the same package-level `id` → `Error`.
+pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> {
+    let mut conflicts = Vec::new();
+
+    // Check duplicate package ids.
+    let mut pkg_ids_seen: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for (i, pkg) in packages.iter().enumerate() {
+        if let Some(meta) = &pkg.meta {
+            if !meta.id.is_empty() {
+                if let Some(&prev) = pkg_ids_seen.get(meta.id.as_str()) {
+                    let prev_id = packages[prev].meta.as_ref().map(|m| m.id.as_str()).unwrap_or("");
+                    conflicts.push(StackConflict {
+                        severity: ConflictSeverity::Error,
+                        code: "be.conflict.duplicatePackageId".to_string(),
+                        entity_kind: "package".to_string(),
+                        entity_id: meta.id.clone(),
+                        packages: vec![prev_id.to_string(), meta.id.clone()],
+                    });
+                    let _ = i; // suppress unused warning
+                } else {
+                    pkg_ids_seen.insert(meta.id.as_str(), i);
+                }
+            }
+        }
+    }
+
+    fn pkg_type(pkg: &WorldPackage) -> &str {
+        pkg.meta.as_ref().map(|m| m.package_type.as_str()).unwrap_or("database")
+    }
+
+    // Build per-entity-type index: id → (package_index, serialized_content)
+    // for detecting content divergence between packages of the same tier.
+    macro_rules! check_entity_conflicts {
+        ($field:ident, $id_fn:expr, $kind:expr) => {{
+            let mut seen: std::collections::HashMap<String, (usize, String)> = std::collections::HashMap::new();
+            for (i, pkg) in packages.iter().enumerate() {
+                let is_patch = pkg_type(pkg) == "patch";
+                for entity in &pkg.$field {
+                    let id = $id_fn(entity);
+                    if id.is_empty() { continue; }
+                    let content = serde_json::to_string(entity).unwrap_or_default();
+                    if let Some((prev_i, prev_content)) = seen.get(id.as_str()) {
+                        let prev_is_patch = pkg_type(packages[*prev_i]) == "patch";
+                        // patch overriding database → intentional, no conflict
+                        if is_patch && !prev_is_patch {
+                            // update to this version as the new winner
+                            seen.insert(id.clone(), (i, content));
+                            continue;
+                        }
+                        // identical content → safe dedup, no conflict
+                        if content == *prev_content {
+                            continue;
+                        }
+                        // db-db or patch-patch clash with divergent content → warning
+                        let prev_pkg_id = packages[*prev_i].meta.as_ref()
+                            .map(|m| m.id.as_str()).unwrap_or("(unknown)");
+                        let this_pkg_id = pkg.meta.as_ref()
+                            .map(|m| m.id.as_str()).unwrap_or("(unknown)");
+                        conflicts.push(StackConflict::db_clash($kind, id.as_str(), prev_pkg_id, this_pkg_id));
+                    } else {
+                        seen.insert(id.clone(), (i, content));
+                    }
+                }
+            }
+        }};
+    }
+
+    check_entity_conflicts!(teams, |t: &TeamDef| t.id.clone(), "team");
+    check_entity_conflicts!(competitions, |c: &CompetitionDefinition| c.id.clone(), "competition");
+    check_entity_conflicts!(confederations, |c: &ConfederationDef| c.id.clone(), "confederation");
+    check_entity_conflicts!(countries, |c: &CountryDef| c.id.clone(), "country");
+
+    conflicts
+}
+
+/// Merge multiple packages into one.
+///
+/// **Precedence**: `database` packages are processed first (in stack order),
+/// then `patch` packages (in stack order), so patches always win over databases.
+/// Within the same tier, later entries win (last-in-stack wins). This makes
+/// `patch` packages unambiguously override `database` ones without surfacing a
+/// conflict warning.
+///
+/// **Meta merging**: `defaultActiveCompetitions` and `defaultActiveRegions` are
+/// unioned across all metas. `baseYear` takes the maximum value. `name` and
+/// other scalar fields come from the last non-empty value across all metas.
+///
+/// After merging, full id + reference validation runs on the combined result.
+/// Cross-package references resolve correctly because all entities are present
+/// before validation runs.
 pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<PackageError>) {
     use std::collections::BTreeMap;
+
+    // Split into tiers: database (or unknown) first, patch second.
+    let (databases, patches): (Vec<WorldPackage>, Vec<WorldPackage>) = packages
+        .into_iter()
+        .partition(|p| p.meta.as_ref().map(|m| m.package_type.as_str()).unwrap_or("database") != "patch");
 
     let mut merged = WorldPackage::default();
     let mut confeds: BTreeMap<String, ConfederationDef> = BTreeMap::new();
@@ -579,31 +762,51 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut players: BTreeMap<String, PlayerDef> = BTreeMap::new();
     let mut competitions: BTreeMap<String, CompetitionDefinition> = BTreeMap::new();
 
-    for package in packages {
-        if package.meta.is_some() {
-            merged.meta = package.meta;
+    // Collected meta fields for union/max merging.
+    let mut all_default_active_competitions: std::collections::LinkedList<String> = Default::default();
+    let mut all_default_active_regions: std::collections::LinkedList<String> = Default::default();
+    let mut merged_meta_base: Option<WorldMetaDef> = None;
+
+    for package in databases.into_iter().chain(patches.into_iter()) {
+        if let Some(meta) = package.meta {
+            // Union the list fields; scalar fields take the last non-empty value.
+            for id in &meta.default_active_competitions {
+                if !all_default_active_competitions.contains(id) {
+                    all_default_active_competitions.push_back(id.clone());
+                }
+            }
+            for id in &meta.default_active_regions {
+                if !all_default_active_regions.contains(id) {
+                    all_default_active_regions.push_back(id.clone());
+                }
+            }
+            if let Some(ref mut base) = merged_meta_base {
+                if !meta.name.is_empty() { base.name = meta.name; }
+                if !meta.description.is_empty() { base.description = meta.description; }
+                if !meta.author.is_empty() { base.author = meta.author; }
+                if !meta.version.is_empty() { base.version = meta.version; }
+                if !meta.id.is_empty() { base.id = meta.id; }
+                if meta.base_year > base.base_year { base.base_year = meta.base_year; }
+                if meta.logo.is_some() { base.logo = meta.logo; }
+            } else {
+                merged_meta_base = Some(meta);
+            }
         }
-        for c in package.confederations {
-            confeds.insert(c.id.clone(), c);
-        }
-        for c in package.countries {
-            countries.insert(c.id.clone(), c);
-        }
-        for t in package.teams {
-            teams.insert(t.id.clone(), t);
-        }
-        for p in package.players {
-            players.insert(p.id.clone(), p);
-        }
-        for c in package.competitions {
-            competitions.insert(c.id.clone(), c);
-        }
-        if package.names.is_some() {
-            merged.names = package.names;
-        }
+        for c in package.confederations { confeds.insert(c.id.clone(), c); }
+        for c in package.countries { countries.insert(c.id.clone(), c); }
+        for t in package.teams { teams.insert(t.id.clone(), t); }
+        for p in package.players { players.insert(p.id.clone(), p); }
+        for c in package.competitions { competitions.insert(c.id.clone(), c); }
+        if package.names.is_some() { merged.names = package.names; }
         for (locale, bundle) in package.extra_translations {
             merged.extra_translations.insert(locale, bundle);
         }
+    }
+
+    if let Some(mut meta) = merged_meta_base {
+        meta.default_active_competitions = all_default_active_competitions.into_iter().collect();
+        meta.default_active_regions = all_default_active_regions.into_iter().collect();
+        merged.meta = Some(meta);
     }
 
     merged.confederations = confeds.into_values().collect();
@@ -1235,5 +1438,327 @@ colors:
         assert_eq!(translation_locale_from_filename("translations.en.yaml"), None);
         // Completely wrong name
         assert_eq!(translation_locale_from_filename("competition.json"), None);
+    }
+
+    // -----------------------------------------------------------------------
+    // Adversarial / stress tests — document current survival behavior.
+    // Lines marked BUG: indicate gaps the implementation should later fix.
+    // Lines marked OK: mean the system already handles this correctly.
+    // -----------------------------------------------------------------------
+
+    // Helper: build a minimal package in a dir and return the WorldPackage + errors.
+    fn package_from_files(files: &[(&str, &str)]) -> (WorldPackage, Vec<PackageError>, PathBuf) {
+        let dir = temp_package();
+        for (name, content) in files {
+            write(&dir, name, content);
+        }
+        let (pkg, errs) = load_world_package(&dir);
+        (pkg, errs, dir)
+    }
+
+    const TEAM_A: &str = "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\n";
+    const TEAM_B: &str = "schema: team\nid: team-b\nname: Team B\ncity: City B\ncountry: ES\ncolors: { primary: \"#222\", secondary: \"#fff\" }\n";
+    const TEAM_A_ALT: &str = "schema: team\nid: team-a\nname: Team A (Alternate)\ncity: Other City\ncountry: ES\ncolors: { primary: \"#333\", secondary: \"#000\" }\n";
+
+    // --- Merge: db-db id clash (different content) ---------------------------
+
+    #[test]
+    fn merge_db_db_id_clash_surfaces_stack_conflict_warning() {
+        // Two "database" packages with the same team id but different content
+        // should surface a StackConflict warning. Last-wins still applies for
+        // the merge, but the caller can show the user a conflict notice.
+        let dir_a = temp_package();
+        write(&dir_a, "world.yaml", "schema: world\nid: pkg-a\nname: Pkg A\npackageType: database\n");
+        write(&dir_a, "team.yaml", TEAM_A);
+        let (pkg_a, errs_a) = load_world_package(&dir_a);
+        assert!(errs_a.is_empty());
+
+        let dir_b = temp_package();
+        write(&dir_b, "world.yaml", "schema: world\nid: pkg-b\nname: Pkg B\npackageType: database\n");
+        write(&dir_b, "team.yaml", TEAM_A_ALT);
+        let (pkg_b, errs_b) = load_world_package(&dir_b);
+        assert!(errs_b.is_empty());
+
+        let conflicts = validate_package_stack(&[&pkg_a, &pkg_b]);
+        assert!(
+            conflicts.iter().any(|c| c.entity_id == "team-a" && c.severity == ConflictSeverity::Warning),
+            "expected a Warning conflict for team-a db-db clash: {conflicts:?}"
+        );
+
+        // Merge still works; last-in-stack wins.
+        let (merged, merge_errors) = merge_world_packages(vec![pkg_a, pkg_b]);
+        assert!(merge_errors.is_empty());
+        assert_eq!(merged.teams.len(), 1);
+        assert_eq!(merged.teams[0].name, "Team A (Alternate)");
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
+    }
+
+    #[test]
+    fn merge_db_db_id_clash_identical_content_is_fine() {
+        // Two packages declaring the exact same team should dedup silently (no error).
+        // This is the "international tournament references base-league teams" case.
+        let dir_a = temp_package();
+        write(&dir_a, "team.yaml", TEAM_A);
+        let (pkg_a, _) = load_world_package(&dir_a);
+
+        let dir_b = temp_package();
+        write(&dir_b, "team.yaml", TEAM_A); // identical
+        let (pkg_b, _) = load_world_package(&dir_b);
+
+        let (merged, merge_errors) = merge_world_packages(vec![pkg_a, pkg_b]);
+        // OK: identical content, last-wins dedup, no error
+        assert!(merge_errors.is_empty());
+        assert_eq!(merged.teams.len(), 1);
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
+    }
+
+    // --- Merge: meta is wholesale replaced -----------------------------------
+
+    #[test]
+    fn merge_meta_unions_default_active_competitions_across_packages() {
+        // Stacking PL + CL should union both defaultActiveCompetitions lists.
+        let dir_pl = temp_package();
+        write(
+            &dir_pl,
+            "world.yaml",
+            "schema: world\nid: pl\nname: Premier League\ndefaultActiveCompetitions:\n  - pl-1\n",
+        );
+        let (pkg_pl, _) = load_world_package(&dir_pl);
+
+        let dir_cl = temp_package();
+        write(
+            &dir_cl,
+            "world.yaml",
+            "schema: world\nid: cl\nname: Champions League\ndefaultActiveCompetitions:\n  - cl-1\n",
+        );
+        let (pkg_cl, _) = load_world_package(&dir_cl);
+
+        let (merged, _) = merge_world_packages(vec![pkg_pl, pkg_cl]);
+        let meta = merged.meta.as_ref().expect("merged meta should exist");
+        // Both competition ids must be present after the union.
+        assert!(
+            meta.default_active_competitions.contains(&"pl-1".to_string()),
+            "pl-1 must survive the merge: {:?}", meta.default_active_competitions
+        );
+        assert!(
+            meta.default_active_competitions.contains(&"cl-1".to_string()),
+            "cl-1 must survive the merge: {:?}", meta.default_active_competitions
+        );
+
+        std::fs::remove_dir_all(&dir_pl).ok();
+        std::fs::remove_dir_all(&dir_cl).ok();
+    }
+
+    // --- Thin packages: teams but no competitions ----------------------------
+
+    #[test]
+    fn teams_without_competitions_auto_generates_fallback_league() {
+        // Package with 4 teams and no competition should auto-generate a fallback
+        // single-division league containing all 4 teams, and emit a build notice.
+        let (pkg, errors, dir) = package_from_files(&[
+            ("a.yaml", TEAM_A),
+            ("b.yaml", TEAM_B),
+            ("c.yaml", "schema: team\nid: team-c\nname: Team C\ncity: City C\ncountry: ES\ncolors: { primary: \"#444\", secondary: \"#fff\" }\n"),
+            ("d.yaml", "schema: team\nid: team-d\nname: Team D\ncity: City D\ncountry: ES\ncolors: { primary: \"#555\", secondary: \"#fff\" }\n"),
+        ]);
+        assert!(errors.is_empty());
+        let world = crate::generator::build_world_data_from_package(&pkg);
+        assert_eq!(world.teams.len(), 4);
+        // Fallback league must be generated.
+        let defs = world.competition_definitions.as_ref()
+            .expect("fallback league should be auto-generated");
+        assert_eq!(defs.competitions.len(), 1);
+        assert_eq!(defs.competitions[0].id, "ofm-fallback-league");
+        let explicit = defs.competitions[0].participants.explicit.as_ref()
+            .expect("fallback uses explicit participant list");
+        assert_eq!(explicit.len(), 4, "all 4 teams included");
+        // Build notice must be present.
+        assert!(
+            world.build_notices.iter().any(|n| n == "be.notice.fallbackLeagueGenerated"),
+            "build notice must be emitted: {:?}", world.build_notices
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn single_team_no_competitions_no_fallback_league() {
+        // 1 team → cannot form a league; no fallback generated, no schedule.
+        // (Future: generate random opponents. For now: unplayable but no crash.)
+        let (pkg, errors, dir) = package_from_files(&[("a.yaml", TEAM_A)]);
+        assert!(errors.is_empty());
+        let world = crate::generator::build_world_data_from_package(&pkg);
+        assert_eq!(world.teams.len(), 1);
+        assert!(world.competition_definitions.is_none(), "single team: no fallback possible");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Competition format vs participant count ------------------------------
+
+    #[test]
+    fn knockout_competition_with_one_explicit_team_already_errors() {
+        // OK: competition validation already catches a Knockout with only 1
+        // explicit participant. This is better than expected — no fix needed here.
+        let (_, errors, dir) = package_from_files(&[
+            ("a.yaml", TEAM_A),
+            (
+                "cup.yaml",
+                "schema: competition\nid: broken-cup\nname: Broken Cup\ntype: Cup\nscope: Domestic\nformat:\n  kind: Knockout\nparticipants:\n  explicit:\n    - team-a\n",
+            ),
+        ]);
+        assert!(
+            !errors.is_empty(),
+            "OK: already catches < 2 explicit participants in a Knockout"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn league_with_competition_referencing_nonexistent_teams_errors() {
+        // OK: explicit participants pointing at team ids not in the package
+        // are caught by competition reference validation.
+        let (_, errors, dir) = package_from_files(&[(
+            "cup.yaml",
+            "schema: competition\nid: ghost-league\nname: Ghost League\ntype: League\nscope: Domestic\nformat:\n  kind: LeagueTable\nparticipants:\n  explicit:\n    - ghost-team-1\n    - ghost-team-2\n",
+        )]);
+        assert!(
+            !errors.is_empty(),
+            "OK: dangling explicit participants should error"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Dangling defaultActiveCompetitions ----------------------------------
+
+    #[test]
+    fn dangling_default_active_competition_is_an_error() {
+        // A package whose defaultActiveCompetitions points to a competition id
+        // not defined in the package must now produce an error.
+        let (_, errors, dir) = package_from_files(&[
+            ("a.yaml", TEAM_A),
+            (
+                "world.yaml",
+                "schema: world\nid: test\nname: Test\ndefaultActiveCompetitions:\n  - nonexistent-competition\n",
+            ),
+        ]);
+        assert!(
+            errors.iter().any(|e| e.code == UNKNOWN_COMPETITION),
+            "dangling defaultActiveCompetitions ref must error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Content values out of plausible range -------------------------------
+
+    #[test]
+    fn reversed_reputation_range_is_an_error() {
+        // reputationRange where min > max (e.g. [900, 100]) must now produce an error.
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\nreputationRange: [900, 100]\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == REVERSED_RANGE),
+            "reversed reputationRange must produce a REVERSED_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Hostile content in string fields ------------------------------------
+
+    #[test]
+    fn xss_and_sql_in_names_are_stored_as_plain_strings() {
+        // OK: the package loader is JSON/YAML → struct; no query or HTML
+        // construction happens at load time. Hostile strings are stored literally.
+        let (pkg, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: xss-team\nname: \"<script>alert(1)</script>\"\ncity: \"'; DROP TABLE teams; --\"\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\n",
+        )]);
+        assert!(errors.is_empty(), "hostile strings are not a parse error");
+        assert_eq!(pkg.teams[0].name, "<script>alert(1)</script>");
+        // The UI layer is responsible for escaping — React does this automatically.
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Zero-teams hard error (already correct) -----------------------------
+
+    #[test]
+    fn zero_teams_hard_error_at_game_start() {
+        // OK: stacking packages that produce 0 teams after merge returns an error.
+        let dir = temp_package();
+        write(&dir, "world.yaml", "schema: world\nid: empty\nname: Empty World\n");
+        let (pkg, _) = load_world_package(&dir);
+        let world = crate::generator::build_world_data_from_package(&pkg);
+        // The world builds but has no teams; game.rs rejects this as noDatabasePackage.
+        assert!(world.teams.is_empty(), "OK: correctly produces 0 teams");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    // --- Cross-package reference (intended use case) -------------------------
+
+    #[test]
+    fn cross_package_reference_resolves_after_merge() {
+        // OK: a CL package referencing teams from a PL package works after merge.
+        let dir_pl = temp_package();
+        write(&dir_pl, "team.yaml", TEAM_A);
+        write(&dir_pl, "team2.yaml", TEAM_B);
+        let (pkg_pl, _) = load_world_package(&dir_pl);
+
+        let dir_cl = temp_package();
+        write(
+            &dir_cl,
+            "cup.yaml",
+            "schema: competition\nid: intl-cup\nname: International Cup\ntype: ContinentalClub\nscope: Continental\nformat:\n  kind: GroupAndKnockout\nparticipants:\n  explicit:\n    - team-a\n    - team-b\n    - team-a\n    - team-b\n",
+        );
+        let (pkg_cl, _) = load_world_package(&dir_cl);
+
+        let (merged, merge_errors) = merge_world_packages(vec![pkg_pl, pkg_cl]);
+        // OK: after merge, team-a and team-b resolve correctly for the CL competition.
+        // Duplicate explicit participants are the only issue here.
+        let ref_errors: Vec<_> = merge_errors
+            .iter()
+            .filter(|e| e.code == UNKNOWN_TEAM)
+            .collect();
+        assert!(
+            ref_errors.is_empty(),
+            "OK: cross-package team refs resolve after merge: {ref_errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir_pl).ok();
+        std::fs::remove_dir_all(&dir_cl).ok();
+    }
+
+    // --- Patch package override (future: should be silent last-wins) ---------
+
+    #[test]
+    fn patch_package_overrides_database_team_without_conflict_warning() {
+        // A "patch" package overriding a "database" team should be silent:
+        // no StackConflict, but the patch's version wins in the merge.
+        let dir_db = temp_package();
+        write(&dir_db, "world.yaml", "schema: world\nid: base-db\nname: Base DB\npackageType: database\n");
+        write(&dir_db, "team.yaml", TEAM_A);
+        let (pkg_db, _) = load_world_package(&dir_db);
+
+        let dir_patch = temp_package();
+        write(&dir_patch, "world.yaml", "schema: world\nid: team-a-patch\nname: Team A Stats Patch\npackageType: patch\n");
+        write(&dir_patch, "team.yaml", TEAM_A_ALT);
+        let (pkg_patch, _) = load_world_package(&dir_patch);
+
+        // No conflict: patch-over-database is intentional.
+        let conflicts = validate_package_stack(&[&pkg_db, &pkg_patch]);
+        assert!(
+            !conflicts.iter().any(|c| c.entity_id == "team-a"),
+            "patch override must not generate a conflict: {conflicts:?}"
+        );
+
+        // Patch wins in the merge.
+        let (merged, _) = merge_world_packages(vec![pkg_db, pkg_patch]);
+        assert_eq!(merged.teams[0].name, "Team A (Alternate)", "patch version must win");
+
+        std::fs::remove_dir_all(&dir_db).ok();
+        std::fs::remove_dir_all(&dir_patch).ok();
     }
 }

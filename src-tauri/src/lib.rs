@@ -187,6 +187,7 @@ pub fn run() {
             install_package,
             list_installed_packages,
             uninstall_package,
+            check_package_stack,
             start_new_game,
             validate_competition_definitions,
             validate_world_package,

@@ -16,3 +16,4 @@ uuid = { version = "1.21.0", features = ["v4"] }
 zip = { version = "2", features = ["deflate"] }
 sha2 = "0.10"
 hex = "0.4"
+base64 = "0.22"

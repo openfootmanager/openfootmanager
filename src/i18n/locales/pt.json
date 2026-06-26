@@ -109,6 +109,8 @@
     "noInstalledPackages": "Nenhum pacote instalado",
     "removePackage": "Remover",
     "packageStackErrors": "Erros de combinação de pacotes",
+    "stackConflictWarnings": "{{count}} conflito(s) de pacote — a versão do último na lista será usada",
+
     "competitions": "{{count}} competições",
     "packageAuthor": "por {{author}}",
     "packageVersion": "v{{version}}"

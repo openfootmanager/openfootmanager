@@ -141,6 +141,7 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
                 reputation_range: Some([300, 900]),
                 finance_range: Some([500_000, 10_000_000]),
                 logo: None,
+                kit_pattern: None,
             })
             .collect(),
     }
@@ -253,6 +254,10 @@ pub struct WorldData {
     /// into the active i18n namespace when loading a custom world.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
+    /// Backend i18n notice keys generated during world build (e.g. auto-fallback
+    /// league creation). Not persisted to save files; cleared on load.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub build_notices: Vec<String>,
 }
 
 impl Default for WorldData {
@@ -276,6 +281,7 @@ impl Default for WorldData {
             world_history: domain::world_history::WorldHistoryArchive::default(),
             metadata: WorldDataMetadata::default(),
             extra_translations: std::collections::HashMap::new(),
+            build_notices: Vec::new(),
         }
     }
 }

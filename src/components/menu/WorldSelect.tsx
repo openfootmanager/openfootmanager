@@ -1,7 +1,8 @@
-import { useId } from "react";
+import { useId, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { Button } from "../ui";
-import { X, ChevronRight, Globe, Shuffle, Users, ArrowLeft, Loader2, Package, PackagePlus, Trash2, Trophy } from "lucide-react";
+import { X, ChevronRight, Globe, Shuffle, Users, ArrowLeft, Loader2, Package, PackagePlus, Trash2, Trophy, AlertTriangle, AlertCircle } from "lucide-react";
 import { resolveBackendText } from "../../utils/backendI18n";
 import type { CareerStartPhase } from "./CreateManagerForm";
 
@@ -22,6 +23,14 @@ export interface PackageIssue {
   code: string;
   file: string;
   params: Record<string, string>;
+}
+
+export interface StackConflictInfo {
+  severity: "warning" | "error";
+  code: string;
+  entityKind: string;
+  entityId: string;
+  packages: string[];
 }
 
 export interface PackageInfo {
@@ -90,7 +99,22 @@ export default function WorldSelect({
 }: WorldSelectProps) {
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
+  const [stackConflicts, setStackConflicts] = useState<StackConflictInfo[]>([]);
+
+  useEffect(() => {
+    if (!activePackageIds || activePackageIds.length < 2) {
+      setStackConflicts([]);
+      return;
+    }
+    invoke<StackConflictInfo[]>("check_package_stack", { packageIds: activePackageIds })
+      .then(setStackConflicts)
+      .catch(() => setStackConflicts([]));
+  }, [activePackageIds]);
+
   const hasPackageStackErrors = (packageStackErrors?.length ?? 0) > 0;
+  const stackConflictErrors = stackConflicts.filter((c) => c.severity === "error");
+  const stackConflictWarnings = stackConflicts.filter((c) => c.severity === "warning");
+  const hasStackConflictErrors = stackConflictErrors.length > 0;
   const activePackages = installedPackages?.filter((p) => activePackageIds?.includes(p.id)) ?? [];
   const hasPatchOnlyPackages =
     activePackages.length > 0 &&
@@ -362,17 +386,34 @@ export default function WorldSelect({
             );
           })}
 
-          {hasPackageStackErrors && (
+          {stackConflictWarnings.length > 0 && (
+            <div className="rounded-xl border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs">
+              <p className="font-heading font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {t("worldSelect.stackConflictWarnings", { count: stackConflictWarnings.length })}
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-700 dark:text-amber-300">
+                {stackConflictWarnings.map((c, i) => (
+                  <li key={i}>{t(c.code, { entityKind: c.entityKind, entityId: c.entityId, packages: c.packages.join(", ") })}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {(hasPackageStackErrors || hasStackConflictErrors) && (
             <div className="rounded-xl border border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 p-3 text-xs">
-              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+              <p className="font-heading font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
                 {t("worldSelect.packageStackErrors")}
               </p>
               <ul className="list-disc pl-4 space-y-0.5 text-red-600 dark:text-red-300">
-                {packageStackErrors!.map((issue, index) => (
-                  <li key={index}>
+                {packageStackErrors?.map((issue, index) => (
+                  <li key={`issue-${index}`}>
                     {issue.file ? `[${issue.file}] ` : ""}
                     {t(issue.code, issue.params)}
                   </li>
+                ))}
+                {stackConflictErrors.map((c, i) => (
+                  <li key={`conflict-${i}`}>{t(c.code, { entityKind: c.entityKind, entityId: c.entityId, packages: c.packages.join(", ") })}</li>
                 ))}
               </ul>
             </div>
@@ -386,7 +427,7 @@ export default function WorldSelect({
         className="w-full"
         iconRight={isStarting ? <Loader2 className="animate-spin" /> : <ChevronRight />}
         onClick={onStart}
-        disabled={isStarting || hasPackageStackErrors || hasPatchOnlyPackages}
+        disabled={isStarting || hasPackageStackErrors || hasStackConflictErrors || hasPatchOnlyPackages}
       >
         {isStarting ? t('worldSelect.creatingWorld') : t('worldSelect.startCareer')}
       </Button>

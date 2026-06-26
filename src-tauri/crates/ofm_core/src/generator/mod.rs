@@ -13,12 +13,13 @@ pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
     hash_package_file, load_world_package, load_world_package_files, load_world_package_from_ofm,
-    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_references,
-    ConfederationDef, CountryDef, PackageError, PackageInfo, PackageLock, PlayerDef, WorldMetaDef,
-    WorldPackage, MAX_ARCHIVE_BYTES,
+    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
+    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
+    PackageLock, PlayerDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
 };
 pub use world_io::*;
 
+use domain::league::{CompetitionFormat, CompetitionScope};
 use domain::player::{Player, Position};
 use domain::staff::{Staff, StaffRole};
 use domain::team::Team;
@@ -748,13 +749,52 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     }
 
     let regions = regions_from_package(package, &teams);
-    let competition_definitions = if package.competitions.is_empty() {
-        None
-    } else {
+
+    let mut build_notices: Vec<String> = Vec::new();
+    let competition_definitions = if !package.competitions.is_empty() {
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
             competitions: package.competitions.clone(),
         })
+    } else if teams.len() >= 2 {
+        // Auto-fallback: synthesise a single-division league over all authored teams.
+        // A `package_type: "database"` package without any competition defs is
+        // probably a work-in-progress; generate a playable default so the game
+        // can still start. The notice key is surfaced to the user in WorldSelect.
+        build_notices.push("be.notice.fallbackLeagueGenerated".to_string());
+        let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
+        let fallback = CompetitionDefinition {
+            id: "ofm-fallback-league".to_string(),
+            name: "Default League".to_string(),
+            r#type: domain::league::CompetitionType::League,
+            scope: CompetitionScope::Domestic,
+            priority: 10,
+            format: FormatDef {
+                kind: CompetitionFormat::LeagueTable,
+                legs: Some(2),
+                group_size: None,
+                qualifiers_per_group: None,
+                best_third_qualifiers: None,
+            },
+            participants: ParticipantSpec {
+                explicit: Some(explicit),
+                selector: None,
+            },
+            region_id: None,
+            country_id: None,
+            required_region_ids: Vec::new(),
+            berths: Vec::new(),
+            season_start_month: None,
+            season_start_day: None,
+            name_key: None,
+            logo: None,
+        };
+        Some(CompetitionDefinitionFile {
+            format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: vec![fallback],
+        })
+    } else {
+        None
     };
 
     let meta = package.meta.clone().unwrap_or_default();
@@ -773,6 +813,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         default_active_regions: meta.default_active_regions.clone(),
         default_active_competitions: meta.default_active_competitions.clone(),
         extra_translations: package.extra_translations.clone(),
+        build_notices,
         ..WorldData::default()
     };
     if let Some(base_year) = meta.base_year {

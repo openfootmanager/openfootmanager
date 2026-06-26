@@ -109,6 +109,8 @@
     "noInstalledPackages": "Пакеты не установлены",
     "removePackage": "Удалить",
     "packageStackErrors": "Ошибки объединения пакетов",
+    "stackConflictWarnings": "{{count}} конфликт(ов) пакетов — будет использована версия последнего пакета",
+
     "competitions": "{{count}} турниров",
     "packageAuthor": "от {{author}}",
     "packageVersion": "v{{version}}"
