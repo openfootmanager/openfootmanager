@@ -23,6 +23,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.action") return "Action";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "dashboard.players") return "Players";
       if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.transferMarket") return "Transfer Market";
       if (key === "transfers.myTransferList") return "My Transfer List";
@@ -38,6 +39,7 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.close") return "Close";
       if (key === "transfers.counter") return "Counter";
       if (key === "transfers.offerContract") return "Offer Contract";
+      if (key === "transfers.makeOffer") return "Make Offer";
       if (key === "transfers.bid") return "Bid";
       if (key === "transfers.loanOffer") return "Loan Offer";
       if (key === "transfers.counterLoanOffer") return "Counter Loan Offer";
@@ -159,6 +161,13 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalCounter")
         return `Wants more: ${params?.wage} for ${params?.years} years`;
       if (key === "playerProfile.renewalBlocked") return "Talks blocked";
+      if (
+        params &&
+        typeof params === "object" &&
+        "defaultValue" in params
+      ) {
+        return String(params.defaultValue);
+      }
       return key;
     },
     i18n: { language: "en" },
@@ -434,6 +443,8 @@ describe("TransfersTab", function (): void {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
     expect(screen.getAllByText("Dual Listed")).toHaveLength(1);
     expect(screen.getByText("TRANSFER")).toBeInTheDocument();
     expect(screen.getByText("LOAN")).toBeInTheDocument();
@@ -544,7 +555,6 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
 
     await waitFor(() => {
@@ -567,7 +577,7 @@ describe("TransfersTab", function (): void {
     expect(screen.getByDisplayValue("1.15")).toBeInTheDocument();
   });
 
-  it("shows scout assignment errors inline on the transfer market", async function (): Promise<void> {
+  it("shows scout assignment errors inline on the player market", async function (): Promise<void> {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => { });
@@ -595,7 +605,6 @@ describe("TransfersTab", function (): void {
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
       const playerRow = screen.getByText("John Smith").closest("tr");
       expect(playerRow).not.toBeNull();
 
@@ -730,7 +739,6 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
     fireEvent.change(screen.getByLabelText(/bid amount/i), {
       target: { value: "9.0" },
@@ -745,7 +753,7 @@ describe("TransfersTab", function (): void {
     });
   });
 
-  it("shows free agents in a dedicated view and opens the contract modal", async function (): Promise<void> {
+  it("filters free agents in the player market and opens the contract modal", async function (): Promise<void> {
     const state = createGameState([
       createPlayer({
         id: "free-agent-1",
@@ -765,7 +773,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /free agents/i }));
+    fireEvent.click(screen.getByRole("button", { name: /free agent \(1\)/i }));
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
     expect(screen.getAllByText("Free Agent").length).toBeGreaterThan(0);
@@ -778,7 +786,7 @@ describe("TransfersTab", function (): void {
     });
   });
 
-  it("submits a loan offer from the loan market", async function (): Promise<void> {
+  it("submits a loan offer from the player market", async function (): Promise<void> {
     const initialState = createGameState([
       createPlayer({
         id: "loan-target",
@@ -819,7 +827,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan \(1\)/i }));
     fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
     expect(screen.getByLabelText(/loan length/i)).toHaveValue("january_window");
     fireEvent.change(screen.getByLabelText(/wage contribution/i), {
@@ -889,8 +897,8 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Transfer window closed",
@@ -914,13 +922,12 @@ describe("TransfersTab", function (): void {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
-    });
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(
+      screen.getByRole("button", { name: /make transfer bid/i }),
+    ).toBeDisabled();
+    expect(screen.getByText("Make Transfer Bid").closest("button")).toHaveTextContent(
       "Transfer window closed",
     );
   });
@@ -953,8 +960,8 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Transfer window closed",
@@ -1009,7 +1016,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan \(1\)/i }));
     fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
     fireEvent.change(screen.getByLabelText(/loan length/i), {
       target: { value: "end_of_season" },
@@ -1236,6 +1243,8 @@ describe("TransfersTab", function (): void {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
     const playerRow = screen.getByText("John Smith").closest("tr");
     expect(playerRow).not.toBeNull();
 
@@ -1297,6 +1306,7 @@ describe("TransfersTab", function (): void {
     expect(
       screen.getByRole("button", { name: /my transfer list \(1\)/i }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
     expect(screen.getAllByText("John Smith")).toHaveLength(1);
   });
 });

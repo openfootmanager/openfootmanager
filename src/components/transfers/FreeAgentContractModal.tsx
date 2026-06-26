@@ -10,7 +10,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
 const MAX_CONTRACT_YEARS = 5;
 
-interface FreeAgentContractModalProps {
+export interface FreeAgentContractFormProps {
   player: PlayerData;
   teams: TeamData[];
   wage: string;
@@ -23,11 +23,14 @@ interface FreeAgentContractModalProps {
   statusClassName: string;
   submitting: boolean;
   submitDisabled: boolean;
+  showPlayerSummary?: boolean;
   onSubmit: () => void;
   onClose: () => void;
 }
 
-export default function FreeAgentContractModal({
+type FreeAgentContractModalProps = FreeAgentContractFormProps;
+
+export function FreeAgentContractForm({
   player,
   teams,
   wage,
@@ -40,49 +43,42 @@ export default function FreeAgentContractModal({
   statusClassName,
   submitting,
   submitDisabled,
+  showPlayerSummary = true,
   onSubmit,
   onClose,
-}: FreeAgentContractModalProps) {
+}: FreeAgentContractFormProps) {
   const { t } = useTranslation();
   const titleId = `free-agent-contract-title-${player.id}`;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
-      >
+    <>
         <h3
           id={titleId}
           className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3"
         >
           {t("transfers.offerContract")}
         </h3>
-        <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(player.position)} size="sm">
-            {translatePositionAbbreviation(t, player.position)}
-          </Badge>
-          <div>
-            <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-              {player.full_name}
-            </p>
-            <p className="text-xs text-gray-400">
-              {player.team_id
-                ? getTeamName(teams, player.team_id)
-                : t("common.freeAgent")}{" "}
-              •{" "}
-              {t("transfers.playerValue", {
-                value: formatVal(player.market_value),
-              })}
-            </p>
+        {showPlayerSummary ? (
+          <div className="flex items-center gap-3 mb-4">
+            <Badge variant={positionBadgeVariant(player.position)} size="sm">
+              {translatePositionAbbreviation(t, player.position)}
+            </Badge>
+            <div>
+              <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                {player.full_name}
+              </p>
+              <p className="text-xs text-gray-400">
+                {player.team_id
+                  ? getTeamName(teams, player.team_id)
+                  : t("common.freeAgent")}{" "}
+                •{" "}
+                {t("transfers.playerValue", {
+                  value: formatVal(player.market_value),
+                })}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <label
           htmlFor="free-agent-wage"
@@ -177,7 +173,7 @@ export default function FreeAgentContractModal({
           <button
             onClick={onSubmit}
             disabled={submitDisabled}
-            className="flex-1 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
           >
             {submitting
               ? t("transfers.submitting")
@@ -190,6 +186,28 @@ export default function FreeAgentContractModal({
             {t("transfers.close")}
           </button>
         </div>
+    </>
+  );
+}
+
+export default function FreeAgentContractModal(
+  props: FreeAgentContractModalProps,
+) {
+  const titleId = `free-agent-contract-title-${props.player.id}`;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={props.onClose}
+    >
+      <div
+        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <FreeAgentContractForm {...props} />
       </div>
     </div>
   );

@@ -165,7 +165,7 @@ export default function TransferCounterOfferModal({
             disabled={
               submitDisabled || counterLoading || counterResult === "accepted"
             }
-            className="flex-1 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
           >
             {counterLoading
               ? t("transfers.submitting")

@@ -22,7 +22,7 @@ import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 
-interface TransferBidModalProps {
+export interface TransferBidFormProps {
   bidTarget: PlayerData;
   teams: TeamData[];
   bidAmount: string;
@@ -38,11 +38,14 @@ interface TransferBidModalProps {
   bidSubmitDisabled: boolean;
   blockingTitle?: string | null;
   blockingDetail?: string | null;
+  showPlayerSummary?: boolean;
   onSubmit: () => void;
   onClose: () => void;
 }
 
-export default function TransferBidModal({
+type TransferBidModalProps = TransferBidFormProps;
+
+export function TransferBidForm({
   bidTarget,
   teams,
   bidAmount,
@@ -58,39 +61,35 @@ export default function TransferBidModal({
   bidSubmitDisabled,
   blockingTitle = null,
   blockingDetail = null,
+  showPlayerSummary = true,
   onSubmit,
   onClose,
-}: TransferBidModalProps) {
+}: TransferBidFormProps) {
   const { t } = useTranslation();
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <>
         <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
           {t("transfers.makeBid")}
         </h3>
-        <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(bidTarget.position)} size="sm">
-            {translatePositionAbbreviation(t, bidTarget.position)}
-          </Badge>
-          <div>
-            <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
-              {bidTarget.full_name}
-            </p>
-            <p className="text-xs text-gray-400">
-              {getTeamName(teams, bidTarget.team_id)} •{" "}
-              {t("transfers.playerValue", {
-                value: formatVal(bidTarget.market_value),
-              })}
-            </p>
+        {showPlayerSummary ? (
+          <div className="flex items-center gap-3 mb-4">
+            <Badge variant={positionBadgeVariant(bidTarget.position)} size="sm">
+              {translatePositionAbbreviation(t, bidTarget.position)}
+            </Badge>
+            <div>
+              <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                {bidTarget.full_name}
+              </p>
+              <p className="text-xs text-gray-400">
+                {getTeamName(teams, bidTarget.team_id)} •{" "}
+                {t("transfers.playerValue", {
+                  value: formatVal(bidTarget.market_value),
+                })}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : null}
         {blockingTitle ? (
           <div
             role="alert"
@@ -185,7 +184,7 @@ export default function TransferBidModal({
           <button
             onClick={onSubmit}
             disabled={bidSubmitDisabled}
-            className="flex-1 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
           >
             {bidLoading ? t("transfers.submitting") : t("transfers.submitBid")}
           </button>
@@ -196,6 +195,21 @@ export default function TransferBidModal({
             {t("transfers.close")}
           </button>
         </div>
+    </>
+  );
+}
+
+export default function TransferBidModal(props: TransferBidModalProps) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={props.onClose}
+    >
+      <div
+        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <TransferBidForm {...props} />
       </div>
     </div>
   );

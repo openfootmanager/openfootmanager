@@ -36,9 +36,12 @@ import {
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
-import TransferBidModal from "./TransferBidModal";
+import TransferBidModal, { TransferBidForm } from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
-import LoanOfferModal from "./LoanOfferModal";
+import LoanOfferModal, { LoanOfferForm } from "./LoanOfferModal";
+import PlayerDealWorkspace, {
+  type DealKind,
+} from "./PlayerDealWorkspace";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   counterLoanOffer,
@@ -71,20 +74,22 @@ import {
   filterTransferPlayers,
   getCurrentTransferList,
   getMyListedPlayers,
+  type TransferAvailabilityFilter,
   type TransferTabView,
 } from "./TransfersTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import {
   buildDividerMenuItem,
-  buildOfferFreeAgentContractMenuItem,
   buildScoutPlayerMenuItem,
   buildToggleLoanListMenuItem,
   buildToggleTransferListMenuItem,
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import FreeAgentContractModal from "./FreeAgentContractModal";
+import FreeAgentContractModal, {
+  FreeAgentContractForm,
+} from "./FreeAgentContractModal";
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 
@@ -160,7 +165,9 @@ export default function TransfersTab({
     transferWindow.status === "Closed" && closedWindowLoanRegistrationDate
       ? closedWindowLoanRegistrationDate
       : gameState.clock.current_date;
-  const [view, setView] = useState<TransferTabView>("my_list");
+  const [view, setView] = useState<TransferTabView>("players");
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
@@ -213,6 +220,10 @@ export default function TransfersTab({
     endDate: string;
     buyOptionFee?: number | null;
   } | null>(null);
+  const [dealWorkspaceTarget, setDealWorkspaceTarget] =
+    useState<PlayerData | null>(null);
+  const [dealWorkspaceKind, setDealWorkspaceKind] =
+    useState<DealKind>("transfer");
 
   const openLoanOffer = (player: PlayerData) => {
     setLoanTarget(player);
@@ -586,16 +597,15 @@ export default function TransfersTab({
 
   const transferCollections = deriveTransferCollections(gameState, userTeamId);
   const {
+    availablePlayers,
     marketPlayers,
     freeAgentPlayers,
     loanPlayers,
     playersWithOffers,
   } = transferCollections;
   const myListedPlayers = getMyListedPlayers(transferCollections);
-  const isMarketView = view === "market";
-  const isFreeAgentView = view === "free_agents";
-  const isLoanView = view === "loans";
-  const isScoutingView = isMarketView || isFreeAgentView || isLoanView;
+  const isPlayersView = view === "players";
+  const isScoutingView = isPlayersView;
   const parsedLoanBuyOptionFee = loanBuyOptionEnabled
     ? parseTransferFeeInput(loanBuyOptionFee)
     : null;
@@ -650,28 +660,16 @@ export default function TransfersTab({
     count: number;
   }[] = [
       {
+        id: "players",
+        label: t("dashboard.players"),
+        icon: <TrendingUp className="w-4 h-4" />,
+        count: availablePlayers.length,
+      },
+      {
         id: "my_list",
         label: t("transfers.myTransferList"),
         icon: <ShoppingCart className="w-4 h-4" />,
         count: myListedPlayers.length,
-      },
-      {
-        id: "market",
-        label: t("transfers.transferMarket"),
-        icon: <TrendingUp className="w-4 h-4" />,
-        count: marketPlayers.length,
-      },
-      {
-        id: "free_agents",
-        label: t("transfers.freeAgents"),
-        icon: <UserPlus className="w-4 h-4" />,
-        count: freeAgentPlayers.length,
-      },
-      {
-        id: "loans",
-        label: t("transfers.loanMarket"),
-        icon: <ArrowRightLeft className="w-4 h-4" />,
-        count: loanPlayers.length,
       },
       {
         id: "offers",
@@ -682,7 +680,38 @@ export default function TransfersTab({
     ];
 
   const currentList = getCurrentTransferList(view, transferCollections);
-  const filteredList = filterTransferPlayers(currentList, search, posFilter);
+  const filteredList = filterTransferPlayers(
+    currentList,
+    search,
+    posFilter,
+    isPlayersView ? availabilityFilter : "all",
+  );
+  const availabilityFilters: {
+    id: TransferAvailabilityFilter;
+    label: string;
+    count: number;
+  }[] = [
+      {
+        id: "all",
+        label: t("common.all"),
+        count: availablePlayers.length,
+      },
+      {
+        id: "transfer",
+        label: t("transfers.transfer"),
+        count: marketPlayers.length,
+      },
+      {
+        id: "loan",
+        label: t("transfers.loan"),
+        count: loanPlayers.length,
+      },
+      {
+        id: "free_agent",
+        label: t("common.freeAgent"),
+        count: freeAgentPlayers.length,
+      },
+    ];
   const annualWageBudget = myTeam?.wage_budget ?? 0;
   const {
     freeAgentTarget,
@@ -703,6 +732,135 @@ export default function TransfersTab({
     gameState,
     onGameUpdate,
   });
+
+  const getDealKinds = (player: PlayerData): DealKind[] => {
+    const kinds: DealKind[] = [];
+
+    if (player.team_id !== null && player.transfer_listed) {
+      kinds.push("transfer");
+    }
+
+    if (player.team_id !== null && player.loan_listed) {
+      kinds.push("loan");
+    }
+
+    if (player.team_id === null) {
+      kinds.push("contract");
+    }
+
+    return kinds;
+  };
+
+  const getStartableDealKinds = (player: PlayerData): DealKind[] =>
+    getDealKinds(player).filter(
+      (kind) => kind !== "transfer" || !isTransferWindowClosed,
+    );
+
+  const isDealKindStartable = (player: PlayerData, kind: DealKind): boolean => {
+    if (kind === "transfer") {
+      return (
+        player.team_id !== null &&
+        player.transfer_listed &&
+        !isTransferWindowClosed
+      );
+    }
+
+    if (kind === "loan") {
+      return player.team_id !== null && player.loan_listed;
+    }
+
+    return player.team_id === null;
+  };
+
+  const selectDealWorkspaceKind = (player: PlayerData, kind: DealKind) => {
+    setDealWorkspaceKind(kind);
+
+    if (kind === "contract") {
+      closeBidNegotiation();
+      closeLoanOffer();
+      if (isDealKindStartable(player, kind)) {
+        openFreeAgentContract(player);
+      } else {
+        closeFreeAgentContract();
+      }
+      return;
+    }
+
+    if (kind === "loan") {
+      closeBidNegotiation();
+      closeFreeAgentContract();
+      if (isDealKindStartable(player, kind)) {
+        openLoanOffer(player);
+      } else {
+        closeLoanOffer();
+      }
+      return;
+    }
+
+    closeLoanOffer();
+    closeFreeAgentContract();
+    if (isDealKindStartable(player, kind)) {
+      openBidNegotiation(player);
+    } else {
+      closeBidNegotiation();
+    }
+  };
+
+  const openDealEntry = (player: PlayerData) => {
+    const dealKinds = getDealKinds(player);
+    const startableDealKinds = getStartableDealKinds(player);
+    const initialKind = startableDealKinds[0] ?? dealKinds[0] ?? "transfer";
+
+    setDealWorkspaceTarget(player);
+    selectDealWorkspaceKind(player, initialKind);
+  };
+
+  const closeDealWorkspace = () => {
+    if (bidLoading || loanLoading || contractSubmitting) {
+      return;
+    }
+
+    setDealWorkspaceTarget(null);
+    closeBidNegotiation();
+    closeLoanOffer();
+    closeFreeAgentContract();
+  };
+
+  const getDealEntryLabel = (player: PlayerData): string => {
+    const dealKinds = getDealKinds(player);
+
+    if (dealKinds.length > 1) {
+      return t("transfers.makeOffer");
+    }
+
+    if (dealKinds[0] === "contract") {
+      return t("transfers.offerContract");
+    }
+
+    if (dealKinds[0] === "loan") {
+      return t("transfers.loanOffer");
+    }
+
+    return t("transfers.bid");
+  };
+
+  const getDealEntryIcon = (player: PlayerData, className: string) => {
+    const dealKinds = getDealKinds(player);
+
+    if (dealKinds.length > 1) {
+      return <Handshake className={className} />;
+    }
+
+    if (dealKinds[0] === "contract") {
+      return <UserPlus className={className} />;
+    }
+
+    if (dealKinds[0] === "loan") {
+      return <ArrowRightLeft className={className} />;
+    }
+
+    return <Gavel className={className} />;
+  };
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
     if (availableScouts.length === 0) {
@@ -788,9 +946,14 @@ export default function TransfersTab({
           <button
             type="button"
             key={tab.id}
-            onClick={() => setView(tab.id)}
+            onClick={() => {
+              setView(tab.id);
+              if (tab.id !== "players") {
+                setAvailabilityFilter("all");
+              }
+            }}
             className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === tab.id
-              ? "bg-primary-500 text-white shadow-md shadow-primary-500/20"
+              ? "bg-primary-700 text-white shadow-md shadow-primary-700/20"
               : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
           >
@@ -815,7 +978,7 @@ export default function TransfersTab({
           <button
             type="button"
             onClick={() => setPosFilter(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("common.all")}
           </button>
@@ -824,12 +987,26 @@ export default function TransfersTab({
               type="button"
               key={pos}
               onClick={() => setPosFilter(posFilter === pos ? null : pos)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
             >
               {t(`common.posAbbr.${pos}`)}
             </button>
           ))}
         </div>
+        {isPlayersView && (
+          <div className="flex flex-wrap gap-1.5">
+            {availabilityFilters.map((filter) => (
+              <button
+                type="button"
+                key={filter.id}
+                onClick={() => setAvailabilityFilter(filter.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${availabilityFilter === filter.id ? "bg-accent-500 text-navy-900 shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+              >
+                {filter.label} ({filter.count})
+              </button>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
           <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
           {t("common.nResults", { count: filteredList.length })}
@@ -982,21 +1159,11 @@ export default function TransfersTab({
                         }),
                       );
                       contextItems.push(
-                        isFreeAgentView
-                          ? buildOfferFreeAgentContractMenuItem(t, () => {
-                            openFreeAgentContract(player);
-                          })
-                          : isLoanView
-                            ? {
-                              label: t("transfers.loanOffer"),
-                              icon: <ArrowRightLeft className="w-4 h-4" />,
-                              onClick: () => openLoanOffer(player),
-                            }
-                          : {
-                            label: t("transfers.bid"),
-                            icon: <Gavel className="w-4 h-4" />,
-                            onClick: () => openBidNegotiation(player),
-                          },
+                        {
+                          label: getDealEntryLabel(player),
+                          icon: getDealEntryIcon(player, "w-4 h-4"),
+                          onClick: () => openDealEntry(player),
+                        },
                       );
                     }
 
@@ -1085,7 +1252,7 @@ export default function TransfersTab({
                                 {t("transfers.loan")}
                               </Badge>
                             )}
-                            {isFreeAgentView && (
+                            {player.team_id === null && (
                               <Badge variant="neutral" size="sm">
                                 {t("common.freeAgent")}
                               </Badge>
@@ -1291,31 +1458,12 @@ export default function TransfersTab({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isFreeAgentView) {
-                                  openFreeAgentContract(player);
-                                  return;
-                                }
-                                if (isLoanView) {
-                                  openLoanOffer(player);
-                                  return;
-                                }
-                                openBidNegotiation(player);
+                                openDealEntry(player);
                               }}
                               className="flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-500 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
                             >
-                              {isFreeAgentView ? (
-                                <>
-                                  <UserPlus className="w-3 h-3" /> {t("transfers.offerContract")}
-                                </>
-                              ) : isLoanView ? (
-                                <>
-                                  <ArrowRightLeft className="w-3 h-3" /> {t("transfers.loanOffer")}
-                                </>
-                              ) : (
-                                <>
-                                  <Gavel className="w-3 h-3" /> {t("transfers.bid")}
-                                </>
-                              )}
+                              {getDealEntryIcon(player, "w-3 h-3")}
+                              {getDealEntryLabel(player)}
                             </button>
                           </td>
                         )}
@@ -1341,18 +1489,129 @@ export default function TransfersTab({
             <div className="text-center py-8">
               <TrendingUp className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {isMarketView
+                {availabilityFilter === "transfer"
                   ? t("transfers.noTransferMarket")
-                  : isFreeAgentView
+                  : availabilityFilter === "free_agent"
                     ? t("transfers.noFreeAgents")
-                    : t("transfers.noLoanMarket")}
+                    : availabilityFilter === "loan"
+                      ? t("transfers.noLoanMarket")
+                      : t("transfers.noAvailablePlayers")}
               </p>
             </div>
           </CardBody>
         </Card>
       )}
+      {dealWorkspaceTarget && (
+        <PlayerDealWorkspace
+          player={dealWorkspaceTarget}
+          teams={gameState.teams}
+          myTeam={myTeam ?? null}
+          annualSuffix={annualSuffix}
+          isTransferWindowClosed={isTransferWindowClosed}
+          transferWindowSummary={transferWindowSummary}
+          loanNoticeDetail={loanWindowNoticeDetail}
+          selectedKind={dealWorkspaceKind}
+          onSelectKind={(kind) =>
+            selectDealWorkspaceKind(dealWorkspaceTarget, kind)
+          }
+          onClose={closeDealWorkspace}
+          renderDealPanel={(kind) => {
+            if (kind === "transfer" && bidTarget) {
+              return (
+                <TransferBidForm
+                  bidTarget={bidTarget}
+                  teams={gameState.teams}
+                  bidAmount={bidAmount}
+                  onBidAmountChange={setBidAmount}
+                  myTeam={myTeam ?? null}
+                  bidFee={bidFee}
+                  bidProjection={bidProjection}
+                  bidFeedback={bidFeedback}
+                  activeBidOffer={activeBidOffer}
+                  hasExistingOffer={hasExistingOffer}
+                  bidResult={bidResult}
+                  bidLoading={bidLoading}
+                  bidSubmitDisabled={isTransferWindowClosed || bidSubmitDisabled}
+                  blockingTitle={transferWindowBlockingTitle}
+                  blockingDetail={transferWindowBlockingDetail}
+                  showPlayerSummary={false}
+                  onSubmit={handleMakeBid}
+                  onClose={closeDealWorkspace}
+                />
+              );
+            }
+
+            if (kind === "loan" && loanTarget) {
+              return (
+                <LoanOfferForm
+                  loanTarget={loanTarget}
+                  teams={gameState.teams}
+                  periodId={loanPeriodId}
+                  periodOptions={loanPeriodOptions}
+                  selectedEndDate={selectedLoanPeriodOption?.endDate ?? ""}
+                  onPeriodChange={setLoanPeriodId}
+                  wageContributionPct={loanWageContributionPct}
+                  onWageContributionChange={setLoanWageContributionPct}
+                  buyOptionEnabled={loanBuyOptionEnabled}
+                  buyOptionFee={loanBuyOptionFee}
+                  onBuyOptionEnabledChange={setLoanBuyOptionEnabled}
+                  onBuyOptionFeeChange={setLoanBuyOptionFee}
+                  result={loanResult}
+                  suggestedTerms={loanSuggestedTerms}
+                  error={loanError}
+                  loading={loanLoading}
+                  submitDisabled={loanSubmitDisabled}
+                  noticeTitle={loanWindowNoticeTitle}
+                  noticeDetail={loanWindowNoticeDetail}
+                  acceptedMessage={
+                    isTransferWindowClosed && closedWindowLoanRegistrationDate
+                      ? t("transfers.loanOfferScheduled", {
+                        date: formatDate(
+                          closedWindowLoanRegistrationDate,
+                          i18n.language,
+                        ),
+                      })
+                      : null
+                  }
+                  showPlayerSummary={false}
+                  onSubmit={handleMakeLoanOffer}
+                  onClose={closeDealWorkspace}
+                />
+              );
+            }
+
+            if (kind === "contract" && freeAgentTarget) {
+              return (
+                <FreeAgentContractForm
+                  player={freeAgentTarget}
+                  teams={gameState.teams}
+                  wage={contractWage}
+                  onWageChange={setContractWage}
+                  contractLength={contractLength}
+                  onContractLengthChange={setContractLength}
+                  projection={contractProjection}
+                  feedback={contractFeedback}
+                  statusMessage={contractStatusMessage(t)}
+                  statusClassName={contractStatusClassName}
+                  submitting={contractSubmitting}
+                  submitDisabled={contractSubmitDisabled}
+                  showPlayerSummary={false}
+                  onSubmit={submitFreeAgentContract}
+                  onClose={closeDealWorkspace}
+                />
+              );
+            }
+
+            return (
+              <div className="rounded-lg bg-gray-50 p-6 text-sm text-gray-600 dark:bg-navy-900/50 dark:text-gray-300">
+                {t("transfers.dealChooserHint")}
+              </div>
+            );
+          }}
+        />
+      )}
       {/* Bid Modal */}
-      {bidTarget && (
+      {bidTarget && !dealWorkspaceTarget && (
         <TransferBidModal
           bidTarget={bidTarget}
           teams={gameState.teams}
@@ -1397,7 +1656,7 @@ export default function TransfersTab({
           }}
         />
       )}
-      {freeAgentTarget && (
+      {freeAgentTarget && !dealWorkspaceTarget && (
         <FreeAgentContractModal
           player={freeAgentTarget}
           teams={gameState.teams}
@@ -1415,7 +1674,7 @@ export default function TransfersTab({
           onClose={closeFreeAgentContract}
         />
       )}
-      {loanTarget && (
+      {loanTarget && !dealWorkspaceTarget && (
         <LoanOfferModal
           loanTarget={loanTarget}
           teams={gameState.teams}
