@@ -26,6 +26,19 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [repMin, setRepMin] = useState<string>(editingTeam.reputationRange?.[0]?.toString() ?? "");
+  const [repMax, setRepMax] = useState<string>(editingTeam.reputationRange?.[1]?.toString() ?? "");
+  const [finMin, setFinMin] = useState<string>(editingTeam.financeRange?.[0]?.toString() ?? "");
+  const [finMax, setFinMax] = useState<string>(editingTeam.financeRange?.[1]?.toString() ?? "");
+
+  useEffect(() => {
+    setRepMin(editingTeam.reputationRange?.[0]?.toString() ?? "");
+    setRepMax(editingTeam.reputationRange?.[1]?.toString() ?? "");
+    setFinMin(editingTeam.financeRange?.[0]?.toString() ?? "");
+    setFinMax(editingTeam.financeRange?.[1]?.toString() ?? "");
+  // Sync only when the selected entity changes, not on every field edit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingTeamIndex]);
 
   useEffect(() => {
     if (!editingTeam.logo || !projectDir) { setLogoDataUrl(null); return; }
@@ -240,51 +253,43 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput
               label={t("worldEditor.teamRepMin")}
-              value={editingTeam.reputationRange?.[0]?.toString() ?? ""}
+              value={repMin}
               type="number"
               help={t("worldEditor.help.teamReputationRange")}
-              onChange={(v) =>
-                updateField(
-                  "reputationRange",
-                  makeRange(parseRangeBound(v), editingTeam.reputationRange?.[1] ?? null),
-                )
-              }
+              onChange={(v) => {
+                setRepMin(v);
+                updateField("reputationRange", makeRange(parseRangeBound(v), parseRangeBound(repMax)));
+              }}
             />
             <LabeledInput
               label={t("worldEditor.teamRepMax")}
-              value={editingTeam.reputationRange?.[1]?.toString() ?? ""}
+              value={repMax}
               type="number"
-              onChange={(v) =>
-                updateField(
-                  "reputationRange",
-                  makeRange(editingTeam.reputationRange?.[0] ?? null, parseRangeBound(v)),
-                )
-              }
+              onChange={(v) => {
+                setRepMax(v);
+                updateField("reputationRange", makeRange(parseRangeBound(repMin), parseRangeBound(v)));
+              }}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput
               label={t("worldEditor.teamFinMin")}
-              value={editingTeam.financeRange?.[0]?.toString() ?? ""}
+              value={finMin}
               type="number"
               help={t("worldEditor.help.teamFinanceRange")}
-              onChange={(v) =>
-                updateField(
-                  "financeRange",
-                  makeRange(parseRangeBound(v), editingTeam.financeRange?.[1] ?? null),
-                )
-              }
+              onChange={(v) => {
+                setFinMin(v);
+                updateField("financeRange", makeRange(parseRangeBound(v), parseRangeBound(finMax)));
+              }}
             />
             <LabeledInput
               label={t("worldEditor.teamFinMax")}
-              value={editingTeam.financeRange?.[1]?.toString() ?? ""}
+              value={finMax}
               type="number"
-              onChange={(v) =>
-                updateField(
-                  "financeRange",
-                  makeRange(editingTeam.financeRange?.[0] ?? null, parseRangeBound(v)),
-                )
-              }
+              onChange={(v) => {
+                setFinMax(v);
+                updateField("financeRange", makeRange(parseRangeBound(finMin), parseRangeBound(v)));
+              }}
             />
           </div>
         </div>
