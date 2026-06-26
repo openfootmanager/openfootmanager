@@ -1,11 +1,13 @@
+import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Flag, Globe2, Info, Shield, Trophy, Type, Users } from "lucide-react";
 import type { EditTab } from "../menu/PackageEditor/types";
 
 interface SidebarItem {
   key: EditTab;
   label: string;
   count?: number;
+  icon: LucideIcon;
 }
 
 interface SidebarGroup {
@@ -47,36 +49,36 @@ export function WorldEditorSidebar({
     {
       groupKey: "package",
       label: t("worldEditor.sectionPackage"),
-      items: [{ key: "metadata", label: t("worldEditor.metadata") }],
+      items: [{ key: "metadata", label: t("worldEditor.metadata"), icon: Info }],
     },
     {
       groupKey: "world",
       label: t("worldEditor.sectionWorld"),
       items: [
-        { key: "confederations", label: t("worldEditor.sectionConfederations"), count: confederationCount },
-        { key: "countries", label: t("worldEditor.sectionCountries"), count: countryCount },
+        { key: "confederations", label: t("worldEditor.sectionConfederations"), count: confederationCount, icon: Globe2 },
+        { key: "countries", label: t("worldEditor.sectionCountries"), count: countryCount, icon: Flag },
       ],
     },
     {
       groupKey: "clubs",
       label: t("worldEditor.sectionClubs"),
       items: [
-        { key: "teams", label: t("worldEditor.sectionTeams"), count: teamCount },
-        { key: "players", label: t("worldEditor.sectionPlayers"), count: playerCount },
-        { key: "names", label: t("worldEditor.sectionNames"), count: namePoolCount },
+        { key: "teams", label: t("worldEditor.sectionTeams"), count: teamCount, icon: Shield },
+        { key: "players", label: t("worldEditor.sectionPlayers"), count: playerCount, icon: Users },
+        { key: "names", label: t("worldEditor.sectionNames"), count: namePoolCount, icon: Type },
       ],
     },
     {
       groupKey: "competitions",
       label: t("worldEditor.sectionCompetitions"),
       items: [
-        { key: "competitions", label: t("worldEditor.sectionCompetitionsList"), count: competitionCount },
+        { key: "competitions", label: t("worldEditor.sectionCompetitionsList"), count: competitionCount, icon: Trophy },
       ],
     },
   ];
 
   const itemClass = (active: boolean) =>
-    `flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+    `flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors text-left ${
       active
         ? "bg-primary-100 dark:bg-primary-500/15 text-primary-700 dark:text-primary-300 font-semibold"
         : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 hover:text-gray-900 dark:hover:text-white"
@@ -96,7 +98,8 @@ export function WorldEditorSidebar({
                 onClick={() => onSelectSection(item.key)}
                 className={itemClass(selectedSection === item.key && !showingIssues)}
               >
-                <span>{item.label}</span>
+                <item.icon className="w-4 h-4 flex-shrink-0 opacity-70" />
+                <span className="flex-1">{item.label}</span>
                 {item.count !== undefined && (
                   <span
                     className={`text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none ${

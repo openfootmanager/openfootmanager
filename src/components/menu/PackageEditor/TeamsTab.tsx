@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { EntityListShell, EntityRow } from "./shared";
 import type { TeamDef } from "./types";
 
 interface TeamsTabProps {
   teams: TeamDef[];
+  projectDir?: string;
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
@@ -14,7 +16,38 @@ interface TeamsTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function TeamsTab({ teams, onAdd, onEdit, onDelete, selectedIndex, onSelect }: TeamsTabProps) {
+function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!team.logo || !projectDir) { setLogoUrl(null); return; }
+    let cancelled = false;
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${team.logo}`, baseDir: projectDir })
+      .then((url) => { if (!cancelled) setLogoUrl(url); })
+      .catch(() => { if (!cancelled) setLogoUrl(null); });
+    return () => { cancelled = true; };
+  }, [team.logo, projectDir]);
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className="w-9 h-9 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+      />
+    );
+  }
+  return (
+    <GeneratedCrest
+      name={team.name || team.id}
+      label={team.shortName || team.name?.slice(0, 3) || "?"}
+      colors={team.colors}
+      className="w-9 h-9"
+    />
+  );
+}
+
+export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: TeamsTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
@@ -54,14 +87,7 @@ export function TeamsTab({ teams, onAdd, onEdit, onDelete, selectedIndex, onSele
           key={i}
           title={team.name}
           subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
-          badge={
-            <GeneratedCrest
-              name={team.name || team.id}
-              label={team.shortName || team.name?.slice(0, 3) || "?"}
-              colors={team.colors}
-              className="w-9 h-9"
-            />
-          }
+          badge={<TeamBadge team={team} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
           editLabel={t("worldEditor.editTeam")}

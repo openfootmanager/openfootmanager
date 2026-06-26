@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { EntityListShell, EntityRow } from "./shared";
 import type { CompetitionDef } from "./types";
 
 interface CompetitionsTabProps {
   competitions: CompetitionDef[];
+  projectDir?: string;
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
@@ -11,7 +14,37 @@ interface CompetitionsTabProps {
   onSelect?: (index: number) => void;
 }
 
-export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CompetitionsTabProps) {
+function CompetitionBadge({ comp, projectDir }: { comp: CompetitionDef; projectDir?: string }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!comp.logo || !projectDir) { setLogoUrl(null); return; }
+    let cancelled = false;
+    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${comp.logo}`, baseDir: projectDir })
+      .then((url) => { if (!cancelled) setLogoUrl(url); })
+      .catch(() => { if (!cancelled) setLogoUrl(null); });
+    return () => { cancelled = true; };
+  }, [comp.logo, projectDir]);
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className="w-8 h-8 rounded-lg object-contain border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 flex-shrink-0"
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-lg flex-shrink-0 border border-gray-200 dark:border-navy-600 bg-gray-100 dark:bg-navy-600 flex items-center justify-center">
+      <span className="text-[8px] font-heading font-bold text-gray-500 dark:text-gray-400 text-center leading-tight px-0.5">
+        {comp.type.slice(0, 3).toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
+export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDelete, selectedIndex, onSelect }: CompetitionsTabProps) {
   const { t } = useTranslation();
   return (
     <EntityListShell
@@ -26,13 +59,7 @@ export function CompetitionsTab({ competitions, onAdd, onEdit, onDelete, selecte
           title={comp.name || comp.id}
           subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)]
             .join(" · ")}
-          badge={
-            <div className="w-8 h-8 rounded-lg flex-shrink-0 border border-gray-200 dark:border-navy-600 bg-gray-100 dark:bg-navy-600 flex items-center justify-center">
-              <span className="text-[8px] font-heading font-bold text-gray-500 dark:text-gray-400 text-center leading-tight px-0.5">
-                {comp.type.slice(0, 3).toUpperCase()}
-              </span>
-            </div>
-          }
+          badge={<CompetitionBadge comp={comp} projectDir={projectDir} />}
           onEdit={() => onEdit(i)}
           onDelete={() => onDelete(i)}
           editLabel={t("worldEditor.editCompetition")}

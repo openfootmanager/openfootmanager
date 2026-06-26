@@ -6,6 +6,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
 import { Select } from "../../ui/Select";
 import { EntityFormShell } from "./shared";
+import { CompetitionPreviewCard } from "./CompetitionPreviewCard";
 import {
   COMPETITION_FORMATS,
   COMPETITION_SCOPES,
@@ -14,13 +15,14 @@ import {
   buildParticipantSpec,
   toSlug,
 } from "./helpers";
-import type { CompetitionDef, SelectorKind, SelectorSpec, TeamDef } from "./types";
+import type { CompetitionDef, ConfederationDef, SelectorKind, SelectorSpec, TeamDef } from "./types";
 
 interface CompetitionFormProps {
   editing: CompetitionDef;
   editingIndex: number | null;
   isBusy: boolean;
   teams?: TeamDef[];
+  confederations?: ConfederationDef[];
   projectDir?: string;
   onBack: () => void;
   onSave: () => void;
@@ -44,6 +46,7 @@ export function CompetitionForm({
   editingIndex,
   isBusy,
   teams,
+  confederations,
   projectDir,
   onBack,
   onSave,
@@ -185,6 +188,8 @@ export function CompetitionForm({
   };
 
   return (
+    <div className="flex gap-6 items-start">
+    <div className="flex-1 min-w-0">
     <EntityFormShell
       title={editingIndex === null ? t("worldEditor.addCompetition") : t("worldEditor.editCompetition")}
       onBack={onBack}
@@ -272,12 +277,29 @@ export function CompetitionForm({
         )}
       </div>
 
-      <LabeledInput
-        label={t("worldEditor.competitionRegionId")}
-        value={editing.regionId ?? ""}
-        onChange={(v) => updateField("regionId", v || undefined)}
-        placeholder="europe"
-      />
+      <div className="flex flex-col gap-1">
+        <label className={labelClass}>{t("worldEditor.competitionRegionId")}</label>
+        {confederations && confederations.length > 0 ? (
+          <Select
+            value={editing.regionId ?? ""}
+            onChange={(e) => updateField("regionId", e.target.value || undefined)}
+            fullWidth
+          >
+            <option value="">—</option>
+            {confederations.map((c) => (
+              <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+            ))}
+          </Select>
+        ) : (
+          <input
+            type="text"
+            value={editing.regionId ?? ""}
+            onChange={(e) => updateField("regionId", e.target.value || undefined)}
+            placeholder="europe"
+            className={inputClass}
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <LabeledInput
@@ -462,12 +484,29 @@ export function CompetitionForm({
             </div>
           )}
           {selectorNeedsRegion && (
-            <LabeledInput
-              label={t("worldEditor.competitionSelectorRegion")}
-              value={selector.region ?? ""}
-              onChange={(v) => updateSelector({ region: v || undefined })}
-              placeholder="europe"
-            />
+            <div className="flex flex-col gap-1">
+              <label className={labelClass}>{t("worldEditor.competitionSelectorRegion")}</label>
+              {confederations && confederations.length > 0 ? (
+                <Select
+                  value={selector.region ?? ""}
+                  onChange={(e) => updateSelector({ region: e.target.value || undefined })}
+                  fullWidth
+                >
+                  <option value="">—</option>
+                  {confederations.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
+                  ))}
+                </Select>
+              ) : (
+                <input
+                  type="text"
+                  value={selector.region ?? ""}
+                  onChange={(e) => updateSelector({ region: e.target.value || undefined })}
+                  placeholder="europe"
+                  className={inputClass}
+                />
+              )}
+            </div>
           )}
           {(selectorNeedsCount || selectorNeedsCountry || selectorNeedsRegion) && (
             <LabeledInput
@@ -524,5 +563,10 @@ export function CompetitionForm({
         </div>
       )}
     </EntityFormShell>
+    </div>
+    <div className="w-52 flex-shrink-0 sticky top-0">
+      <CompetitionPreviewCard competition={editing} logoDataUrl={logoDataUrl} />
+    </div>
+    </div>
   );
 }

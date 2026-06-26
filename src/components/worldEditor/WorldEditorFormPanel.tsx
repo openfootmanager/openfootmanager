@@ -218,12 +218,13 @@ export function WorldEditorFormPanel({
 
   if (formPanel === "competition") {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <CompetitionForm
           editing={compEditor.editing}
           editingIndex={compEditor.editingIndex}
           isBusy={isBusy}
           teams={teams}
+          confederations={confederations}
           projectDir={projectDir || undefined}
           onBack={onBack}
           onSave={() => { void compEditor.handleSave(); }}

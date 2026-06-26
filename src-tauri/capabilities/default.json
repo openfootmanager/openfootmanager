@@ -8,6 +8,7 @@
     "core:window:allow-destroy",
     "core:window:allow-close",
     "opener:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

@@ -68,6 +68,7 @@ export function WorldEditorListContent({
       {selectedSection === "teams" && (
         <TeamsTab
           teams={teams}
+          projectDir={projectDir}
           onAdd={teamEditor.handleAdd}
           onEdit={teamEditor.handleSelect}
           onDelete={teamEditor.handleDelete}
@@ -120,6 +121,7 @@ export function WorldEditorListContent({
       {selectedSection === "competitions" && (
         <CompetitionsTab
           competitions={competitions}
+          projectDir={projectDir}
           onAdd={compEditor.handleAdd}
           onEdit={compEditor.handleSelect}
           onDelete={compEditor.handleDelete}
