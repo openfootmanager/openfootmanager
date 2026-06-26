@@ -344,10 +344,15 @@ export default function WorldEditor() {
 
   async function handleBuild() {
     const defaultName = `${meta.id || "package"}.ofm`;
-    const outPath = await save({
-      filters: [{ name: "OFM Package", extensions: ["ofm"] }],
-      defaultPath: defaultName,
-    });
+    let outPath: string | null;
+    try {
+      outPath = await save({
+        filters: [{ name: "OFM Package", extensions: ["ofm"] }],
+        defaultPath: defaultName,
+      });
+    } catch {
+      return;
+    }
     if (typeof outPath !== "string") return;
     setIsBusy(true);
     try {

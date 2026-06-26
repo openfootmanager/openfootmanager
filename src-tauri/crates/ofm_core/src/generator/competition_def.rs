@@ -182,7 +182,7 @@ pub struct WorldValidationContext<'a> {
 impl<'a> WorldValidationContext<'a> {
     pub fn from_world(world: &'a super::WorldData) -> Self {
         let team_ids = world.teams.iter().map(|team| team.id.as_str()).collect();
-        let country_codes = world
+        let mut country_codes: HashSet<&'a str> = world
             .teams
             .iter()
             .map(|team| {
@@ -193,11 +193,20 @@ impl<'a> WorldValidationContext<'a> {
                 }
             })
             .collect();
-        let region_ids = world
+        // Include builtin nations so competition selectors that reference them
+        // pass validation here, matching what validate_competition_references
+        // uses at build/install time.
+        for nation in crate::nations::NATION_CATALOG {
+            country_codes.insert(nation.code);
+        }
+        let mut region_ids: HashSet<&'a str> = world
             .regions
             .iter()
             .map(|region| region.id.as_str())
             .collect();
+        for nation in crate::nations::NATION_CATALOG {
+            region_ids.insert(nation.region_id);
+        }
         Self {
             team_ids,
             country_codes,
