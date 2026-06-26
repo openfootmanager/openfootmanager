@@ -110,7 +110,6 @@
     "removePackage": "移除",
     "packageStackErrors": "包组合错误",
     "stackConflictWarnings": "{{count}} 个包冲突——将使用最后加载的版本",
-
     "competitions": "{{count}} 场赛事",
     "packageAuthor": "作者：{{author}}",
     "packageVersion": "v{{version}}"
@@ -2479,7 +2478,9 @@
         "noDatabasePackage": "至少需要激活一个数据库包才能开始职业生涯。",
         "projectAlreadyExists": "已存在具有此 ID 的项目。",
         "outputInsideSource": "输出文件不能保存在源目录内。",
-        "validationFailed": "该包存在验证错误：{{errors}}"
+        "validationFailed": "该包存在验证错误：{{errors}}",
+        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
+        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
       },
       "competitionDef": {
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
@@ -2613,7 +2614,15 @@
         "youthAssignmentNotFound": "未找到青训招募任务",
         "scoutAlreadyAssignedToSearch": "该球探已经分配给这项搜索"
       },
-      "invalidPath": "路径无效。"
+      "invalidPath": "路径无效。",
+      "conflict": {
+        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
+        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+      },
+      "notice": {
+        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
+        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+      }
     },
     "sender": {
       "boardOfDirectors": "董事会",

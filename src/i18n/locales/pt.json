@@ -110,7 +110,6 @@
     "removePackage": "Remover",
     "packageStackErrors": "Erros de combinação de pacotes",
     "stackConflictWarnings": "{{count}} conflito(s) de pacote — a versão do último na lista será usada",
-
     "competitions": "{{count}} competições",
     "packageAuthor": "por {{author}}",
     "packageVersion": "v{{version}}"
@@ -2479,7 +2478,9 @@
         "noDatabasePackage": "Pelo menos um pacote de base de dados tem de estar ativo para iniciar uma carreira.",
         "projectAlreadyExists": "Já existe um projeto com este identificador.",
         "outputInsideSource": "O ficheiro de saída não pode ser guardado dentro do diretório de origem.",
-        "validationFailed": "O pacote tem erros de validação: {{errors}}"
+        "validationFailed": "O pacote tem erros de validação: {{errors}}",
+        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
+        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
       },
       "competitionDef": {
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",
@@ -2613,7 +2614,15 @@
         "youthAssignmentNotFound": "A tarefa de recrutamento jovem não foi encontrada",
         "scoutAlreadyAssignedToSearch": "O olheiro já está atribuído a esta pesquisa"
       },
-      "invalidPath": "Caminho inválido."
+      "invalidPath": "Caminho inválido.",
+      "conflict": {
+        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
+        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+      },
+      "notice": {
+        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
+        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+      }
     },
     "sender": {
       "boardOfDirectors": "Conselho de Administração",

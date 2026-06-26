@@ -711,6 +711,33 @@ fn regions_from_package(
         .collect()
 }
 
+/// Generate procedural filler club definitions for a given country code. Used
+/// to pad thin packages that have only one authored team. Matches the country's
+/// `NationGen` from the standard set when available; falls back to generic names.
+fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Vec<definitions::TeamDef> {
+    const GENERIC_CITIES: &[&str] = &[
+        "Northtown", "Eastford", "Westbridge", "Southport", "Riverside",
+        "Hillside", "Lakewood", "Oakdale", "Greenfield", "Pinecrest",
+        "Fairview", "Clearwater", "Springfield", "Millbrook", "Stonehaven",
+    ];
+    let nation = clubs::STANDARD_NATIONS
+        .iter()
+        .find(|n| n.code == country)
+        .map(|n| clubs::NationGen { tiers: 1, ..*n }) // force single-division
+        .unwrap_or(clubs::NationGen {
+            code: "??",
+            style: clubs::NamingStyle::Generic,
+            tiers: 1,
+            strength: 3,
+            cities: GENERIC_CITIES,
+        });
+    let config = clubs::WorldGenConfig {
+        clubs_per_division: count,
+        nations: vec![nation],
+    };
+    clubs::generate_club_defs(&config, rng)
+}
+
 /// Build a runnable [`WorldData`] from a validated world package: clubs with
 /// generated squads, regions from the package's confederations/countries, and
 /// the package's competitions as embedded definitions (resolved at game start).
@@ -748,9 +775,27 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         staff.extend(team_staff);
     }
 
+    let mut build_notices: Vec<String> = Vec::new();
+
+    // Thin-package fill: exactly 1 authored team + no competitions → generate
+    // THIN_PACKAGE_MIN_TEAMS-1 procedural opponents so the auto-fallback league
+    // below can form a playable season. Gated on no competitions so a 1-team
+    // package that defines its own competition doesn't get unexpected fillers.
+    const THIN_PACKAGE_MIN_TEAMS: usize = 8; // double round-robin → 14 matchdays
+    if package.competitions.is_empty() && teams.len() == 1 {
+        build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
+        let country = teams[0].country.clone();
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
+            let (team, team_players, team_staff) =
+                build_club(def, &country_codes, &names_def, &mut rng);
+            teams.push(team);
+            players.extend(team_players);
+            staff.extend(team_staff);
+        }
+    }
+
     let regions = regions_from_package(package, &teams);
 
-    let mut build_notices: Vec<String> = Vec::new();
     let competition_definitions = if !package.competitions.is_empty() {
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
@@ -761,7 +806,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         // A `package_type: "database"` package without any competition defs is
         // probably a work-in-progress; generate a playable default so the game
         // can still start. The notice key is surfaced to the user in WorldSelect.
-        build_notices.push("be.notice.fallbackLeagueGenerated".to_string());
+        build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
         let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
         let fallback = CompetitionDefinition {
             id: "ofm-fallback-league".to_string(),

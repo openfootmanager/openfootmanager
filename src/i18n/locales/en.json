@@ -2500,7 +2500,8 @@
         "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
       },
       "notice": {
-        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams."
+        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
+        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
       },
       "competitionDef": {
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",

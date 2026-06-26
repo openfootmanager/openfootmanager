@@ -110,7 +110,6 @@
     "removePackage": "Supprimer",
     "packageStackErrors": "Erreurs de combinaison de paquets",
     "stackConflictWarnings": "{{count}} conflit(s) de paquet — la version du dernier paquet est utilisée",
-
     "competitions": "{{count}} compétitions",
     "packageAuthor": "par {{author}}",
     "packageVersion": "v{{version}}"
@@ -2479,7 +2478,9 @@
         "noDatabasePackage": "Au moins un paquet de base de données doit être actif pour démarrer une carrière.",
         "projectAlreadyExists": "Un projet avec cet identifiant existe déjà.",
         "outputInsideSource": "Le fichier de sortie ne peut pas être enregistré dans le répertoire source.",
-        "validationFailed": "Le paquet contient des erreurs de validation : {{errors}}"
+        "validationFailed": "Le paquet contient des erreurs de validation : {{errors}}",
+        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
+        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
       },
       "competitionDef": {
         "invalidEmbedded": "Les définitions de compétitions de ce monde sont invalides et n'ont pas pu être chargées.",
@@ -2613,7 +2614,15 @@
         "youthAssignmentNotFound": "Mission de recrutement jeune introuvable",
         "scoutAlreadyAssignedToSearch": "Le recruteur est déjà affecté à cette recherche"
       },
-      "invalidPath": "Chemin invalide."
+      "invalidPath": "Chemin invalide.",
+      "conflict": {
+        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
+        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+      },
+      "notice": {
+        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
+        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+      }
     },
     "sender": {
       "boardOfDirectors": "Conseil d'Administration",

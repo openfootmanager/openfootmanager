@@ -639,7 +639,7 @@ impl StackConflict {
     fn db_clash(entity_kind: &str, entity_id: &str, pkg_a: &str, pkg_b: &str) -> Self {
         Self {
             severity: ConflictSeverity::Warning,
-            code: "be.conflict.duplicateId".to_string(),
+            code: "be.error.conflict.duplicateId".to_string(),
             entity_kind: entity_kind.to_string(),
             entity_id: entity_id.to_string(),
             packages: vec![pkg_a.to_string(), pkg_b.to_string()],
@@ -670,7 +670,7 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
                     let prev_id = packages[prev].meta.as_ref().map(|m| m.id.as_str()).unwrap_or("");
                     conflicts.push(StackConflict {
                         severity: ConflictSeverity::Error,
-                        code: "be.conflict.duplicatePackageId".to_string(),
+                        code: "be.error.conflict.duplicatePackageId".to_string(),
                         entity_kind: "package".to_string(),
                         entity_id: meta.id.clone(),
                         packages: vec![prev_id.to_string(), meta.id.clone()],
@@ -1578,21 +1578,34 @@ colors:
         assert_eq!(explicit.len(), 4, "all 4 teams included");
         // Build notice must be present.
         assert!(
-            world.build_notices.iter().any(|n| n == "be.notice.fallbackLeagueGenerated"),
+            world.build_notices.iter().any(|n| n == "be.error.notice.fallbackLeagueGenerated"),
             "build notice must be emitted: {:?}", world.build_notices
         );
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn single_team_no_competitions_no_fallback_league() {
-        // 1 team → cannot form a league; no fallback generated, no schedule.
-        // (Future: generate random opponents. For now: unplayable but no crash.)
+    fn single_team_no_competitions_fills_procedural_opponents() {
+        // 1 authored team + no competitions → 7 procedural fillers generated,
+        // totalling 8 teams, and a fallback league covering all of them.
         let (pkg, errors, dir) = package_from_files(&[("a.yaml", TEAM_A)]);
         assert!(errors.is_empty());
         let world = crate::generator::build_world_data_from_package(&pkg);
-        assert_eq!(world.teams.len(), 1);
-        assert!(world.competition_definitions.is_none(), "single team: no fallback possible");
+        assert_eq!(world.teams.len(), 8, "should fill to THIN_PACKAGE_MIN_TEAMS");
+        assert!(
+            world.competition_definitions.is_some(),
+            "fallback league should be generated after fill"
+        );
+        assert!(
+            world.build_notices.iter().any(|n| n == "be.error.notice.fallbackTeamsFilled"),
+            "must warn player that filler teams were added: {:?}",
+            world.build_notices
+        );
+        assert!(
+            world.build_notices.iter().any(|n| n == "be.error.notice.fallbackLeagueGenerated"),
+            "must also warn about fallback league: {:?}",
+            world.build_notices
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

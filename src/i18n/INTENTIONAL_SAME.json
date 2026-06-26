@@ -129,7 +129,13 @@
     "worldEditor.competitionFormat",
     "worldEditor.competitionExplicitTeams",
     "worldEditor.competitionSelectorRegion",
-    "worldEditor.sectionTeams"
+    "worldEditor.sectionTeams",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "fr": [
     "nations.pt",
@@ -246,7 +252,13 @@
     "worldEditor.licensePermissions",
     "worldEditor.licenseConditions",
     "worldEditor.licenseLimitations",
-    "worldEditor.worldDesc"
+    "worldEditor.worldDesc",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "it": [
     "nations.sn",
@@ -309,7 +321,13 @@
     "match.max",
     "scouting.morale",
     "training.groups.groupFocus",
-    "worldEditor.playerClub"
+    "worldEditor.playerClub",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "es": [
     "nations.pt",
@@ -367,7 +385,13 @@
     "squad.kitPatterns.Diagonal",
     "packageEditor.competitionSelector",
     "worldEditor.playerClub",
-    "worldEditor.competitionSelector"
+    "worldEditor.competitionSelector",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "pt-BR": [
     "nations.pt",
@@ -409,7 +433,13 @@
     "match.normal",
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "pt": [
     "nations.pt",
@@ -449,13 +479,31 @@
     "match.normal",
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "ru": [
-    "dashboard.recapTransferLine"
+    "dashboard.recapTransferLine",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ],
   "zh-CN": [
     "be.news.roundup.resultLine",
-    "be.news.preseasonDigest.resultLine"
+    "be.news.preseasonDigest.resultLine",
+    "be.error.package.unknownCompetition",
+    "be.error.package.reversedRange",
+    "be.error.conflict.duplicateId",
+    "be.error.conflict.duplicatePackageId",
+    "be.error.notice.fallbackLeagueGenerated",
+    "be.error.notice.fallbackTeamsFilled"
   ]
 }
