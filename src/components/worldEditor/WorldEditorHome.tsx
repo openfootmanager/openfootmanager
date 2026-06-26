@@ -364,11 +364,11 @@ export function WorldEditorHome({
                         v{pkg.version}
                         {pkg.author ? ` · ${pkg.author}` : ""}
                         {" · "}
-                        {pkg.team_count} teams
+                        {pkg.teamCount} teams
                       </p>
                     </div>
                     <button
-                      onClick={() => onOpenRecent(pkg.installed_path)}
+                      onClick={() => onOpenRecent(pkg.installedPath)}
                       disabled={isBusy}
                       className="text-xs font-semibold text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors disabled:opacity-60 flex-shrink-0"
                     >

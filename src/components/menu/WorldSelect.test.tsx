@@ -53,12 +53,12 @@ const dbPackage: PackageInfo = {
   author: "Test",
   description: "",
   license: "MIT",
-  game_min_version: "1.0.0",
-  package_type: "database",
-  team_count: 20,
-  player_count: 480,
-  competition_count: 1,
-  installed_path: "/path/to/pkg",
+  gameMinVersion: "1.0.0",
+  packageType: "database",
+  teamCount: 20,
+  playerCount: 480,
+  competitionCount: 1,
+  installedPath: "/path/to/pkg",
 };
 
 describe("GenerationStep (WorldSelect)", () => {

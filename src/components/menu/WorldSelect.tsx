@@ -42,13 +42,13 @@ export interface PackageInfo {
   author: string;
   description: string;
   license: string;
-  game_min_version: string;
-  package_type: string;
-  team_count: number;
-  player_count: number;
-  competition_count: number;
-  installed_path: string;
-  logo_data_url?: string;
+  gameMinVersion: string;
+  packageType: string;
+  teamCount: number;
+  playerCount: number;
+  competitionCount: number;
+  installedPath: string;
+  logoDataUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,13 +122,13 @@ export default function GenerationStep({
   const { t } = useTranslation();
   const historyDepthLabelId = useId();
 
-  const hasActiveDatabases = activePackages.some((p) => p.package_type === "database");
+  const hasActiveDatabases = activePackages.some((p) => p.packageType === "database");
 
   // Coverage totals across active database packages
-  const dbPackages = activePackages.filter((p) => p.package_type === "database");
-  const totalTeams = dbPackages.reduce((s, p) => s + p.team_count, 0);
-  const totalPlayers = dbPackages.reduce((s, p) => s + p.player_count, 0);
-  const totalCompetitions = dbPackages.reduce((s, p) => s + p.competition_count, 0);
+  const dbPackages = activePackages.filter((p) => p.packageType === "database");
+  const totalTeams = dbPackages.reduce((s, p) => s + p.teamCount, 0);
+  const totalPlayers = dbPackages.reduce((s, p) => s + p.playerCount, 0);
+  const totalCompetitions = dbPackages.reduce((s, p) => s + p.competitionCount, 0);
 
   return (
     <div className="flex flex-col gap-4">

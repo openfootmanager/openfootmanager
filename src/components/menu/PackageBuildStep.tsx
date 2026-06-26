@@ -80,9 +80,9 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
       </span>
 
       {/* Logo or icon */}
-      {pkg.logo_data_url ? (
+      {pkg.logoDataUrl ? (
         <img
-          src={pkg.logo_data_url}
+          src={pkg.logoDataUrl}
           alt=""
           className="w-8 h-8 rounded object-contain flex-shrink-0 mt-0.5 border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800"
         />
@@ -107,13 +107,13 @@ function PackageCard({ pkg, isActive, onToggle, onUninstall }: PackageCardProps)
         </p>
         <div className="flex items-center gap-3 mt-1">
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: pkg.team_count })}
+            <Globe className="w-3 h-3" />{t("worldSelect.teams", { count: pkg.teamCount })}
           </span>
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Users className="w-3 h-3" />{t("worldSelect.players", { count: pkg.player_count })}
+            <Users className="w-3 h-3" />{t("worldSelect.players", { count: pkg.playerCount })}
           </span>
           <span className="text-[10px] font-heading uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
-            <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: pkg.competition_count })}
+            <Trophy className="w-3 h-3" />{t("worldSelect.competitions", { count: pkg.competitionCount })}
           </span>
         </div>
       </div>
@@ -170,11 +170,11 @@ export default function PackageBuildStep({
     return () => { cancelled = true; };
   }, [activePackageIds]);
 
-  const dbPackages = installedPackages.filter((p) => p.package_type === "database");
-  const patchPackages = installedPackages.filter((p) => p.package_type !== "database");
+  const dbPackages = installedPackages.filter((p) => p.packageType === "database");
+  const patchPackages = installedPackages.filter((p) => p.packageType !== "database");
   const activePackages = installedPackages.filter((p) => activePackageIds.includes(p.id));
-  const hasActiveDatabase = activePackages.some((p) => p.package_type === "database");
-  const hasPatchOnly = activePackages.length > 0 && activePackages.every((p) => p.package_type !== "database");
+  const hasActiveDatabase = activePackages.some((p) => p.packageType === "database");
+  const hasPatchOnly = activePackages.length > 0 && activePackages.every((p) => p.packageType !== "database");
 
   const hasPackageErrors = (packageStackErrors?.length ?? 0) > 0;
   const stackConflictErrors = stackConflicts.filter((c) => c.severity === "error");
