@@ -106,9 +106,20 @@ export default function WorldSelect({
       setStackConflicts([]);
       return;
     }
+    let cancelled = false;
     invoke<StackConflictInfo[]>("check_package_stack", { packageIds: activePackageIds })
-      .then(setStackConflicts)
-      .catch(() => setStackConflicts([]));
+      .then((conflicts) => { if (!cancelled) setStackConflicts(conflicts); })
+      .catch((err) => {
+        if (cancelled) return;
+        setStackConflicts([{
+          severity: "error",
+          code: typeof err === "string" ? err : "be.error.package.invalid",
+          entityKind: "",
+          entityId: "",
+          packages: [],
+        }]);
+      });
+    return () => { cancelled = true; };
   }, [activePackageIds]);
 
   const hasPackageStackErrors = (packageStackErrors?.length ?? 0) > 0;

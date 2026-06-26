@@ -720,6 +720,7 @@ fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Ve
         "Hillside", "Lakewood", "Oakdale", "Greenfield", "Pinecrest",
         "Fairview", "Clearwater", "Springfield", "Millbrook", "Stonehaven",
     ];
+    let known = clubs::STANDARD_NATIONS.iter().any(|n| n.code == country);
     let nation = clubs::STANDARD_NATIONS
         .iter()
         .find(|n| n.code == country)
@@ -735,7 +736,16 @@ fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Ve
         clubs_per_division: count,
         nations: vec![nation],
     };
-    clubs::generate_club_defs(&config, rng)
+    let mut defs = clubs::generate_club_defs(&config, rng);
+    // When the authored team's country isn't in STANDARD_NATIONS, the generator
+    // uses code "??" as a placeholder. Patch all generated defs to carry the
+    // real country so filler clubs don't appear foreign in region lookups.
+    if !known {
+        for def in &mut defs {
+            def.country = country.to_string();
+        }
+    }
+    defs
 }
 
 /// Build a runnable [`WorldData`] from a validated world package: clubs with

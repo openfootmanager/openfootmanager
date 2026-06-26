@@ -520,18 +520,26 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     errors.extend(validate_competition_references(package));
 
     // Check that every id in defaultActiveCompetitions exists as a competition
-    // in the same package. Missing ids are silently ignored at runtime (normalize_world
-    // fills defaultActive from all competitions), but they indicate a typo or
-    // incomplete package that the editor should surface.
-    if let Some(meta) = &package.meta {
-        let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
-        for id in &meta.default_active_competitions {
-            if !id.is_empty() && !comp_ids.contains(id.as_str()) {
-                errors.push(
-                    PackageError::new(UNKNOWN_COMPETITION, "")
-                        .with("id", id)
-                        .with("field", "defaultActiveCompetitions"),
-                );
+    // in the same package. Skipped for `patch` packages, which are expected to
+    // reference competitions defined in the base database they supplement; those
+    // cross-package references are validated after merge_world_packages combines
+    // the full stack.
+    let is_patch = package
+        .meta
+        .as_ref()
+        .map(|m| m.package_type == "patch")
+        .unwrap_or(false);
+    if !is_patch {
+        if let Some(meta) = &package.meta {
+            let comp_ids: HashSet<&str> = package.competitions.iter().map(|c| c.id.as_str()).collect();
+            for id in &meta.default_active_competitions {
+                if !id.is_empty() && !comp_ids.contains(id.as_str()) {
+                    errors.push(
+                        PackageError::new(UNKNOWN_COMPETITION, "")
+                            .with("id", id)
+                            .with("field", "defaultActiveCompetitions"),
+                    );
+                }
             }
         }
     }
@@ -667,15 +675,13 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
         if let Some(meta) = &pkg.meta {
             if !meta.id.is_empty() {
                 if let Some(&prev) = pkg_ids_seen.get(meta.id.as_str()) {
-                    let prev_id = packages[prev].meta.as_ref().map(|m| m.id.as_str()).unwrap_or("");
                     conflicts.push(StackConflict {
                         severity: ConflictSeverity::Error,
                         code: "be.error.conflict.duplicatePackageId".to_string(),
                         entity_kind: "package".to_string(),
                         entity_id: meta.id.clone(),
-                        packages: vec![prev_id.to_string(), meta.id.clone()],
+                        packages: vec![format!("#{}", prev + 1), format!("#{}", i + 1)],
                     });
-                    let _ = i; // suppress unused warning
                 } else {
                     pkg_ids_seen.insert(meta.id.as_str(), i);
                 }
@@ -706,6 +712,10 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
                             seen.insert(id.clone(), (i, content));
                             continue;
                         }
+                        // database after patch → patch still wins, no conflict
+                        if !is_patch && prev_is_patch {
+                            continue;
+                        }
                         // identical content → safe dedup, no conflict
                         if content == *prev_content {
                             continue;
@@ -716,6 +726,8 @@ pub fn validate_package_stack(packages: &[&WorldPackage]) -> Vec<StackConflict> 
                         let this_pkg_id = pkg.meta.as_ref()
                             .map(|m| m.id.as_str()).unwrap_or("(unknown)");
                         conflicts.push(StackConflict::db_clash($kind, id.as_str(), prev_pkg_id, this_pkg_id));
+                        // update seen so subsequent packages compare against this one
+                        seen.insert(id.clone(), (i, content));
                     } else {
                         seen.insert(id.clone(), (i, content));
                     }
@@ -763,21 +775,23 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut competitions: BTreeMap<String, CompetitionDefinition> = BTreeMap::new();
 
     // Collected meta fields for union/max merging.
-    let mut all_default_active_competitions: std::collections::LinkedList<String> = Default::default();
-    let mut all_default_active_regions: std::collections::LinkedList<String> = Default::default();
+    let mut all_default_active_competitions: Vec<String> = Vec::new();
+    let mut all_default_active_competitions_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut all_default_active_regions: Vec<String> = Vec::new();
+    let mut all_default_active_regions_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut merged_meta_base: Option<WorldMetaDef> = None;
 
     for package in databases.into_iter().chain(patches.into_iter()) {
         if let Some(meta) = package.meta {
             // Union the list fields; scalar fields take the last non-empty value.
             for id in &meta.default_active_competitions {
-                if !all_default_active_competitions.contains(id) {
-                    all_default_active_competitions.push_back(id.clone());
+                if !id.is_empty() && all_default_active_competitions_seen.insert(id.clone()) {
+                    all_default_active_competitions.push(id.clone());
                 }
             }
             for id in &meta.default_active_regions {
-                if !all_default_active_regions.contains(id) {
-                    all_default_active_regions.push_back(id.clone());
+                if !id.is_empty() && all_default_active_regions_seen.insert(id.clone()) {
+                    all_default_active_regions.push(id.clone());
                 }
             }
             if let Some(ref mut base) = merged_meta_base {
@@ -788,6 +802,10 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
                 if !meta.id.is_empty() { base.id = meta.id; }
                 if meta.base_year > base.base_year { base.base_year = meta.base_year; }
                 if meta.logo.is_some() { base.logo = meta.logo; }
+                if !meta.license.is_empty() { base.license = meta.license; }
+                if !meta.game_min_version.is_empty() { base.game_min_version = meta.game_min_version; }
+                if meta.format_version > base.format_version { base.format_version = meta.format_version; }
+                if !meta.package_type.is_empty() { base.package_type = meta.package_type; }
             } else {
                 merged_meta_base = Some(meta);
             }

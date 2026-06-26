@@ -314,6 +314,19 @@ pub fn list_installed_packages(
     Ok(result)
 }
 
+/// Reject any package id that contains path separators or traversal tokens.
+fn validate_package_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.contains('/')
+        || id.contains('\\')
+        || id.contains("..")
+        || id.contains('\0')
+    {
+        return Err("be.error.package.invalid".to_string());
+    }
+    Ok(())
+}
+
 /// Remove an installed package by id.
 #[tauri::command]
 pub fn uninstall_package(
@@ -321,6 +334,7 @@ pub fn uninstall_package(
     id: String,
 ) -> Result<(), String> {
     info!("[cmd] uninstall_package: id={}", id);
+    validate_package_id(&id)?;
     let dest = packages_dir(&app_handle)?.join(format!("{id}.ofm"));
     if dest.exists() {
         std::fs::remove_file(&dest)
@@ -365,6 +379,7 @@ pub fn check_package_stack(
     let packages_dir = packages_dir(&app_handle)?;
     let mut loaded = Vec::with_capacity(package_ids.len());
     for id in &package_ids {
+        validate_package_id(id)?;
         let path = packages_dir.join(format!("{id}.ofm"));
         let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
         if !errors.is_empty() {
