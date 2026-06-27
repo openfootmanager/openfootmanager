@@ -20,11 +20,12 @@ import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers
 import type { TacticsPhaseSettings } from "../../store/types";
 
 interface TacticsPitchProps {
-  benchPlayers: PlayerData[];
+  benchPlayers?: PlayerData[];
   dragState: DragState | null;
   formation: string;
   matchRoles?: TeamMatchRolesData;
   tacticsPhase?: TacticsPhaseSettings;
+  teamPrimaryColor?: string;
   comparePlayerId: string | null;
   hoveredSlot: number | null;
   onAssignBestFit?: (playerId: string) => void;
@@ -205,36 +206,6 @@ function getPitchMarkerClassName(options: {
   return `${className} ${getFitToneClasses(fitTone)} bg-navy-950/76`;
 }
 
-function getBenchPlayerButtonClassName(options: {
-  comparePlayerId: string | null;
-  draggedPlayerId: string | null;
-  player: PlayerData;
-  selectedPlayerId: string | null;
-}): string {
-  const { comparePlayerId, draggedPlayerId, player, selectedPlayerId } =
-    options;
-  const isDragged = draggedPlayerId === player.id;
-  const isComparing = comparePlayerId === player.id;
-  const isSelected = selectedPlayerId === player.id;
-  let className =
-    "flex min-h-[4.5rem] min-w-[12rem] cursor-grab flex-col rounded-2xl border px-3 py-3 text-left shadow-sm transition-all active:cursor-grabbing";
-
-  if (isDragged) {
-    className = `${className} opacity-60`;
-  } else {
-    className = `${className} hover:-translate-y-0.5 hover:shadow-md`;
-  }
-
-  if (isSelected) {
-    return `${className} border-accent-300 bg-accent-600/80 dark:bg-accent-500/15 ring-2 ring-accent-300/40`;
-  }
-
-  if (isComparing) {
-    return `${className} border-primary-300 bg-primary-500/12 ring-2 ring-primary-300/30`;
-  }
-
-  return `${className} border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-navy-800`;
-}
 
 function getSlotTargetClassName(isHovered: boolean, hasPlayer: boolean): string {
   if (isHovered) {
@@ -349,11 +320,11 @@ function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Eleme
 }
 
 export default function TacticsPitch({
-  benchPlayers,
   dragState,
   formation,
   matchRoles,
   tacticsPhase,
+  teamPrimaryColor,
   comparePlayerId,
   hoveredSlot,
   onAssignBestFit,
@@ -619,8 +590,13 @@ export default function TacticsPitch({
                                 {getPlayerOvr(player)}
                               </span>
                             </div>
-                            <div className="mt-1.5 flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/12 text-sm font-heading font-bold text-white shadow-sm">
-                              {playerTokenInitials(player)}
+                            <div
+                              className="mt-1.5 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-sm font-heading font-bold text-white shadow-sm"
+                              style={teamPrimaryColor ? { backgroundColor: `${teamPrimaryColor}cc` } : { backgroundColor: "rgba(255,255,255,0.12)" }}
+                            >
+                              {player.jersey_number != null
+                                ? player.jersey_number
+                                : playerTokenInitials(player)}
                             </div>
                             <div className="mt-1.5 max-w-full truncate text-[10px] font-heading font-bold uppercase tracking-[0.16em] text-white">
                               {getPitchDisplayName(player)}
@@ -661,114 +637,6 @@ export default function TacticsPitch({
           </div>
         </div>
 
-        <div className="mt-5 border-t border-white/10 pt-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-white/80">
-                {t("preMatch.substitutes")}
-              </h4>
-              <p className="mt-1 text-sm text-black dark:text-white/50">
-                {benchPlayers.length} {t("squad.playersLabel")}
-              </p>
-            </div>
-          </div>
-          {benchPlayers.length > 0 ? (
-            <div className="-mx-1 overflow-x-auto pb-1">
-              <div className="flex min-w-max gap-2 px-1">
-              {benchPlayers.map((player) => {
-                const benchRating = getPlayerOvr(player);
-                const naturalPosition = translatePositionAbbreviation(
-                  t,
-                  player.natural_position || player.position,
-                );
-
-                return (
-                    <ContextMenu
-                      items={buildTacticsPlayerContextMenuItems({
-                        isSelected: selectedPlayerId === player.id,
-                        matchRoles,
-                        onAssignBestFit,
-                        onAssignMatchRole,
-                        onClearSelection,
-                        onDemoteStarter,
-                        onOpenProfile: (playerId) => {
-                          if (onOpenPlayerProfile) {
-                            onOpenPlayerProfile(playerId);
-                          } else {
-                            onLineupPlayerClick(playerId, "bench");
-                          }
-                        },
-                        onPromoteBench,
-                        onTacticalSelect: onLineupPlayerClick,
-                        player,
-                        section: "bench",
-                        selectedPlayerId,
-                        t,
-                      })}
-                      key={player.id}
-                    >
-                    <button
-                      type="button"
-                      draggable={!player.injury}
-                      data-testid={`pitch-bench-player-${player.id}`}
-                      onClick={() => onLineupPlayerClick(player.id, "bench")}
-                      onDragStart={(event) => {
-                        if (!player.injury) {
-                          onDragStart(event, player.id, "bench", null);
-                        }
-                      }}
-                      onDragEnd={onDragEnd}
-                      className={getBenchPlayerButtonClassName({
-                        comparePlayerId,
-                        draggedPlayerId,
-                        player,
-                        selectedPlayerId,
-                      })}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-xs font-heading font-bold text-white dark:bg-navy-900/80">
-                          {playerTokenInitials(player)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-heading font-bold text-gray-900 dark:text-white">
-                                {player.match_name || player.full_name}
-                              </div>
-                              <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-gray-500 dark:text-white/60">
-                                {naturalPosition}
-                              </div>
-                            </div>
-                            <div className="shrink-0 rounded-full bg-primary-500 px-2 py-1 text-[11px] font-heading font-bold text-white">
-                              {benchRating}
-                            </div>
-                          </div>
-                          <div className="mt-2">
-                            <div className="mb-1 flex items-center justify-between text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-white/55">
-                              <span>{t("common.condition")}</span>
-                              <span>{player.condition}%</span>
-                            </div>
-                            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-navy-600">
-                              <div
-                                className="h-full rounded-full bg-success-500"
-                                style={{ width: `${Math.max(18, player.condition)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  </ContextMenu>
-                );
-              })}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/10 px-3 py-4 text-sm text-white/50">
-              {t("preMatch.noBench")}
-            </div>
-          )}
-        </div>
       </div>
     </Card>
   );

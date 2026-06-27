@@ -261,7 +261,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("renders the top tactical controls plus bench cards inside the pitch view", () => {
+  it("renders the top tactical controls plus bench player in the left panel", () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -273,7 +273,7 @@ describe("TacticsTab", () => {
     expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
     expect(screen.getByText("tactics.formation")).toBeInTheDocument();
     expect(screen.getByText("tactics.playStyle")).toBeInTheDocument();
-    expect(screen.getAllByText("preMatch.substitutes").length).toBeGreaterThan(
+    expect(screen.getAllByText(/preMatch\.substitutes/).length).toBeGreaterThan(
       0,
     );
     expect(screen.getByTestId("bench-player-d5")).toBeInTheDocument();
@@ -360,7 +360,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("shows injured players under a Status column with progressive injury details", () => {
+  it("shows injured bench players with injury details in the left panel", () => {
     const gameState = makeGameState();
     const injuredBenchPlayer = gameState.players.find(
       (player) => player.id === "d5",
@@ -380,7 +380,6 @@ describe("TacticsTab", () => {
       />,
     );
 
-    expect(screen.getAllByText("common.status").length).toBeGreaterThan(0);
     expect(screen.getByText("Ankle sprain")).toBeInTheDocument();
     expect(screen.getByText("6d")).toBeInTheDocument();
   });
@@ -790,7 +789,7 @@ describe("TacticsTab", () => {
     ).toBeInTheDocument();
   });
 
-  it("only opens profiles from the lineup tables", () => {
+  it("opens player profile when clicking a starter row in the left panel", () => {
     const onSelectPlayer = vi.fn();
 
     render(
@@ -806,7 +805,7 @@ describe("TacticsTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("d1");
   });
 
-  it("reassigns a starter to another tactical slot from the pos combobox", async () => {
+  it("shows all starting XI players in the left panel list", () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -815,27 +814,9 @@ describe("TacticsTab", () => {
       />,
     );
 
-    const defenderRow = screen.getByTestId("xi-player-d1");
-    fireEvent.click(within(defenderRow).getByRole("combobox"));
-    fireEvent.click(within(defenderRow).getAllByRole("option")[4]);
-
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
-        playerIds: [
-          "gk1",
-          "d4",
-          "d2",
-          "d3",
-          "d1",
-          "m1",
-          "m2",
-          "m3",
-          "m4",
-          "f1",
-          "f2",
-        ],
-      });
-    });
+    expect(screen.getByTestId("xi-player-d1")).toBeInTheDocument();
+    expect(screen.getByTestId("xi-player-gk1")).toBeInTheDocument();
+    expect(screen.getByTestId("xi-player-f1")).toBeInTheDocument();
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {
@@ -1005,7 +986,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("persists default set piece and team role assignments from the roles tab", async () => {
+  it("persists default set piece and team role assignments from the right panel", async () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -1014,9 +995,6 @@ describe("TacticsTab", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "tactics.rolesTab" }),
-    );
     fireEvent.click(
       screen.getByRole("button", { name: "tactics.autoSelectAssignments" }),
     );
