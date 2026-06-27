@@ -2562,8 +2562,8 @@
         "projectAlreadyExists": "已存在具有此 ID 的项目。",
         "outputInsideSource": "输出文件不能保存在源目录内。",
         "validationFailed": "该包存在验证错误：{{errors}}",
-        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
-        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
+        "unknownCompetition": "\"{{field}}\" 引用了未知的赛事 \"{{id}}\"。",
+        "reversedRange": "球队 \"{{team}}\" 的 {{field}} 范围颠倒（最小值 > 最大值）。"
       },
       "competitionDef": {
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
@@ -2708,12 +2708,12 @@
       },
       "invalidPath": "路径无效。",
       "conflict": {
-        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
-        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+        "duplicateId": "数据包 \"{{packages}}\" 都定义了 {{entityKind}} \"{{entityId}}\" 但内容不同。以最后一个数据包为准。",
+        "duplicatePackageId": "两个数据包共用 id \"{{entityId}}\"。同一时间只能有一个处于激活状态。"
       },
       "notice": {
-        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
-        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+        "fallbackLeagueGenerated": "未定义任何赛事。已自动为所有球队生成默认的单级别联赛。",
+        "fallbackTeamsFilled": "仅定义了一支球队。已自动生成程序化对手以使游戏可玩。"
       }
     },
     "sender": {

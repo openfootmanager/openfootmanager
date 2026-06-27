@@ -2592,8 +2592,8 @@
         "projectAlreadyExists": "Ya existe un proyecto con este identificador.",
         "outputInsideSource": "El archivo de salida no puede guardarse dentro del directorio fuente.",
         "validationFailed": "El paquete tiene errores de validación: {{errors}}",
-        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
-        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
+        "unknownCompetition": "\"{{field}}\" hace referencia a una competición desconocida \"{{id}}\".",
+        "reversedRange": "El equipo \"{{team}}\" tiene un {{field}} invertido (mín > máx)."
       },
       "competitionDef": {
         "invalidEmbedded": "Las definiciones de competiciones de este mundo no son válidas y no se pudieron cargar.",
@@ -2738,12 +2738,12 @@
       },
       "invalidPath": "Ruta no válida.",
       "conflict": {
-        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
-        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+        "duplicateId": "Los paquetes \"{{packages}}\" definen ambos {{entityKind}} \"{{entityId}}\" con contenido diferente. Prevalece el último paquete.",
+        "duplicatePackageId": "Dos paquetes comparten el id \"{{entityId}}\". Solo uno puede estar activo a la vez."
       },
       "notice": {
-        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
-        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+        "fallbackLeagueGenerated": "No se definieron competiciones. Se generó automáticamente una liga de división única predeterminada para todos los equipos.",
+        "fallbackTeamsFilled": "Solo se definió un equipo. Se generaron rivales de forma procedural automáticamente para que el juego sea jugable."
       }
     },
     "sender": {

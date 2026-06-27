@@ -2562,8 +2562,8 @@
         "projectAlreadyExists": "Esiste già un progetto con questo ID.",
         "outputInsideSource": "Il file di output non può essere salvato nella cartella sorgente.",
         "validationFailed": "Il pacchetto presenta errori di validazione: {{errors}}",
-        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
-        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
+        "unknownCompetition": "\"{{field}}\" fa riferimento a una competizione sconosciuta \"{{id}}\".",
+        "reversedRange": "La squadra \"{{team}}\" ha un {{field}} invertito (min > max)."
       },
       "competitionDef": {
         "invalidEmbedded": "Le definizioni delle competizioni di questo mondo non sono valide e non è stato possibile caricarle.",
@@ -2708,12 +2708,12 @@
       },
       "invalidPath": "Percorso non valido.",
       "conflict": {
-        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
-        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+        "duplicateId": "I pacchetti \"{{packages}}\" definiscono entrambi {{entityKind}} \"{{entityId}}\" con contenuti diversi. Prevale l'ultimo pacchetto.",
+        "duplicatePackageId": "Due pacchetti condividono l'id \"{{entityId}}\". Solo uno può essere attivo alla volta."
       },
       "notice": {
-        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
-        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+        "fallbackLeagueGenerated": "Nessuna competizione è stata definita. È stato generato automaticamente un campionato a girone unico predefinito per tutte le squadre.",
+        "fallbackTeamsFilled": "È stata definita una sola squadra. Sono stati generati automaticamente avversari procedurali per rendere il gioco giocabile."
       }
     },
     "sender": {

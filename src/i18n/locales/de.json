@@ -2562,8 +2562,8 @@
         "projectAlreadyExists": "Ein Projekt mit dieser ID existiert bereits.",
         "outputInsideSource": "Die Ausgabedatei kann nicht im Quellverzeichnis gespeichert werden.",
         "validationFailed": "Das Paket enthält Validierungsfehler: {{errors}}",
-        "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
-        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
+        "unknownCompetition": "\"{{field}}\" verweist auf unbekannten Wettbewerb \"{{id}}\".",
+        "reversedRange": "Team \"{{team}}\" hat einen umgekehrten {{field}} (min > max)."
       },
       "competitionDef": {
         "invalidEmbedded": "Die Wettbewerbsdefinitionen dieser Welt sind ungültig und konnten nicht geladen werden.",
@@ -2708,12 +2708,12 @@
       },
       "invalidPath": "Ungültiger Pfad.",
       "conflict": {
-        "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",
-        "duplicatePackageId": "Two packages share the id \"{{entityId}}\". Only one can be active at a time."
+        "duplicateId": "Pakete \"{{packages}}\" definieren beide {{entityKind}} \"{{entityId}}\" mit unterschiedlichem Inhalt. Das letzte Paket gewinnt.",
+        "duplicatePackageId": "Zwei Pakete teilen sich die id \"{{entityId}}\". Nur eines kann gleichzeitig aktiv sein."
       },
       "notice": {
-        "fallbackLeagueGenerated": "No competitions were defined. A default single-division league was generated automatically for all teams.",
-        "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
+        "fallbackLeagueGenerated": "Es wurden keine Wettbewerbe definiert. Eine standardmäßige eingleisige Liga wurde automatisch für alle Teams generiert.",
+        "fallbackTeamsFilled": "Es wurde nur ein Team definiert. Prozedurale Gegner wurden automatisch generiert, um das Spiel spielbar zu machen."
       }
     },
     "sender": {
