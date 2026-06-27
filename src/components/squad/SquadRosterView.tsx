@@ -622,7 +622,7 @@ export default function SquadRosterView({
                 <SortHeader col="condition" label={t("common.condition")} />
                 <SortHeader col="morale" label={t("common.morale")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("playerProfile.contract")}
+                  {t("common.contract")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("common.actions")}
