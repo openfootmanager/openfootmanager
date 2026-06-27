@@ -1,3 +1,4 @@
+use crate::contract_wage_policy::{renewal_wage_policy_allows, renewal_wage_policy_error_message};
 use crate::finances::calc_annual_wages;
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
@@ -47,6 +48,47 @@ const LOAN_DEVELOPMENT_REPORT_INTERVAL_DAYS: i64 = 30;
 const OPENING_LOAN_LISTINGS_PER_AI_TEAM: usize = 2;
 const MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS: i64 = 90;
 
+fn has_pending_loan_registration(player: &domain::player::Player) -> bool {
+    player
+        .loan_offers
+        .iter()
+        .any(|offer| offer.status == LoanOfferStatus::PendingRegistration)
+}
+
+fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
+    player.active_loan.is_some() || has_pending_loan_registration(player)
+}
+
+fn loan_wage_share(player: &domain::player::Player, wage_contribution_pct: u8) -> i64 {
+    (i64::from(player.wage) * i64::from(wage_contribution_pct)) / 100
+}
+
+fn validate_loan_borrower_affordability(
+    game: &Game,
+    borrower_team_id: &str,
+    player: &domain::player::Player,
+    wage_contribution_pct: u8,
+) -> Result<(), String> {
+    let borrower_team = game
+        .teams
+        .iter()
+        .find(|team| team.id == borrower_team_id)
+        .ok_or("be.error.teamNotFound")?;
+    let projected_wage_share = loan_wage_share(player, wage_contribution_pct);
+    let projected_wage_share_u32 =
+        u32::try_from(projected_wage_share).map_err(|_| ERR_INSUFFICIENT_FUNDS.to_string())?;
+
+    if !renewal_wage_policy_allows(game, borrower_team, 0, projected_wage_share_u32) {
+        return Err(renewal_wage_policy_error_message(borrower_team));
+    }
+
+    if borrower_team.finance < projected_wage_share {
+        return Err(ERR_INSUFFICIENT_FUNDS.to_string());
+    }
+
+    Ok(())
+}
+
 /// Populate a small, deterministic opening loan market for AI clubs.
 ///
 /// This is intended for one-time career setup/save migration, not daily market
@@ -75,7 +117,7 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
             .filter(|player| {
                 player.team_id.as_deref() == Some(team_id.as_str())
                     && player.loan_listed
-                    && player.active_loan.is_none()
+                    && !player_has_active_or_pending_loan(player)
             })
             .count();
         let listings_needed = OPENING_LOAN_LISTINGS_PER_AI_TEAM.saturating_sub(existing_listings);
@@ -93,7 +135,7 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
                     && !player.retired
                     && !player.transfer_listed
                     && !player.loan_listed
-                    && player.active_loan.is_none()
+                    && !player_has_active_or_pending_loan(player)
                     && !starting_xi_ids.contains(&player.id)
                     && player.contract_end.as_deref().is_some_and(|contract_end| {
                         NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").is_ok_and(|date| {
@@ -404,7 +446,7 @@ fn incoming_interest_score(current_date: NaiveDate, player: &domain::player::Pla
 }
 
 fn incoming_loan_interest_score(player: &domain::player::Player) -> i32 {
-    if !player.loan_listed || player.active_loan.is_some() {
+    if !player.loan_listed || player_has_active_or_pending_loan(player) {
         return 0;
     }
 
@@ -816,7 +858,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         let Some(owner_team_id) = player.team_id.as_deref() else {
             continue;
         };
-        if player.active_loan.is_some() {
+        if player_has_active_or_pending_loan(player) {
             continue;
         }
         let mut score = incoming_interest_score(current_date, player);
@@ -1155,7 +1197,7 @@ pub fn project_transfer_bid_financial_impact(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.to_string());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
     }
 
@@ -1369,7 +1411,7 @@ pub fn make_loan_offer(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1393,6 +1435,11 @@ pub fn make_loan_offer(
         minimum_contribution
     };
     let accepted = wage_contribution_pct >= adjusted_minimum_contribution && buy_option_accepted;
+
+    if accepted {
+        validate_loan_borrower_affordability(game, &user_team_id, player, wage_contribution_pct)?;
+    }
+
     let status = if accepted {
         if register_immediately {
             LoanOfferStatus::Accepted
@@ -1482,7 +1529,7 @@ pub fn make_transfer_bid(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1686,7 +1733,7 @@ pub fn respond_to_offer(
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1756,7 +1803,7 @@ pub fn respond_to_loan_offer(
         .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if accept && player.active_loan.is_some() {
+    if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1867,7 +1914,7 @@ pub fn counter_loan_offer(
         .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -2069,7 +2116,7 @@ pub fn counter_offer(
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -2370,6 +2417,7 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
 
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = game.manager.team_id.clone();
     type DueLoanRegistration = (String, String, String, String, String, u8, Option<u64>);
 
     let due_registrations: Vec<DueLoanRegistration> = game
@@ -2414,8 +2462,18 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
             .iter()
             .find(|player| player.id == player_id)
             .is_some_and(|player| {
+                let borrower_can_register = user_team_id.as_deref() != Some(loan_team_id.as_str())
+                    || validate_loan_borrower_affordability(
+                        game,
+                        &loan_team_id,
+                        player,
+                        wage_contribution_pct,
+                    )
+                    .is_ok();
+
                 player.team_id.as_deref() == Some(&parent_team_id)
                     && player.active_loan.is_none()
+                    && borrower_can_register
                     && NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
                         .ok()
                         .is_some_and(|loan_end_date| {
@@ -2999,6 +3057,11 @@ fn execute_transfer(
         .find(|player| player.id == player_id)
         .cloned()
         .ok_or("be.error.playerNotFound")?;
+
+    if player_has_active_or_pending_loan(&player_snapshot) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
     let from_team_name = game
         .teams
         .iter()

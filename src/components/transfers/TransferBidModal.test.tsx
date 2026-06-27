@@ -220,6 +220,9 @@ describe("TransferBidModal", () => {
     );
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Make Transfer Bid" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();

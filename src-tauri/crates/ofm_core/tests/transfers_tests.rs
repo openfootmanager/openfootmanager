@@ -118,6 +118,7 @@ fn make_user_team(finance: i64, transfer_budget: i64) -> Team {
     );
     team.finance = finance;
     team.transfer_budget = transfer_budget;
+    team.wage_budget = 2_000_000;
     team.manager_id = Some("manager-1".to_string());
     team
 }
@@ -494,6 +495,45 @@ fn accepted_closed_window_loan_is_registered_when_the_window_opens() {
 }
 
 #[test]
+fn accepted_closed_window_loan_blocks_permanent_bid_before_registration() {
+    let mut player = make_player("player-scheduled-lock");
+    player.loan_listed = true;
+    player.market_value = 500_000;
+    player.wage = 20_000;
+
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-scheduled-lock".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_loan_offer(&mut game, "player-scheduled-lock", "2027-06-30", 100, None)
+        .expect("closed-window loan should schedule registration");
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+
+    let error = make_transfer_bid(&mut game, "player-scheduled-lock", 1_000_000)
+        .expect_err("pending loan registration should reserve the player");
+
+    assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-lock")
+        .expect("player should exist");
+    assert!(player.active_loan.is_none());
+    assert_eq!(
+        player.loan_offers[0].status,
+        LoanOfferStatus::PendingRegistration
+    );
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+}
+
+#[test]
 fn accepted_post_window_loan_is_scheduled_for_the_next_window() {
     let mut player = make_player("player-next-window-loan");
     player.loan_listed = true;
@@ -567,6 +607,54 @@ fn loan_offer_rejects_end_date_after_player_contract() {
         .iter()
         .find(|player| player.id == "player-short-contract-loan")
         .unwrap();
+    assert!(player.active_loan.is_none());
+    assert!(player.loan_offers.is_empty());
+}
+
+#[test]
+fn loan_offer_rejects_terms_that_exceed_user_wage_budget() {
+    let mut player = make_player("player-loan-wage-budget");
+    player.loan_listed = true;
+    player.wage = 120_000;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[0].wage_budget = 50_000;
+
+    let error = make_loan_offer(
+        &mut game,
+        "player-loan-wage-budget",
+        "2027-01-01",
+        100,
+        None,
+    )
+    .expect_err("loan should be blocked by wage budget");
+
+    assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=50000");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-wage-budget")
+        .expect("player should exist");
+    assert!(player.active_loan.is_none());
+    assert!(player.loan_offers.is_empty());
+}
+
+#[test]
+fn loan_offer_rejects_terms_when_user_cannot_cover_loan_wage_share() {
+    let mut player = make_player("player-loan-cash");
+    player.loan_listed = true;
+    player.wage = 120_000;
+    let mut game = make_game_with_player(player, vec![], 50_000, 2_000_000);
+    game.teams[0].wage_budget = 500_000;
+
+    let error = make_loan_offer(&mut game, "player-loan-cash", "2027-01-01", 100, None)
+        .expect_err("loan should be blocked by available finance");
+
+    assert_eq!(error, "be.error.transfers.insufficientFunds");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-cash")
+        .expect("player should exist");
     assert!(player.active_loan.is_none());
     assert!(player.loan_offers.is_empty());
 }

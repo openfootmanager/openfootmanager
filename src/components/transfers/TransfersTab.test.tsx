@@ -1,12 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import TransfersTab from "./TransfersTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: vi.fn((path: string) => path),
   invoke: vi.fn(),
+  isTauri: vi.fn(() => false),
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
@@ -23,6 +25,10 @@ vi.mock("react-i18next", () => ({
       if (key === "common.action") return "Action";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "scouting.nextPage") return "Next page";
+      if (key === "scouting.previousPage") return "Previous page";
+      if (key === "players.showingRange")
+        return `Showing ${params?.from}-${params?.to} of ${params?.total}`;
       if (key === "dashboard.players") return "Players";
       if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.transferMarket") return "Transfer Market";
@@ -175,6 +181,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 const mockedInvoke = vi.mocked(invoke);
+const mockedIsTauri = vi.mocked(isTauri);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -381,8 +388,25 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
 describe("TransfersTab", function (): void {
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
+    mockedIsTauri.mockReturnValue(false);
     mockedInvoke.mockImplementation(
       async (command: string, payload?: any) => {
+        if (command === "generate_player_portrait") {
+          const playerId = String(payload?.request?.playerId ?? "player");
+          return {
+            generator: "test",
+            cacheKey: playerId,
+            sourceId: playerId,
+            cachePath: `/tmp/${playerId}.png`,
+            dataUrl: null,
+            generated: true,
+            renderMs: 10,
+            elapsedMs: 10,
+            width: 128,
+            height: 128,
+          };
+        }
+
         if (command === "preview_transfer_bid_financial_impact") {
           const fee = Number(payload?.fee ?? 0);
           const transferBudgetBefore = 2000000;
@@ -449,6 +473,80 @@ describe("TransfersTab", function (): void {
     expect(screen.getByText("TRANSFER")).toBeInTheDocument();
     expect(screen.getByText("LOAN")).toBeInTheDocument();
     expect(screen.getByText(/My Transfer List \(1\)/)).toBeInTheDocument();
+  });
+
+  it("paginates the transfer players list instead of mounting every market row", function (): void {
+    const marketPlayers = Array.from({ length: 65 }, (_, index) =>
+      createPlayer({
+        id: `market-player-${index + 1}`,
+        full_name: `Market Player ${index + 1}`,
+        match_name: `M. Player ${index + 1}`,
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    );
+
+    render(
+      <TransfersTab
+        gameState={createGameState(marketPlayers)}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText(/^Market Player \d+$/)).toHaveLength(30);
+    expect(screen.getByText("Market Player 30")).toBeInTheDocument();
+    expect(screen.queryByText("Market Player 31")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 1-30 of 65")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(screen.queryByText("Market Player 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Market Player 31")).toBeInTheDocument();
+    expect(screen.getByText("Showing 31-60 of 65")).toBeInTheDocument();
+  });
+
+  it("starts runtime portrait loading for the visible transfer market page", async function (): Promise<void> {
+    mockedIsTauri.mockReturnValue(true);
+    const marketPlayers = Array.from({ length: 35 }, (_, index) =>
+      createPlayer({
+        id: `portrait-player-${index + 1}`,
+        full_name: `Portrait Player ${index + 1}`,
+        match_name: `P. Player ${index + 1}`,
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    );
+
+    render(
+      <TransfersTab
+        gameState={createGameState(marketPlayers)}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(function (): void {
+      const portraitCalls = mockedInvoke.mock.calls.filter(
+        ([command]) => command === "generate_player_portrait",
+      );
+      expect(portraitCalls).toHaveLength(30);
+      expect(portraitCalls[0]?.[1]).toEqual({
+        request: expect.objectContaining({ playerId: "portrait-player-1" }),
+      });
+      expect(
+        portraitCalls.some(([, payload]) => {
+          const portraitPayload = payload as
+            | { request?: { playerId?: string } }
+            | undefined;
+          return portraitPayload?.request?.playerId === "portrait-player-31";
+        }),
+      ).toBe(false);
+    });
   });
 
   it("submits a counter offer for a pending incoming bid and publishes the updated game", async function (): Promise<void> {
@@ -751,6 +849,103 @@ describe("TransfersTab", function (): void {
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
     });
+  });
+
+  it("closes the deal workspace after an accepted transfer bid settles", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "player-market-1",
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+        market_value: 1000000,
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "player-market-1",
+        team_id: "team-1",
+        transfer_listed: false,
+        transfer_offers: [],
+        market_value: 1000000,
+      }),
+    ]);
+
+    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        const fee = Number(payload?.fee ?? 0);
+        return {
+          projection: {
+            transfer_budget_before: 2000000,
+            transfer_budget_after: 2000000 - fee,
+            finance_before: 5000000,
+            finance_after: 5000000 - fee,
+            annual_wage_bill_before: 1000,
+            annual_wage_bill_after: 2000,
+            annual_wage_budget: 50000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "accepted",
+          suggested_fee: null,
+          is_terminal: true,
+          feedback: {
+            mood: "positive",
+            headline_key: "transfers.transferFeedbackAcceptedHeadline",
+            detail_key: "transfers.transferFeedbackAcceptedDetail",
+            tension: 20,
+            patience: 80,
+            round: 1,
+            params: { fee: "1000000" },
+          },
+          game: updatedState,
+        };
+      }
+
+      return {};
+    });
+
+    try {
+      render(
+        <TransfersTab
+          gameState={state}
+          onSelectPlayer={vi.fn()}
+          onSelectTeam={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+      expect(screen.getByRole("dialog", { name: /john smith/i })).toBeInTheDocument();
+
+      await waitFor(function (): void {
+        expect(screen.getByRole("button", { name: /submit bid/i })).toBeEnabled();
+      });
+      vi.useFakeTimers();
+      fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "player-market-1",
+        fee: 1000000,
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.queryByRole("dialog", { name: /john smith/i })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("filters free agents in the player market and opens the contract modal", async function (): Promise<void> {

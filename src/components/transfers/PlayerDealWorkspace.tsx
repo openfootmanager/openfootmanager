@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowRightLeft, Gavel, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Gavel, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
@@ -150,8 +150,19 @@ export default function PlayerDealWorkspace({
     >
       <div className="flex h-full min-h-0 flex-col">
         <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-navy-600 dark:bg-navy-800">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="-ml-2 flex shrink-0 items-center gap-2 rounded-lg px-2 py-2 text-sm text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-navy-700 dark:hover:text-white"
+              aria-label={t("common.back")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="hidden font-heading font-bold uppercase tracking-wider sm:inline">
+                {t("common.back")}
+              </span>
+            </button>
+            <div className="flex min-w-0 flex-1 items-center gap-4">
               <PlayerAvatar
                 player={player}
                 className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-sm font-heading font-bold text-gray-500 shadow-[0_0_0_1px_rgba(0,0,0,0.08)] dark:bg-navy-700 dark:text-gray-300 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]"
@@ -192,14 +203,6 @@ export default function PlayerDealWorkspace({
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-navy-700 dark:hover:text-white"
-              aria-label={t("common.cancel")}
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
         </header>
 

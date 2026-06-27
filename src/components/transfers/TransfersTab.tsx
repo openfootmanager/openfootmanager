@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   GameStateData,
   LoanOfferData,
@@ -19,6 +19,8 @@ import {
   Check,
   X,
   UserPlus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   getTeamName,
@@ -100,6 +102,8 @@ interface TransfersTabProps {
   onGameUpdate?: (game: GameStateData) => void;
 }
 
+const TRANSFER_MARKET_PAGE_SIZE = 30;
+
 type CounterTarget = {
   player: PlayerData;
   offerId: string;
@@ -170,6 +174,7 @@ export default function TransfersTab({
     useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [marketPage, setMarketPage] = useState(1);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
   );
@@ -224,6 +229,11 @@ export default function TransfersTab({
     useState<PlayerData | null>(null);
   const [dealWorkspaceKind, setDealWorkspaceKind] =
     useState<DealKind>("transfer");
+  const closeAcceptedDealWorkspace = (playerId: string) => {
+    setDealWorkspaceTarget((target) =>
+      target?.id === playerId ? null : target,
+    );
+  };
 
   const openLoanOffer = (player: PlayerData) => {
     setLoanTarget(player);
@@ -392,8 +402,10 @@ export default function TransfersTab({
       if (onGameUpdate) onGameUpdate(response.game);
 
       if (response.decision === "accepted") {
+        const acceptedPlayerId = loanTarget.id;
         setTimeout(() => {
           closeLoanOffer();
+          closeAcceptedDealWorkspace(acceptedPlayerId);
         }, 1500);
       }
     } catch (err: any) {
@@ -537,6 +549,7 @@ export default function TransfersTab({
   } = useTransferBidFlow({
     gameState,
     onGameUpdate,
+    onAccepted: closeAcceptedDealWorkspace,
   });
   const scouts = gameState.staff.filter(
     (staffMember) =>
@@ -595,7 +608,10 @@ export default function TransfersTab({
         ? t("transfers.loanWindowClosedUnavailableDetail")
       : null;
 
-  const transferCollections = deriveTransferCollections(gameState, userTeamId);
+  const transferCollections = useMemo(
+    () => deriveTransferCollections(gameState, userTeamId),
+    [gameState, userTeamId],
+  );
   const {
     availablePlayers,
     marketPlayers,
@@ -603,7 +619,10 @@ export default function TransfersTab({
     loanPlayers,
     playersWithOffers,
   } = transferCollections;
-  const myListedPlayers = getMyListedPlayers(transferCollections);
+  const myListedPlayers = useMemo(
+    () => getMyListedPlayers(transferCollections),
+    [transferCollections],
+  );
   const isPlayersView = view === "players";
   const isScoutingView = isPlayersView;
   const parsedLoanBuyOptionFee = loanBuyOptionEnabled
@@ -679,12 +698,39 @@ export default function TransfersTab({
       },
     ];
 
-  const currentList = getCurrentTransferList(view, transferCollections);
-  const filteredList = filterTransferPlayers(
-    currentList,
-    search,
-    posFilter,
-    isPlayersView ? availabilityFilter : "all",
+  const currentList = useMemo(
+    () => getCurrentTransferList(view, transferCollections),
+    [transferCollections, view],
+  );
+  const filteredList = useMemo(
+    () =>
+      filterTransferPlayers(
+        currentList,
+        search,
+        posFilter,
+        isPlayersView ? availabilityFilter : "all",
+      ),
+    [availabilityFilter, currentList, isPlayersView, posFilter, search],
+  );
+  const marketTotalPages = Math.max(
+    1,
+    Math.ceil(filteredList.length / TRANSFER_MARKET_PAGE_SIZE),
+  );
+  const safeMarketPage = Math.min(marketPage, marketTotalPages);
+  const marketPageStart =
+    (safeMarketPage - 1) * TRANSFER_MARKET_PAGE_SIZE;
+  const visibleList = isPlayersView
+    ? filteredList.slice(
+      marketPageStart,
+      marketPageStart + TRANSFER_MARKET_PAGE_SIZE,
+    )
+    : filteredList;
+  const showMarketPagination =
+    isPlayersView && filteredList.length > TRANSFER_MARKET_PAGE_SIZE;
+  const marketRangeFrom = filteredList.length === 0 ? 0 : marketPageStart + 1;
+  const marketRangeTo = Math.min(
+    marketPageStart + TRANSFER_MARKET_PAGE_SIZE,
+    filteredList.length,
   );
   const availabilityFilters: {
     id: TransferAvailabilityFilter;
@@ -731,6 +777,7 @@ export default function TransfersTab({
   } = useFreeAgentContractFlow({
     gameState,
     onGameUpdate,
+    onAccepted: closeAcceptedDealWorkspace,
   });
 
   const getDealKinds = (player: PlayerData): DealKind[] => {
@@ -948,6 +995,7 @@ export default function TransfersTab({
             key={tab.id}
             onClick={() => {
               setView(tab.id);
+              setMarketPage(1);
               if (tab.id !== "players") {
                 setAvailabilityFilter("all");
               }
@@ -970,14 +1018,20 @@ export default function TransfersTab({
             type="text"
             placeholder={t("transfers.searchByName")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setMarketPage(1);
+            }}
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
           />
         </div>
         <div className="flex gap-1.5">
           <button
             type="button"
-            onClick={() => setPosFilter(null)}
+            onClick={() => {
+              setPosFilter(null);
+              setMarketPage(1);
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("common.all")}
@@ -986,7 +1040,10 @@ export default function TransfersTab({
             <button
               type="button"
               key={pos}
-              onClick={() => setPosFilter(posFilter === pos ? null : pos)}
+              onClick={() => {
+                setPosFilter(posFilter === pos ? null : pos);
+                setMarketPage(1);
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
             >
               {t(`common.posAbbr.${pos}`)}
@@ -999,7 +1056,10 @@ export default function TransfersTab({
               <button
                 type="button"
                 key={filter.id}
-                onClick={() => setAvailabilityFilter(filter.id)}
+                onClick={() => {
+                  setAvailabilityFilter(filter.id);
+                  setMarketPage(1);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${availabilityFilter === filter.id ? "bg-accent-500 text-navy-900 shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
               >
                 {filter.label} ({filter.count})
@@ -1096,7 +1156,7 @@ export default function TransfersTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                  {filteredList.map((player) => {
+                  {visibleList.map((player) => {
                     const ovr = getPlayerOvr(player);
                     const age = calcAge(player.date_of_birth);
                     const transferOffersForThisPlayer = player.transfer_offers ?? [];
@@ -1188,7 +1248,9 @@ export default function TransfersTab({
                         </td>
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-3">
-                            <PlayerAvatar player={player} />
+                            <PlayerAvatar
+                              player={player}
+                            />
                             <div className="min-w-0">
                               <span className="block truncate font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                                 {player.full_name}
@@ -1479,6 +1541,42 @@ export default function TransfersTab({
                 </tbody>
               </table>
             </div>
+            {showMarketPagination ? (
+              <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-navy-600">
+                <p className="text-xs font-heading text-gray-400 dark:text-gray-500">
+                  {t("players.showingRange", {
+                    from: marketRangeFrom,
+                    to: marketRangeTo,
+                    total: filteredList.length,
+                  })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setMarketPage(Math.max(1, safeMarketPage - 1))}
+                    disabled={safeMarketPage === 1}
+                    aria-label={t("scouting.previousPage")}
+                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-navy-700 dark:hover:text-white"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="px-3 py-1 text-xs font-heading font-bold text-gray-600 dark:text-gray-300">
+                    {safeMarketPage} / {marketTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMarketPage(Math.min(marketTotalPages, safeMarketPage + 1))
+                    }
+                    disabled={safeMarketPage === marketTotalPages}
+                    aria-label={t("scouting.nextPage")}
+                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-navy-700 dark:hover:text-white"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </CardBody>
         </Card>
       )}

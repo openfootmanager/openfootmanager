@@ -23,6 +23,7 @@ import {
 interface UseTransferBidFlowArgs {
     gameState: GameStateData;
     onGameUpdate?: (game: GameStateData) => void;
+    onAccepted?: (playerId: string) => void;
 }
 
 interface UseTransferBidFlowResult {
@@ -46,6 +47,7 @@ interface UseTransferBidFlowResult {
 export function useTransferBidFlow({
     gameState,
     onGameUpdate,
+    onAccepted,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
     const userTeamId = gameState.manager.team_id;
     const myTeam = gameState.teams.find(
@@ -147,8 +149,10 @@ export function useTransferBidFlow({
             }
 
             if (response.decision === "accepted") {
+                const acceptedPlayerId = bidTarget.id;
                 setTimeout(() => {
                     closeBidNegotiation();
+                    onAccepted?.(acceptedPlayerId);
                 }, 2000);
             }
         } catch (error: any) {
