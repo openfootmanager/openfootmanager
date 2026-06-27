@@ -929,8 +929,8 @@ export default function TacticsTab({
         />
       </div>
 
-      {/* Inspector modal */}
-      {selectedPlayer && (
+      {/* Inspector modal — only when both players are selected for comparison */}
+      {selectedPlayer && comparePlayer && (
         <>
           <div
             className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"

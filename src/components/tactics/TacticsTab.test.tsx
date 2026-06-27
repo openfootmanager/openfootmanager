@@ -673,7 +673,9 @@ describe("TacticsTab", () => {
       />,
     );
 
+    // Modal requires two players — select f1 then m1 to open comparison
     fireEvent.click(screen.getByTestId("pitch-player-f1"));
+    fireEvent.click(screen.getByTestId("pitch-player-m1"));
 
     expect(screen.getByText("common.positions.Forward")).toBeInTheDocument();
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
@@ -690,8 +692,8 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
-    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
-    expect(screen.getAllByText("Player d5").length).toBeGreaterThan(0);
+    // Modal only opens after both players are selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
@@ -735,8 +737,8 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
-    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
-    expect(screen.getAllByText("Player d1").length).toBeGreaterThan(0);
+    // Modal only opens after both players are selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
@@ -803,7 +805,8 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("xi-player-d1"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
-    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
+    // Modal stays closed until a second player is selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
   });
 
   it("shows all starting XI players in the left panel list", () => {

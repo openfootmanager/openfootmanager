@@ -256,19 +256,10 @@ function getPressingZoneTop(intensity: TacticsPhaseSettings["pressing_intensity"
   }
 }
 
-function getWidthX(width: TacticsPhaseSettings["width"]): { left: number; right: number } {
-  switch (width) {
-    case "Narrow": return { left: 25, right: 75 };
-    case "Wide": return { left: 4, right: 96 };
-    default: return { left: 16, right: 84 }; // Normal
-  }
-}
-
 function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Element {
   const lineY = getDefensiveLineY(phase.defensive_line);
   const pressOpacity = getPressingZoneOpacity(phase.pressing_intensity);
   const pressTop = getPressingZoneTop(phase.pressing_intensity);
-  const { left: wLeft, right: wRight } = getWidthX(phase.width);
 
   return (
     <>
@@ -296,25 +287,6 @@ function TacticalOverlays({ phase }: { phase: TacticsPhaseSettings }): JSX.Eleme
         pointerEvents="none"
       />
 
-      {/* Width indicator: vertical arrows on each side at midfield */}
-      <line
-        x1={wLeft}
-        y1="62"
-        x2={wLeft}
-        y2="78"
-        stroke="rgba(255,255,255,0.45)"
-        strokeWidth="0.7"
-        pointerEvents="none"
-      />
-      <line
-        x1={wRight}
-        y1="62"
-        x2={wRight}
-        y2="78"
-        stroke="rgba(255,255,255,0.45)"
-        strokeWidth="0.7"
-        pointerEvents="none"
-      />
     </>
   );
 }
