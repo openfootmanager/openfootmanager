@@ -189,6 +189,22 @@ describe("seasonContext", function (): void {
     expect(context.transfer_window.closes_on).toBe("2026-08-31");
   });
 
+  it("rolls the next transfer opening forward after the current window closes", function (): void {
+    const context = resolveSeasonContext(
+      createGameState({
+        clock: {
+          current_date: "2026-09-15T12:00:00Z",
+          start_date: "2026-07-01T12:00:00Z",
+        },
+      }),
+    );
+
+    expect(context.transfer_window.status).toBe("Closed");
+    expect(context.transfer_window.days_until_opens).toBe(290);
+    expect(context.transfer_window.opens_on).toBe("2027-07-02");
+    expect(context.transfer_window.closes_on).toBe("2027-08-31");
+  });
+
   it("marks deadline day when the transfer window reaches its closing threshold", function (): void {
     const context = resolveSeasonContext(
       createGameState({

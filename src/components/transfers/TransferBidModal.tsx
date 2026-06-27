@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 
 import type {
   PlayerData,
@@ -35,6 +36,8 @@ interface TransferBidModalProps {
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
   bidLoading: boolean;
   bidSubmitDisabled: boolean;
+  blockingTitle?: string | null;
+  blockingDetail?: string | null;
   onSubmit: () => void;
   onClose: () => void;
 }
@@ -53,6 +56,8 @@ export default function TransferBidModal({
   bidResult,
   bidLoading,
   bidSubmitDisabled,
+  blockingTitle = null,
+  blockingDetail = null,
   onSubmit,
   onClose,
 }: TransferBidModalProps) {
@@ -86,6 +91,20 @@ export default function TransferBidModal({
             </p>
           </div>
         </div>
+        {blockingTitle ? (
+          <div
+            role="alert"
+            className="mb-4 flex gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="text-xs">
+              <p className="font-heading font-bold uppercase tracking-wider">
+                {blockingTitle}
+              </p>
+              {blockingDetail ? <p className="mt-1">{blockingDetail}</p> : null}
+            </div>
+          </div>
+        ) : null}
         {hasExistingOffer ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
             {t("transfers.resumeNegotiationHint")}

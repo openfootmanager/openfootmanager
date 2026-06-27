@@ -107,8 +107,15 @@ function deriveTransferWindowContext(
     return DEFAULT_TRANSFER_WINDOW;
   }
 
-  const opensOn = addDays(seasonStart, -TRANSFER_WINDOW_DAYS.preseasonOpenLead);
-  const closesOn = addDays(seasonStart, TRANSFER_WINDOW_DAYS.postSeasonStartClose);
+  let windowSeasonStart = seasonStart;
+  let opensOn = transferWindowOpensOn(windowSeasonStart);
+  let closesOn = transferWindowClosesOn(windowSeasonStart);
+
+  while (currentDate > closesOn) {
+    windowSeasonStart = addYearsClamped(windowSeasonStart, 1);
+    opensOn = transferWindowOpensOn(windowSeasonStart);
+    closesOn = transferWindowClosesOn(windowSeasonStart);
+  }
 
   let status: TransferWindowStatus = "Closed";
   let daysUntilOpens: number | null = null;
@@ -160,6 +167,27 @@ function formatUtcDate(date: Date | null): string | null {
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_IN_MS);
+}
+
+function addYearsClamped(date: Date, years: number): Date {
+  const targetYear = date.getUTCFullYear() + years;
+  const candidate = new Date(
+    Date.UTC(targetYear, date.getUTCMonth(), date.getUTCDate()),
+  );
+
+  if (candidate.getUTCMonth() === date.getUTCMonth()) {
+    return candidate;
+  }
+
+  return new Date(Date.UTC(targetYear, date.getUTCMonth() + 1, 0));
+}
+
+function transferWindowOpensOn(seasonStart: Date): Date {
+  return addDays(seasonStart, -TRANSFER_WINDOW_DAYS.preseasonOpenLead);
+}
+
+function transferWindowClosesOn(seasonStart: Date): Date {
+  return addDays(seasonStart, TRANSFER_WINDOW_DAYS.postSeasonStartClose);
 }
 
 function dayDiff(startDate: Date, endDate: Date): number {

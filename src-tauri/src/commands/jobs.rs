@@ -1,14 +1,16 @@
-use std::sync::Arc;
 use log::info;
 use ofm_core::job_offers::{self, JobOpportunity};
 use ofm_core::state::StateManager;
+use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
-pub fn get_available_jobs(state: State<'_, Arc<StateManager>>) -> Result<Vec<JobOpportunity>, String> {
+pub fn get_available_jobs(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Vec<JobOpportunity>, String> {
     info!("[cmd] get_available_jobs");
     state
-        .get_game(|game| job_offers::get_available_jobs(game))
+        .get_game(job_offers::get_available_jobs)
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 

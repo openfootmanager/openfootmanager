@@ -1,6 +1,6 @@
 pub mod clubs;
-pub(crate) mod data;
 pub mod competition_def;
+pub(crate) mod data;
 pub mod definitions;
 pub mod file_format;
 mod generation;
@@ -28,8 +28,8 @@ use log::info;
 use rand::RngExt;
 use uuid::Uuid;
 
-use generation::*;
 use chrono::Datelike;
+use generation::*;
 
 const MAX_OPENING_EXPIRING_CONTRACTS: usize = 2;
 const MIN_OPENING_RUNWAY_WEEKS: i64 = 16;
@@ -622,9 +622,7 @@ fn build_package_club(
         let slot = players
             .iter()
             .enumerate()
-            .find(|(index, player)| {
-                !placed[*index] && player.position.to_group_position() == group
-            })
+            .find(|(index, player)| !placed[*index] && player.position.to_group_position() == group)
             .map(|(index, _)| index);
         match slot {
             Some(index) => {
@@ -672,7 +670,9 @@ fn regions_from_package(
     let mut region_countries: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for confederation in &package.confederations {
         region_names.insert(confederation.id.clone(), confederation.name.clone());
-        region_countries.entry(confederation.id.clone()).or_default();
+        region_countries
+            .entry(confederation.id.clone())
+            .or_default();
     }
 
     let country_region: HashMap<&str, &str> = package
@@ -1026,7 +1026,10 @@ mod tests {
         let player = generate_national_team_player("JP", 5);
 
         assert_eq!(player.nationality, "JP");
-        assert_eq!(player.team_id, None, "national-pool players belong to no club");
+        assert_eq!(
+            player.team_id, None,
+            "national-pool players belong to no club"
+        );
         assert_eq!(player.contract_end, None);
         assert_eq!(player.position, Position::Defender, "slot 5 is a defender");
         assert!(player.ovr > 0, "derived ratings must be computed");
@@ -1261,9 +1264,8 @@ mod tests {
     fn test_all_nationalities_use_short_uppercase_codes() {
         let (_, players, staff) = generate_world_with(&WorldGenConfig::compact(), None);
         for p in &players {
-            assert_eq!(
+            assert!(
                 p.nationality.len() == 2 || p.nationality.len() == 3,
-                true,
                 "Player {} has invalid nationality code: {}",
                 p.full_name,
                 p.nationality
@@ -1276,9 +1278,8 @@ mod tests {
             );
         }
         for s in &staff {
-            assert_eq!(
+            assert!(
                 s.nationality.len() == 2 || s.nationality.len() == 3,
-                true,
                 "Staff {} has invalid nationality code: {}",
                 s.first_name,
                 s.nationality
@@ -1304,7 +1305,11 @@ mod tests {
         .unwrap();
 
         let (teams, players, _) = generate_world_with(&WorldGenConfig::compact(), Some(&dir));
-        assert_eq!(teams.len(), 1, "the YAML teams file should drive generation");
+        assert_eq!(
+            teams.len(),
+            1,
+            "the YAML teams file should drive generation"
+        );
         assert_eq!(teams[0].name, "Istanbul United");
         assert_eq!(players.len(), 22);
 

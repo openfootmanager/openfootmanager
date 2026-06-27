@@ -260,7 +260,9 @@ impl GamePersistenceReader {
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
         let national_teams = national_team_repo::load_national_teams(conn)?;
-        if competitions.is_empty() && let Some(existing_league) = league.clone() {
+        if competitions.is_empty()
+            && let Some(existing_league) = league.clone()
+        {
             competitions.push(existing_league);
         }
 
@@ -349,6 +351,7 @@ impl GamePersistenceReader {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};

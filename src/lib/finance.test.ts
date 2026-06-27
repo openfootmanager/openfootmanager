@@ -5,6 +5,7 @@ import {
   annualAmountToWeeklyCommitment,
   getAnnualWageBill,
   getCashRunwayWeeks,
+  getPlayerAnnualWageCommitment,
   getTeamFinanceSnapshot,
   getWeeklyWageSpend,
 } from "./finance";
@@ -162,5 +163,62 @@ describe("finance helpers", () => {
     expect(snapshot.wageBudgetStatus).toBe("critical");
     expect(snapshot.runwayStatus).toBe("critical");
     expect(snapshot.overallStatus).toBe("critical");
+  });
+
+  it("splits active loan wage commitments by the agreed contribution", () => {
+    const parentClub = createTeam({
+      id: "parent",
+      wage_budget: 1_000_000,
+    });
+    const loanClub = createTeam({
+      id: "loan",
+      wage_budget: 1_000_000,
+    });
+    const loanedPlayer = createPlayer({
+      id: "loaned-player",
+      team_id: "loan",
+      wage: 520000,
+      active_loan: {
+        parent_team_id: "parent",
+        loan_team_id: "loan",
+        start_date: "2026-08-01",
+        end_date: "2027-01-28",
+        wage_contribution_pct: 60,
+        buy_option_fee: null,
+      },
+    });
+
+    expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(208000);
+    expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(312000);
+    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).annualWageBill).toBe(
+      208000,
+    );
+    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(
+      4000,
+    );
+    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).annualWageBill).toBe(
+      312000,
+    );
+    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(
+      6000,
+    );
+  });
+
+  it("assigns the loan wage remainder to the parent club like the backend", () => {
+    const loanedPlayer = createPlayer({
+      team_id: "loan",
+      wage: 101,
+      active_loan: {
+        parent_team_id: "parent",
+        loan_team_id: "loan",
+        start_date: "2026-08-01",
+        end_date: "2027-01-28",
+        wage_contribution_pct: 50,
+        buy_option_fee: null,
+      },
+    });
+
+    expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(50);
+    expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(51);
   });
 });

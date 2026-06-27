@@ -237,7 +237,6 @@ fn process_day_simulates_due_national_team_fixture() {
         competition: FixtureCompetition::InternationalNation,
         status: FixtureStatus::Scheduled,
         result: None,
-        ..Default::default()
     });
     let mut away = NationalTeam::new("nt-bra".into(), "Brazil".into(), "BRA".into(), None);
     away.squad_player_ids = away_squad;
@@ -372,7 +371,7 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
                 "other".to_string()
             },
             assist_id: None,
-            is_penalty: false,
+            goal_source: engine::report::GoalSource::OpenPlay,
             side: Side::Home,
         })
         .chain((0..away_goals).map(|i| GoalDetail {
@@ -383,7 +382,7 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
                 "other".to_string()
             },
             assist_id: None,
-            is_penalty: false,
+            goal_source: engine::report::GoalSource::OpenPlay,
             side: Side::Away,
         }))
         .collect();

@@ -258,7 +258,8 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "match.cornersGoals"
   ],
   "it": [
     "nations.sn",

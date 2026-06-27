@@ -1,11 +1,15 @@
 use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
-use crate::shared::{PlayStylePhase, TraitContext, home_mod, play_style_modifier, trait_bonus};
+use crate::shared::{
+    PlayStylePhase, TraitContext, home_mod, play_style_modifier, role_attribute_modifier,
+    tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
+    tactics_foul_modifier, trait_bonus,
+};
 use crate::types::{Position, Side, Zone};
 
 use super::MatchContext;
-use super::fouls::maybe_foul;
+use super::fouls::{self, maybe_foul};
 use super::snap_player;
 
 // ---------------------------------------------------------------------------
@@ -19,8 +23,7 @@ pub(super) fn resolve_action<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &m
 
     if zone.is_box_for(att_side) {
         resolve_shot(ctx, minute, att_side, rng);
-        ctx.ball_zone = Zone::Midfield;
-        ctx.possession = def_side;
+        // resolve_shot manages ball_zone and possession for all outcomes
     } else if zone == Zone::attacking_third(att_side) {
         resolve_attacking_third(ctx, minute, att_side, def_side, rng);
     } else if zone == Zone::Midfield {
@@ -51,7 +54,8 @@ fn resolve_buildup<R: Rng>(
     let press = effective_press(ctx, def_side);
     let ball_zone = ctx.ball_zone;
 
-    let success_chance = (pass_skill * 1.3) / (pass_skill * 1.3 + press);
+    let buildup_mod = tactics_buildup_mod(&ctx.team(att_side).tactics);
+    let success_chance = (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
     if rng.random_range(0.0..1.0f64) < success_chance {
         ctx.emit(
             MatchEvent::new(minute, EventType::PassCompleted, att_side, ball_zone)
@@ -99,12 +103,12 @@ fn resolve_midfield<R: Rng>(
         ctx.team(att_side).play_style,
         PlayStylePhase::Midfield,
         true,
-    );
+    ) * role_attribute_modifier(attacker.role, PlayStylePhase::Midfield);
     let def_mod = play_style_modifier(
         ctx.team(def_side).play_style,
         PlayStylePhase::Midfield,
         false,
-    );
+    ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
     let def_eff = def_rating * def_mod * home_mod(def_side, ctx.config);
     let success = att_eff / (att_eff + def_eff);
@@ -121,7 +125,8 @@ fn resolve_midfield<R: Rng>(
                 MatchEvent::new(minute, EventType::Tackle, def_side, Zone::Midfield)
                     .with_player(&defender.id),
             );
-            maybe_foul(
+            let foul_mod = tactics_foul_modifier(&ctx.team(def_side).tactics);
+            let fouled = maybe_foul(
                 ctx,
                 minute,
                 def_side,
@@ -129,7 +134,14 @@ fn resolve_midfield<R: Rng>(
                 &defender,
                 Zone::Midfield,
                 rng,
+                foul_mod,
             );
+            if fouled {
+                // Fouled team (att_side) retains possession for the free kick
+                ctx.possession = att_side;
+                ctx.ball_zone = Zone::Midfield;
+                return;
+            }
         } else {
             ctx.emit(
                 MatchEvent::new(minute, EventType::Interception, def_side, Zone::Midfield)
@@ -164,25 +176,49 @@ fn resolve_attacking_third<R: Rng>(
         / 4.0
         * trait_bonus(&defender, TraitContext::Tackling);
 
-    let att_mod = play_style_modifier(ctx.team(att_side).play_style, PlayStylePhase::Attack, true);
+    let att_mod = play_style_modifier(ctx.team(att_side).play_style, PlayStylePhase::Attack, true)
+        * role_attribute_modifier(attacker.role, PlayStylePhase::Attack);
     let def_mod = play_style_modifier(
         ctx.team(def_side).play_style,
         PlayStylePhase::Defense,
         false,
-    );
+    ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
     let def_eff = def_rating * def_mod * home_mod(def_side, ctx.config);
     let success = att_eff / (att_eff + def_eff);
     let zone = Zone::attacking_third(att_side);
+    let cross_prob = tactics_cross_probability(&ctx.team(att_side).tactics);
 
     if rng.random_range(0.0..1.0f64) < success {
         ctx.emit(
             MatchEvent::new(minute, EventType::Dribble, att_side, zone).with_player(&attacker.id),
         );
-        ctx.ball_zone = Zone::attacking_box(att_side);
+        if rng.random_range(0.0..1.0f64) < cross_prob {
+            ctx.emit(
+                MatchEvent::new(minute, EventType::Cross, att_side, zone).with_player(&attacker.id),
+            );
+            let header = snap_player(ctx, att_side, Position::Forward, rng);
+            let def_header = snap_player(ctx, def_side, Position::Defender, rng);
+            let aerial_att = header.aerial as f64;
+            let aerial_def = def_header.aerial as f64;
+            let aerial_win = aerial_att / (aerial_att + aerial_def);
+            if rng.random_range(0.0..1.0f64) < aerial_win {
+                ctx.ball_zone = Zone::attacking_box(att_side);
+                resolve_shot(ctx, minute, att_side, rng);
+            } else {
+                ctx.emit(
+                    MatchEvent::new(minute, EventType::Clearance, def_side, zone)
+                        .with_player(&def_header.id),
+                );
+                ctx.possession = def_side;
+                ctx.ball_zone = Zone::defensive_third(att_side);
+            }
+        } else {
+            ctx.ball_zone = Zone::attacking_box(att_side);
+        }
     } else {
         let is_tackle = rng.random_range(0.0..1.0f64) < 0.5;
-        if is_tackle {
+        let fouled = if is_tackle {
             ctx.emit(
                 MatchEvent::new(minute, EventType::DribbleTackled, att_side, zone)
                     .with_player(&attacker.id)
@@ -192,12 +228,19 @@ fn resolve_attacking_third<R: Rng>(
                 MatchEvent::new(minute, EventType::Tackle, def_side, zone)
                     .with_player(&defender.id),
             );
-            maybe_foul(ctx, minute, def_side, &attacker, &defender, zone, rng);
+            maybe_foul(ctx, minute, def_side, &attacker, &defender, zone, rng, tactics_foul_modifier(&ctx.team(def_side).tactics))
         } else {
             ctx.emit(
                 MatchEvent::new(minute, EventType::Clearance, def_side, zone)
                     .with_player(&defender.id),
             );
+            false
+        };
+        if fouled {
+            // Fouled team (att_side) retains possession for the free kick in the attacking third
+            ctx.possession = att_side;
+            ctx.ball_zone = zone;
+            return;
         }
         if rng.random_range(0.0..1.0f64) < 0.25 {
             ctx.emit(MatchEvent::new(minute, EventType::Corner, att_side, zone));
@@ -213,21 +256,48 @@ fn resolve_attacking_third<R: Rng>(
 
 fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng: &mut R) {
     let def_side = att_side.opposite();
+    let zone = Zone::attacking_box(att_side);
+
+    // Box foul rate fixed at 3.6% per shot — independent of foul_probability (which tunes outfield fouls)
+    if rng.random_range(0.0..1.0f64) < 0.036 {
+        let fouler = snap_player(ctx, def_side, Position::Defender, rng);
+        let fouled = snap_player(ctx, att_side, Position::Forward, rng);
+        ctx.emit(
+            MatchEvent::new(minute, EventType::Foul, def_side, zone)
+                .with_player(&fouler.id)
+                .with_secondary(&fouled.id),
+        );
+        if rng.random_range(0.0..1.0f64) < ctx.config.penalty_probability {
+            ctx.emit(MatchEvent::new(minute, EventType::PenaltyAwarded, att_side, zone));
+            fouls::resolve_penalty(ctx, minute, att_side, rng);
+            fouls::maybe_card(ctx, minute, def_side, &fouler.id, zone, rng);
+            ctx.ball_zone = Zone::Midfield;
+            ctx.possession = def_side;
+            return;
+        }
+        fouls::maybe_card(ctx, minute, def_side, &fouler.id, zone, rng);
+        // Foul but no penalty: advantage played, shot continues
+    }
+
     let shooter = snap_player(ctx, att_side, Position::Forward, rng);
     let assister = snap_player(ctx, att_side, Position::Midfielder, rng);
     let goalkeeper = snap_player(ctx, def_side, Position::Goalkeeper, rng);
 
+    let att_cond = if att_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
+    let def_cond = if def_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
+
     let shoot_rating =
         (shooter.shooting as f64 + shooter.composure as f64 + shooter.decisions as f64) / 3.0
-            * trait_bonus(&shooter, TraitContext::Shooting);
+            * trait_bonus(&shooter, TraitContext::Shooting)
+            * att_cond;
     let gk_rating =
         (goalkeeper.handling as f64 + goalkeeper.reflexes as f64 + goalkeeper.positioning as f64)
             / 3.0
-            * trait_bonus(&goalkeeper, TraitContext::Goalkeeping);
+            * trait_bonus(&goalkeeper, TraitContext::Goalkeeping)
+            * def_cond;
 
     let accuracy =
         (ctx.config.shot_accuracy_base + (shoot_rating - 50.0) / 200.0).clamp(0.15, 0.85);
-    let zone = Zone::attacking_box(att_side);
 
     if rng.random_range(0.0..1.0f64) > accuracy {
         if rng.random_range(0.0..1.0f64) < 0.4 {
@@ -235,17 +305,25 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
                 MatchEvent::new(minute, EventType::ShotBlocked, att_side, zone)
                     .with_player(&shooter.id),
             );
+            // Blocked shot: ball stays in area, defender clears to midfield
+            ctx.possession = def_side;
+            ctx.ball_zone = Zone::Midfield;
         } else {
             ctx.emit(
                 MatchEvent::new(minute, EventType::ShotOffTarget, att_side, zone)
                     .with_player(&shooter.id),
             );
+            ctx.emit(MatchEvent::new(minute, EventType::GoalKick, def_side, zone));
+            ctx.possession = def_side;
+            ctx.ball_zone = Zone::defensive_third(def_side);
         }
         return;
     }
 
+    let def_line_mod = tactics_defensive_conversion_mod(&ctx.team(def_side).tactics);
     let conversion =
-        (ctx.config.goal_conversion_base + (shoot_rating - gk_rating) / 150.0).clamp(0.10, 0.70);
+        (ctx.config.goal_conversion_base * def_line_mod + (shoot_rating - gk_rating) / 150.0)
+            .clamp(0.10, 0.70);
 
     if rng.random_range(0.0..1.0f64) < conversion {
         ctx.emit(
@@ -254,10 +332,22 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
                 .with_secondary(&assister.id),
         );
         ctx.add_goal(att_side);
+        ctx.possession = def_side;
+        ctx.ball_zone = Zone::Midfield;
     } else {
         ctx.emit(
             MatchEvent::new(minute, EventType::ShotSaved, att_side, zone).with_player(&shooter.id),
         );
+        // 40% of saves → corner (keeper parries wide), 60% → goal kick (keeper catches)
+        if rng.random_range(0.0..1.0f64) < 0.40 {
+            ctx.emit(MatchEvent::new(minute, EventType::Corner, att_side, zone));
+            ctx.possession = att_side;
+            ctx.ball_zone = Zone::attacking_box(att_side);
+        } else {
+            ctx.emit(MatchEvent::new(minute, EventType::GoalKick, def_side, zone));
+            ctx.possession = def_side;
+            ctx.ball_zone = Zone::defensive_third(def_side);
+        }
     }
 }
 

@@ -76,6 +76,7 @@ fn outcome_key(home_goals: u8, away_goals: u8) -> &'static str {
 }
 
 /// Generate a match report news article for a completed fixture.
+#[allow(clippy::too_many_arguments)]
 pub fn match_report_article(
     fixture_id: &str,
     home_name: &str,

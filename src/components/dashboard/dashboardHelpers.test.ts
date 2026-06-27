@@ -347,6 +347,36 @@ describe("dashboardHelpers", function (): void {
     expect(alertIds).toContain("wage_pressure");
   });
 
+  it("includes parent-club wage shares for loaned-out players in finance alerts", function (): void {
+    const team = createTeam({
+      finance: 500000,
+      wage_budget: 100000,
+    });
+    const gameState = createGameState({
+      teams: [team],
+      players: [
+        createPlayer({
+          id: "loaned-out",
+          team_id: "team-2",
+          wage: 200000,
+          active_loan: {
+            parent_team_id: "team-1",
+            loan_team_id: "team-2",
+            start_date: "2026-08-01",
+            end_date: "2027-01-28",
+            wage_contribution_pct: 40,
+            buy_option_fee: null,
+          },
+        }),
+      ],
+    });
+
+    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert);
+    const alertIds = alerts.map((alert) => alert.id);
+
+    expect(alertIds).toContain("wage_pressure");
+  });
+
   it("does not warn about an incomplete Starting XI when a healthy roster can normalize a partial saved lineup", function (): void {
     const roster = [
       createPlayer({ id: "p1", position: "Goalkeeper", natural_position: "Goalkeeper" }),

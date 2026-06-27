@@ -497,6 +497,10 @@ pub fn set_team_kit_pattern_internal(
     kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
     mutate_active_game(state, |game| {
+        if game.season_context.phase != domain::season::SeasonPhase::Preseason {
+            return Err("be.error.kitChangesLockedInSeason".to_string());
+        }
+
         let team_id = game
             .manager
             .team_id
@@ -531,12 +535,21 @@ fn role_valid_for_position(
     use domain::team::PlayerRole as R;
     match pos {
         P::Goalkeeper => matches!(role, R::Standard | R::BallPlayingKeeper | R::SweeperKeeper),
-        P::CenterBack => matches!(role, R::Standard | R::Stopper | R::CoverCB | R::BallPlayingCB),
+        P::CenterBack => matches!(
+            role,
+            R::Standard | R::Stopper | R::CoverCB | R::BallPlayingCB
+        ),
         P::RightBack | P::LeftBack | P::RightWingBack | P::LeftWingBack => {
-            matches!(role, R::Standard | R::AttackingFB | R::DefensiveFB | R::InvertedFB | R::WingBack)
+            matches!(
+                role,
+                R::Standard | R::AttackingFB | R::DefensiveFB | R::InvertedFB | R::WingBack
+            )
         }
         P::DefensiveMidfielder => {
-            matches!(role, R::Standard | R::AnchorMan | R::BallWinner | R::DeepLyingPlaymaker)
+            matches!(
+                role,
+                R::Standard | R::AnchorMan | R::BallWinner | R::DeepLyingPlaymaker
+            )
         }
         P::CentralMidfielder => {
             matches!(role, R::Standard | R::BoxToBox | R::Carrilero | R::Mezzala)
@@ -545,7 +558,10 @@ fn role_valid_for_position(
             matches!(role, R::Standard | R::AdvancedPlaymaker | R::ShadowStriker)
         }
         P::RightMidfielder | P::LeftMidfielder | P::RightWinger | P::LeftWinger => {
-            matches!(role, R::Standard | R::WideForward | R::InsideForward | R::InvertedWinger)
+            matches!(
+                role,
+                R::Standard | R::WideForward | R::InsideForward | R::InvertedWinger
+            )
         }
         P::Striker => matches!(
             role,
@@ -627,7 +643,10 @@ pub fn set_player_role(
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
-    info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
+    info!(
+        "[cmd] set_player_role: player={} role={:?}",
+        player_id, role
+    );
     mutate_active_game(&state, |game| {
         let team_id = game
             .manager
@@ -688,31 +707,67 @@ pub fn set_tactics_phase(
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             let p = &mut team.tactics_phase;
             if let Some(v) = build_up_style {
-                p.build_up_style = match v.as_str() { "Short" => BuildUpStyle::Short, "Long" => BuildUpStyle::Long, _ => BuildUpStyle::Mixed };
+                p.build_up_style = match v.as_str() {
+                    "Short" => BuildUpStyle::Short,
+                    "Long" => BuildUpStyle::Long,
+                    _ => BuildUpStyle::Mixed,
+                };
             }
             if let Some(v) = width {
-                p.width = match v.as_str() { "Narrow" => PitchWidth::Narrow, "Wide" => PitchWidth::Wide, _ => PitchWidth::Normal };
+                p.width = match v.as_str() {
+                    "Narrow" => PitchWidth::Narrow,
+                    "Wide" => PitchWidth::Wide,
+                    _ => PitchWidth::Normal,
+                };
             }
             if let Some(v) = tempo {
-                p.tempo = match v.as_str() { "Patient" => Tempo::Patient, _ => Tempo::Direct };
+                p.tempo = match v.as_str() {
+                    "Patient" => Tempo::Patient,
+                    _ => Tempo::Direct,
+                };
             }
             if let Some(v) = defensive_line {
-                p.defensive_line = match v.as_str() { "VeryLow" => DefensiveLine::VeryLow, "Low" => DefensiveLine::Low, "High" => DefensiveLine::High, _ => DefensiveLine::Medium };
+                p.defensive_line = match v.as_str() {
+                    "VeryLow" => DefensiveLine::VeryLow,
+                    "Low" => DefensiveLine::Low,
+                    "High" => DefensiveLine::High,
+                    _ => DefensiveLine::Medium,
+                };
             }
             if let Some(v) = pressing_intensity {
-                p.pressing_intensity = match v.as_str() { "Passive" => PressingIntensity::Passive, "Aggressive" => PressingIntensity::Aggressive, _ => PressingIntensity::Medium };
+                p.pressing_intensity = match v.as_str() {
+                    "Passive" => PressingIntensity::Passive,
+                    "Aggressive" => PressingIntensity::Aggressive,
+                    _ => PressingIntensity::Medium,
+                };
             }
             if let Some(v) = defensive_shape {
-                p.defensive_shape = match v.as_str() { "Stretched" => DefensiveShape::Stretched, "Compact" => DefensiveShape::Compact, _ => DefensiveShape::Normal };
+                p.defensive_shape = match v.as_str() {
+                    "Stretched" => DefensiveShape::Stretched,
+                    "Compact" => DefensiveShape::Compact,
+                    _ => DefensiveShape::Normal,
+                };
             }
             if let Some(v) = marking_style {
-                p.marking_style = match v.as_str() { "ManToMan" => MarkingStyle::ManToMan, "Mixed" => MarkingStyle::Mixed, _ => MarkingStyle::Zonal };
+                p.marking_style = match v.as_str() {
+                    "ManToMan" => MarkingStyle::ManToMan,
+                    "Mixed" => MarkingStyle::Mixed,
+                    _ => MarkingStyle::Zonal,
+                };
             }
             if let Some(v) = counter_press_duration {
-                p.counter_press_duration = match v.as_str() { "Short" => CounterPressDuration::Short, "Long" => CounterPressDuration::Long, _ => CounterPressDuration::None };
+                p.counter_press_duration = match v.as_str() {
+                    "Short" => CounterPressDuration::Short,
+                    "Long" => CounterPressDuration::Long,
+                    _ => CounterPressDuration::None,
+                };
             }
             if let Some(v) = break_speed {
-                p.break_speed = match v.as_str() { "Slow" => BreakSpeed::Slow, "Fast" => BreakSpeed::Fast, _ => BreakSpeed::Medium };
+                p.break_speed = match v.as_str() {
+                    "Slow" => BreakSpeed::Slow,
+                    "Fast" => BreakSpeed::Fast,
+                    _ => BreakSpeed::Medium,
+                };
             }
         }
 

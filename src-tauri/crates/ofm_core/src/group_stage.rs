@@ -79,7 +79,7 @@ fn seed_groups(competition_id: &str, team_ids: &[String]) -> Vec<GroupState> {
     for (position, team_id) in team_ids.iter().enumerate() {
         let row = position / group_count;
         let column = position % group_count;
-        let group = if row % 2 == 0 {
+        let group = if row.is_multiple_of(2) {
             column
         } else {
             group_count - 1 - column
@@ -134,6 +134,8 @@ pub fn generate_group_knockout_cup_with(
         counts_in_season_flow: true,
         group_qualifiers_per_group: config.qualifiers_per_group,
         group_best_third_qualifiers: config.best_third_qualifiers,
+        group_stage_legs: config.legs,
+        group_matchday_gap_days: config.matchday_gap_days.max(1) as u32,
         knockout_round_gap_days: config.knockout_round_gap_days,
         knockout_matches_per_day: config.knockout_matches_per_day,
     };
@@ -319,11 +321,13 @@ pub fn regenerate_for_season(league: &mut League, season: u32, start_date: DateT
     let fixture_competition = fixture_competition_for(&league.kind.clone());
     let competition_id = league.id.clone();
     for group in league.groups.clone() {
-        let fixtures = crate::schedule::build_round_robin_fixtures(
+        let fixtures = crate::schedule::build_round_robin_fixtures_with(
             &competition_id,
             &group.team_ids,
             start_date,
             fixture_competition.clone(),
+            league.rules.group_stage_legs.max(1),
+            i64::from(league.rules.group_matchday_gap_days.max(1)),
         );
         league.fixtures.extend(fixtures);
     }
@@ -414,10 +418,16 @@ mod tests {
             .unwrap();
         assert_eq!(group_a_entry.points, 3);
         assert!(
-            cup.groups[1].standings.iter().all(|entry| entry.played == 0),
+            cup.groups[1]
+                .standings
+                .iter()
+                .all(|entry| entry.played == 0),
             "the other group is untouched"
         );
-        assert!(cup.knockout_rounds.is_empty(), "groups are not finished yet");
+        assert!(
+            cup.knockout_rounds.is_empty(),
+            "groups are not finished yet"
+        );
     }
 
     #[test]
@@ -432,7 +442,11 @@ mod tests {
             }
         }
 
-        assert_eq!(cup.knockout_rounds.len(), 1, "bracket seeded once groups end");
+        assert_eq!(
+            cup.knockout_rounds.len(),
+            1,
+            "bracket seeded once groups end"
+        );
         let round = &cup.knockout_rounds[0];
         assert_eq!(round.name, "Semifinal");
         assert_eq!(round.fixture_ids.len(), 2);
@@ -539,5 +553,15 @@ mod tests {
                 .iter()
                 .all(|group| group.standings.iter().all(|entry| entry.played == 0))
         );
+    }
+
+    #[test]
+    fn regeneration_preserves_single_leg_weekly_group_schedule() {
+        let config = GroupStageConfig { legs: 1, matchday_gap_days: 7, knockout_round_gap_days: 7, ..Default::default() };
+        let mut cup = generate_group_knockout_cup_with("State Series", 2026, &clubs(8), start(), CompetitionType::Cup, CompetitionScope::Regional, &config);
+        regenerate_for_season(&mut cup, 2027, start());
+        assert_eq!(cup.rules.group_stage_legs, 1);
+        assert_eq!(cup.rules.group_matchday_gap_days, 7);
+        assert_eq!(cup.fixtures.len(), 12);
     }
 }

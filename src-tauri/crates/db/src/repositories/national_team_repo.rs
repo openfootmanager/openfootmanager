@@ -5,7 +5,10 @@ use rusqlite::{Connection, params};
 const GAME_PERSISTENCE_LOAD_ERROR: &str = "be.error.gamePersistence.loadFailed";
 const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed";
 
-pub fn replace_national_teams(conn: &Connection, national_teams: &[NationalTeam]) -> Result<(), String> {
+pub fn replace_national_teams(
+    conn: &Connection,
+    national_teams: &[NationalTeam],
+) -> Result<(), String> {
     conn.execute("DELETE FROM national_teams", [])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 

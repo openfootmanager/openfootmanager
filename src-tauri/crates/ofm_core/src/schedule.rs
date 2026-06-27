@@ -25,13 +25,13 @@ pub fn generate_league(
 
 /// Append a full double round-robin (home & away) for `team_ids` to `league`,
 /// spacing matchdays 7 days apart from `start_date`.
-fn append_round_robin_fixtures(league: &mut League, team_ids: &[String], start_date: DateTime<Utc>) {
-    let fixtures = build_round_robin_fixtures(
-        &league.id,
-        team_ids,
-        start_date,
-        FixtureCompetition::League,
-    );
+fn append_round_robin_fixtures(
+    league: &mut League,
+    team_ids: &[String],
+    start_date: DateTime<Utc>,
+) {
+    let fixtures =
+        build_round_robin_fixtures(&league.id, team_ids, start_date, FixtureCompetition::League);
     league.fixtures.extend(fixtures);
 }
 
@@ -43,7 +43,14 @@ pub fn build_round_robin_fixtures(
     start_date: DateTime<Utc>,
     fixture_competition: FixtureCompetition,
 ) -> Vec<Fixture> {
-    build_round_robin_fixtures_with(competition_id, team_ids, start_date, fixture_competition, 2, 7)
+    build_round_robin_fixtures_with(
+        competition_id,
+        team_ids,
+        start_date,
+        fixture_competition,
+        2,
+        7,
+    )
 }
 
 /// Build a round-robin fixture list with a configurable number of legs (even
@@ -62,7 +69,7 @@ pub fn build_round_robin_fixtures_with(
     if n < 2 || legs == 0 {
         return Vec::new();
     }
-    let slots = if n % 2 == 0 { n } else { n + 1 };
+    let slots = if n.is_multiple_of(2) { n } else { n + 1 };
     let rounds = slots - 1;
     let half = slots / 2;
     let mut fixtures = Vec::new();
@@ -72,10 +79,9 @@ pub fn build_round_robin_fixtures_with(
     for leg in 0..legs {
         let mut indices: Vec<usize> = (0..slots).collect();
         for _round in 0..rounds {
-            let date_str = (start_date
-                + Duration::days((matchday as i64 - 1) * matchday_gap_days))
-            .format("%Y-%m-%d")
-            .to_string();
+            let date_str = (start_date + Duration::days((matchday as i64 - 1) * matchday_gap_days))
+                .format("%Y-%m-%d")
+                .to_string();
             for i in 0..half {
                 let (mut home, mut away) = (indices[i], indices[slots - 1 - i]);
                 if leg % 2 == 1 {
@@ -147,11 +153,7 @@ pub fn spread_fixture_dates(
 /// participants but clearing results and regenerating standings and fixtures.
 /// Participants are taken from `participant_ids`, falling back to the previous
 /// standings for legacy leagues that never recorded a participant list.
-pub fn regenerate_league_for_season(
-    league: &mut League,
-    season: u32,
-    start_date: DateTime<Utc>,
-) {
+pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date: DateTime<Utc>) {
     let team_ids: Vec<String> = if !league.participant_ids.is_empty() {
         league.participant_ids.clone()
     } else {
@@ -173,11 +175,7 @@ pub fn regenerate_league_for_season(
 
 /// Reset a knockout competition for a new season in place, preserving identity
 /// and participants but clearing previous fixtures, standings, and rounds.
-pub fn regenerate_knockout_for_season(
-    cup: &mut League,
-    season: u32,
-    start_date: DateTime<Utc>,
-) {
+pub fn regenerate_knockout_for_season(cup: &mut League, season: u32, start_date: DateTime<Utc>) {
     cup.season = season;
     cup.fixtures.clear();
     cup.standings.clear();
@@ -291,15 +289,27 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
         return;
     }
 
-    let Some(next_round) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
+    let Some(next_round) = cup
+        .knockout_rounds
+        .iter_mut()
+        .find(|round| !round.completed)
+    else {
         return;
     };
     let round_fixtures: Vec<_> = next_round
         .fixture_ids
         .iter()
-        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
+        .filter_map(|fixture_id| {
+            cup.fixtures
+                .iter()
+                .find(|fixture| &fixture.id == fixture_id)
+        })
         .collect();
-    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none()) {
+    if round_fixtures.is_empty()
+        || round_fixtures
+            .iter()
+            .any(|fixture| fixture.result.is_none())
+    {
         return;
     }
 
@@ -351,7 +361,7 @@ pub fn generate_preseason_friendlies(
     }
 
     let mut rotation: Vec<Option<usize>> = (0..team_ids.len()).map(Some).collect();
-    if rotation.len() % 2 != 0 {
+    if !rotation.len().is_multiple_of(2) {
         rotation.push(None);
     }
 
@@ -402,6 +412,103 @@ pub fn generate_preseason_friendlies(
     }
 
     fixtures
+}
+
+/// Add three weekly friendlies to every South American domestic division.
+/// Shared regional-cup clubs are never booked twice on the same date.
+pub fn append_south_american_preseason_friendlies(
+    competitions: &mut [League],
+    international_dates: &[String],
+) {
+    append_regional_preseason_friendlies(competitions, international_dates, true);
+}
+
+/// Preserve the established four-match preseason for all other domestic
+/// divisions, applying it to every division rather than a single global one.
+pub fn append_other_preseason_friendlies(
+    competitions: &mut [League],
+    international_dates: &[String],
+) {
+    append_regional_preseason_friendlies(competitions, international_dates, false);
+}
+
+fn append_regional_preseason_friendlies(
+    competitions: &mut [League],
+    international_dates: &[String],
+    south_american: bool,
+) {
+    use std::collections::HashSet;
+    let reserved: HashSet<String> = international_dates.iter().cloned().collect();
+    let mut occupied: HashSet<(String, String)> = competitions
+        .iter()
+        .flat_map(|competition| {
+            competition
+                .fixtures
+                .iter()
+                .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
+                .flat_map(|fixture| {
+                    [
+                        (fixture.home_team_id.clone(), fixture.date.clone()),
+                        (fixture.away_team_id.clone(), fixture.date.clone()),
+                    ]
+                })
+        })
+        .collect();
+    let competitive_dates: Vec<(String, chrono::NaiveDate)> = competitions
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
+        .filter_map(|fixture| {
+            chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d")
+                .ok()
+                .map(|date| {
+                    [
+                        (fixture.home_team_id.clone(), date),
+                        (fixture.away_team_id.clone(), date),
+                    ]
+                })
+        })
+        .flatten()
+        .collect();
+
+    for competition in competitions.iter_mut().filter(|competition| {
+        competition.kind == CompetitionType::League
+            && competition.scope == CompetitionScope::Domestic
+            && (competition.region_id.as_deref() == Some("south-america")) == south_american
+    }) {
+        if competition
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.competition == FixtureCompetition::Friendly)
+        {
+            continue;
+        }
+        let Some(first_date) = competitive_dates
+            .iter()
+            .filter(|(team_id, _)| competition.participant_ids.contains(team_id))
+            .map(|(_, date)| *date)
+            .min()
+            .and_then(|date| date.and_hms_opt(0, 0, 0))
+            .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc))
+        else {
+            continue;
+        };
+        let friendly_count = if south_american { 3 } else { 4 };
+        let friendlies =
+            generate_preseason_friendlies(&competition.participant_ids, first_date, friendly_count)
+                .into_iter()
+                .filter(|fixture| {
+                    !reserved.contains(&fixture.date)
+                        && !occupied.contains(&(fixture.home_team_id.clone(), fixture.date.clone()))
+                        && !occupied.contains(&(fixture.away_team_id.clone(), fixture.date.clone()))
+                })
+                .collect::<Vec<_>>();
+        for fixture in &friendlies {
+            occupied.insert((fixture.home_team_id.clone(), fixture.date.clone()));
+            occupied.insert((fixture.away_team_id.clone(), fixture.date.clone()));
+        }
+        append_fixtures(competition, friendlies);
+    }
 }
 
 /// Push any fixture that lands on a reserved date (e.g. an international
@@ -572,7 +679,12 @@ mod tests {
                 .all(|f| f.status == FixtureStatus::Scheduled && f.result.is_none())
         );
         assert_eq!(league.standings.len(), 4);
-        assert!(league.standings.iter().all(|s| s.points == 0 && s.played == 0));
+        assert!(
+            league
+                .standings
+                .iter()
+                .all(|s| s.points == 0 && s.played == 0)
+        );
         assert_eq!(league.participant_ids.len(), 4);
     }
 
@@ -588,7 +700,10 @@ mod tests {
 
         regenerate_league_for_season(&mut league, 2027, start);
 
-        assert_eq!(league.participant_ids, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(
+            league.participant_ids,
+            vec!["a".to_string(), "b".to_string()]
+        );
         assert_eq!(league.fixtures.len(), 2);
     }
 
@@ -612,7 +727,11 @@ mod tests {
         assert_eq!(cup.season, 2027);
         assert_eq!(cup.knockout_rounds.len(), 1);
         assert_eq!(cup.fixtures.len(), 2);
-        assert!(cup.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Scheduled)
+        );
     }
 
     #[test]
@@ -789,6 +908,46 @@ mod tests {
                 assert!(appearances <= 1, "{team} is double-booked on {date}");
             }
         }
+    }
+
+    #[test]
+    fn regional_preseason_uses_away_team_competitive_opener() {
+        let league_start = Utc.with_ymd_and_hms(2026, 1, 28, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (1..=4).map(|n| format!("team_{n}")).collect();
+        let mut league = generate_league("Brazil League", 2026, &teams, league_start);
+        league.region_id = Some("south-america".to_string());
+        league.scope = CompetitionScope::Domestic;
+
+        let mut cup = League::default();
+        cup.kind = CompetitionType::Cup;
+        cup.scope = CompetitionScope::Regional;
+        cup.fixtures.push(Fixture {
+            id: Uuid::new_v4().to_string(),
+            competition_id: "regional-cup".to_string(),
+            matchday: 1,
+            date: "2026-01-11".to_string(),
+            home_team_id: "outsider".to_string(),
+            away_team_id: "team_1".to_string(),
+            competition: FixtureCompetition::Cup,
+            status: FixtureStatus::Scheduled,
+            result: None,
+        });
+
+        let mut competitions = vec![league, cup];
+        append_south_american_preseason_friendlies(&mut competitions, &[]);
+
+        let friendly_dates: std::collections::HashSet<&str> = competitions[0]
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.competition == FixtureCompetition::Friendly)
+            .map(|fixture| fixture.date.as_str())
+            .collect();
+        assert_eq!(
+            friendly_dates,
+            ["2025-12-21", "2025-12-28", "2026-01-04"]
+                .into_iter()
+                .collect()
+        );
     }
 
     #[test]

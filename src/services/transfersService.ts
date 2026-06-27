@@ -35,6 +35,16 @@ export interface TransferBidProjectionData {
   };
 }
 
+export interface LoanOfferResponseData {
+  decision: "accepted" | "rejected" | "counter_offer";
+  offer_id: string;
+  suggested_wage_contribution_pct: number | null;
+  suggested_end_date: string | null;
+  suggested_buy_option_fee: number | null;
+  is_terminal: boolean;
+  game: GameStateData;
+}
+
 export async function makeTransferBid(
   playerId: string,
   fee: number,
@@ -42,6 +52,28 @@ export async function makeTransferBid(
   return invoke<TransferNegotiationResponseData>("make_transfer_bid", {
     playerId,
     fee,
+  });
+}
+
+export async function makeLoanOffer(
+  playerId: string,
+  endDate: string,
+  wageContributionPct: number,
+  buyOptionFee: number | null = null,
+): Promise<LoanOfferResponseData> {
+  return invoke<LoanOfferResponseData>("make_loan_offer", {
+    playerId,
+    endDate,
+    wageContributionPct,
+    buyOptionFee,
+  });
+}
+
+export async function exerciseLoanBuyOption(
+  playerId: string,
+): Promise<GameStateData> {
+  return invoke<GameStateData>("exercise_loan_buy_option", {
+    playerId,
   });
 }
 
@@ -54,6 +86,34 @@ export async function respondToOffer(
     playerId,
     offerId,
     accept,
+  });
+}
+
+export async function respondToLoanOffer(
+  playerId: string,
+  offerId: string,
+  accept: boolean,
+): Promise<GameStateData> {
+  return invoke<GameStateData>("respond_to_loan_offer", {
+    playerId,
+    offerId,
+    accept,
+  });
+}
+
+export async function counterLoanOffer(
+  playerId: string,
+  offerId: string,
+  endDate: string,
+  wageContributionPct: number,
+  buyOptionFee: number | null = null,
+): Promise<LoanOfferResponseData> {
+  return invoke<LoanOfferResponseData>("counter_loan_offer", {
+    playerId,
+    offerId,
+    endDate,
+    wageContributionPct,
+    buyOptionFee,
   });
 }
 

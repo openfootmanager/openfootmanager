@@ -121,7 +121,10 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (play_style, schedule) = team
         .map(|t| (t.play_style.clone(), t.training_schedule.clone()))
-        .unwrap_or((PlayStyle::Balanced, domain::team::TrainingSchedule::Balanced));
+        .unwrap_or((
+            PlayStyle::Balanced,
+            domain::team::TrainingSchedule::Balanced,
+        ));
 
     let is_training_day = schedule.is_training_day(weekday_num);
 
@@ -134,7 +137,10 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
     let avg_condition = if available_players.is_empty() {
         100.0
     } else {
-        available_players.iter().map(|p| p.condition as f64).sum::<f64>()
+        available_players
+            .iter()
+            .map(|p| p.condition as f64)
+            .sum::<f64>()
             / available_players.len() as f64
     };
 
@@ -241,7 +247,8 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         };
 
         // V1 safety rule: Physical + High is the most punishing combination.
-        let intensity = if focus == TrainingFocus::Physical && intensity == TrainingIntensity::High {
+        let intensity = if focus == TrainingFocus::Physical && intensity == TrainingIntensity::High
+        {
             TrainingIntensity::Medium
         } else {
             intensity
@@ -264,10 +271,9 @@ mod tests {
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{TimeZone, Utc};
-    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position};
-    use domain::staff::{Staff, StaffAttributes, StaffRole};
     use domain::team::{Team, TrainingFocus, TrainingIntensity, TrainingSchedule};
 
     fn default_attrs() -> PlayerAttributes {
@@ -365,7 +371,14 @@ mod tests {
             })
             .collect();
 
-        Game::new(clock, manager, vec![user_team, ai_team], players, vec![], vec![])
+        Game::new(
+            clock,
+            manager,
+            vec![user_team, ai_team],
+            players,
+            vec![],
+            vec![],
+        )
     }
 
     // -----------------------------------------------------------------------
@@ -375,14 +388,21 @@ mod tests {
     #[test]
     fn rest_day_does_not_change_ai_settings() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
-        game.teams.iter_mut().find(|t| t.id == "ai").unwrap().training_focus =
-            TrainingFocus::Defending;
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "ai")
+            .unwrap()
+            .training_focus = TrainingFocus::Defending;
 
         // Wednesday (2) is a rest day for Balanced schedule
         apply_ai_training_policies(&mut game, 2);
 
         let ai = game.teams.iter().find(|t| t.id == "ai").unwrap();
-        assert_eq!(ai.training_focus, TrainingFocus::Defending, "rest day must not change focus");
+        assert_eq!(
+            ai.training_focus,
+            TrainingFocus::Defending,
+            "rest day must not change focus"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -392,10 +412,16 @@ mod tests {
     #[test]
     fn user_team_is_never_mutated() {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
-        game.teams.iter_mut().find(|t| t.id == "user").unwrap().training_focus =
-            TrainingFocus::Defending;
-        game.teams.iter_mut().find(|t| t.id == "user").unwrap().training_intensity =
-            TrainingIntensity::High;
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "user")
+            .unwrap()
+            .training_focus = TrainingFocus::Defending;
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "user")
+            .unwrap()
+            .training_intensity = TrainingIntensity::High;
 
         // Monday (0) is a training day
         apply_ai_training_policies(&mut game, 0);
@@ -469,35 +495,50 @@ mod tests {
     #[test]
     fn attacking_style_has_three_attacking_slots() {
         let cycle = style_weekly_cycle(&PlayStyle::Attacking);
-        let attacking_count = cycle.iter().filter(|f| **f == TrainingFocus::Attacking).count();
+        let attacking_count = cycle
+            .iter()
+            .filter(|f| **f == TrainingFocus::Attacking)
+            .count();
         assert_eq!(attacking_count, 3);
     }
 
     #[test]
     fn high_press_style_has_three_physical_slots() {
         let cycle = style_weekly_cycle(&PlayStyle::HighPress);
-        let physical_count = cycle.iter().filter(|f| **f == TrainingFocus::Physical).count();
+        let physical_count = cycle
+            .iter()
+            .filter(|f| **f == TrainingFocus::Physical)
+            .count();
         assert_eq!(physical_count, 3);
     }
 
     #[test]
     fn counter_style_has_three_technical_slots() {
         let cycle = style_weekly_cycle(&PlayStyle::Counter);
-        let technical_count = cycle.iter().filter(|f| **f == TrainingFocus::Technical).count();
+        let technical_count = cycle
+            .iter()
+            .filter(|f| **f == TrainingFocus::Technical)
+            .count();
         assert_eq!(technical_count, 3);
     }
 
     #[test]
     fn possession_style_has_three_tactical_slots() {
         let cycle = style_weekly_cycle(&PlayStyle::Possession);
-        let tactical_count = cycle.iter().filter(|f| **f == TrainingFocus::Tactical).count();
+        let tactical_count = cycle
+            .iter()
+            .filter(|f| **f == TrainingFocus::Tactical)
+            .count();
         assert_eq!(tactical_count, 3);
     }
 
     #[test]
     fn defensive_style_has_three_defending_slots() {
         let cycle = style_weekly_cycle(&PlayStyle::Defensive);
-        let defending_count = cycle.iter().filter(|f| **f == TrainingFocus::Defending).count();
+        let defending_count = cycle
+            .iter()
+            .filter(|f| **f == TrainingFocus::Defending)
+            .count();
         assert_eq!(defending_count, 3);
     }
 
@@ -508,8 +549,11 @@ mod tests {
         // weekday 2 = Wednesday; for Balanced schedule that's a rest day.
         // Use weekday 7 % 5 = 2 to test slot logic without a rest-day veto.
         // Actually we need a schedule that trains on Wed.
-        game.teams.iter_mut().find(|t| t.id == "ai").unwrap().training_schedule =
-            TrainingSchedule::Intense; // trains Mon-Sat
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == "ai")
+            .unwrap()
+            .training_schedule = TrainingSchedule::Intense; // trains Mon-Sat
 
         apply_ai_training_policies(&mut game, 2); // Wed slot = index 2
 
@@ -562,7 +606,6 @@ mod tests {
         let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
 
         // Add 2 fixtures in the next 7 days for the AI team
-        let today_str = game.clock.current_date.format("%Y-%m-%d").to_string();
         // today is 2026-06-15 (Mon); fixtures on +3 and +5 days
         let fix1 = Fixture {
             id: "f1".to_string(),

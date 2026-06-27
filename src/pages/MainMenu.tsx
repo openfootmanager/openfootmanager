@@ -19,6 +19,7 @@ import type {
 import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import { resolveBackendError } from "../utils/backendI18n";
+import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import {
   FolderOpen,
   Settings,
@@ -569,6 +570,13 @@ export default function MainMenu() {
     setLoadingSaveId(saveId);
     try {
       const managerName = await invoke<string>("load_game", { saveId });
+      const activeGame = await invoke<GameStateData>("get_active_game");
+      try {
+        await prewarmManagerSquadPortraits(activeGame);
+      } catch (portraitError) {
+        console.warn("Portrait prewarm failed during save load:", portraitError);
+      }
+      setGameState(activeGame);
       setGameActive(true, managerName);
       navigate("/dashboard");
     } catch (error) {

@@ -25,8 +25,8 @@ pub fn upsert_team(conn: &Connection, t: &Team) -> Result<(), String> {
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let facilities_json = serde_json::to_string(&t.facilities)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let media_json = serde_json::to_string(&t.media)
-        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let media_json =
+        serde_json::to_string(&t.media).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let player_roles_json = serde_json::to_string(&t.player_roles)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let tactics_phase_json = serde_json::to_string(&t.tactics_phase)
@@ -234,7 +234,9 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
                 )
                 .unwrap_or_default(),
                 counter_press_duration: serde_json::from_value(
-                    raw.get("counter_press_duration").cloned().unwrap_or_default(),
+                    raw.get("counter_press_duration")
+                        .cloned()
+                        .unwrap_or_default(),
                 )
                 .unwrap_or_default(),
                 break_speed: serde_json::from_value(
@@ -558,14 +560,22 @@ mod tests {
         use domain::team::PlayerRole;
         let db = test_db();
         let mut team = sample_team("team-001", "Roles FC");
-        team.player_roles.insert("player-1".to_string(), PlayerRole::PressingForward);
-        team.player_roles.insert("player-2".to_string(), PlayerRole::Mezzala);
+        team.player_roles
+            .insert("player-1".to_string(), PlayerRole::PressingForward);
+        team.player_roles
+            .insert("player-2".to_string(), PlayerRole::Mezzala);
 
         upsert_team(db.conn(), &team).unwrap();
         let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
 
-        assert_eq!(loaded.player_roles.get("player-1"), Some(&PlayerRole::PressingForward));
-        assert_eq!(loaded.player_roles.get("player-2"), Some(&PlayerRole::Mezzala));
+        assert_eq!(
+            loaded.player_roles.get("player-1"),
+            Some(&PlayerRole::PressingForward)
+        );
+        assert_eq!(
+            loaded.player_roles.get("player-2"),
+            Some(&PlayerRole::Mezzala)
+        );
         assert_eq!(loaded.player_roles.len(), 2);
     }
 
@@ -586,7 +596,10 @@ mod tests {
 
         assert_eq!(loaded.tactics_phase.build_up_style, BuildUpStyle::Short);
         assert_eq!(loaded.tactics_phase.defensive_line, DefensiveLine::High);
-        assert_eq!(loaded.tactics_phase.pressing_intensity, PressingIntensity::Aggressive);
+        assert_eq!(
+            loaded.tactics_phase.pressing_intensity,
+            PressingIntensity::Aggressive
+        );
     }
 
     #[test]

@@ -1817,7 +1817,7 @@ colors:
         );
         let (pkg_cl, _) = load_world_package(&dir_cl);
 
-        let (merged, merge_errors) = merge_world_packages(vec![pkg_pl, pkg_cl]);
+        let (_merged, merge_errors) = merge_world_packages(vec![pkg_pl, pkg_cl]);
         // OK: after merge, team-a and team-b resolve correctly for the CL competition.
         // Duplicate explicit participants are the only issue here.
         let ref_errors: Vec<_> = merge_errors

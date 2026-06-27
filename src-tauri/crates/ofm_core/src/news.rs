@@ -456,10 +456,11 @@ pub fn season_awards_article(
             team_ids.push(entry.team_id.clone());
         }
     }
-    if let Some(manager) = manager {
-        if !manager.team_id.is_empty() && !team_ids.contains(&manager.team_id) {
-            team_ids.push(manager.team_id.clone());
-        }
+    if let Some(manager) = manager
+        && !manager.team_id.is_empty()
+        && !team_ids.contains(&manager.team_id)
+    {
+        team_ids.push(manager.team_id.clone());
     }
 
     Some(
@@ -482,6 +483,7 @@ pub fn season_awards_article(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn major_transfer_article(
     id: &str,
     player_id: &str,
@@ -514,6 +516,41 @@ pub fn major_transfer_article(
             ("fromTeam", from_team_name),
             ("toTeam", to_team_name),
             ("fee", &fee_display),
+        ]),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn loan_move_article(
+    id: &str,
+    player_id: &str,
+    player_name: &str,
+    from_team_id: &str,
+    from_team_name: &str,
+    to_team_id: &str,
+    to_team_name: &str,
+    end_date: &str,
+    date: &str,
+) -> NewsArticle {
+    NewsArticle::new(
+        id.to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+        NewsCategory::TransferRumour,
+    )
+    .with_teams(vec![from_team_id.to_string(), to_team_id.to_string()])
+    .with_players(vec![player_id.to_string()])
+    .with_i18n(
+        "be.news.loanMove.headline",
+        "be.news.loanMove.body",
+        "be.source.transferIntelligence",
+        params(&[
+            ("player", player_name),
+            ("fromTeam", from_team_name),
+            ("toTeam", to_team_name),
+            ("endDate", end_date),
         ]),
     )
 }
@@ -712,7 +749,7 @@ pub fn injury_news_article(
     let mut rng = rand::rng();
 
     let is_short = days_out <= 7;
-    let weeks = (days_out + 6) / 7;
+    let weeks = days_out.div_ceil(7);
     // Body keys: locale-specific phrasing for days (short) vs weeks (long).
     // headline2 (contains duration) is only picked for long injuries so the locale
     // template can use {{weeksOut}} without needing a conditional.
