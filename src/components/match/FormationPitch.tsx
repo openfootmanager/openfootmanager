@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import type { EnginePlayerData } from "./types";
 
 export function buildFormationSlots(
@@ -58,6 +58,16 @@ interface FormationPitchProps {
   subbedOnIds?: Set<string>;
   onPlayerClick?: (id: string) => void;
   className?: string;
+  /**
+   * Optional custom token renderer. When provided it replaces the default
+   * initials token, letting callers (e.g. the pre-match screen) render a richer
+   * token while reusing this pitch's SVG and slot layout. The pitch still owns
+   * positioning, selection state, and click wiring.
+   */
+  renderToken?: (
+    player: EnginePlayerData,
+    state: { isSelected: boolean; isSubOn: boolean },
+  ) => ReactNode;
 }
 
 export function FormationPitch({
@@ -68,6 +78,7 @@ export function FormationPitch({
   subbedOnIds,
   onPlayerClick,
   className,
+  renderToken,
 }: FormationPitchProps) {
   const uid = useId();
   const surfaceId = `pitch-surface-${uid}`;
@@ -192,7 +203,9 @@ export function FormationPitch({
           .toUpperCase();
         const sharedClass = `absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 transition-all ${onPlayerClick ? "cursor-pointer hover:scale-110" : ""} ${isSelected ? "scale-110" : ""}`;
         const sharedStyle = { left: `${x}%`, top: `${y}%` };
-        const tokenContent = (
+        const tokenContent = renderToken ? (
+          renderToken(p, { isSelected, isSubOn })
+        ) : (
           <>
             <div
               className={`flex h-7 w-7 items-center justify-center rounded-full border-2 font-heading text-[9px] font-bold text-white shadow-md transition-all ${
