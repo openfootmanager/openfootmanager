@@ -36,7 +36,9 @@ export function StaffForm({
   useEffect(() => {
     setUseAttributes(editing.attributes !== null);
     setIdAutoMode(editingIndex === null && !editing.id);
-  }, [editingIndex, editing.id, editing.attributes]);
+  // Reset only when the selected record changes, not as auto-ID populates editing.id
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingIndex]);
 
   function handleNameChange(field: "firstName" | "lastName", value: string) {
     updateField(field, value);

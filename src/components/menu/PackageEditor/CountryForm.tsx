@@ -30,7 +30,9 @@ export function CountryForm({
 
   useEffect(() => {
     setIdAutoMode(editingIndex === null && !editing.id);
-  }, [editingIndex, editing.id]);
+  // Reset only when the selected record changes, not as auto-ID populates editing.id
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingIndex]);
 
   const labelClass =
     "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";
