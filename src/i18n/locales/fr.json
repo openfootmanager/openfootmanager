@@ -1364,6 +1364,8 @@
     "resumeNegotiationDetail": "Leur dernier signal pointait vers {{fee}}.",
     "transferFeedbackAcceptedHeadline": "L'autre club est prêt à faire affaire.",
     "transferFeedbackAcceptedDetail": "Votre montant est entré dans leur zone de confort, donc la discussion a avancé rapidement.",
+    "transferFeedbackScheduledHeadline": "Accord conclu pour la prochaine fenêtre d'enregistrement.",
+    "transferFeedbackScheduledDetail": "Les conditions sont acceptées. L'enregistrement est prévu le {{date}}.",
     "transferFeedbackCounterHeadline": "Ils veulent plus avant de conclure.",
     "transferFeedbackCounterDetail": "L'offre était assez proche pour continuer à parler, mais leur camp vise plutôt un prix autour de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Ils ont fermé cette manche.",

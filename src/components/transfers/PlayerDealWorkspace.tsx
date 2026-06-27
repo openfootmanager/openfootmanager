@@ -82,7 +82,6 @@ export default function PlayerDealWorkspace({
   teams,
   myTeam,
   annualSuffix,
-  isTransferWindowClosed,
   transferWindowSummary,
   loanNoticeDetail,
   selectedKind,
@@ -106,9 +105,7 @@ export default function PlayerDealWorkspace({
         : t("transfers.dealUnavailableTransfer"),
       disabledReason: !player.transfer_listed
         ? t("transfers.dealUnavailableTransfer")
-        : isTransferWindowClosed
-          ? t("season.windowClosed")
-          : null,
+        : null,
       icon: <Gavel className="h-4 w-4" />,
     },
     {

@@ -1364,6 +1364,8 @@
     "resumeNegotiationDetail": "Their last signal pointed toward {{fee}}.",
     "transferFeedbackAcceptedHeadline": "The other club are ready to do business.",
     "transferFeedbackAcceptedDetail": "Your number landed inside their comfort zone, so the conversation moved quickly.",
+    "transferFeedbackScheduledHeadline": "Deal agreed for the next registration window.",
+    "transferFeedbackScheduledDetail": "The terms are accepted. Registration is scheduled for {{date}}.",
     "transferFeedbackCounterHeadline": "They want more before shaking hands.",
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",

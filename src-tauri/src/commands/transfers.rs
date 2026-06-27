@@ -35,6 +35,7 @@ pub struct TransferNegotiationCommandResponse {
     pub decision: TransferNegotiationDecision,
     pub suggested_fee: Option<u64>,
     pub is_terminal: bool,
+    pub registration_date: Option<String>,
     pub feedback: NegotiationFeedback,
     pub game: Game,
 }
@@ -378,6 +379,7 @@ fn map_transfer_negotiation_response(
         decision: outcome.decision,
         suggested_fee: outcome.suggested_fee,
         is_terminal: outcome.is_terminal,
+        registration_date: outcome.registration_date,
         feedback: outcome.feedback,
         game,
     }
@@ -592,6 +594,7 @@ mod tests {
             suggested_counter_fee: None,
             status: TransferOfferStatus::Pending,
             date: "2026-08-01".to_string(),
+            registration_date: None,
         });
         player
     }

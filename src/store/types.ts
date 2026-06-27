@@ -295,8 +295,14 @@ export interface TransferOfferData {
   last_manager_fee: number | null;
   negotiation_round: number;
   suggested_counter_fee: number | null;
-  status: "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+  status:
+    | "Pending"
+    | "PendingRegistration"
+    | "Accepted"
+    | "Rejected"
+    | "Withdrawn";
   date: string;
+  registration_date?: string | null;
 }
 
 export interface LoanOfferData {

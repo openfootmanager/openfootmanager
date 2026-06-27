@@ -87,15 +87,7 @@ pub fn project_contract_offer_financial_impact(
     }
 }
 
-pub fn renewal_wage_policy_allows(
-    game: &Game,
-    team: &Team,
-    current_player_wage: u32,
-    offered_wage: u32,
-) -> bool {
-    let current_bill = annual_team_wage_bill(game, &team.id);
-    let projected_bill =
-        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
+pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_bill: i64) -> bool {
     let soft_cap = (team.wage_budget * WAGE_SOFT_CAP_PCT) / 100;
 
     if current_bill <= team.wage_budget {
@@ -112,6 +104,19 @@ pub fn renewal_wage_policy_allows(
     );
 
     projected_bill <= current_bill + legacy_grace
+}
+
+pub fn renewal_wage_policy_allows(
+    game: &Game,
+    team: &Team,
+    current_player_wage: u32,
+    offered_wage: u32,
+) -> bool {
+    let current_bill = annual_team_wage_bill(game, &team.id);
+    let projected_bill =
+        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
+
+    wage_policy_allows_projection(team, current_bill, projected_bill)
 }
 
 pub fn renewal_wage_policy_error_message(team: &Team) -> String {

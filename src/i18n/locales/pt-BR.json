@@ -1364,6 +1364,8 @@
     "resumeNegotiationDetail": "O último sinal deles apontou para {{fee}}.",
     "transferFeedbackAcceptedHeadline": "O outro clube está pronto para fechar negócio.",
     "transferFeedbackAcceptedDetail": "Seu valor entrou na zona de conforto deles, então a conversa andou rápido.",
+    "transferFeedbackScheduledHeadline": "Negócio acertado para a próxima janela de registro.",
+    "transferFeedbackScheduledDetail": "Os termos foram aceitos. O registro está agendado para {{date}}.",
     "transferFeedbackCounterHeadline": "Eles querem mais antes de bater o martelo.",
     "transferFeedbackCounterDetail": "A proposta ficou perto o bastante para manter a conversa, mas o lado deles aponta para um valor mais próximo de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Eles encerraram esta rodada.",

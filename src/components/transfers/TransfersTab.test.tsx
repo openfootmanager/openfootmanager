@@ -126,6 +126,10 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.counterCountered") return "They pushed back with a lower number.";
       if (key === "transfers.transferFeedbackCounterHeadline") return "They want more before shaking hands.";
       if (key === "transfers.transferFeedbackCounterDetail") return `The bid was close enough to keep talking, but their side are signalling a price nearer ${params?.fee}.`;
+      if (key === "transfers.transferFeedbackScheduledHeadline")
+        return "Deal agreed for the next registration window.";
+      if (key === "transfers.transferFeedbackScheduledDetail")
+        return `The terms are accepted. Registration is scheduled for ${params?.date}.`;
       if (key === "season.windowClosed") return "Transfer window closed";
       if (key === "season.windowOpensInDays")
         return `${params?.count} days until the window opens`;
@@ -1041,7 +1045,7 @@ describe("TransfersTab", function (): void {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
-  it("explains deferred registration and allows loan negotiations while transfers remain blocked", async function (): Promise<void> {
+  it("explains deferred registration and allows closed-window loan negotiations", async function (): Promise<void> {
     const state = createGameState([
       createPlayer({
         id: "loan-target",
@@ -1093,6 +1097,9 @@ describe("TransfersTab", function (): void {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    expect(
+      screen.getByRole("button", { name: /make transfer bid/i }),
+    ).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -1118,13 +1125,108 @@ describe("TransfersTab", function (): void {
 
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
     fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+  });
 
-    expect(
-      screen.getByRole("button", { name: /make transfer bid/i }),
-    ).toBeDisabled();
-    expect(screen.getByText("Make Transfer Bid").closest("button")).toHaveTextContent(
-      "Transfer window closed",
+  it("allows closed-window transfer bid submission when the next opening date is scheduled", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "transfer-target",
+        team_id: "team-2",
+        transfer_listed: true,
+        loan_listed: true,
+        transfer_offers: [],
+        market_value: 1_000_000,
+      }),
+    ]);
+    state.season_context!.transfer_window = {
+      status: "Closed",
+      opens_on: "2027-01-01",
+      closes_on: null,
+      days_until_opens: 12,
+      days_remaining: null,
+    };
+    const updatedState = structuredClone(state);
+    updatedState.players[0].transfer_offers = [
+      {
+        id: "scheduled-transfer",
+        from_team_id: "team-1",
+        fee: 1_000_000,
+        wage_offered: 0,
+        last_manager_fee: 1_000_000,
+        negotiation_round: 1,
+        suggested_counter_fee: null,
+        status: "PendingRegistration",
+        date: "2026-12-20",
+        registration_date: "2027-01-01",
+      },
+    ];
+
+    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        const fee = Number(payload?.fee ?? 0);
+        return {
+          projection: {
+            transfer_budget_before: 2_000_000,
+            transfer_budget_after: 2_000_000 - fee,
+            finance_before: 5_000_000,
+            finance_after: 5_000_000 - fee,
+            annual_wage_bill_before: 1_000,
+            annual_wage_bill_after: 2_000,
+            annual_wage_budget: 50_000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "accepted",
+          suggested_fee: null,
+          is_terminal: true,
+          registration_date: "2027-01-01",
+          feedback: {
+            mood: "positive",
+            headline_key: "transfers.transferFeedbackScheduledHeadline",
+            detail_key: "transfers.transferFeedbackScheduledDetail",
+            tension: 20,
+            patience: 80,
+            round: 1,
+            params: { date: "2027-01-01" },
+          },
+          game: updatedState,
+        };
+      }
+
+      return {};
+    });
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
     );
+
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make transfer bid/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /submit bid/i }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "transfer-target",
+        fee: 1_000_000,
+      });
+    });
   });
 
   it("blocks closed-window loan submission when the opening date is stale", function (): void {

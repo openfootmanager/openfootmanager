@@ -158,7 +158,7 @@ export default function TransfersTab({
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const transferWindow = seasonContext.transfer_window;
-  const closedWindowLoanRegistrationDate =
+  const closedWindowRegistrationDate =
     transferWindow.status === "Closed"
       ? futureClosedWindowRegistrationDate(
         gameState.clock.current_date,
@@ -166,8 +166,8 @@ export default function TransfersTab({
       )
       : null;
   const loanRegistrationDate =
-    transferWindow.status === "Closed" && closedWindowLoanRegistrationDate
-      ? closedWindowLoanRegistrationDate
+    transferWindow.status === "Closed" && closedWindowRegistrationDate
+      ? closedWindowRegistrationDate
       : gameState.clock.current_date;
   const [view, setView] = useState<TransferTabView>("players");
   const [availabilityFilter, setAvailabilityFilter] =
@@ -588,11 +588,13 @@ export default function TransfersTab({
           })
           : t("season.windowClosed");
   const isTransferWindowClosed = transferWindow.status === "Closed";
-  const transferWindowBlockingTitle = isTransferWindowClosed
+  const transferWindowBlocksRegistration =
+    isTransferWindowClosed && !closedWindowRegistrationDate;
+  const transferWindowBlockingTitle = transferWindowBlocksRegistration
     ? t("season.windowClosed")
     : null;
   const transferWindowBlockingDetail =
-    isTransferWindowClosed &&
+    transferWindowBlocksRegistration &&
       transferWindowSummary !== transferWindowBlockingTitle
       ? transferWindowSummary
       : null;
@@ -600,9 +602,9 @@ export default function TransfersTab({
     ? t("transfers.loanWindowClosedNoticeTitle")
     : null;
   const loanWindowNoticeDetail =
-    isTransferWindowClosed && closedWindowLoanRegistrationDate
+    isTransferWindowClosed && closedWindowRegistrationDate
       ? t("transfers.loanWindowClosedNoticeDetail", {
-        date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+        date: formatDate(closedWindowRegistrationDate, i18n.language),
       })
       : isTransferWindowClosed
         ? t("transfers.loanWindowClosedUnavailableDetail")
@@ -642,7 +644,7 @@ export default function TransfersTab({
     loanLoading ||
     !selectedLoanPeriodOption ||
     loanResult === "accepted" ||
-    (isTransferWindowClosed && !closedWindowLoanRegistrationDate) ||
+    transferWindowBlocksRegistration ||
     (loanBuyOptionEnabled &&
       (parsedLoanBuyOptionFee === null || parsedLoanBuyOptionFee <= 0));
   const loanCounterReferenceEndDate =
@@ -665,7 +667,7 @@ export default function TransfersTab({
     loanCounterLoading ||
     !selectedLoanCounterPeriodOption ||
     loanCounterResult === "accepted" ||
-    (isTransferWindowClosed && !closedWindowLoanRegistrationDate) ||
+    transferWindowBlocksRegistration ||
     (loanCounterBuyOptionEnabled &&
       (parsedLoanCounterBuyOptionFee === null ||
         parsedLoanCounterBuyOptionFee <= 0));
@@ -799,17 +801,11 @@ export default function TransfersTab({
   };
 
   const getStartableDealKinds = (player: PlayerData): DealKind[] =>
-    getDealKinds(player).filter(
-      (kind) => kind !== "transfer" || !isTransferWindowClosed,
-    );
+    getDealKinds(player);
 
   const isDealKindStartable = (player: PlayerData, kind: DealKind): boolean => {
     if (kind === "transfer") {
-      return (
-        player.team_id !== null &&
-        player.transfer_listed &&
-        !isTransferWindowClosed
-      );
+      return player.team_id !== null && player.transfer_listed;
     }
 
     if (kind === "loan") {
@@ -1629,7 +1625,9 @@ export default function TransfersTab({
                   hasExistingOffer={hasExistingOffer}
                   bidResult={bidResult}
                   bidLoading={bidLoading}
-                  bidSubmitDisabled={isTransferWindowClosed || bidSubmitDisabled}
+                  bidSubmitDisabled={
+                    transferWindowBlocksRegistration || bidSubmitDisabled
+                  }
                   blockingTitle={transferWindowBlockingTitle}
                   blockingDetail={transferWindowBlockingDetail}
                   showPlayerSummary={false}
@@ -1662,10 +1660,10 @@ export default function TransfersTab({
                   noticeTitle={loanWindowNoticeTitle}
                   noticeDetail={loanWindowNoticeDetail}
                   acceptedMessage={
-                    isTransferWindowClosed && closedWindowLoanRegistrationDate
+                    isTransferWindowClosed && closedWindowRegistrationDate
                       ? t("transfers.loanOfferScheduled", {
                         date: formatDate(
-                          closedWindowLoanRegistrationDate,
+                          closedWindowRegistrationDate,
                           i18n.language,
                         ),
                       })
@@ -1723,7 +1721,9 @@ export default function TransfersTab({
           hasExistingOffer={hasExistingOffer}
           bidResult={bidResult}
           bidLoading={bidLoading}
-          bidSubmitDisabled={isTransferWindowClosed || bidSubmitDisabled}
+          bidSubmitDisabled={
+            transferWindowBlocksRegistration || bidSubmitDisabled
+          }
           blockingTitle={transferWindowBlockingTitle}
           blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleMakeBid}
@@ -1741,7 +1741,7 @@ export default function TransfersTab({
           counterResult={counterResult}
           counterError={counterError}
           counterLoading={counterLoading}
-          submitDisabled={isTransferWindowClosed}
+          submitDisabled={transferWindowBlocksRegistration}
           blockingTitle={transferWindowBlockingTitle}
           blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleCounterOffer}
@@ -1794,9 +1794,9 @@ export default function TransfersTab({
           noticeTitle={loanWindowNoticeTitle}
           noticeDetail={loanWindowNoticeDetail}
           acceptedMessage={
-            isTransferWindowClosed && closedWindowLoanRegistrationDate
+            isTransferWindowClosed && closedWindowRegistrationDate
               ? t("transfers.loanOfferScheduled", {
-                date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+                date: formatDate(closedWindowRegistrationDate, i18n.language),
               })
               : null
           }
@@ -1831,9 +1831,9 @@ export default function TransfersTab({
           noticeTitle={loanWindowNoticeTitle}
           noticeDetail={loanWindowNoticeDetail}
           acceptedMessage={
-            isTransferWindowClosed && closedWindowLoanRegistrationDate
+            isTransferWindowClosed && closedWindowRegistrationDate
               ? t("transfers.loanCounterScheduled", {
-                date: formatDate(closedWindowLoanRegistrationDate, i18n.language),
+                date: formatDate(closedWindowRegistrationDate, i18n.language),
               })
               : null
           }

@@ -16,8 +16,8 @@ use ofm_core::transfers::{
     LoanOfferDecision, TransferNegotiationDecision, counter_loan_offer, counter_offer,
     evaluate_transfer_market, exercise_loan_buy_option, generate_incoming_transfer_offers,
     make_loan_offer, make_transfer_bid, process_loan_development_reports, process_loan_returns,
-    process_pending_loan_registrations, respond_to_loan_offer, respond_to_offer,
-    seed_opening_ai_loan_market,
+    process_pending_loan_registrations, process_pending_transfer_registrations,
+    respond_to_loan_offer, respond_to_offer, seed_opening_ai_loan_market,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -78,6 +78,7 @@ fn make_pending_incoming_offer(id: &str, fee: u64) -> TransferOffer {
         suggested_counter_fee: None,
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
+        registration_date: None,
     }
 }
 
@@ -317,15 +318,123 @@ fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
 }
 
 #[test]
-fn transfer_bid_is_rejected_when_window_is_closed() {
+fn accepted_closed_window_transfer_bid_is_registered_when_the_window_opens() {
     let player = make_player("player-bid-closed");
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
     game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
 
-    let error = make_transfer_bid(&mut game, "player-bid-closed", 1_000_000)
-        .expect_err("closed transfer window should reject bids");
+    let result = make_transfer_bid(&mut game, "player-bid-closed", 2_000_000)
+        .expect("accepted closed-window bid should schedule registration");
 
-    assert_eq!(error, "be.error.transfers.transferWindowClosed");
+    assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+    assert_eq!(result.registration_date.as_deref(), Some("2027-01-01"));
+    let scheduled_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-bid-closed")
+        .unwrap();
+    assert_eq!(scheduled_player.team_id.as_deref(), Some("team-2"));
+    assert!(!scheduled_player.transfer_listed);
+    assert_eq!(
+        scheduled_player.transfer_offers[0].status,
+        TransferOfferStatus::PendingRegistration
+    );
+    assert_eq!(
+        scheduled_player.transfer_offers[0]
+            .registration_date
+            .as_deref(),
+        Some("2027-01-01")
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let registered_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-bid-closed")
+        .unwrap();
+    assert_eq!(registered_player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        registered_player.transfer_offers[0].status,
+        TransferOfferStatus::Accepted
+    );
+    assert!(registered_player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::PermanentTransfer
+            && entry.from_team_id.as_deref() == Some("team-2")
+            && entry.to_team_id.as_deref() == Some("team-1")
+            && entry.fee == Some(2_000_000)
+    }));
+}
+
+#[test]
+fn accepted_closed_window_incoming_transfer_is_registered_when_the_window_opens() {
+    let mut player = make_user_player("player-incoming-scheduled-transfer");
+    player.transfer_offers.push(make_pending_incoming_offer(
+        "offer-scheduled-transfer",
+        1_400_000,
+    ));
+    player.transfer_offers[0].date = "2026-12-20".to_string();
+    let mut game = make_game_with_player(
+        player,
+        vec!["player-incoming-scheduled-transfer".to_string()],
+        5_000_000,
+        2_000_000,
+    );
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+    game.teams[1].finance = 3_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    respond_to_offer(
+        &mut game,
+        "player-incoming-scheduled-transfer",
+        "offer-scheduled-transfer",
+        true,
+    )
+    .expect("accepted incoming transfer should schedule registration");
+
+    let scheduled_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-incoming-scheduled-transfer")
+        .unwrap();
+    assert_eq!(scheduled_player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        scheduled_player.transfer_offers[0].status,
+        TransferOfferStatus::PendingRegistration
+    );
+    assert_eq!(
+        scheduled_player.transfer_offers[0]
+            .registration_date
+            .as_deref(),
+        Some("2027-01-01")
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let registered_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-incoming-scheduled-transfer")
+        .unwrap();
+    assert_eq!(registered_player.team_id.as_deref(), Some("team-2"));
+    assert_eq!(
+        registered_player.transfer_offers[0].status,
+        TransferOfferStatus::Accepted
+    );
+    assert!(registered_player.movement_history.iter().any(|entry| {
+        entry.kind == PlayerMovementKind::PermanentTransfer
+            && entry.from_team_id.as_deref() == Some("team-1")
+            && entry.to_team_id.as_deref() == Some("team-2")
+            && entry.fee == Some(1_400_000)
+    }));
 }
 
 #[test]
@@ -633,6 +742,52 @@ fn loan_offer_rejects_terms_that_exceed_user_wage_budget() {
         .players
         .iter()
         .find(|player| player.id == "player-loan-wage-budget")
+        .expect("player should exist");
+    assert!(player.active_loan.is_none());
+    assert!(player.loan_offers.is_empty());
+}
+
+#[test]
+fn loan_offer_counts_existing_loan_wages_against_borrower_budget() {
+    let mut player = make_player("player-loan-existing-wage-budget");
+    player.loan_listed = true;
+    player.wage = 20_000;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[0].wage_budget = 100_000;
+
+    let mut existing_loan = make_player("existing-user-loan");
+    existing_loan.team_id = Some("team-1".to_string());
+    existing_loan.wage = 100_000;
+    existing_loan.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-2".to_string(),
+        loan_team_id: "team-1".to_string(),
+        start_date: "2026-07-01".to_string(),
+        end_date: "2027-06-30".to_string(),
+        wage_contribution_pct: 100,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    game.players.push(existing_loan);
+
+    assert_eq!(calc_annual_wages(&game, "team-1"), 100_000);
+
+    let error = make_loan_offer(
+        &mut game,
+        "player-loan-existing-wage-budget",
+        "2027-01-01",
+        100,
+        None,
+    )
+    .expect_err("existing loan wages should count against borrower affordability");
+
+    assert_eq!(error, "be.error.contracts.boardWagePolicy?budget=100000");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-loan-existing-wage-budget")
         .expect("player should exist");
     assert!(player.active_loan.is_none());
     assert!(player.loan_offers.is_empty());
@@ -1590,6 +1745,7 @@ fn stale_outgoing_transfer_negotiation_is_withdrawn_before_new_bid() {
         suggested_counter_fee: Some(1_150_000),
         status: TransferOfferStatus::Pending,
         date: "2026-07-15".to_string(),
+        registration_date: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -1759,6 +1915,7 @@ fn does_not_duplicate_pending_incoming_offer_from_same_club() {
         suggested_counter_fee: None,
         status: TransferOfferStatus::Pending,
         date: "2026-08-01".to_string(),
+        registration_date: None,
     });
 
     let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
@@ -2022,9 +2179,10 @@ fn rejecting_pending_offer_closes_the_negotiation_cleanly() {
 #[test]
 fn rejecting_pending_offer_succeeds_for_pending_loan_player() {
     let mut player = make_user_player("player-reject-pending-loan");
-    player
-        .transfer_offers
-        .push(make_pending_incoming_offer("offer-reject-pending-loan", 900_000));
+    player.transfer_offers.push(make_pending_incoming_offer(
+        "offer-reject-pending-loan",
+        900_000,
+    ));
     player.loan_offers.push(LoanOffer {
         status: LoanOfferStatus::PendingRegistration,
         ..make_pending_incoming_loan_offer("loan-pending-registration", 75, None)

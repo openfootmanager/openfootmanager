@@ -1364,6 +1364,8 @@
     "resumeNegotiationDetail": "Их последний сигнал указывал на {{fee}}.",
     "transferFeedbackAcceptedHeadline": "Другой клуб готов вести дела.",
     "transferFeedbackAcceptedDetail": "Ваша сумма попала в их комфортный диапазон, поэтому разговор пошёл быстро.",
+    "transferFeedbackScheduledHeadline": "Сделка согласована для следующего регистрационного окна.",
+    "transferFeedbackScheduledDetail": "Условия приняты. Регистрация запланирована на {{date}}.",
     "transferFeedbackCounterHeadline": "Они хотят больше перед рукопожатием.",
     "transferFeedbackCounterDetail": "Предложение было достаточно близким, чтобы продолжать разговор, но их сторона намекает на сумму ближе к {{fee}}.",
     "transferFeedbackRejectedHeadline": "Они закрыли этот раунд.",

@@ -1364,6 +1364,8 @@
     "resumeNegotiationDetail": "Ihr letztes Signal deutete auf {{fee}} hin.",
     "transferFeedbackAcceptedHeadline": "Der andere Klub ist bereit, Geschäfte zu machen.",
     "transferFeedbackAcceptedDetail": "Deine Zahl lag in ihrer Wohlfühlzone, deshalb ging das Gespräch schnell voran.",
+    "transferFeedbackScheduledHeadline": "Deal für das nächste Registrierungsfenster vereinbart.",
+    "transferFeedbackScheduledDetail": "Die Bedingungen sind akzeptiert. Die Registrierung ist für den {{date}} geplant.",
     "transferFeedbackCounterHeadline": "Sie wollen mehr, bevor sie einschlagen.",
     "transferFeedbackCounterDetail": "Das Angebot war nah genug, um weiterzureden, aber ihre Seite signalisiert eher einen Preis um {{fee}}.",
     "transferFeedbackRejectedHeadline": "Diese Runde haben sie beendet.",
