@@ -5,6 +5,7 @@ import { Award, ChevronDown, CircleDot, CornerDownRight, Crown, Footprints } fro
 import { useTranslation } from "react-i18next";
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import type { TacticsPhaseSettings } from "../../store/types";
+import { Select } from "../ui";
 import SetPieceSelector from "../match/SetPieceSelector";
 import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import {
@@ -57,28 +58,25 @@ function PhaseButtonGroup({
   tacticsPhase?: TacticsPhaseSettings;
 }): JSX.Element {
   const { t } = useTranslation();
+  const currentValue = (tacticsPhase?.[field] ?? options[0]) as string;
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
         {t(`tactics.phaseSettings.${labelKey}`)}
       </span>
-      <div className="flex flex-1 gap-1">
+      <Select
+        selectSize="xs"
+        variant="subtle"
+        fullWidth
+        value={currentValue}
+        onChange={(e) => { onTacticsPhaseChange({ [field]: e.target.value }); }}
+      >
         {options.map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            aria-pressed={tacticsPhase?.[field] === opt}
-            onClick={() => onTacticsPhaseChange({ [field]: opt })}
-            className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
-              tacticsPhase?.[field] === opt
-                ? "bg-primary-500 text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-navy-800 dark:text-gray-300 dark:hover:bg-navy-700"
-            }`}
-          >
+          <option key={opt} value={opt}>
             {t(`tactics.phaseSettings.${labelKey}_${opt}`, opt)}
-          </button>
+          </option>
         ))}
-      </div>
+      </Select>
     </div>
   );
 }
