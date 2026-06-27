@@ -12,11 +12,10 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    extract_logo_from_ofm, hash_package_file, load_world_package, load_world_package_files,
-    load_world_package_from_ofm, merge_world_packages, read_logo_from_ofm,
-    read_package_manifest_from_ofm, validate_package_stack, validate_references, ConflictSeverity,
-    ConfederationDef, CountryDef, PackageError, PackageInfo, PackageLock, PlayerDef, StackConflict,
-    WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
+    hash_package_file, load_world_package, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
+    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
+    PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
 };
 pub use world_io::*;
 
@@ -768,7 +767,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     };
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
-    // Group hand-authored players by the club they belong to.
+    // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
         std::collections::HashMap::new();
     for player in &package.players {
@@ -779,7 +778,16 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
                 .push(player);
         }
     }
+    let mut authored_staff_by_club: std::collections::HashMap<&str, Vec<&package::StaffDef>> =
+        std::collections::HashMap::new();
+    for s in &package.staff {
+        authored_staff_by_club
+            .entry(s.club.as_str())
+            .or_default()
+            .push(s);
+    }
     const NO_AUTHORED: &[&package::PlayerDef] = &[];
+    const NO_AUTHORED_STAFF: &[&package::StaffDef] = &[];
 
     let mut teams = Vec::new();
     let mut players = Vec::new();
@@ -789,11 +797,30 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
             .get(tdef.id.as_str())
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED);
-        let (team, team_players, team_staff) =
+        let authored_staff = authored_staff_by_club
+            .get(tdef.id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or(NO_AUTHORED_STAFF);
+        let (team, team_players, mut team_staff) =
             build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
+        // Replace any auto-generated staff member of the same role with the authored version.
+        for sdef in authored_staff {
+            let authored_member = generation::generate_staff_from_authored_def(
+                sdef, Some(&team.id), &names_def, &mut rng,
+            );
+            if let Some(pos) = team_staff.iter().position(|s| s.role == authored_member.role) {
+                team_staff[pos] = authored_member;
+            } else {
+                team_staff.push(authored_member);
+            }
+        }
         teams.push(team);
         players.extend(team_players);
         staff.extend(team_staff);
+    }
+    // Unattached authored staff (no club) go directly into the staff list.
+    for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
+        staff.push(generation::generate_staff_from_authored_def(sdef, None, &names_def, &mut rng));
     }
 
     let mut build_notices: Vec<String> = Vec::new();
@@ -886,58 +913,6 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         world.metadata.base_year = Some(base_year);
     }
     world
-}
-
-/// Fill a package-built world up to `target` teams by adding procedurally
-/// generated clubs. Only competitions whose explicit participant list exactly
-/// matches the original team roster are expanded — selective competitions
-/// (cups, qualifying rounds with a subset of teams) are left untouched.
-pub fn fill_world_to_minimum(world: &mut WorldData, target: usize) {
-    use std::collections::HashSet;
-
-    let existing = world.teams.len();
-    if existing >= target {
-        return;
-    }
-    let needed = target - existing;
-
-    let mut rng = rand::rng();
-    let names_def = default_names_definition();
-    let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
-    let country = world
-        .teams
-        .first()
-        .map(|t| t.country.clone())
-        .unwrap_or_else(|| "??".to_string());
-
-    let original_team_ids: HashSet<String> =
-        world.teams.iter().map(|t| t.id.clone()).collect();
-
-    let mut new_team_ids: Vec<String> = Vec::new();
-    for def in &filler_club_defs(&country, needed, &mut rng) {
-        let (team, team_players, team_staff) =
-            build_club(def, &country_codes, &names_def, &mut rng);
-        new_team_ids.push(team.id.clone());
-        world.teams.push(team);
-        world.players.extend(team_players);
-        world.staff.extend(team_staff);
-    }
-
-    if let Some(defs) = world.competition_definitions.as_mut() {
-        for comp in &mut defs.competitions {
-            if let Some(explicit) = comp.participants.explicit.as_mut() {
-                let is_full_roster = explicit.len() == original_team_ids.len()
-                    && explicit.iter().all(|id| original_team_ids.contains(id));
-                if is_full_roster {
-                    explicit.extend(new_team_ids.iter().cloned());
-                }
-            }
-        }
-    }
-
-    world
-        .build_notices
-        .push("be.error.notice.fallbackTeamsFilled".to_string());
 }
 
 /// Find a data file by stem, accepting JSON or YAML (`.json`/`.yaml`/`.yml`).

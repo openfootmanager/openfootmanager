@@ -11,6 +11,7 @@ import {
   emptyMeta,
   emptyNamesDefinition,
   emptyPlayer,
+  emptyStaff,
   emptyTeam,
 } from "../components/menu/PackageEditor/helpers";
 import { useUndoRedo } from "../hooks/useUndoRedo";
@@ -24,6 +25,7 @@ import type {
   NamesDefinition,
   PackageProjectData,
   PlayerDef,
+  StaffDef,
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
@@ -54,6 +56,7 @@ interface EntitySnapshot {
   countries: CountryDef[];
   teams: TeamDef[];
   players: PlayerDef[];
+  staff: StaffDef[];
   names: NamesDefinition;
   competitions: CompetitionDef[];
 }
@@ -77,6 +80,7 @@ export default function WorldEditor() {
   const [countries, setCountries] = useState<CountryDef[]>([]);
   const [teams, setTeams] = useState<TeamDef[]>([]);
   const [players, setPlayers] = useState<PlayerDef[]>([]);
+  const [staff, setStaff] = useState<StaffDef[]>([]);
   const [names, setNames] = useState<NamesDefinition>(emptyNamesDefinition());
   const [competitions, setCompetitions] = useState<CompetitionDef[]>([]);
   const [issues, setIssues] = useState<PackageProjectData["issues"]>([]);
@@ -104,7 +108,7 @@ export default function WorldEditor() {
   // ---------------------------------------------------------------------------
 
   function currentSnapshot(): EntitySnapshot {
-    return { meta, confederations, countries, teams, players, names, competitions };
+    return { meta, confederations, countries, teams, players, staff, names, competitions };
   }
 
   function applySnapshot(snapshot: EntitySnapshot) {
@@ -113,6 +117,7 @@ export default function WorldEditor() {
     setCountries(snapshot.countries);
     setTeams(snapshot.teams);
     setPlayers(snapshot.players);
+    setStaff(snapshot.staff);
     setNames(snapshot.names);
     setCompetitions(snapshot.competitions);
     setIsDirty(true);
@@ -124,6 +129,8 @@ export default function WorldEditor() {
     confEditor.syncEditing(snapshot.confederations);
     countryEditor.syncEditing(snapshot.countries);
     playerEditor.syncEditing(snapshot.players);
+    youthEditor.syncEditing(snapshot.players);
+    staffEditor.syncEditing(snapshot.staff);
     compEditor.syncEditing(snapshot.competitions);
   }
 
@@ -160,6 +167,7 @@ export default function WorldEditor() {
     setCountries(data.countries);
     setTeams(data.teams);
     setPlayers(data.players);
+    setStaff(data.staff ?? []);
     setNames(data.names ?? emptyNamesDefinition());
     setCompetitions(data.competitions);
     setIssues(data.issues);
@@ -187,6 +195,7 @@ export default function WorldEditor() {
     countries?: CountryDef[];
     teams?: TeamDef[];
     players?: PlayerDef[];
+    staff?: StaffDef[];
     names?: NamesDefinition;
     competitions?: CompetitionDef[];
   }) => {
@@ -199,6 +208,7 @@ export default function WorldEditor() {
         countries: overrides?.countries ?? countries,
         teams: overrides?.teams ?? teams,
         players: overrides?.players ?? players,
+        staff: overrides?.staff ?? staff,
         names: overrides?.names ?? names,
         competitions: overrides?.competitions ?? competitions,
       });
@@ -211,7 +221,7 @@ export default function WorldEditor() {
       throw err;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectDir, meta, confederations, countries, teams, players, names, competitions]);
+  }, [projectDir, meta, confederations, countries, teams, players, staff, names, competitions]);
 
   function handleToggleAutoSave() {
     const next = !autoSave;
@@ -264,6 +274,7 @@ export default function WorldEditor() {
           countries: sample.countries,
           teams: sample.teams,
           players: sample.players,
+          staff: (sample as { staff?: unknown }).staff ?? [],
           names: sample.names,
           competitions: sample.competitions,
         });
@@ -433,6 +444,30 @@ export default function WorldEditor() {
     setIsBusy,
   });
 
+  const youthEditor = useEntityEditor({
+    items: players,
+    setItems: setPlayers,
+    empty: () => ({ ...emptyPlayer(), youth: true }),
+    captureHistory,
+    saveItems: (items) => persist({ players: items }),
+    autoSave,
+    onOpen: () => setFormPanel("player"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
+
+  const staffEditor = useEntityEditor({
+    items: staff,
+    setItems: setStaff,
+    empty: emptyStaff,
+    captureHistory,
+    saveItems: (items) => persist({ staff: items }),
+    autoSave,
+    onOpen: () => setFormPanel("staff"),
+    onClose: () => setFormPanel("empty"),
+    setIsBusy,
+  });
+
   const compEditor = useEntityEditor({
     items: competitions,
     setItems: setCompetitions,
@@ -496,6 +531,7 @@ export default function WorldEditor() {
         formPanel={formPanel}
         teams={teams}
         players={players}
+        staff={staff}
         confederations={confederations}
         countries={countries}
         competitions={competitions}
@@ -503,6 +539,8 @@ export default function WorldEditor() {
         projectDir={projectDir || undefined}
         teamEditor={teamEditor}
         playerEditor={playerEditor}
+        youthEditor={youthEditor}
+        staffEditor={staffEditor}
         confEditor={confEditor}
         countryEditor={countryEditor}
         compEditor={compEditor}
@@ -540,6 +578,8 @@ export default function WorldEditor() {
           countryCount={countries.length}
           teamCount={teams.length}
           playerCount={players.length}
+          youthCount={players.filter((p) => p.youth).length}
+          staffCount={staff.length}
           namePoolCount={Object.keys(names.pools).length}
           competitionCount={competitions.length}
           issueCount={issues.length}
@@ -569,6 +609,7 @@ export default function WorldEditor() {
           confEditor={confEditor}
           countryEditor={countryEditor}
           playerEditor={playerEditor}
+          staffEditor={staffEditor}
           compEditor={compEditor}
           confederations={confederations}
           teams={teams}

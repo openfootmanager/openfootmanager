@@ -5,6 +5,7 @@ import { TeamForm } from "../menu/PackageEditor/TeamForm";
 import { ConfederationForm } from "../menu/PackageEditor/ConfederationForm";
 import { CountryForm } from "../menu/PackageEditor/CountryForm";
 import { PlayerForm } from "../menu/PackageEditor/PlayerForm";
+import { StaffForm } from "../menu/PackageEditor/StaffForm";
 import { NamesPoolForm } from "../menu/PackageEditor/NamesPoolForm";
 import { CompetitionForm } from "../menu/PackageEditor/CompetitionForm";
 import { IssueList } from "../menu/PackageEditor/IssueList";
@@ -15,6 +16,7 @@ import type {
   NamePool,
   PackageProjectData,
   PlayerDef,
+  StaffDef,
   TeamDef,
   WorldMetaDef,
 } from "../menu/PackageEditor/types";
@@ -26,6 +28,7 @@ export type FormPanel =
   | "confederation"
   | "country"
   | "player"
+  | "staff"
   | "names-pool"
   | "competition"
   | "issues";
@@ -60,6 +63,7 @@ interface WorldEditorFormPanelProps {
   confEditor: EditorAPI<ConfederationDef>;
   countryEditor: EditorAPI<CountryDef>;
   playerEditor: EditorAPI<PlayerDef>;
+  staffEditor: EditorAPI<StaffDef>;
   compEditor: EditorAPI<CompetitionDef>;
   // Cross-entity data
   confederations: ConfederationDef[];
@@ -86,6 +90,7 @@ export function WorldEditorFormPanel({
   confEditor,
   countryEditor,
   playerEditor,
+  staffEditor,
   compEditor,
   confederations,
   teams,
@@ -196,6 +201,22 @@ export function WorldEditorFormPanel({
           onBack={onBack}
           onSave={() => { void playerEditor.handleSave(); }}
           updateField={playerEditor.updateField}
+        />
+      </div>
+    );
+  }
+
+  if (formPanel === "staff") {
+    return (
+      <div className="max-w-2xl">
+        <StaffForm
+          editing={staffEditor.editing}
+          editingIndex={staffEditor.editingIndex}
+          isBusy={isBusy}
+          teams={teams}
+          onBack={onBack}
+          onSave={() => { void staffEditor.handleSave(); }}
+          updateField={staffEditor.updateField}
         />
       </div>
     );

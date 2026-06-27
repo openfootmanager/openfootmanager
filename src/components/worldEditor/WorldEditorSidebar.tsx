@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, Flag, Globe2, Info, Shield, Trophy, Type, Users } from "lucide-react";
+import { AlertCircle, Flag, Globe2, Info, Shield, Trophy, Type, Users, UserCog, GraduationCap } from "lucide-react";
 import type { EditTab } from "../menu/PackageEditor/types";
 
 interface SidebarItem {
@@ -23,6 +23,8 @@ interface WorldEditorSidebarProps {
   countryCount: number;
   teamCount: number;
   playerCount: number;
+  youthCount: number;
+  staffCount: number;
   namePoolCount: number;
   competitionCount: number;
   issueCount: number;
@@ -37,6 +39,8 @@ export function WorldEditorSidebar({
   countryCount,
   teamCount,
   playerCount,
+  youthCount,
+  staffCount,
   namePoolCount,
   competitionCount,
   issueCount,
@@ -65,6 +69,8 @@ export function WorldEditorSidebar({
       items: [
         { key: "teams", label: t("worldEditor.sectionTeams"), count: teamCount, icon: Shield },
         { key: "players", label: t("worldEditor.sectionPlayers"), count: playerCount, icon: Users },
+        { key: "youth", label: t("worldEditor.sectionYouth"), count: youthCount, icon: GraduationCap },
+        { key: "staff", label: t("worldEditor.sectionStaff"), count: staffCount, icon: UserCog },
         { key: "names", label: t("worldEditor.sectionNames"), count: namePoolCount, icon: Type },
       ],
     },

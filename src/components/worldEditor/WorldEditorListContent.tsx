@@ -1,5 +1,6 @@
 import { TeamsTab } from "../menu/PackageEditor/TeamsTab";
 import { PlayersTab } from "../menu/PackageEditor/PlayersTab";
+import { StaffTab } from "../menu/PackageEditor/StaffTab";
 import { ConfederationsTab } from "../menu/PackageEditor/ConfederationsTab";
 import { CountriesTab } from "../menu/PackageEditor/CountriesTab";
 import { NamesTab } from "../menu/PackageEditor/NamesTab";
@@ -12,6 +13,7 @@ import type {
   EditTab,
   NamesDefinition,
   PlayerDef,
+  StaffDef,
   TeamDef,
 } from "../menu/PackageEditor/types";
 import type { FormPanel } from "./WorldEditorFormPanel";
@@ -28,6 +30,7 @@ interface WorldEditorListContentProps {
   formPanel: FormPanel;
   teams: TeamDef[];
   players: PlayerDef[];
+  staff: StaffDef[];
   confederations: ConfederationDef[];
   countries: CountryDef[];
   competitions: CompetitionDef[];
@@ -35,6 +38,8 @@ interface WorldEditorListContentProps {
   projectDir?: string;
   teamEditor: ListEditorAPI;
   playerEditor: ListEditorAPI;
+  youthEditor: ListEditorAPI;
+  staffEditor: ListEditorAPI;
   confEditor: ListEditorAPI;
   countryEditor: ListEditorAPI;
   compEditor: ListEditorAPI;
@@ -51,6 +56,7 @@ export function WorldEditorListContent({
   formPanel,
   teams,
   players,
+  staff,
   confederations,
   countries,
   competitions,
@@ -58,6 +64,8 @@ export function WorldEditorListContent({
   projectDir,
   teamEditor,
   playerEditor,
+  youthEditor,
+  staffEditor,
   confEditor,
   countryEditor,
   compEditor,
@@ -80,12 +88,37 @@ export function WorldEditorListContent({
         <PlayersTab
           players={players}
           teams={teams}
+          youthOnly={false}
           onAdd={playerEditor.handleAdd}
           onEdit={playerEditor.handleSelect}
           onDelete={playerEditor.handleDelete}
           selectedIndex={formPanel === "player" ? playerEditor.editingIndex : null}
           onSelect={playerEditor.handleSelect}
           projectDir={projectDir}
+        />
+      )}
+      {selectedSection === "youth" && (
+        <PlayersTab
+          players={players}
+          teams={teams}
+          youthOnly={true}
+          onAdd={youthEditor.handleAdd}
+          onEdit={youthEditor.handleSelect}
+          onDelete={youthEditor.handleDelete}
+          selectedIndex={formPanel === "player" ? youthEditor.editingIndex : null}
+          onSelect={youthEditor.handleSelect}
+          projectDir={projectDir}
+        />
+      )}
+      {selectedSection === "staff" && (
+        <StaffTab
+          staff={staff}
+          teams={teams}
+          onAdd={staffEditor.handleAdd}
+          onEdit={staffEditor.handleSelect}
+          onDelete={staffEditor.handleDelete}
+          selectedIndex={formPanel === "staff" ? staffEditor.editingIndex : null}
+          onSelect={staffEditor.handleSelect}
         />
       )}
       {selectedSection === "confederations" && (

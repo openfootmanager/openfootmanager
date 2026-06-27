@@ -1,6 +1,6 @@
 use ofm_core::generator::{
     export_directory_to_ofm, extract_ofm_to_dir, load_world_package, CompetitionDefinition,
-    ConfederationDef, CountryDef, NamesDefinition, PlayerDef, TeamDef, WorldMetaDef,
+    ConfederationDef, CountryDef, NamesDefinition, PlayerDef, StaffDef, TeamDef, WorldMetaDef,
 };
 use serde_json::json;
 use std::path::Path;
@@ -26,6 +26,7 @@ pub struct PackageProjectData {
     pub countries: Vec<CountryDef>,
     pub teams: Vec<TeamDef>,
     pub players: Vec<PlayerDef>,
+    pub staff: Vec<StaffDef>,
     pub names: Option<NamesDefinition>,
     pub competitions: Vec<CompetitionDefinition>,
     pub issues: Vec<PackageIssue>,
@@ -63,7 +64,7 @@ fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
 // ---------------------------------------------------------------------------
 
 fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), String> {
-    let subdirs = ["teams", "players", "confederations", "countries", "competitions", "names"];
+    let subdirs = ["teams", "players", "staff", "confederations", "countries", "competitions", "names"];
     for sub in &subdirs {
         std::fs::create_dir_all(pkg_dir.join(sub)).map_err(|e| e.to_string())?;
     }
@@ -74,6 +75,7 @@ fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), Strin
     let stubs: &[(&str, &str, serde_json::Value)] = &[
         ("teams", "teams.json", json!({"schema": "team", "items": []})),
         ("players", "players.json", json!({"schema": "player", "items": []})),
+        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
         ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
         ("countries", "countries.json", json!({"schema": "country", "items": []})),
         ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
@@ -142,6 +144,7 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         countries: pkg.countries,
         teams: pkg.teams,
         players: pkg.players,
+        staff: pkg.staff,
         names: pkg.names,
         competitions: pkg.competitions,
         issues,
@@ -157,6 +160,7 @@ pub fn save_package_project(
     countries: Vec<CountryDef>,
     teams: Vec<TeamDef>,
     players: Vec<PlayerDef>,
+    staff: Vec<StaffDef>,
     names: NamesDefinition,
     competitions: Vec<CompetitionDefinition>,
 ) -> Result<(), String> {
@@ -188,6 +192,13 @@ pub fn save_package_project(
         &json!({"schema": "player", "items": pls}),
     )?;
 
+    std::fs::create_dir_all(pkg_dir.join("staff")).map_err(|e| e.to_string())?;
+    let stf = serde_json::to_value(&staff).map_err(|e| e.to_string())?;
+    write_json_atomic(
+        &pkg_dir.join("staff").join("staff.json"),
+        &json!({"schema": "staff", "items": stf}),
+    )?;
+
     write_json_atomic(&pkg_dir.join("names").join("names.json"), &names_to_file(&names)?)?;
 
     let comps = serde_json::to_value(&competitions).map_err(|e| e.to_string())?;
@@ -204,9 +215,10 @@ mod tests {
     use super::*;
     use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType};
     use domain::player::{PlayerAttributes, Position};
+    use domain::staff::{StaffAttributes, StaffRole};
     use ofm_core::generator::{
         ConfederationDef, CountryDef, FormatDef, NamePool, NamesDefinition, ParticipantSpec,
-        PlayerDef, SelectorKind, SelectorSpec, TeamColorsDef, TeamDef, WorldMetaDef,
+        PlayerDef, SelectorKind, SelectorSpec, StaffDef, TeamColorsDef, TeamDef, WorldMetaDef,
     };
     use std::collections::HashMap;
 
@@ -254,6 +266,7 @@ mod tests {
             reputation_range: Some([700, 900]),
             finance_range: None,
             logo: None,
+            kit_pattern: None,
         }];
 
         // Player WITH explicit attributes — exercises camelCase serde mapping and Position round-trip
@@ -290,6 +303,8 @@ mod tests {
                 aerial: 65,
             }),
             photo: None,
+            footedness: None,
+            youth: false,
         }];
 
         let mut pools = HashMap::new();
@@ -341,6 +356,24 @@ mod tests {
             logo: None,
         }];
 
+        let staff = vec![StaffDef {
+            id: "fergie".to_string(),
+            first_name: "Alex".to_string(),
+            last_name: "Ferguson".to_string(),
+            club: "man-utd".to_string(),
+            nationality: "ENG".to_string(),
+            role: StaffRole::AssistantManager,
+            attributes: Some(StaffAttributes {
+                coaching: 90,
+                judging_ability: 85,
+                judging_potential: 80,
+                physiotherapy: 30,
+            }),
+            specialization: None,
+            date_of_birth: Some("1941-12-31".to_string()),
+            age: None,
+        }];
+
         save_package_project(
             dir.to_str().unwrap().to_string(),
             test_meta(),
@@ -348,6 +381,7 @@ mod tests {
             countries,
             teams,
             players,
+            staff,
             names,
             competitions,
         )
@@ -383,6 +417,16 @@ mod tests {
         let eng = names_rt.pools.get("ENG").expect("ENG pool must survive round-trip");
         assert_eq!(eng.first_names, ["James", "John"]);
         assert_eq!(eng.last_names, ["Smith", "Jones"]);
+
+        // Staff round-trip
+        assert_eq!(loaded.staff.len(), 1);
+        let s = &loaded.staff[0];
+        assert_eq!(s.id, "fergie");
+        assert_eq!(s.first_name, "Alex");
+        assert_eq!(s.role, StaffRole::AssistantManager);
+        assert_eq!(s.club, "man-utd");
+        let s_attrs = s.attributes.as_ref().expect("staff attributes must survive round-trip");
+        assert_eq!(s_attrs.coaching, 90);
 
         // Exercises competition type PascalCase and selector kind camelCase
         assert_eq!(loaded.competitions.len(), 1);

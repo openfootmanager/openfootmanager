@@ -3673,6 +3673,8 @@
     "sectionCountries": "Страны",
     "sectionTeams": "Команды",
     "sectionPlayers": "Игроки",
+    "sectionYouth": "Академия",
+    "sectionStaff": "Персонал",
     "sectionNames": "Пулы имён",
     "sectionCompetitionsList": "Соревнования",
     "help": {
@@ -3720,6 +3722,45 @@
     "packageLogo": "Логотип пакета",
     "competitionLogo": "Логотип соревнования",
     "playerPhoto": "Фото игрока",
+    "addYouthPlayer": "Добавить молодого игрока",
+    "noYouthPlayers": "Молодых игроков пока нет.",
+    "addStaff": "Добавить сотрудника",
+    "editStaff": "Редактировать сотрудника",
+    "deleteStaff": "Удалить",
+    "noStaff": "Сотрудников пока нет.",
+    "searchStaff": "Поиск персонала…",
+    "saveStaff": "Сохранить сотрудника",
+    "staffId": "ID",
+    "staffFirstName": "Имя",
+    "staffLastName": "Фамилия",
+    "staffClub": "Клуб",
+    "staffNationality": "Национальность",
+    "staffDateOfBirth": "Дата рождения",
+    "staffUseAttributes": "Использовать детальные атрибуты",
+    "staffRole": {
+      "label": "Роль",
+      "AssistantManager": "Помощник тренера",
+      "Coach": "Тренер",
+      "Scout": "Скаут",
+      "Physio": "Физиотерапевт"
+    },
+    "staffSpecialization": {
+      "label": "Специализация",
+      "none": "Нет",
+      "Fitness": "Физподготовка",
+      "Technique": "Техника",
+      "Tactics": "Тактика",
+      "Defending": "Защита",
+      "Attacking": "Нападение",
+      "GoalKeeping": "Вратарское мастерство",
+      "Youth": "Юношеский"
+    },
+    "staffAttr": {
+      "coaching": "Тренерство",
+      "judgingAbility": "Оценка способностей",
+      "judgingPotential": "Оценка потенциала",
+      "physiotherapy": "Физиотерапия"
+    },
     "chooseLogo": "Выбрать изображение…",
     "removeLogo": "Удалить",
     "openInEditor": "Изменить"
@@ -3735,10 +3776,6 @@
   },
   "generation": {
     "title": "Генерация и завершение",
-    "coverage": "Ваши пакеты охватывают",
-    "fillWithGenerated": {
-      "label": "Заполнить ИИ-клубами",
-      "hint": "Добавить процедурно сгенерированные команды для заполнения чемпионата до 20 клубов"
-    }
+    "coverage": "Ваши пакеты охватывают"
   }
 }

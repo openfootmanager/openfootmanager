@@ -1,3 +1,5 @@
+import type { StaffData } from "../../../store/types";
+
 export interface TeamColorsDef {
   primary: string;
   secondary: string;
@@ -117,6 +119,33 @@ export interface PlayerDef {
   attributes: PlayerAttributesDef | null;
   photo?: string | null;
   foot?: Footedness | null;
+  youth?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Staff
+// ---------------------------------------------------------------------------
+
+export type StaffRole = StaffData["role"];
+
+export interface StaffAttributesDef {
+  coaching: number;
+  judgingAbility: number;
+  judgingPotential: number;
+  physiotherapy: number;
+}
+
+export interface StaffDef {
+  id: string;
+  firstName: string;
+  lastName: string;
+  club: string;
+  nationality: string;
+  role: StaffRole;
+  attributes: StaffAttributesDef | null;
+  specialization?: string | null;
+  dateOfBirth?: string | null;
+  age?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +229,7 @@ export interface PackageProjectData {
   countries: CountryDef[];
   teams: TeamDef[];
   players: PlayerDef[];
+  staff: StaffDef[];
   names: NamesDefinition | null;
   competitions: CompetitionDef[];
   issues: PackageIssue[];
@@ -213,7 +243,8 @@ export type EditorView =
   | "country"
   | "player"
   | "names-pool"
-  | "competition";
+  | "competition"
+  | "staff";
 
 export type EditTab =
   | "metadata"
@@ -221,5 +252,7 @@ export type EditTab =
   | "countries"
   | "teams"
   | "players"
+  | "youth"
+  | "staff"
   | "names"
   | "competitions";

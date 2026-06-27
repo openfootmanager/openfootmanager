@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use domain::player::{PlayerAttributes, Position};
+use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
 use super::{CompetitionDefinition, NamesDefinition, TeamDef};
 
@@ -76,6 +77,44 @@ pub struct PlayerDef {
     /// Preferred foot ("Left", "Right", "Both"). Defaults to "Right" if omitted.
     #[serde(default)]
     pub footedness: Option<String>,
+    /// If true, the player belongs to the club's youth / academy squad rather than the first team.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub youth: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !v
+}
+
+fn default_staff_role() -> StaffRole {
+    StaffRole::Coach
+}
+
+/// A coaching staff member defined in a world package.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaffDef {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub first_name: String,
+    #[serde(default)]
+    pub last_name: String,
+    /// Club team id this staff member belongs to. Empty = unattached / free agent.
+    #[serde(default)]
+    pub club: String,
+    #[serde(default)]
+    pub nationality: String,
+    #[serde(default = "default_staff_role")]
+    pub role: StaffRole,
+    #[serde(default)]
+    pub attributes: Option<StaffAttributes>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub specialization: Option<CoachingSpecialization>,
+    #[serde(default)]
+    pub date_of_birth: Option<String>,
+    #[serde(default)]
+    pub age: Option<u32>,
 }
 
 /// Package-level metadata (at most one per package).
@@ -152,6 +191,7 @@ pub struct WorldPackage {
     pub countries: Vec<CountryDef>,
     pub teams: Vec<TeamDef>,
     pub players: Vec<PlayerDef>,
+    pub staff: Vec<StaffDef>,
     pub competitions: Vec<CompetitionDefinition>,
     pub names: Option<NamesDefinition>,
     /// Per-locale translation bundles supplied by the package, keyed by locale
@@ -267,6 +307,11 @@ fn classify_entity(
         "player" => {
             if let Some(def) = parse_entity::<PlayerDef>(value, file, schema, errors) {
                 package.players.push(def);
+            }
+        }
+        "staff" => {
+            if let Some(def) = parse_entity::<StaffDef>(value, file, schema, errors) {
+                package.staff.push(def);
             }
         }
         "competition" => {
@@ -394,6 +439,7 @@ pub fn load_world_package_files(dir: &Path) -> (WorldPackage, Vec<PackageError>)
     package.countries.sort_by(|a, b| a.id.cmp(&b.id));
     package.teams.sort_by(|a, b| a.id.cmp(&b.id));
     package.players.sort_by(|a, b| a.id.cmp(&b.id));
+    package.staff.sort_by(|a, b| a.id.cmp(&b.id));
     package.competitions.sort_by(|a, b| a.id.cmp(&b.id));
 
     errors.extend(validate_ids(&package));
@@ -432,6 +478,11 @@ pub fn validate_ids(package: &WorldPackage) -> Vec<PackageError> {
     check_ids(
         package.players.iter().map(|p| p.id.as_str()),
         "player",
+        &mut errors,
+    );
+    check_ids(
+        package.staff.iter().map(|s| s.id.as_str()),
+        "staff",
         &mut errors,
     );
     check_ids(
@@ -513,6 +564,23 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                 PackageError::new(UNKNOWN_COUNTRY, "")
                     .with("entity", &player.id)
                     .with("country", &player.nationality),
+            );
+        }
+    }
+
+    for staff in &package.staff {
+        if !staff.club.is_empty() && !team_ids.contains(staff.club.as_str()) {
+            errors.push(
+                PackageError::new(UNKNOWN_TEAM, "")
+                    .with("player", &staff.id)
+                    .with("team", &staff.club),
+            );
+        }
+        if !staff.nationality.is_empty() && !known_country(&staff.nationality) {
+            errors.push(
+                PackageError::new(UNKNOWN_COUNTRY, "")
+                    .with("entity", &staff.id)
+                    .with("country", &staff.nationality),
             );
         }
     }
@@ -772,6 +840,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut countries: BTreeMap<String, CountryDef> = BTreeMap::new();
     let mut teams: BTreeMap<String, TeamDef> = BTreeMap::new();
     let mut players: BTreeMap<String, PlayerDef> = BTreeMap::new();
+    let mut staff_map: BTreeMap<String, StaffDef> = BTreeMap::new();
     let mut competitions: BTreeMap<String, CompetitionDefinition> = BTreeMap::new();
 
     // Collected meta fields for union/max merging.
@@ -814,6 +883,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         for c in package.countries { countries.insert(c.id.clone(), c); }
         for t in package.teams { teams.insert(t.id.clone(), t); }
         for p in package.players { players.insert(p.id.clone(), p); }
+        for s in package.staff { staff_map.insert(s.id.clone(), s); }
         for c in package.competitions { competitions.insert(c.id.clone(), c); }
         if package.names.is_some() { merged.names = package.names; }
         for (locale, bundle) in package.extra_translations {
@@ -831,6 +901,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     merged.countries = countries.into_values().collect();
     merged.teams = teams.into_values().collect();
     merged.players = players.into_values().collect();
+    merged.staff = staff_map.into_values().collect();
     merged.competitions = competitions.into_values().collect();
 
     let mut errors = validate_ids(&merged);
@@ -1065,42 +1136,6 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
             _ => "image/png",
         };
         return Some(format!("data:{mime};base64,{}", STANDARD.encode(&bytes)));
-    }
-    None
-}
-
-/// Extract a logo from an OFM archive and write it to `dest_dir/{filename}`.
-/// Returns the destination path if the logo was found and written successfully.
-pub fn extract_logo_from_ofm(
-    archive_path: &Path,
-    logo_path: &str,
-    dest_dir: &Path,
-) -> Option<std::path::PathBuf> {
-    use std::io::Read;
-
-    let file = std::fs::File::open(archive_path).ok()?;
-    let mut archive = zip::ZipArchive::new(file).ok()?;
-    let logo_lower = logo_path.to_ascii_lowercase();
-    for i in 0..archive.len() {
-        let Ok(mut entry) = archive.by_index(i) else {
-            continue;
-        };
-        if entry.is_dir() {
-            continue;
-        }
-        let entry_lower = entry.name().to_ascii_lowercase();
-        if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
-            continue;
-        }
-        let mut bytes = Vec::new();
-        if entry.read_to_end(&mut bytes).is_err() {
-            continue;
-        }
-        let filename = Path::new(logo_path).file_name()?.to_str()?;
-        std::fs::create_dir_all(dest_dir).ok()?;
-        let dest = dest_dir.join(filename);
-        std::fs::write(&dest, &bytes).ok()?;
-        return Some(dest);
     }
     None
 }

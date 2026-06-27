@@ -3677,6 +3677,8 @@
     "sectionCountries": "Pays",
     "sectionTeams": "Équipes",
     "sectionPlayers": "Joueurs",
+    "sectionYouth": "Centre de Formation",
+    "sectionStaff": "Staff",
     "sectionNames": "Pools de noms",
     "sectionCompetitionsList": "Compétitions",
     "help": {
@@ -3724,6 +3726,45 @@
     "packageLogo": "Logo du paquet",
     "competitionLogo": "Logo de la compétition",
     "playerPhoto": "Photo du joueur",
+    "addYouthPlayer": "Ajouter un Jeune",
+    "noYouthPlayers": "Aucun joueur jeune pour l'instant.",
+    "addStaff": "Ajouter un Membre",
+    "editStaff": "Modifier le Membre",
+    "deleteStaff": "Supprimer",
+    "noStaff": "Aucun membre du staff pour l'instant.",
+    "searchStaff": "Rechercher du staff…",
+    "saveStaff": "Enregistrer le Membre",
+    "staffId": "ID",
+    "staffFirstName": "Prénom",
+    "staffLastName": "Nom",
+    "staffClub": "Club",
+    "staffNationality": "Nationalité",
+    "staffDateOfBirth": "Date de naissance",
+    "staffUseAttributes": "Utiliser les attributs détaillés",
+    "staffRole": {
+      "label": "Rôle",
+      "AssistantManager": "Adjoint",
+      "Coach": "Entraîneur",
+      "Scout": "Recruteur",
+      "Physio": "Kiné"
+    },
+    "staffSpecialization": {
+      "label": "Spécialisation",
+      "none": "Aucune",
+      "Fitness": "Condition physique",
+      "Technique": "Technique",
+      "Tactics": "Tactique",
+      "Defending": "Défense",
+      "Attacking": "Attaque",
+      "GoalKeeping": "Gardien",
+      "Youth": "Jeunes"
+    },
+    "staffAttr": {
+      "coaching": "Entraînement",
+      "judgingAbility": "Évaluation du niveau",
+      "judgingPotential": "Évaluation du potentiel",
+      "physiotherapy": "Kinésithérapie"
+    },
     "chooseLogo": "Choisir une image…",
     "removeLogo": "Supprimer",
     "openInEditor": "Modifier"
@@ -3739,10 +3780,6 @@
   },
   "generation": {
     "title": "Génération et Complétion",
-    "coverage": "Vos paquets couvrent",
-    "fillWithGenerated": {
-      "label": "Compléter avec des clubs IA",
-      "hint": "Ajouter des équipes générées procéduralement pour compléter le championnat à 20 clubs"
-    }
+    "coverage": "Vos paquets couvrent"
   }
 }

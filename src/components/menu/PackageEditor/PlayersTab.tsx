@@ -78,15 +78,19 @@ interface PlayersTabProps {
   selectedIndex?: number | null;
   onSelect?: (index: number) => void;
   projectDir?: string;
+  youthOnly?: boolean;
 }
 
-export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir }: PlayersTabProps) {
+export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIndex, onSelect, projectDir, youthOnly }: PlayersTabProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
+  const scoped = youthOnly !== undefined
+    ? players.map((player, i) => ({ player, i })).filter(({ player }) => !!(player.youth) === youthOnly)
+    : players.map((player, i) => ({ player, i }));
   const filtered = q
-    ? players.map((player, i) => ({ player, i })).filter(({ player }) => {
+    ? scoped.filter(({ player }) => {
         const name = (player.name || `${player.firstName} ${player.lastName}`).toLowerCase();
         return (
           name.includes(q) ||
@@ -96,16 +100,16 @@ export function PlayersTab({ players, teams, onAdd, onEdit, onDelete, selectedIn
           player.nationality.toLowerCase().includes(q)
         );
       })
-    : players.map((player, i) => ({ player, i }));
+    : scoped;
 
   return (
     <EntityListShell
-      addLabel={t("worldEditor.addPlayer")}
+      addLabel={youthOnly ? t("worldEditor.addYouthPlayer") : t("worldEditor.addPlayer")}
       onAdd={onAdd}
-      emptyLabel={t("worldEditor.noPlayers")}
-      isEmpty={players.length === 0}
+      emptyLabel={youthOnly ? t("worldEditor.noYouthPlayers") : t("worldEditor.noPlayers")}
+      isEmpty={scoped.length === 0}
       searchSlot={
-        players.length > 0 && (
+        scoped.length > 0 && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
             <input

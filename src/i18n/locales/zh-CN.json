@@ -3674,6 +3674,8 @@
     "sectionCountries": "国家",
     "sectionTeams": "球队",
     "sectionPlayers": "球员",
+    "sectionYouth": "青训学院",
+    "sectionStaff": "工作人员",
     "sectionNames": "名字池",
     "sectionCompetitionsList": "赛事",
     "help": {
@@ -3721,6 +3723,45 @@
     "packageLogo": "包徽标",
     "competitionLogo": "赛事徽标",
     "playerPhoto": "球员照片",
+    "addYouthPlayer": "添加青训球员",
+    "noYouthPlayers": "暂无青训球员。",
+    "addStaff": "添加成员",
+    "editStaff": "编辑成员",
+    "deleteStaff": "删除",
+    "noStaff": "暂无工作人员。",
+    "searchStaff": "搜索工作人员…",
+    "saveStaff": "保存成员",
+    "staffId": "ID",
+    "staffFirstName": "名",
+    "staffLastName": "姓",
+    "staffClub": "俱乐部",
+    "staffNationality": "国籍",
+    "staffDateOfBirth": "出生日期",
+    "staffUseAttributes": "使用详细属性",
+    "staffRole": {
+      "label": "角色",
+      "AssistantManager": "助理教练",
+      "Coach": "教练",
+      "Scout": "球探",
+      "Physio": "物理治疗师"
+    },
+    "staffSpecialization": {
+      "label": "专攻方向",
+      "none": "无",
+      "Fitness": "体能",
+      "Technique": "技术",
+      "Tactics": "战术",
+      "Defending": "防守",
+      "Attacking": "进攻",
+      "GoalKeeping": "门将",
+      "Youth": "青训"
+    },
+    "staffAttr": {
+      "coaching": "教练能力",
+      "judgingAbility": "能力判断",
+      "judgingPotential": "潜力判断",
+      "physiotherapy": "物理治疗"
+    },
     "chooseLogo": "选择图片…",
     "removeLogo": "移除",
     "openInEditor": "编辑"
@@ -3736,10 +3777,6 @@
   },
   "generation": {
     "title": "生成与完善",
-    "coverage": "您的包涵盖",
-    "fillWithGenerated": {
-      "label": "用AI俱乐部填充",
-      "hint": "添加程序生成的球队，将联赛补全至20支俱乐部"
-    }
+    "coverage": "您的包涵盖"
   }
 }

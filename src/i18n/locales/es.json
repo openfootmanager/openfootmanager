@@ -3707,6 +3707,8 @@
     "sectionCountries": "Países",
     "sectionTeams": "Equipos",
     "sectionPlayers": "Jugadores",
+    "sectionYouth": "Academia de Jóvenes",
+    "sectionStaff": "Cuerpo Técnico",
     "sectionNames": "Grupos de nombres",
     "sectionCompetitionsList": "Competiciones",
     "help": {
@@ -3754,6 +3756,45 @@
     "packageLogo": "Logo del paquete",
     "competitionLogo": "Logo de la competición",
     "playerPhoto": "Foto del jugador",
+    "addYouthPlayer": "Añadir Jugador Joven",
+    "noYouthPlayers": "Aún no hay jugadores jóvenes.",
+    "addStaff": "Añadir Miembro",
+    "editStaff": "Editar Miembro",
+    "deleteStaff": "Eliminar",
+    "noStaff": "Aún no hay miembros del cuerpo técnico.",
+    "searchStaff": "Buscar cuerpo técnico…",
+    "saveStaff": "Guardar Miembro",
+    "staffId": "ID",
+    "staffFirstName": "Nombre",
+    "staffLastName": "Apellido",
+    "staffClub": "Club",
+    "staffNationality": "Nacionalidad",
+    "staffDateOfBirth": "Fecha de nacimiento",
+    "staffUseAttributes": "Usar atributos detallados",
+    "staffRole": {
+      "label": "Rol",
+      "AssistantManager": "Asistente",
+      "Coach": "Entrenador",
+      "Scout": "Ojeador",
+      "Physio": "Fisioterapeuta"
+    },
+    "staffSpecialization": {
+      "label": "Especialización",
+      "none": "Ninguna",
+      "Fitness": "Fitness",
+      "Technique": "Técnica",
+      "Tactics": "Táctica",
+      "Defending": "Defensa",
+      "Attacking": "Ataque",
+      "GoalKeeping": "Portería",
+      "Youth": "Juvenil"
+    },
+    "staffAttr": {
+      "coaching": "Entrenamiento",
+      "judgingAbility": "Valoración de habilidad",
+      "judgingPotential": "Valoración de potencial",
+      "physiotherapy": "Fisioterapia"
+    },
     "chooseLogo": "Elegir imagen…",
     "removeLogo": "Eliminar",
     "openInEditor": "Editar"
@@ -3769,10 +3810,6 @@
   },
   "generation": {
     "title": "Generación y Completado",
-    "coverage": "Tus paquetes incluyen",
-    "fillWithGenerated": {
-      "label": "Completar con clubes de IA",
-      "hint": "Agregar equipos generados proceduralmente para completar el campeonato a 20 clubes"
-    }
+    "coverage": "Tus paquetes incluyen"
   }
 }

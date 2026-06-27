@@ -3677,6 +3677,8 @@
     "sectionCountries": "Paesi",
     "sectionTeams": "Squadre",
     "sectionPlayers": "Giocatori",
+    "sectionYouth": "Settore Giovanile",
+    "sectionStaff": "Staff",
     "sectionNames": "Pool di nomi",
     "sectionCompetitionsList": "Competizioni",
     "help": {
@@ -3724,6 +3726,45 @@
     "packageLogo": "Logo del pacchetto",
     "competitionLogo": "Logo della competizione",
     "playerPhoto": "Foto del giocatore",
+    "addYouthPlayer": "Aggiungi Giovane",
+    "noYouthPlayers": "Nessun giovane ancora.",
+    "addStaff": "Aggiungi Membro",
+    "editStaff": "Modifica Membro",
+    "deleteStaff": "Elimina",
+    "noStaff": "Nessun membro dello staff ancora.",
+    "searchStaff": "Cerca staff…",
+    "saveStaff": "Salva Membro",
+    "staffId": "ID",
+    "staffFirstName": "Nome",
+    "staffLastName": "Cognome",
+    "staffClub": "Club",
+    "staffNationality": "Nazionalità",
+    "staffDateOfBirth": "Data di nascita",
+    "staffUseAttributes": "Usa attributi dettagliati",
+    "staffRole": {
+      "label": "Ruolo",
+      "AssistantManager": "Vice Allenatore",
+      "Coach": "Allenatore",
+      "Scout": "Scout",
+      "Physio": "Fisioterapista"
+    },
+    "staffSpecialization": {
+      "label": "Specializzazione",
+      "none": "Nessuna",
+      "Fitness": "Fitness",
+      "Technique": "Tecnica",
+      "Tactics": "Tattica",
+      "Defending": "Difesa",
+      "Attacking": "Attacco",
+      "GoalKeeping": "Portiere",
+      "Youth": "Giovani"
+    },
+    "staffAttr": {
+      "coaching": "Allenamento",
+      "judgingAbility": "Valutazione della capacità",
+      "judgingPotential": "Valutazione del potenziale",
+      "physiotherapy": "Fisioterapia"
+    },
     "chooseLogo": "Scegli immagine…",
     "removeLogo": "Rimuovi",
     "openInEditor": "Modifica"
@@ -3739,10 +3780,6 @@
   },
   "generation": {
     "title": "Generazione e Completamento",
-    "coverage": "I tuoi pacchetti coprono",
-    "fillWithGenerated": {
-      "label": "Completa con club IA",
-      "hint": "Aggiungi squadre generate proceduralmente per completare il campionato a 20 club"
-    }
+    "coverage": "I tuoi pacchetti coprono"
   }
 }

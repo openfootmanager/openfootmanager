@@ -3673,6 +3673,8 @@
     "sectionCountries": "Countries",
     "sectionTeams": "Teams",
     "sectionPlayers": "Players",
+    "sectionYouth": "Youth Academy",
+    "sectionStaff": "Staff",
     "sectionNames": "Name Pools",
     "sectionCompetitionsList": "Competitions",
     "help": {
@@ -3721,6 +3723,45 @@
     "packageLogo": "Package Logo",
     "competitionLogo": "Competition Logo",
     "playerPhoto": "Player Photo",
+    "addYouthPlayer": "Add Youth Player",
+    "noYouthPlayers": "No youth players yet.",
+    "addStaff": "Add Staff Member",
+    "editStaff": "Edit Staff Member",
+    "deleteStaff": "Delete",
+    "noStaff": "No staff members yet.",
+    "searchStaff": "Search staff…",
+    "saveStaff": "Save Staff Member",
+    "staffId": "ID",
+    "staffFirstName": "First Name",
+    "staffLastName": "Last Name",
+    "staffClub": "Club",
+    "staffNationality": "Nationality",
+    "staffDateOfBirth": "Date of Birth",
+    "staffUseAttributes": "Use detailed attributes",
+    "staffRole": {
+      "label": "Role",
+      "AssistantManager": "Asst. Manager",
+      "Coach": "Coach",
+      "Scout": "Scout",
+      "Physio": "Physio"
+    },
+    "staffSpecialization": {
+      "label": "Specialization",
+      "none": "None",
+      "Fitness": "Fitness",
+      "Technique": "Technique",
+      "Tactics": "Tactics",
+      "Defending": "Defending",
+      "Attacking": "Attacking",
+      "GoalKeeping": "Goalkeeping",
+      "Youth": "Youth"
+    },
+    "staffAttr": {
+      "coaching": "Coaching",
+      "judgingAbility": "Judging Ability",
+      "judgingPotential": "Judging Potential",
+      "physiotherapy": "Physiotherapy"
+    },
     "chooseLogo": "Choose Image…",
     "removeLogo": "Remove"
   },
@@ -3735,10 +3776,6 @@
   },
   "generation": {
     "title": "Generation & Completion",
-    "coverage": "Your packages cover",
-    "fillWithGenerated": {
-      "label": "Fill with AI clubs",
-      "hint": "Add procedurally generated teams to complete the championship to 20 clubs"
-    }
+    "coverage": "Your packages cover"
   }
 }

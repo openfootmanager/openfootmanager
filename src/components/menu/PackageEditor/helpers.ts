@@ -12,6 +12,7 @@ import type {
   Position,
   SelectorKind,
   SelectorSpec,
+  StaffDef,
   TeamDef,
   WorldMetaDef,
 } from "./types";
@@ -148,6 +149,26 @@ export function emptyPlayer(): PlayerDef {
     overall: null,
     attributes: null,
     foot: null,
+  };
+}
+
+export const STAFF_ROLES = ["AssistantManager", "Coach", "Scout", "Physio"] as const;
+export const COACHING_SPECIALIZATIONS = [
+  "Fitness", "Technique", "Tactics", "Defending", "Attacking", "GoalKeeping", "Youth",
+] as const;
+
+export function emptyStaff(): StaffDef {
+  return {
+    id: "",
+    firstName: "",
+    lastName: "",
+    club: "",
+    nationality: "",
+    role: "Coach",
+    attributes: null,
+    specialization: null,
+    dateOfBirth: null,
+    age: null,
   };
 }
 
