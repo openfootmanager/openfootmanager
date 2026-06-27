@@ -324,8 +324,9 @@ export default function PreMatchSetup({
           showStartingList={false}
         />
       </div>
-      {/* Center: the pitch */}
-      <div className="flex min-h-0 flex-col items-center overflow-y-auto">
+      {/* Center: the pitch — portrait aspect (SVG is 100x140) so it fills the
+          column height without squishing, capped by available width. */}
+      <div className="flex min-h-0 items-center justify-center overflow-hidden">
         <FormationPitch
           formation={userTeam.formation}
           players={userTeam.players}
@@ -334,7 +335,7 @@ export default function PreMatchSetup({
             setSelectedStarterId(id === selectedStarterId ? null : id)
           }
           renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
-          className="h-[460px] w-full max-w-[34rem]"
+          className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
         />
       </div>
       {/* Right: set pieces */}
@@ -344,8 +345,9 @@ export default function PreMatchSetup({
 
   // OPPONENT tab: full-width scouting (their shape + squad scouting list).
   const renderOpponentView = () => (
-    <div className="min-h-0 flex-1 overflow-y-auto p-4">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-2">
+      {/* Left: opponent shape */}
+      <div className="flex min-h-0 flex-col gap-2 overflow-hidden">
         <div>
           <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
             {oppTeam.name}
@@ -355,11 +357,16 @@ export default function PreMatchSetup({
             {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
           </p>
         </div>
-        <FormationPitch
-          formation={oppTeam.formation}
-          players={oppTeam.players}
-          className="mx-auto h-[360px] w-full max-w-[34rem]"
-        />
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+          <FormationPitch
+            formation={oppTeam.formation}
+            players={oppTeam.players}
+            className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
+          />
+        </div>
+      </div>
+      {/* Right: scouting list (scrolls internally) */}
+      <div className="min-h-0 overflow-y-auto pr-1">
         {oppPositions.map((pos) => {
           const players = oppTeam.players.filter((p) => p.position === pos);
           if (!players.length) return null;
