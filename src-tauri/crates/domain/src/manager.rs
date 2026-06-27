@@ -127,4 +127,71 @@ impl Manager {
         }
         self.career_stats.wins as f32 / self.career_stats.matches_managed as f32 * 100.0
     }
+
+    /// A player-OVR-style overall rating (≈30–95) summarising the manager's
+    /// standing, track record, and experience. Drives AI squad-management quality
+    /// (rotation aggressiveness) and can be surfaced in the UI like a player's OVR.
+    ///
+    /// Blend: 50% reputation, 30% track record (win rate + trophies), 20%
+    /// experience (matches managed). A fresh mid-reputation manager sits near 50;
+    /// a decorated, experienced one approaches the high 80s.
+    pub fn rating(&self) -> u8 {
+        let reputation = ((f64::from(self.reputation) - 200.0) / 500.0).clamp(0.0, 1.0);
+        let experience =
+            (f64::from(self.career_stats.matches_managed) / 250.0).clamp(0.0, 1.0);
+        let win_rate = (f64::from(self.win_rate()) / 100.0).clamp(0.0, 1.0);
+        let trophies = (f64::from(self.career_stats.trophies) / 10.0).clamp(0.0, 1.0);
+        let track_record = 0.7 * win_rate + 0.3 * trophies;
+        let score = 0.50 * reputation + 0.30 * track_record + 0.20 * experience;
+        (30.0 + 65.0 * score).round() as u8
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn manager() -> Manager {
+        Manager::new(
+            "m1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "GB".to_string(),
+        )
+    }
+
+    #[test]
+    fn rating_for_fresh_mid_reputation_manager_is_mid_range() {
+        // Default: reputation 500, no career → sits around the middle.
+        let r = manager().rating();
+        assert!((45..=55).contains(&r), "expected mid-range rating, got {r}");
+    }
+
+    #[test]
+    fn rating_rises_with_reputation_experience_and_success() {
+        let mut elite = manager();
+        elite.reputation = 700;
+        elite.career_stats.matches_managed = 250;
+        elite.career_stats.wins = 150; // 60% win rate
+        elite.career_stats.trophies = 8;
+
+        let mut journeyman = manager();
+        journeyman.reputation = 250;
+        journeyman.career_stats.matches_managed = 20;
+        journeyman.career_stats.wins = 4; // 20% win rate
+
+        let elite_rating = elite.rating();
+        let journeyman_rating = journeyman.rating();
+
+        assert!(
+            elite_rating > journeyman_rating,
+            "elite ({elite_rating}) should outrate journeyman ({journeyman_rating})"
+        );
+        assert!(elite_rating >= 80, "decorated manager should be high, got {elite_rating}");
+        assert!(
+            (30..=99).contains(&elite_rating) && (30..=99).contains(&journeyman_rating),
+            "ratings stay in the OVR-like band"
+        );
+    }
 }

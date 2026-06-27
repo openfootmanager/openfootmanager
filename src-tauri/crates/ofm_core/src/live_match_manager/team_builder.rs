@@ -58,7 +58,7 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     let starting_players = if is_user_team {
         select_starting_xi(saved_xi_ids, &available_players, &formation)
     } else {
-        let quality = management_quality(team.map_or(500, |t| t.reputation));
+        let quality = team_management_quality(game, team);
         ai_select_starting_xi(&available_players, &formation, quality)
     };
     let used_ids: HashSet<String> = starting_players
@@ -189,6 +189,28 @@ fn auto_select_starting_xi<'a>(
 /// how proactively the AI rotates for player freshness.
 fn management_quality(reputation: u32) -> f64 {
     (((reputation as f64) - 300.0) / 600.0).clamp(0.0, 1.0)
+}
+
+/// Maps a manager's overall rating (≈30–95) to a 0.0–1.0 management-quality score.
+fn management_quality_from_rating(rating: u8) -> f64 {
+    ((f64::from(rating) - 30.0) / 65.0).clamp(0.0, 1.0)
+}
+
+/// Resolves the AI management quality for a team: the linked manager's rating when
+/// one is hired (manager-specific skill), otherwise the club's reputation as a
+/// proxy. Defaults to a mid value when the team can't be found.
+fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f64 {
+    let Some(team) = team else {
+        return management_quality(500);
+    };
+
+    if let Some(manager_id) = &team.manager_id {
+        if let Some(manager) = game.managers.iter().find(|m| &m.id == manager_id) {
+            return management_quality_from_rating(manager.rating());
+        }
+    }
+
+    management_quality(team.reputation)
 }
 
 /// Reputation-aware AI lineup selection.
