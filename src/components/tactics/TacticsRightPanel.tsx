@@ -146,7 +146,7 @@ export default function TacticsRightPanel({
     <div className="flex flex-col gap-4">
       {/* Roles section */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-navy-600 dark:bg-navy-800">
-        <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-navy-700">
+        <div className="border-b border-gray-100 px-3 py-2 dark:border-navy-700">
           <button
             type="button"
             onClick={() => { setRolesOpen((o) => !o); }}
@@ -158,15 +158,6 @@ export default function TacticsRightPanel({
             />
             {t("tactics.teamRoles")}
           </button>
-          {startingPlayers.length > 0 && (
-            <button
-              type="button"
-              onClick={() => { void handleAutoSelectAssignments(); }}
-              className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
-            >
-              {t("tactics.autoSelectAssignments")}
-            </button>
-          )}
         </div>
         {rolesOpen && (
           <div className="p-3">
@@ -176,6 +167,13 @@ export default function TacticsRightPanel({
               </p>
             ) : (
               <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => { void handleAutoSelectAssignments(); }}
+                  className="mb-2 w-full rounded-lg border border-primary-200 py-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-primary-500 transition-colors hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-400 dark:hover:bg-primary-500/10"
+                >
+                  {t("tactics.autoSelectAssignments")}
+                </button>
                 <SetPieceSelector
                   label={t("preMatch.captain")}
                   icon={<Crown className="h-4 w-4" />}
