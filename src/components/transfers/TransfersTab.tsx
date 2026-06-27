@@ -187,6 +187,7 @@ export default function TransfersTab({
     useState<NegotiationFeedbackPanelData | null>(null);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
+  const [listingError, setListingError] = useState<string | null>(null);
   const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
   const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
     getDefaultLoanPeriodId(loanRegistrationDate, null),
@@ -938,6 +939,32 @@ export default function TransfersTab({
     }
   };
 
+  const handleToggleTransferListing = async (
+    playerId: string,
+  ): Promise<void> => {
+    setListingError(null);
+
+    try {
+      const updated = await toggleTransferList(playerId);
+      setListingError(null);
+      onGameUpdate?.(updated);
+    } catch (error) {
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+    }
+  };
+
+  const handleToggleLoanListing = async (playerId: string): Promise<void> => {
+    setListingError(null);
+
+    try {
+      const updated = await toggleLoanList(playerId);
+      setListingError(null);
+      onGameUpdate?.(updated);
+    } catch (error) {
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Budget header */}
@@ -1092,6 +1119,14 @@ export default function TransfersTab({
           {scoutError}
         </p>
       ) : null}
+      {listingError && view === "my_list" ? (
+        <p
+          role="alert"
+          className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {listingError}
+        </p>
+      ) : null}
 
       {/* Content */}
       {view === "my_list" && filteredList.length === 0 && (
@@ -1203,15 +1238,8 @@ export default function TransfersTab({
                         buildToggleTransferListMenuItem(
                           t,
                           player.transfer_listed,
-                          async () => {
-                            try {
-                              const updated = await toggleTransferList(
-                                player.id,
-                              );
-                              onGameUpdate?.(updated);
-                            } catch {
-                              return;
-                            }
+                          () => {
+                            void handleToggleTransferListing(player.id);
                           },
                         ),
                       );
@@ -1219,13 +1247,8 @@ export default function TransfersTab({
                         buildToggleLoanListMenuItem(
                           t,
                           player.loan_listed,
-                          async () => {
-                            try {
-                              const updated = await toggleLoanList(player.id);
-                              onGameUpdate?.(updated);
-                            } catch {
-                              return;
-                            }
+                          () => {
+                            void handleToggleLoanListing(player.id);
                           },
                         ),
                       );

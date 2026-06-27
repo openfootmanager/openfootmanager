@@ -2371,6 +2371,50 @@ fn rejecting_pending_offer_succeeds_for_pending_loan_player() {
 }
 
 #[test]
+fn accepting_pending_offer_for_active_loan_player_does_not_mutate_offer() {
+    let mut player = make_user_player("player-active-loan-transfer-offer");
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-active-loan", 900_000));
+    player.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-1".to_string(),
+        loan_team_id: "team-2".to_string(),
+        start_date: "2026-08-01".to_string(),
+        end_date: "2027-01-01".to_string(),
+        wage_contribution_pct: 75,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    let error = respond_to_offer(
+        &mut game,
+        "player-active-loan-transfer-offer",
+        "offer-active-loan",
+        true,
+    )
+    .expect_err("active loan player should not be sold by accepting a transfer offer");
+
+    assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-active-loan-transfer-offer")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Pending
+    );
+}
+
+#[test]
 fn reasonable_counter_offer_is_accepted_and_executes_transfer() {
     let mut player = make_user_player("player-counter-accept");
     player.market_value = 1_000_000;

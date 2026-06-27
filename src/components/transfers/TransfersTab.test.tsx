@@ -204,6 +204,8 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalCounter")
         return `Wants more: ${params?.wage} for ${params?.years} years`;
       if (key === "playerProfile.renewalBlocked") return "Talks blocked";
+      if (key === "be.error.transfers.playerAlreadyLoaned")
+        return "Player already loaned";
       if (params && typeof params === "object" && "defaultValue" in params) {
         return String(params.defaultValue);
       }
@@ -1604,6 +1606,41 @@ describe("TransfersTab", function (): void {
       });
       expect(onGameUpdate).toHaveBeenCalledWith(gameState);
     });
+  });
+
+  it("surfaces listing toggle failures from the my-list context menu", async function (): Promise<void> {
+    const gameState = createGameState([
+      createPlayer({ transfer_listed: true, loan_listed: false }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockRejectedValueOnce(
+      "be.error.transfers.playerAlreadyLoaned",
+    );
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Add to loan list" }));
+
+    await waitFor(function (): void {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Player already loaned",
+      );
+    });
+    expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
   it("shows wage budget in annual units (/yr) matching the player wage display (regression #212)", function (): void {
