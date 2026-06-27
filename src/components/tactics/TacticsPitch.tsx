@@ -361,7 +361,7 @@ export default function TacticsPitch({
       </div>
 
       <div className="p-5 sm:p-6 lg:p-7">
-        <div className="relative overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
+        <div className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
           <div className="aspect-[8/10] min-h-[31rem] w-full">
             <svg
               viewBox="0 0 100 140"

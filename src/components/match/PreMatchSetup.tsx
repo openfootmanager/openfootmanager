@@ -259,6 +259,10 @@ export default function PreMatchSetup({
     oppTeam.players.some((p) => p.position === pos),
   );
 
+  // Header shows Home left / Away right; this decides which side gets the
+  // editable formation & play-style selects (the user's side).
+  const leftIsUser = userSide === "Home";
+
   const renderSetPieces = () => (
     <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 p-4 shadow-sm transition-colors duration-300">
       <div className="flex items-center justify-between mb-2.5">
