@@ -123,13 +123,21 @@ pub fn ovr_for_position(player: &Player, position: &Position) -> f64 {
     (base - penalty).clamp(1.0, 99.0)
 }
 
-pub fn effective_rating_for_assignment(player: &Player, slot_position: &Position) -> f64 {
+/// Condition-free positional fit for a formation slot: ovr-for-position minus
+/// compatibility and footedness penalties, floored at 1.0. This is the
+/// `effective_rating_for_assignment` value BEFORE the condition multiplier —
+/// used by AI load-management so a tired starter and a fresh alternative are
+/// compared on quality alone (condition is weighed separately by the caller).
+pub fn positional_fit_for_assignment(player: &Player, slot_position: &Position) -> f64 {
     let canonical_slot = canonical_position(slot_position);
     let base = ovr_for_position(player, &canonical_slot);
     let compatibility_penalty = compatibility_penalty(player, &canonical_slot);
     let foot_penalty = footedness_penalty(player, &canonical_slot);
-    let adjusted = (base - compatibility_penalty - foot_penalty).max(1.0);
-    adjusted * (player.condition as f64 / 100.0)
+    (base - compatibility_penalty - foot_penalty).max(1.0)
+}
+
+pub fn effective_rating_for_assignment(player: &Player, slot_position: &Position) -> f64 {
+    positional_fit_for_assignment(player, slot_position) * (player.condition as f64 / 100.0)
 }
 
 fn defender_line(count: usize) -> Vec<Position> {
