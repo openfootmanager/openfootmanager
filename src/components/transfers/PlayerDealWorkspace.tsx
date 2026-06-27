@@ -22,7 +22,7 @@ interface PlayerDealWorkspaceProps {
   teams: TeamData[];
   myTeam: TeamData | null;
   annualSuffix: string;
-  isTransferWindowClosed: boolean;
+  transferWindowBlocksRegistration: boolean;
   transferWindowSummary: string;
   loanNoticeDetail: string | null;
   selectedKind: DealKind;
@@ -82,6 +82,7 @@ export default function PlayerDealWorkspace({
   teams,
   myTeam,
   annualSuffix,
+  transferWindowBlocksRegistration,
   transferWindowSummary,
   loanNoticeDetail,
   selectedKind,
@@ -105,7 +106,9 @@ export default function PlayerDealWorkspace({
         : t("transfers.dealUnavailableTransfer"),
       disabledReason: !player.transfer_listed
         ? t("transfers.dealUnavailableTransfer")
-        : null,
+        : transferWindowBlocksRegistration
+          ? transferWindowSummary
+          : null,
       icon: <Gavel className="h-4 w-4" />,
     },
     {
@@ -113,11 +116,13 @@ export default function PlayerDealWorkspace({
       title: t("transfers.makeLoanOffer"),
       description: t("transfers.dealLoanDescription"),
       detail: player.loan_listed
-        ? loanNoticeDetail ?? t("transfers.dealAvailableLoan")
+        ? (loanNoticeDetail ?? t("transfers.dealAvailableLoan"))
         : t("transfers.dealUnavailableLoan"),
       disabledReason: !player.loan_listed
         ? t("transfers.dealUnavailableLoan")
-        : null,
+        : transferWindowBlocksRegistration
+          ? transferWindowSummary
+          : null,
       icon: <ArrowRightLeft className="h-4 w-4" />,
     },
     {
@@ -129,9 +134,7 @@ export default function PlayerDealWorkspace({
           ? t("transfers.dealAvailableContract")
           : t("transfers.dealUnavailableContract"),
       disabledReason:
-        player.team_id === null
-          ? null
-          : t("transfers.dealUnavailableContract"),
+        player.team_id === null ? null : t("transfers.dealUnavailableContract"),
       icon: <UserPlus className="h-4 w-4" />,
     },
   ];
@@ -310,7 +313,6 @@ export default function PlayerDealWorkspace({
                 </div>
               </div>
             ) : null}
-
           </aside>
         </div>
       </div>

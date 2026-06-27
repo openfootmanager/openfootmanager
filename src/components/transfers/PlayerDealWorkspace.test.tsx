@@ -144,7 +144,7 @@ describe("PlayerDealWorkspace", () => {
         ]}
         myTeam={createTeam()}
         annualSuffix="/yr"
-        isTransferWindowClosed={false}
+        transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
         selectedKind="transfer"
@@ -154,7 +154,9 @@ describe("PlayerDealWorkspace", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 

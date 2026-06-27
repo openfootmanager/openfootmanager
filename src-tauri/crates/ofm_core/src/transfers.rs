@@ -621,6 +621,33 @@ fn withdraw_pending_transfer_offers(player: &mut domain::player::Player) {
     }
 }
 
+fn finalize_successful_transfer_offer(
+    game: &mut Game,
+    player_id: &str,
+    accepted_offer_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+
+    for offer in &mut player.transfer_offers {
+        if offer.id != accepted_offer_id && offer.status == TransferOfferStatus::Pending {
+            offer.status = TransferOfferStatus::Withdrawn;
+            offer.suggested_counter_fee = None;
+        }
+    }
+
+    for offer in &mut player.loan_offers {
+        if offer.status == LoanOfferStatus::Pending {
+            offer.status = LoanOfferStatus::Withdrawn;
+        }
+    }
+
+    Ok(())
+}
+
 fn expire_stale_loan_offers(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
 
@@ -1645,6 +1672,7 @@ pub fn make_transfer_bid(
 
         if register_immediately {
             execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
+            finalize_successful_transfer_offer(game, player_id, &offer_id)?;
 
             let player_name = game
                 .players
@@ -1840,6 +1868,7 @@ pub fn respond_to_offer(
     if accept {
         if register_immediately {
             execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
+            finalize_successful_transfer_offer(game, player_id, offer_id)?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -2275,6 +2304,7 @@ pub fn counter_offer(
                 &user_team_id,
                 requested_fee,
             )?;
+            finalize_successful_transfer_offer(game, player_id, offer_id)?;
         } else {
             reserve_player_for_pending_transfer(game, player_id, offer_id)?;
         }
@@ -2517,7 +2547,7 @@ fn reserve_player_for_pending_loan(
 fn reserve_player_for_pending_transfer(
     game: &mut Game,
     player_id: &str,
-    accepted_offer_id: &str,
+    _accepted_offer_id: &str,
 ) -> Result<(), String> {
     let player = game
         .players
@@ -2527,20 +2557,6 @@ fn reserve_player_for_pending_transfer(
 
     if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
-    }
-
-    player.transfer_listed = false;
-    player.loan_listed = false;
-    for offer in &mut player.transfer_offers {
-        if offer.id != accepted_offer_id && offer.status == TransferOfferStatus::Pending {
-            offer.status = TransferOfferStatus::Withdrawn;
-            offer.suggested_counter_fee = None;
-        }
-    }
-    for offer in &mut player.loan_offers {
-        if offer.status == LoanOfferStatus::Pending {
-            offer.status = LoanOfferStatus::Withdrawn;
-        }
     }
 
     Ok(())
@@ -2615,7 +2631,11 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
 
         let executed = if agreement_is_valid {
             if let Some(from_team_id) = from_team_id.as_deref() {
-                execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee).is_ok()
+                if execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee).is_ok() {
+                    finalize_successful_transfer_offer(game, &player_id, &offer_id).is_ok()
+                } else {
+                    false
+                }
             } else {
                 false
             }

@@ -438,6 +438,160 @@ fn accepted_closed_window_incoming_transfer_is_registered_when_the_window_opens(
 }
 
 #[test]
+fn scheduled_transfer_preserves_market_state_when_registration_fails() {
+    let mut player = make_player("player-scheduled-transfer-fails");
+    player.transfer_listed = true;
+    player.loan_listed = true;
+    let mut competing_offer = make_pending_incoming_offer("competing-transfer", 1_200_000);
+    competing_offer.from_team_id = "team-3".to_string();
+    competing_offer.date = "2026-12-20".to_string();
+    player.transfer_offers.push(competing_offer);
+    let mut competing_loan = make_pending_incoming_loan_offer("competing-loan", 75, None);
+    competing_loan.from_team_id = "team-3".to_string();
+    competing_loan.parent_team_id = "team-2".to_string();
+    player.loan_offers.push(competing_loan);
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_transfer_bid(&mut game, "player-scheduled-transfer-fails", 2_000_000)
+        .expect("accepted closed-window bid should schedule registration");
+
+    let scheduled_player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-transfer-fails")
+        .unwrap();
+    assert!(scheduled_player.transfer_listed);
+    assert!(scheduled_player.loan_listed);
+    assert_eq!(
+        scheduled_player
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.id == "competing-transfer")
+            .unwrap()
+            .status,
+        TransferOfferStatus::Pending
+    );
+    assert_eq!(
+        scheduled_player
+            .loan_offers
+            .iter()
+            .find(|offer| offer.id == "competing-loan")
+            .unwrap()
+            .status,
+        LoanOfferStatus::Pending
+    );
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    game.teams[0].finance = 0;
+    game.teams[0].transfer_budget = 0;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-transfer-fails")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-2"));
+    assert!(player.transfer_listed);
+    assert!(player.loan_listed);
+    assert_eq!(
+        player
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.from_team_id == "team-1")
+            .unwrap()
+            .status,
+        TransferOfferStatus::Withdrawn
+    );
+    assert_eq!(
+        player
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.id == "competing-transfer")
+            .unwrap()
+            .status,
+        TransferOfferStatus::Pending
+    );
+    assert_eq!(
+        player
+            .loan_offers
+            .iter()
+            .find(|offer| offer.id == "competing-loan")
+            .unwrap()
+            .status,
+        LoanOfferStatus::Pending
+    );
+}
+
+#[test]
+fn scheduled_transfer_withdraws_competing_offers_after_registration_succeeds() {
+    let mut player = make_player("player-scheduled-transfer-succeeds");
+    player.transfer_listed = true;
+    player.loan_listed = true;
+    let mut competing_offer = make_pending_incoming_offer("competing-transfer", 1_200_000);
+    competing_offer.from_team_id = "team-3".to_string();
+    competing_offer.date = "2026-12-20".to_string();
+    player.transfer_offers.push(competing_offer);
+    let mut competing_loan = make_pending_incoming_loan_offer("competing-loan", 75, None);
+    competing_loan.from_team_id = "team-3".to_string();
+    competing_loan.parent_team_id = "team-2".to_string();
+    player.loan_offers.push(competing_loan);
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+    game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+
+    make_transfer_bid(&mut game, "player-scheduled-transfer-succeeds", 2_000_000)
+        .expect("accepted closed-window bid should schedule registration");
+
+    game.clock.current_date = Utc.with_ymd_and_hms(2027, 1, 1, 12, 0, 0).unwrap();
+    game.season_context.transfer_window.status = TransferWindowStatus::Open;
+    process_pending_transfer_registrations(&mut game);
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-scheduled-transfer-succeeds")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert!(!player.transfer_listed);
+    assert!(!player.loan_listed);
+    assert_eq!(
+        player
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.from_team_id == "team-1")
+            .unwrap()
+            .status,
+        TransferOfferStatus::Accepted
+    );
+    assert_eq!(
+        player
+            .transfer_offers
+            .iter()
+            .find(|offer| offer.id == "competing-transfer")
+            .unwrap()
+            .status,
+        TransferOfferStatus::Withdrawn
+    );
+    assert_eq!(
+        player
+            .loan_offers
+            .iter()
+            .find(|offer| offer.id == "competing-loan")
+            .unwrap()
+            .status,
+        LoanOfferStatus::Withdrawn
+    );
+}
+
+#[test]
 fn accepted_loan_offer_moves_player_until_return_date() {
     let mut player = make_player("player-loan-target");
     player.loan_listed = true;
