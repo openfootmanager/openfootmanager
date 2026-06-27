@@ -166,7 +166,16 @@ export default function HalfTimeBreak({
       {/* Header scoreboard */}
       <header className="bg-linear-to-r from-gray-200 via-white to-gray-200 dark:from-navy-800 dark:via-navy-900 dark:to-navy-800 border-b border-gray-200 dark:border-navy-700 px-4 py-4 transition-colors duration-300">
         <div className="relative">
-          <ThemeToggle className="absolute right-0 top-0" />
+          <div className="absolute right-0 top-0 flex items-center gap-3">
+            <button
+              onClick={onResume}
+              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Play className="w-4 h-4" />
+              {t("match.resumeMatch")}
+            </button>
+            <ThemeToggle />
+          </div>
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
               <TeamLogo
@@ -476,24 +485,6 @@ export default function HalfTimeBreak({
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-navy-800 border-t border-gray-200 dark:border-navy-700 px-6 py-4 transition-colors duration-300">
-        <div className="flex justify-between items-center">
-          <p className="text-xs text-gray-600 dark:text-gray-500 font-heading uppercase tracking-wider">
-            {isSpectator
-              ? t("match.waitingSecondHalf")
-              : t("match.makeChanges")}
-          </p>
-          <button
-            onClick={onResume}
-            className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 rounded-xl font-heading font-bold uppercase tracking-wider text-sm text-white shadow-lg shadow-primary-500/20 transition-all"
-          >
-            <Play className="w-4 h-4" />
-            {t("match.resumeMatch")}
-          </button>
-        </div>
-      </footer>
 
       {/* Substitution Modal — reuses the full SubPanel from MatchLive */}
       {showSubPanel && (
