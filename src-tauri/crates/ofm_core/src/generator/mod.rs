@@ -803,13 +803,24 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
             .unwrap_or(NO_AUTHORED_STAFF);
         let (team, team_players, mut team_staff) =
             build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
-        // Replace any auto-generated staff member of the same role with the authored version.
+        // Replace auto-generated staff with authored versions, consuming each slot
+        // at most once so multiple authored staff of the same role all survive.
+        let mut replaced_staff_slots = vec![false; team_staff.len()];
         for sdef in authored_staff {
             let authored_member = generation::generate_staff_from_authored_def(
                 sdef, Some(&team.id), &names_def, &mut rng,
             );
-            if let Some(pos) = team_staff.iter().position(|s| s.role == authored_member.role) {
+            // Only the original auto-generated slots are replacement candidates;
+            // already-placed authored staff (appended below) are never overwritten.
+            let slot = team_staff
+                .iter()
+                .take(replaced_staff_slots.len())
+                .enumerate()
+                .find(|(idx, s)| !replaced_staff_slots[*idx] && s.role == authored_member.role)
+                .map(|(idx, _)| idx);
+            if let Some(pos) = slot {
                 team_staff[pos] = authored_member;
+                replaced_staff_slots[pos] = true;
             } else {
                 team_staff.push(authored_member);
             }
