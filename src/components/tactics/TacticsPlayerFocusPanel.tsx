@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
-import { Badge, Button, Card, CountryFlag } from "../ui";
-import { Eye, GitCompareArrows } from "lucide-react";
+import { Badge, Button, Card, CountryFlag, Select } from "../ui";
+import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
+import { getRolesForPosition } from "../../lib/playerRoles";
+import type { PlayerRole } from "../../store/types";
 
 const ATTRIBUTE_GROUPS: {
   labelKey: string;
@@ -38,7 +40,10 @@ const ATTRIBUTE_GROUPS: {
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
   comparePlayer: PlayerData | null;
+  onClose?: () => void;
   onConfirmSwap: () => void;
+  onRoleChange?: (playerId: string, role: PlayerRole) => void;
+  playerRoles?: Record<string, PlayerRole>;
   selectedPlayer: PlayerData | null;
 }
 
@@ -267,7 +272,10 @@ function CompareAttributes({
 export default function TacticsPlayerFocusPanel({
   canConfirmSwap,
   comparePlayer,
+  onClose,
   onConfirmSwap,
+  onRoleChange,
+  playerRoles,
   selectedPlayer,
 }: TacticsPlayerFocusPanelProps) {
   const { t } = useTranslation();
@@ -275,10 +283,21 @@ export default function TacticsPlayerFocusPanel({
   return (
     <Card>
       <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
-        <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
-          <Eye className="w-4 h-4 text-accent-400" />
-          {t("tactics.inspector")}
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
+            <Eye className="w-4 h-4 text-accent-400" />
+            {t("tactics.inspector")}
+          </h3>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-4">
         {selectedPlayer ? (
@@ -295,6 +314,29 @@ export default function TacticsPlayerFocusPanel({
                 label={t("tactics.selectedPlayer")}
                 player={selectedPlayer}
               />
+              {onRoleChange && (
+                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
+                  <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
+                    {t("tactics.playerRoleLabel")}
+                  </span>
+                  <Select
+                    selectSize="sm"
+                    fullWidth
+                    value={playerRoles?.[selectedPlayer.id] ?? "Standard"}
+                    onChange={(e) => {
+                      onRoleChange(selectedPlayer.id, e.target.value as PlayerRole);
+                    }}
+                  >
+                    {getRolesForPosition(
+                      selectedPlayer.natural_position || selectedPlayer.position,
+                    ).map((role) => (
+                      <option key={role} value={role}>
+                        {t(`tactics.playerRoles.${role}`, role)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
               <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {t("tactics.selectSecondPlayer")}
               </div>

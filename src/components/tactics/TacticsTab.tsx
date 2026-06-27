@@ -9,7 +9,8 @@ import type {
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { getSquad, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import { getSquad, setPlayerRole, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import type { PlayerRole } from "../../store/types";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -51,6 +52,7 @@ import {
 import TacticsCommandBar, {
   type TacticsLibraryEntry,
 } from "./TacticsCommandBar";
+import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -914,24 +916,47 @@ export default function TacticsTab({
           selectedPlayerId={selectedPlayerId}
         />
 
-        {/* Right: roles + phase blueprint + player focus */}
+        {/* Right: roles + phase blueprint */}
         <TacticsRightPanel
           allSquad={roster}
-          canConfirmSwap={canConfirmSwap}
-          comparePlayer={comparePlayer}
           matchRoles={team.match_roles}
-          onConfirmSwap={() => {
-            void handleConfirmSwap();
-          }}
           onGameUpdate={onGameUpdate}
           onTacticsPhaseChange={(patch) => {
             void handleTacticsPhaseChange(patch);
           }}
-          selectedPlayer={selectedPlayer}
           startingPlayers={startingXI}
           tacticsPhase={team?.tactics_phase}
         />
       </div>
+
+      {/* Inspector modal */}
+      {selectedPlayer && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={clearLineupSelection}
+          />
+          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="pointer-events-auto w-full max-w-lg max-h-[85vh] overflow-y-auto">
+              <TacticsPlayerFocusPanel
+                canConfirmSwap={canConfirmSwap}
+                comparePlayer={comparePlayer}
+                onClose={clearLineupSelection}
+                onConfirmSwap={() => { void handleConfirmSwap(); }}
+                onRoleChange={(playerId, role) => {
+                  void setPlayerRole(playerId, role as PlayerRole)
+                    .then(onGameUpdate)
+                    .catch((error: unknown) => {
+                      console.error("Failed to set player role:", error);
+                    });
+                }}
+                playerRoles={team?.player_roles}
+                selectedPlayer={selectedPlayer}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

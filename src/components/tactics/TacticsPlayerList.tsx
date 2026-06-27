@@ -108,7 +108,7 @@ function PlayerRow({
         <button
           type="button"
           data-testid={`xi-player-${player.id}`}
-          onClick={() => onOpenPlayerProfile(player.id)}
+          onClick={() => onTacticalSelect(player.id, "xi")}
           className={rowClassName}
         >
           <Badge

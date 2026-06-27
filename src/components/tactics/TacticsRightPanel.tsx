@@ -7,7 +7,6 @@ import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/
 import type { TacticsPhaseSettings } from "../../store/types";
 import { Select } from "../ui";
 import SetPieceSelector from "../match/SetPieceSelector";
-import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
@@ -15,13 +14,9 @@ import {
 
 interface TacticsRightPanelProps {
   allSquad: PlayerData[];
-  canConfirmSwap: boolean;
-  comparePlayer: PlayerData | null;
   matchRoles?: TeamMatchRolesData;
-  onConfirmSwap: () => void;
   onGameUpdate: (g: GameStateData) => void;
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
-  selectedPlayer: PlayerData | null;
   startingPlayers: PlayerData[];
   tacticsPhase?: TacticsPhaseSettings;
 }
@@ -83,13 +78,9 @@ function PhaseButtonGroup({
 
 export default function TacticsRightPanel({
   allSquad,
-  canConfirmSwap,
-  comparePlayer,
   matchRoles,
-  onConfirmSwap,
   onGameUpdate,
   onTacticsPhaseChange,
-  selectedPlayer,
   startingPlayers,
   tacticsPhase,
 }: TacticsRightPanelProps): JSX.Element {
@@ -291,15 +282,6 @@ export default function TacticsRightPanel({
         )}
       </div>
 
-      {/* Player Focus panel */}
-      {selectedPlayer && (
-        <TacticsPlayerFocusPanel
-          canConfirmSwap={canConfirmSwap}
-          comparePlayer={comparePlayer}
-          onConfirmSwap={onConfirmSwap}
-          selectedPlayer={selectedPlayer}
-        />
-      )}
     </div>
   );
 }

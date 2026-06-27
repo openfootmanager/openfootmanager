@@ -789,7 +789,7 @@ describe("TacticsTab", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens player profile when clicking a starter row in the left panel", () => {
+  it("clicking a starter row in the left panel selects them for swap, not opening player profile", () => {
     const onSelectPlayer = vi.fn();
 
     render(
@@ -802,7 +802,8 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("xi-player-d1"));
 
-    expect(onSelectPlayer).toHaveBeenCalledWith("d1");
+    expect(onSelectPlayer).not.toHaveBeenCalled();
+    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
   });
 
   it("shows all starting XI players in the left panel list", () => {
