@@ -39,6 +39,7 @@ export default function PreMatchSetup({
   const { t } = useTranslation();
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
 
   const homeTeam = snapshot.home_team;
   const awayTeam = snapshot.away_team;
@@ -304,24 +305,12 @@ export default function PreMatchSetup({
     </div>
   );
 
-  const renderUserColumn = () => (
-    <div className="flex min-w-0 flex-[2] flex-col overflow-y-auto border-r border-gray-200 dark:border-navy-700">
-      <div className="shrink-0 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4 py-2">
-        <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">
-          {userTeam.name}
-        </p>
-      </div>
-      <div className="flex flex-col gap-4 p-4">
-        <FormationPitch
-          formation={userTeam.formation}
-          players={userTeam.players}
-          selectedId={selectedStarterId}
-          onPlayerClick={(id) =>
-            setSelectedStarterId(id === selectedStarterId ? null : id)
-          }
-          renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
-          className="h-[420px]"
-        />
+  // YOUR TEAM tab: fixed 3-panel (subs+fit / pitch / set-pieces). The page never
+  // scrolls — each panel scrolls internally.
+  const renderTeamView = () => (
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[260px_1fr_320px]">
+      {/* Left: formation fit + auto-select + substitutes */}
+      <div className="min-h-0 overflow-y-auto">
         <PreMatchLineup
           userTeam={userTeam}
           userBench={userBench}
@@ -334,30 +323,43 @@ export default function PreMatchSetup({
           onAutoSelect={handleAutoSelect}
           showStartingList={false}
         />
-        {renderSetPieces()}
       </div>
+      {/* Center: the pitch */}
+      <div className="flex min-h-0 flex-col items-center overflow-y-auto">
+        <FormationPitch
+          formation={userTeam.formation}
+          players={userTeam.players}
+          selectedId={selectedStarterId}
+          onPlayerClick={(id) =>
+            setSelectedStarterId(id === selectedStarterId ? null : id)
+          }
+          renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
+          className="h-[460px] w-full max-w-[34rem]"
+        />
+      </div>
+      {/* Right: set pieces */}
+      <div className="min-h-0 overflow-y-auto">{renderSetPieces()}</div>
     </div>
   );
 
-  const renderOpponentColumn = () => (
-    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-      <div className="shrink-0 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4 py-2">
-        <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-          {t("match.opponent")} · {oppTeam.name}
-        </p>
-        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-heading mt-0.5">
-          {oppTeam.formation} ·{" "}
-          {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
-        </p>
-      </div>
-      <div className="shrink-0 px-4 pt-4 pb-2">
+  // OPPONENT tab: full-width scouting (their shape + squad scouting list).
+  const renderOpponentView = () => (
+    <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+        <div>
+          <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+            {oppTeam.name}
+          </p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-heading mt-0.5">
+            {oppTeam.formation} ·{" "}
+            {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
+          </p>
+        </div>
         <FormationPitch
           formation={oppTeam.formation}
           players={oppTeam.players}
-          className="h-[200px]"
+          className="mx-auto h-[360px] w-full max-w-[34rem]"
         />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {oppPositions.map((pos) => {
           const players = oppTeam.players.filter((p) => p.position === pos);
           if (!players.length) return null;
@@ -594,11 +596,28 @@ export default function PreMatchSetup({
         </div>
       </header>
 
-      {/* Command (your team) + scout rail (opponent) */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {renderUserColumn()}
-        {renderOpponentColumn()}
+      {/* Your Team / Opponent tabs */}
+      <div className="shrink-0 flex items-center gap-1 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4">
+        {([
+          { id: "team" as const, label: userTeam.name },
+          { id: "opponent" as const, label: `${t("match.opponent")} · ${oppTeam.name}` },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-[11px] font-heading font-bold uppercase tracking-widest transition-colors ${
+              activeTab === tab.id
+                ? "border-primary-500 text-primary-600 dark:text-primary-400"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {activeTab === "team" ? renderTeamView() : renderOpponentView()}
     </div>
   );
 }
