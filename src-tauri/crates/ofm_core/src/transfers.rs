@@ -1733,7 +1733,7 @@ pub fn respond_to_offer(
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player_has_active_or_pending_loan(player) {
+    if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 

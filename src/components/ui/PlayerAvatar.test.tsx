@@ -97,6 +97,35 @@ describe("PlayerAvatar", () => {
     expect(portrait).toHaveClass("opacity-100");
   });
 
+  it("hides the runtime fallback from assistive tech after the portrait loads", async () => {
+    mockedIsTauri.mockReturnValue(true);
+    mockedInvoke.mockResolvedValue({
+      generator: "test",
+      cacheKey: "player-1",
+      sourceId: "player-1",
+      cachePath: "/tmp/player-1.png",
+      dataUrl: null,
+      generated: true,
+      renderMs: 10,
+      elapsedMs: 10,
+      width: 128,
+      height: 128,
+    });
+
+    render(<PlayerAvatar player={player} fallback={<span>JS</span>} />);
+
+    const fallback = screen.getByText("JS");
+    expect(fallback.parentElement).not.toHaveAttribute("aria-hidden");
+
+    const portrait = await screen.findByRole("img", { name: "John Smith" });
+    fireEvent.load(portrait);
+
+    expect(screen.getByText("JS").parentElement).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
   it("can skip runtime portrait generation when explicitly disabled", async () => {
     mockedIsTauri.mockReturnValue(true);
     mockedInvoke.mockResolvedValue({

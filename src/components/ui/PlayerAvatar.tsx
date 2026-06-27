@@ -91,6 +91,7 @@ function RuntimePortraitFallback({
     return (
       <div className="relative h-full w-full overflow-hidden">
         <div
+          aria-hidden={runtimeImageLoaded ? "true" : undefined}
           className={`h-full w-full transition-opacity duration-200 ease-out ${runtimeImageLoaded ? "opacity-0" : "opacity-100"}`}
         >
           {fallback}

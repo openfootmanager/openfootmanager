@@ -2020,6 +2020,45 @@ fn rejecting_pending_offer_closes_the_negotiation_cleanly() {
 }
 
 #[test]
+fn rejecting_pending_offer_succeeds_for_pending_loan_player() {
+    let mut player = make_user_player("player-reject-pending-loan");
+    player
+        .transfer_offers
+        .push(make_pending_incoming_offer("offer-reject-pending-loan", 900_000));
+    player.loan_offers.push(LoanOffer {
+        status: LoanOfferStatus::PendingRegistration,
+        ..make_pending_incoming_loan_offer("loan-pending-registration", 75, None)
+    });
+
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[1].finance = 6_000_000;
+    game.teams[1].transfer_budget = 3_000_000;
+
+    respond_to_offer(
+        &mut game,
+        "player-reject-pending-loan",
+        "offer-reject-pending-loan",
+        false,
+    )
+    .expect("rejecting a pending offer should still work for loan-reserved players");
+
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == "player-reject-pending-loan")
+        .unwrap();
+    assert_eq!(player.team_id.as_deref(), Some("team-1"));
+    assert_eq!(
+        player.transfer_offers[0].status,
+        TransferOfferStatus::Rejected
+    );
+    assert_eq!(
+        player.loan_offers[0].status,
+        LoanOfferStatus::PendingRegistration
+    );
+}
+
+#[test]
 fn reasonable_counter_offer_is_accepted_and_executes_transfer() {
     let mut player = make_user_player("player-counter-accept");
     player.market_value = 1_000_000;
