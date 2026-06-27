@@ -153,6 +153,12 @@ interface PreMatchLineupProps {
   onSelectStarter: (id: string | null) => void;
   onSwap: (benchPlayerId: string) => void;
   onAutoSelect: () => void;
+  /**
+   * When false, the textual Starting XI list is hidden — used by the pre-match
+   * "command" layout where the pitch is the primary XI visualisation. The
+   * formation-fit bar and bench (for swapping) still render. Defaults to true.
+   */
+  showStartingList?: boolean;
 }
 
 export default function PreMatchLineup({
@@ -165,6 +171,7 @@ export default function PreMatchLineup({
   onSelectStarter,
   onSwap,
   onAutoSelect,
+  showStartingList = true,
 }: PreMatchLineupProps) {
   const { t } = useTranslation();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
@@ -214,6 +221,7 @@ export default function PreMatchLineup({
       </div>
 
       {/* Starting XI */}
+      {showStartingList && (
       <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
@@ -347,6 +355,7 @@ export default function PreMatchLineup({
             );
           })}
         </div>
+      )}
 
         {/* Bench */}
         <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">

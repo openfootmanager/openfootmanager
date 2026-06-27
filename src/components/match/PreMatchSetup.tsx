@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { FixtureData, GameStateData } from "../../store/gameStore";
 import { getFixtureDisplayLabel } from "../../lib/helpers";
-import { MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
+import { MatchSnapshot, EnginePlayerData, FORMATIONS, PLAY_STYLES } from "./types";
 import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, condColor, statColor, starterOvrColor, getStatVal } from "./PreMatchLineup";
 import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
-import { Select, TeamLogo, ThemeToggle } from "../ui";
+import { normalisePosition, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import {
   ChevronRight,
   Crown,
@@ -51,6 +52,54 @@ export default function PreMatchSetup({
   const homeTeamColor = homeFullTeam?.colors?.primary ?? "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary ?? "#6366f1";
   const userColor = userSide === "Home" ? homeTeamColor : awayTeamColor;
+
+  const userFullTeam = userSide === "Home" ? homeFullTeam : awayFullTeam;
+  const userPrimary = userFullTeam?.colors?.primary ?? userColor;
+  const userSecondary = userFullTeam?.colors?.secondary ?? "#1a3a6b";
+  const userPattern = userFullTeam?.kit_pattern ?? "Solid";
+
+  // Index the full squad so pitch tokens can be enriched with face/jersey/natural
+  // position that the lightweight match snapshot player doesn't carry.
+  const storeById = useMemo(
+    () => new Map(gameState.players.map((p) => [p.id, p])),
+    [gameState.players],
+  );
+
+  // Rich token for the user's command pitch (avatar, kit, OVR, fit ring).
+  const renderUserToken = (player: EnginePlayerData, isSelected: boolean) => {
+    const sp = storeById.get(player.id);
+    const fit: PitchFitTone = !sp
+      ? "exact"
+      : normalisePosition(sp.natural_position || sp.position) === player.position
+        ? "exact"
+        : "out";
+    return (
+      <div
+        className={`w-16 rounded-xl px-1 py-1 ${
+          isSelected ? "bg-accent-500/25 ring-2 ring-accent-300/70" : ""
+        }`}
+      >
+        <PitchToken
+          name={(sp?.match_name || player.name).toUpperCase()}
+          positionAbbr={translatePositionAbbreviation(t, player.position)}
+          ovr={player.ovr}
+          condition={player.condition}
+          fitTone={fit}
+          avatar={
+            sp
+              ? { full_name: sp.full_name, match_name: sp.match_name, media: sp.media }
+              : { full_name: player.name, match_name: player.name }
+          }
+          jersey={{
+            primaryColor: userPrimary,
+            secondaryColor: userSecondary,
+            pattern: userPattern,
+            number: sp?.jersey_number,
+          }}
+        />
+      </div>
+    );
+  };
 
   const fixtureLabel = currentFixture
     ? getFixtureDisplayLabel(t, currentFixture)
@@ -210,17 +259,55 @@ export default function PreMatchSetup({
     oppTeam.players.some((p) => p.position === pos),
   );
 
-  // Home is always the left column, Away is always right
-  const leftIsUser = userSide === "Home";
+  const renderSetPieces = () => (
+    <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 p-4 shadow-sm transition-colors duration-300">
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          {t("match.setPiecesCaptain")}
+        </p>
+        <button
+          onClick={handleAutoSelectSetPieces}
+          className="flex items-center gap-1.5 rounded-lg border border-accent-200 dark:border-accent-500/20 bg-accent-50 hover:bg-accent-100 dark:bg-accent-500/10 dark:hover:bg-accent-500/20 px-3 py-1.5 font-heading font-bold text-[10px] uppercase tracking-wider text-accent-700 dark:text-accent-400 transition-colors"
+        >
+          <Wand2 className="h-3 w-3" />
+          {t("match.autoSelectTakers")}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {setPieceItems.map(({ role, label, Icon, current }) => (
+          <div key={role}>
+            <label className="mb-1.5 flex items-center gap-1 text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              <Icon className="h-3 w-3" />
+              {label}
+            </label>
+            <Select
+              value={current ?? ""}
+              onChange={(e) => handleSetPieceTaker(role, e.target.value)}
+              selectSize="xs"
+              fullWidth
+              aria-label={label}
+            >
+              <option value="">—</option>
+              {sortedForRole(role).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   const renderUserColumn = () => (
-    <>
+    <div className="flex min-w-0 flex-[2] flex-col overflow-y-auto border-r border-gray-200 dark:border-navy-700">
       <div className="shrink-0 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4 py-2">
         <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">
-          {t("match.home")}
+          {userTeam.name}
         </p>
       </div>
-      <div className="shrink-0 px-4 pt-4 pb-2">
+      <div className="flex flex-col gap-4 p-4">
         <FormationPitch
           formation={userTeam.formation}
           players={userTeam.players}
@@ -228,10 +315,9 @@ export default function PreMatchSetup({
           onPlayerClick={(id) =>
             setSelectedStarterId(id === selectedStarterId ? null : id)
           }
-          className="h-[260px]"
+          renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
+          className="h-[420px]"
         />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
         <PreMatchLineup
           userTeam={userTeam}
           userBench={userBench}
@@ -242,16 +328,18 @@ export default function PreMatchSetup({
           onSelectStarter={setSelectedStarterId}
           onSwap={handleSwap}
           onAutoSelect={handleAutoSelect}
+          showStartingList={false}
         />
+        {renderSetPieces()}
       </div>
-    </>
+    </div>
   );
 
   const renderOpponentColumn = () => (
-    <>
+    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="shrink-0 border-b border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-4 py-2">
         <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-          {t("match.opponent")}
+          {t("match.opponent")} · {oppTeam.name}
         </p>
         <p className="text-[10px] text-gray-500 dark:text-gray-400 font-heading mt-0.5">
           {oppTeam.formation} ·{" "}
@@ -262,7 +350,7 @@ export default function PreMatchSetup({
         <FormationPitch
           formation={oppTeam.formation}
           players={oppTeam.players}
-          className="h-[260px]"
+          className="h-[200px]"
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
@@ -330,7 +418,7 @@ export default function PreMatchSetup({
           );
         })}
       </div>
-    </>
+    </div>
   );
 
   const setPieceItems = [
@@ -502,57 +590,10 @@ export default function PreMatchSetup({
         </div>
       </header>
 
-      {/* Two-column body — Home left, Away right */}
+      {/* Command (your team) + scout rail (opponent) */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Left column (always Home) */}
-        <div className="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-navy-700">
-          {leftIsUser ? renderUserColumn() : renderOpponentColumn()}
-        </div>
-
-        {/* Right column (always Away) */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {leftIsUser ? renderOpponentColumn() : renderUserColumn()}
-        </div>
-      </div>
-
-      {/* Set pieces footer */}
-      <div className="shrink-0 border-t border-gray-200 dark:border-navy-700 bg-gray-50/80 dark:bg-navy-800/50 px-6 py-3 transition-colors duration-300">
-        <div className="flex items-center justify-between mb-2.5">
-          <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-            {t("match.setPiecesCaptain")}
-          </p>
-          <button
-            onClick={handleAutoSelectSetPieces}
-            className="flex items-center gap-1.5 rounded-lg border border-accent-200 dark:border-accent-500/20 bg-accent-50 hover:bg-accent-100 dark:bg-accent-500/10 dark:hover:bg-accent-500/20 px-3 py-1.5 font-heading font-bold text-[10px] uppercase tracking-wider text-accent-700 dark:text-accent-400 transition-colors"
-          >
-            <Wand2 className="h-3 w-3" />
-            {t("match.autoSelectTakers")}
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          {setPieceItems.map(({ role, label, Icon, current }) => (
-            <div key={role}>
-              <label className="mb-1.5 flex items-center gap-1 text-[10px] font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                <Icon className="h-3 w-3" />
-                {label}
-              </label>
-              <Select
-                value={current ?? ""}
-                onChange={(e) => handleSetPieceTaker(role, e.target.value)}
-                selectSize="xs"
-                fullWidth
-                aria-label={label}
-              >
-                <option value="">—</option>
-                {sortedForRole(role).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ))}
-        </div>
+        {renderUserColumn()}
+        {renderOpponentColumn()}
       </div>
     </div>
   );
