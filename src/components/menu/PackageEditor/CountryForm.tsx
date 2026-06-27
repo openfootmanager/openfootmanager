@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LabeledInput } from "./primitives";
 import { EntityFormShell } from "./shared";
@@ -27,6 +27,10 @@ export function CountryForm({
 }: CountryFormProps) {
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
+
+  useEffect(() => {
+    setIdAutoMode(editingIndex === null && !editing.id);
+  }, [editingIndex, editing.id]);
 
   const labelClass =
     "text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400";

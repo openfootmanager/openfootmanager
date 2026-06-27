@@ -75,6 +75,7 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedI
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label={t("worldEditor.searchTeams")}
               placeholder={t("worldEditor.searchTeams")}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
             />
@@ -84,7 +85,7 @@ export function TeamsTab({ teams, projectDir, onAdd, onEdit, onDelete, selectedI
     >
       {filtered.map(({ team, i }) => (
         <EntityRow
-          key={i}
+          key={team.id}
           title={team.name}
           subtitle={[team.city, team.country].filter(Boolean).join(" · ")}
           badge={<TeamBadge team={team} projectDir={projectDir} />}

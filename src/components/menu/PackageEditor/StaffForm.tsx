@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
@@ -32,6 +32,11 @@ export function StaffForm({
   const { t } = useTranslation();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
+
+  useEffect(() => {
+    setUseAttributes(editing.attributes !== null);
+    setIdAutoMode(editingIndex === null && !editing.id);
+  }, [editingIndex, editing.id, editing.attributes]);
 
   function handleNameChange(field: "firstName" | "lastName", value: string) {
     updateField(field, value);

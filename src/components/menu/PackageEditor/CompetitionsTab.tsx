@@ -55,7 +55,7 @@ export function CompetitionsTab({ competitions, projectDir, onAdd, onEdit, onDel
     >
       {competitions.map((comp, i) => (
         <EntityRow
-          key={i}
+          key={comp.id}
           title={comp.name || comp.id}
           subtitle={[t(`teamSelect.kinds.${comp.type}`), t(`teamSelect.scopes.${comp.scope}`)]
             .join(" · ")}
