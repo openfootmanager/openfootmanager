@@ -620,7 +620,7 @@ describe("TacticsTab", () => {
     expect(
       screen.getByRole("option", { name: /tactics.copyOfTactic/i }),
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();

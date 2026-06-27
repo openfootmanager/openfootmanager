@@ -10,7 +10,6 @@ import type {
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
 import { getSquad, setPlayerRole, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
-import type { PlayerRole } from "../../store/types";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -882,8 +881,18 @@ export default function TacticsTab({
           comparePlayerId={comparePlayerId}
           hoveredSlot={hoveredSlot}
           matchRoles={effectiveMatchRoles}
+          onRoleChange={(playerId, role) => {
+            void setPlayerRole(playerId, role)
+              .then(onGameUpdate)
+              .catch((error: unknown) => {
+                console.error("Failed to set player role:", error);
+              });
+          }}
+          playerRoles={team?.player_roles}
           tacticsPhase={team?.tactics_phase}
+          teamKitPattern={team?.kit_pattern}
           teamPrimaryColor={team?.colors?.primary}
+          teamSecondaryColor={team?.colors?.secondary}
           onAssignBestFit={(playerId) => {
             void handleAssignBestFit(playerId);
           }}
@@ -943,14 +952,6 @@ export default function TacticsTab({
                 comparePlayer={comparePlayer}
                 onClose={clearLineupSelection}
                 onConfirmSwap={() => { void handleConfirmSwap(); }}
-                onRoleChange={(playerId, role) => {
-                  void setPlayerRole(playerId, role as PlayerRole)
-                    .then(onGameUpdate)
-                    .catch((error: unknown) => {
-                      console.error("Failed to set player role:", error);
-                    });
-                }}
-                playerRoles={team?.player_roles}
                 selectedPlayer={selectedPlayer}
               />
             </div>

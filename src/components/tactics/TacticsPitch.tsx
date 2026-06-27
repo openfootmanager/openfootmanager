@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { Badge, Card } from "../ui";
+import { Badge, Card, JerseyIcon, PlayerAvatar, Select } from "../ui";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
@@ -17,15 +17,20 @@ import {
 } from "../squad/SquadTab.helpers";
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
-import type { TacticsPhaseSettings } from "../../store/types";
+import type { KitPattern, PlayerRole, TacticsPhaseSettings } from "../../store/types";
+import { getRolesForPosition } from "../../lib/playerRoles";
 
 interface TacticsPitchProps {
   benchPlayers?: PlayerData[];
   dragState: DragState | null;
   formation: string;
   matchRoles?: TeamMatchRolesData;
+  onRoleChange?: (playerId: string, role: PlayerRole) => void;
+  playerRoles?: Record<string, PlayerRole>;
   tacticsPhase?: TacticsPhaseSettings;
+  teamKitPattern?: KitPattern;
   teamPrimaryColor?: string;
+  teamSecondaryColor?: string;
   comparePlayerId: string | null;
   hoveredSlot: number | null;
   onAssignBestFit?: (playerId: string) => void;
@@ -78,16 +83,12 @@ function getFitTone(player: PlayerData | null, slotPosition: string): FitTone {
   return "adapted";
 }
 
-function getFitToneClasses(fitTone: FitTone): string {
+function getFitRingClass(fitTone: FitTone): string {
   switch (fitTone) {
-    case "exact":
-      return "border-success-300/70 bg-success-500/20";
-    case "adapted":
-      return "border-accent-300/70 bg-accent-500/15";
-    case "out":
-      return "border-red-300/75 bg-red-500/20";
-    default:
-      return "border-white/10 bg-black/15";
+    case "exact": return "ring-2 ring-success-400";
+    case "adapted": return "ring-2 ring-accent-400";
+    case "out": return "ring-2 ring-red-400";
+    default: return "ring-1 ring-white/25";
   }
 }
 
@@ -122,7 +123,7 @@ function getRoleMarkers(
     markers.push({
       key: "captain",
       shortLabel: "C",
-      toneClassName: "border-accent-300/40 bg-accent-400/20 text-accent-100",
+      toneClassName: "border-accent-500 bg-accent-500 text-white",
     });
   }
 
@@ -130,7 +131,7 @@ function getRoleMarkers(
     markers.push({
       key: "vice_captain",
       shortLabel: "VC",
-      toneClassName: "border-white/15 bg-white/10 text-white/80",
+      toneClassName: "border-white/60 bg-white/40 text-white",
     });
   }
 
@@ -138,7 +139,7 @@ function getRoleMarkers(
     markers.push({
       key: "penalty_taker",
       shortLabel: "PK",
-      toneClassName: "border-primary-300/40 bg-primary-400/15 text-primary-100",
+      toneClassName: "border-primary-500 bg-primary-500 text-white",
     });
   }
 
@@ -146,7 +147,7 @@ function getRoleMarkers(
     markers.push({
       key: "free_kick_taker",
       shortLabel: "FK",
-      toneClassName: "border-success-300/40 bg-success-400/15 text-success-100",
+      toneClassName: "border-success-600 bg-success-600 text-white",
     });
   }
 
@@ -154,7 +155,7 @@ function getRoleMarkers(
     markers.push({
       key: "corner_taker",
       shortLabel: "CK",
-      toneClassName: "border-red-300/40 bg-red-400/15 text-red-100",
+      toneClassName: "border-orange-500 bg-orange-500 text-white",
     });
   }
 
@@ -181,29 +182,27 @@ function getPitchMarkerClassName(options: {
   const isSelected = selectedPlayerId === player.id;
   const isComparing = comparePlayerId === player.id;
   const isHovered = hoveredSlot === slot.index;
-  const fitTone = getFitTone(player, slot.position);
-  let className =
-    "absolute z-20 flex w-[4.35rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center rounded-[1.35rem] border px-2 py-2 text-center shadow-lg backdrop-blur-[1px] transition-all active:cursor-grabbing sm:w-[4.7rem]";
+
+  const base =
+    "absolute z-20 flex w-[5.5rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
 
   if (isDragged) {
-    className = `${className} opacity-60`;
-  } else {
-    className = `${className} hover:-translate-y-[54%] hover:shadow-xl`;
+    return `${base} opacity-60`;
   }
 
   if (isSelected) {
-    return `${className} border-accent-300 bg-navy-950/88 ring-2 ring-accent-300/45`;
+    return `${base} bg-accent-500/15 ring-2 ring-accent-300/60 shadow-lg`;
   }
 
   if (isComparing) {
-    return `${className} border-primary-300 bg-navy-950/88 ring-2 ring-primary-300/35`;
+    return `${base} bg-primary-500/10 ring-2 ring-primary-300/50 shadow-lg`;
   }
 
   if (isHovered) {
-    return `${className} border-primary-300 bg-navy-950/84`;
+    return `${base} bg-primary-500/10 shadow-lg`;
   }
 
-  return `${className} ${getFitToneClasses(fitTone)} bg-navy-950/76`;
+  return `${base} hover:-translate-y-[54%]`;
 }
 
 
@@ -217,11 +216,6 @@ function getSlotTargetClassName(isHovered: boolean, hasPlayer: boolean): string 
   }
 
   return "absolute z-10 h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/25 bg-black/10";
-}
-
-function playerTokenInitials(player: PlayerData): string {
-  const source = player.match_name || player.full_name;
-  return source.slice(0, 2).toUpperCase();
 }
 
 function getPitchDisplayName(player: PlayerData): string {
@@ -295,8 +289,12 @@ export default function TacticsPitch({
   dragState,
   formation,
   matchRoles,
+  onRoleChange,
+  playerRoles,
   tacticsPhase,
+  teamKitPattern,
   teamPrimaryColor,
+  teamSecondaryColor,
   comparePlayerId,
   hoveredSlot,
   onAssignBestFit,
@@ -521,11 +519,18 @@ export default function TacticsPitch({
                             t,
                           })}
                         >
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             draggable
                             data-testid={`pitch-player-${player.id}`}
                             onClick={() => onLineupPlayerClick(player.id, "xi")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onLineupPlayerClick(player.id, "xi");
+                              }
+                            }}
                             onDragOver={(event) => onSlotDragOver(event, slot.index)}
                             onDragLeave={() => onSlotDragLeave(slot.index)}
                             onDrop={(event) => onSlotDrop(event, slot.index)}
@@ -542,46 +547,86 @@ export default function TacticsPitch({
                               slot,
                             })}
                           >
-                            <div className="flex w-full items-start justify-between gap-1">
-                              <div className="flex min-h-4 flex-wrap gap-1">
-                                {roleMarkers.slice(0, 2).map((marker) => (
-                                  <span
-                                    key={`${player.id}-${marker.key}`}
-                                    className={`rounded-full border px-1.5 py-0.5 text-[8px] font-heading font-bold uppercase tracking-[0.18em] ${marker.toneClassName}`}
-                                  >
-                                    {marker.shortLabel}
-                                  </span>
-                                ))}
-                                {roleMarkers.length > 2 ? (
-                                  <span className="rounded-full border border-white/12 bg-white/8 px-1.5 py-0.5 text-[8px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
-                                    +{roleMarkers.length - 2}
-                                  </span>
-                                ) : null}
+                            {/* Avatar with overlaid badges */}
+                            <div className="relative">
+                              {/* Top-left: role markers stacking */}
+                              {roleMarkers.length > 0 && (
+                                <div className="absolute -left-1.5 -top-1.5 z-10 flex flex-col gap-0.5">
+                                  {roleMarkers.slice(0, 3).map((marker) => (
+                                    <span
+                                      key={`${player.id}-${marker.key}`}
+                                      className={`rounded-full border px-1 py-0 text-[7px] font-heading font-bold leading-4 ${marker.toneClassName}`}
+                                    >
+                                      {marker.shortLabel}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Top-right: position badge */}
+                              <div className="absolute -right-1.5 -top-1.5 z-10">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[7px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
+                                  {translatePositionAbbreviation(t, slot.position)}
+                                </span>
                               </div>
-                              <span className="rounded-full border border-white/12 bg-white/10 px-1.5 py-0.5 text-[9px] font-heading font-bold text-white">
-                                {getPlayerOvr(player)}
+                              {/* Profile picture with fit ring */}
+                              <PlayerAvatar
+                                player={player}
+                                className={`h-11 w-11 overflow-hidden rounded-full ${getFitRingClass(fitTone)}`}
+                              />
+                              {/* Bottom-right: OVR */}
+                              <div className="absolute -bottom-1 -right-1.5 z-10">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[8px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+                                  {getPlayerOvr(player)}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Jersey with number */}
+                            {teamSecondaryColor ? (
+                              <JerseyIcon
+                                size="sm"
+                                primaryColor={teamPrimaryColor ?? "#1a3a6b"}
+                                secondaryColor={teamSecondaryColor}
+                                pattern={teamKitPattern ?? "Solid"}
+                                number={player.jersey_number}
+                              />
+                            ) : player.jersey_number != null ? (
+                              <span className="text-[10px] font-heading font-bold text-white/80">
+                                #{player.jersey_number}
                               </span>
-                            </div>
-                            <div
-                              className="mt-1.5 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-sm font-heading font-bold text-white shadow-sm"
-                              style={teamPrimaryColor ? { backgroundColor: `${teamPrimaryColor}cc` } : { backgroundColor: "rgba(255,255,255,0.12)" }}
-                            >
-                              {player.jersey_number != null
-                                ? player.jersey_number
-                                : playerTokenInitials(player)}
-                            </div>
-                            <div className="mt-1.5 max-w-full truncate text-[10px] font-heading font-bold uppercase tracking-[0.16em] text-white">
+                            ) : null}
+                            {/* Player name */}
+                            <div className="max-w-full truncate text-[9px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
                               {getPitchDisplayName(player)}
                             </div>
-                            <div className="mt-1 flex items-center gap-1">
-                              <span className="rounded-full border border-white/10 bg-white/8 px-1.5 py-0.5 text-[8px] font-heading font-bold uppercase tracking-[0.16em] text-white/75">
-                                {translatePositionAbbreviation(t, slot.position)}
-                              </span>
-                              <span className="text-[8px] font-heading font-bold uppercase tracking-[0.16em] text-white/55">
-                                {player.condition}%
-                              </span>
-                            </div>
-                            <div className="mt-2 w-full">
+                            {/* Role combobox */}
+                            {onRoleChange && (
+                              <div
+                                draggable={false}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                className="w-full"
+                              >
+                                <Select
+                                  selectSize="2xs"
+                                  variant="ghost"
+                                  fullWidth
+                                  value={playerRoles?.[player.id] ?? "Standard"}
+                                  onChange={(e) => {
+                                    onRoleChange(player.id, e.target.value as PlayerRole);
+                                  }}
+                                >
+                                  {getRolesForPosition(
+                                    player.natural_position || player.position,
+                                  ).map((role) => (
+                                    <option key={role} value={role}>
+                                      {t(`tactics.playerRoles.${role}`, role)}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </div>
+                            )}
+                            {/* Condition bar */}
+                            <div className="w-full">
                               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                                 <div
                                   className={`h-full rounded-full ${fitBarClassName}`}
@@ -589,7 +634,7 @@ export default function TacticsPitch({
                                 />
                               </div>
                             </div>
-                          </button>
+                          </div>
                         </ContextMenu>
                       );
                     })()

@@ -1,11 +1,9 @@
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
-import { Badge, Button, Card, CountryFlag, Select } from "../ui";
+import { Badge, Button, Card, CountryFlag } from "../ui";
 import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
-import { getRolesForPosition } from "../../lib/playerRoles";
-import type { PlayerRole } from "../../store/types";
 
 const ATTRIBUTE_GROUPS: {
   labelKey: string;
@@ -42,8 +40,6 @@ interface TacticsPlayerFocusPanelProps {
   comparePlayer: PlayerData | null;
   onClose?: () => void;
   onConfirmSwap: () => void;
-  onRoleChange?: (playerId: string, role: PlayerRole) => void;
-  playerRoles?: Record<string, PlayerRole>;
   selectedPlayer: PlayerData | null;
 }
 
@@ -274,8 +270,6 @@ export default function TacticsPlayerFocusPanel({
   comparePlayer,
   onClose,
   onConfirmSwap,
-  onRoleChange,
-  playerRoles,
   selectedPlayer,
 }: TacticsPlayerFocusPanelProps) {
   const { t } = useTranslation();
@@ -314,29 +308,6 @@ export default function TacticsPlayerFocusPanel({
                 label={t("tactics.selectedPlayer")}
                 player={selectedPlayer}
               />
-              {onRoleChange && (
-                <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
-                  <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
-                    {t("tactics.playerRoleLabel")}
-                  </span>
-                  <Select
-                    selectSize="sm"
-                    fullWidth
-                    value={playerRoles?.[selectedPlayer.id] ?? "Standard"}
-                    onChange={(e) => {
-                      onRoleChange(selectedPlayer.id, e.target.value as PlayerRole);
-                    }}
-                  >
-                    {getRolesForPosition(
-                      selectedPlayer.natural_position || selectedPlayer.position,
-                    ).map((role) => (
-                      <option key={role} value={role}>
-                        {t(`tactics.playerRoles.${role}`, role)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              )}
               <div className="rounded-xl border border-dashed border-gray-200 dark:border-navy-600 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {t("tactics.selectSecondPlayer")}
               </div>
