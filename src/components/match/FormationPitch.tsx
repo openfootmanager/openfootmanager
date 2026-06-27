@@ -26,8 +26,13 @@ export function buildFormationSlots(
   let midCursor = 0;
   for (let i = 0; i < n; i++) {
     const count = nums[i];
-    if (i === 0) rows.push(defs.slice(0, count));
-    else if (i === n - 1) rows.push(fwds.slice(0, count));
+    // Never drop a player: put every defender in the back line, every forward up
+    // top, and let the last midfield row absorb any remaining midfielders. A
+    // lopsided XI (e.g. an AI side that ended up a defender short) then still
+    // renders all 11 rather than silently hiding the overflow.
+    if (i === 0) rows.push(defs);
+    else if (i === n - 1) rows.push(fwds);
+    else if (i === n - 2) rows.push(mids.slice(midCursor));
     else {
       rows.push(mids.slice(midCursor, midCursor + count));
       midCursor += count;

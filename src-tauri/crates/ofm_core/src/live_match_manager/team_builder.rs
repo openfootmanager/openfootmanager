@@ -271,10 +271,15 @@ fn ai_select_starting_xi<'a>(
         }
 
         let starter_fit = positional_fit_for_assignment(starter, slot);
+        let starter_group = starter.position.to_group_position();
         let fresh_alternative = available_players
             .iter()
             .copied()
             .filter(|player| !used_ids.contains(&player.id))
+            // Only rotate within the same position group, so load management never
+            // skews the formation's distribution (e.g. fielding a 5th midfielder
+            // in place of a defender, which would leave the XI a man short).
+            .filter(|player| player.position.to_group_position() == starter_group)
             .filter(|player| f64::from(player.condition) >= FRESH_FLOOR)
             .filter(|player| {
                 i16::from(player.condition) - i16::from(starter.condition) >= MIN_FRESHNESS_GAIN
@@ -466,13 +471,17 @@ mod tests {
     }
 
     fn mk(id: &str, attr: u8, condition: u8) -> Player {
+        mk_pos(id, DomainPos::CenterBack, attr, condition)
+    }
+
+    fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
         let mut p = Player::new(
             id.to_string(),
             id.to_string(),
             id.to_string(),
             "1998-01-01".to_string(),
             "GB".to_string(),
-            DomainPos::CenterBack,
+            position,
             attrs(attr),
         );
         p.condition = condition;
@@ -565,5 +574,46 @@ mod tests {
             xi.iter().all(|p| p.id.starts_with("star")),
             "a low-reputation club should ride its tired first XI, not rotate"
         );
+    }
+
+    /// Regression: load-management rotation must not skew the formation's
+    /// position distribution. A tired XI plus one fresh midfielder must still
+    /// field 1 GK / 4 DEF / 4 MID / 2 FWD — never a defender short (which
+    /// rendered only 10 players on the pitch).
+    #[test]
+    fn rotation_preserves_formation_position_distribution() {
+        use DomainPos::{
+            CentralMidfielder, CenterBack, Forward, Goalkeeper, LeftBack, LeftMidfielder,
+            RightBack, RightMidfielder, Striker,
+        };
+        let squad = vec![
+            mk_pos("gk", Goalkeeper, 75, 65),
+            mk_pos("d1", CenterBack, 75, 65),
+            mk_pos("d2", CenterBack, 75, 65),
+            mk_pos("d3", LeftBack, 75, 65),
+            mk_pos("d4", RightBack, 75, 65),
+            mk_pos("m1", CentralMidfielder, 75, 65),
+            mk_pos("m2", CentralMidfielder, 75, 65),
+            mk_pos("m3", LeftMidfielder, 75, 65),
+            mk_pos("m4", RightMidfielder, 75, 65),
+            mk_pos("f1", Striker, 75, 65),
+            mk_pos("f2", Striker, 75, 65),
+            // Fresh midfielder load management will want to bring in.
+            mk_pos("m_fresh", CentralMidfielder, 75, 100),
+        ];
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0); // elite: rotates eagerly
+
+        assert_eq!(xi.len(), 11);
+        let group_count = |group: DomainPos| {
+            xi.iter()
+                .filter(|p| p.position.to_group_position() == group)
+                .count()
+        };
+        assert_eq!(group_count(Goalkeeper), 1, "exactly one keeper");
+        assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
+        assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
+        assert_eq!(group_count(Forward), 2, "must field two forwards");
     }
 }
