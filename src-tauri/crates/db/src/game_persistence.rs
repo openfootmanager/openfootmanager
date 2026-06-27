@@ -334,8 +334,12 @@ impl GamePersistenceReader {
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             extra_translations: serde_json::from_str(&meta.extra_translations_json)
                 .unwrap_or_default(),
-            package_lockfile: serde_json::from_str(&meta.package_lockfile_json)
-                .unwrap_or_default(),
+            package_lockfile: if meta.package_lockfile_json.trim().is_empty() {
+                Vec::new()
+            } else {
+                serde_json::from_str(&meta.package_lockfile_json)
+                    .map_err(|_| "be.error.gamePersistence.loadFailed".to_string())?
+            },
         };
         game.promote_legacy_league();
         ofm_core::season_context::refresh_game_context(&mut game);
