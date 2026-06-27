@@ -24,7 +24,8 @@
     "worldEditor.countryId",
     "worldEditor.playerId",
     "worldEditor.competitionId",
-    "worldEditor.teamId"
+    "worldEditor.teamId",
+    "worldEditor.staffId"
   ],
   "de": [
     "nations.eng",
@@ -135,7 +136,11 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "worldEditor.staffRole.Scout",
+    "worldEditor.staffSpecialization.Fitness",
+    "worldEditor.staffAttr.coaching",
+    "packageBuild.patches"
   ],
   "fr": [
     "nations.pt",
@@ -259,7 +264,11 @@
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
     "be.error.notice.fallbackTeamsFilled",
-    "match.cornersGoals"
+    "match.cornersGoals",
+    "worldEditor.sectionStaff",
+    "worldEditor.staffClub",
+    "worldEditor.staffSpecialization.Technique",
+    "packageBuild.patches"
   ],
   "it": [
     "nations.sn",
@@ -328,7 +337,11 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "worldEditor.sectionStaff",
+    "worldEditor.staffClub",
+    "worldEditor.staffRole.Scout",
+    "worldEditor.staffSpecialization.Fitness"
   ],
   "es": [
     "nations.pt",
@@ -392,7 +405,9 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "worldEditor.staffClub",
+    "worldEditor.staffSpecialization.Fitness"
   ],
   "pt-BR": [
     "nations.pt",
@@ -440,7 +455,8 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "packageBuild.patches"
   ],
   "pt": [
     "nations.pt",
@@ -486,7 +502,8 @@
     "be.error.conflict.duplicateId",
     "be.error.conflict.duplicatePackageId",
     "be.error.notice.fallbackLeagueGenerated",
-    "be.error.notice.fallbackTeamsFilled"
+    "be.error.notice.fallbackTeamsFilled",
+    "packageBuild.patches"
   ],
   "ru": [
     "dashboard.recapTransferLine",
