@@ -3883,7 +3883,8 @@
     },
     "chooseLogo": "Bild auswählen…",
     "removeLogo": "Entfernen",
-    "openInEditor": "Bearbeiten"
+    "openInEditor": "Bearbeiten",
+    "poolKeyTaken": "Dieser Pool-Schlüssel wird bereits von einem anderen Pool verwendet."
   },
   "packageBuild": {
     "title": "Welt aufbauen",

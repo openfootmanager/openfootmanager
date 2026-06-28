@@ -3913,7 +3913,8 @@
     },
     "chooseLogo": "Elegir imagen…",
     "removeLogo": "Eliminar",
-    "openInEditor": "Editar"
+    "openInEditor": "Editar",
+    "poolKeyTaken": "Esa clave de grupo ya la usa otro grupo."
   },
   "packageBuild": {
     "title": "Construye tu mundo",

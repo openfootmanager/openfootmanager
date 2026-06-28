@@ -25,11 +25,15 @@ export function useNamesPoolEditor({
   const [editingPoolKey, setEditingPoolKey] = useState("");
   const [editingPool, setEditingPool] = useState<NamePool>({ first_names: [], last_names: [] });
   const [isNewPool, setIsNewPool] = useState(false);
+  // Bumped whenever the editing buffer is replaced (select / add / undo-redo
+  // sync); used as a React `key` so the pool form remounts with fresh state.
+  const [revision, setRevision] = useState(0);
 
   function handleSelectPool(key: string) {
     setEditingPoolKey(key);
     setEditingPool({ ...names.pools[key] });
     setIsNewPool(false);
+    setRevision((r) => r + 1);
     onOpen();
   }
 
@@ -37,6 +41,7 @@ export function useNamesPoolEditor({
     setEditingPoolKey("");
     setEditingPool({ first_names: [], last_names: [] });
     setIsNewPool(true);
+    setRevision((r) => r + 1);
     onOpen();
   }
 
@@ -51,7 +56,24 @@ export function useNamesPoolEditor({
     if (editingPoolKey === key) onClose();
   }
 
+  /// Refresh the open pool buffer from a restored snapshot (undo/redo) so a save
+  /// can't reapply values the user just reverted.
+  function syncEditing(newNames: NamesDefinition) {
+    if (editingPoolKey && newNames.pools[editingPoolKey]) {
+      setEditingPool({ ...newNames.pools[editingPoolKey] });
+      setRevision((r) => r + 1);
+    }
+  }
+
   async function handleSavePool(key: string, pool: NamePool) {
+    // Reject a rename/new key that collides with a *different* existing pool;
+    // Object.fromEntries would otherwise silently drop one and lose its names.
+    const collidesWithOther = isNewPool
+      ? key in names.pools
+      : key !== editingPoolKey && key in names.pools;
+    if (collidesWithOther) {
+      return;
+    }
     captureHistory();
     const updatedPools = isNewPool
       ? { ...names.pools, [key]: pool }
@@ -80,9 +102,11 @@ export function useNamesPoolEditor({
     editingPoolKey,
     editingPool,
     isNewPool,
+    revision,
     handleSelectPool,
     handleAddPool,
     handleDeletePool,
     handleSavePool,
+    syncEditing,
   };
 }

@@ -16,6 +16,11 @@ export function useEntityEditor<T>(options: {
 
   const [editing, setEditing] = useState<T>(empty);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  // Bumped only when the whole editing buffer is replaced (select / add / undo-
+  // redo sync), never on a field edit. Consumers use it as a React `key` so the
+  // form remounts and re-derives local state on a buffer swap, but keeps its
+  // state (and focus) while the user types.
+  const [revision, setRevision] = useState(0);
 
   function updateField<K extends keyof T>(key: K, value: T[K]) {
     setEditing((prev) => ({ ...prev, [key]: value }));
@@ -24,12 +29,14 @@ export function useEntityEditor<T>(options: {
   function handleSelect(index: number) {
     setEditing({ ...items[index] });
     setEditingIndex(index);
+    setRevision((r) => r + 1);
     onOpen();
   }
 
   function handleAdd() {
     setEditing(empty());
     setEditingIndex(null);
+    setRevision((r) => r + 1);
     onOpen();
   }
 
@@ -48,6 +55,7 @@ export function useEntityEditor<T>(options: {
   function syncEditing(newItems: T[]) {
     if (editingIndex !== null && editingIndex < newItems.length) {
       setEditing({ ...newItems[editingIndex] });
+      setRevision((r) => r + 1);
     }
   }
 
@@ -72,5 +80,5 @@ export function useEntityEditor<T>(options: {
     }
   }
 
-  return { editing, editingIndex, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleSave, syncEditing };
+  return { editing, editingIndex, revision, setEditing, updateField, handleSelect, handleAdd, handleDelete, handleSave, syncEditing };
 }

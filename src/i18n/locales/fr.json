@@ -3883,7 +3883,8 @@
     },
     "chooseLogo": "Choisir une image…",
     "removeLogo": "Supprimer",
-    "openInEditor": "Modifier"
+    "openInEditor": "Modifier",
+    "poolKeyTaken": "Cette clé de pool est déjà utilisée par un autre pool."
   },
   "packageBuild": {
     "title": "Construire votre monde",

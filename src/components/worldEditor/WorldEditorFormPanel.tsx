@@ -37,6 +37,7 @@ export type FormPanel =
 type EditorAPI<T> = {
   editing: T;
   editingIndex: number | null;
+  revision: number;
   handleSave: () => Promise<void>;
   updateField: <K extends keyof T>(key: K, value: T[K]) => void;
 };
@@ -74,6 +75,8 @@ interface WorldEditorFormPanelProps {
   editingPoolKey: string;
   editingPool: NamePool;
   isNewPool: boolean;
+  namesPoolRevision: number;
+  poolKeys: string[];
   onSavePool: (key: string, pool: NamePool) => void;
   // Navigation
   onBack: () => void;
@@ -100,6 +103,8 @@ export function WorldEditorFormPanel({
   editingPoolKey,
   editingPool,
   isNewPool,
+  namesPoolRevision,
+  poolKeys,
   onSavePool,
   onBack,
 }: WorldEditorFormPanelProps) {
@@ -150,6 +155,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-3xl">
         <TeamForm
+          key={`team-${teamEditor.revision}`}
           editingTeam={teamEditor.editing}
           editingTeamIndex={teamEditor.editingIndex}
           isBusy={isBusy}
@@ -166,6 +172,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-lg">
         <ConfederationForm
+          key={`conf-${confEditor.revision}`}
           editing={confEditor.editing}
           editingIndex={confEditor.editingIndex}
           isBusy={isBusy}
@@ -181,6 +188,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-lg">
         <CountryForm
+          key={`country-${countryEditor.revision}`}
           editing={countryEditor.editing}
           editingIndex={countryEditor.editingIndex}
           confederations={confederations}
@@ -201,6 +209,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-4xl">
         <PlayerForm
+          key={`${formPanel}-${editor.revision}`}
           editing={editor.editing}
           editingIndex={editor.editingIndex}
           isBusy={isBusy}
@@ -218,6 +227,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-2xl">
         <StaffForm
+          key={`staff-${staffEditor.revision}`}
           editing={staffEditor.editing}
           editingIndex={staffEditor.editingIndex}
           isBusy={isBusy}
@@ -234,10 +244,12 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-lg">
         <NamesPoolForm
+          key={`names-pool-${namesPoolRevision}`}
           poolKey={editingPoolKey}
           pool={editingPool}
           isNew={isNewPool}
           isBusy={isBusy}
+          takenKeys={poolKeys}
           onBack={onBack}
           onSave={(key, pool) => { onSavePool(key, pool); }}
         />
@@ -249,6 +261,7 @@ export function WorldEditorFormPanel({
     return (
       <div className="max-w-3xl">
         <CompetitionForm
+          key={`competition-${compEditor.revision}`}
           editing={compEditor.editing}
           editingIndex={compEditor.editingIndex}
           isBusy={isBusy}

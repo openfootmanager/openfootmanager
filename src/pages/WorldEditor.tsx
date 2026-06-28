@@ -132,6 +132,7 @@ export default function WorldEditor() {
     youthEditor.syncEditing(snapshot.players);
     staffEditor.syncEditing(snapshot.staff);
     compEditor.syncEditing(snapshot.competitions);
+    syncNamesPoolEditing(snapshot.names);
   }
 
   // ---------------------------------------------------------------------------
@@ -488,10 +489,12 @@ export default function WorldEditor() {
     editingPoolKey,
     editingPool,
     isNewPool,
+    revision: namesPoolRevision,
     handleSelectPool,
     handleAddPool,
     handleDeletePool,
     handleSavePool,
+    syncEditing: syncNamesPoolEditing,
   } = useNamesPoolEditor({
     names,
     setNames,
@@ -617,6 +620,8 @@ export default function WorldEditor() {
           editingPoolKey={editingPoolKey}
           editingPool={editingPool}
           isNewPool={isNewPool}
+          namesPoolRevision={namesPoolRevision}
+          poolKeys={Object.keys(names.pools)}
           onSavePool={(key, pool) => { void handleSavePool(key, pool); }}
           onBack={() => setFormPanel("empty")}
         />

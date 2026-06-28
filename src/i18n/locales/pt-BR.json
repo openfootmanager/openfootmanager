@@ -3883,7 +3883,8 @@
     },
     "chooseLogo": "Escolher imagem…",
     "removeLogo": "Remover",
-    "openInEditor": "Editar"
+    "openInEditor": "Editar",
+    "poolKeyTaken": "Essa chave de conjunto já é usada por outro conjunto."
   },
   "packageBuild": {
     "title": "Monte seu mundo",

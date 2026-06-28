@@ -3879,7 +3879,8 @@
       "physiotherapy": "Physiotherapy"
     },
     "chooseLogo": "Choose Image…",
-    "removeLogo": "Remove"
+    "removeLogo": "Remove",
+    "poolKeyTaken": "That pool key is already used by another pool."
   },
   "packageBuild": {
     "title": "Build Your World",

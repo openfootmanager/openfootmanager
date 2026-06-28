@@ -3879,7 +3879,8 @@
     },
     "chooseLogo": "Выбрать изображение…",
     "removeLogo": "Удалить",
-    "openInEditor": "Изменить"
+    "openInEditor": "Изменить",
+    "poolKeyTaken": "Этот ключ пула уже используется другим пулом."
   },
   "packageBuild": {
     "title": "Создайте свой мир",

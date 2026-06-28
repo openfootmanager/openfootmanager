@@ -33,6 +33,35 @@ function makeHook(overrides: Partial<Parameters<typeof useEntityEditor<Item>>[0]
 }
 
 describe("useEntityEditor", () => {
+  describe("revision (remount signal)", () => {
+    it("bumps on select/add/syncEditing but not on updateField", () => {
+      const items: Item[] = [{ id: "a", name: "Alpha" }, { id: "b", name: "Beta" }];
+      const { hook } = makeHook({ items });
+      const start = hook.result.current.revision;
+
+      act(() => { hook.result.current.handleSelect(0); });
+      const afterSelect = hook.result.current.revision;
+      expect(afterSelect).toBeGreaterThan(start);
+
+      // Editing a field must NOT bump revision (keeps the form mounted/focused).
+      act(() => { hook.result.current.updateField("name", "Edited"); });
+      expect(hook.result.current.revision).toBe(afterSelect);
+
+      act(() => { hook.result.current.handleAdd(); });
+      const afterAdd = hook.result.current.revision;
+      expect(afterAdd).toBeGreaterThan(afterSelect);
+
+      // undo/redo sync of the open record bumps it so the form remounts.
+      act(() => { hook.result.current.handleSelect(1); });
+      const beforeSync = hook.result.current.revision;
+      act(() => {
+        hook.result.current.syncEditing([{ id: "a", name: "Alpha" }, { id: "b", name: "Reverted" }]);
+      });
+      expect(hook.result.current.revision).toBeGreaterThan(beforeSync);
+      expect(hook.result.current.editing).toEqual({ id: "b", name: "Reverted" });
+    });
+  });
+
   describe("handleSelect", () => {
     it("sets editing to a copy of the item at index", () => {
       const items: Item[] = [{ id: "a", name: "Alpha" }, { id: "b", name: "Beta" }];

@@ -10,6 +10,8 @@ interface NamesPoolFormProps {
   pool: NamePool;
   isNew: boolean;
   isBusy: boolean;
+  /// Keys of all existing pools, used to block renaming onto another pool.
+  takenKeys: string[];
   onBack: () => void;
   onSave: (key: string, pool: NamePool) => void;
 }
@@ -89,14 +91,20 @@ function NameChipList({ label, names, addPlaceholder, addLabel, onChange }: Name
   );
 }
 
-export function NamesPoolForm({ poolKey, pool, isNew, isBusy, onBack, onSave }: NamesPoolFormProps) {
+export function NamesPoolForm({ poolKey, pool, isNew, isBusy, takenKeys, onBack, onSave }: NamesPoolFormProps) {
   const { t } = useTranslation();
   const [key, setKey] = useState(poolKey);
   const [firstNames, setFirstNames] = useState<string[]>(pool.first_names);
   const [lastNames, setLastNames] = useState<string[]>(pool.last_names);
 
+  const trimmedKey = key.trim();
+  // Renaming onto (or adding) a key that another pool already uses would drop
+  // that pool when the map is rebuilt; block the save and explain why.
+  const keyCollision = trimmedKey !== poolKey && takenKeys.includes(trimmedKey);
+
   function handleSave() {
-    onSave(key.trim(), { first_names: firstNames, last_names: lastNames });
+    if (!trimmedKey || keyCollision) return;
+    onSave(trimmedKey, { first_names: firstNames, last_names: lastNames });
   }
 
   return (
@@ -105,15 +113,20 @@ export function NamesPoolForm({ poolKey, pool, isNew, isBusy, onBack, onSave }: 
       onBack={onBack}
       onSave={handleSave}
       isBusy={isBusy}
-      saveDisabled={!key.trim()}
+      saveDisabled={!trimmedKey || keyCollision}
       saveLabel={t("worldEditor.savePool")}
     >
-      <CountryCombobox
-        label={t("worldEditor.poolKey")}
-        value={key}
-        onChange={setKey}
-        placeholder="ENG"
-      />
+      <div className="flex flex-col gap-1">
+        <CountryCombobox
+          label={t("worldEditor.poolKey")}
+          value={key}
+          onChange={setKey}
+          placeholder="ENG"
+        />
+        {keyCollision && (
+          <p className="text-xs text-red-500">{t("worldEditor.poolKeyTaken")}</p>
+        )}
+      </div>
       <NameChipList
         label={t("worldEditor.poolFirstNames")}
         names={firstNames}

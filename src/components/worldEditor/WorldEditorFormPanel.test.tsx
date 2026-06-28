@@ -44,6 +44,7 @@ function makeEditor(id: string) {
   return {
     editing: { id } as PlayerDef,
     editingIndex: 0,
+    revision: 0,
     handleSave: vi.fn(),
     updateField: vi.fn(),
   };
@@ -75,6 +76,8 @@ function renderPanel(formPanel: FormPanel, playerId: string, youthId: string) {
       editingPoolKey=""
       editingPool={{ first_names: [], last_names: [] }}
       isNewPool={false}
+      namesPoolRevision={0}
+      poolKeys={[]}
       onSavePool={() => {}}
       onBack={() => {}}
     />,

@@ -3880,7 +3880,8 @@
     },
     "chooseLogo": "选择图片…",
     "removeLogo": "移除",
-    "openInEditor": "编辑"
+    "openInEditor": "编辑",
+    "poolKeyTaken": "该名称池键已被另一个名称池使用。"
   },
   "packageBuild": {
     "title": "构建您的世界",
