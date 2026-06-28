@@ -604,7 +604,8 @@
     "left": "Links",
     "center": "Zentrum",
     "right": "Rechts",
-    "competition": "Wettbewerb"
+    "competition": "Wettbewerb",
+    "confirmDelete": "Löschen bestätigen"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -3432,6 +3433,9 @@
         "bodySingle": "Der Trainer von {{team}} sprach kurz nach dem Ergebnis {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "Der Trainer von {{team}} lehnte ein ausführliches Statement nach dem Ergebnis {{result}} ab."
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "Standardliga"
     }
   },
   "traits": {
@@ -3884,7 +3888,8 @@
     "chooseLogo": "Bild auswählen…",
     "removeLogo": "Entfernen",
     "openInEditor": "Bearbeiten",
-    "poolKeyTaken": "Dieser Pool-Schlüssel wird bereits von einem anderen Pool verwendet."
+    "poolKeyTaken": "Dieser Pool-Schlüssel wird bereits von einem anderen Pool verwendet.",
+    "playerDisplayNamePlaceholder": "Anzeigename im Spiel"
   },
   "packageBuild": {
     "title": "Welt aufbauen",

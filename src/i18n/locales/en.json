@@ -604,7 +604,8 @@
     "statsView": "Stats",
     "listView": "List",
     "radarView": "Radar",
-    "competition": "Competition"
+    "competition": "Competition",
+    "confirmDelete": "Confirm delete"
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -3428,6 +3429,9 @@
         "bodySingle": "The {{team}} manager spoke briefly after the {{result}} result.\n\n\"{{quote}}\"",
         "bodyNone": "The {{team}} manager declined to speak at length after the {{result}} result."
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "Default League"
     }
   },
   "traits": {
@@ -3880,7 +3884,8 @@
     },
     "chooseLogo": "Choose Image…",
     "removeLogo": "Remove",
-    "poolKeyTaken": "That pool key is already used by another pool."
+    "poolKeyTaken": "That pool key is already used by another pool.",
+    "playerDisplayNamePlaceholder": "Match display name"
   },
   "packageBuild": {
     "title": "Build Your World",

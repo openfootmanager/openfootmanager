@@ -604,7 +604,8 @@
     "left": "Esquerda",
     "center": "Centro",
     "right": "Direita",
-    "competition": "Competição"
+    "competition": "Competição",
+    "confirmDelete": "Confirmar exclusão"
   },
   "teamSelection": {
     "title": "Escolha Seu Clube",
@@ -3432,6 +3433,9 @@
         "bodySingle": "O técnico do {{team}} falou brevemente após o resultado {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "O técnico do {{team}} não quis falar longamente após o resultado {{result}}."
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "Liga padrão"
     }
   },
   "traits": {
@@ -3884,7 +3888,8 @@
     "chooseLogo": "Escolher imagem…",
     "removeLogo": "Remover",
     "openInEditor": "Editar",
-    "poolKeyTaken": "Essa chave de conjunto já é usada por outro conjunto."
+    "poolKeyTaken": "Essa chave de conjunto já é usada por outro conjunto.",
+    "playerDisplayNamePlaceholder": "Nome exibido em partidas"
   },
   "packageBuild": {
     "title": "Monte seu mundo",

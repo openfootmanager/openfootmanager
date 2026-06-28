@@ -623,7 +623,8 @@
     "left": "Sinistra",
     "center": "Centro",
     "right": "Destra",
-    "competition": "Competizione"
+    "competition": "Competizione",
+    "confirmDelete": "Conferma eliminazione"
   },
   "teamSelection": {
     "title": "Scegli il tuo club",
@@ -3432,6 +3433,9 @@
         "bodySingle": "L'allenatore del {{team}} ha parlato brevemente dopo il risultato {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "L'allenatore del {{team}} ha rifiutato di parlare a lungo dopo il risultato {{result}}."
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "Campionato predefinito"
     }
   },
   "traits": {
@@ -3884,7 +3888,8 @@
     "chooseLogo": "Scegli immagine…",
     "removeLogo": "Rimuovi",
     "openInEditor": "Modifica",
-    "poolKeyTaken": "Quella chiave del pool è già usata da un altro pool."
+    "poolKeyTaken": "Quella chiave del pool è già usata da un altro pool.",
+    "playerDisplayNamePlaceholder": "Nome visualizzato in partita"
   },
   "packageBuild": {
     "title": "Costruisci il tuo mondo",

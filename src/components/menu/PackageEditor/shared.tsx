@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Edit2, Trash2, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -70,6 +71,7 @@ export function EntityRow({
   isSelected,
   onClick,
 }: EntityRowProps) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
 
   function handleDeleteClick(e: React.MouseEvent) {
@@ -111,14 +113,14 @@ export function EntityRow({
           <button
             onClick={handleConfirmDelete}
             className="p-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-            title="Confirm delete"
+            title={t("common.confirmDelete")}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleCancelDelete}
             className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-            title="Cancel"
+            title={t("common.cancel")}
           >
             <X className="w-3.5 h-3.5" />
           </button>

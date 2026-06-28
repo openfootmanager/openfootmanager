@@ -604,7 +604,8 @@
     "left": "左侧",
     "center": "中路",
     "right": "右侧",
-    "competition": "赛事"
+    "competition": "赛事",
+    "confirmDelete": "确认删除"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -3429,6 +3430,9 @@
         "bodySingle": "{{team}}主帅在{{result}}的结果后简短发言。\n\n\"{{quote}}\"",
         "bodyNone": "在{{result}}的结果后，{{team}}主帅拒绝长时间发言。"
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "默认联赛"
     }
   },
   "traits": {
@@ -3881,7 +3885,8 @@
     "chooseLogo": "选择图片…",
     "removeLogo": "移除",
     "openInEditor": "编辑",
-    "poolKeyTaken": "该名称池键已被另一个名称池使用。"
+    "poolKeyTaken": "该名称池键已被另一个名称池使用。",
+    "playerDisplayNamePlaceholder": "比赛显示名称"
   },
   "packageBuild": {
     "title": "构建您的世界",

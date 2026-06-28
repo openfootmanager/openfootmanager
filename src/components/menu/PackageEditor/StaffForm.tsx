@@ -123,36 +123,27 @@ export function StaffForm({
           optionLabels={roleLabels}
           onChange={(v) => updateField("role", v as StaffDef["role"])}
         />
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.staffSpecialization.label")}</label>
-          <select
-            className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
-            value={editing.specialization ?? ""}
-            onChange={(e) => updateField("specialization", e.target.value || null)}
-          >
-            <option value="">{t("worldEditor.staffSpecialization.none", { defaultValue: "None" })}</option>
-            {COACHING_SPECIALIZATIONS.map((s) => (
-              <option key={s} value={s}>{specLabels[s]}</option>
-            ))}
-          </select>
-        </div>
+        <LabeledSelect
+          label={t("worldEditor.staffSpecialization.label")}
+          value={editing.specialization ?? ""}
+          options={["", ...COACHING_SPECIALIZATIONS]}
+          optionLabels={{
+            "": t("worldEditor.staffSpecialization.none", { defaultValue: "None" }),
+            ...specLabels,
+          }}
+          onChange={(v) => updateField("specialization", v || null)}
+        />
       </div>
 
       {/* Club + Nationality */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>{t("worldEditor.staffClub")}</label>
-          <select
-            className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 transition"
-            value={editing.club}
-            onChange={(e) => updateField("club", e.target.value)}
-          >
-            <option value="">{t("worldEditor.noClubSelected")}</option>
-            {teamOptions.map((id) => (
-              <option key={id} value={id}>{teamLabels[id] ?? id}</option>
-            ))}
-          </select>
-        </div>
+        <LabeledSelect
+          label={t("worldEditor.staffClub")}
+          value={editing.club}
+          options={["", ...teamOptions]}
+          optionLabels={{ "": t("worldEditor.noClubSelected"), ...teamLabels }}
+          onChange={(v) => updateField("club", v)}
+        />
         <div className="flex flex-col gap-1">
           <label className={labelClass}>{t("worldEditor.staffNationality")}</label>
           <CountryCombobox

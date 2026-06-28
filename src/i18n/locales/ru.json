@@ -604,7 +604,8 @@
     "left": "Левый",
     "center": "Центр",
     "right": "Правый",
-    "competition": "Соревнование"
+    "competition": "Соревнование",
+    "confirmDelete": "Подтвердить удаление"
   },
   "teamSelection": {
     "title": "Выберите клуб",
@@ -3428,6 +3429,9 @@
         "bodySingle": "После получения результата {{result}} менеджер {{team}} произнес короткое слово.\n\n\"{{quote}}\"",
         "bodyNone": "Менеджер {{team}} отказался говорить подробно после результата {{result}}."
       }
+    },
+    "competition": {
+      "fallbackLeagueName": "Лига по умолчанию"
     }
   },
   "traits": {
@@ -3880,7 +3884,8 @@
     "chooseLogo": "Выбрать изображение…",
     "removeLogo": "Удалить",
     "openInEditor": "Изменить",
-    "poolKeyTaken": "Этот ключ пула уже используется другим пулом."
+    "poolKeyTaken": "Этот ключ пула уже используется другим пулом.",
+    "playerDisplayNamePlaceholder": "Отображаемое имя в матче"
   },
   "packageBuild": {
     "title": "Создайте свой мир",

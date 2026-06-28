@@ -864,12 +864,15 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         // Auto-fallback: synthesise a single-division league over all authored teams.
         // A `package_type: "database"` package without any competition defs is
         // probably a work-in-progress; generate a playable default so the game
-        // can still start. The notice key is surfaced to the user in WorldSelect.
+        // can still start. The notice key is collected on WorldData.build_notices
+        // for the frontend to surface; it is not persisted to the save.
         build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
         let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
         let fallback = CompetitionDefinition {
             id: "ofm-fallback-league".to_string(),
             name: "Default League".to_string(),
+            // name_key drives the localized display name; `name` is only the
+            // raw fallback when a locale lacks the key.
             r#type: domain::league::CompetitionType::League,
             scope: CompetitionScope::Domestic,
             priority: 10,
@@ -890,7 +893,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
             berths: Vec::new(),
             season_start_month: None,
             season_start_day: None,
-            name_key: None,
+            name_key: Some("be.competition.fallbackLeagueName".to_string()),
             logo: None,
         };
         Some(CompetitionDefinitionFile {

@@ -138,7 +138,7 @@ export function PlayerForm({
         label={t("worldEditor.playerName")}
         value={editing.name}
         onChange={handleNameChange}
-        placeholder="Match display name"
+        placeholder={t("worldEditor.playerDisplayNamePlaceholder")}
       />
 
       {/* Photo */}
