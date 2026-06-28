@@ -118,7 +118,7 @@ export interface PlayerDef {
   overall: number | null;
   attributes: PlayerAttributesDef | null;
   photo?: string | null;
-  foot?: Footedness | null;
+  footedness?: Footedness | null;
   youth?: boolean;
 }
 

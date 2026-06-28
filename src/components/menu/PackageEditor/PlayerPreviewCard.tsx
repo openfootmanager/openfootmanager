@@ -228,8 +228,8 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
               {age !== null && <span className="text-gray-400 dark:text-gray-500"> ({age}y)</span>}
             </p>
           )}
-          {editing.foot && editing.foot !== "Right" && (
-            <p>{t("worldEditor.playerFoot")}: <span className="text-gray-700 dark:text-gray-200">{editing.foot}</span></p>
+          {editing.footedness && editing.footedness !== "Right" && (
+            <p>{t("worldEditor.playerFoot")}: <span className="text-gray-700 dark:text-gray-200">{editing.footedness}</span></p>
           )}
         </div>
       </div>

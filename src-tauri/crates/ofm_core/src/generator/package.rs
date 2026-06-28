@@ -1239,6 +1239,19 @@ mod tests {
     }
 
     #[test]
+    fn player_def_deserializes_footedness_from_frontend_key() {
+        // The package-editor frontend sends the chosen foot under the camelCase
+        // key "footedness"; this pins that contract so a rename can't silently
+        // drop the authored foot again.
+        let def: PlayerDef =
+            serde_json::from_str(r#"{"id":"p1","footedness":"Left"}"#).unwrap();
+        assert_eq!(def.footedness.as_deref(), Some("Left"));
+        // Round-trips back out under the same key.
+        let json = serde_json::to_value(&def).unwrap();
+        assert_eq!(json.get("footedness").and_then(|v| v.as_str()), Some("Left"));
+    }
+
+    #[test]
     fn read_entry_capped_rejects_oversized_entry() {
         let small: &[u8] = b"hello";
         assert_eq!(read_entry_capped(&mut &small[..], 1024), Some(small.to_vec()));

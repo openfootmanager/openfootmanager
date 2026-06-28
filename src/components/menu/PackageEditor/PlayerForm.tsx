@@ -218,14 +218,14 @@ export function PlayerForm({
         />
         <LabeledSelect
           label={t("worldEditor.playerFoot")}
-          value={editing.foot ?? "Right"}
+          value={editing.footedness ?? "Right"}
           options={FOOT_OPTIONS}
           optionLabels={{
             Right: t("common.footedness.Right"),
             Left: t("common.footedness.Left"),
             Both: t("common.footedness.Both"),
           }}
-          onChange={(v) => updateField("foot", v as Footedness)}
+          onChange={(v) => updateField("footedness", v as Footedness)}
         />
       </div>
       <div className="flex flex-col gap-1">

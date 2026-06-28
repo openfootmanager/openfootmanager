@@ -148,7 +148,7 @@ export function emptyPlayer(): PlayerDef {
     dateOfBirth: null,
     overall: null,
     attributes: null,
-    foot: null,
+    footedness: null,
   };
 }
 

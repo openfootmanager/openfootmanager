@@ -228,6 +228,15 @@ describe("emptyPlayer", () => {
     expect(p.attributes).toBeNull();
   });
 
+  it("uses the backend-aligned `footedness` key (not `foot`)", () => {
+    const p = emptyPlayer();
+    // The Rust PlayerDef field is `footedness`; a `foot` key would be dropped
+    // on save and the authored foot lost. Pin the contract here.
+    expect("footedness" in p).toBe(true);
+    expect((p as unknown as Record<string, unknown>).foot).toBeUndefined();
+    expect(p.footedness).toBeNull();
+  });
+
   it("returns a new object on each call", () => {
     expect(emptyPlayer()).not.toBe(emptyPlayer());
   });
