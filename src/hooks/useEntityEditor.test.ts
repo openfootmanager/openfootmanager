@@ -277,6 +277,24 @@ describe("useEntityEditor", () => {
       expect(hook.result.current.editing).toEqual(emptyItem());
     });
 
+    it("re-locates the edited record by id after an undo reorders the list", () => {
+      const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }];
+      const { hook } = makeHook({ items });
+      act(() => { hook.result.current.handleSelect(2); }); // editing "c" at index 2
+
+      // A restored snapshot where the same records are reordered: "c" is now first.
+      // Index 2 would point at a *different* record, so tracking must be by id.
+      const reordered: Item[] = [
+        { id: "c", name: "C-reverted" },
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+      ];
+      act(() => { hook.result.current.syncEditing(reordered); });
+
+      expect(hook.result.current.editing).toEqual({ id: "c", name: "C-reverted" });
+      expect(hook.result.current.editingIndex).toBe(0);
+    });
+
     it("closes the editor when editingIndex is out of bounds in newItems", () => {
       const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
       const { hook, onClose } = makeHook({ items });
