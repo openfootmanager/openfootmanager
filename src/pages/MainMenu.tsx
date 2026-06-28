@@ -49,6 +49,7 @@ const CREATE_MANAGER_FIELD_ORDER = [
 ] as const satisfies ReadonlyArray<keyof CreateManagerFormData>;
 
 function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 

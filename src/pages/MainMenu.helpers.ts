@@ -125,7 +125,7 @@ export function parseIsoDateParts(isoDob: string): IsoDateParts | null {
 // World Cups fall in the summers of 2022, 2026, 2030, … (every year ≡ 2 mod 4).
 // Matches the backend start_date_for_year rule: June 1 in WC years, July 1 otherwise.
 function isWorldCupYear(year: number): boolean {
-  return year % 4 === 2;
+  return ((year % 4) + 4) % 4 === 2;
 }
 
 export function careerStartReferenceDate(
