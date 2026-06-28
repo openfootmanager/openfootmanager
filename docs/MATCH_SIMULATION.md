@@ -148,6 +148,38 @@ These modifiers are applied to the relevant team rating during action resolution
 
 ---
 
+## Phase Blueprint (TacticsConfig)
+
+On top of the play style, each team carries a `TacticsConfig` (mapped from the
+domain `TacticsPhaseSettings`) of nine dials. Every dial defaults to a neutral
+option that multiplies by ×1.0 — and the transition dials roll nothing — so a
+team on its defaults simulates **byte-identically** to the pre-dial engine.
+
+Each dial has exactly one hook and one direction (no opposing effects stacked on
+a single dial). The first five are applied in their per-action zone; the rest add
+the possession/transition dimension the zones don't cover, hooked into the
+per-minute possession contest.
+
+| Dial | Hook | Effect |
+|---|---|---|
+| build_up | build-up pass success | Short retains, Long is riskier |
+| width | cross probability (attacking third) | Wide crosses more |
+| def_line | shot conversion conceded | High concedes better chances in behind |
+| marking | foul probability | Man-to-man fouls more |
+| pressing | possession contest (def) + build-up press + **in-match stamina** | Aggressive wins the ball back more, tires faster |
+| tempo | midfield progression (att) + possession contest retention (att) | Direct shoots more / Patient holds the ball |
+| defensive_shape | attacking-third defence (def) | Compact concedes fewer chances |
+| counter_press | possession flip: losing side may re-win the ball | Long regains possession more |
+| break_speed | possession flip: winner may counter into the final third | Fast turns turnovers into chances |
+
+Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
+the dials identically; the stamina cost of pressing applies only to the live
+engine, which tracks per-minute condition. Magnitudes live in `engine::shared`
+and are tuned with `cargo run -p sim-bench -- --phase-sweep`, which tabulates
+each dial's effect on possession %, shots and goals against a neutral opponent.
+
+---
+
 ## Home Advantage
 
 The home team receives a configurable multiplier (default **1.08**, i.e. 8% boost) applied to all their ratings during action resolution. This models the effect of playing at home — crowd support, familiarity with the pitch, etc.
