@@ -472,11 +472,9 @@ pub fn extract_ofm_for_editing(
         std::fs::remove_dir_all(&edit_dir).map_err(|e| e.to_string())?;
     }
 
-    if let Err(err) = extract_ofm_to_dir(ofm, &edit_dir) {
-        // Don't leave a half-unpacked directory behind when an entry is rejected.
-        std::fs::remove_dir_all(&edit_dir).ok();
-        return Err(err);
-    }
+    // extract_ofm_to_dir removes the destination on any entry error, so a
+    // rejected archive never leaves a partial tree in world-editor-temp.
+    extract_ofm_to_dir(ofm, &edit_dir)?;
 
     edit_dir
         .to_str()

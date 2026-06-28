@@ -389,9 +389,16 @@ pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> 
 /// the extraction with its `be.error.*` code rather than partially unpacking a
 /// malicious archive.
 pub fn extract_ofm_to_dir(ofm_path: &Path, dest_dir: &Path) -> Result<(), String> {
-    let entry_errors = super::package::extract_archive_safely(ofm_path, dest_dir)?;
-    if let Some(err) = entry_errors.into_iter().next() {
-        return Err(err.code);
+    let result = super::package::extract_archive_safely(ofm_path, dest_dir);
+    let err = match result {
+        Ok(entry_errors) => entry_errors.into_iter().next().map(|e| e.code),
+        Err(e) => Some(e),
+    };
+    if let Some(code) = err {
+        // Earlier safe entries may already be on disk; don't leave a partially
+        // unpacked tree behind when a later entry is rejected or unreadable.
+        std::fs::remove_dir_all(dest_dir).ok();
+        return Err(code);
     }
     Ok(())
 }

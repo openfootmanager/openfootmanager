@@ -1,5 +1,5 @@
 import { HelpCircle } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { Select } from "../../../components/ui/Select";
 
 export const inputClass =
@@ -19,14 +19,16 @@ interface LabeledInputProps {
 }
 
 export function LabeledInput({ label, value, onChange, type = "text", placeholder, help, multiline, rows = 3 }: LabeledInputProps) {
+  const fieldId = useId();
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <label className={labelClass}>{label}</label>
+        <label className={labelClass} htmlFor={fieldId}>{label}</label>
         {help && <InlineHelp text={help} />}
       </div>
       {multiline ? (
         <textarea
+          id={fieldId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -35,6 +37,7 @@ export function LabeledInput({ label, value, onChange, type = "text", placeholde
         />
       ) : (
         <input
+          id={fieldId}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -56,15 +59,19 @@ interface LabeledSelectProps {
 }
 
 export function LabeledSelect({ label, value, options, optionLabels, onChange, help }: LabeledSelectProps) {
+  // The shared Select renders an ARIA combobox (a <button>, not a native
+  // <select>), so associate the label via aria-labelledby rather than htmlFor.
+  const labelId = useId();
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <label className={labelClass}>{label}</label>
+        <label id={labelId} className={labelClass}>{label}</label>
         {help && <InlineHelp text={help} />}
       </div>
       <Select
         fullWidth
         value={value}
+        aria-labelledby={labelId}
         onChange={(e) => onChange(e.target.value)}
       >
         {options.map((o) => (

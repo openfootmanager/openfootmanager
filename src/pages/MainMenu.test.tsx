@@ -325,6 +325,10 @@ describe("MainMenu", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    // Restore any vi.spyOn (e.g. the console.error spy in the save-load test) so
+    // it doesn't silently swallow errors in later cases. Plain vi.fn() mocks are
+    // unaffected and are reset in beforeEach.
+    vi.restoreAllMocks();
     resetCountryResourcesCache();
   });
 

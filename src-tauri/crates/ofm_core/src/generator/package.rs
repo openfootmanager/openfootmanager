@@ -1256,11 +1256,15 @@ mod tests {
 
     #[test]
     fn extract_ofm_to_dir_aborts_on_zip_slip() {
-        let archive = build_zip(&[("../escape.txt", b"pwned")]);
+        // A safe entry precedes the zip-slip entry, so extraction writes a file
+        // before it hits the rejection — the cleanup must still wipe the dir.
+        let archive = build_zip(&[("teams/teams.json", b"{}"), ("../escape.txt", b"pwned")]);
         let dest = temp_package();
         let result = super::super::world_io::extract_ofm_to_dir(&archive, &dest);
         assert_eq!(result, Err(ZIPSLIP_ERROR.to_string()));
         assert!(!dest.parent().unwrap().join("escape.txt").exists());
+        // No partially-unpacked tree is left behind for the editor to open.
+        assert!(!dest.exists(), "partial extraction directory should be removed");
         let _ = std::fs::remove_file(&archive);
         let _ = std::fs::remove_dir_all(&dest);
     }
