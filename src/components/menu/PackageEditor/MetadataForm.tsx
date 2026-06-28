@@ -82,7 +82,8 @@ interface MetadataFormProps {
 export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
-  const logoDataUrl = useAssetDataUrl(meta.logo, projectDir);
+  const [logoRefresh, setLogoRefresh] = useState(0);
+  const logoDataUrl = useAssetDataUrl(meta.logo, projectDir, logoRefresh);
 
   async function handlePickLogo() {
     if (!projectDir) return;
@@ -98,6 +99,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
         srcPath: selected,
       });
       evictAssetDataUrl(projectDir, relPath);
+      setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
       set({ logo: relPath });
     } catch { /* ignore */ }
   }

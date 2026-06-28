@@ -40,7 +40,8 @@ export function PlayerForm({
   const { t } = useTranslation();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const photoDataUrl = useAssetDataUrl(editing.photo, projectDir);
+  const [photoRefresh, setPhotoRefresh] = useState(0);
+  const photoDataUrl = useAssetDataUrl(editing.photo, projectDir, photoRefresh);
 
   async function handlePickPhoto() {
     if (!projectDir) return;
@@ -58,6 +59,7 @@ export function PlayerForm({
       // The path is reused for an entity, so drop any cached data URL before
       // pointing at the freshly written file.
       evictAssetDataUrl(projectDir, relPath);
+      setPhotoRefresh((k) => k + 1); // refresh even if the path is unchanged
       updateField("photo", relPath);
     } catch { /* ignore */ }
   }

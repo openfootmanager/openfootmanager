@@ -26,7 +26,8 @@ interface TeamFormProps {
 export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, onBack, onSave, updateField }: TeamFormProps) {
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingTeamIndex === null && !editingTeam.id);
-  const logoDataUrl = useAssetDataUrl(editingTeam.logo, projectDir);
+  const [logoRefresh, setLogoRefresh] = useState(0);
+  const logoDataUrl = useAssetDataUrl(editingTeam.logo, projectDir, logoRefresh);
   const [repMin, setRepMin] = useState<string>(editingTeam.reputationRange?.[0]?.toString() ?? "");
   const [repMax, setRepMax] = useState<string>(editingTeam.reputationRange?.[1]?.toString() ?? "");
   const [finMin, setFinMin] = useState<string>(editingTeam.financeRange?.[0]?.toString() ?? "");
@@ -55,6 +56,7 @@ export function TeamForm({ editingTeam, editingTeamIndex, isBusy, projectDir, on
         srcPath: selected,
       });
       evictAssetDataUrl(projectDir, relPath);
+      setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
       updateField("logo", relPath);
     } catch { /* ignore */ }
   }

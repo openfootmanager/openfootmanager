@@ -53,6 +53,24 @@ describe("useAssetDataUrl", () => {
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
   });
 
+  it("re-fetches when refreshKey changes even if the path is unchanged", async () => {
+    evictAssetDataUrl("/proj5", "e/logo.png"); // ensure a clean cache for this key
+    const { result, rerender } = renderHook(
+      ({ key }: { key: number }) => useAssetDataUrl("e/logo.png", "/proj5", key),
+      { initialProps: { key: 0 } },
+    );
+    await waitFor(() => expect(result.current).toBe("data:image/png;base64,AAA"));
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+
+    // Same path, but the file was replaced in place: evict + bump refreshKey.
+    evictAssetDataUrl("/proj5", "e/logo.png");
+    mockedInvoke.mockImplementation(async () => "data:image/png;base64,CCC");
+    rerender({ key: 1 });
+
+    await waitFor(() => expect(result.current).toBe("data:image/png;base64,CCC"));
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+  });
+
   it("returns null when the IPC call rejects", async () => {
     mockedInvoke.mockImplementation(async () => { throw new Error("missing"); });
     const { result } = renderHook(() => useAssetDataUrl("d/missing.png", "/proj4"));

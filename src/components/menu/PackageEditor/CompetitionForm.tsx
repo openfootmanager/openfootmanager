@@ -55,7 +55,8 @@ export function CompetitionForm({
 }: CompetitionFormProps) {
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const logoDataUrl = useAssetDataUrl(editing.logo, projectDir);
+  const [logoRefresh, setLogoRefresh] = useState(0);
+  const logoDataUrl = useAssetDataUrl(editing.logo, projectDir, logoRefresh);
 
   async function handlePickLogo() {
     if (!projectDir) return;
@@ -71,6 +72,7 @@ export function CompetitionForm({
         srcPath: selected,
       });
       evictAssetDataUrl(projectDir, relPath);
+      setLogoRefresh((k) => k + 1); // refresh even if the path is unchanged
       updateField("logo", relPath);
     } catch { /* ignore */ }
   }
