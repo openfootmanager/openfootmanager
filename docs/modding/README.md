@@ -93,3 +93,4 @@ You can mix both tools: use the World Editor to create and edit teams visually, 
 | [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) | Every entity type with full field documentation |
 | [INSTALLING_PACKAGES.md](INSTALLING_PACKAGES.md) | How to install and manage `.ofm` files |
 | [examples/mini-league/](examples/mini-league/) | Fully working 4-team example package |
+| [examples/academy-showcase/](examples/academy-showcase/) | Club authored end to end: players, youth, staff, and a name pool |
