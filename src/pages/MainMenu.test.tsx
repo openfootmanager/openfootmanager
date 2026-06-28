@@ -134,26 +134,44 @@ vi.mock("../components/menu/SavesList", () => ({
   ),
 }));
 
+vi.mock("../components/menu/PackageBuildStep", () => ({
+  default: ({
+    onNext,
+    onTogglePackage,
+    installedPackages,
+  }: {
+    onNext: () => void;
+    onTogglePackage: (id: string) => void;
+    installedPackages: Array<{ id: string }>;
+  }) => (
+    <div data-testid="package-build-step">
+      {installedPackages.map((pkg) => (
+        <button
+          key={pkg.id}
+          type="button"
+          onClick={() => onTogglePackage(pkg.id)}
+        >
+          {`toggle-${pkg.id}`}
+        </button>
+      ))}
+      <button type="button" onClick={onNext}>
+        package-next
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock("../components/menu/WorldSelect", () => ({
   default: ({
     onStart,
-    onSelectWorld,
     onChangeHistoryDepthYears,
     historyDepthYears,
-    worldDatabases,
   }: {
     onStart: () => void;
-    onSelectWorld: (id: string) => void;
     onChangeHistoryDepthYears: (value: number) => void;
     historyDepthYears: number;
-    worldDatabases: Array<{ id: string }>;
   }) => (
     <div data-testid="world-select">
-      {worldDatabases.map((db) => (
-        <button key={db.id} type="button" onClick={() => onSelectWorld(db.id)}>
-          {`select-${db.id}`}
-        </button>
-      ))}
       <button type="button" onClick={() => onChangeHistoryDepthYears(24)}>
         {`set-history-depth-24:${historyDepthYears}`}
       </button>
@@ -165,6 +183,14 @@ vi.mock("../components/menu/WorldSelect", () => ({
 }));
 
 const mockedInvoke = vi.mocked(invoke);
+
+// The packages step sits between the create form and the generation/world-select
+// step. Its internals (installed-package list, stack validation) are covered by
+// their own tests; here we shim it to a simple "advance" control so the manager-
+// creation flow tests can drive create -> packages -> generation directly.
+async function advanceThroughPackages(): Promise<void> {
+  fireEvent.click(await screen.findByText("package-next"));
+}
 
 async function openCreateManagerForm(): Promise<void> {
   fireEvent.click(screen.getByText("menu.newGame"));
@@ -266,7 +292,7 @@ describe("MainMenu", () => {
     translationState.language = "en";
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "list_world_databases") {
+      if (command === "list_installed_packages") {
         return [];
       }
 
@@ -323,10 +349,8 @@ describe("MainMenu", () => {
 
       fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-      await waitFor(() => {
-        expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-      });
-      expect(screen.getByTestId("world-select")).toBeInTheDocument();
+      await advanceThroughPackages();
+      expect(await screen.findByTestId("world-select")).toBeInTheDocument();
 
       fireEvent.click(screen.getByText("start-world"));
 
@@ -431,9 +455,7 @@ describe("MainMenu", () => {
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-    });
+    await advanceThroughPackages();
 
     fireEvent.click(screen.getByText("start-world"));
 
@@ -461,7 +483,7 @@ describe("MainMenu", () => {
         screen.getByPlaceholderText("createManager.placeholderFirst"),
       ).toHaveFocus();
     });
-    expect(mockedInvoke).not.toHaveBeenCalledWith("list_world_databases");
+    expect(screen.queryByTestId("package-build-step")).not.toBeInTheDocument();
   });
 
   it("focuses the next invalid field in order when earlier fields are valid", async () => {
@@ -505,7 +527,7 @@ describe("MainMenu", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("manager-date-of-birth")).toHaveFocus();
     });
-    expect(mockedInvoke).not.toHaveBeenCalledWith("list_world_databases");
+    expect(screen.queryByTestId("package-build-step")).not.toBeInTheDocument();
     expect(screen.queryByTestId("world-select")).not.toBeInTheDocument();
   });
 
@@ -531,10 +553,8 @@ describe("MainMenu", () => {
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-    });
-    expect(screen.getByTestId("world-select")).toBeInTheDocument();
+    await advanceThroughPackages();
+    expect(await screen.findByTestId("world-select")).toBeInTheDocument();
   });
 
   it("uses the selected start phase when evaluating manager age", async () => {
@@ -579,28 +599,26 @@ describe("MainMenu", () => {
       expect(screen.getByLabelText("createManager.startYear")).toHaveFocus();
     });
     expect(screen.getByText("validation.minStartYear")).toBeInTheDocument();
-    expect(mockedInvoke).not.toHaveBeenCalledWith("list_world_databases");
+    expect(screen.queryByTestId("package-build-step")).not.toBeInTheDocument();
   });
 
-  it("passes the imported world path directly when starting a new career", async () => {
-    mockedInvoke.mockImplementation(async (command: string, args?) => {
-      if (command === "list_world_databases") {
+  it("passes the activated world package ids when starting a new career", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_installed_packages") {
         return [
           {
-            id: "file:imported-world.json",
-            name: "Imported World",
-            description: "Imported",
-            team_count: 8,
-            player_count: 160,
-            source: "imported",
-            path: "/tmp/imported-world.json",
-            history_mode: "reference",
+            id: "premier-league",
+            name: "Premier League",
+            description: "Imported world",
+            packageType: "database",
+            teamCount: 20,
+            playerCount: 400,
+            issues: [],
           },
         ];
       }
 
       if (command === "start_new_game") {
-        expect((args as Record<string, unknown>)?.worldSource).toBe("file:/tmp/imported-world.json");
         return { id: "game-1" };
       }
 
@@ -615,23 +633,21 @@ describe("MainMenu", () => {
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-    });
+    // The packages step loads installed packages; activate one before advancing.
+    fireEvent.click(await screen.findByText("toggle-premier-league"));
+    await advanceThroughPackages();
 
-    fireEvent.click(screen.getByText("select-file:imported-world.json"));
     fireEvent.click(screen.getByText("start-world"));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith(
         "start_new_game",
         expect.objectContaining({
-          worldSource: "file:/tmp/imported-world.json",
+          packageIds: ["premier-league"],
         }),
       );
     });
 
-    expect(mockedInvoke).not.toHaveBeenCalledWith("write_temp_database", expect.anything());
     expect(navigateMock).toHaveBeenCalledWith("/select-team");
   });
 
@@ -639,7 +655,7 @@ describe("MainMenu", () => {
     vi.spyOn(console, "error").mockImplementation(() => { });
 
     mockedInvoke.mockImplementation(async (command: string) => {
-      if (command === "list_world_databases") {
+      if (command === "list_installed_packages") {
         return [];
       }
       if (command === "get_saves") {
@@ -683,9 +699,7 @@ describe("MainMenu", () => {
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-    });
+    await advanceThroughPackages();
 
     fireEvent.click(screen.getByText("set-history-depth-24:12"));
     fireEvent.click(screen.getByText("start-world"));
@@ -711,9 +725,7 @@ describe("MainMenu", () => {
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("list_world_databases");
-    });
+    await advanceThroughPackages();
 
     expect(localStorage.getItem("ofm-generated-history-depth-years")).toBe("12");
 
@@ -732,6 +744,7 @@ describe("MainMenu", () => {
     await selectNationality("en", "ES");
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
+    await advanceThroughPackages();
 
     await waitFor(() => {
       expect(screen.getByText("set-history-depth-24:24")).toBeInTheDocument();
@@ -748,6 +761,7 @@ describe("MainMenu", () => {
     await selectNationality("en", "ES");
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
+    await advanceThroughPackages();
 
     await waitFor(() => {
       expect(screen.getByText("set-history-depth-24:12")).toBeInTheDocument();
@@ -788,7 +802,7 @@ describe("MainMenu", () => {
 
     beforeEach(() => {
       mockedInvoke.mockImplementation(async (command: string) => {
-        if (command === "list_world_databases") return [];
+        if (command === "list_installed_packages") return [];
         if (command === "get_manager_profiles") return [mockProfile];
         if (command === "touch_manager_profile") return true;
         if (command === "save_manager_profile") {
@@ -832,6 +846,7 @@ describe("MainMenu", () => {
           expect.objectContaining({ id: "profile-1", firstName: "Modified" }),
         );
       });
+      await advanceThroughPackages();
       await waitFor(() => {
         expect(screen.getByTestId("world-select")).toBeInTheDocument();
       });
@@ -840,6 +855,7 @@ describe("MainMenu", () => {
     it("save-as-new branch: calls save_manager_profile with force and proceeds to world select", async () => {
       await openModal();
       fireEvent.click(screen.getByText("managerProfiles.saveConfirm.saveNew"));
+      await advanceThroughPackages();
       await waitFor(() => {
         expect(screen.getByTestId("world-select")).toBeInTheDocument();
       });
@@ -854,6 +870,7 @@ describe("MainMenu", () => {
     it("skip branch: proceeds to world select without saving profile changes", async () => {
       await openModal();
       fireEvent.click(screen.getByText("managerProfiles.saveConfirm.skip"));
+      await advanceThroughPackages();
       await waitFor(() => {
         expect(screen.getByTestId("world-select")).toBeInTheDocument();
       });
@@ -881,6 +898,7 @@ describe("MainMenu", () => {
       });
 
       fireEvent.click(screen.getByText("createManager.chooseWorld"));
+      await advanceThroughPackages();
 
       await waitFor(() => {
         expect(screen.getByTestId("world-select")).toBeInTheDocument();
