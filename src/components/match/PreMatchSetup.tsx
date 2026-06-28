@@ -9,6 +9,9 @@ import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
 import { normalisePosition, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
+import { setTacticsPhase } from "../../services/squadService";
+import type { TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import {
   ChevronRight,
@@ -40,6 +43,20 @@ export default function PreMatchSetup({
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
+  const [phase, setPhase] = useState<TacticsPhaseSettings | undefined>(() => {
+    const uid =
+      userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
+    return gameState.teams.find((tm) => tm.id === uid)?.tactics_phase;
+  });
+
+  const handlePhaseChange = (patch: Partial<TacticsPhaseSettings>) => {
+    setPhase((prev) =>
+      prev ? { ...prev, ...patch } : ({ ...patch } as TacticsPhaseSettings),
+    );
+    void setTacticsPhase(patch).catch((err: unknown) => {
+      console.error("Failed to set tactics phase:", err);
+    });
+  };
 
   const homeTeam = snapshot.home_team;
   const awayTeam = snapshot.away_team;
@@ -338,8 +355,21 @@ export default function PreMatchSetup({
           className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
         />
       </div>
-      {/* Right: set pieces */}
-      <div className="min-h-0 overflow-y-auto">{renderSetPieces()}</div>
+      {/* Right: set pieces + phase blueprint */}
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+        {renderSetPieces()}
+        <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 shadow-sm transition-colors duration-300">
+          <div className="border-b border-gray-100 dark:border-navy-700 px-3 py-2.5">
+            <p className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              {t("tactics.phaseBlueprint")}
+            </p>
+          </div>
+          <PhaseBlueprintPanel
+            tacticsPhase={phase}
+            onTacticsPhaseChange={handlePhaseChange}
+          />
+        </div>
+      </div>
     </div>
   );
 

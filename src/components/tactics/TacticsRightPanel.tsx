@@ -5,8 +5,8 @@ import { Award, ChevronDown, CircleDot, CornerDownRight, Crown, Footprints } fro
 import { useTranslation } from "react-i18next";
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import type { TacticsPhaseSettings } from "../../store/types";
-import { Select } from "../ui";
 import SetPieceSelector from "../match/SetPieceSelector";
+import { PhaseBlueprintPanel } from "./PhaseBlueprintPanel";
 import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
@@ -19,61 +19,6 @@ interface TacticsRightPanelProps {
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
   startingPlayers: PlayerData[];
   tacticsPhase?: TacticsPhaseSettings;
-}
-
-const WITH_BALL_FIELDS = [
-  ["build_up_style", "buildUpStyle", ["Short", "Mixed", "Long"]] as const,
-  ["width", "width", ["Narrow", "Normal", "Wide"]] as const,
-  ["tempo", "tempo", ["Patient", "Direct"]] as const,
-];
-
-const WITHOUT_BALL_FIELDS = [
-  ["defensive_line", "defensiveLine", ["VeryLow", "Low", "Medium", "High"]] as const,
-  ["pressing_intensity", "pressingIntensity", ["Passive", "Medium", "Aggressive"]] as const,
-  ["defensive_shape", "defensiveShape", ["Stretched", "Normal", "Compact"]] as const,
-  ["marking_style", "markingStyle", ["Zonal", "Mixed", "ManToMan"]] as const,
-];
-
-const TRANSITION_FIELDS = [
-  ["counter_press_duration", "counterPressDuration", ["None", "Short", "Long"]] as const,
-  ["break_speed", "breakSpeed", ["Slow", "Medium", "Fast"]] as const,
-];
-
-function PhaseButtonGroup({
-  field,
-  labelKey,
-  onTacticsPhaseChange,
-  options,
-  tacticsPhase,
-}: {
-  field: keyof TacticsPhaseSettings;
-  labelKey: string;
-  onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
-  options: readonly string[];
-  tacticsPhase?: TacticsPhaseSettings;
-}): JSX.Element {
-  const { t } = useTranslation();
-  const currentValue = (tacticsPhase?.[field] ?? options[0]) as string;
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
-        {t(`tactics.phaseSettings.${labelKey}`)}
-      </span>
-      <Select
-        selectSize="xs"
-        variant="subtle"
-        fullWidth
-        value={currentValue}
-        onChange={(e) => { onTacticsPhaseChange({ [field]: e.target.value }); }}
-      >
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {t(`tactics.phaseSettings.${labelKey}_${opt}`, opt)}
-          </option>
-        ))}
-      </Select>
-    </div>
-  );
 }
 
 export default function TacticsRightPanel({
@@ -232,53 +177,10 @@ export default function TacticsRightPanel({
           </button>
         </div>
         {blueprintOpen && (
-          <div className="divide-y divide-gray-100 dark:divide-navy-700">
-            <div className="p-3 space-y-2">
-              <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
-                {t("tactics.phaseLabels.withBall")}
-              </div>
-              {WITH_BALL_FIELDS.map(([field, labelKey, options]) => (
-                <PhaseButtonGroup
-                  key={field}
-                  field={field}
-                  labelKey={labelKey}
-                  onTacticsPhaseChange={onTacticsPhaseChange}
-                  options={options}
-                  tacticsPhase={tacticsPhase}
-                />
-              ))}
-            </div>
-            <div className="p-3 space-y-2">
-              <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
-                {t("tactics.phaseLabels.withoutBall")}
-              </div>
-              {WITHOUT_BALL_FIELDS.map(([field, labelKey, options]) => (
-                <PhaseButtonGroup
-                  key={field}
-                  field={field}
-                  labelKey={labelKey}
-                  onTacticsPhaseChange={onTacticsPhaseChange}
-                  options={options}
-                  tacticsPhase={tacticsPhase}
-                />
-              ))}
-            </div>
-            <div className="p-3 space-y-2">
-              <div className="mb-1.5 text-[10px] font-heading font-bold uppercase tracking-[0.2em] text-primary-500 dark:text-primary-400">
-                {t("tactics.phaseLabels.transitions")}
-              </div>
-              {TRANSITION_FIELDS.map(([field, labelKey, options]) => (
-                <PhaseButtonGroup
-                  key={field}
-                  field={field}
-                  labelKey={labelKey}
-                  onTacticsPhaseChange={onTacticsPhaseChange}
-                  options={options}
-                  tacticsPhase={tacticsPhase}
-                />
-              ))}
-            </div>
-          </div>
+          <PhaseBlueprintPanel
+            tacticsPhase={tacticsPhase}
+            onTacticsPhaseChange={onTacticsPhaseChange}
+          />
         )}
       </div>
 
