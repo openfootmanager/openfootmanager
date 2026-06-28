@@ -134,8 +134,8 @@ Every dial has a sensible middle setting; leaving the blueprint untouched plays 
 | Dial | What it does |
 |------|--------------|
 | **Defensive line** | A *high* line wins the ball back higher up but concedes better chances in behind; a *low* line is more cautious. |
-| **Pressing** | *Aggressive* wins the ball back more often but tires your players faster; *passive* conserves energy. |
-| **Defensive shape** | *Compact* makes you harder to create chances against; *stretched* covers more ground but concedes more. |
+| **Pressing** | *Aggressive* wins the ball back more often but tires your players faster; *Passive* conserves energy. |
+| **Defensive shape** | *Compact* makes you harder to create chances against; *Stretched* covers more ground but concedes more. |
 | **Marking** | *Man-to-man* sticks tight (and fouls more); *zonal* holds position. |
 
 **Transitions**
@@ -143,7 +143,7 @@ Every dial has a sensible middle setting; leaving the blueprint untouched plays 
 | Dial | What it does |
 |------|--------------|
 | **Counter-press** | How hard you chase the ball straight after losing it. *Long* wins possession back more often. |
-| **Break speed** | How quickly you attack after winning the ball. *Fast* turns turnovers into quick chances; *slow* is measured. |
+| **Break speed** | How quickly you attack after winning the ball. *Fast* turns turnovers into quick chances; *Slow* is measured. |
 
 As a starting point: a possession side might pick Short build-up, Patient tempo and a long counter-press; a counter-attacking side might pick Direct tempo, a compact shape and fast breaks.
 

@@ -171,7 +171,7 @@ fn main() {
     }
 
     if cli.phase_sweep {
-        run_phase_sweep(&config, cli.games, cli.seed);
+        run_phase_sweep(&config, &cli);
         return;
     }
 
@@ -323,13 +323,18 @@ fn run_bench(config: &MatchConfig, games: u32, seed: Option<u64>) {
 /// side, and report the home side's average possession %, shots for/against and
 /// goals. Read the `Neutral` row as baseline; each option's row shows how far
 /// that dial moves the game — the data used to tune `engine::shared`.
-fn run_phase_sweep(config: &MatchConfig, games: u32, seed: Option<u64>) {
+fn run_phase_sweep(config: &MatchConfig, cli: &Cli) {
     use engine::{
         BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle,
         PressingIntensity, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, Tempo,
     };
 
-    let base = seed.unwrap_or(42);
+    let games = cli.games;
+    let base = cli.seed.unwrap_or(42);
+    // Respect the team-shape CLI knobs: the sweep applies each dial on top of the
+    // home side the caller asked for, against the requested away side.
+    let home_style = cli.home_style.to_play_style();
+    let away_style = cli.away_style.to_play_style();
     let n = TacticsConfig::default();
     let variants: Vec<(&str, &str, TacticsConfig)> = vec![
         ("baseline", "Neutral", n.clone()),
@@ -348,6 +353,7 @@ fn run_phase_sweep(config: &MatchConfig, games: u32, seed: Option<u64>) {
         ("shape", "Stretched", TacticsConfig { defensive_shape: DefensiveShape::Stretched, ..n.clone() }),
         ("shape", "Compact", TacticsConfig { defensive_shape: DefensiveShape::Compact, ..n.clone() }),
         ("counter_press", "None", TacticsConfig { counter_press_duration: CounterPressDuration::None, ..n.clone() }),
+        ("counter_press", "Short", TacticsConfig { counter_press_duration: CounterPressDuration::Short, ..n.clone() }),
         ("counter_press", "Long", TacticsConfig { counter_press_duration: CounterPressDuration::Long, ..n.clone() }),
         ("break_speed", "Slow", TacticsConfig { break_speed: BreakSpeed::Slow, ..n.clone() }),
         ("break_speed", "Fast", TacticsConfig { break_speed: BreakSpeed::Fast, ..n.clone() }),
@@ -361,8 +367,12 @@ fn run_phase_sweep(config: &MatchConfig, games: u32, seed: Option<u64>) {
 
     for (dial, opt, tactics) in variants {
         let mut team_rng = StdRng::seed_from_u64(base.wrapping_add(0xDEAD_BEEF));
-        let home = build_team_with_tactics("home", "Home FC", 70, PlayStyle::Balanced, "4-4-2", tactics, &mut team_rng);
-        let away = build_team("away", "Away FC", 70, PlayStyle::Balanced, "4-4-2", &mut team_rng);
+        let home = build_team_with_tactics(
+            "home", "Home FC", cli.home_rating, home_style, &cli.home_formation, tactics, &mut team_rng,
+        );
+        let away = build_team(
+            "away", "Away FC", cli.away_rating, away_style, &cli.away_formation, &mut team_rng,
+        );
         let (mut poss, mut sf, mut sa, mut gf, mut ga) = (0.0f64, 0u64, 0u64, 0u64, 0u64);
         for i in 0..games {
             let mut rng = StdRng::seed_from_u64(base.wrapping_add(i as u64));

@@ -68,9 +68,6 @@ fn play(home: TacticsConfig, seed: u64) -> Totals {
     let mut t = Totals::default();
     loop {
         let r = state.step_minute(&mut rng);
-        if r.possession == Side::Home {
-            t.home_possession += 1;
-        }
         for e in &r.events {
             if SHOTS.contains(&e.event_type) {
                 match e.side {
@@ -83,6 +80,10 @@ fn play(home: TacticsConfig, seed: u64) -> Totals {
             break;
         }
     }
+    // Use the engine's own possession stat (accumulated each minute) rather than
+    // the post-turnover `MinuteResult.possession`, so the metric matches what the
+    // dial logic actually feeds.
+    t.home_possession = state.snapshot().home_possession_pct.round() as usize;
     t
 }
 
@@ -231,29 +232,39 @@ fn batch_fast_break_creates_more_chances_than_slow() {
 // Pressing stamina cost (live engine only — it tracks in-match condition).
 // ---------------------------------------------------------------------------
 
+/// Total end-of-match condition for (home, away) given each side's tactics.
+fn final_conditions(home: TacticsConfig, away: TacticsConfig, seed: u64) -> (i64, i64) {
+    let mut s = LiveMatchState::new(
+        team("h", home), team("a", away), MatchConfig::default(), vec![], vec![], false,
+    );
+    let mut rng = StdRng::seed_from_u64(seed);
+    loop {
+        if s.step_minute(&mut rng).is_finished {
+            break;
+        }
+    }
+    let snap = s.snapshot();
+    let sum = |players: &[PlayerData]| players.iter().map(|p| p.condition as i64).sum::<i64>();
+    (sum(&snap.home_team.players), sum(&snap.away_team.players))
+}
+
 #[test]
 fn aggressive_pressing_tires_the_team_more_than_passive() {
-    // Identical squads; the only difference is press intensity. Over full
-    // matches the aggressive-pressing side should end more fatigued.
-    let home = team("h", with(|c| c.pressing_intensity = PressingIntensity::Aggressive));
-    let away = team("a", with(|c| c.pressing_intensity = PressingIntensity::Passive));
-    let (mut home_cond, mut away_cond) = (0i64, 0i64);
+    // Accumulate by tactic, not by side: each seed is played in both
+    // orientations so the home-advantage bias cancels and only pressing remains.
+    let aggressive = with(|c| c.pressing_intensity = PressingIntensity::Aggressive);
+    let passive = with(|c| c.pressing_intensity = PressingIntensity::Passive);
+    let (mut aggressive_cond, mut passive_cond) = (0i64, 0i64);
     for seed in 0..40u64 {
-        let mut s = LiveMatchState::new(
-            home.clone(), away.clone(), MatchConfig::default(), vec![], vec![], false,
-        );
-        let mut rng = StdRng::seed_from_u64(seed);
-        loop {
-            if s.step_minute(&mut rng).is_finished {
-                break;
-            }
-        }
-        let snap = s.snapshot();
-        home_cond += snap.home_team.players.iter().map(|p| p.condition as i64).sum::<i64>();
-        away_cond += snap.away_team.players.iter().map(|p| p.condition as i64).sum::<i64>();
+        let (h, a) = final_conditions(aggressive.clone(), passive.clone(), seed);
+        aggressive_cond += h;
+        passive_cond += a;
+        let (h, a) = final_conditions(passive.clone(), aggressive.clone(), seed);
+        passive_cond += h;
+        aggressive_cond += a;
     }
     assert!(
-        home_cond < away_cond,
-        "aggressive pressing should leave the team more tired: home {home_cond} vs away {away_cond}"
+        aggressive_cond < passive_cond,
+        "aggressive pressing should leave the team more tired: aggressive {aggressive_cond} vs passive {passive_cond}"
     );
 }
