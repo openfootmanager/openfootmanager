@@ -432,7 +432,11 @@ mod tests {
         };
 
         let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
-        game.league = Some(league);
+        game.league = Some(league.clone());
+        // `game.competitions` is the modern source of truth; the legacy `league`
+        // field is only a mirror. Real saves always have both populated, so the
+        // test fixture mirrors that to exercise sync_legacy_league realistically.
+        game.competitions = vec![league];
         game
     }
 
@@ -442,6 +446,73 @@ mod tests {
             .find(|result| result["player_id"] == player_id)
             .and_then(|result| result["delta"].as_i64())
             .unwrap()
+    }
+
+    #[test]
+    fn finish_live_match_persists_user_standings_update() {
+        // Regression: finish_live_match_day calls sync_legacy_league at the end,
+        // which copies game.competitions[i] back into game.league. If
+        // apply_match_report's standings/fixture update only landed on the legacy
+        // mirror, the sync silently wipes it out — leaving the user's team with
+        // played=0 in the table even though the result mail was sent.
+        let state = StateManager::new();
+        let game = make_game_with_round();
+
+        let mut session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+        session.user_side = None;
+        session.run_to_completion();
+
+        state.set_game(game);
+        state.set_live_match(session);
+
+        finish_live_match_internal(&state).expect("finish live match response");
+
+        // Assert against the persisted state — not just the cloned response.game
+        // — so a missing state.set_game() call would surface here.
+        let persisted_game = state
+            .get_game(|game| game.clone())
+            .expect("game persisted in state after finish_live_match_internal");
+
+        let competition = persisted_game
+            .competitions
+            .first()
+            .expect("user competition retained");
+        let user_entry = competition
+            .standings
+            .iter()
+            .find(|entry| entry.team_id == "team1")
+            .expect("user team standings entry");
+        assert_eq!(
+            user_entry.played, 1,
+            "user team must have played count incremented after live match",
+        );
+        let opp_entry = competition
+            .standings
+            .iter()
+            .find(|entry| entry.team_id == "team2")
+            .expect("opponent team standings entry");
+        assert_eq!(opp_entry.played, 1, "opponent played count must also update");
+        assert_eq!(
+            user_entry.points + opp_entry.points,
+            user_entry.won * 3
+                + opp_entry.won * 3
+                + (user_entry.drawn + opp_entry.drawn),
+            "points must agree with W/D record",
+        );
+
+        let user_fixture = competition
+            .fixtures
+            .first()
+            .expect("user fixture retained");
+        assert!(
+            matches!(user_fixture.status, domain::league::FixtureStatus::Completed),
+            "user fixture must be marked Completed",
+        );
+        assert!(
+            user_fixture.result.is_some(),
+            "user fixture result must be recorded",
+        );
     }
 
     #[test]
