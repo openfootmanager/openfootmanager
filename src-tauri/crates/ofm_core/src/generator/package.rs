@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
-use super::{CompetitionDefinition, NamesDefinition, TeamDef};
+use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
 // Authoring structs for the entity types a package can contain
@@ -834,6 +834,10 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let (databases, patches): (Vec<WorldPackage>, Vec<WorldPackage>) = packages
         .into_iter()
         .partition(|p| p.meta.as_ref().map(|m| m.package_type.as_str()).unwrap_or("database") != "patch");
+    // A merged stack that contains any non-patch package is a complete world and
+    // must be validated as one (the per-package "patch" skip would otherwise
+    // suppress dangling-reference checks for the whole stack).
+    let has_database = !databases.is_empty();
 
     let mut merged = WorldPackage::default();
     let mut confeds: BTreeMap<String, ConfederationDef> = BTreeMap::new();
@@ -849,6 +853,13 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     let mut all_default_active_regions: Vec<String> = Vec::new();
     let mut all_default_active_regions_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut merged_meta_base: Option<WorldMetaDef> = None;
+    // Name pools are unioned per-key across packages (like every other entity
+    // collection) rather than wholesale-replaced, so stacking packages that each
+    // supply distinct pools keeps them all.
+    let mut merged_pools: std::collections::HashMap<String, NamePool> = std::collections::HashMap::new();
+    let mut names_version = 0u32;
+    let mut names_description = String::new();
+    let mut saw_names = false;
 
     for package in databases.into_iter().chain(patches.into_iter()) {
         if let Some(meta) = package.meta {
@@ -885,7 +896,12 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         for p in package.players { players.insert(p.id.clone(), p); }
         for s in package.staff { staff_map.insert(s.id.clone(), s); }
         for c in package.competitions { competitions.insert(c.id.clone(), c); }
-        if package.names.is_some() { merged.names = package.names; }
+        if let Some(names) = package.names {
+            saw_names = true;
+            if names.version > names_version { names_version = names.version; }
+            if !names.description.is_empty() { names_description = names.description; }
+            for (key, pool) in names.pools { merged_pools.insert(key, pool); }
+        }
         for (locale, bundle) in package.extra_translations {
             merged.extra_translations.insert(locale, bundle);
         }
@@ -894,7 +910,18 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     if let Some(mut meta) = merged_meta_base {
         meta.default_active_competitions = all_default_active_competitions.into_iter().collect();
         meta.default_active_regions = all_default_active_regions.into_iter().collect();
+        if has_database {
+            meta.package_type = default_package_type();
+        }
         merged.meta = Some(meta);
+    }
+
+    if saw_names {
+        merged.names = Some(NamesDefinition {
+            version: names_version,
+            description: names_description,
+            pools: merged_pools,
+        });
     }
 
     merged.confederations = confeds.into_values().collect();
@@ -1741,6 +1768,70 @@ colors:
 
         std::fs::remove_dir_all(&dir_pl).ok();
         std::fs::remove_dir_all(&dir_cl).ok();
+    }
+
+    #[test]
+    fn merge_database_with_patch_still_validates_dangling_competitions() {
+        // A database referencing a competition it never defines, stacked under a
+        // patch. Previously the merged package_type became "patch" (last-wins),
+        // which suppressed the dangling-reference check for the whole stack.
+        let dir_db = temp_package();
+        write(
+            &dir_db,
+            "world.yaml",
+            "schema: world\nid: db\nname: DB\ndefaultActiveCompetitions:\n  - missing-comp\n",
+        );
+        let (pkg_db, _) = load_world_package(&dir_db);
+
+        let dir_patch = temp_package();
+        write(
+            &dir_patch,
+            "world.yaml",
+            "schema: world\nid: patch\nname: Patch\npackageType: patch\n",
+        );
+        let (pkg_patch, _) = load_world_package(&dir_patch);
+
+        let (merged, errors) = merge_world_packages(vec![pkg_db, pkg_patch]);
+        assert_eq!(merged.meta.as_ref().unwrap().package_type, "database");
+        assert!(
+            errors.iter().any(|e| e.code == UNKNOWN_COMPETITION),
+            "dangling defaultActiveCompetitions must be flagged after merge: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir_db).ok();
+        std::fs::remove_dir_all(&dir_patch).ok();
+    }
+
+    #[test]
+    fn merge_unions_name_pools_across_packages() {
+        // Each package supplies a distinct pool; both must survive the merge
+        // instead of the last package's names wholesale-replacing the first.
+        let dir_a = temp_package();
+        write(&dir_a, "world.yaml", "schema: world\nid: a\nname: A\n");
+        write(
+            &dir_a,
+            "names.yaml",
+            "schema: names\nversion: 1\npools:\n  ENG:\n    first_names:\n      - John\n    last_names:\n      - Smith\n",
+        );
+        let (pkg_a, _) = load_world_package(&dir_a);
+
+        let dir_b = temp_package();
+        write(&dir_b, "world.yaml", "schema: world\nid: b\nname: B\n");
+        write(
+            &dir_b,
+            "names.yaml",
+            "schema: names\nversion: 1\npools:\n  BRA:\n    first_names:\n      - Joao\n    last_names:\n      - Silva\n",
+        );
+        let (pkg_b, _) = load_world_package(&dir_b);
+
+        let (merged, _) = merge_world_packages(vec![pkg_a, pkg_b]);
+        let names = merged.names.as_ref().expect("merged names should exist");
+        let keys: Vec<_> = names.pools.keys().cloned().collect();
+        assert!(names.pools.contains_key("ENG"), "ENG pool kept: {keys:?}");
+        assert!(names.pools.contains_key("BRA"), "BRA pool kept: {keys:?}");
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
     }
 
     // --- Thin packages: teams but no competitions ----------------------------
