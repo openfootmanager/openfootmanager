@@ -451,7 +451,7 @@ export default function WorldEditor() {
     captureHistory,
     saveItems: (items) => persist({ players: items }),
     autoSave,
-    onOpen: () => setFormPanel("player"),
+    onOpen: () => setFormPanel("youth"),
     onClose: () => setFormPanel("empty"),
     setIsBusy,
   });
@@ -609,6 +609,7 @@ export default function WorldEditor() {
           confEditor={confEditor}
           countryEditor={countryEditor}
           playerEditor={playerEditor}
+          youthEditor={youthEditor}
           staffEditor={staffEditor}
           compEditor={compEditor}
           confederations={confederations}

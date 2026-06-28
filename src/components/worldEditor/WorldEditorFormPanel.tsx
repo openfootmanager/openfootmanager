@@ -28,6 +28,7 @@ export type FormPanel =
   | "confederation"
   | "country"
   | "player"
+  | "youth"
   | "staff"
   | "names-pool"
   | "competition"
@@ -63,6 +64,7 @@ interface WorldEditorFormPanelProps {
   confEditor: EditorAPI<ConfederationDef>;
   countryEditor: EditorAPI<CountryDef>;
   playerEditor: EditorAPI<PlayerDef>;
+  youthEditor: EditorAPI<PlayerDef>;
   staffEditor: EditorAPI<StaffDef>;
   compEditor: EditorAPI<CompetitionDef>;
   // Cross-entity data
@@ -90,6 +92,7 @@ export function WorldEditorFormPanel({
   confEditor,
   countryEditor,
   playerEditor,
+  youthEditor,
   staffEditor,
   compEditor,
   confederations,
@@ -190,18 +193,22 @@ export function WorldEditorFormPanel({
     );
   }
 
-  if (formPanel === "player") {
+  if (formPanel === "player" || formPanel === "youth") {
+    // Youth and first-team players share PlayerForm but are driven by separate
+    // editor instances (youthEditor defaults youth:true on add). Bind the form
+    // to whichever editor opened it so youth edits/saves don't hit the wrong one.
+    const editor = formPanel === "youth" ? youthEditor : playerEditor;
     return (
       <div className="max-w-4xl">
         <PlayerForm
-          editing={playerEditor.editing}
-          editingIndex={playerEditor.editingIndex}
+          editing={editor.editing}
+          editingIndex={editor.editingIndex}
           isBusy={isBusy}
           teams={teams}
           projectDir={projectDir || undefined}
           onBack={onBack}
-          onSave={() => { void playerEditor.handleSave(); }}
-          updateField={playerEditor.updateField}
+          onSave={() => { void editor.handleSave(); }}
+          updateField={editor.updateField}
         />
       </div>
     );
