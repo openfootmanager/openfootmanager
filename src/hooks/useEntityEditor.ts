@@ -53,9 +53,14 @@ export function useEntityEditor<T>(options: {
   }
 
   function syncEditing(newItems: T[]) {
-    if (editingIndex !== null && editingIndex < newItems.length) {
+    if (editingIndex === null) return;
+    if (editingIndex < newItems.length) {
       setEditing({ ...newItems[editingIndex] });
       setRevision((r) => r + 1);
+    } else {
+      // The restored snapshot no longer has a record at this index (e.g. an undo
+      // that removed the appended item). Close so a save can't re-add it.
+      onClose();
     }
   }
 

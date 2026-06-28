@@ -277,12 +277,14 @@ describe("useEntityEditor", () => {
       expect(hook.result.current.editing).toEqual(emptyItem());
     });
 
-    it("is a no-op when editingIndex is out of bounds in newItems", () => {
+    it("closes the editor when editingIndex is out of bounds in newItems", () => {
       const items: Item[] = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
-      const { hook } = makeHook({ items });
+      const { hook, onClose } = makeHook({ items });
       act(() => { hook.result.current.handleSelect(1); });
-      act(() => { hook.result.current.syncEditing([{ id: "a", name: "A" }]); }); // newItems has only 1 element
-      expect(hook.result.current.editing).toEqual({ id: "b", name: "B" }); // unchanged
+      // An undo that removed the record at index 1. Without closing, a later save
+      // would re-add the record the user just reverted.
+      act(() => { hook.result.current.syncEditing([{ id: "a", name: "A" }]); });
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
 });
