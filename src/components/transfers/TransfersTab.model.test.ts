@@ -393,6 +393,55 @@ describe("TransfersTab.model", () => {
     ).toHaveLength(1);
   });
 
+  it("narrows by specific positions and respects an active broad filter", () => {
+    const cb = createPlayer({
+      id: "cb",
+      natural_position: "CenterBack",
+      position: "CenterBack",
+    });
+    const lb = createPlayer({
+      id: "lb",
+      natural_position: "LeftBack",
+      position: "LeftBack",
+    });
+    const st = createPlayer({
+      id: "st",
+      natural_position: "Striker",
+      position: "Striker",
+    });
+
+    const players = [cb, lb, st];
+
+    // Specific narrowing: only CB and LB.
+    expect(
+      filterTransferPlayers(players, "", null, "all", null, [
+        "CenterBack",
+        "LeftBack",
+      ]).map((player) => player.id),
+    ).toEqual(["cb", "lb"]);
+
+    // Broad + specific narrower than broad: CB only.
+    expect(
+      filterTransferPlayers(players, "", "Defender", "all", null, [
+        "CenterBack",
+      ]).map((player) => player.id),
+    ).toEqual(["cb"]);
+
+    // Specific incompatible with broad → empty.
+    expect(
+      filterTransferPlayers(players, "", "Forward", "all", null, [
+        "CenterBack",
+      ]),
+    ).toHaveLength(0);
+
+    // Empty specifics behaves like no specific constraint.
+    expect(
+      filterTransferPlayers(players, "", null, "all", null, []).map(
+        (player) => player.id,
+      ),
+    ).toEqual(["cb", "lb", "st"]);
+  });
+
   it("filters a unified player market by availability", () => {
     const players = [
       createPlayer({

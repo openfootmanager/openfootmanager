@@ -1,5 +1,21 @@
 import type { GameStateData, PlayerData } from "../../store/gameStore";
-import { normalisePosition } from "../squad/SquadTab.helpers";
+import { canonicalPosition, normalisePosition } from "../squad/SquadTab.helpers";
+
+// Specific positions grouped by the broad category they refine. Used both by
+// the position-refinement popover in TransfersTab.tsx and as default selections
+// when a group is activated.
+export const SPECIFIC_POSITIONS_BY_GROUP: Record<string, string[]> = {
+  Goalkeeper: ["Goalkeeper"],
+  Defender: ["CenterBack", "LeftBack", "RightBack", "LeftWingBack", "RightWingBack"],
+  Midfielder: [
+    "DefensiveMidfielder",
+    "CentralMidfielder",
+    "AttackingMidfielder",
+    "LeftMidfielder",
+    "RightMidfielder",
+  ],
+  Forward: ["LeftWinger", "RightWinger", "Striker"],
+};
 
 export type TransferTabView =
   | "my_list"
@@ -131,7 +147,11 @@ export function filterTransferPlayers(
   posFilter: string | null,
   availabilityFilter: TransferAvailabilityFilter = "all",
   affordability: TransferAffordability | null = null,
+  specificPositions: readonly string[] = [],
 ): PlayerData[] {
+  const specificSet =
+    specificPositions.length > 0 ? new Set(specificPositions) : null;
+
   return players.filter((player) => {
     if (availabilityFilter === "transfer" && !player.transfer_listed) {
       return false;
@@ -154,10 +174,13 @@ export function filterTransferPlayers(
       return false;
     }
 
-    if (
-      posFilter &&
-      normalisePosition(player.natural_position || player.position) !== posFilter
-    ) {
+    const rawPosition = player.natural_position || player.position;
+
+    if (posFilter && normalisePosition(rawPosition) !== posFilter) {
+      return false;
+    }
+
+    if (specificSet && !specificSet.has(canonicalPosition(rawPosition))) {
       return false;
     }
 

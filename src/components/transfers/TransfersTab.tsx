@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   GameStateData,
   LoanOfferData,
@@ -32,7 +32,10 @@ import {
 } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import {
+  translatePositionAbbreviation,
+  translatePositionLabel,
+} from "../squad/SquadTab.helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
@@ -75,6 +78,7 @@ import {
   filterTransferPlayers,
   getCurrentTransferList,
   getMyListedPlayers,
+  SPECIFIC_POSITIONS_BY_GROUP,
   type TransferAvailabilityFilter,
   type TransferTabView,
 } from "./TransfersTab.model";
@@ -172,7 +176,11 @@ export default function TransfersTab({
   const [availabilityFilter, setAvailabilityFilter] =
     useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
-  const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [specificPositions, setSpecificPositions] = useState<string[]>([]);
+  const [openPositionPopover, setOpenPositionPopover] = useState<string | null>(
+    null,
+  );
+  const positionFilterRef = useRef<HTMLDivElement | null>(null);
   const [affordableOnly, setAffordableOnly] = useState(false);
   const [marketPage, setMarketPage] = useState(1);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
@@ -233,6 +241,72 @@ export default function TransfersTab({
   const closeAcceptedDealWorkspace = (playerId: string) => {
     setDealWorkspaceTarget((target) =>
       target?.id === playerId ? null : target,
+    );
+  };
+
+  useEffect(() => {
+    if (!openPositionPopover) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!positionFilterRef.current) return;
+      if (positionFilterRef.current.contains(event.target as Node)) return;
+      setOpenPositionPopover(null);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openPositionPopover]);
+
+  const handleSelectPositionGroup = (group: string | null) => {
+    setMarketPage(1);
+
+    if (group === null) {
+      setSpecificPositions([]);
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    const groupSpecifics = SPECIFIC_POSITIONS_BY_GROUP[group] ?? [];
+
+    // No popover for single-position groups (just GK). Treat as a toggle on
+    // its lone specific so the chip can also be used to deactivate.
+    if (groupSpecifics.length <= 1) {
+      const only = groupSpecifics[0];
+      if (only) {
+        setSpecificPositions((prev) =>
+          prev.includes(only)
+            ? prev.filter((entry) => entry !== only)
+            : [...prev, only],
+        );
+      }
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    // Re-clicking the chip whose popover is open just closes the popover —
+    // the user is done refining.
+    if (openPositionPopover === group) {
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    // Otherwise: union this group's specifics into the existing selection and
+    // open the refinement popover. This makes the category a "select all"
+    // shortcut without resetting earlier picks from other groups.
+    setSpecificPositions((prev) => {
+      const set = new Set(prev);
+      for (const position of groupSpecifics) set.add(position);
+      return Array.from(set);
+    });
+    setOpenPositionPopover(group);
+  };
+
+  const handleToggleSpecificPosition = (position: string) => {
+    setMarketPage(1);
+    setSpecificPositions((prev) =>
+      prev.includes(position)
+        ? prev.filter((entry) => entry !== position)
+        : [...prev, position],
     );
   };
 
@@ -715,7 +789,7 @@ export default function TransfersTab({
       filterTransferPlayers(
         currentList,
         search,
-        posFilter,
+        null,
         isPlayersView ? availabilityFilter : "all",
         isPlayersView && affordableOnly && myTeam
           ? {
@@ -723,6 +797,7 @@ export default function TransfersTab({
               finance: myTeam.finance,
             }
           : null,
+        specificPositions,
       ),
     [
       affordableOnly,
@@ -730,8 +805,8 @@ export default function TransfersTab({
       currentList,
       isPlayersView,
       myTeam,
-      posFilter,
       search,
+      specificPositions,
     ],
   );
   const marketTotalPages = Math.max(
@@ -1078,30 +1153,97 @@ export default function TransfersTab({
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
           />
         </div>
-        <div className="flex gap-1.5">
+        <div ref={positionFilterRef} className="flex gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              setPosFilter(null);
-              setMarketPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+            onClick={() => handleSelectPositionGroup(null)}
+            aria-pressed={specificPositions.length === 0}
+            aria-label={t("transfers.allPositions")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${specificPositions.length === 0 ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
           >
             {t("common.all")}
           </button>
-          {positions.map((pos) => (
-            <button
-              type="button"
-              key={pos}
-              onClick={() => {
-                setPosFilter(posFilter === pos ? null : pos);
-                setMarketPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-            >
-              {t(`common.posAbbr.${pos}`)}
-            </button>
-          ))}
+          {positions.map((pos) => {
+            const groupSpecifics = SPECIFIC_POSITIONS_BY_GROUP[pos] ?? [];
+            const refinable = groupSpecifics.length > 1;
+            const selectedInGroup = specificPositions.filter((entry) =>
+              groupSpecifics.includes(entry),
+            ).length;
+            const isActive = selectedInGroup > 0;
+            const isPartial =
+              isActive && refinable && selectedInGroup < groupSpecifics.length;
+            const groupLabel = t(`common.positionGroups.${pos}`, {
+              defaultValue: t(`common.positions.${pos}`, { defaultValue: pos }),
+            });
+
+            return (
+              <div key={pos} className="relative">
+                <button
+                  type="button"
+                  onClick={() => handleSelectPositionGroup(pos)}
+                  aria-haspopup={refinable ? "true" : undefined}
+                  aria-expanded={
+                    refinable ? openPositionPopover === pos : undefined
+                  }
+                  aria-pressed={isPartial ? "mixed" : isActive}
+                  aria-label={
+                    isPartial
+                      ? t("transfers.positionGroupPartialSelection", {
+                          group: groupLabel,
+                          selected: selectedInGroup,
+                          total: groupSpecifics.length,
+                        })
+                      : groupLabel
+                  }
+                  className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1 ${isActive ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+                >
+                  {t(`common.posAbbr.${pos}`)}
+                  {isPartial && (
+                    <span
+                      aria-hidden="true"
+                      className="bg-white/20 text-[0.65rem] px-1.5 py-0.5 rounded-full leading-none"
+                    >
+                      {selectedInGroup}/{groupSpecifics.length}
+                    </span>
+                  )}
+                </button>
+                {refinable && openPositionPopover === pos && (
+                  <div
+                    role="dialog"
+                    aria-label={t("transfers.refinePositionGroup", {
+                      group: groupLabel,
+                    })}
+                    className="absolute left-0 top-full mt-1 z-20 min-w-[180px] p-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 shadow-lg"
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {groupSpecifics.map((position) => {
+                        const selected = specificPositions.includes(position);
+                        const positionLabel = translatePositionLabel(
+                          t,
+                          position,
+                        );
+                        return (
+                          <button
+                            type="button"
+                            key={position}
+                            onClick={() =>
+                              handleToggleSpecificPosition(position)
+                            }
+                            aria-pressed={selected}
+                            aria-label={positionLabel}
+                            title={positionLabel}
+                            className={`px-2.5 py-1 rounded-md text-xs font-heading font-bold uppercase tracking-wider transition-all ${selected ? "bg-primary-700 text-white shadow-sm" : "bg-gray-50 dark:bg-navy-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-gray-700 dark:hover:text-gray-200"}`}
+                          >
+                            {t(`common.posAbbr.${position}`)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         {isPlayersView && (
           <div className="flex flex-wrap gap-1.5">
