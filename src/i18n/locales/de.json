@@ -2564,6 +2564,7 @@
         "outputInsideSource": "Die Ausgabedatei kann nicht im Quellverzeichnis gespeichert werden.",
         "validationFailed": "Das Paket enthält Validierungsfehler: {{errors}}",
         "unknownCompetition": "\"{{field}}\" verweist auf unbekannten Wettbewerb \"{{id}}\".",
+        "unknownRegion": "\"{{field}}\" verweist auf unbekannte Region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" hat einen umgekehrten {{field}} (min > max)."
       },
       "competitionDef": {

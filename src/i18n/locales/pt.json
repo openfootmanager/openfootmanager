@@ -2564,6 +2564,7 @@
         "outputInsideSource": "O ficheiro de saída não pode ser guardado dentro do diretório de origem.",
         "validationFailed": "O pacote tem erros de validação: {{errors}}",
         "unknownCompetition": "\"{{field}}\" refere uma competição desconhecida \"{{id}}\".",
+        "unknownRegion": "\"{{field}}\" refere uma região desconhecida \"{{id}}\".",
         "reversedRange": "A equipa \"{{team}}\" tem um {{field}} invertido (mín > máx)."
       },
       "competitionDef": {

@@ -236,6 +236,7 @@ const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
 const UNKNOWN_COUNTRY: &str = "be.error.package.unknownCountry";
 const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
 const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
+const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
 
 /// A structured problem found while loading a package. `code` is an i18n key,
@@ -628,6 +629,17 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                         PackageError::new(UNKNOWN_COMPETITION, "")
                             .with("id", id)
                             .with("field", "defaultActiveCompetitions"),
+                    );
+                }
+            }
+            // Each defaultActiveRegions id must be a known region: a confederation
+            // defined in this package or a built-in region (e.g. `europe`).
+            for id in &meta.default_active_regions {
+                if !id.is_empty() && !known_confederation(id) {
+                    errors.push(
+                        PackageError::new(UNKNOWN_REGION, "")
+                            .with("id", id)
+                            .with("field", "defaultActiveRegions"),
                     );
                 }
             }
@@ -2025,6 +2037,39 @@ colors:
         assert!(
             errors.iter().any(|e| e.code == UNKNOWN_COMPETITION),
             "dangling defaultActiveCompetitions ref must error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn dangling_default_active_region_is_an_error() {
+        let (_, errors, dir) = package_from_files(&[
+            ("a.yaml", TEAM_A),
+            (
+                "world.yaml",
+                "schema: world\nid: test\nname: Test\ndefaultActiveRegions:\n  - nowhere-land\n",
+            ),
+        ]);
+        assert!(
+            errors.iter().any(|e| e.code == UNKNOWN_REGION),
+            "dangling defaultActiveRegions ref must error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn builtin_default_active_region_is_accepted() {
+        // A built-in region id (e.g. `europe`) needs no package-defined confederation.
+        let (_, errors, dir) = package_from_files(&[
+            ("a.yaml", TEAM_A),
+            (
+                "world.yaml",
+                "schema: world\nid: test\nname: Test\ndefaultActiveRegions:\n  - europe\n",
+            ),
+        ]);
+        assert!(
+            !errors.iter().any(|e| e.code == UNKNOWN_REGION),
+            "built-in region must be accepted: {errors:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

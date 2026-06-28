@@ -2564,6 +2564,7 @@
         "outputInsideSource": "Il file di output non può essere salvato nella cartella sorgente.",
         "validationFailed": "Il pacchetto presenta errori di validazione: {{errors}}",
         "unknownCompetition": "\"{{field}}\" fa riferimento a una competizione sconosciuta \"{{id}}\".",
+        "unknownRegion": "\"{{field}}\" fa riferimento a una regione sconosciuta \"{{id}}\".",
         "reversedRange": "La squadra \"{{team}}\" ha un {{field}} invertito (min > max)."
       },
       "competitionDef": {

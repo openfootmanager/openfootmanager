@@ -2594,6 +2594,7 @@
         "outputInsideSource": "El archivo de salida no puede guardarse dentro del directorio fuente.",
         "validationFailed": "El paquete tiene errores de validación: {{errors}}",
         "unknownCompetition": "\"{{field}}\" hace referencia a una competición desconocida \"{{id}}\".",
+        "unknownRegion": "\"{{field}}\" hace referencia a una región desconocida \"{{id}}\".",
         "reversedRange": "El equipo \"{{team}}\" tiene un {{field}} invertido (mín > máx)."
       },
       "competitionDef": {

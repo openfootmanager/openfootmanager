@@ -2577,6 +2577,7 @@
         "outputInsideSource": "The output file cannot be saved inside the source directory.",
         "validationFailed": "The package has validation errors: {{errors}}",
         "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
+        "unknownRegion": "\"{{field}}\" references unknown region \"{{id}}\".",
         "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
       },
       "conflict": {

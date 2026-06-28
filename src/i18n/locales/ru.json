@@ -2577,6 +2577,7 @@
         "outputInsideSource": "Выходной файл не может быть сохранён внутри исходной папки.",
         "validationFailed": "Пакет содержит ошибки валидации: {{errors}}",
         "unknownCompetition": "«{{field}}» ссылается на неизвестное соревнование «{{id}}».",
+        "unknownRegion": "«{{field}}» ссылается на неизвестный регион «{{id}}».",
         "reversedRange": "Команда «{{team}}» имеет перевёрнутый {{field}} (мин > макс)."
       },
       "competitionDef": {
