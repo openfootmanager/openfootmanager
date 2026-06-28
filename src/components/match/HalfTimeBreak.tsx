@@ -199,7 +199,9 @@ export default function HalfTimeBreak({
               </span>
               <div className="text-center">
                 <p className="text-xs font-heading uppercase tracking-widest text-accent-700 dark:text-accent-400">
-                  {t("match.halfTime")}
+                  {snapshot.phase === "ExtraTimeHalfTime"
+                    ? t("match.extraTimeHalfTime")
+                    : t("match.halfTime")}
                 </p>
                 <p className="text-lg font-heading font-bold text-gray-500 dark:text-gray-500">
                   {t("match.ht")}

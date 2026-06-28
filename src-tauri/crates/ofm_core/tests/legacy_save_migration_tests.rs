@@ -62,7 +62,11 @@ fn promote_legacy_league_populates_competitions_preserving_standings() {
 
     game.promote_legacy_league();
 
-    assert_eq!(game.competitions.len(), 1, "the legacy league becomes a competition");
+    assert_eq!(
+        game.competitions.len(),
+        1,
+        "the legacy league becomes a competition"
+    );
     let competition = &game.competitions[0];
     assert_eq!(competition.id, "legacy-league");
 

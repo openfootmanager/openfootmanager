@@ -14,10 +14,7 @@ pub struct RunConfig<'a> {
 }
 
 pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
-    let seed_line = cfg
-        .seed
-        .map(|s| format!(" · seed {s}"))
-        .unwrap_or_default();
+    let seed_line = cfg.seed.map(|s| format!(" · seed {s}")).unwrap_or_default();
 
     let xg = stats.xg_proxy_pg(cfg.goal_conversion_base);
     let goals_vs_xg = stats.gpg() - xg;
@@ -32,6 +29,7 @@ pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
     let timeline_html = timeline_section(stats);
     let discipline_html = discipline_section(stats);
     let possession_html = possession_section(stats, hp);
+    let goal_sources_html = goal_sources_section(stats);
     let benchmark_html = benchmark_section(stats);
     let targets_html = targets_table(stats, xg);
 
@@ -283,6 +281,10 @@ pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
 
   <div style="height:20px"></div>
 
+  {goal_sources_html}
+
+  <div style="height:20px"></div>
+
   {targets_html}
 
   <div style="height:32px"></div>
@@ -299,6 +301,7 @@ pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
         timeline_html = timeline_html,
         discipline_html = discipline_html,
         possession_html = possession_html,
+        goal_sources_html = goal_sources_html,
         benchmark_html = benchmark_html,
         targets_html = targets_html,
     )
@@ -453,12 +456,7 @@ fn goals_histogram(stats: &BenchStats) -> String {
 }
 
 fn scoreline_heatmap(stats: &BenchStats) -> String {
-    let max_count = stats
-        .scorelines
-        .values()
-        .copied()
-        .max()
-        .unwrap_or(1) as f64;
+    let max_count = stats.scorelines.values().copied().max().unwrap_or(1) as f64;
 
     // Build 7×7 grid (0–6 per side), first row/col are headers
     // columns = away goals 0..6, rows = home goals 0..6
@@ -468,7 +466,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
     // Header row
     cells.push_str(r#"<div class="heatmap-cell heatmap-header"></div>"#);
     for ag in 0u8..=6 {
-        let label = if ag == 6 { "6+".to_string() } else { ag.to_string() };
+        let label = if ag == 6 {
+            "6+".to_string()
+        } else {
+            ag.to_string()
+        };
         cells.push_str(&format!(
             r#"<div class="heatmap-cell heatmap-header">{label}</div>"#
         ));
@@ -476,7 +478,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
 
     // Data rows
     for hg in 0u8..=6 {
-        let label = if hg == 6 { "6+".to_string() } else { hg.to_string() };
+        let label = if hg == 6 {
+            "6+".to_string()
+        } else {
+            hg.to_string()
+        };
         cells.push_str(&format!(
             r#"<div class="heatmap-cell heatmap-header">{label}</div>"#
         ));
@@ -488,7 +494,11 @@ fn scoreline_heatmap(stats: &BenchStats) -> String {
             } else {
                 0.1 + (count as f64 / max_count) * 0.85
             };
-            let text_color = if opacity > 0.55 { "#fff" } else { "var(--muted)" };
+            let text_color = if opacity > 0.55 {
+                "#fff"
+            } else {
+                "var(--muted)"
+            };
             cells.push_str(&format!(
                 r#"<div class="heatmap-cell" style="background:rgba(79,142,247,{opacity:.2});color:{text_color}" title="{hg}-{ag}: {count} games ({pct:.1}%)">{pct_text}</div>"#,
                 pct_text = if count == 0 {
@@ -641,6 +651,8 @@ fn possession_section(stats: &BenchStats, hp: f64) -> String {
     let ap = 100.0 - hp;
     let corners = stats.corners_pg();
     let fk = stats.free_kicks_pg();
+    let gk = stats.goal_kicks_pg();
+    let cr = stats.crosses_pg();
     let passes_pg = stats.passes_completed as f64 / stats.games as f64;
 
     let home_w = hp.round() as u32;
@@ -666,15 +678,64 @@ fn possession_section(stats: &BenchStats, hp: f64) -> String {
     <span class="stat-label">Free kicks/game</span>
     <span class="stat-value">{fk:.1}</span>
   </div>
+  <div class="stat-row">
+    <span class="stat-label">Goal kicks/game</span>
+    <span class="stat-value {gk_cls}">{gk:.1}</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Crosses/game</span>
+    <span class="stat-value {cr_cls}">{cr:.1}</span>
+  </div>
 </div>"#,
         passes_pg = passes_pg,
         corner_cls = range_class(corners, 8.0, 14.0),
         corners = corners,
         fk = fk,
+        gk_cls = range_class(gk, 8.0, 14.0),
+        gk = gk,
+        cr_cls = range_class(cr, 15.0, 30.0),
+        cr = cr,
         hp = hp,
         ap = ap,
         home_w = home_w,
         away_w = away_w,
+    )
+}
+
+fn goal_sources_section(stats: &BenchStats) -> String {
+    let op = stats.open_play_goal_pct();
+    let co = stats.corner_goal_pct();
+    let fk = stats.free_kick_goal_pct();
+    let pe = stats.penalty_goal_pct();
+
+    format!(
+        r#"<div class="card">
+  <h2>Goal Sources</h2>
+  <div class="stat-row">
+    <span class="stat-label">Open play %</span>
+    <span class="stat-value {op_cls}">{op:.1}%</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Corners %</span>
+    <span class="stat-value {co_cls}">{co:.1}%</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Free kicks %</span>
+    <span class="stat-value {fk_cls}">{fk:.1}%</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Penalties %</span>
+    <span class="stat-value {pe_cls}">{pe:.1}%</span>
+  </div>
+</div>"#,
+        op_cls = range_class(op, 60.0, 75.0),
+        op = op,
+        co_cls = range_class(co, 10.0, 20.0),
+        co = co,
+        fk_cls = range_class(fk, 5.0, 15.0),
+        fk = fk,
+        pe_cls = range_class(pe, 5.0, 15.0),
+        pe = pe,
     )
 }
 
@@ -707,17 +768,47 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
     let rows = [
         ("Goals/game", stats.gpg(), 2.3, 3.0, "f64"),
         ("Shots/game", stats.shots_pg(), 18.0, 32.0, "f64"),
-        ("Shots on target %", stats.shot_accuracy_pct(), 32.0, 45.0, "pct"),
-        ("Goal conversion %", stats.goal_conversion_pct(), 20.0, 40.0, "pct"),
+        (
+            "Shots on target %",
+            stats.shot_accuracy_pct(),
+            32.0,
+            45.0,
+            "pct",
+        ),
+        (
+            "Goal conversion %",
+            stats.goal_conversion_pct(),
+            20.0,
+            40.0,
+            "pct",
+        ),
         ("Yellow cards/game", stats.yellows_pg(), 2.0, 4.0, "f64"),
         ("Red cards/game", stats.reds_pg(), 0.05, 0.15, "f64"),
         ("Fouls/game", stats.fouls_pg(), 18.0, 28.0, "f64"),
         ("Corners/game", stats.corners_pg(), 8.0, 14.0, "f64"),
+        ("Goal kicks/game", stats.goal_kicks_pg(), 8.0, 14.0, "f64"),
+        ("Crosses/game", stats.crosses_pg(), 15.0, 30.0, "f64"),
         ("Home win %", stats.home_win_pct(), 40.0, 52.0, "pct"),
-        ("Clean sheet %", stats.clean_sheet_home_pct(), 22.0, 35.0, "pct"),
+        (
+            "Clean sheet %",
+            stats.clean_sheet_home_pct(),
+            22.0,
+            35.0,
+            "pct",
+        ),
         ("Penalties/game", stats.penalties_pg(), 0.20, 0.50, "f64"),
-        ("Pen. conversion %", stats.penalty_conversion_pct(), 65.0, 85.0, "pct"),
+        (
+            "Pen. conversion %",
+            stats.penalty_conversion_pct(),
+            65.0,
+            85.0,
+            "pct",
+        ),
         ("BTTS %", stats.btts_pct(), 50.0, 55.0, "pct"),
+        ("Open play goals %", stats.open_play_goal_pct(), 60.0, 75.0, "pct"),
+        ("Corner goals %", stats.corner_goal_pct(), 10.0, 20.0, "pct"),
+        ("Free kick goals %", stats.free_kick_goal_pct(), 5.0, 15.0, "pct"),
+        ("Penalty goals %", stats.penalty_goal_pct(), 5.0, 15.0, "pct"),
         ("xG/game (proxy)", xg, 0.0, 9999.0, "f64"),
     ];
 

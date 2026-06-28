@@ -747,8 +747,20 @@ fn each_team_trains_under_its_own_focus() {
         vec![],
     );
 
-    let tech_initial = game.players.iter().find(|p| p.id == "tech").unwrap().attributes.clone();
-    let phys_initial = game.players.iter().find(|p| p.id == "phys").unwrap().attributes.clone();
+    let tech_initial = game
+        .players
+        .iter()
+        .find(|p| p.id == "tech")
+        .unwrap()
+        .attributes
+        .clone();
+    let phys_initial = game
+        .players
+        .iter()
+        .find(|p| p.id == "phys")
+        .unwrap()
+        .attributes
+        .clone();
 
     // When: both teams train for many sessions
     for _ in 0..150 {
@@ -758,19 +770,49 @@ fn each_team_trains_under_its_own_focus() {
         training::process_training(&mut game, 0);
     }
 
-    let tech_after = game.players.iter().find(|p| p.id == "tech").unwrap().attributes.clone();
-    let phys_after = game.players.iter().find(|p| p.id == "phys").unwrap().attributes.clone();
+    let tech_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "tech")
+        .unwrap()
+        .attributes
+        .clone();
+    let phys_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "phys")
+        .unwrap()
+        .attributes
+        .clone();
 
     // Then: the Technical player never gains Physical-only attributes, and the
     // Physical player never gains Technical-only attributes — proving each
     // player trained under its OWN team's plan, not another team's.
-    assert_eq!(tech_after.pace, tech_initial.pace, "Technical focus must not change pace");
-    assert_eq!(tech_after.stamina, tech_initial.stamina, "Technical focus must not change stamina");
-    assert_eq!(tech_after.strength, tech_initial.strength, "Technical focus must not change strength");
-    assert_eq!(tech_after.agility, tech_initial.agility, "Technical focus must not change agility");
+    assert_eq!(
+        tech_after.pace, tech_initial.pace,
+        "Technical focus must not change pace"
+    );
+    assert_eq!(
+        tech_after.stamina, tech_initial.stamina,
+        "Technical focus must not change stamina"
+    );
+    assert_eq!(
+        tech_after.strength, tech_initial.strength,
+        "Technical focus must not change strength"
+    );
+    assert_eq!(
+        tech_after.agility, tech_initial.agility,
+        "Technical focus must not change agility"
+    );
 
-    assert_eq!(phys_after.passing, phys_initial.passing, "Physical focus must not change passing");
-    assert_eq!(phys_after.dribbling, phys_initial.dribbling, "Physical focus must not change dribbling");
+    assert_eq!(
+        phys_after.passing, phys_initial.passing,
+        "Physical focus must not change passing"
+    );
+    assert_eq!(
+        phys_after.dribbling, phys_initial.dribbling,
+        "Physical focus must not change dribbling"
+    );
 }
 
 #[test]
@@ -830,8 +872,16 @@ fn players_without_a_real_team_are_not_trained() {
     }
 
     // Then: neither player is touched (no recovery, no gains, no fitness change)
-    assert_eq!(snapshot(&game, "free"), free_before, "Free agent must not be trained");
-    assert_eq!(snapshot(&game, "ghost"), ghost_before, "Player with no real team must not be trained");
+    assert_eq!(
+        snapshot(&game, "free"),
+        free_before,
+        "Free agent must not be trained"
+    );
+    assert_eq!(
+        snapshot(&game, "ghost"),
+        ghost_before,
+        "Player with no real team must not be trained"
+    );
 }
 
 #[test]

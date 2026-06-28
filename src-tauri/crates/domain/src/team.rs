@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Team {
@@ -181,31 +181,76 @@ pub struct TacticsPhaseSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum BuildUpStyle { Short, #[default] Mixed, Long }
+pub enum BuildUpStyle {
+    Short,
+    #[default]
+    Mixed,
+    Long,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum PitchWidth { Narrow, #[default] Normal, Wide }
+pub enum PitchWidth {
+    Narrow,
+    #[default]
+    Normal,
+    Wide,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum Tempo { Patient, #[default] Direct }
+pub enum Tempo {
+    Patient,
+    #[default]
+    Direct,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum DefensiveLine { VeryLow, Low, #[default] Medium, High }
+pub enum DefensiveLine {
+    VeryLow,
+    Low,
+    #[default]
+    Medium,
+    High,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum PressingIntensity { Passive, #[default] Medium, Aggressive }
+pub enum PressingIntensity {
+    Passive,
+    #[default]
+    Medium,
+    Aggressive,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum DefensiveShape { Stretched, #[default] Normal, Compact }
+pub enum DefensiveShape {
+    Stretched,
+    #[default]
+    Normal,
+    Compact,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum MarkingStyle { #[default] Zonal, Mixed, ManToMan }
+pub enum MarkingStyle {
+    #[default]
+    Zonal,
+    Mixed,
+    ManToMan,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum CounterPressDuration { #[default] None, Short, Long }
+pub enum CounterPressDuration {
+    #[default]
+    None,
+    Short,
+    Long,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum BreakSpeed { Slow, #[default] Medium, Fast }
+pub enum BreakSpeed {
+    Slow,
+    #[default]
+    Medium,
+    Fast,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum TrainingFocus {
@@ -372,24 +417,13 @@ pub enum SponsorshipBonusCriterion {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(default)]
 pub struct Sponsorship {
     pub sponsor_name: String,
     pub base_value: i64,
     pub remaining_weeks: u32,
     pub bonus_criteria: Vec<SponsorshipBonusCriterion>,
-}
-
-impl Default for Sponsorship {
-    fn default() -> Self {
-        Self {
-            sponsor_name: String::new(),
-            base_value: 0,
-            remaining_weeks: 0,
-            bonus_criteria: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

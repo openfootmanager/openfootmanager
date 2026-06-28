@@ -62,6 +62,7 @@ fn make_team(id: &str, name: &str, skill: u8, style: PlayStyle) -> TeamData {
         name: name.to_string(),
         formation: "4-4-2".to_string(),
         play_style: style,
+        tactics: TacticsConfig::default(),
         players,
     }
 }
@@ -790,7 +791,7 @@ fn average_goals_realistic() {
 
     let avg = total_goals as f64 / trials as f64;
     assert!(
-        avg >= 0.5 && avg <= 8.0,
+        (0.5..=8.0).contains(&avg),
         "Average goals per game should be realistic (0.5-8.0), got {avg:.1}"
     );
 }
@@ -928,8 +929,8 @@ fn report_has_team_stats() {
     run_to_finish(&mut state, &mut rng);
 
     let report = state.into_report();
-    assert!(report.home_stats.shots > 0 || report.home_stats.shots == 0);
-    assert!(report.away_stats.shots > 0 || report.away_stats.shots == 0);
+    assert!(report.home_stats.shots_on_target <= report.home_stats.shots);
+    assert!(report.away_stats.shots_on_target <= report.away_stats.shots);
 }
 
 // ===========================================================================
@@ -1339,6 +1340,7 @@ fn make_team_with_traits(id: &str, name: &str, skill: u8, traits: Vec<&str>) -> 
         name: name.to_string(),
         formation: "4-4-2".to_string(),
         play_style: PlayStyle::Balanced,
+        tactics: TacticsConfig::default(),
         players,
     }
 }
@@ -1453,10 +1455,12 @@ fn yellow_cards_tracked_in_snapshot() {
 #[test]
 fn sent_off_players_tracked() {
     // Use high-aggression config to increase foul/card chance
-    let mut config = MatchConfig::default();
-    config.foul_probability = 0.5;
-    config.yellow_card_probability = 0.8;
-    config.red_card_probability = 0.3;
+    let config = MatchConfig {
+        foul_probability: 0.5,
+        yellow_card_probability: 0.8,
+        red_card_probability: 0.3,
+        ..Default::default()
+    };
 
     for seed in 0..200 {
         let home = make_team("home", "Home FC", 70, PlayStyle::Balanced);
@@ -1719,8 +1723,10 @@ fn away_set_pieces_stored() {
 
 #[test]
 fn custom_config_affects_match() {
-    let mut config = MatchConfig::default();
-    config.home_advantage = 1.5; // extreme home advantage
+    let config = MatchConfig {
+        home_advantage: 1.5, // extreme home advantage
+        ..Default::default()
+    };
 
     let home = make_team("home", "Home FC", 70, PlayStyle::Balanced);
     let away = make_team("away", "Away FC", 70, PlayStyle::Balanced);

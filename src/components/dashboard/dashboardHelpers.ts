@@ -117,7 +117,7 @@ export function getDashboardAlerts(
     ? gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id)
     : [];
   const financeSnapshot = myTeam
-    ? getTeamFinanceSnapshot(myTeam, roster, teamStaff)
+    ? getTeamFinanceSnapshot(myTeam, gameState.players, teamStaff)
     : null;
   const exhaustedCount = roster.filter((player) => player.condition < 25).length;
   const urgentUnreadCount = gameState.messages.filter((message) => {

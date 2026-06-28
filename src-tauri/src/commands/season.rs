@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use log::info;
+use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::state::StateManager;
@@ -8,12 +8,14 @@ use ofm_core::state::StateManager;
 pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
     log::debug!("[cmd] check_season_complete");
     state
-        .get_game(|game| ofm_core::end_of_season::is_season_complete(game))
+        .get_game(ofm_core::end_of_season::is_season_complete)
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 #[tauri::command]
-pub fn advance_to_next_season(state: State<'_, Arc<StateManager>>) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_season(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<serde_json::Value, String> {
     info!("[cmd] advance_to_next_season");
     // Season-completeness is validated before any rollover mutation.
     state

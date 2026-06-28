@@ -219,6 +219,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("../utils/backendI18n", () => ({
+  resolveBackendText: (_key: string | undefined, fallback: string) => fallback ?? "",
+}));
+
 vi.mock("../store/gameStore", () => ({
   useGameStore: () => ({
     hasActiveGame: true,

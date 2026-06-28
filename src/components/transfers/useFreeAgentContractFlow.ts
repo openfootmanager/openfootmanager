@@ -19,6 +19,7 @@ import { resolveBackendError } from "../../utils/backendI18n";
 interface UseFreeAgentContractFlowArgs {
   gameState: GameStateData;
   onGameUpdate?: (game: GameStateData) => void;
+  onAccepted?: (playerId: string) => void;
 }
 
 const MARKET_VALUE_TO_WAGE_RATIO = 200;
@@ -72,6 +73,7 @@ function defaultContractWage(player: PlayerData): string {
 export function useFreeAgentContractFlow({
   gameState,
   onGameUpdate,
+  onAccepted,
 }: UseFreeAgentContractFlowArgs): UseFreeAgentContractFlowResult {
   const myTeam = gameState.teams.find(
     (team) => team.id === gameState.manager.team_id,
@@ -214,9 +216,11 @@ export function useFreeAgentContractFlow({
       }
 
       if (result.outcome === "accepted") {
+        const acceptedPlayerId = freeAgentTarget.id;
         clearAutoCloseTimeout();
         autoCloseTimeoutRef.current = setTimeout(() => {
           closeFreeAgentContract();
+          onAccepted?.(acceptedPlayerId);
         }, 2000);
       }
     } catch (error) {

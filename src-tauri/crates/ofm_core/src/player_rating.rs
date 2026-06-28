@@ -41,10 +41,8 @@ pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
     let mut traits = domain::player::compute_traits(&player.attributes, &player.natural_position);
 
     // 4. Award Wonderkid trait: young player whose ceiling far exceeds current ability
-    if qualifies_for_wonderkid(age, potential, ovr) {
-        if !traits.contains(&PlayerTrait::Wonderkid) {
-            traits.push(PlayerTrait::Wonderkid);
-        }
+    if qualifies_for_wonderkid(age, potential, ovr) && !traits.contains(&PlayerTrait::Wonderkid) {
+        traits.push(PlayerTrait::Wonderkid);
     }
 
     player.ovr = ovr;

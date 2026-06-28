@@ -4,25 +4,42 @@ use domain::player::{Injury, Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
-use ofm_core::slices::players::{
-    PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, query_page,
-};
+use ofm_core::slices::players::{PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, query_page};
 
 fn default_attrs(ovr_hint: u8) -> PlayerAttributes {
     PlayerAttributes {
-        pace: ovr_hint, stamina: ovr_hint, strength: ovr_hint, agility: ovr_hint,
-        passing: ovr_hint, shooting: ovr_hint, tackling: ovr_hint, dribbling: ovr_hint,
-        defending: ovr_hint, positioning: ovr_hint, vision: ovr_hint, decisions: ovr_hint,
-        composure: ovr_hint, aggression: 50, teamwork: ovr_hint, leadership: 50,
-        handling: 20, reflexes: 20, aerial: ovr_hint,
+        pace: ovr_hint,
+        stamina: ovr_hint,
+        strength: ovr_hint,
+        agility: ovr_hint,
+        passing: ovr_hint,
+        shooting: ovr_hint,
+        tackling: ovr_hint,
+        dribbling: ovr_hint,
+        defending: ovr_hint,
+        positioning: ovr_hint,
+        vision: ovr_hint,
+        decisions: ovr_hint,
+        composure: ovr_hint,
+        aggression: 50,
+        teamwork: ovr_hint,
+        leadership: 50,
+        handling: 20,
+        reflexes: 20,
+        aerial: ovr_hint,
     }
 }
 
 fn make_team(id: &str, name: &str) -> Team {
     let short: String = name.chars().take(3).collect();
     Team::new(
-        id.to_string(), name.to_string(), short,
-        "GB".to_string(), "City".to_string(), "Ground".to_string(), 20_000,
+        id.to_string(),
+        name.to_string(),
+        short,
+        "GB".to_string(),
+        "City".to_string(),
+        "Ground".to_string(),
+        20_000,
     )
 }
 
@@ -45,19 +62,32 @@ struct PlayerSpec<'a> {
 impl<'a> PlayerSpec<'a> {
     fn new(id: &'a str, full_name: &'a str, team_id: Option<&'a str>) -> Self {
         Self {
-            id, full_name, match_name: full_name, dob: "2000-01-01",
-            nationality: "GB", position: Position::Midfielder, team_id,
-            ovr: 65, market_value: 1_000_000,
-            transfer_listed: false, loan_listed: false, injured: false, retired: false,
+            id,
+            full_name,
+            match_name: full_name,
+            dob: "2000-01-01",
+            nationality: "GB",
+            position: Position::Midfielder,
+            team_id,
+            ovr: 65,
+            market_value: 1_000_000,
+            transfer_listed: false,
+            loan_listed: false,
+            injured: false,
+            retired: false,
         }
     }
 
     fn build(self) -> Player {
         let position = self.position;
         let mut p = Player::new(
-            self.id.to_string(), self.match_name.to_string(), self.full_name.to_string(),
-            self.dob.to_string(), self.nationality.to_string(),
-            position.clone(), default_attrs(self.ovr),
+            self.id.to_string(),
+            self.match_name.to_string(),
+            self.full_name.to_string(),
+            self.dob.to_string(),
+            self.nationality.to_string(),
+            position.clone(),
+            default_attrs(self.ovr),
         );
         p.ovr = self.ovr;
         p.natural_position = position;
@@ -79,18 +109,25 @@ impl<'a> PlayerSpec<'a> {
 fn make_game(teams: Vec<Team>, players: Vec<Player>) -> Game {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
     let manager = Manager::new(
-        "m".to_string(), "M".to_string(), "Gr".to_string(),
-        "1980-01-01".to_string(), "GB".to_string(),
+        "m".to_string(),
+        "M".to_string(),
+        "Gr".to_string(),
+        "1980-01-01".to_string(),
+        "GB".to_string(),
     );
     Game::new(clock, manager, teams, players, vec![], vec![])
 }
 
 fn baseline_query() -> PlayersPageQuery {
     PlayersPageQuery {
-        search: None, position: None, team_id: None,
+        search: None,
+        position: None,
+        team_id: None,
         status: PlayerStatusFilter::All,
-        sort_key: PlayerSortKey::Ovr, sort_asc: false,
-        page: 1, page_size: 50,
+        sort_key: PlayerSortKey::Ovr,
+        sort_asc: false,
+        page: 1,
+        page_size: 50,
     }
 }
 
@@ -163,7 +200,10 @@ fn search_matches_match_name_or_nationality() {
     spec1.nationality = "Brazil";
     let mut spec2 = PlayerSpec::new("p2", "Alex Keeper", Some("t1"));
     spec2.match_name = "A. Kpr";
-    let game = make_game(vec![make_team("t1", "X")], vec![spec1.build(), spec2.build()]);
+    let game = make_game(
+        vec![make_team("t1", "X")],
+        vec![spec1.build(), spec2.build()],
+    );
 
     let mut by_match = baseline_query();
     by_match.search = Some("kpr".to_string());
@@ -280,8 +320,11 @@ fn sort_by_name_supports_both_directions() {
     let mut desc = baseline_query();
     desc.sort_key = PlayerSortKey::Name;
     desc.sort_asc = false;
-    let desc_ids: Vec<String> =
-        query_page(&game, &desc).items.into_iter().map(|p| p.id).collect();
+    let desc_ids: Vec<String> = query_page(&game, &desc)
+        .items
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
     assert_eq!(desc_ids, vec!["p1", "p3", "p2"]);
 }
 
@@ -349,8 +392,10 @@ fn sort_by_value_uses_market_value() {
     cheap.market_value = 50_000;
     let mut pricey = PlayerSpec::new("p", "Pricey", Some("t1"));
     pricey.market_value = 5_000_000;
-    let game =
-        make_game(vec![make_team("t1", "X")], vec![cheap.build(), pricey.build()]);
+    let game = make_game(
+        vec![make_team("t1", "X")],
+        vec![cheap.build(), pricey.build()],
+    );
 
     let mut q = baseline_query();
     q.sort_key = PlayerSortKey::Value;
@@ -389,7 +434,7 @@ fn pagination_returns_requested_window_and_total() {
             Box::leak(format!("Player {i}").into_boxed_str()),
             Some("t1"),
         );
-        spec.ovr = (90 - i as u8) * 1;
+        spec.ovr = 90 - i as u8;
         players.push(spec.build());
     }
     let game = make_game(vec![make_team("t1", "X")], players);

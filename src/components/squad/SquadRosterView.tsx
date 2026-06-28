@@ -828,6 +828,20 @@ export default function SquadRosterView({
                             </div>
                             {renderPreferredPositionMeta(player)}
                             {renderRoleAndStyleMeta(player)}
+                            {player.transfer_listed || player.loan_listed ? (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {player.transfer_listed ? (
+                                  <Badge variant="accent" size="sm">
+                                    {t("transfers.transfer")}
+                                  </Badge>
+                                ) : null}
+                                {player.loan_listed ? (
+                                  <Badge variant="primary" size="sm">
+                                    {t("transfers.loan")}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            ) : null}
                             {player.injury ? (
                               <InjuryBadge injury={player.injury} />
                             ) : null}

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useGameStore, GameStateData } from "../store/gameStore";
+import { useSettingsStore } from "../store/settingsStore";
 import {
   MatchSnapshot,
   MatchEvent,
@@ -16,6 +17,7 @@ import HalfTimeBreak from "../components/match/HalfTimeBreak";
 import PostMatchScreen from "../components/match/PostMatchScreen";
 import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
+import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -39,6 +41,7 @@ export default function MatchSimulation() {
   const routeState = (location.state as MatchRouteState | null) ?? null;
   const matchMode = routeState?.mode || "live";
   const { gameState, setGameState } = useGameStore();
+  const { settings } = useSettingsStore();
   const [snapshot, setSnapshot] = useState<MatchSnapshot | null>(
     routeState?.snapshot ?? null,
   );
@@ -48,6 +51,8 @@ export default function MatchSimulation() {
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
+  const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {
@@ -57,6 +62,15 @@ export default function MatchSimulation() {
       matchMode,
     });
   }, [gameState, matchMode, routeState?.fixtureIndex, routeState?.snapshot]);
+
+  useEffect(() => {
+    if (hasUserOverriddenSpeed) return;
+    setPreferredSpeed(
+      settings.match_speed === "slow" || settings.match_speed === "fast"
+        ? settings.match_speed
+        : "normal",
+    );
+  }, [settings.match_speed, hasUserOverriddenSpeed]);
 
   // Determine user side from game state
   useEffect(() => {
@@ -133,10 +147,14 @@ export default function MatchSimulation() {
             fixtureIndex: routeState.fixtureIndex,
             matchMode,
           });
+          const fixture = gameState?.league?.fixtures?.[routeState.fixtureIndex];
+          const competitionsWithET: string[] = ["Cup", "ContinentalClub", "InternationalClub", "InternationalNation", "FriendlyCup"];
+          const allowsExtraTime = routeState?.snapshot?.allows_extra_time
+            ?? competitionsWithET.includes(fixture?.competition ?? "");
           const restoredSnapshot = await invoke<MatchSnapshot>(
             "start_live_match",
             {
-              allowsExtraTime: false,
+              allowsExtraTime,
               fixtureIndex: routeState.fixtureIndex,
               mode: matchMode,
             },
@@ -165,7 +183,7 @@ export default function MatchSimulation() {
     return () => {
       isCancelled = true;
     };
-  }, [matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
+  }, [gameState, matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
 
   // Skip pre-match for spectators
   useEffect(() => {
@@ -180,14 +198,23 @@ export default function MatchSimulation() {
     setStage("first_half");
   }, []);
 
-  const handleHalfTime = useCallback(() => {
-    console.info("[MatchSimulation] handleHalfTime");
-    setStage("halftime");
+  const handleHalfTime = useCallback((phase: "HalfTime" | "ExtraTimeHalfTime") => {
+    console.info("[MatchSimulation] handleHalfTime", { phase });
+    if (phase === "ExtraTimeHalfTime") {
+      setStage("extra_time_halftime");
+    } else {
+      setStage("halftime");
+    }
   }, []);
 
   const handleResumeFromHalfTime = useCallback(() => {
-    console.info("[MatchSimulation] handleResumeFromHalfTime");
-    setStage("second_half");
+    console.info("[MatchSimulation] handleResumeFromHalfTime", { stage });
+    setStage(stage === "extra_time_halftime" ? "extra_time_second_half" : "second_half");
+  }, [stage]);
+
+  const handlePenaltyShootout = useCallback(() => {
+    console.info("[MatchSimulation] handlePenaltyShootout");
+    setStage("penalty_shootout");
   }, []);
 
   const finalizeMatch = useCallback(async (): Promise<boolean> => {
@@ -264,6 +291,14 @@ export default function MatchSimulation() {
     setImportantEvents((prev) => [...prev, evt]);
   }, []);
 
+  const handlePreferredSpeedChange = useCallback(
+    (speed: "slow" | "normal" | "fast") => {
+      setHasUserOverriddenSpeed(true);
+      setPreferredSpeed(speed);
+    },
+    [],
+  );
+
   // Loading state
   if (!snapshot || !gameState) {
     return (
@@ -301,6 +336,7 @@ export default function MatchSimulation() {
 
     case "first_half":
     case "second_half":
+    case "extra_time_second_half":
       return (
         <MatchLive
           key={stage}
@@ -309,17 +345,22 @@ export default function MatchSimulation() {
           userSide={userSide}
           isSpectator={isSpectator}
           importantEvents={importantEvents}
+          preferredSpeed={preferredSpeed}
+          onPreferredSpeedChange={handlePreferredSpeedChange}
           onSnapshotUpdate={handleSnapshotUpdate}
           onImportantEvent={handleImportantEvent}
           onHalfTime={handleHalfTime}
           onFullTime={handleFullTime}
+          onPenaltyShootout={handlePenaltyShootout}
         />
       );
 
     case "halftime":
+    case "extra_time_halftime":
       if (!userSide) return null;
       return (
         <HalfTimeBreak
+          key={stage}
           snapshot={snapshot}
           gameState={gameState}
           userSide={userSide}
@@ -327,6 +368,20 @@ export default function MatchSimulation() {
           importantEvents={importantEvents}
           onResume={handleResumeFromHalfTime}
           onUpdateSnapshot={handleSnapshotUpdate}
+        />
+      );
+
+    case "penalty_shootout":
+      return (
+        <PenaltyShootoutScreen
+          snapshot={snapshot}
+          gameState={gameState}
+          userSide={userSide}
+          isSpectator={isSpectator}
+          importantEvents={importantEvents}
+          onSnapshotUpdate={handleSnapshotUpdate}
+          onImportantEvent={handleImportantEvent}
+          onFullTime={handleFullTime}
         />
       );
 

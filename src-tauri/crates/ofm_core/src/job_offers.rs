@@ -442,10 +442,10 @@ pub fn apply_for_job(game: &mut Game, team_id: &str) -> JobApplicationResult {
             .map(|t| (t.id.clone(), t.reputation))
     });
 
-    if let Some((_, cur_rep)) = &current_team {
-        if !is_better_club(*cur_rep, team_rep) {
-            return JobApplicationResult::NotBetterClub;
-        }
+    if let Some((_, cur_rep)) = &current_team
+        && !is_better_club(*cur_rep, team_rep)
+    {
+        return JobApplicationResult::NotBetterClub;
     }
 
     let gap = team_rep.saturating_sub(mgr_rep);

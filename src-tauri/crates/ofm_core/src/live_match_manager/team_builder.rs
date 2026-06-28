@@ -4,7 +4,10 @@ use crate::player_rating::{
     positional_fit_for_assignment,
 };
 use domain::player::Position as DomainPosition;
-use engine::{PlayStyle, PlayerData, PlayerRole as EnginePlayerRole, Position, TeamData};
+use engine::{
+    DefensiveLine, MarkingStyle, PlayStyle, PlayerData, PlayerRole as EnginePlayerRole, Position,
+    PressingIntensity, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, TeamData,
+};
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
@@ -13,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 
 pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
-    let (name, formation, play_style, saved_xi_ids) = match team {
+    let (name, formation, play_style, tactics, saved_xi_ids) = match team {
         Some(t) => (
             t.name.clone(),
             t.formation.clone(),
@@ -25,12 +28,14 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
                 domain::team::PlayStyle::HighPress => PlayStyle::HighPress,
                 _ => PlayStyle::Balanced,
             },
+            domain_to_engine_tactics(&t.tactics_phase),
             t.starting_xi_ids.as_slice(),
         ),
         None => (
             "Unknown".into(),
             "4-4-2".into(),
             PlayStyle::Balanced,
+            TacticsConfig::default(),
             &[] as &[String],
         ),
     };
@@ -65,7 +70,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    let starting_xi = starting_players.into_iter().map(|p| convert_player(p)).collect();
+    let starting_xi = starting_players
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
         .into_iter()
@@ -76,7 +84,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(|p| convert_player(p)).collect();
+    let bench = bench_domain
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -84,6 +95,7 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         formation,
         play_style,
         players: starting_xi,
+        tactics,
     };
 
     (team_data, bench)
@@ -332,6 +344,37 @@ pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePl
         domain::team::PlayerRole::False9 => EnginePlayerRole::False9,
         domain::team::PlayerRole::PressingForward => EnginePlayerRole::PressingForward,
         domain::team::PlayerRole::CompleteForward => EnginePlayerRole::CompleteForward,
+    }
+}
+
+pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -> TacticsConfig {
+    TacticsConfig {
+        pressing_intensity: match t.pressing_intensity {
+            domain::team::PressingIntensity::Passive => PressingIntensity::Passive,
+            domain::team::PressingIntensity::Medium => PressingIntensity::Medium,
+            domain::team::PressingIntensity::Aggressive => PressingIntensity::Aggressive,
+        },
+        defensive_line: match t.defensive_line {
+            domain::team::DefensiveLine::VeryLow => DefensiveLine::VeryLow,
+            domain::team::DefensiveLine::Low => DefensiveLine::Low,
+            domain::team::DefensiveLine::Medium => DefensiveLine::Medium,
+            domain::team::DefensiveLine::High => DefensiveLine::High,
+        },
+        width: match t.width {
+            domain::team::PitchWidth::Narrow => TacticsPitchWidth::Narrow,
+            domain::team::PitchWidth::Normal => TacticsPitchWidth::Normal,
+            domain::team::PitchWidth::Wide => TacticsPitchWidth::Wide,
+        },
+        build_up_style: match t.build_up_style {
+            domain::team::BuildUpStyle::Short => TacticsBuildUpStyle::Short,
+            domain::team::BuildUpStyle::Mixed => TacticsBuildUpStyle::Mixed,
+            domain::team::BuildUpStyle::Long => TacticsBuildUpStyle::Long,
+        },
+        marking_style: match t.marking_style {
+            domain::team::MarkingStyle::Zonal => MarkingStyle::Zonal,
+            domain::team::MarkingStyle::Mixed => MarkingStyle::Mixed,
+            domain::team::MarkingStyle::ManToMan => MarkingStyle::ManToMan,
+        },
     }
 }
 

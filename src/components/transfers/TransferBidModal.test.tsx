@@ -220,6 +220,9 @@ describe("TransferBidModal", () => {
     );
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Make Transfer Bid" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Bid countered")).toBeInTheDocument();
@@ -254,12 +257,17 @@ describe("TransferBidModal", () => {
     fireEvent.change(screen.getByLabelText("Bid Amount"), {
       target: { value: "2.0" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    const submitButton = screen.getByRole("button", { name: "Submit Bid" });
+    const closeButton = screen.getByRole("button", { name: "Close" });
+
+    fireEvent.click(submitButton);
+    fireEvent.click(closeButton);
 
     expect(onBidAmountChange).toHaveBeenCalledWith("2.0");
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Submit Bid" })).not.toBeDisabled();
+    expect(submitButton).toHaveAttribute("type", "button");
+    expect(closeButton).toHaveAttribute("type", "button");
+    expect(submitButton).not.toBeDisabled();
   });
 });

@@ -1,7 +1,7 @@
 use rusqlite_migration::{M, Migrations};
 
 /// Number of migrations defined. Keep in sync with the vec in `all_migrations`.
-pub const MIGRATION_COUNT: usize = 39;
+pub const MIGRATION_COUNT: usize = 41;
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
@@ -85,6 +85,10 @@ pub fn all_migrations() -> Migrations<'static> {
         M::up(include_str!("sql/v038_national_team_name_key.sql")),
         // V39: Persist extra translations bundle from world packages
         M::up(include_str!("sql/v039_game_extra_translations.sql")),
+        // V40: Persist loan offer history and active loan contracts
+        M::up(include_str!("sql/v040_player_loan_state.sql")),
+        // V41: Persist per-player transfer and loan movement history
+        M::up(include_str!("sql/v041_player_movement_history.sql")),
     ])
 }
 
@@ -215,6 +219,18 @@ mod tests {
         assert!(
             player_columns.contains(&"media_json".to_string()),
             "missing players.media_json"
+        );
+        assert!(
+            player_columns.contains(&"loan_offers".to_string()),
+            "missing players.loan_offers"
+        );
+        assert!(
+            player_columns.contains(&"active_loan".to_string()),
+            "missing players.active_loan"
+        );
+        assert!(
+            player_columns.contains(&"movement_history".to_string()),
+            "missing players.movement_history"
         );
     }
 

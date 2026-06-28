@@ -228,7 +228,8 @@ fn create_live_match_uses_saved_starting_xi() {
 }
 
 #[test]
-fn create_live_match_falls_back_to_auto_selection_when_saved_xi_has_fewer_than_eight_valid_players() {
+fn create_live_match_falls_back_to_auto_selection_when_saved_xi_has_fewer_than_eight_valid_players()
+{
     let mut game = make_game_with_fixture();
     let saved_xi_ids = vec![
         "team1_gk1".to_string(),
@@ -309,7 +310,9 @@ fn create_live_match_uses_partial_saved_xi_when_at_least_eight_players_are_valid
     assert_eq!(&starter_ids[..saved_xi_ids.len()], saved_xi_ids.as_slice());
     assert_eq!(starter_ids.len(), 11);
     assert!(
-        starter_ids.iter().all(|player_id| !bench_ids.contains(player_id)),
+        starter_ids
+            .iter()
+            .all(|player_id| !bench_ids.contains(player_id)),
         "starting XI players should not also appear on the bench"
     );
 }
@@ -363,7 +366,10 @@ fn create_live_match_filters_unavailable_players_from_saved_xi() {
         .map(|player| player.id.clone())
         .collect();
 
-    assert_eq!(&starter_ids[..valid_saved_ids.len()], valid_saved_ids.as_slice());
+    assert_eq!(
+        &starter_ids[..valid_saved_ids.len()],
+        valid_saved_ids.as_slice()
+    );
     assert!(!starter_ids.contains(&"team1_fwd2".to_string()));
     assert!(!starter_ids.contains(&"missing-player".to_string()));
     assert!(!bench_ids.contains(&"team1_fwd2".to_string()));
@@ -439,7 +445,7 @@ fn step_many_returns_requested_count() {
         live_match_manager::create_live_match(&game, 0, MatchMode::Spectator, false).unwrap();
 
     let results = session.step_many(10);
-    assert!(results.len() >= 1 && results.len() <= 10);
+    assert!(!results.is_empty() && results.len() <= 10);
 }
 
 #[test]

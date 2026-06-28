@@ -123,6 +123,7 @@ pub fn apply_team_talk(
 
 /// Process press conference answers: generate news article, affect squad morale.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn submit_press_conference(
     state: State<'_, Arc<StateManager>>,
     answers: Vec<PressConferenceAnswer>,
@@ -188,18 +189,15 @@ pub fn submit_press_conference(
                 }
 
                 // Player-focused question effects
-                if qid == "player_focus" {
-                    if !answer.player_id.is_empty() {
-                        let player_delta: i16 = match rid {
-                            "praise" => rng.random_range(4..=8),
-                            "demanding" => rng.random_range(-3..=4),
-                            "deflect" => rng.random_range(-2..=1),
-                            _ => rng.random_range(0..=3),
-                        };
-                        if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id)
-                        {
-                            p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
-                        }
+                if qid == "player_focus" && !answer.player_id.is_empty() {
+                    let player_delta: i16 = match rid {
+                        "praise" => rng.random_range(4..=8),
+                        "demanding" => rng.random_range(-3..=4),
+                        "deflect" => rng.random_range(-2..=1),
+                        _ => rng.random_range(0..=3),
+                    };
+                    if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
+                        p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
                     }
                 }
             }

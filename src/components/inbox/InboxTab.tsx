@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -74,6 +74,7 @@ export default function InboxTab({
     useState<DeleteModalState>(null);
   const [effectFeedback, setEffectFeedback] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const inboxSeqRef = useRef(0);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -138,9 +139,12 @@ export default function InboxTab({
     );
 
     if (message && !message.read) {
+      const seq = ++inboxSeqRef.current;
       try {
         const updated = await markMessageRead(messageId);
+        if (seq !== inboxSeqRef.current) return;
         setFetchedMessages(updated);
+        useGameStore.getState().setMessages(updated);
       } catch { }
     }
   }
@@ -194,16 +198,22 @@ export default function InboxTab({
   }
 
   async function handleMarkAllRead(): Promise<void> {
+    const seq = ++inboxSeqRef.current;
     try {
       const updated = await markAllMessagesRead();
+      if (seq !== inboxSeqRef.current) return;
       setFetchedMessages(updated);
+      useGameStore.getState().setMessages(updated);
     } catch { }
   }
 
   async function handleClearOld(): Promise<void> {
+    const seq = ++inboxSeqRef.current;
     try {
       const updated = await clearOldMessages();
+      if (seq !== inboxSeqRef.current) return;
       setFetchedMessages(updated);
+      useGameStore.getState().setMessages(updated);
       setSelectedMessageId(null);
     } catch { }
   }
@@ -214,6 +224,7 @@ export default function InboxTab({
     }
 
     setIsDeleting(true);
+    const seq = ++inboxSeqRef.current;
 
     try {
       let updatedMessages: MessageData[];
@@ -228,7 +239,9 @@ export default function InboxTab({
         setBulkSelectionEnabled(false);
       }
 
+      if (seq !== inboxSeqRef.current) return;
       setFetchedMessages(updatedMessages);
+      useGameStore.getState().setMessages(updatedMessages);
       setSelectedMessageIds((currentIds) =>
         currentIds.filter((messageId) => !deletedMessageIds.includes(messageId)),
       );

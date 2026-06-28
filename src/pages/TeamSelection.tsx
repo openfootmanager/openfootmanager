@@ -33,6 +33,7 @@ import {
   Users,
 } from "lucide-react";
 import { resolveBackendError } from "../utils/backendI18n";
+import { prewarmManagerSquadPortraits } from "../services/portraitService";
 
 type CompetitionSelection = Record<string, boolean>;
 type RegionSelection = Record<string, boolean>;
@@ -519,6 +520,14 @@ export default function TeamSelection() {
         activeRegionIds,
         activeCompetitionIds: enabledCompetitionIds,
       });
+      try {
+        await prewarmManagerSquadPortraits(updatedGame);
+      } catch (portraitError) {
+        console.warn(
+          "Portrait prewarm failed after team selection:",
+          portraitError,
+        );
+      }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
       setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);

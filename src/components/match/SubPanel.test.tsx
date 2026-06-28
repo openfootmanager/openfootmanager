@@ -78,6 +78,7 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
         reflexes: 20,
         aerial: 60,
         traits: [],
+        role: "Standard",
         ...rest,
     };
 };

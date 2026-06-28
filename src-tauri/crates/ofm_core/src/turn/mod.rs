@@ -5,7 +5,7 @@ mod round_summary;
 
 use crate::board_objectives;
 use crate::game::Game;
-use crate::live_match_manager::domain_to_engine_role;
+use crate::live_match_manager::{domain_to_engine_role, domain_to_engine_tactics};
 use crate::player_events;
 use crate::random_events;
 use crate::scouting;
@@ -90,9 +90,10 @@ fn dormant_competition_indices_due_today(game: &Game, today: &str) -> Vec<usize>
         })
         .filter(|(_, competition)| !competition_is_active(game, competition))
         .filter(|(_, competition)| {
-            competition.fixtures.iter().any(|fixture| {
-                fixture.date == today && fixture.status == FixtureStatus::Scheduled
-            })
+            competition
+                .fixtures
+                .iter()
+                .any(|fixture| fixture.date == today && fixture.status == FixtureStatus::Scheduled)
         })
         .map(|(index, _)| index)
         .collect()
@@ -130,6 +131,9 @@ where
     F: FnMut(StatsState),
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    transfers::process_loan_development_reports(game);
+    transfers::process_loan_returns(game);
+
     let due_competitions = competition_indices_due_today(game, &today);
     let has_match_today = !due_competitions.is_empty();
 
@@ -174,6 +178,8 @@ where
     progress_injury_recovery(game);
     random_events::check_random_events(game);
     scouting::process_scouting(game);
+    transfers::process_pending_transfer_registrations(game);
+    transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
@@ -195,6 +201,8 @@ where
 pub fn finish_live_match_day(game: &mut Game) {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     info!("[turn] finish_live_match_day: {}", today);
+    transfers::process_loan_development_reports(game);
+    transfers::process_loan_returns(game);
     generate_matchday_news(game, &today);
 
     crate::contracts::process_contract_expiries(game);
@@ -207,6 +215,8 @@ pub fn finish_live_match_day(game: &mut Game) {
     progress_injury_recovery(game);
     random_events::check_random_events(game);
     scouting::process_scouting(game);
+    transfers::process_pending_transfer_registrations(game);
+    transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
@@ -223,6 +233,7 @@ pub fn finish_live_match_day(game: &mut Game) {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::finish_live_match_day;
     use crate::clock::GameClock;
@@ -342,7 +353,7 @@ mod tests {
 fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let player_roles = team.map(|t| &t.player_roles);
-    let (name, formation, play_style) = match team {
+    let (name, formation, play_style, tactics) = match team {
         Some(t) => (
             t.name.clone(),
             t.formation.clone(),
@@ -354,11 +365,13 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
                 domain::team::PlayStyle::HighPress => engine::PlayStyle::HighPress,
                 _ => engine::PlayStyle::Balanced,
             },
+            domain_to_engine_tactics(&t.tactics_phase),
         ),
         None => (
             "Unknown".into(),
             "4-4-2".into(),
             engine::PlayStyle::Balanced,
+            engine::TacticsConfig::default(),
         ),
     };
 
@@ -415,6 +428,7 @@ fn build_engine_team(game: &Game, team_id: &str) -> engine::TeamData {
         formation,
         play_style,
         players,
+        tactics,
     }
 }
 

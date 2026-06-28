@@ -3,10 +3,14 @@ import { normalisePosition } from "../squad/SquadTab.helpers";
 
 export type TransferTabView =
   | "my_list"
-  | "market"
-  | "free_agents"
-  | "loans"
+  | "players"
   | "offers";
+
+export type TransferAvailabilityFilter =
+  | "all"
+  | "transfer"
+  | "loan"
+  | "free_agent";
 
 export interface TransferCollections {
   myTransferList: PlayerData[];
@@ -14,6 +18,7 @@ export interface TransferCollections {
   marketPlayers: PlayerData[];
   freeAgentPlayers: PlayerData[];
   loanPlayers: PlayerData[];
+  availablePlayers: PlayerData[];
   playersWithOffers: PlayerData[];
 }
 
@@ -43,27 +48,48 @@ export function deriveTransferCollections(
   gameState: GameStateData,
   userTeamId: string | null,
 ): TransferCollections {
+  const myTransferList = gameState.players.filter(
+    (player) =>
+      player.team_id === userTeamId &&
+      player.transfer_listed &&
+      !player.active_loan,
+  );
+  const myLoanList = gameState.players.filter(
+    (player) =>
+      player.team_id === userTeamId && player.loan_listed && !player.active_loan,
+  );
+  const marketPlayers = gameState.players.filter(
+    (player) =>
+      player.transfer_listed && player.team_id !== userTeamId && !player.active_loan,
+  );
+  const freeAgentPlayers = gameState.players.filter(
+    (player) => player.team_id === null && !player.retired,
+  );
+  const loanPlayers = gameState.players.filter(
+    (player) =>
+      player.loan_listed && player.team_id !== userTeamId && !player.active_loan,
+  );
+
   return {
-    myTransferList: gameState.players.filter(
-      (player) => player.team_id === userTeamId && player.transfer_listed,
-    ),
-    myLoanList: gameState.players.filter(
-      (player) => player.team_id === userTeamId && player.loan_listed,
-    ),
-    marketPlayers: gameState.players.filter(
-      (player) => player.transfer_listed && player.team_id !== userTeamId,
-    ),
-    freeAgentPlayers: gameState.players.filter(
-      (player) => player.team_id === null && !player.retired,
-    ),
-    loanPlayers: gameState.players.filter(
-      (player) => player.loan_listed && player.team_id !== userTeamId,
-    ),
+    myTransferList,
+    myLoanList,
+    marketPlayers,
+    freeAgentPlayers,
+    loanPlayers,
+    availablePlayers: uniquePlayersById([
+      ...marketPlayers,
+      ...loanPlayers,
+      ...freeAgentPlayers,
+    ]),
     playersWithOffers: gameState.players.filter(
       (player) =>
-        player.transfer_offers.length > 0 &&
+        (player.transfer_offers.length > 0 ||
+          (player.loan_offers?.length ?? 0) > 0) &&
         (player.team_id === userTeamId ||
           player.transfer_offers.some(
+            (offer) => offer.from_team_id === userTeamId,
+          ) ||
+          (player.loan_offers ?? []).some(
             (offer) => offer.from_team_id === userTeamId,
           )),
     ),
@@ -77,12 +103,8 @@ export function getCurrentTransferList(
   switch (view) {
     case "my_list":
       return getMyListedPlayers(collections);
-    case "market":
-      return collections.marketPlayers;
-    case "free_agents":
-      return collections.freeAgentPlayers;
-    case "loans":
-      return collections.loanPlayers;
+    case "players":
+      return collections.availablePlayers;
     case "offers":
     default:
       return collections.playersWithOffers;
@@ -93,8 +115,21 @@ export function filterTransferPlayers(
   players: PlayerData[],
   search: string,
   posFilter: string | null,
+  availabilityFilter: TransferAvailabilityFilter = "all",
 ): PlayerData[] {
   return players.filter((player) => {
+    if (availabilityFilter === "transfer" && !player.transfer_listed) {
+      return false;
+    }
+
+    if (availabilityFilter === "loan" && !player.loan_listed) {
+      return false;
+    }
+
+    if (availabilityFilter === "free_agent" && player.team_id !== null) {
+      return false;
+    }
+
     if (
       posFilter &&
       normalisePosition(player.natural_position || player.position) !== posFilter
