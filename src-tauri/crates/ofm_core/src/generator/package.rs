@@ -13,6 +13,7 @@ use serde_yaml::Value;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
@@ -155,6 +156,27 @@ pub struct WorldMetaDef {
     /// Relative path to the package logo image within the package (e.g. `"assets/images/logo.png"`).
     #[serde(default)]
     pub logo: Option<String>,
+    /// Optional overrides for the league auto-generated when a `database` package
+    /// declares teams but no competitions. Absent = use the built-in defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_league: Option<FallbackLeagueConfig>,
+}
+
+/// Author-supplied shape for the auto-generated fallback league. Every field is
+/// optional and falls back to the built-in default when unset.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FallbackLeagueConfig {
+    /// Display name. When set, it is used verbatim instead of the localized
+    /// default name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Rounds each pair plays: `1` (single) or `2` (double round-robin, default).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legs: Option<u8>,
+    /// Competition scope. Defaults to `Domestic`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<CompetitionScope>,
 }
 
 fn default_package_type() -> String {
@@ -1204,6 +1226,30 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn world_meta_def_round_trips_fallback_league_config() {
+        // A manifest carrying fallbackLeague must survive load -> save so the
+        // field isn't silently dropped (there is no editor UI for it yet).
+        let json = r#"{
+            "id": "p", "name": "P", "packageType": "database",
+            "fallbackLeague": { "name": "Custom Cup", "legs": 1, "scope": "Continental" }
+        }"#;
+        let meta: WorldMetaDef = serde_json::from_str(json).unwrap();
+        let cfg = meta.fallback_league.as_ref().expect("config should deserialize");
+        assert_eq!(cfg.name.as_deref(), Some("Custom Cup"));
+        assert_eq!(cfg.legs, Some(1));
+        assert_eq!(cfg.scope, Some(CompetitionScope::Continental));
+
+        let serialized = serde_json::to_string(&meta).unwrap();
+        assert!(serialized.contains("fallbackLeague"), "dropped on save: {serialized}");
+        assert!(serialized.contains("Custom Cup"));
+
+        // A manifest without the field deserializes to None and omits it on save.
+        let bare: WorldMetaDef = serde_json::from_str(r#"{ "id": "p", "name": "P" }"#).unwrap();
+        assert!(bare.fallback_league.is_none());
+        assert!(!serde_json::to_string(&bare).unwrap().contains("fallbackLeague"));
+    }
 
     fn temp_package() -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ofm-pkg-{}", uuid::Uuid::new_v4()));

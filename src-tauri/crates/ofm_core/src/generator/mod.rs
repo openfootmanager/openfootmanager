@@ -748,6 +748,59 @@ fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Ve
     defs
 }
 
+/// Synthesise the fallback league played over `team_ids` when a database package
+/// declares teams but no competitions. Author overrides (`cfg`) tune the name,
+/// legs, and scope; each falls back to the built-in default when unset.
+fn build_fallback_competition(
+    cfg: Option<&package::FallbackLeagueConfig>,
+    team_ids: Vec<String>,
+) -> CompetitionDefinition {
+    let custom_name = cfg.and_then(|c| c.name.clone()).filter(|n| !n.is_empty());
+    // Only 1 (single) or 2 (double round-robin) are meaningful; ignore others.
+    let legs = cfg
+        .and_then(|c| c.legs)
+        .filter(|&l| l == 1 || l == 2)
+        .unwrap_or(2);
+    let scope = cfg
+        .and_then(|c| c.scope.clone())
+        .unwrap_or(CompetitionScope::Domestic);
+
+    CompetitionDefinition {
+        id: "ofm-fallback-league".to_string(),
+        // A custom name is used verbatim; otherwise keep the localized default
+        // name (driven by name_key, with `name` as the raw fallback).
+        name: custom_name.clone().unwrap_or_else(|| "Default League".to_string()),
+        r#type: domain::league::CompetitionType::League,
+        scope,
+        priority: 10,
+        format: FormatDef {
+            kind: CompetitionFormat::LeagueTable,
+            legs: Some(legs),
+            group_size: None,
+            qualifiers_per_group: None,
+            best_third_qualifiers: None,
+        },
+        participants: ParticipantSpec {
+            explicit: Some(team_ids),
+            selector: None,
+        },
+        region_id: None,
+        country_id: None,
+        required_region_ids: Vec::new(),
+        berths: Vec::new(),
+        season_start_month: None,
+        season_start_day: None,
+        // Clear name_key when a custom name is set so the author's name isn't
+        // overridden by the localized default.
+        name_key: if custom_name.is_some() {
+            None
+        } else {
+            Some("be.competition.fallbackLeagueName".to_string())
+        },
+        logo: None,
+    }
+}
+
 /// Build a runnable [`WorldData`] from a validated world package: clubs with
 /// generated squads, regions from the package's confederations/countries, and
 /// the package's competitions as embedded definitions (resolved at game start).
@@ -868,34 +921,8 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         // for the frontend to surface; it is not persisted to the save.
         build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
         let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
-        let fallback = CompetitionDefinition {
-            id: "ofm-fallback-league".to_string(),
-            name: "Default League".to_string(),
-            // name_key drives the localized display name; `name` is only the
-            // raw fallback when a locale lacks the key.
-            r#type: domain::league::CompetitionType::League,
-            scope: CompetitionScope::Domestic,
-            priority: 10,
-            format: FormatDef {
-                kind: CompetitionFormat::LeagueTable,
-                legs: Some(2),
-                group_size: None,
-                qualifiers_per_group: None,
-                best_third_qualifiers: None,
-            },
-            participants: ParticipantSpec {
-                explicit: Some(explicit),
-                selector: None,
-            },
-            region_id: None,
-            country_id: None,
-            required_region_ids: Vec::new(),
-            berths: Vec::new(),
-            season_start_month: None,
-            season_start_day: None,
-            name_key: Some("be.competition.fallbackLeagueName".to_string()),
-            logo: None,
-        };
+        let cfg = package.meta.as_ref().and_then(|m| m.fallback_league.as_ref());
+        let fallback = build_fallback_competition(cfg, explicit);
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
             competitions: vec![fallback],
@@ -1034,6 +1061,72 @@ mod tests {
     use domain::manager::Manager;
     use domain::player::{Position, SquadRole};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
+
+    #[test]
+    fn fallback_competition_uses_defaults_when_unconfigured() {
+        let comp = build_fallback_competition(None, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(comp.name, "Default League");
+        assert_eq!(
+            comp.name_key.as_deref(),
+            Some("be.competition.fallbackLeagueName")
+        );
+        assert_eq!(comp.format.legs, Some(2));
+        assert_eq!(comp.scope, CompetitionScope::Domestic);
+        assert_eq!(
+            comp.participants.explicit,
+            Some(vec!["a".to_string(), "b".to_string()])
+        );
+    }
+
+    #[test]
+    fn fallback_competition_honors_author_overrides() {
+        let cfg = package::FallbackLeagueConfig {
+            name: Some("Premier Division".to_string()),
+            legs: Some(1),
+            scope: Some(CompetitionScope::Continental),
+        };
+        let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
+        assert_eq!(comp.name, "Premier Division");
+        // A custom name clears the localized default key so it isn't overridden.
+        assert_eq!(comp.name_key, None);
+        assert_eq!(comp.format.legs, Some(1));
+        assert_eq!(comp.scope, CompetitionScope::Continental);
+    }
+
+    #[test]
+    fn fallback_competition_ignores_out_of_range_legs() {
+        let cfg = package::FallbackLeagueConfig { name: None, legs: Some(7), scope: None };
+        let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
+        assert_eq!(comp.format.legs, Some(2)); // 7 is meaningless → default 2
+    }
+
+    #[test]
+    fn fallback_competition_validates_for_every_allowed_scope() {
+        let team_ids: std::collections::HashSet<&str> = ["a", "b"].into_iter().collect();
+        let mut country_codes: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut region_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for nation in crate::nations::NATION_CATALOG {
+            country_codes.insert(nation.code);
+            region_ids.insert(nation.region_id);
+        }
+        let ctx = WorldValidationContext { team_ids, country_codes, region_ids };
+
+        for scope in [
+            CompetitionScope::Domestic,
+            CompetitionScope::Regional,
+            CompetitionScope::Continental,
+            CompetitionScope::International,
+        ] {
+            let cfg = package::FallbackLeagueConfig { name: None, legs: None, scope: Some(scope.clone()) };
+            let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
+            let file = CompetitionDefinitionFile {
+                format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+                competitions: vec![comp],
+            };
+            let errors = validate_definitions(&file, &ctx);
+            assert!(errors.is_empty(), "scope {scope:?} produced errors: {errors:?}");
+        }
+    }
 
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {

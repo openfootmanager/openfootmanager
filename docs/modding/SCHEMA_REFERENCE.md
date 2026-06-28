@@ -50,6 +50,19 @@ The package manifest. Place this in `package.json` (or any file with `"schema": 
 | `baseYear` | integer or null | no | `null` | Season year displayed in the world selector. Example: `2026`. |
 | `defaultActiveRegions` | array of strings | no | `[]` | Region ids that are enabled by default when starting a new game with this package. |
 | `defaultActiveCompetitions` | array of strings | no | `[]` | Competition ids that are enabled by default when starting a new game with this package. |
+| `fallbackLeague` | object or null | no | `null` | Overrides for the league auto-generated when a `database` package declares teams but **no** competitions. See below. |
+
+### `fallbackLeague` overrides
+
+When a `database` package defines teams but no competitions, the engine synthesizes a single-division league over all teams so the world is still playable (and raises a notice). This object lets you shape that league. Every field is optional; an omitted field uses the built-in default.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string or null | localized "Default League" | Display name, used verbatim. |
+| `legs` | integer or null | `2` | Rounds each pair plays: `1` (single) or `2` (double round-robin). Other values are ignored. |
+| `scope` | string or null | `"Domestic"` | One of `"Domestic"`, `"Regional"`, `"Continental"`, `"International"`. |
+
+If you define your own competitions, this object is ignored.
 
 **Minimal valid example:**
 ```json

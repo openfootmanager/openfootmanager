@@ -294,7 +294,12 @@ const SCHEMA_WORLD: &str = r##"// World manifest — save as package.json at the
   "formatVersion": 1,          // required: always 1
   "baseYear": null,             // optional: integer season year, e.g. 2024
   "defaultActiveRegions": [],  // optional: region IDs enabled by default
-  "defaultActiveCompetitions": [] // optional: competition IDs enabled by default
+  "defaultActiveCompetitions": [], // optional: competition IDs enabled by default
+  "fallbackLeague": null       // optional: overrides for the auto-generated league
+                               // when a database package has teams but no
+                               // competitions, e.g.
+                               // { "name": "My League", "legs": 2,
+                               //   "scope": "Domestic" }
 }"##;
 
 const SCHEMA_TEAM: &str = r##"// Team entity — place inside teams/*.json in the "items" array.
