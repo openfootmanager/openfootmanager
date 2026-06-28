@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Info, XCircle, Globe, ImagePlus, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
+import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { PACKAGE_TYPES } from "./helpers";
 import type { WorldMetaDef } from "./types";
 
@@ -81,16 +82,7 @@ interface MetadataFormProps {
 export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFormProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<WorldMetaDef>) => onChange({ ...meta, ...patch });
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!meta.logo || !projectDir) { setLogoDataUrl(null); return; }
-    let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${meta.logo}`, baseDir: projectDir })
-      .then((url) => { if (!cancelled) setLogoDataUrl(url); })
-      .catch(() => { if (!cancelled) setLogoDataUrl(null); });
-    return () => { cancelled = true; };
-  }, [meta.logo, projectDir]);
+  const logoDataUrl = useAssetDataUrl(meta.logo, projectDir);
 
   async function handlePickLogo() {
     if (!projectDir) return;
@@ -105,6 +97,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
         entityId: meta.id || "package-logo",
         srcPath: selected,
       });
+      evictAssetDataUrl(projectDir, relPath);
       set({ logo: relPath });
     } catch { /* ignore */ }
   }
@@ -201,7 +194,7 @@ export function MetadataForm({ meta, onChange, counts, projectDir }: MetadataFor
                 {meta.logo && (
                   <button
                     type="button"
-                    onClick={() => { set({ logo: null }); setLogoDataUrl(null); }}
+                    onClick={() => { set({ logo: null }); }}
                     className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                   >
                     <X className="w-3.5 h-3.5" />

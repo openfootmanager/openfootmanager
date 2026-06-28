@@ -4,6 +4,7 @@ import { ImagePlus, Plus, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LabeledInput, LabeledSelect, labelClass, inputClass } from "./primitives";
+import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { Select } from "../../ui/Select";
 import { EntityFormShell } from "./shared";
 import { CompetitionPreviewCard } from "./CompetitionPreviewCard";
@@ -54,16 +55,7 @@ export function CompetitionForm({
 }: CompetitionFormProps) {
   const { t } = useTranslation();
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!editing.logo || !projectDir) { setLogoDataUrl(null); return; }
-    let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editing.logo}`, baseDir: projectDir })
-      .then((url) => { if (!cancelled) setLogoDataUrl(url); })
-      .catch(() => { if (!cancelled) setLogoDataUrl(null); });
-    return () => { cancelled = true; };
-  }, [editing.logo, projectDir]);
+  const logoDataUrl = useAssetDataUrl(editing.logo, projectDir);
 
   async function handlePickLogo() {
     if (!projectDir) return;
@@ -78,6 +70,7 @@ export function CompetitionForm({
         entityId: editing.id || `unnamed-competition-${Date.now()}`,
         srcPath: selected,
       });
+      evictAssetDataUrl(projectDir, relPath);
       updateField("logo", relPath);
     } catch { /* ignore */ }
   }
@@ -552,7 +545,7 @@ export function CompetitionForm({
               {editing.logo && (
                 <button
                   type="button"
-                  onClick={() => { updateField("logo", null); setLogoDataUrl(null); }}
+                  onClick={() => { updateField("logo", null); }}
                   className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                 >
                   <X className="w-3.5 h-3.5" />

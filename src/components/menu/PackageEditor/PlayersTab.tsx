@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
+import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { PlayerDef, Position, TeamDef } from "./types";
 
@@ -33,16 +33,7 @@ interface PlayerAvatarCellProps {
 }
 
 function PlayerAvatarCell({ player, posAbbr, projectDir }: PlayerAvatarCellProps) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!player.photo || !projectDir) { setPhotoUrl(null); return; }
-    let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${player.photo}`, baseDir: projectDir })
-      .then((url) => { if (!cancelled) setPhotoUrl(url); })
-      .catch(() => { if (!cancelled) setPhotoUrl(null); });
-    return () => { cancelled = true; };
-  }, [player.photo, projectDir]);
+  const photoUrl = useAssetDataUrl(player.photo, projectDir);
 
   const name = player.name || `${player.firstName} ${player.lastName}`.trim() || player.id;
   const posColor = POS_COLOR[player.position] ?? "bg-gray-500";

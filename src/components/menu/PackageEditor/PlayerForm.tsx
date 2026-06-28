@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useAssetDataUrl, evictAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { LabeledInput, LabeledSelect, labelClass } from "./primitives";
 import { EntityFormShell } from "./shared";
 import { DatePicker } from "../../ui/DatePicker";
@@ -48,16 +49,7 @@ export function PlayerForm({
   const { t } = useTranslation();
   const [useAttributes, setUseAttributes] = useState(editing.attributes !== null);
   const [idAutoMode, setIdAutoMode] = useState(editingIndex === null && !editing.id);
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!editing.photo || !projectDir) { setPhotoDataUrl(null); return; }
-    let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${editing.photo}`, baseDir: projectDir })
-      .then((url) => { if (!cancelled) setPhotoDataUrl(url); })
-      .catch(() => { if (!cancelled) setPhotoDataUrl(null); });
-    return () => { cancelled = true; };
-  }, [editing.photo, projectDir]);
+  const photoDataUrl = useAssetDataUrl(editing.photo, projectDir);
 
   async function handlePickPhoto() {
     if (!projectDir) return;
@@ -72,6 +64,9 @@ export function PlayerForm({
         entityId: editing.id || `unnamed-player-${Date.now()}`,
         srcPath: selected,
       });
+      // The path is reused for an entity, so drop any cached data URL before
+      // pointing at the freshly written file.
+      evictAssetDataUrl(projectDir, relPath);
       updateField("photo", relPath);
     } catch { /* ignore */ }
   }
@@ -164,7 +159,7 @@ export function PlayerForm({
               {editing.photo && (
                 <button
                   type="button"
-                  onClick={() => { updateField("photo", null); setPhotoDataUrl(null); }}
+                  onClick={() => { updateField("photo", null); }}
                   className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-navy-600 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
                 >
                   <X className="w-3.5 h-3.5" />

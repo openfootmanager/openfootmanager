@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
+import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
 import { EntityListShell, EntityRow } from "./shared";
 import type { TeamDef } from "./types";
 
@@ -17,16 +17,7 @@ interface TeamsTabProps {
 }
 
 function TeamBadge({ team, projectDir }: { team: TeamDef; projectDir?: string }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!team.logo || !projectDir) { setLogoUrl(null); return; }
-    let cancelled = false;
-    invoke<string>("read_file_as_data_url", { path: `${projectDir}/${team.logo}`, baseDir: projectDir })
-      .then((url) => { if (!cancelled) setLogoUrl(url); })
-      .catch(() => { if (!cancelled) setLogoUrl(null); });
-    return () => { cancelled = true; };
-  }, [team.logo, projectDir]);
+  const logoUrl = useAssetDataUrl(team.logo, projectDir);
 
   if (logoUrl) {
     return (
