@@ -1,6 +1,7 @@
 use crate::types::{
-    DefensiveLine, MarkingStyle, MatchConfig, PlayStyle, PlayerData, PlayerRole, PressingIntensity,
-    Side, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth,
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
+    PlayStyle, PlayerData, PlayerRole, PressingIntensity, Side, TacticsBuildUpStyle, TacticsConfig,
+    TacticsPitchWidth, Tempo,
 };
 
 // ---------------------------------------------------------------------------
@@ -303,6 +304,93 @@ pub(crate) fn tactics_buildup_mod(tactics: &TacticsConfig) -> f64 {
         TacticsBuildUpStyle::Short => 1.08,
         TacticsBuildUpStyle::Long => 0.88,
         TacticsBuildUpStyle::Mixed => 1.0,
+    }
+}
+
+// --- Extended phase dials (tempo / shape / pressing-possession / transitions) ---
+//
+// These cover dimensions the original five dials don't touch. Each neutral
+// (#[default]) option returns ×1.0 — and the transition rolls return 0.0 — so a
+// team on its defaults leaves the simulation (and the RNG stream) unchanged.
+// build_up / width / def_line / marking are intentionally NOT re-hooked here:
+// they already have live effects above, and re-hooking would double-count.
+
+/// Tempo's progression side: Direct breaks through midfield faster, Patient is
+/// more measured. Applied to the attacker's midfield contest.
+pub(crate) fn tactics_tempo_progression(tactics: &TacticsConfig) -> f64 {
+    match tactics.tempo {
+        Tempo::Direct => 1.0,
+        Tempo::Patient => 0.92,
+    }
+}
+
+/// Tempo's retention side: Patient circulates and holds possession longer.
+/// Applied to the possessing side's weight in the per-minute possession contest.
+pub(crate) fn tactics_tempo_retention(tactics: &TacticsConfig) -> f64 {
+    match tactics.tempo {
+        Tempo::Patient => 1.03,
+        Tempo::Direct => 1.0,
+    }
+}
+
+/// Pressing's ball-winning side in the per-minute possession contest: harder
+/// pressing recovers the ball more often. Applied to the defending side's weight.
+pub(crate) fn tactics_pressing_contest(tactics: &TacticsConfig) -> f64 {
+    match tactics.pressing_intensity {
+        PressingIntensity::Passive => 0.97,
+        PressingIntensity::Medium => 1.0,
+        PressingIntensity::Aggressive => 1.05,
+    }
+}
+
+/// Pressing scales the effectiveness of the press that opposes the opponent's
+/// build-up (a higher press forces more build-up turnovers).
+pub(crate) fn tactics_pressing_press(tactics: &TacticsConfig) -> f64 {
+    match tactics.pressing_intensity {
+        PressingIntensity::Passive => 0.96,
+        PressingIntensity::Medium => 1.0,
+        PressingIntensity::Aggressive => 1.06,
+    }
+}
+
+/// Pressing's energy cost: aggressive pressing tires a side faster. Applies only
+/// to the live engine, which tracks in-match condition.
+pub(crate) fn tactics_pressing_fatigue(tactics: &TacticsConfig) -> f64 {
+    match tactics.pressing_intensity {
+        PressingIntensity::Passive => 0.96,
+        PressingIntensity::Medium => 1.0,
+        PressingIntensity::Aggressive => 1.08,
+    }
+}
+
+/// Defensive shape scales how hard it is to create chances against the team.
+/// Applied to the defender's rating in the attacking third.
+pub(crate) fn tactics_shape_modifier(tactics: &TacticsConfig) -> f64 {
+    match tactics.defensive_shape {
+        DefensiveShape::Stretched => 0.93,
+        DefensiveShape::Normal => 1.0,
+        DefensiveShape::Compact => 1.07,
+    }
+}
+
+/// Counter-press duration: chance for the side that just lost the ball to win it
+/// straight back at the possession flip. None ⇒ no roll (neutral, RNG-safe).
+pub(crate) fn tactics_counter_press_rewin(tactics: &TacticsConfig) -> f64 {
+    match tactics.counter_press_duration {
+        CounterPressDuration::None => 0.0,
+        CounterPressDuration::Short => 0.06,
+        CounterPressDuration::Long => 0.12,
+    }
+}
+
+/// Break speed: chance for the side that just won the ball to spring a fast
+/// counter into its attacking third instead of resetting to midfield. Neutral
+/// (Medium/Slow) ⇒ no roll; only Fast enables counters.
+pub(crate) fn tactics_break_speed_counter(tactics: &TacticsConfig) -> f64 {
+    match tactics.break_speed {
+        BreakSpeed::Slow => 0.0,
+        BreakSpeed::Medium => 0.0,
+        BreakSpeed::Fast => 0.10,
     }
 }
 

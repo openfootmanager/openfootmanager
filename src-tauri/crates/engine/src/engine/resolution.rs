@@ -4,7 +4,8 @@ use crate::event::{EventType, MatchEvent};
 use crate::shared::{
     PlayStylePhase, TraitContext, home_mod, play_style_modifier, role_attribute_modifier,
     tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
-    tactics_foul_modifier, trait_bonus,
+    tactics_foul_modifier, tactics_pressing_press, tactics_shape_modifier,
+    tactics_tempo_progression, trait_bonus,
 };
 use crate::types::{Position, Side, Zone};
 
@@ -109,7 +110,10 @@ fn resolve_midfield<R: Rng>(
         PlayStylePhase::Midfield,
         false,
     ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
-    let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
+    let att_eff = att_rating
+        * att_mod
+        * home_mod(att_side, ctx.config)
+        * tactics_tempo_progression(&ctx.team(att_side).tactics);
     let def_eff = def_rating * def_mod * home_mod(def_side, ctx.config);
     let success = att_eff / (att_eff + def_eff);
 
@@ -184,7 +188,10 @@ fn resolve_attacking_third<R: Rng>(
         false,
     ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
-    let def_eff = def_rating * def_mod * home_mod(def_side, ctx.config);
+    let def_eff = def_rating
+        * def_mod
+        * home_mod(def_side, ctx.config)
+        * tactics_shape_modifier(&ctx.team(def_side).tactics);
     let success = att_eff / (att_eff + def_eff);
     let zone = Zone::attacking_third(att_side);
     let cross_prob = tactics_cross_probability(&ctx.team(att_side).tactics);
@@ -367,5 +374,7 @@ fn effective_press(ctx: &MatchContext, pressing_side: Side) -> f64 {
         ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
     });
     let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
-    base * modifier * home_mod(pressing_side, ctx.config)
+    base * modifier
+        * tactics_pressing_press(&team.tactics)
+        * home_mod(pressing_side, ctx.config)
 }
