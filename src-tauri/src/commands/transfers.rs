@@ -212,9 +212,14 @@ pub fn exercise_loan_buy_option_internal(
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
-    mutate_active_game(state, |game| {
-        ofm_core::transfers::exercise_loan_buy_option(game, player_id)
+    state.update_game(|current| {
+        let mut game = current.clone();
+        ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
+        *current = game.clone();
+        Ok(game)
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -279,9 +284,14 @@ pub fn respond_to_loan_offer_internal(
         "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    mutate_active_game(state, |game| {
-        ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
+    state.update_game(|current| {
+        let mut game = current.clone();
+        ofm_core::transfers::respond_to_loan_offer(&mut game, player_id, offer_id, accept)?;
+        *current = game.clone();
+        Ok(game)
     })
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)
 }
 
 #[tauri::command]
