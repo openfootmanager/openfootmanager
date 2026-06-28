@@ -2551,7 +2551,7 @@
         "duplicateId": "重复的 {{kind}} id \"{{id}}\"。",
         "unknownConfederation": "国家 \"{{country}}\" 引用了未知的足联 \"{{confederation}}\"。",
         "unknownCountry": "\"{{entity}}\" 引用了未知的国家 \"{{country}}\"。",
-        "unknownTeam": "球员 \"{{player}}\" 引用了未知的俱乐部 \"{{team}}\"。",
+        "unknownTeam": "\"{{entity}}\" 引用了未知的俱乐部 \"{{team}}\"。",
         "zipSlip": "包中包含不安全路径的条目已被跳过。",
         "installFailed": "无法安装该包。",
         "noManifest": "此文件中未找到包清单。",

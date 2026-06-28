@@ -2564,7 +2564,7 @@
         "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
         "unknownConfederation": "Country \"{{country}}\" references unknown confederation \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" references unknown country \"{{country}}\".",
-        "unknownTeam": "Player \"{{player}}\" references unknown club \"{{team}}\".",
+        "unknownTeam": "\"{{entity}}\" references unknown club \"{{team}}\".",
         "zipSlip": "A package entry contained an unsafe path and was skipped.",
         "installFailed": "The package could not be installed.",
         "noManifest": "No package manifest found in this file.",

@@ -215,7 +215,7 @@ ofm-cli info my-league.ofm
 | `duplicateId` | Two entities of the same type share an `id` | `kind`, `id` |
 | `unknownConfederation` | Country references a confederation id that does not exist | `country`, `confederation` |
 | `unknownCountry` | Team or player references a country that does not exist | `entity`, `country` |
-| `unknownTeam` | Player references a team `id` that does not exist | `player`, `team` |
+| `unknownTeam` | A player or staff member references a team `id` that does not exist | `entity`, `team` |
 | `zipSlip` | Archive contains a path traversal attack | _(entry name)_ |
 | `symlinkDetected` | Archive contains a symlink | _(entry name)_ |
 | `tooManyFiles` | Archive exceeds 10,000 files | — |

@@ -2551,7 +2551,7 @@
         "duplicateId": "Doppelte {{kind}}-id \"{{id}}\".",
         "unknownConfederation": "Land \"{{country}}\" verweist auf unbekannten Verband \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" verweist auf unbekanntes Land \"{{country}}\".",
-        "unknownTeam": "Spieler \"{{player}}\" verweist auf unbekannten Verein \"{{team}}\".",
+        "unknownTeam": "\"{{entity}}\" verweist auf unbekannten Verein \"{{team}}\".",
         "zipSlip": "Ein Paketeintrag enthielt einen unsicheren Pfad und wurde übersprungen.",
         "installFailed": "Das Paket konnte nicht installiert werden.",
         "noManifest": "Kein Paket-Manifest in dieser Datei gefunden.",

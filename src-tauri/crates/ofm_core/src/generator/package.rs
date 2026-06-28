@@ -577,7 +577,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         if !player.club.is_empty() && !team_ids.contains(player.club.as_str()) {
             errors.push(
                 PackageError::new(UNKNOWN_TEAM, "")
-                    .with("player", &player.id)
+                    .with("entity", &player.id)
                     .with("team", &player.club),
             );
         }
@@ -594,7 +594,7 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         if !staff.club.is_empty() && !team_ids.contains(staff.club.as_str()) {
             errors.push(
                 PackageError::new(UNKNOWN_TEAM, "")
-                    .with("player", &staff.id)
+                    .with("entity", &staff.id)
                     .with("team", &staff.club),
             );
         }
@@ -1564,6 +1564,40 @@ colors:
                 .count()
                 >= 2,
             "both the team's and player's unknown country should be reported: {errors:?}"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn staff_unknown_club_is_labeled_entity_not_player() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "team.yaml",
+            "schema: team\nid: t1\nname: Real FC\ncity: Town\ncountry: ENG\ncolors: { primary: \"#000\", secondary: \"#fff\" }\n",
+        );
+        write(
+            &dir,
+            "staff.yaml",
+            "schema: staff\nid: coach-1\nfirstName: A\nlastName: B\nclub: ghost\nnationality: ENG\nrole: Coach\n",
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+        let err = errors
+            .iter()
+            .find(|e| e.code == UNKNOWN_TEAM)
+            .expect("a staff member referencing a missing club should error");
+        // The referencing entity is identified generically, never mislabeled "player".
+        assert!(
+            err.params.iter().any(|(k, v)| k == "entity" && v == "coach-1"),
+            "{:?}",
+            err.params
+        );
+        assert!(
+            !err.params.iter().any(|(k, _)| k == "player"),
+            "staff error must not use the player param: {:?}",
+            err.params
         );
 
         std::fs::remove_dir_all(&dir).ok();

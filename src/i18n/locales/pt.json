@@ -2551,7 +2551,7 @@
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
         "unknownConfederation": "O país \"{{country}}\" refere uma confederação desconhecida \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" refere um país desconhecido \"{{country}}\".",
-        "unknownTeam": "O jogador \"{{player}}\" refere um clube desconhecido \"{{team}}\".",
+        "unknownTeam": "\"{{entity}}\" refere um clube desconhecido \"{{team}}\".",
         "zipSlip": "Uma entrada do pacote continha um caminho inseguro e foi ignorada.",
         "installFailed": "Não foi possível instalar o pacote.",
         "noManifest": "Não foi encontrado manifesto de pacote neste ficheiro.",

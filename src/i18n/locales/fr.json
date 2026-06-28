@@ -2551,7 +2551,7 @@
         "duplicateId": "Id {{kind}} en double « {{id}} ».",
         "unknownConfederation": "Le pays « {{country}} » référence une confédération inconnue « {{confederation}} ».",
         "unknownCountry": "« {{entity}} » référence un pays inconnu « {{country}} ».",
-        "unknownTeam": "Le joueur « {{player}} » référence un club inconnu « {{team}} ».",
+        "unknownTeam": "« {{entity}} » référence un club inconnu « {{team}} ».",
         "zipSlip": "Une entrée du paquet contenait un chemin non sécurisé et a été ignorée.",
         "installFailed": "Le paquet n'a pas pu être installé.",
         "noManifest": "Aucun manifeste de paquet trouvé dans ce fichier.",

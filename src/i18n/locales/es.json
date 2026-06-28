@@ -2581,7 +2581,7 @@
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
         "unknownConfederation": "El país \"{{country}}\" hace referencia a una confederación desconocida \"{{confederation}}\".",
         "unknownCountry": "\"{{entity}}\" hace referencia a un país desconocido \"{{country}}\".",
-        "unknownTeam": "El jugador \"{{player}}\" hace referencia a un club desconocido \"{{team}}\".",
+        "unknownTeam": "\"{{entity}}\" hace referencia a un club desconocido \"{{team}}\".",
         "zipSlip": "Una entrada del paquete contenía una ruta insegura y fue omitida.",
         "installFailed": "No se pudo instalar el paquete.",
         "noManifest": "No se encontró manifiesto de paquete en este archivo.",
