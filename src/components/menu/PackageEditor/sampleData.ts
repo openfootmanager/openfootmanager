@@ -4,6 +4,7 @@ import type {
   CountryDef,
   NamesDefinition,
   PlayerDef,
+  StaffDef,
   TeamDef,
   WorldMetaDef,
 } from "./types";
@@ -14,6 +15,7 @@ export interface SamplePackage {
   countries: CountryDef[];
   teams: TeamDef[];
   players: PlayerDef[];
+  staff?: StaffDef[];
   names: NamesDefinition;
   competitions: CompetitionDef[];
 }
@@ -310,3 +312,242 @@ export const SOUTH_AMERICAN_CUP_SAMPLE: SamplePackage = {
     },
   ],
 };
+
+// Showcases the World Editor sections added for authored squads: a first team,
+// an academy (youth) intake, backroom staff, and a country name pool — every
+// piece you can fill in by hand, in one small database package.
+export const ACADEMY_SHOWCASE_SAMPLE: SamplePackage = {
+  meta: {
+    id: "harbor-academy-showcase",
+    name: "Harbor Academy Showcase",
+    description:
+      "One club authored end to end: first-team players, youth prospects, coaching staff, and a name pool. A reference for the World Editor's Players, Youth, Staff, and Names sections.",
+    version: "1.0.0",
+    author: "",
+    license: "CC0-1.0",
+    packageType: "database",
+    gameMinVersion: "0.3.0",
+    baseYear: 2026,
+    formatVersion: 1,
+    defaultActiveRegions: [],
+    defaultActiveCompetitions: ["harbor-league"],
+    logo: null,
+  },
+  confederations: [{ id: "europe", name: "Europe" }],
+  countries: [{ id: "ENG", name: "England", confederation: "europe" }],
+  teams: [
+    {
+      id: "harbor-town-fc",
+      name: "Harbor Town FC",
+      shortName: "HTF",
+      city: "Harbor Town",
+      country: "ENG",
+      colors: { primary: "#0d4f8b", secondary: "#f5c542" },
+      playStyle: "Possession",
+      stadiumName: "The Dockyard",
+      reputationRange: [450, 700],
+      financeRange: [900000, 3500000],
+      logo: null,
+      kitPattern: null,
+    },
+    {
+      id: "rival-rovers",
+      name: "Rival Rovers",
+      shortName: "RRV",
+      city: "Eastport",
+      country: "ENG",
+      colors: { primary: "#8b0d22", secondary: "#ffffff" },
+      playStyle: "Counter",
+      stadiumName: "Rover Park",
+      reputationRange: [400, 650],
+      financeRange: [700000, 2800000],
+      logo: null,
+      kitPattern: null,
+    },
+  ],
+  players: [
+    {
+      id: "marcus-vane",
+      name: "Marcus Vane",
+      firstName: "Marcus",
+      lastName: "Vane",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      position: "Striker",
+      footedness: "Right",
+      dateOfBirth: "1996-04-12",
+      overall: 78,
+      attributes: null,
+    },
+    {
+      id: "elliot-shaw",
+      name: "Elliot Shaw",
+      firstName: "Elliot",
+      lastName: "Shaw",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      position: "CentralMidfielder",
+      footedness: "Left",
+      dateOfBirth: "1994-09-30",
+      overall: 75,
+      attributes: null,
+    },
+    {
+      id: "tom-reed",
+      name: "Tom Reed",
+      firstName: "Tom",
+      lastName: "Reed",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      position: "Goalkeeper",
+      footedness: "Right",
+      dateOfBirth: "1992-01-18",
+      overall: 74,
+      attributes: null,
+    },
+    // Youth prospects — flagged youth: true so they join the academy squad.
+    {
+      id: "jamie-locke",
+      name: "Jamie Locke",
+      firstName: "Jamie",
+      lastName: "Locke",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      position: "AttackingMidfielder",
+      footedness: "Both",
+      dateOfBirth: "2009-06-02",
+      overall: 58,
+      attributes: null,
+      youth: true,
+    },
+    {
+      id: "noah-finch",
+      name: "Noah Finch",
+      firstName: "Noah",
+      lastName: "Finch",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      position: "RightBack",
+      footedness: "Right",
+      dateOfBirth: "2010-02-21",
+      overall: 55,
+      attributes: null,
+      youth: true,
+    },
+  ],
+  staff: [
+    {
+      id: "diane-cole",
+      firstName: "Diane",
+      lastName: "Cole",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      role: "AssistantManager",
+      attributes: { coaching: 72, judgingAbility: 68, judgingPotential: 65, physiotherapy: 40 },
+      specialization: null,
+      dateOfBirth: "1974-03-15",
+    },
+    {
+      id: "victor-pratt",
+      firstName: "Victor",
+      lastName: "Pratt",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      role: "Coach",
+      attributes: { coaching: 70, judgingAbility: 55, judgingPotential: 60, physiotherapy: 35 },
+      specialization: "Youth",
+      dateOfBirth: "1980-11-08",
+    },
+    {
+      id: "amir-khan",
+      firstName: "Amir",
+      lastName: "Khan",
+      club: "harbor-town-fc",
+      nationality: "ENG",
+      role: "Scout",
+      attributes: { coaching: 45, judgingAbility: 78, judgingPotential: 80, physiotherapy: 30 },
+      specialization: null,
+      dateOfBirth: "1983-07-22",
+    },
+  ],
+  names: {
+    version: 1,
+    description: "Sample English name pool",
+    pools: {
+      ENG: {
+        first_names: ["Jack", "Harry", "Charlie", "Oscar", "George", "Alfie", "Freddie"],
+        last_names: ["Walker", "Wright", "Hughes", "Carter", "Mason", "Barnes", "Knight"],
+      },
+    },
+  },
+  competitions: [
+    {
+      id: "harbor-league",
+      name: "Harbor Regional League",
+      type: "League",
+      scope: "Domestic",
+      countryId: "ENG",
+      priority: 10,
+      format: { kind: "LeagueTable", legs: 2 },
+      participants: { explicit: ["harbor-town-fc", "rival-rovers"] },
+      seasonStartMonth: 8,
+      seasonStartDay: 1,
+    },
+  ],
+};
+
+// A names-only patch: no teams or competitions, just name pools for several
+// countries. Demonstrates the "patch" package type and how name pools stack on
+// top of a database world to enrich generated players.
+export const NAME_PACK_SAMPLE: SamplePackage = {
+  meta: {
+    id: "global-name-pack",
+    name: "Global Name Pack",
+    description:
+      "A patch package containing only name pools for several countries. Install it alongside a world to give generated players more varied, localized names.",
+    version: "1.0.0",
+    author: "",
+    license: "CC0-1.0",
+    packageType: "patch",
+    gameMinVersion: "0.3.0",
+    baseYear: null,
+    formatVersion: 1,
+    defaultActiveRegions: [],
+    defaultActiveCompetitions: [],
+    logo: null,
+  },
+  confederations: [],
+  countries: [],
+  teams: [],
+  players: [],
+  staff: [],
+  names: {
+    version: 1,
+    description: "Localized name pools for multiple countries",
+    pools: {
+      ES: {
+        first_names: ["Hugo", "Mateo", "Lucas", "Martín", "Pablo", "Diego", "Álvaro"],
+        last_names: ["García", "Martínez", "López", "Sánchez", "Romero", "Torres", "Navarro"],
+      },
+      DE: {
+        first_names: ["Leon", "Finn", "Jonas", "Luca", "Felix", "Maximilian", "Paul"],
+        last_names: ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Wagner", "Becker"],
+      },
+      BR: {
+        first_names: ["Gabriel", "Lucas", "Matheus", "Rafael", "Bruno", "Thiago", "Felipe"],
+        last_names: ["Silva", "Santos", "Oliveira", "Souza", "Costa", "Pereira", "Almeida"],
+      },
+    },
+  },
+  competitions: [],
+};
+
+// All bundled World Editor starter samples, in display order. Add new samples
+// here and the home view picks them up automatically.
+export const SAMPLE_PACKAGES: SamplePackage[] = [
+  MINI_LEAGUE_SAMPLE,
+  IBERIA_MINI_SAMPLE,
+  SOUTH_AMERICAN_CUP_SAMPLE,
+  ACADEMY_SHOWCASE_SAMPLE,
+  NAME_PACK_SAMPLE,
+];

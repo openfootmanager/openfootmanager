@@ -1,0 +1,35 @@
+{
+  "schema": "team",
+  "items": [
+    {
+      "id": "harbor-town-fc",
+      "name": "Harbor Town FC",
+      "shortName": "HTF",
+      "city": "Harbor Town",
+      "country": "ENG",
+      "colors": {
+        "primary": "#0d4f8b",
+        "secondary": "#f5c542"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "The Dockyard",
+      "reputationRange": [450, 700],
+      "financeRange": [900000, 3500000]
+    },
+    {
+      "id": "rival-rovers",
+      "name": "Rival Rovers",
+      "shortName": "RRV",
+      "city": "Eastport",
+      "country": "ENG",
+      "colors": {
+        "primary": "#8b0d22",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Rover Park",
+      "reputationRange": [400, 650],
+      "financeRange": [700000, 2800000]
+    }
+  ]
+}

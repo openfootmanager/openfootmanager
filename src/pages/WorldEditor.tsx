@@ -275,7 +275,7 @@ export default function WorldEditor() {
           countries: sample.countries,
           teams: sample.teams,
           players: sample.players,
-          staff: (sample as { staff?: unknown }).staff ?? [],
+          staff: sample.staff ?? [],
           names: sample.names,
           competitions: sample.competitions,
         });

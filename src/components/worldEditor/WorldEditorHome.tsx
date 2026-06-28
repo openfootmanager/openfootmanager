@@ -14,9 +14,7 @@ import {
 } from "lucide-react";
 import type { WorldMetaDef } from "../menu/PackageEditor/types";
 import {
-  IBERIA_MINI_SAMPLE,
-  MINI_LEAGUE_SAMPLE,
-  SOUTH_AMERICAN_CUP_SAMPLE,
+  SAMPLE_PACKAGES,
   type SamplePackage,
 } from "../menu/PackageEditor/sampleData";
 import type { PackageInfo } from "../menu/WorldSelect";
@@ -289,7 +287,7 @@ export function WorldEditorHome({
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 {t("worldEditor.startFromExample")}
               </p>
-              {[MINI_LEAGUE_SAMPLE, IBERIA_MINI_SAMPLE, SOUTH_AMERICAN_CUP_SAMPLE].map(
+              {SAMPLE_PACKAGES.map(
                 (sample) => (
                   <button
                     key={sample.meta.id}
