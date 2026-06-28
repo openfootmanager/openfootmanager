@@ -56,6 +56,7 @@ ofm-cli new my-league --author "Your Name" --version 1.0.0 --type database --dir
   package.json
   teams/teams.json
   players/players.json
+  staff/staff.json
   confederations/confederations.json
   countries/countries.json
   competitions/competitions.json
@@ -76,7 +77,7 @@ ofm-cli schema competition
 ofm-cli schema world
 ```
 
-**Valid entity names:** `world`, `team`, `player`, `confederation`, `country`, `competition`, `names`
+**Valid entity names:** `world`, `team`, `player`, `staff`, `confederation`, `country`, `competition`, `names`
 
 The output is a JSONC-style template (with `//` comments) — not valid JSON, but meant for reading. Copy-paste the fields you need into your own files.
 
@@ -101,7 +102,7 @@ ofm-cli add player "Luis Figo" --dir my-league --format yaml
 
 | Argument | Description |
 |----------|-------------|
-| `entity` | Entity type: `team`, `player`, `confederation`, `country`, `competition`, `names` |
+| `entity` | Entity type: `team`, `player`, `staff`, `confederation`, `country`, `competition`, `names` |
 | `name` | (optional) Display name — pre-fills the `name` field and generates a slug for `id` |
 
 **Flags:**

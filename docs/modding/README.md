@@ -20,13 +20,14 @@ A package has three types:
 
 ## The Entity Model
 
-Packages are built from seven entity types. They reference each other by `id`:
+Packages are built from eight entity types. They reference each other by `id`:
 
 ```
 confederations
     └── countries (reference confederation id)
          └── teams (reference country id)
-              └── players (reference team id + country id)
+              └── players (reference team id + country id; youth players set youth: true)
+                   staff   (reference team id; coaches, scouts, physios)
                    competitions (reference team ids, country ids, region ids)
 names (name pools keyed by country code, for random player name generation)
 ```
@@ -71,14 +72,14 @@ The only exception is translation files (`translations.{locale}.json`), which ar
 
 ## Choosing a Tool
 
-| | CLI (`ofm-cli`) | Package Editor (in-app) |
+| | CLI (`ofm-cli`) | World Editor (in-app) |
 |---|---|---|
 | **Best for** | technical users, batch authoring, scripting | visual editing, non-technical authors |
-| **Supports** | all 7 entity types | metadata + teams only (V1) |
+| **Supports** | all entity types | all entity types (incl. staff & youth) |
 | **Output** | files on disk → `.ofm` | files on disk → `.ofm` |
 | **Requires** | terminal | running OFM installation |
 
-You can mix both tools: use the Package Editor to create and edit teams visually, then use the CLI to add competitions and validate.
+You can mix both tools: use the World Editor to create and edit teams visually, then use the CLI to add competitions and validate.
 
 ---
 
@@ -88,7 +89,7 @@ You can mix both tools: use the Package Editor to create and edit teams visually
 |-------|----------------|
 | [QUICKSTART.md](QUICKSTART.md) | Build and install your first package in 10 minutes |
 | [CLI_REFERENCE.md](CLI_REFERENCE.md) | All `ofm-cli` commands, flags, and examples |
-| [PACKAGE_EDITOR.md](PACKAGE_EDITOR.md) | In-app Package Editor walkthrough |
+| [PACKAGE_EDITOR.md](PACKAGE_EDITOR.md) | In-app World Editor walkthrough |
 | [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) | Every entity type with full field documentation |
 | [INSTALLING_PACKAGES.md](INSTALLING_PACKAGES.md) | How to install and manage `.ofm` files |
 | [examples/mini-league/](examples/mini-league/) | Fully working 4-team example package |

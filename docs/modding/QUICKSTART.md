@@ -2,7 +2,7 @@
 
 In this guide you will create a four-team league, validate it, package it into a `.ofm` file, and install it in OpenFoot Manager. It takes about 10 minutes.
 
-You will use `ofm-cli`. If you prefer a visual tool, the in-app Package Editor supports all entity types — see [PACKAGE_EDITOR.md](PACKAGE_EDITOR.md).
+You will use `ofm-cli`. If you prefer a visual tool, the in-app World Editor supports all entity types — see [PACKAGE_EDITOR.md](PACKAGE_EDITOR.md).
 
 ---
 
@@ -40,6 +40,8 @@ my-first-league/
     teams.json          ← empty teams list (add your teams here)
   players/
     players.json        ← empty (you can ignore this for now)
+  staff/
+    staff.json          ← empty (coaches, scouts, physios — optional)
   confederations/
     confederations.json ← empty (uses built-in catalog)
   countries/

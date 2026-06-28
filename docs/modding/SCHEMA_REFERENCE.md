@@ -116,8 +116,11 @@ Defines a specific player. Reference teams and countries by their `id`.
 | `club` | string | no | `""` | Team `id` this player starts at. Must match an existing team. |
 | `nationality` | string | no | `""` | Country `id` (ISO alpha-2 or football code). Example: `"ENG"`, `"ES"`. |
 | `position` | string | no | `"Goalkeeper"` | Player position. See [Position Values](#position-values). |
+| `footedness` | string or null | no | `"Right"` | Preferred foot: `"Right"`, `"Left"`, or `"Both"`. |
 | `dateOfBirth` | string or null | no | `null` | ISO 8601 date: `"YYYY-MM-DD"`. Example: `"1990-05-15"`. |
 | `age` | integer or null | no | `null` | Player age at world generation start. Used if `dateOfBirth` is absent. |
+| `youth` | boolean | no | `false` | If `true`, the player joins the club's youth/academy squad instead of the first team. |
+| `photo` | string or null | no | `null` | Relative path to a player photo asset bundled in the package. |
 | `overall` | integer (1–99) or null | no | `null` | Overall ability rating. The engine generates a realistic attribute spread from this value. |
 | `attributes` | object or null | no | `null` | Explicit attribute overrides (18 attributes). Overrides the `overall`-based generation for the specified attributes. |
 
@@ -157,6 +160,40 @@ Defines a specific player. Reference teams and countries by their `id`.
   "position": "CentralMidfielder",
   "dateOfBirth": "1998-03-22",
   "overall": 72
+}
+```
+
+---
+
+## `staff` — Coaching & Backroom Staff
+
+Defines a non-playing staff member (manager assistant, coach, scout, or physio). Place these inside `staff/*.json` in the `"items"` array. Reference teams by their `id`.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `id` | string | no | _(auto-UUID)_ | Stable slug. Auto-generated from the name if empty. |
+| `firstName` | string | no | `""` | First name. |
+| `lastName` | string | no | `""` | Last name. |
+| `club` | string | no | `""` | Team `id` this staff member belongs to. Empty = unattached / free agent. |
+| `nationality` | string | no | `""` | Country `id` (ISO alpha-2 or football code). |
+| `role` | string | no | `"Coach"` | One of `"AssistantManager"`, `"Coach"`, `"Scout"`, `"Physio"`. |
+| `specialization` | string or null | no | `null` | Coaching focus (coaches only): `"Fitness"`, `"Technique"`, `"Tactics"`, `"Defending"`, `"Attacking"`, `"GoalKeeping"`, `"Youth"`. |
+| `dateOfBirth` | string or null | no | `null` | ISO 8601 date: `"YYYY-MM-DD"`. |
+| `age` | integer or null | no | `null` | Age at world generation start. Used if `dateOfBirth` is absent. |
+| `attributes` | object or null | no | `null` | Explicit attribute overrides: `coaching`, `judging_ability`, `judging_potential`, `physiotherapy` (each 1–99). |
+
+**Example:**
+```json
+{
+  "schema": "staff",
+  "id": "alex-ferguson",
+  "firstName": "Alex",
+  "lastName": "Ferguson",
+  "club": "northshire-fc",
+  "nationality": "ENG",
+  "role": "AssistantManager",
+  "specialization": null,
+  "dateOfBirth": "1941-12-31"
 }
 ```
 

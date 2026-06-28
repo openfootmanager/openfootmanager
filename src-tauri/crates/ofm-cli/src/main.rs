@@ -75,6 +75,7 @@ enum EntityKind {
     World,
     Team,
     Player,
+    Staff,
     Confederation,
     Country,
     Competition,
@@ -132,6 +133,7 @@ fn entity_dir(entity: &EntityKind) -> &'static str {
         EntityKind::World => panic!("world entity has no subdirectory"),
         EntityKind::Team => "teams",
         EntityKind::Player => "players",
+        EntityKind::Staff => "staff",
         EntityKind::Confederation => "confederations",
         EntityKind::Country => "countries",
         EntityKind::Competition => "competitions",
@@ -144,6 +146,7 @@ fn entity_schema_name(entity: &EntityKind) -> &'static str {
         EntityKind::World => "world",
         EntityKind::Team => "team",
         EntityKind::Player => "player",
+        EntityKind::Staff => "staff",
         EntityKind::Confederation => "confederation",
         EntityKind::Country => "country",
         EntityKind::Competition => "competition",
@@ -206,8 +209,25 @@ fn entity_template(entity: &EntityKind, name: Option<&str>) -> Value {
                 "club": "club-id",
                 "nationality": "ENG",
                 "position": "CM",
+                "footedness": "Right",
                 "dateOfBirth": "1995-01-01",
+                "youth": false,
                 "overall": 70
+            })
+        }
+        EntityKind::Staff => {
+            let mut parts = display.splitn(2, ' ');
+            let first = parts.next().unwrap_or("First");
+            let last = parts.next().unwrap_or("Last");
+            json!({
+                "id": slug,
+                "firstName": first,
+                "lastName": last,
+                "club": "club-id",
+                "nationality": "ENG",
+                "role": "Coach",
+                "specialization": null,
+                "dateOfBirth": "1975-01-01"
             })
         }
         EntityKind::Confederation => json!({
@@ -306,10 +326,30 @@ const SCHEMA_PLAYER: &str = r##"// Player entity — place inside players/*.json
   "club": "club-id",          // required: team ID matching your teams/*.json
   "nationality": "ENG",       // required: country ID
   "position": "CM",           // required: GK | CB | LB | RB | CDM | CM | CAM | LW | RW | ST
+  "footedness": "Right",      // optional: Right | Left | Both (defaults to Right)
   "dateOfBirth": "1995-01-01",// optional: ISO date (YYYY-MM-DD)
   "age": null,                // optional: integer (used if dateOfBirth absent)
+  "youth": false,             // optional: true places the player in the club's youth/academy squad
+  "photo": null,              // optional: relative path to a player photo asset
   "overall": 70,              // optional: 1-99 overall rating
   "attributes": null          // optional: detailed attribute object
+}"##;
+
+const SCHEMA_STAFF: &str = r##"// Staff entity — place inside staff/*.json in the "items" array.
+// This is an annotated reference. Use 'ofm-cli add staff "First Last"' to scaffold a real file.
+{
+  "id": "staff-slug",         // required: stable slug (auto-uuid if empty)
+  "firstName": "First",       // required
+  "lastName": "Last",         // required
+  "club": "club-id",          // optional: team ID; empty/omitted = unattached / free agent
+  "nationality": "ENG",       // required: country ID
+  "role": "Coach",            // required: AssistantManager | Coach | Scout | Physio
+  "specialization": null,     // optional (coaches): Fitness | Technique | Tactics | Defending
+                              //            | Attacking | GoalKeeping | Youth
+  "dateOfBirth": "1975-01-01",// optional: ISO date (YYYY-MM-DD)
+  "age": null,                // optional: integer (used if dateOfBirth absent)
+  "attributes": null          // optional: { "coaching": 60, "judging_ability": 60,
+                              //             "judging_potential": 60, "physiotherapy": 60 }
 }"##;
 
 const SCHEMA_CONFEDERATION: &str = r##"// Confederation entity — place inside confederations/*.json in the "items" array.
@@ -408,6 +448,7 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
     let subdirs = [
         "teams",
         "players",
+        "staff",
         "confederations",
         "countries",
         "competitions",
@@ -451,6 +492,7 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
     let stubs: &[(&str, &str, Value)] = &[
         ("teams", "teams.json", json!({"schema": "team", "items": []})),
         ("players", "players.json", json!({"schema": "player", "items": []})),
+        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
         ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
         ("countries", "countries.json", json!({"schema": "country", "items": []})),
         ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
@@ -472,17 +514,21 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
     0
 }
 
-fn cmd_schema(entity: &EntityKind) -> i32 {
-    let output = match entity {
+fn entity_schema_text(entity: &EntityKind) -> &'static str {
+    match entity {
         EntityKind::World => SCHEMA_WORLD,
         EntityKind::Team => SCHEMA_TEAM,
         EntityKind::Player => SCHEMA_PLAYER,
+        EntityKind::Staff => SCHEMA_STAFF,
         EntityKind::Confederation => SCHEMA_CONFEDERATION,
         EntityKind::Country => SCHEMA_COUNTRY,
         EntityKind::Competition => SCHEMA_COMPETITION,
         EntityKind::Names => SCHEMA_NAMES,
-    };
-    println!("{}", output);
+    }
+}
+
+fn cmd_schema(entity: &EntityKind) -> i32 {
+    println!("{}", entity_schema_text(entity));
     0
 }
 
@@ -769,4 +815,56 @@ fn cmd_info(file: &Path) -> i32 {
         }
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Every authorable entity in the World Editor must round-trip through the CLI
+    // helpers. This guards against adding a UI entity (e.g. staff) without wiring
+    // its directory, schema name, template, and annotated schema into the CLI.
+    const ALL_ENTITIES: &[EntityKind] = &[
+        EntityKind::World,
+        EntityKind::Team,
+        EntityKind::Player,
+        EntityKind::Staff,
+        EntityKind::Confederation,
+        EntityKind::Country,
+        EntityKind::Competition,
+        EntityKind::Names,
+    ];
+
+    #[test]
+    fn every_entity_has_a_nonempty_annotated_schema() {
+        for entity in ALL_ENTITIES {
+            assert!(
+                !entity_schema_text(entity).trim().is_empty(),
+                "{:?} is missing an annotated schema",
+                entity
+            );
+        }
+    }
+
+    #[test]
+    fn staff_entity_maps_to_staff_dir_and_schema() {
+        assert_eq!(entity_dir(&EntityKind::Staff), "staff");
+        assert_eq!(entity_schema_name(&EntityKind::Staff), "staff");
+    }
+
+    #[test]
+    fn staff_template_carries_role_and_split_name() {
+        let tpl = entity_template(&EntityKind::Staff, Some("Alex Ferguson"));
+        assert_eq!(tpl["id"], "alex-ferguson");
+        assert_eq!(tpl["firstName"], "Alex");
+        assert_eq!(tpl["lastName"], "Ferguson");
+        assert_eq!(tpl["role"], "Coach");
+    }
+
+    #[test]
+    fn player_template_exposes_footedness_and_youth() {
+        let tpl = entity_template(&EntityKind::Player, Some("Sam Doe"));
+        assert_eq!(tpl["footedness"], "Right");
+        assert_eq!(tpl["youth"], false);
+    }
 }
