@@ -182,20 +182,21 @@ pub fn make_loan_offer_internal(
         "[cmd] make_loan_offer: player_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::make_loan_offer(
-        &mut game,
-        player_id,
-        end_date,
-        wage_contribution_pct,
-        buy_option_fee,
-    )?;
-    state.set_game(game.clone());
-
-    Ok(map_loan_offer_response(result, game))
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let result = ofm_core::transfers::make_loan_offer(
+                &mut game,
+                player_id,
+                end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+            *current = game.clone();
+            Ok(map_loan_offer_response(result, game))
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -211,13 +212,9 @@ pub fn exercise_loan_buy_option_internal(
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        ofm_core::transfers::exercise_loan_buy_option(game, player_id)
+    })
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -257,13 +254,9 @@ pub fn respond_to_offer_internal(
         "[cmd] respond_to_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::respond_to_offer(&mut game, player_id, offer_id, accept)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        ofm_core::transfers::respond_to_offer(game, player_id, offer_id, accept)
+    })
 }
 
 #[tauri::command]
@@ -286,13 +279,9 @@ pub fn respond_to_loan_offer_internal(
         "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::respond_to_loan_offer(&mut game, player_id, offer_id, accept)?;
-    state.set_game(game.clone());
-    Ok(game)
+    mutate_active_game(state, |game| {
+        ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
+    })
 }
 
 #[tauri::command]
@@ -326,21 +315,22 @@ pub fn counter_loan_offer_internal(
         "[cmd] counter_loan_offer: player_id={}, offer_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, offer_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::counter_loan_offer(
-        &mut game,
-        player_id,
-        offer_id,
-        end_date,
-        wage_contribution_pct,
-        buy_option_fee,
-    )?;
-    state.set_game(game.clone());
-
-    Ok(map_loan_offer_response(result, game))
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let result = ofm_core::transfers::counter_loan_offer(
+                &mut game,
+                player_id,
+                offer_id,
+                end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+            *current = game.clone();
+            Ok(map_loan_offer_response(result, game))
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -363,14 +353,16 @@ pub fn counter_offer_internal(
         "[cmd] counter_offer: player_id={}, offer_id={}, requested_fee={}",
         player_id, offer_id, requested_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::counter_offer(&mut game, player_id, offer_id, requested_fee)?;
-    state.set_game(game.clone());
-
-    Ok(map_transfer_negotiation_response(result, game))
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            let result =
+                ofm_core::transfers::counter_offer(&mut game, player_id, offer_id, requested_fee)?;
+            *current = game.clone();
+            Ok(map_transfer_negotiation_response(result, game))
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 fn map_transfer_negotiation_response(
