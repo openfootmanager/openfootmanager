@@ -8,7 +8,11 @@ export function buildFormationSlots(
 ): { player: EnginePlayerData; x: number; y: number }[] {
   const active = players.filter((p) => !sentOff.includes(p.id));
   const nums = formation.split("-").map(Number);
-  if (!nums.length || nums.some((n) => isNaN(n))) {
+  // A valid formation has at least three lines (def-mid-fwd). Anything shorter
+  // or non-numeric ("442", "5-5", "abc") can't be laid out by the row logic
+  // below without dropping the midfield/forward rows, so fall back to an even
+  // single-row spread that still renders every player.
+  if (nums.length < 3 || nums.some((n) => isNaN(n))) {
     return active.map((p, i) => ({
       player: p,
       x: Math.round((100 * (i + 1)) / (active.length + 1)),

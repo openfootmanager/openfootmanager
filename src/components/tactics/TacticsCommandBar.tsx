@@ -344,11 +344,10 @@ export default function TacticsCommandBar({
                 aria-label={t("tactics.playStyle")}
               >
                 {PLAY_STYLES.map((style) => (
+                  // Native <option> renders text only — an icon/span child is
+                  // stripped by the browser and warns in React, so use plain text.
                   <option key={style.id} value={style.id}>
-                    <span className="flex items-center gap-1.5">
-                      {style.icon}
-                      <span>{t(`common.playStyles.${style.id}`, style.id)}</span>
-                    </span>
+                    {t(`common.playStyles.${style.id}`, style.id)}
                   </option>
                 ))}
               </Select>

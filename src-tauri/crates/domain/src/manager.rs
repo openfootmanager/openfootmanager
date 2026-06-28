@@ -135,8 +135,13 @@ impl Manager {
     /// Blend: 50% reputation, 30% track record (win rate + trophies), 20%
     /// experience (matches managed). A fresh mid-reputation manager sits near 50;
     /// a decorated, experienced one approaches the high 80s.
+    ///
+    /// Reputation is normalised against the 300–900 club-reputation domain (the
+    /// same scale `management_quality` uses) because AI managers inherit their
+    /// club's reputation; a narrower domain would saturate every elite club at
+    /// the top and flatten the rotation gradient.
     pub fn rating(&self) -> u8 {
-        let reputation = ((f64::from(self.reputation) - 200.0) / 500.0).clamp(0.0, 1.0);
+        let reputation = ((f64::from(self.reputation) - 300.0) / 600.0).clamp(0.0, 1.0);
         let experience =
             (f64::from(self.career_stats.matches_managed) / 250.0).clamp(0.0, 1.0);
         let win_rate = (f64::from(self.win_rate()) / 100.0).clamp(0.0, 1.0);
@@ -163,15 +168,17 @@ mod tests {
 
     #[test]
     fn rating_for_fresh_mid_reputation_manager_is_mid_range() {
-        // Default: reputation 500, no career → sits around the middle.
-        let r = manager().rating();
+        // Mid of the 300–900 reputation domain, no career → sits around the middle.
+        let mut m = manager();
+        m.reputation = 600;
+        let r = m.rating();
         assert!((45..=55).contains(&r), "expected mid-range rating, got {r}");
     }
 
     #[test]
     fn rating_rises_with_reputation_experience_and_success() {
         let mut elite = manager();
-        elite.reputation = 700;
+        elite.reputation = 800;
         elite.career_stats.matches_managed = 250;
         elite.career_stats.wins = 150; // 60% win rate
         elite.career_stats.trophies = 8;

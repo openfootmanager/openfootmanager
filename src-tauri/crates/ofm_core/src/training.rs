@@ -192,9 +192,13 @@ fn train_player(
     // (treated as Recovery focus) so they can recover instead of being run further
     // into the ground by the squad-average-driven team intensity. See
     // `AI_FATIGUE_GUARD_CONDITION`. The user's team is exempt — it has manual agency.
+    // Injured players are exempt: they don't train regardless, and routing them
+    // through Recovery focus here would inflate the injured-recovery base below
+    // (9.0 instead of 3.0), giving exhausted injured AI players ~3x recovery.
     let recovery_focus = TrainingFocus::Recovery;
     let player_focus = if !plan.is_user_team
         && is_training_day
+        && player.injury.is_none()
         && player.condition < AI_FATIGUE_GUARD_CONDITION
     {
         &recovery_focus

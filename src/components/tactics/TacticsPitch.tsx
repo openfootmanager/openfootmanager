@@ -18,7 +18,7 @@ import {
 import type { TacticsPitchSlot } from "./TacticsTab.helpers";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 import type { KitPattern, PlayerRole, TacticsPhaseSettings } from "../../store/types";
-import { getRolesForPosition } from "../../lib/playerRoles";
+import { getRoleOptions } from "../../lib/playerRoles";
 
 interface TacticsPitchProps {
   benchPlayers?: PlayerData[];
@@ -615,8 +615,9 @@ export default function TacticsPitch({
                                     onRoleChange(player.id, e.target.value as PlayerRole);
                                   }}
                                 >
-                                  {getRolesForPosition(
+                                  {getRoleOptions(
                                     player.natural_position || player.position,
+                                    playerRoles?.[player.id] ?? "Standard",
                                   ).map((role) => (
                                     <option key={role} value={role}>
                                       {t(`tactics.playerRoles.${role}`, role)}

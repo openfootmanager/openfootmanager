@@ -15,7 +15,7 @@ import {
 } from "../../services/contractService";
 import DashboardModalFrame from "../dashboard/DashboardModalFrame";
 import { Button, Select } from "../ui";
-import { getRolesForPosition } from "../../lib/playerRoles";
+import { getRoleOptions } from "../../lib/playerRoles";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
 import type { PlayerRole } from "../../store/types";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
@@ -133,7 +133,7 @@ export default function PlayerProfile({
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
-  const tacticalRoleOptions = getRolesForPosition(primaryPosition);
+  const tacticalRoleOptions = getRoleOptions(primaryPosition, currentTacticalRole);
   const teamName = getPlayerTeamName(
     gameState.teams,
     player.team_id,

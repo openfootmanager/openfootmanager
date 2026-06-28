@@ -202,7 +202,13 @@ export default function TacticsPlayerList({
 
   function clearSelection(): void {
     if (selectedPlayerId) {
-      onTacticalSelect(selectedPlayerId, "xi");
+      // Toggle the current selection off by re-selecting it in its own section;
+      // a wrong section would fall through to the compare branch and open the
+      // inspector on the player against itself instead of clearing.
+      const section: SquadSection = starters.some((p) => p.id === selectedPlayerId)
+        ? "xi"
+        : "bench";
+      onTacticalSelect(selectedPlayerId, section);
     }
   }
 
