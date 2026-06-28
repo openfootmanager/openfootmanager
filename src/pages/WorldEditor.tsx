@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -17,6 +17,7 @@ import {
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
 import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
+import { createWriteQueue } from "../lib/writeQueue";
 import type {
   CompetitionDef,
   ConfederationDef,
@@ -190,7 +191,16 @@ export default function WorldEditor() {
     });
   }
 
-  const persist = useCallback(async (overrides?: {
+  // Latest committed slices, read at write time so a serialized/queued persist
+  // writes one consistent snapshot rather than whatever its closure captured.
+  const stateRef = useRef({ meta, confederations, countries, teams, players, staff, names, competitions });
+  stateRef.current = { meta, confederations, countries, teams, players, staff, names, competitions };
+
+  // Serializes save_package_project writes so concurrent saves can't interleave
+  // full-file writes or let an older write land after a newer one.
+  const enqueueWrite = useRef(createWriteQueue()).current;
+
+  const persist = useCallback((overrides?: {
     meta?: WorldMetaDef;
     confederations?: ConfederationDef[];
     countries?: CountryDef[];
@@ -199,19 +209,20 @@ export default function WorldEditor() {
     staff?: StaffDef[];
     names?: NamesDefinition;
     competitions?: CompetitionDef[];
-  }) => {
+  }) => enqueueWrite(async () => {
+    const s = stateRef.current;
     setSaveState("saving");
     try {
       await invoke("save_package_project", {
         dir: projectDir,
-        meta: overrides?.meta ?? meta,
-        confederations: overrides?.confederations ?? confederations,
-        countries: overrides?.countries ?? countries,
-        teams: overrides?.teams ?? teams,
-        players: overrides?.players ?? players,
-        staff: overrides?.staff ?? staff,
-        names: overrides?.names ?? names,
-        competitions: overrides?.competitions ?? competitions,
+        meta: overrides?.meta ?? s.meta,
+        confederations: overrides?.confederations ?? s.confederations,
+        countries: overrides?.countries ?? s.countries,
+        teams: overrides?.teams ?? s.teams,
+        players: overrides?.players ?? s.players,
+        staff: overrides?.staff ?? s.staff,
+        names: overrides?.names ?? s.names,
+        competitions: overrides?.competitions ?? s.competitions,
       });
       setSaveState("saved");
       setIsDirty(false);
@@ -222,7 +233,7 @@ export default function WorldEditor() {
       throw err;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectDir, meta, confederations, countries, teams, players, staff, names, competitions]);
+  }), [projectDir]);
 
   function handleToggleAutoSave() {
     const next = !autoSave;
