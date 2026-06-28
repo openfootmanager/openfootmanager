@@ -247,14 +247,10 @@ pub fn preview_renewal_financial_impact_internal(
         player_id, weekly_wage
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let projection =
-        ofm_core::contracts::project_renewal_financial_impact(&game, player_id, weekly_wage)?;
-
-    Ok(RenewalFinancialProjectionCommandResponse { projection })
+    state.get_game(|game| ofm_core::contracts::project_renewal_financial_impact(game, player_id, weekly_wage))
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
+        .map(|projection| RenewalFinancialProjectionCommandResponse { projection })
 }
 
 pub fn offer_free_agent_contract_internal(
@@ -305,14 +301,10 @@ pub fn preview_free_agent_contract_impact_internal(
         player_id, weekly_wage
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let projection =
-        ofm_core::contracts::project_free_agent_contract_impact(&game, player_id, weekly_wage)?;
-
-    Ok(FreeAgentContractProjectionCommandResponse { projection })
+    state.get_game(|game| ofm_core::contracts::project_free_agent_contract_impact(game, player_id, weekly_wage))
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
+        .map(|projection| FreeAgentContractProjectionCommandResponse { projection })
 }
 
 pub fn set_contract_exit_intent_internal(
@@ -353,12 +345,10 @@ pub fn preview_contract_termination_internal(
         player_id
     );
 
-    let game = state
-        .get_game(|g: &Game| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-    let preview = ofm_core::contracts::preview_contract_termination(&game, player_id)?;
-
-    Ok(ContractTerminationPreviewCommandResponse { preview })
+    state.get_game(|game| ofm_core::contracts::preview_contract_termination(game, player_id))
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
+        .map(|preview| ContractTerminationPreviewCommandResponse { preview })
 }
 
 pub fn terminate_contract_now_internal(

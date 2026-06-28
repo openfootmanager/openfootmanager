@@ -231,12 +231,10 @@ pub fn preview_transfer_bid_financial_impact_internal(
         "[cmd] preview_transfer_bid_financial_impact: player_id={}, fee={}",
         player_id, fee
     );
-    let game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-    let projection =
-        ofm_core::transfers::project_transfer_bid_financial_impact(&game, player_id, fee)?;
-    Ok(TransferBidFinancialProjectionCommandResponse { projection })
+    state.get_game(|game| ofm_core::transfers::project_transfer_bid_financial_impact(game, player_id, fee))
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
+        .map(|projection| TransferBidFinancialProjectionCommandResponse { projection })
 }
 
 #[tauri::command]
