@@ -2,34 +2,8 @@ import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { GeneratedCrest } from "../../ui/GeneratedCrest";
+import { POSITION_COLOR, PLAYER_ATTR_GROUPS } from "./helpers";
 import type { PlayerAttributesDef, PlayerDef, Position, TeamDef } from "./types";
-
-const POSITION_COLOR: Record<Position, string> = {
-  Goalkeeper: "bg-amber-500",
-  Defender: "bg-blue-600",
-  CenterBack: "bg-blue-600",
-  RightBack: "bg-blue-600",
-  LeftBack: "bg-blue-600",
-  RightWingBack: "bg-blue-500",
-  LeftWingBack: "bg-blue-500",
-  DefensiveMidfielder: "bg-green-700",
-  CentralMidfielder: "bg-green-600",
-  Midfielder: "bg-green-600",
-  AttackingMidfielder: "bg-green-500",
-  RightMidfielder: "bg-green-600",
-  LeftMidfielder: "bg-green-600",
-  RightWinger: "bg-red-500",
-  LeftWinger: "bg-red-500",
-  Forward: "bg-red-600",
-  Striker: "bg-red-600",
-};
-
-const ALL_ATTR_GROUPS = [
-  { groupKey: "physical",    keys: ["pace", "stamina", "strength", "agility"] },
-  { groupKey: "technical",   keys: ["shooting", "passing", "dribbling", "tackling", "defending"] },
-  { groupKey: "mental",      keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
-  { groupKey: "goalkeeper",  keys: ["handling", "reflexes", "aerial"] },
-] as const;
 
 function attrColor(val: number): string {
   if (val >= 80) return "bg-success-500";
@@ -162,7 +136,7 @@ export function PlayerPreviewCard({ editing, photoDataUrl, teams }: PlayerPrevie
         {/* Full attribute breakdown */}
         {displayAttrs && (
           <div className="flex flex-col gap-2">
-            {ALL_ATTR_GROUPS.map(({ groupKey, keys }) => {
+            {PLAYER_ATTR_GROUPS.map(({ groupKey, keys }) => {
               const anySet = keys.some((k) => displayAttrs[k as keyof typeof displayAttrs] != null);
               if (!anySet) return null;
               return (

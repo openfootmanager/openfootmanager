@@ -10,20 +10,11 @@ import { DatePicker } from "../../ui/DatePicker";
 import { Checkbox } from "../../ui/Checkbox";
 import { CountryCombobox } from "../../ui/CountryCombobox";
 import { Select } from "../../ui/Select";
-import { POSITIONS, emptyAttributes, toSlug } from "./helpers";
+import { POSITIONS, PLAYER_ATTR_GROUPS, emptyAttributes, toSlug, type PlayerAttrKey } from "./helpers";
 import type { Footedness, PlayerDef, TeamDef } from "./types";
 
 const FOOT_OPTIONS: Footedness[] = ["Right", "Left", "Both"];
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
-
-const ATTR_GROUPS = [
-  { groupKey: "physical",   keys: ["pace", "stamina", "strength", "agility"] },
-  { groupKey: "technical",  keys: ["passing", "shooting", "tackling", "dribbling", "defending"] },
-  { groupKey: "mental",     keys: ["positioning", "vision", "decisions", "composure", "aggression", "teamwork", "leadership"] },
-  { groupKey: "goalkeeper", keys: ["handling", "reflexes", "aerial"] },
-] as const;
-
-type AttrKey = typeof ATTR_GROUPS[number]["keys"][number];
 
 interface PlayerFormProps {
   editing: PlayerDef;
@@ -86,7 +77,7 @@ export function PlayerForm({
     }
   }
 
-  function updateAttr(key: AttrKey, value: number) {
+  function updateAttr(key: PlayerAttrKey, value: number) {
     updateField("attributes", { ...(editing.attributes ?? emptyAttributes()), [key]: value });
   }
 
@@ -254,7 +245,7 @@ export function PlayerForm({
 
       {useAttributes && (
         <div className="flex flex-col gap-3">
-          {ATTR_GROUPS.map(({ groupKey, keys }) => (
+          {PLAYER_ATTR_GROUPS.map(({ groupKey, keys }) => (
             <div key={groupKey}>
               <p className={`${labelClass} mb-1`}>{t(`common.attrGroups.${groupKey}`)}</p>
               <div className="grid grid-cols-2 gap-2">
@@ -269,7 +260,7 @@ export function PlayerForm({
                         min={1}
                         max={99}
                         value={attrs[key as keyof typeof attrs]}
-                        onChange={(e) => updateAttr(key as AttrKey, parseInt(e.target.value, 10))}
+                        onChange={(e) => updateAttr(key as PlayerAttrKey, parseInt(e.target.value, 10))}
                         className="flex-1 accent-primary-500"
                       />
                       <span className="text-xs font-mono text-gray-600 dark:text-gray-300 w-5 text-right">

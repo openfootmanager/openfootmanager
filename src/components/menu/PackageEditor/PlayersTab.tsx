@@ -3,28 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { GeneratedAvatar } from "../../ui/GeneratedAvatar";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
+import { POSITION_COLOR } from "./helpers";
 import { EntityListShell, EntityRow } from "./shared";
 import type { PlayerDef, Position, TeamDef } from "./types";
-
-const POS_COLOR: Record<string, string> = {
-  Goalkeeper: "bg-amber-500",
-  Defender: "bg-blue-600",
-  CenterBack: "bg-blue-600",
-  RightBack: "bg-blue-600",
-  LeftBack: "bg-blue-600",
-  RightWingBack: "bg-blue-500",
-  LeftWingBack: "bg-blue-500",
-  Midfielder: "bg-green-600",
-  DefensiveMidfielder: "bg-green-700",
-  CentralMidfielder: "bg-green-600",
-  AttackingMidfielder: "bg-green-500",
-  RightMidfielder: "bg-green-600",
-  LeftMidfielder: "bg-green-600",
-  RightWinger: "bg-red-500",
-  LeftWinger: "bg-red-500",
-  Forward: "bg-red-600",
-  Striker: "bg-red-600",
-};
 
 interface PlayerAvatarCellProps {
   player: PlayerDef;
@@ -36,7 +17,7 @@ function PlayerAvatarCell({ player, posAbbr, projectDir }: PlayerAvatarCellProps
   const photoUrl = useAssetDataUrl(player.photo, projectDir);
 
   const name = player.name || `${player.firstName} ${player.lastName}`.trim() || player.id;
-  const posColor = POS_COLOR[player.position] ?? "bg-gray-500";
+  const posColor = POSITION_COLOR[player.position] ?? "bg-gray-500";
 
   return (
     <div className="relative flex-shrink-0">
