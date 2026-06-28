@@ -502,6 +502,7 @@ export default function Dashboard(): JSX.Element {
           setIsSidebarCollapsed((currentValue) => !currentValue);
         }}
         unreadMessagesCount={unreadMessagesCount}
+        todayHasMatch={hasMatchToday}
         managerName={managerName}
         teamName={myTeamName}
         onNavigateSettings={handleNavigateSettings}

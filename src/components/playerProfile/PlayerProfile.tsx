@@ -14,7 +14,10 @@ import {
   type ContractTerminationPreviewData,
 } from "../../services/contractService";
 import DashboardModalFrame from "../dashboard/DashboardModalFrame";
-import { Button } from "../ui";
+import { Button, Select } from "../ui";
+import { getRoleOptions } from "../../lib/playerRoles";
+import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
+import type { PlayerRole } from "../../store/types";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import {
@@ -129,6 +132,8 @@ export default function PlayerProfile({
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
+  const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
+  const tacticalRoleOptions = getRoleOptions(primaryPosition, currentTacticalRole);
   const teamName = getPlayerTeamName(
     gameState.teams,
     player.team_id,
@@ -627,6 +632,16 @@ export default function PlayerProfile({
     }
   }
 
+  async function handleTacticalRoleChange(role: PlayerRole): Promise<void> {
+    if (!onGameUpdate) return;
+    try {
+      const updated = await setPlayerRoleService(player.id, role);
+      onGameUpdate(updated);
+    } catch (error) {
+      console.error("Failed to set player role:", error);
+    }
+  }
+
   async function handleTerminateContract(): Promise<void> {
     if (contractActionSubmitting || !terminationPreview) {
       return;
@@ -648,7 +663,7 @@ export default function PlayerProfile({
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       <button
         onClick={onClose}
         className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
@@ -715,6 +730,26 @@ export default function PlayerProfile({
       {player.injury ? (
         <PlayerProfileInjuryBanner injury={player.injury} t={t} />
       ) : null}
+
+      {isOwnClub && onGameUpdate && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
+          <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
+            {t("tactics.playerRoleLabel")}
+          </span>
+          <Select
+            selectSize="sm"
+            value={currentTacticalRole}
+            onChange={(e) => { void handleTacticalRoleChange(e.target.value as PlayerRole); }}
+            aria-label={t("tactics.playerRoleLabel")}
+          >
+            {tacticalRoleOptions.map((role) => (
+              <option key={role} value={role}>
+                {t(`tactics.playerRoles.${role}`, role)}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

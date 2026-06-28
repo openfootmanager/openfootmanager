@@ -1003,3 +1003,68 @@ fn injured_player_loses_fitness_over_time() {
         initial_fitness
     );
 }
+
+// ---------------------------------------------------------------------------
+// AI fatigue guard
+// ---------------------------------------------------------------------------
+
+/// Reproduces the fatigue spiral and verifies the AI-only guard breaks it.
+///
+/// An individually exhausted player on a team training at Medium intensity with a
+/// non-recovery focus pays a flat condition cost (6) that exceeds their diminished
+/// recovery — so without intervention they keep losing condition every training
+/// day and never climb out. The AI fatigue guard auto-rests such players on AI
+/// teams. The user's team is exempt (manual agency), so an identical exhausted
+/// player on the user's side keeps spiralling down.
+#[test]
+fn ai_fatigue_guard_rests_exhausted_ai_player_but_not_user_team() {
+    let mut game = make_game(); // manager is hired to "team1" (the user team)
+
+    // Add an AI-controlled team that trains hard (Medium, non-recovery focus).
+    let mut team2 = make_team("team2", "AI FC");
+    team2.training_focus = TrainingFocus::Physical;
+    team2.training_intensity = TrainingIntensity::Medium;
+    team2.training_schedule = TrainingSchedule::Balanced;
+    game.teams.push(team2);
+
+    // Two identical exhausted players: one on the user team, one on the AI team.
+    let mut user_tired = make_player("user_tired", "UserTired", "team1", "1998-06-10");
+    user_tired.condition = 22;
+    let mut ai_tired = make_player("ai_tired", "AiTired", "team2", "1998-06-10");
+    ai_tired.condition = 22;
+    game.players.push(user_tired);
+    game.players.push(ai_tired);
+
+    // Three consecutive training days (Monday is a training day under Balanced).
+    for _ in 0..3 {
+        training::process_training(&mut game, 0);
+    }
+
+    let user_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "user_tired")
+        .unwrap()
+        .condition;
+    let ai_after = game
+        .players
+        .iter()
+        .find(|p| p.id == "ai_tired")
+        .unwrap()
+        .condition;
+
+    // Guard active: the AI's exhausted player recovers out of the spiral.
+    assert!(
+        ai_after > 22,
+        "AI exhausted player should recover under the fatigue guard, got {ai_after}"
+    );
+    // Exempt: the user's identical player keeps net-losing condition at Medium.
+    assert!(
+        user_after < 22,
+        "user-team exhausted player should not be auto-rested, got {user_after}"
+    );
+    assert!(
+        ai_after > user_after,
+        "guarded AI player ({ai_after}) should end fresher than the user player ({user_after})"
+    );
+}

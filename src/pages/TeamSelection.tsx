@@ -588,7 +588,7 @@ export default function TeamSelection() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl space-y-5 p-6">
+      <div className="space-y-5 p-6">
         {scopeMessage && (
           <Card accent="accent">
             <CardBody className="py-3">
@@ -636,25 +636,21 @@ export default function TeamSelection() {
               <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
                 {t("teamSelect.homeRegion")}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <Select
+                value={selectedHomeRegionId ?? ""}
+                onChange={(e) => {
+                  setSelectedHomeRegionId(e.target.value || null);
+                  setScopeMessage(null);
+                }}
+                fullWidth
+                aria-label={t("teamSelect.homeRegion")}
+              >
                 {regions.map((region) => (
-                  <button
-                    key={region.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedHomeRegionId(region.id);
-                      setScopeMessage(null);
-                    }}
-                    className={`rounded-full px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
-                      selectedHomeRegionId === region.id
-                        ? "bg-primary-500 text-white"
-                        : "bg-gray-100 text-gray-600 dark:bg-navy-700 dark:text-gray-300"
-                    }`}
-                  >
+                  <option key={region.id} value={region.id}>
                     {buildRegionLabel(t, region.id, region.name)}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </Select>
             </div>
 
             <div>

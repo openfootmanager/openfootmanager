@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
 import { Badge, Button, Card, CountryFlag } from "../ui";
-import { Eye, GitCompareArrows } from "lucide-react";
+import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
 
@@ -38,6 +38,7 @@ const ATTRIBUTE_GROUPS: {
 interface TacticsPlayerFocusPanelProps {
   canConfirmSwap: boolean;
   comparePlayer: PlayerData | null;
+  onClose?: () => void;
   onConfirmSwap: () => void;
   selectedPlayer: PlayerData | null;
 }
@@ -267,6 +268,7 @@ function CompareAttributes({
 export default function TacticsPlayerFocusPanel({
   canConfirmSwap,
   comparePlayer,
+  onClose,
   onConfirmSwap,
   selectedPlayer,
 }: TacticsPlayerFocusPanelProps) {
@@ -275,10 +277,21 @@ export default function TacticsPlayerFocusPanel({
   return (
     <Card>
       <div className="p-4 border-b border-gray-100 dark:border-navy-600 bg-linear-to-r from-navy-700 to-navy-800 rounded-t-xl">
-        <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
-          <Eye className="w-4 h-4 text-accent-400" />
-          {t("tactics.inspector")}
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wide flex items-center gap-2">
+            <Eye className="w-4 h-4 text-accent-400" />
+            {t("tactics.inspector")}
+          </h3>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-4">
         {selectedPlayer ? (

@@ -90,6 +90,16 @@ struct TrainingDay {
     year: u32,
 }
 
+/// Below this individual condition, an AI-managed player is automatically rested
+/// in training (treated as Recovery focus) regardless of the team's plan. The AI
+/// sets one team-wide intensity from the squad's *average* condition, but the
+/// per-player condition cost is flat — so a player who is individually exhausted
+/// in an otherwise-okay squad keeps net-losing condition (cost > their diminished
+/// recovery) and never climbs out. This guard breaks that fatigue spiral so a
+/// rested bench can recover and the condition-aware lineup picker can rotate.
+/// The user's own team is exempt — managers have manual control over training.
+const AI_FATIGUE_GUARD_CONDITION: u8 = 40;
+
 /// Per-team data collected before mutating players.
 struct TeamTrainingPlan {
     default_focus: TrainingFocus,
@@ -99,6 +109,9 @@ struct TeamTrainingPlan {
     medical_facility_mult: f64,
     /// player_id → group focus override (players not in any group use default_focus)
     group_overrides: std::collections::HashMap<String, TrainingFocus>,
+    /// Whether this team is controlled by the human manager (exempt from the
+    /// automatic fatigue guard, which compensates for the AI's lack of agency).
+    is_user_team: bool,
 }
 
 /// Process daily training for all teams.
@@ -120,6 +133,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
 
     // Index each team's plan by id so players are visited once (O(teams + players))
     // instead of rescanning every player for every team (O(teams * players)).
+    let user_team_id = game.manager.team_id.clone();
     let plans: std::collections::HashMap<String, TeamTrainingPlan> = game
         .teams
         .iter()
@@ -142,6 +156,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
                     bonus,
                     medical_facility_mult,
                     group_overrides,
+                    is_user_team: user_team_id.as_deref() == Some(t.id.as_str()),
                 },
             )
         })
@@ -173,13 +188,29 @@ fn train_player(
         TrainingIntensity::High => 1.5,
     };
 
-    // Determine this player's effective focus:
-    // player override > group override > team default
-    let player_focus = player
-        .training_focus
-        .as_ref()
-        .or_else(|| plan.group_overrides.get(&player.id))
-        .unwrap_or(&plan.default_focus);
+    // AI fatigue guard: an exhausted player on an AI team is automatically rested
+    // (treated as Recovery focus) so they can recover instead of being run further
+    // into the ground by the squad-average-driven team intensity. See
+    // `AI_FATIGUE_GUARD_CONDITION`. The user's team is exempt — it has manual agency.
+    // Injured players are exempt: they don't train regardless, and routing them
+    // through Recovery focus here would inflate the injured-recovery base below
+    // (9.0 instead of 3.0), giving exhausted injured AI players ~3x recovery.
+    let recovery_focus = TrainingFocus::Recovery;
+    let player_focus = if !plan.is_user_team
+        && is_training_day
+        && player.injury.is_none()
+        && player.condition < AI_FATIGUE_GUARD_CONDITION
+    {
+        &recovery_focus
+    } else {
+        // Determine this player's effective focus:
+        // player override > group override > team default
+        player
+            .training_focus
+            .as_ref()
+            .or_else(|| plan.group_overrides.get(&player.id))
+            .unwrap_or(&plan.default_focus)
+    };
 
     // On rest days or Recovery focus: no training cost
     let condition_cost: u8 = if !is_training_day {

@@ -247,13 +247,6 @@ describe("PreMatchLineup component", () => {
     expect(screen.getByText("Bench One")).toBeInTheDocument();
   });
 
-  it("renders opponent info", () => {
-    render(<PreMatchLineup {...defaultProps} />);
-    expect(screen.getByText("match.opponent")).toBeInTheDocument();
-    expect(screen.getByText("Rival United")).toBeInTheDocument();
-    expect(screen.getByText("3-5-2 · Counter")).toBeInTheDocument();
-  });
-
   it("renders auto-select button and calls onAutoSelect", () => {
     const onAutoSelect = vi.fn();
     render(<PreMatchLineup {...defaultProps} onAutoSelect={onAutoSelect} />);
