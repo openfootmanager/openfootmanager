@@ -176,6 +176,7 @@ fn world_data_from_parts(
         world_history: domain::world_history::WorldHistoryArchive::default(),
         metadata: super::definitions::WorldDataMetadata::default(),
         extra_translations: std::collections::HashMap::new(),
+        build_notices: Vec::new(),
     })
 }
 
@@ -261,6 +262,7 @@ fn load_world_from_manifest_path(path: &Path, manifest: WorldManifestV2) -> Resu
             ..Default::default()
         }),
         extra_translations: std::collections::HashMap::new(),
+        build_notices: Vec::new(),
     }))
 }
 
@@ -329,6 +331,76 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     };
     write_json(manifest_path, &manifest)?;
     Ok(manifest_path.to_string_lossy().to_string())
+}
+
+/// Pack a directory tree into a `.ofm` zip archive. All files under `dir` are
+/// included; asset files (images, etc.) are carried along with data files.
+pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> {
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+
+    let file =
+        std::fs::File::create(output).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options =
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+    fn add_dir(
+        zip: &mut zip::ZipWriter<std::fs::File>,
+        base: &Path,
+        current: &Path,
+        options: SimpleFileOptions,
+    ) -> Result<(), String> {
+        // Propagate read failures instead of silently producing a partial
+        // archive that is missing whole subtrees.
+        let entries =
+            std::fs::read_dir(current).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+        for entry in entries {
+            let entry = entry.map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+            let path = entry.path();
+            if path.is_dir() {
+                add_dir(zip, base, &path, options)?;
+            } else {
+                let rel = path
+                    .strip_prefix(base)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let data = std::fs::read(&path)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+                zip.start_file(rel, options)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+                zip.write_all(&data)
+                    .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+            }
+        }
+        Ok(())
+    }
+
+    add_dir(&mut zip, dir, dir, options)?;
+    zip.finish()
+        .map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+    Ok(())
+}
+
+/// Extract a `.ofm` ZIP archive into `dest_dir` for editing, applying the same
+/// hardened guards (zip-slip, symlink, file-count and uncompressed-size caps)
+/// used when installing/loading packages. Any unsafe or unreadable entry aborts
+/// the extraction with its `be.error.*` code rather than partially unpacking a
+/// malicious archive.
+pub fn extract_ofm_to_dir(ofm_path: &Path, dest_dir: &Path) -> Result<(), String> {
+    let result = super::package::extract_archive_safely(ofm_path, dest_dir);
+    let err = match result {
+        Ok(entry_errors) => entry_errors.into_iter().next().map(|e| e.code),
+        Err(e) => Some(e),
+    };
+    if let Some(code) = err {
+        // Earlier safe entries may already be on disk; don't leave a partially
+        // unpacked tree behind when a later entry is rejected or unreadable.
+        std::fs::remove_dir_all(dest_dir).ok();
+        return Err(code);
+    }
+    Ok(())
 }
 
 /// Scan a directory for `.json` world database files and return their metadata.
@@ -745,5 +817,41 @@ mod tests {
             database.snapshot_date.as_deref(),
             Some("2031-11-20T00:00:00+00:00")
         );
+    }
+
+    #[test]
+    fn export_directory_to_ofm_includes_nested_subtree_files() {
+        let temp = TempWorldDir::new();
+        let src = temp.path().join("src");
+        fs::create_dir_all(src.join("assets/logos")).expect("nested dirs should be created");
+        fs::write(src.join("world.json"), b"{}").expect("root file should be written");
+        fs::write(src.join("assets/logos/team.png"), b"PNG").expect("nested file should be written");
+
+        let out = temp.path().join("out.ofm");
+        export_directory_to_ofm(&src, &out).expect("export of a valid tree should succeed");
+
+        let archive = fs::File::open(&out).expect("archive should open");
+        let mut zip = zip::ZipArchive::new(archive).expect("archive should be a valid zip");
+        let names: Vec<String> = (0..zip.len())
+            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .collect();
+        assert!(names.contains(&"world.json".to_string()));
+        // The nested file proves the recursive read_dir walk still descends after
+        // switching from swallow-on-error to propagate-on-error.
+        assert!(
+            names.contains(&"assets/logos/team.png".to_string()),
+            "nested entry missing from archive: {names:?}"
+        );
+    }
+
+    #[test]
+    fn export_directory_to_ofm_errors_when_source_is_unreadable() {
+        let temp = TempWorldDir::new();
+        // Point at a path that does not exist: read_dir fails and the error must
+        // now propagate instead of yielding an empty/partial archive.
+        let missing = temp.path().join("does-not-exist");
+        let out = temp.path().join("out.ofm");
+        let result = export_directory_to_ofm(&missing, &out);
+        assert!(result.is_err(), "unreadable source dir should surface an error");
     }
 }

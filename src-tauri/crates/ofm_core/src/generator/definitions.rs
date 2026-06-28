@@ -59,6 +59,13 @@ pub struct TeamDef {
     pub reputation_range: Option<[u32; 2]>,
     #[serde(default, alias = "finance_range")]
     pub finance_range: Option<[i64; 2]>,
+    /// Optional path to a logo/crest image, relative to the package root.
+    /// Populated with an absolute path after the package is extracted.
+    #[serde(default)]
+    pub logo: Option<String>,
+    /// Kit jersey pattern (Solid, Stripes, Hoops, HalfAndHalf, Diagonal).
+    #[serde(default, alias = "kit_pattern")]
+    pub kit_pattern: Option<String>,
 }
 
 fn default_play_style() -> String {
@@ -133,6 +140,8 @@ pub(super) fn default_teams_definition() -> TeamsDefinition {
                 stadium_name: format!("{} Arena", t.city),
                 reputation_range: Some([300, 900]),
                 finance_range: Some([500_000, 10_000_000]),
+                logo: None,
+                kit_pattern: None,
             })
             .collect(),
     }
@@ -245,6 +254,10 @@ pub struct WorldData {
     /// into the active i18n namespace when loading a custom world.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
+    /// Backend i18n notice keys generated during world build (e.g. auto-fallback
+    /// league creation). Not persisted to save files; cleared on load.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub build_notices: Vec<String>,
 }
 
 /// Lightweight metadata shown in the UI when listing available databases.

@@ -11,9 +11,15 @@ pub use clubs::WorldGenConfig;
 pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
-pub use package::{PackageError, WorldPackage, load_world_package};
+pub use package::{
+    hash_package_file, load_world_package, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
+    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
+    PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
+};
 pub use world_io::*;
 
+use domain::league::{CompetitionFormat, CompetitionScope};
 use domain::player::{Player, Position};
 use domain::staff::{Staff, StaffRole};
 use domain::team::Team;
@@ -539,6 +545,12 @@ fn build_team(tdef: &TeamDef, rng: &mut impl rand::Rng) -> domain::team::Team {
         secondary: tdef.colors.secondary.clone(),
     };
     team.play_style = play_style_from_str(&tdef.play_style);
+    team.media.logo = tdef.logo.clone();
+    if let Some(ref pattern_str) = tdef.kit_pattern {
+        if let Ok(pattern) = pattern_str.parse() {
+            team.kit_pattern = pattern;
+        }
+    }
     team
 }
 
@@ -699,19 +711,116 @@ fn regions_from_package(
         .collect()
 }
 
+/// Generate procedural filler club definitions for a given country code. Used
+/// to pad thin packages that have only one authored team. Matches the country's
+/// `NationGen` from the standard set when available; falls back to generic names.
+fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Vec<definitions::TeamDef> {
+    const GENERIC_CITIES: &[&str] = &[
+        "Northtown", "Eastford", "Westbridge", "Southport", "Riverside",
+        "Hillside", "Lakewood", "Oakdale", "Greenfield", "Pinecrest",
+        "Fairview", "Clearwater", "Springfield", "Millbrook", "Stonehaven",
+    ];
+    let known = clubs::STANDARD_NATIONS.iter().any(|n| n.code == country);
+    let nation = clubs::STANDARD_NATIONS
+        .iter()
+        .find(|n| n.code == country)
+        .map(|n| clubs::NationGen { tiers: 1, ..*n }) // force single-division
+        .unwrap_or(clubs::NationGen {
+            code: "??",
+            style: clubs::NamingStyle::Generic,
+            tiers: 1,
+            strength: 3,
+            cities: GENERIC_CITIES,
+        });
+    let config = clubs::WorldGenConfig {
+        clubs_per_division: count,
+        nations: vec![nation],
+    };
+    let mut defs = clubs::generate_club_defs(&config, rng);
+    // When the authored team's country isn't in STANDARD_NATIONS, the generator
+    // uses code "??" as a placeholder. Patch all generated defs to carry the
+    // real country so filler clubs don't appear foreign in region lookups.
+    if !known {
+        for def in &mut defs {
+            def.country = country.to_string();
+        }
+    }
+    defs
+}
+
+/// Synthesise the fallback league played over `team_ids` when a database package
+/// declares teams but no competitions. Author overrides (`cfg`) tune the name,
+/// legs, and scope; each falls back to the built-in default when unset.
+fn build_fallback_competition(
+    cfg: Option<&package::FallbackLeagueConfig>,
+    team_ids: Vec<String>,
+) -> CompetitionDefinition {
+    let custom_name = cfg.and_then(|c| c.name.clone()).filter(|n| !n.is_empty());
+    // Only 1 (single) or 2 (double round-robin) are meaningful; ignore others.
+    let legs = cfg
+        .and_then(|c| c.legs)
+        .filter(|&l| l == 1 || l == 2)
+        .unwrap_or(2);
+    let scope = cfg
+        .and_then(|c| c.scope.clone())
+        .unwrap_or(CompetitionScope::Domestic);
+
+    CompetitionDefinition {
+        id: "ofm-fallback-league".to_string(),
+        // A custom name is used verbatim; otherwise keep the localized default
+        // name (driven by name_key, with `name` as the raw fallback).
+        name: custom_name.clone().unwrap_or_else(|| "Default League".to_string()),
+        r#type: domain::league::CompetitionType::League,
+        scope,
+        priority: 10,
+        format: FormatDef {
+            kind: CompetitionFormat::LeagueTable,
+            legs: Some(legs),
+            group_size: None,
+            qualifiers_per_group: None,
+            best_third_qualifiers: None,
+        },
+        participants: ParticipantSpec {
+            explicit: Some(team_ids),
+            selector: None,
+        },
+        region_id: None,
+        country_id: None,
+        required_region_ids: Vec::new(),
+        berths: Vec::new(),
+        season_start_month: None,
+        season_start_day: None,
+        // Clear name_key when a custom name is set so the author's name isn't
+        // overridden by the localized default.
+        name_key: if custom_name.is_some() {
+            None
+        } else {
+            Some("be.competition.fallbackLeagueName".to_string())
+        },
+        logo: None,
+    }
+}
+
 /// Build a runnable [`WorldData`] from a validated world package: clubs with
 /// generated squads, regions from the package's confederations/countries, and
 /// the package's competitions as embedded definitions (resolved at game start).
 /// Call only after [`package::load_world_package`] reports no errors.
 pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldData {
     let mut rng = rand::rng();
-    let names_def = package
-        .names
-        .clone()
-        .unwrap_or_else(default_names_definition);
+    let names_def = {
+        let mut merged = default_names_definition();
+        if let Some(pkg_names) = &package.names {
+            for (key, pool) in &pkg_names.pools {
+                if !pool.first_names.is_empty() && !pool.last_names.is_empty() {
+                    merged.pools.insert(key.clone(), pool.clone());
+                }
+            }
+        }
+        merged
+    };
     let country_codes: Vec<String> = names_def.pools.keys().cloned().collect();
 
-    // Group hand-authored players by the club they belong to.
+    // Group hand-authored players and staff by the club they belong to.
     let mut authored_by_club: std::collections::HashMap<&str, Vec<&package::PlayerDef>> =
         std::collections::HashMap::new();
     for player in &package.players {
@@ -722,7 +831,16 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
                 .push(player);
         }
     }
+    let mut authored_staff_by_club: std::collections::HashMap<&str, Vec<&package::StaffDef>> =
+        std::collections::HashMap::new();
+    for s in &package.staff {
+        authored_staff_by_club
+            .entry(s.club.as_str())
+            .or_default()
+            .push(s);
+    }
     const NO_AUTHORED: &[&package::PlayerDef] = &[];
+    const NO_AUTHORED_STAFF: &[&package::StaffDef] = &[];
 
     let mut teams = Vec::new();
     let mut players = Vec::new();
@@ -732,21 +850,85 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
             .get(tdef.id.as_str())
             .map(Vec::as_slice)
             .unwrap_or(NO_AUTHORED);
-        let (team, team_players, team_staff) =
+        let authored_staff = authored_staff_by_club
+            .get(tdef.id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or(NO_AUTHORED_STAFF);
+        let (team, team_players, mut team_staff) =
             build_package_club(tdef, authored, &country_codes, &names_def, &mut rng);
+        // Replace auto-generated staff with authored versions, consuming each slot
+        // at most once so multiple authored staff of the same role all survive.
+        let mut replaced_staff_slots = vec![false; team_staff.len()];
+        for sdef in authored_staff {
+            let authored_member = generation::generate_staff_from_authored_def(
+                sdef, Some(&team.id), &names_def, &mut rng,
+            );
+            // Only the original auto-generated slots are replacement candidates;
+            // already-placed authored staff (appended below) are never overwritten.
+            let slot = team_staff
+                .iter()
+                .take(replaced_staff_slots.len())
+                .enumerate()
+                .find(|(idx, s)| !replaced_staff_slots[*idx] && s.role == authored_member.role)
+                .map(|(idx, _)| idx);
+            if let Some(pos) = slot {
+                team_staff[pos] = authored_member;
+                replaced_staff_slots[pos] = true;
+            } else {
+                team_staff.push(authored_member);
+            }
+        }
         teams.push(team);
         players.extend(team_players);
         staff.extend(team_staff);
     }
+    // Unattached authored staff (no club) go directly into the staff list.
+    for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
+        staff.push(generation::generate_staff_from_authored_def(sdef, None, &names_def, &mut rng));
+    }
+
+    let mut build_notices: Vec<String> = Vec::new();
+
+    // Thin-package fill: exactly 1 authored team + no competitions → generate
+    // THIN_PACKAGE_MIN_TEAMS-1 procedural opponents so the auto-fallback league
+    // below can form a playable season. Gated on no competitions so a 1-team
+    // package that defines its own competition doesn't get unexpected fillers.
+    const THIN_PACKAGE_MIN_TEAMS: usize = 8; // double round-robin → 14 matchdays
+    if package.competitions.is_empty() && teams.len() == 1 {
+        build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
+        let country = teams[0].country.clone();
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, &mut rng) {
+            let (team, team_players, team_staff) =
+                build_club(def, &country_codes, &names_def, &mut rng);
+            teams.push(team);
+            players.extend(team_players);
+            staff.extend(team_staff);
+        }
+    }
 
     let regions = regions_from_package(package, &teams);
-    let competition_definitions = if package.competitions.is_empty() {
-        None
-    } else {
+
+    let competition_definitions = if !package.competitions.is_empty() {
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
             competitions: package.competitions.clone(),
         })
+    } else if teams.len() >= 2 {
+        // Auto-fallback: synthesise a single-division league over all authored teams.
+        // A `package_type: "database"` package without any competition defs is
+        // probably a work-in-progress; generate a playable default so the game
+        // can still start. The notice key is collected on WorldData.build_notices
+        // for the frontend to surface; it is not persisted to the save.
+        build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
+        let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
+        let cfg = package.meta.as_ref().and_then(|m| m.fallback_league.as_ref());
+        let fallback = build_fallback_competition(cfg, explicit);
+        Some(CompetitionDefinitionFile {
+            format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+            competitions: vec![fallback],
+        })
+    } else {
+        None
     };
 
     let meta = package.meta.clone().unwrap_or_default();
@@ -765,6 +947,7 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         default_active_regions: meta.default_active_regions.clone(),
         default_active_competitions: meta.default_active_competitions.clone(),
         extra_translations: package.extra_translations.clone(),
+        build_notices,
         ..WorldData::default()
     };
     if let Some(base_year) = meta.base_year {
@@ -878,6 +1061,72 @@ mod tests {
     use domain::manager::Manager;
     use domain::player::{Position, SquadRole};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
+
+    #[test]
+    fn fallback_competition_uses_defaults_when_unconfigured() {
+        let comp = build_fallback_competition(None, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(comp.name, "Default League");
+        assert_eq!(
+            comp.name_key.as_deref(),
+            Some("be.competition.fallbackLeagueName")
+        );
+        assert_eq!(comp.format.legs, Some(2));
+        assert_eq!(comp.scope, CompetitionScope::Domestic);
+        assert_eq!(
+            comp.participants.explicit,
+            Some(vec!["a".to_string(), "b".to_string()])
+        );
+    }
+
+    #[test]
+    fn fallback_competition_honors_author_overrides() {
+        let cfg = package::FallbackLeagueConfig {
+            name: Some("Premier Division".to_string()),
+            legs: Some(1),
+            scope: Some(CompetitionScope::Continental),
+        };
+        let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
+        assert_eq!(comp.name, "Premier Division");
+        // A custom name clears the localized default key so it isn't overridden.
+        assert_eq!(comp.name_key, None);
+        assert_eq!(comp.format.legs, Some(1));
+        assert_eq!(comp.scope, CompetitionScope::Continental);
+    }
+
+    #[test]
+    fn fallback_competition_ignores_out_of_range_legs() {
+        let cfg = package::FallbackLeagueConfig { name: None, legs: Some(7), scope: None };
+        let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
+        assert_eq!(comp.format.legs, Some(2)); // 7 is meaningless → default 2
+    }
+
+    #[test]
+    fn fallback_competition_validates_for_every_allowed_scope() {
+        let team_ids: std::collections::HashSet<&str> = ["a", "b"].into_iter().collect();
+        let mut country_codes: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut region_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for nation in crate::nations::NATION_CATALOG {
+            country_codes.insert(nation.code);
+            region_ids.insert(nation.region_id);
+        }
+        let ctx = WorldValidationContext { team_ids, country_codes, region_ids };
+
+        for scope in [
+            CompetitionScope::Domestic,
+            CompetitionScope::Regional,
+            CompetitionScope::Continental,
+            CompetitionScope::International,
+        ] {
+            let cfg = package::FallbackLeagueConfig { name: None, legs: None, scope: Some(scope.clone()) };
+            let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
+            let file = CompetitionDefinitionFile {
+                format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
+                competitions: vec![comp],
+            };
+            let errors = validate_definitions(&file, &ctx);
+            assert!(errors.is_empty(), "scope {scope:?} produced errors: {errors:?}");
+        }
+    }
 
     #[test]
     fn generate_national_team_player_is_a_senior_free_agent() {

@@ -368,3 +368,71 @@ The Dashboard uses conditional rendering (not routing) for tabs. This means:
 - Tab state is preserved when switching between tabs
 - No URL changes for tab navigation (clean URLs)
 - Profile views (player/team) overlay on top of the current tab with a back-navigation stack
+
+---
+
+## Modding System
+
+OpenFoot Manager supports user-created content through the `.ofm` package format. Packages are ZIP archives containing JSON/YAML entity files and optional image assets.
+
+### Package Loading Pipeline
+
+```
+packages/ directory
+    │
+    ▼
+list_world_databases (scan for .ofm files)
+    │
+    ▼
+load_world_package_from_ofm (extract + validate archive)
+  or load_world_package (directory)
+    │
+    ├── load_world_package_files()
+    │     Walk recursively → classify by "schema" field
+    │     → Parse entity structs → check id uniqueness
+    │
+    └── Cross-reference validation
+          countries → confederations
+          teams → countries
+          players → teams + countries
+          competitions → teams, countries, regions, selector sources
+    │
+    ▼
+merge_world_packages (multiple packages: last-wins by id)
+    │
+    ▼
+Game world (passed to world generator)
+```
+
+`ofm_core::generator::package` is the authoritative validator — the same code path runs in the game, the CLI, and the Package Editor Tauri commands.
+
+### `ofm-cli` Binary Crate
+
+`src-tauri/crates/ofm-cli/` is a standalone binary crate that statically links `ofm_core`. It is **not** part of the Tauri app; it compiles to an independent executable.
+
+```
+ofm-cli
+  └── ofm_core  (shared library: package loading, validation, export)
+```
+
+This means CLI validation results are guaranteed to match in-game validation results — they use the same code.
+
+### Package Editor Tauri Commands
+
+Four commands in `src-tauri/src/commands/package_editor.rs` expose package authoring to the React frontend:
+
+| Command | What it does |
+|---------|-------------|
+| `create_package_project` | `mkdir` + write `package.json` manifest + empty stub files for each entity type |
+| `read_package_project` | `load_world_package(dir)` → return `PackageProjectData` (meta, confederations, countries, teams, players, names, competitions, issues) |
+| `save_package_project` | Atomically overwrite all entity files: `package.json`, `confederations/`, `countries/`, `teams/`, `players/`, `names/`, `competitions/` (write to temp → rename) |
+| `build_ofm` | Save → validate → `export_directory_to_ofm(dir, output)` |
+
+All entity types (`WorldMetaDef`, `ConfederationDef`, `CountryDef`, `TeamDef`, `PlayerDef`, `NamesDefinition`, `CompetitionDefinition`) are passed directly through Tauri's invoke boundary — they are the same types `ofm_core` uses internally, so no translation layer is needed.
+
+### `.ofm` Archive Format
+
+- Standard ZIP with deflate compression
+- Size limits: 256 MB compressed, 1 GB uncompressed, 10,000 files
+- Security: paths validated against zip-slip attacks and symlinks
+- `read_package_manifest_from_ofm()` reads only `package.json` without full extraction (used by `ofm-cli info` and the world selector)

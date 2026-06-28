@@ -13,9 +13,8 @@ import type {
   CreateManagerFormData,
 } from "../components/menu/CreateManagerForm";
 import type {
-  CompetitionDefinitionIssue,
+  PackageInfo,
   PackageIssue,
-  WorldDatabaseInfo,
 } from "../components/menu/WorldSelect";
 import type { ManagerProfile } from "../components/menu/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -27,6 +26,7 @@ import {
   PlusCircle,
   ChevronRight,
   Power,
+  Package,
 } from "lucide-react";
 
 const DISCORD_INVITE_URL = "https://discord.gg/2CXaesaukT";
@@ -55,7 +55,8 @@ const ProfileSaveConfirm = lazy(
   () => import("../components/menu/ProfileSaveConfirm"),
 );
 const SavesList = lazy(() => import("../components/menu/SavesList"));
-const WorldSelect = lazy(() => import("../components/menu/WorldSelect"));
+const PackageBuildStep = lazy(() => import("../components/menu/PackageBuildStep"));
+const GenerationStep = lazy(() => import("../components/menu/WorldSelect"));
 
 interface SaveEntry {
   id: string;
@@ -83,18 +84,7 @@ type StartupOptionsPayload = {
   historyDepthYears: number;
 };
 
-function historyModeFromMetadata(
-  metadata: unknown,
-): WorldDatabaseInfo["history_mode"] {
-  const kind =
-    metadata && typeof metadata === "object" && "kind" in metadata
-      ? (metadata as { kind?: unknown }).kind
-      : undefined;
 
-  if (kind === "historicalSnapshot") return "reference";
-  if (kind === "rosterBaseline") return "hybrid";
-  return undefined;
-}
 
 function defaultCareerStartYear(): string {
   return String(new Date().getFullYear());
@@ -298,9 +288,7 @@ export default function MainMenu() {
   const setGameState = useGameStore((state) => state.setGameState);
   const { t } = useTranslation();
 
-  const [menuState, setMenuState] = useState<
-    "main" | "create" | "world" | "load"
-  >("main");
+  const [menuState, setMenuState] = useState<"main" | "create" | "packages" | "generation" | "load">("main");
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [saves, setSaves] = useState<SaveEntry[]>([]);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
@@ -323,17 +311,11 @@ export default function MainMenu() {
     Partial<Record<keyof CreateManagerFormData, string>>
   >({});
 
-  // World database state
-  const [worldDatabases, setWorldDatabases] = useState<WorldDatabaseInfo[]>([]);
-  const [selectedWorldId, setSelectedWorldId] = useState<string>("random");
-  const [competitionDefsJson, setCompetitionDefsJson] = useState<string | null>(null);
-  const [competitionDefsFileName, setCompetitionDefsFileName] = useState<string | null>(null);
-  const [competitionDefsErrors, setCompetitionDefsErrors] = useState<
-    CompetitionDefinitionIssue[]
-  >([]);
-  const [packageErrors, setPackageErrors] = useState<PackageIssue[]>([]);
-  const [isInspectingPackage, setIsInspectingPackage] = useState(false);
-  const [isLoadingWorlds, setIsLoadingWorlds] = useState(false);
+  // Installed packages state
+  const [installedPackages, setInstalledPackages] = useState<PackageInfo[]>([]);
+  const [activePackageIds, setActivePackageIds] = useState<string[]>([]);
+  const [isInstallingPackage, setIsInstallingPackage] = useState(false);
+  const [packageStackErrors, setPackageStackErrors] = useState<PackageIssue[]>([]);
   const [historyDepthYears, setHistoryDepthYears] = useState(
     initialHistoryDepthYears,
   );
@@ -478,192 +460,63 @@ export default function MainMenu() {
       return;
     }
     void autoSaveProfile();
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
-  const loadWorldDatabases = async () => {
-    setIsLoadingWorlds(true);
+
+  const loadInstalledPackages = async () => {
     try {
-      const dbs = await invoke<WorldDatabaseInfo[]>("list_world_databases");
-      setWorldDatabases(dbs);
-    } catch (error) {
-      console.error("Failed to load world databases:", error);
-      // Always have random available even if scan fails
-      setWorldDatabases([
-        {
-          id: "random",
-          name: t("worldSelect.randomWorld"),
-          description: t("worldSelect.randomDescription"),
-          team_count: 440,
-          player_count: 9680,
-          history_mode: "generated",
-          base_year: null,
-          snapshot_date: null,
-          source: "builtin",
-          path: "",
-        },
-      ]);
-    } finally {
-      setIsLoadingWorlds(false);
-    }
-  };
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const json = reader.result as string;
-        const parsed = JSON.parse(json);
-        const path = await invoke<string>("write_temp_database", { json });
-        const info: WorldDatabaseInfo = {
-          id: `file:${file.name}`,
-          name: parsed.name || file.name.replace(".json", ""),
-          description: parsed.description || t("menu.importedDescription"),
-          team_count: parsed.teams?.length ?? 0,
-          player_count: parsed.players?.length ?? 0,
-          history_mode: historyModeFromMetadata(parsed.metadata) ?? "hybrid",
-          base_year:
-            typeof parsed.metadata?.base_year === "number"
-              ? parsed.metadata.base_year
-              : null,
-          snapshot_date:
-            typeof parsed.metadata?.snapshot_date === "string"
-              ? parsed.metadata.snapshot_date
-              : null,
-          source: "imported",
-          path,
-        };
-        setWorldDatabases((prev) => {
-          const filtered = prev.filter((d) => d.source !== "imported");
-          return [...filtered, info];
-        });
-        setSelectedWorldId(info.id);
-      } catch (err) {
-        alert(t("menu.invalidWorldDb", { error: String(err) }));
-      }
-    };
-    reader.readAsText(file);
-    // Reset input so the same file can be re-selected
-    e.target.value = "";
-  };
-
-  // Resolve the chosen world into a backend world source (writing imported
-  // worlds to a temp path), shared by validation and game start.
-  const resolveWorldSource = async (): Promise<string | undefined> => {
-    if (selectedWorldId === "random") {
-      return undefined;
-    }
-    if (
-      selectedWorldId.startsWith("file:") &&
-      sessionStorage.getItem("imported_world_json")
-    ) {
-      const json = sessionStorage.getItem("imported_world_json")!;
-      const path = await invoke<string>("write_temp_database", { json });
-      return `file:${path}`;
-    }
-    const selectedDb = worldDatabases.find((db) => db.id === selectedWorldId);
-    if (selectedDb?.path) {
-      return `file:${selectedDb.path}`;
-    }
-    return selectedWorldId;
-  };
-
-  const handleImportCompetitionDefs = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const json = reader.result as string;
-      setCompetitionDefsJson(json);
-      setCompetitionDefsFileName(file.name);
-      setCompetitionDefsErrors([]);
-      try {
-        const worldSource = await resolveWorldSource();
-        const issues = await invoke<CompetitionDefinitionIssue[]>(
-          "validate_competition_definitions",
-          { worldSource, definitionsJson: json },
-        );
-        setCompetitionDefsErrors(issues);
-      } catch (err) {
-        setCompetitionDefsErrors([
-          {
-            code:
-              typeof err === "string"
-                ? err
-                : "be.error.competitionDef.parseFailed",
-            competition_id: "",
-            params: {},
-          },
-        ]);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleClearCompetitionDefs = () => {
-    setCompetitionDefsJson(null);
-    setCompetitionDefsFileName(null);
-    setCompetitionDefsErrors([]);
-  };
-
-  // Import a modular world package (a folder) via the native directory picker.
-  // The backend validates it; valid packages become a selectable world whose
-  // source is the directory path (load_world_data detects a dir = package).
-  const handleImportPackage = async () => {
-    setPackageErrors([]);
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: t("worldSelect.importPackage"),
-    });
-    if (typeof selected !== "string") {
-      return;
-    }
-    setIsInspectingPackage(true);
-    try {
-      const inspection = await invoke<{
-        name: string;
-        teamCount: number;
-        playerCount: number;
-        issues: PackageIssue[];
-      }>("inspect_world_package", { path: selected });
-      if (inspection.issues.length > 0) {
-        setPackageErrors(inspection.issues);
-        return;
-      }
-      const info: WorldDatabaseInfo = {
-        id: `package:${selected}`,
-        name: inspection.name,
-        description: t("menu.importedPackageDescription"),
-        team_count: inspection.teamCount,
-        player_count: inspection.playerCount,
-        history_mode: "hybrid",
-        base_year: null,
-        snapshot_date: null,
-        source: "imported",
-        path: selected,
-      };
-      setWorldDatabases((prev) => [
-        ...prev.filter((db) => db.source !== "imported"),
-        info,
-      ]);
-      setSelectedWorldId(info.id);
+      const pkgs = await invoke<PackageInfo[]>("list_installed_packages");
+      // Tauri commands can resolve to null; never let installedPackages become
+      // null or downstream `.filter` calls (here and in PackageBuildStep) throw.
+      setInstalledPackages(pkgs ?? []);
     } catch (err) {
-      setPackageErrors([
-        {
-          code: typeof err === "string" ? err : "be.error.package.invalid",
-          file: "",
-          params: {},
-        },
-      ]);
-    } finally {
-      setIsInspectingPackage(false);
+      console.error("Failed to list packages:", err);
     }
+  };
+
+  useEffect(() => {
+    if (menuState === "packages") {
+      void loadInstalledPackages();
+    }
+  }, [menuState]);
+
+  const handleInstallPackage = async () => {
+    const selected = await open({
+      filters: [{ name: "OFM Package", extensions: ["ofm"] }],
+      multiple: false,
+      title: t("worldSelect.installPackage"),
+    });
+    if (typeof selected !== "string") return;
+    setIsInstallingPackage(true);
+    try {
+      await invoke<PackageInfo>("install_package", { path: selected });
+      await loadInstalledPackages();
+    } catch (err) {
+      console.error("Failed to install package:", err);
+      alert(resolveBackendError(err));
+    } finally {
+      setIsInstallingPackage(false);
+    }
+  };
+
+  const handleUninstallPackage = async (id: string) => {
+    try {
+      await invoke("uninstall_package", { id });
+      setInstalledPackages((prev) => prev.filter((p) => p.id !== id));
+      setActivePackageIds((prev) => prev.filter((pid) => pid !== id));
+      setPackageStackErrors([]);
+    } catch (err) {
+      console.error("Failed to uninstall package:", err);
+      alert(resolveBackendError(err));
+    }
+  };
+
+  const handleTogglePackage = (id: string) => {
+    setActivePackageIds((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id],
+    );
+    setPackageStackErrors([]);
   };
 
   const handleStartGame = async () => {
@@ -679,16 +532,13 @@ export default function MainMenu() {
 
     setIsStarting(true);
     try {
-      const worldSource = await resolveWorldSource();
-
       const game = await invoke<GameStateData>("start_new_game", {
         firstName: formData.firstName,
         lastName: formData.lastName,
         dob: formData.dob,
         nationality: formData.nationality,
         startupOptions,
-        worldSource,
-        competitionDefinitionsJson: competitionDefsJson ?? undefined,
+        packageIds: activePackageIds.length > 0 ? activePackageIds : undefined,
       });
       applyExtraTranslations(game.extra_translations);
       setGameState(game);
@@ -767,10 +617,9 @@ export default function MainMenu() {
     form.dob !== profile.date_of_birth ||
     form.nationality !== profile.nationality;
 
-  const proceedToWorldSelect = () => {
+  const proceedToPackages = () => {
     setShowProfileConfirm(false);
-    setMenuState("world");
-    loadWorldDatabases();
+    setMenuState("packages");
   };
 
   const handleUpdateProfile = async () => {
@@ -790,13 +639,13 @@ export default function MainMenu() {
     } catch (error) {
       console.error("Failed to update manager profile:", error);
     }
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
   const handleSaveAsNewProfile = () => {
     void autoSaveProfile(true);
     setLoadedProfile(null);
-    proceedToWorldSelect();
+    proceedToPackages();
   };
 
   const handleDeleteProfile = async (id: string) => {
@@ -902,6 +751,19 @@ export default function MainMenu() {
               </button>
 
               <button
+                onClick={() => navigate("/world-editor")}
+                className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-accent-400 dark:hover:border-accent-400 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <Package className="w-6 h-6 text-accent-500 dark:text-accent-400" />
+                  <span className="font-heading font-bold text-lg uppercase tracking-wide">
+                    {t("menu.worldEditor")}
+                  </span>
+                </div>
+                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-70 group-hover:translate-x-0.5 transition-all text-accent-500" />
+              </button>
+
+              <button
                 onClick={() => navigate("/settings", { state: { from: "/" } })}
                 className="group flex items-center justify-between w-full p-4 bg-white dark:bg-navy-700 hover:bg-gray-50 dark:hover:bg-navy-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 border border-gray-200 dark:border-navy-600 hover:border-gray-300 dark:hover:border-navy-600 shadow-sm"
               >
@@ -960,36 +822,43 @@ export default function MainMenu() {
                 loadedProfile={loadedProfile}
                 onUpdate={() => { void handleUpdateProfile(); }}
                 onSaveNew={() => { void handleSaveAsNewProfile(); }}
-                onSkip={proceedToWorldSelect}
+                onSkip={proceedToPackages}
                 onClose={() => setShowProfileConfirm(false)}
               />
             </Suspense>
           )}
 
-          {/* Step 2: World Database Selection */}
-          {menuState === "world" && (
+          {/* Step 2a: Build Your World (package selection) */}
+          {menuState === "packages" && (
             <Suspense fallback={<MenuPanelFallback />}>
-              <WorldSelect
-                worldDatabases={worldDatabases}
-                selectedWorldId={selectedWorldId}
-                isLoadingWorlds={isLoadingWorlds}
+              <PackageBuildStep
+                installedPackages={installedPackages}
+                activePackageIds={activePackageIds}
+                isInstallingPackage={isInstallingPackage}
+                packageStackErrors={packageStackErrors}
+                onTogglePackage={handleTogglePackage}
+                onInstallPackage={handleInstallPackage}
+                onUninstallPackage={handleUninstallPackage}
+                onNext={() => setMenuState("generation")}
+                onBack={() => setMenuState("create")}
+                onClose={() => setMenuState("main")}
+              />
+            </Suspense>
+          )}
+
+          {/* Step 2b: Generation & Completion */}
+          {menuState === "generation" && (
+            <Suspense fallback={<MenuPanelFallback />}>
+              <GenerationStep
                 isStarting={isStarting}
                 startYear={parseCareerStartYear(formData.startYear) ?? MIN_CAREER_START_YEAR}
                 startPhase={formData.startPhase}
                 historyDepthYears={historyDepthYears}
-                onSelectWorld={setSelectedWorldId}
                 onChangeHistoryDepthYears={setHistoryDepthYears}
-                onImportFile={handleImportFile}
                 onStart={handleStartGame}
-                onBack={() => setMenuState("create")}
+                onBack={() => setMenuState("packages")}
                 onClose={() => setMenuState("main")}
-                competitionDefsFileName={competitionDefsFileName}
-                competitionDefsErrors={competitionDefsErrors}
-                onImportCompetitionDefs={handleImportCompetitionDefs}
-                onClearCompetitionDefs={handleClearCompetitionDefs}
-                onImportPackage={handleImportPackage}
-                isInspectingPackage={isInspectingPackage}
-                packageErrors={packageErrors}
+                activePackages={installedPackages.filter((p) => activePackageIds.includes(p.id))}
               />
             </Suspense>
           )}
@@ -1009,6 +878,8 @@ export default function MainMenu() {
               />
             </Suspense>
           )}
+
+          {/* Package Editor */}
 
         </div>
       </div>

@@ -114,6 +114,10 @@ export function DatePicker({ value, onChange, error }: DatePickerProps) {
       setYear(nextValue.year);
       setMonth(nextValue.month);
       setDay(nextValue.day);
+    } else {
+      setDay("");
+      setMonth("");
+      setYear("");
     }
   }, [value]);
 

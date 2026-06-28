@@ -1,0 +1,67 @@
+{
+  "schema": "player",
+  "items": [
+    {
+      "id": "marcus-vane",
+      "name": "Marcus Vane",
+      "firstName": "Marcus",
+      "lastName": "Vane",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "position": "Striker",
+      "footedness": "Right",
+      "dateOfBirth": "1996-04-12",
+      "overall": 78
+    },
+    {
+      "id": "elliot-shaw",
+      "name": "Elliot Shaw",
+      "firstName": "Elliot",
+      "lastName": "Shaw",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "position": "CentralMidfielder",
+      "footedness": "Left",
+      "dateOfBirth": "1994-09-30",
+      "overall": 75
+    },
+    {
+      "id": "tom-reed",
+      "name": "Tom Reed",
+      "firstName": "Tom",
+      "lastName": "Reed",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "position": "Goalkeeper",
+      "footedness": "Right",
+      "dateOfBirth": "1992-01-18",
+      "overall": 74
+    },
+    {
+      "id": "jamie-locke",
+      "name": "Jamie Locke",
+      "firstName": "Jamie",
+      "lastName": "Locke",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "position": "AttackingMidfielder",
+      "footedness": "Both",
+      "dateOfBirth": "2009-06-02",
+      "overall": 58,
+      "youth": true
+    },
+    {
+      "id": "noah-finch",
+      "name": "Noah Finch",
+      "firstName": "Noah",
+      "lastName": "Finch",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "position": "RightBack",
+      "footedness": "Right",
+      "dateOfBirth": "2010-02-21",
+      "overall": 55,
+      "youth": true
+    }
+  ]
+}

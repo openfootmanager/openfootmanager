@@ -1,0 +1,65 @@
+{
+  "schema": "team",
+  "items": [
+    {
+      "id": "northshire-fc",
+      "name": "Northshire FC",
+      "shortName": "NSH",
+      "city": "Northshire",
+      "country": "ENG",
+      "colors": {
+        "primary": "#003366",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Castle Park",
+      "reputationRange": [400, 650],
+      "financeRange": [800000, 3000000]
+    },
+    {
+      "id": "westbrook-united",
+      "name": "Westbrook United",
+      "shortName": "WBU",
+      "city": "Westbrook",
+      "country": "ENG",
+      "colors": {
+        "primary": "#cc0000",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Westbrook Arena",
+      "reputationRange": [350, 600],
+      "financeRange": [600000, 2500000]
+    },
+    {
+      "id": "eastgate-city",
+      "name": "Eastgate City",
+      "shortName": "EGC",
+      "city": "Eastgate",
+      "country": "ENG",
+      "colors": {
+        "primary": "#0066cc",
+        "secondary": "#ffcc00"
+      },
+      "playStyle": "Pressing",
+      "stadiumName": "City Ground",
+      "reputationRange": [300, 550],
+      "financeRange": [500000, 2000000]
+    },
+    {
+      "id": "southfield-rovers",
+      "name": "Southfield Rovers",
+      "shortName": "SFR",
+      "city": "Southfield",
+      "country": "ENG",
+      "colors": {
+        "primary": "#006600",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Defensive",
+      "stadiumName": "Rovers Stadium",
+      "reputationRange": [250, 500],
+      "financeRange": [400000, 1500000]
+    }
+  ]
+}

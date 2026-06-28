@@ -185,6 +185,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_world_databases,
+            install_package,
+            list_installed_packages,
+            uninstall_package,
+            check_package_stack,
             start_new_game,
             validate_competition_definitions,
             validate_world_package,
@@ -291,7 +295,15 @@ pub fn run() {
             delete_manager_profile,
             touch_manager_profile,
             run_sim_batch,
-            run_single_seeded_match
+            run_single_seeded_match,
+            create_package_project,
+            create_world_project,
+            read_package_project,
+            save_package_project,
+            build_ofm,
+            extract_ofm_for_editing,
+            copy_package_asset,
+            read_file_as_data_url
         ])
         .run(tauri::generate_context!());
 

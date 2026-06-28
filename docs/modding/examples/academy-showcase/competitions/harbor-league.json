@@ -1,0 +1,15 @@
+{
+  "schema": "competition",
+  "id": "harbor-league",
+  "name": "Harbor Regional League",
+  "type": "League",
+  "scope": "Domestic",
+  "countryId": "ENG",
+  "priority": 10,
+  "format": { "kind": "LeagueTable", "legs": 2 },
+  "participants": {
+    "explicit": ["harbor-town-fc", "rival-rovers"]
+  },
+  "seasonStartMonth": 8,
+  "seasonStartDay": 1
+}
