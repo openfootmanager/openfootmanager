@@ -5,8 +5,9 @@ use crate::player_rating::{
 };
 use domain::player::Position as DomainPosition;
 use engine::{
-    DefensiveLine, MarkingStyle, PlayStyle, PlayerData, PlayerRole as EnginePlayerRole, Position,
-    PressingIntensity, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, TeamData,
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, PlayStyle,
+    PlayerData, PlayerRole as EnginePlayerRole, Position, PressingIntensity, TacticsBuildUpStyle,
+    TacticsConfig, TacticsPitchWidth, Tempo, TeamData,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -374,6 +375,25 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
             domain::team::MarkingStyle::Zonal => MarkingStyle::Zonal,
             domain::team::MarkingStyle::Mixed => MarkingStyle::Mixed,
             domain::team::MarkingStyle::ManToMan => MarkingStyle::ManToMan,
+        },
+        tempo: match t.tempo {
+            domain::team::Tempo::Patient => Tempo::Patient,
+            domain::team::Tempo::Direct => Tempo::Direct,
+        },
+        defensive_shape: match t.defensive_shape {
+            domain::team::DefensiveShape::Stretched => DefensiveShape::Stretched,
+            domain::team::DefensiveShape::Normal => DefensiveShape::Normal,
+            domain::team::DefensiveShape::Compact => DefensiveShape::Compact,
+        },
+        counter_press_duration: match t.counter_press_duration {
+            domain::team::CounterPressDuration::None => CounterPressDuration::None,
+            domain::team::CounterPressDuration::Short => CounterPressDuration::Short,
+            domain::team::CounterPressDuration::Long => CounterPressDuration::Long,
+        },
+        break_speed: match t.break_speed {
+            domain::team::BreakSpeed::Slow => BreakSpeed::Slow,
+            domain::team::BreakSpeed::Medium => BreakSpeed::Medium,
+            domain::team::BreakSpeed::Fast => BreakSpeed::Fast,
         },
     }
 }
