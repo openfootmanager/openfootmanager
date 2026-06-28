@@ -26,6 +26,12 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: (...args: unknown[]) => openUrlMock(...args),
 }));
 
+// The native file-picker returns whatever the current test stages here.
+let dialogOpenResult: string | null = null;
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(async () => dialogOpenResult),
+}));
+
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn())),
 }));
@@ -138,10 +144,12 @@ vi.mock("../components/menu/PackageBuildStep", () => ({
   default: ({
     onNext,
     onTogglePackage,
+    onInstallPackage,
     installedPackages,
   }: {
     onNext: () => void;
     onTogglePackage: (id: string) => void;
+    onInstallPackage: () => void;
     installedPackages: Array<{ id: string }>;
   }) => (
     <div data-testid="package-build-step">
@@ -154,6 +162,9 @@ vi.mock("../components/menu/PackageBuildStep", () => ({
           {`toggle-${pkg.id}`}
         </button>
       ))}
+      <button type="button" onClick={onInstallPackage}>
+        install-package
+      </button>
       <button type="button" onClick={onNext}>
         package-next
       </button>
@@ -287,6 +298,7 @@ describe("MainMenu", () => {
     setGameStateMock.mockReset();
     alertMock.mockReset();
     openUrlMock.mockReset();
+    dialogOpenResult = null;
     localStorage.clear();
     latestDatePickerOnChange = null;
     translationState.language = "en";
@@ -653,6 +665,81 @@ describe("MainMenu", () => {
     });
 
     expect(navigateMock).toHaveBeenCalledWith("/select-team");
+  });
+
+  it("installs a world package from a picked .ofm file and makes it activatable", async () => {
+    dialogOpenResult = "/tmp/custom-world.ofm";
+    let installed = false;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_installed_packages") {
+        return installed
+          ? [
+              {
+                id: "custom-world",
+                name: "Custom World",
+                description: "",
+                packageType: "database",
+                teamCount: 8,
+                playerCount: 160,
+                issues: [],
+              },
+            ]
+          : [];
+      }
+      if (command === "install_package") {
+        installed = true;
+        return { id: "custom-world", name: "Custom World", packageType: "database", issues: [] };
+      }
+      if (command === "start_new_game") {
+        return { id: "game-1" };
+      }
+      return null;
+    });
+
+    render(<MainMenu />);
+
+    await openCreateManagerForm();
+    fillManagerDetails();
+    await selectNationality("en", "ES");
+    fireEvent.click(screen.getByText("createManager.chooseWorld"));
+
+    // No packages installed yet, so the file has to be imported first.
+    expect(screen.queryByText("toggle-custom-world")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("install-package"));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("install_package", {
+        path: "/tmp/custom-world.ofm",
+      });
+    });
+
+    // After install the list reloads and the imported world can be activated.
+    fireEvent.click(await screen.findByText("toggle-custom-world"));
+    await advanceThroughPackages();
+    fireEvent.click(await screen.findByText("start-world"));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "start_new_game",
+        expect.objectContaining({ packageIds: ["custom-world"] }),
+      );
+    });
+  });
+
+  it("does not install anything when the file picker is cancelled", async () => {
+    dialogOpenResult = null; // user dismissed the picker
+    render(<MainMenu />);
+
+    await openCreateManagerForm();
+    fillManagerDetails();
+    await selectNationality("en", "ES");
+    fireEvent.click(screen.getByText("createManager.chooseWorld"));
+
+    fireEvent.click(await screen.findByText("install-package"));
+
+    // Give any (incorrect) install call a chance to fire, then assert none did.
+    await waitFor(() => expect(screen.getByTestId("package-build-step")).toBeInTheDocument());
+    expect(mockedInvoke).not.toHaveBeenCalledWith("install_package", expect.anything());
   });
 
   it("surfaces a message when a save fails to load", async () => {
