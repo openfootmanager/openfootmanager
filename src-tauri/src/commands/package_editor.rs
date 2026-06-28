@@ -111,6 +111,7 @@ pub fn create_world_project(
     slug: String,
     meta: WorldMetaDef,
 ) -> Result<String, String> {
+    sanitize_entity_id(&slug)?;
     let base_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
     let project_dir = base_dir.join("world-editor").join(&slug);
     if project_dir.exists() && dir_is_nonempty(&project_dir) {

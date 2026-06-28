@@ -250,6 +250,9 @@ pub fn install_package(
     } else {
         meta.id.clone()
     };
+    // The id (from the package manifest) becomes a filename under packages_dir,
+    // so reject traversal tokens before it is ever joined into a path.
+    validate_package_id(&id)?;
 
     // Validate before copying: surface extraction errors (symlinks, zip-slip, size) and
     // cross-reference errors (unknown country, unknown team) before the file is installed.
@@ -315,7 +318,7 @@ pub fn list_installed_packages(
 }
 
 /// Reject any package id that contains path separators or traversal tokens.
-fn validate_package_id(id: &str) -> Result<(), String> {
+pub(crate) fn validate_package_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || id.contains('/')
         || id.contains('\\')
@@ -398,7 +401,8 @@ pub fn check_package_stack(
 #[cfg(test)]
 mod tests {
     use super::{
-        export_world_database_internal, write_database_json_to_dir, EXPORTED_WORLD_NAME_KEY,
+        export_world_database_internal, validate_package_id, write_database_json_to_dir,
+        EXPORTED_WORLD_NAME_KEY,
     };
     use chrono::{TimeZone, Utc};
     use domain::league::League;
@@ -685,5 +689,27 @@ mod tests {
         let result = write_database_json_to_dir(&blocked_path, "{}");
 
         assert_eq!(result.unwrap_err(), "be.error.worldWriteDatabaseFailed");
+    }
+
+    #[test]
+    fn validate_package_id_rejects_traversal_tokens() {
+        // Legitimate ids pass.
+        assert!(validate_package_id("eng-premier-league").is_ok());
+        assert!(validate_package_id("brasileirao_2026").is_ok());
+        // Anything that could escape packages_dir as a path component is rejected.
+        for bad in [
+            "",
+            "..",
+            "../evil",
+            "../../etc/passwd",
+            "a/b",
+            "a\\b",
+            "with\0null",
+        ] {
+            assert!(
+                validate_package_id(bad).is_err(),
+                "expected {bad:?} to be rejected"
+            );
+        }
     }
 }

@@ -381,30 +381,15 @@ pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> 
     Ok(())
 }
 
-/// Extract a `.ofm` ZIP archive into `dest_dir`, creating subdirectories as needed.
-/// Returns the path to the destination directory.
+/// Extract a `.ofm` ZIP archive into `dest_dir` for editing, applying the same
+/// hardened guards (zip-slip, symlink, file-count and uncompressed-size caps)
+/// used when installing/loading packages. Any unsafe or unreadable entry aborts
+/// the extraction with its `be.error.*` code rather than partially unpacking a
+/// malicious archive.
 pub fn extract_ofm_to_dir(ofm_path: &Path, dest_dir: &Path) -> Result<(), String> {
-    use std::io::Read;
-
-    std::fs::create_dir_all(dest_dir).map_err(|e| e.to_string())?;
-
-    let file = std::fs::File::open(ofm_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
-
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let out_path = dest_dir.join(entry.name());
-
-        if entry.name().ends_with('/') {
-            std::fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            let mut data = Vec::new();
-            entry.read_to_end(&mut data).map_err(|e| e.to_string())?;
-            std::fs::write(&out_path, data).map_err(|e| e.to_string())?;
-        }
+    let entry_errors = super::package::extract_archive_safely(ofm_path, dest_dir)?;
+    if let Some(err) = entry_errors.into_iter().next() {
+        return Err(err.code);
     }
     Ok(())
 }

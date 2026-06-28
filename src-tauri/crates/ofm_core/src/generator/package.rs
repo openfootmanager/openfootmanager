@@ -939,6 +939,32 @@ pub const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_UNCOMPRESSED_BYTES: u64 = 1024 * 1024 * 1024;
 /// Maximum number of files in an archive.
 pub const MAX_FILE_COUNT: usize = 10_000;
+/// Maximum decompressed size of a single entry read in isolation (manifest,
+/// logo) outside the full hardened extraction path (16 MB — zip-bomb guard).
+const MAX_SINGLE_ENTRY_BYTES: u64 = 16 * 1024 * 1024;
+
+/// Read a single zip entry into memory, counting decompressed bytes and
+/// returning `None` if it exceeds `max_bytes` or the read fails. Defends against
+/// decompression bombs when an entry is read outside [`extract_archive_safely`].
+fn read_entry_capped<R: std::io::Read>(entry: &mut R, max_bytes: u64) -> Option<Vec<u8>> {
+    let mut buf = Vec::new();
+    let mut total: u64 = 0;
+    let mut chunk = [0u8; 65536];
+    loop {
+        match entry.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                total = total.saturating_add(n as u64);
+                if total > max_bytes {
+                    return None;
+                }
+                buf.extend_from_slice(&chunk[..n]);
+            }
+            Err(_) => return None,
+        }
+    }
+    Some(buf)
+}
 
 const ZIPSLIP_ERROR: &str = "be.error.package.zipSlip";
 const SYMLINK_ERROR: &str = "be.error.package.symlinkDetected";
@@ -964,34 +990,31 @@ fn safe_entry_path(base: &Path, entry_name: &str) -> Option<PathBuf> {
     Some(base.join(entry_name))
 }
 
-/// Extract a `.ofm` zip archive to a temp directory, load the package from it,
-/// clean up, and return. Zip-slip paths are silently skipped.
-pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+/// Hardened extraction of a `.ofm` zip archive into `dest_dir`. Enforces the
+/// file-count, uncompressed-size, symlink and zip-slip guards. Per-entry
+/// problems (symlink, zip-slip, read/write failure) are collected and returned
+/// so the caller can decide whether to surface or skip them; fatal conditions
+/// (open/parse failure, too many files, archive too large) return `Err(code)`
+/// with a `be.error.*` key.
+///
+/// This is the single hardened extraction path: every code path that unpacks an
+/// untrusted `.ofm` (package install/load *and* the world-editor "open for
+/// editing" flow) must route through it so the guards can never diverge.
+pub fn extract_archive_safely(
+    ofm_path: &Path,
+    dest_dir: &Path,
+) -> Result<Vec<PackageError>, String> {
     use std::io::Read;
 
-    let file = match std::fs::File::open(path) {
-        Ok(f) => f,
-        Err(_) => return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]),
-    };
-    let mut archive = match zip::ZipArchive::new(file) {
-        Ok(a) => a,
-        Err(_) => return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]),
-    };
-    let temp_dir =
-        std::env::temp_dir().join(format!("ofm-extract-{}", uuid::Uuid::new_v4()));
-    if std::fs::create_dir_all(&temp_dir).is_err() {
-        return (WorldPackage::default(), vec![PackageError::new(READ_FAILED, "")]);
-    }
+    let file = std::fs::File::open(ofm_path).map_err(|_| READ_FAILED.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|_| READ_FAILED.to_string())?;
+    std::fs::create_dir_all(dest_dir).map_err(|_| READ_FAILED.to_string())?;
 
     if archive.len() > MAX_FILE_COUNT {
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        return (
-            WorldPackage::default(),
-            vec![PackageError::new(TOO_MANY_FILES_ERROR, "")],
-        );
+        return Err(TOO_MANY_FILES_ERROR.to_string());
     }
 
-    let mut extract_errors = Vec::new();
+    let mut errors = Vec::new();
     let mut total_uncompressed: u64 = 0;
     for i in 0..archive.len() {
         let Ok(mut entry) = archive.by_index(i) else {
@@ -1001,18 +1024,17 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
             continue;
         }
         if entry.is_symlink() {
-            let name = entry.name().to_string();
-            extract_errors.push(PackageError::new(SYMLINK_ERROR, &name));
+            errors.push(PackageError::new(SYMLINK_ERROR, &entry.name().to_string()));
             continue;
         }
         let entry_name = entry.name().to_string();
-        let Some(dest) = safe_entry_path(&temp_dir, &entry_name) else {
-            extract_errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
+        let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
+            errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
             continue;
         };
         if let Some(parent) = dest.parent() {
             if std::fs::create_dir_all(parent).is_err() {
-                extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+                errors.push(PackageError::new(READ_FAILED, &entry_name));
                 continue;
             }
         }
@@ -1028,11 +1050,7 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
                 Ok(n) => {
                     total_uncompressed = total_uncompressed.saturating_add(n as u64);
                     if total_uncompressed > MAX_UNCOMPRESSED_BYTES {
-                        let _ = std::fs::remove_dir_all(&temp_dir);
-                        return (
-                            WorldPackage::default(),
-                            vec![PackageError::new(ARCHIVE_TOO_LARGE_ERROR, "")],
-                        );
+                        return Err(ARCHIVE_TOO_LARGE_ERROR.to_string());
                     }
                     buf.extend_from_slice(&chunk[..n]);
                 }
@@ -1043,13 +1061,28 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
             }
         }
         if !read_ok {
-            extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+            errors.push(PackageError::new(READ_FAILED, &entry_name));
             continue;
         }
         if std::fs::write(&dest, &buf).is_err() {
-            extract_errors.push(PackageError::new(READ_FAILED, &entry_name));
+            errors.push(PackageError::new(READ_FAILED, &entry_name));
         }
     }
+
+    Ok(errors)
+}
+
+/// Extract a `.ofm` zip archive to a temp directory, load the package from it,
+/// clean up, and return. Zip-slip/symlink paths are silently skipped.
+pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageError>) {
+    let temp_dir = std::env::temp_dir().join(format!("ofm-extract-{}", uuid::Uuid::new_v4()));
+    let extract_errors = match extract_archive_safely(path, &temp_dir) {
+        Ok(errors) => errors,
+        Err(code) => {
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            return (WorldPackage::default(), vec![PackageError::new(&code, "")]);
+        }
+    };
 
     // Load whatever was successfully extracted, even if some entries had errors.
     let (package, load_errors) = load_world_package_files(&temp_dir);
@@ -1065,7 +1098,6 @@ pub fn load_world_package_from_ofm(path: &Path) -> (WorldPackage, Vec<PackageErr
 /// fully extracting it. Used by the package manager to list installed packages
 /// without extraction overhead.
 pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
-    use std::io::Read;
 
     let file = std::fs::File::open(path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
@@ -1083,10 +1115,12 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
         if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
             continue;
         }
-        let mut text = String::new();
-        if entry.read_to_string(&mut text).is_err() {
+        let Some(bytes) = read_entry_capped(&mut entry, MAX_SINGLE_ENTRY_BYTES) else {
             continue;
-        }
+        };
+        let Ok(text) = String::from_utf8(bytes) else {
+            continue;
+        };
         let Ok(value) = super::parse_definition_str::<Value>(&text) else {
             continue;
         };
@@ -1107,7 +1141,6 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
 /// The `logo_path` is the relative path stored in `WorldMetaDef.logo`.
 pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String> {
     use base64::{Engine, engine::general_purpose::STANDARD};
-    use std::io::Read;
 
     let file = std::fs::File::open(archive_path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
@@ -1121,8 +1154,9 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
         if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
             continue;
         }
-        let mut bytes = Vec::new();
-        if entry.read_to_end(&mut bytes).is_err() { continue }
+        let Some(bytes) = read_entry_capped(&mut entry, MAX_SINGLE_ENTRY_BYTES) else {
+            continue;
+        };
         let ext = Path::new(logo_path)
             .extension()
             .and_then(|e| e.to_str())
@@ -1156,6 +1190,60 @@ mod tests {
             std::fs::create_dir_all(parent).unwrap();
         }
         std::fs::write(path, contents).unwrap();
+    }
+
+    /// Build a `.ofm` zip whose entries are `(name, bytes)` pairs, writing the
+    /// names verbatim (so tests can inject traversal/zip-slip entry names).
+    fn build_zip(entries: &[(&str, &[u8])]) -> PathBuf {
+        use std::io::Write;
+        use zip::write::SimpleFileOptions;
+        let path = std::env::temp_dir().join(format!("ofm-ziptest-{}.ofm", uuid::Uuid::new_v4()));
+        let file = std::fs::File::create(&path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (name, bytes) in entries {
+            zip.start_file(*name, opts).unwrap();
+            zip.write_all(bytes).unwrap();
+        }
+        zip.finish().unwrap();
+        path
+    }
+
+    #[test]
+    fn extract_archive_safely_rejects_zip_slip_entries() {
+        let archive = build_zip(&[
+            ("teams/teams.json", b"[]"),
+            ("../escape.txt", b"pwned"),
+            ("/abs.txt", b"pwned"),
+        ]);
+        let dest = temp_package();
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        // The two unsafe entries are reported and never written.
+        assert_eq!(errors.iter().filter(|e| e.code == ZIPSLIP_ERROR).count(), 2);
+        assert!(dest.join("teams/teams.json").exists());
+        // The traversal target (sibling of dest) must not have been created.
+        assert!(!dest.parent().unwrap().join("escape.txt").exists());
+        let _ = std::fs::remove_file(&archive);
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn extract_ofm_to_dir_aborts_on_zip_slip() {
+        let archive = build_zip(&[("../escape.txt", b"pwned")]);
+        let dest = temp_package();
+        let result = super::super::world_io::extract_ofm_to_dir(&archive, &dest);
+        assert_eq!(result, Err(ZIPSLIP_ERROR.to_string()));
+        assert!(!dest.parent().unwrap().join("escape.txt").exists());
+        let _ = std::fs::remove_file(&archive);
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn read_entry_capped_rejects_oversized_entry() {
+        let small: &[u8] = b"hello";
+        assert_eq!(read_entry_capped(&mut &small[..], 1024), Some(small.to_vec()));
+        // Exceeds the cap → None (no unbounded allocation).
+        assert_eq!(read_entry_capped(&mut &small[..], 4), None);
     }
 
     const REAL_MADRID_YAML: &str = "\

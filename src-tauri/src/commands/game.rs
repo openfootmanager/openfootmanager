@@ -225,6 +225,9 @@ fn load_world_data_from_package_ids(
     let mut loaded = Vec::with_capacity(package_ids.len());
     let mut lockfile = Vec::with_capacity(package_ids.len());
     for id in package_ids {
+        // Ids come from the frontend selection; reject traversal tokens before
+        // joining into a filesystem path under packages_dir.
+        crate::commands::world::validate_package_id(id)?;
         let path = packages_dir.join(format!("{id}.ofm"));
         let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
         if !errors.is_empty() {

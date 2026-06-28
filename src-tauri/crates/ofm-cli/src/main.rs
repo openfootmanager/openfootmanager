@@ -229,7 +229,7 @@ fn entity_template(entity: &EntityKind, name: Option<&str>) -> Value {
             "format": { "kind": "LeagueTable", "legs": 2 },
             "participants": {
                 "selector": {
-                    "kind": "TopByReputation",
+                    "kind": "topByReputation",
                     "country": "ENG",
                     "count": 20
                 }
@@ -349,10 +349,10 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
   // Participant selection - use "selector" for rule-based or "explicit" for fixed list:
   "participants": {
     "selector": {
-      "kind": "TopByReputation", // "TopByReputation" | "AllInCountry" | "AllInRegion" | "ChampionsOf"
-      "country": "ENG",          // required for TopByReputation / AllInCountry
+      "kind": "topByReputation", // "topByReputation" | "allInCountry" | "allInRegion" | "championsOf"
+      "country": "ENG",          // required for topByReputation / allInCountry
       "count": 20                // number of teams to select
-      // "region": "europe",     // required for AllInRegion
+      // "region": "europe",     // required for allInRegion
       // "sourceCompetition": "eng-championship" // required for ChampionsOf
     }
     // OR fixed list:
@@ -507,6 +507,20 @@ fn cmd_add(
     let template = entity_template(entity, name);
 
     if let Some(target_file) = append_to {
+        // --append-to names a file inside the entity subdirectory; reject path
+        // separators / traversal so it can't escape into the wider filesystem.
+        if target_file.is_empty()
+            || target_file.contains('/')
+            || target_file.contains('\\')
+            || target_file.contains("..")
+        {
+            eprintln!(
+                "{} --append-to must be a plain filename inside {}/",
+                "error:".red().bold(),
+                sub
+            );
+            return 1;
+        }
         let target = pkg_dir.join(sub).join(target_file);
         if !target.exists() {
             eprintln!("{} File not found: {}", "error:".red().bold(), target.display());
