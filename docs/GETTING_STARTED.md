@@ -142,10 +142,10 @@ Every dial has a sensible middle setting; leaving the blueprint untouched plays 
 
 | Dial | What it does |
 |------|--------------|
-| **Counter-press** | How hard you chase the ball straight after losing it. *Long* wins possession back more often. |
-| **Break speed** | How quickly you attack after winning the ball. *Fast* turns turnovers into quick chances; *Slow* is measured. |
+| **Counter-press** | How long you keep chasing the ball straight after losing it: *None* (don't), *Short*, or *Long* — the longer you press, the more often you win possession back. |
+| **Break speed** | How quickly you attack after winning the ball. *Fast* turns turnovers into quick chances; *Medium* (default) and *Slow* play it safe and don't trigger fast counters. |
 
-As a starting point: a possession side might pick Short build-up, Patient tempo and a long counter-press; a counter-attacking side might pick Direct tempo, a compact shape and fast breaks.
+As a starting point: a possession side might pick Short build-up, Patient tempo and a Long counter-press; a counter-attacking side might pick Direct tempo, a Compact shape and Fast breaks.
 
 ---
 
