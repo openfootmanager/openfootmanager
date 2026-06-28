@@ -11,6 +11,7 @@ use engine::live_match::LiveMatchState;
 use engine::{
     BreakSpeed, CounterPressDuration, DefensiveShape, EventType, MatchConfig, PlayStyle,
     PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticsConfig, TeamData, Tempo,
+    simulate_with_rng,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -153,4 +154,106 @@ fn fast_break_creates_more_chances_than_slow() {
     let fast = band(with(|c| c.break_speed = BreakSpeed::Fast), |t| t.home_shots);
     let slow = band(with(|c| c.break_speed = BreakSpeed::Slow), |t| t.home_shots);
     assert!(fast > slow, "Fast breaks should create more chances than slow: {fast} vs {slow}");
+}
+
+// ---------------------------------------------------------------------------
+// Batch (instant) engine — the same dials must move the same way through
+// simulate_with_rng, which drives AI matchdays. The hook sites are separate
+// from the live engine's, so they get their own coverage.
+// ---------------------------------------------------------------------------
+
+fn play_batch(home: TacticsConfig, seed: u64) -> Totals {
+    let h = team("h", home);
+    let a = team("a", TacticsConfig::default());
+    let mut rng = StdRng::seed_from_u64(seed);
+    let r = simulate_with_rng(&h, &a, &MatchConfig::default(), &mut rng);
+    Totals {
+        home_possession: r.home_stats.possession_ticks as usize,
+        home_shots: r.home_stats.shots as usize,
+        away_shots: r.away_stats.shots as usize,
+    }
+}
+
+fn band_batch(home: TacticsConfig, metric: impl Fn(&Totals) -> usize) -> usize {
+    (0..SEEDS).map(|s| metric(&play_batch(home.clone(), s))).sum()
+}
+
+#[test]
+fn batch_neutral_is_reproducible() {
+    let n = TacticsConfig::default();
+    for seed in 0..15 {
+        let a = play_batch(n.clone(), seed);
+        let b = play_batch(n.clone(), seed);
+        assert_eq!(
+            (a.home_possession, a.home_shots, a.away_shots),
+            (b.home_possession, b.home_shots, b.away_shots),
+            "batch seed {seed}: neutral not reproducible"
+        );
+    }
+}
+
+#[test]
+fn batch_aggressive_pressing_wins_more_possession_than_passive() {
+    let agg = band_batch(with(|c| c.pressing_intensity = PressingIntensity::Aggressive), |t| t.home_possession);
+    let pas = band_batch(with(|c| c.pressing_intensity = PressingIntensity::Passive), |t| t.home_possession);
+    assert!(agg > pas, "batch: aggressive pressing should win more possession: {agg} vs {pas}");
+}
+
+#[test]
+fn batch_long_counter_press_keeps_more_possession_than_none() {
+    let long = band_batch(with(|c| c.counter_press_duration = CounterPressDuration::Long), |t| t.home_possession);
+    let none = band_batch(with(|c| c.counter_press_duration = CounterPressDuration::None), |t| t.home_possession);
+    assert!(long > none, "batch: long counter-press should regain more possession: {long} vs {none}");
+}
+
+#[test]
+fn batch_direct_tempo_shoots_more_than_patient() {
+    let direct = band_batch(with(|c| c.tempo = Tempo::Direct), |t| t.home_shots);
+    let patient = band_batch(with(|c| c.tempo = Tempo::Patient), |t| t.home_shots);
+    assert!(direct > patient, "batch: Direct should shoot more than Patient: {direct} vs {patient}");
+}
+
+#[test]
+fn batch_compact_shape_concedes_fewer_chances_than_stretched() {
+    let compact = band_batch(with(|c| c.defensive_shape = DefensiveShape::Compact), |t| t.away_shots);
+    let stretched = band_batch(with(|c| c.defensive_shape = DefensiveShape::Stretched), |t| t.away_shots);
+    assert!(compact < stretched, "batch: Compact should concede fewer chances: {compact} vs {stretched}");
+}
+
+#[test]
+fn batch_fast_break_creates_more_chances_than_slow() {
+    let fast = band_batch(with(|c| c.break_speed = BreakSpeed::Fast), |t| t.home_shots);
+    let slow = band_batch(with(|c| c.break_speed = BreakSpeed::Slow), |t| t.home_shots);
+    assert!(fast > slow, "batch: Fast breaks should create more chances: {fast} vs {slow}");
+}
+
+// ---------------------------------------------------------------------------
+// Pressing stamina cost (live engine only — it tracks in-match condition).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn aggressive_pressing_tires_the_team_more_than_passive() {
+    // Identical squads; the only difference is press intensity. Over full
+    // matches the aggressive-pressing side should end more fatigued.
+    let home = team("h", with(|c| c.pressing_intensity = PressingIntensity::Aggressive));
+    let away = team("a", with(|c| c.pressing_intensity = PressingIntensity::Passive));
+    let (mut home_cond, mut away_cond) = (0i64, 0i64);
+    for seed in 0..40u64 {
+        let mut s = LiveMatchState::new(
+            home.clone(), away.clone(), MatchConfig::default(), vec![], vec![], false,
+        );
+        let mut rng = StdRng::seed_from_u64(seed);
+        loop {
+            if s.step_minute(&mut rng).is_finished {
+                break;
+            }
+        }
+        let snap = s.snapshot();
+        home_cond += snap.home_team.players.iter().map(|p| p.condition as i64).sum::<i64>();
+        away_cond += snap.away_team.players.iter().map(|p| p.condition as i64).sum::<i64>();
+    }
+    assert!(
+        home_cond < away_cond,
+        "aggressive pressing should leave the team more tired: home {home_cond} vs away {away_cond}"
+    );
 }

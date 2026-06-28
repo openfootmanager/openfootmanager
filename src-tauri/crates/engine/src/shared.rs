@@ -404,3 +404,79 @@ pub(crate) fn home_mod(side: Side, config: &MatchConfig) -> f64 {
         Side::Away => 1.0,
     }
 }
+
+#[cfg(test)]
+mod phase_modifier_tests {
+    use super::*;
+
+    fn cfg(f: impl FnOnce(&mut TacticsConfig)) -> TacticsConfig {
+        let mut c = TacticsConfig::default();
+        f(&mut c);
+        c
+    }
+
+    /// The load-bearing invariant: a default TacticsConfig must leave every new
+    /// dial neutral (×1.0 for ratings, 0.0 for the probabilistic transitions),
+    /// so default teams simulate byte-identically to the pre-dial engine.
+    #[test]
+    fn default_config_is_fully_neutral() {
+        let d = TacticsConfig::default();
+        assert_eq!(tactics_tempo_progression(&d), 1.0);
+        assert_eq!(tactics_tempo_retention(&d), 1.0);
+        assert_eq!(tactics_pressing_contest(&d), 1.0);
+        assert_eq!(tactics_pressing_press(&d), 1.0);
+        assert_eq!(tactics_pressing_fatigue(&d), 1.0);
+        assert_eq!(tactics_shape_modifier(&d), 1.0);
+        assert_eq!(tactics_counter_press_rewin(&d), 0.0);
+        assert_eq!(tactics_break_speed_counter(&d), 0.0);
+    }
+
+    #[test]
+    fn tempo_directions() {
+        // Direct is neutral; Patient progresses slower but retains more.
+        assert!(tactics_tempo_progression(&cfg(|c| c.tempo = Tempo::Patient)) < 1.0);
+        assert_eq!(tactics_tempo_progression(&cfg(|c| c.tempo = Tempo::Direct)), 1.0);
+        assert!(tactics_tempo_retention(&cfg(|c| c.tempo = Tempo::Patient)) > 1.0);
+        assert_eq!(tactics_tempo_retention(&cfg(|c| c.tempo = Tempo::Direct)), 1.0);
+    }
+
+    #[test]
+    fn pressing_directions_monotonic() {
+        let passive = cfg(|c| c.pressing_intensity = PressingIntensity::Passive);
+        let medium = cfg(|c| c.pressing_intensity = PressingIntensity::Medium);
+        let aggressive = cfg(|c| c.pressing_intensity = PressingIntensity::Aggressive);
+        for f in [
+            tactics_pressing_contest,
+            tactics_pressing_press,
+            tactics_pressing_fatigue,
+        ] {
+            assert!(f(&passive) < f(&medium), "passive should be < medium");
+            assert!(f(&medium) < f(&aggressive), "medium should be < aggressive");
+            assert_eq!(f(&medium), 1.0, "medium must be neutral");
+        }
+    }
+
+    #[test]
+    fn shape_directions_monotonic() {
+        let stretched = cfg(|c| c.defensive_shape = DefensiveShape::Stretched);
+        let normal = cfg(|c| c.defensive_shape = DefensiveShape::Normal);
+        let compact = cfg(|c| c.defensive_shape = DefensiveShape::Compact);
+        assert!(tactics_shape_modifier(&stretched) < 1.0);
+        assert_eq!(tactics_shape_modifier(&normal), 1.0);
+        assert!(tactics_shape_modifier(&compact) > 1.0);
+    }
+
+    #[test]
+    fn transition_dials_are_probabilities_with_neutral_zero() {
+        // Counter-press: None rolls nothing; Long > Short > 0.
+        assert_eq!(tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::None)), 0.0);
+        let short = tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::Short));
+        let long = tactics_counter_press_rewin(&cfg(|c| c.counter_press_duration = CounterPressDuration::Long));
+        assert!(0.0 < short && short < long && long < 1.0);
+        // Break speed: only Fast rolls; Slow and Medium are no-ops.
+        assert_eq!(tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Slow)), 0.0);
+        assert_eq!(tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Medium)), 0.0);
+        let fast = tactics_break_speed_counter(&cfg(|c| c.break_speed = BreakSpeed::Fast));
+        assert!(0.0 < fast && fast < 1.0);
+    }
+}
