@@ -205,6 +205,37 @@ pub enum MarkingStyle {
     ManToMan,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum Tempo {
+    Patient,
+    #[default]
+    Direct,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum DefensiveShape {
+    Stretched,
+    #[default]
+    Normal,
+    Compact,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum CounterPressDuration {
+    #[default]
+    None,
+    Short,
+    Long,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum BreakSpeed {
+    Slow,
+    #[default]
+    Medium,
+    Fast,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TacticsConfig {
     pub pressing_intensity: PressingIntensity,
@@ -212,6 +243,17 @@ pub struct TacticsConfig {
     pub width: TacticsPitchWidth,
     pub build_up_style: TacticsBuildUpStyle,
     pub marking_style: MarkingStyle,
+    // Phase-blueprint dials added on top of the original five. Each defaults to
+    // the neutral option so existing `TacticsConfig::default()` callers and
+    // serialized saves are unaffected.
+    #[serde(default)]
+    pub tempo: Tempo,
+    #[serde(default)]
+    pub defensive_shape: DefensiveShape,
+    #[serde(default)]
+    pub counter_press_duration: CounterPressDuration,
+    #[serde(default)]
+    pub break_speed: BreakSpeed,
 }
 
 // ---------------------------------------------------------------------------

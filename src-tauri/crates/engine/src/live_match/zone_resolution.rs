@@ -4,7 +4,7 @@ use crate::event::{EventDetail, EventType, MatchEvent};
 use crate::shared::{
     PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_attribute_modifier,
     tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
-    tactics_foul_modifier, trait_bonus,
+    tactics_foul_modifier, tactics_shape_modifier, tactics_tempo_progression, trait_bonus,
 };
 use crate::types::{Position, Side, Zone};
 
@@ -111,7 +111,10 @@ impl LiveMatchState {
             PlayStylePhase::Midfield,
             false,
         ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
-        let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
+        let att_eff = att_rating
+            * att_mod
+            * crate::shared::home_mod(att_side, &self.config)
+            * tactics_tempo_progression(&self.team_ref(att_side).tactics);
         let def_eff = def_rating * def_mod * crate::shared::home_mod(def_side, &self.config);
         let success = att_eff / (att_eff + def_eff);
 
@@ -188,7 +191,10 @@ impl LiveMatchState {
             false,
         ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
-        let def_eff = def_rating * def_mod * crate::shared::home_mod(def_side, &self.config);
+        let def_eff = def_rating
+            * def_mod
+            * crate::shared::home_mod(def_side, &self.config)
+            * tactics_shape_modifier(&self.team_ref(def_side).tactics);
         let success = att_eff / (att_eff + def_eff);
         let zone = Zone::attacking_third(att_side);
         let cross_prob = tactics_cross_probability(&self.team_ref(att_side).tactics);

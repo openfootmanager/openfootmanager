@@ -12,7 +12,7 @@ use engine::{MatchConfig, PlayStyle, simulate_with_rng};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use builder::build_team;
+use builder::{build_team, build_team_with_tactics};
 use stats::BenchStats;
 
 #[derive(Parser)]
@@ -68,6 +68,12 @@ struct Cli {
     /// Benchmark mode: time the engine, skip stat collection
     #[arg(long)]
     bench: bool,
+
+    /// Phase-blueprint sweep: for every tactics dial, run `--games` matches with
+    /// that option on the home side (away neutral) and tabulate possession %,
+    /// shots for/against and goals. Tuning aid for the dial magnitudes.
+    #[arg(long)]
+    phase_sweep: bool,
 
     // ── MatchConfig overrides ────────────────────────────────────────────────
     #[arg(long, help = "Home advantage multiplier (default 1.08)")]
@@ -161,6 +167,11 @@ fn main() {
 
     if cli.bench {
         run_bench(&config, cli.games, cli.seed);
+        return;
+    }
+
+    if cli.phase_sweep {
+        run_phase_sweep(&config, &cli);
         return;
     }
 
@@ -305,4 +316,79 @@ fn run_bench(config: &MatchConfig, games: u32, seed: Option<u64>) {
     println!("  Latency p95     : {}µs", p95.as_micros());
     println!("  Latency p99     : {}µs", p99.as_micros());
     println!("{}", sep.bright_cyan());
+}
+
+/// Tabulate each tactics dial's effect. For each option we run `games` matches
+/// with that option on an otherwise-neutral home side against a neutral away
+/// side, and report the home side's average possession %, shots for/against and
+/// goals. Read the `Neutral` row as baseline; each option's row shows how far
+/// that dial moves the game — the data used to tune `engine::shared`.
+fn run_phase_sweep(config: &MatchConfig, cli: &Cli) {
+    use engine::{
+        BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle,
+        PressingIntensity, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, Tempo,
+    };
+
+    let games = cli.games;
+    let base = cli.seed.unwrap_or(42);
+    // Respect the team-shape CLI knobs: the sweep applies each dial on top of the
+    // home side the caller asked for, against the requested away side.
+    let home_style = cli.home_style.to_play_style();
+    let away_style = cli.away_style.to_play_style();
+    let n = TacticsConfig::default();
+    let variants: Vec<(&str, &str, TacticsConfig)> = vec![
+        ("baseline", "Neutral", n.clone()),
+        ("build_up", "Short", TacticsConfig { build_up_style: TacticsBuildUpStyle::Short, ..n.clone() }),
+        ("build_up", "Long", TacticsConfig { build_up_style: TacticsBuildUpStyle::Long, ..n.clone() }),
+        ("width", "Narrow", TacticsConfig { width: TacticsPitchWidth::Narrow, ..n.clone() }),
+        ("width", "Wide", TacticsConfig { width: TacticsPitchWidth::Wide, ..n.clone() }),
+        ("def_line", "VeryLow", TacticsConfig { defensive_line: DefensiveLine::VeryLow, ..n.clone() }),
+        ("def_line", "High", TacticsConfig { defensive_line: DefensiveLine::High, ..n.clone() }),
+        ("marking", "Zonal", TacticsConfig { marking_style: MarkingStyle::Zonal, ..n.clone() }),
+        ("marking", "ManToMan", TacticsConfig { marking_style: MarkingStyle::ManToMan, ..n.clone() }),
+        ("pressing", "Passive", TacticsConfig { pressing_intensity: PressingIntensity::Passive, ..n.clone() }),
+        ("pressing", "Aggressive", TacticsConfig { pressing_intensity: PressingIntensity::Aggressive, ..n.clone() }),
+        ("tempo", "Patient", TacticsConfig { tempo: Tempo::Patient, ..n.clone() }),
+        ("tempo", "Direct", TacticsConfig { tempo: Tempo::Direct, ..n.clone() }),
+        ("shape", "Stretched", TacticsConfig { defensive_shape: DefensiveShape::Stretched, ..n.clone() }),
+        ("shape", "Compact", TacticsConfig { defensive_shape: DefensiveShape::Compact, ..n.clone() }),
+        ("counter_press", "None", TacticsConfig { counter_press_duration: CounterPressDuration::None, ..n.clone() }),
+        ("counter_press", "Short", TacticsConfig { counter_press_duration: CounterPressDuration::Short, ..n.clone() }),
+        ("counter_press", "Long", TacticsConfig { counter_press_duration: CounterPressDuration::Long, ..n.clone() }),
+        ("break_speed", "Slow", TacticsConfig { break_speed: BreakSpeed::Slow, ..n.clone() }),
+        ("break_speed", "Fast", TacticsConfig { break_speed: BreakSpeed::Fast, ..n.clone() }),
+    ];
+
+    eprintln!("Phase sweep: {games} games per option (seed: {base})…");
+    let sep = "─".repeat(64);
+    println!("{sep}");
+    println!("{:<14} {:<11} {:>7} {:>8} {:>8} {:>6} {:>6}", "dial", "option", "poss%", "shotsF", "shotsA", "GF", "GA");
+    println!("{sep}");
+
+    for (dial, opt, tactics) in variants {
+        let mut team_rng = StdRng::seed_from_u64(base.wrapping_add(0xDEAD_BEEF));
+        let home = build_team_with_tactics(
+            "home", "Home FC", cli.home_rating, home_style, &cli.home_formation, tactics, &mut team_rng,
+        );
+        let away = build_team(
+            "away", "Away FC", cli.away_rating, away_style, &cli.away_formation, &mut team_rng,
+        );
+        let (mut poss, mut sf, mut sa, mut gf, mut ga) = (0.0f64, 0u64, 0u64, 0u64, 0u64);
+        for i in 0..games {
+            let mut rng = StdRng::seed_from_u64(base.wrapping_add(i as u64));
+            let r = simulate_with_rng(&home, &away, config, &mut rng);
+            let ticks = (r.home_stats.possession_ticks + r.away_stats.possession_ticks).max(1) as f64;
+            poss += r.home_stats.possession_ticks as f64 / ticks;
+            sf += r.home_stats.shots as u64;
+            sa += r.away_stats.shots as u64;
+            gf += r.home_goals as u64;
+            ga += r.away_goals as u64;
+        }
+        let g = games as f64;
+        println!(
+            "{:<14} {:<11} {:>6.1}% {:>8.2} {:>8.2} {:>6.2} {:>6.2}",
+            dial, opt, 100.0 * poss / g, sf as f64 / g, sa as f64 / g, gf as f64 / g, ga as f64 / g,
+        );
+    }
+    println!("{sep}");
 }
