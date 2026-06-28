@@ -1,11 +1,13 @@
-use std::sync::Arc;
 use log::info;
-use tauri::State;
+use std::sync::Arc;
+use tauri::{Manager as TauriManager, State};
 
-use chrono::{Datelike, DateTime, Duration, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, TimeZone, Utc};
 
 use db::{save_index::SaveEntry, save_manager::SaveManager};
-use domain::league::{CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League};
+use domain::league::{
+    CompetitionFormat, CompetitionScope, CompetitionType, FixtureCompetition, League,
+};
 use domain::manager::Manager;
 use domain::national_team::NationalTeam;
 use domain::stats::StatsState;
@@ -31,7 +33,9 @@ fn load_world_data_from_package(dir: &str) -> Result<ofm_core::generator::WorldD
     ofm_core::generator::build_world_from_package(&package)
 }
 
-pub(crate) fn map_save_manager_lock_error<T>(result: std::sync::LockResult<T>) -> Result<T, String> {
+pub(crate) fn map_save_manager_lock_error<T>(
+    result: std::sync::LockResult<T>,
+) -> Result<T, String> {
     result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
 }
 
@@ -115,7 +119,11 @@ fn default_history_depth_years() -> u32 {
 fn start_date_for_year(start_year: i32) -> Result<chrono::DateTime<Utc>, String> {
     // Use June 1 in World Cup years so a fresh career opens just before the
     // tournament, keeping the WC in June rather than scheduling it in July.
-    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) { 6 } else { 7 };
+    let month = if ofm_core::world_cup::is_world_cup_summer(start_year) {
+        6
+    } else {
+        7
+    };
     Utc.with_ymd_and_hms(start_year, month, 1, 0, 0, 0)
         .single()
         .ok_or_else(|| "be.error.createManager.invalidStartYear".to_string())
@@ -205,6 +213,40 @@ fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::Wo
             }
         }
     }
+}
+
+/// Load world data from a stack of installed `.ofm` packages (by id).
+/// Packages are merged in order with last-wins semantics for duplicate ids.
+/// Also returns the package lockfile entries for saving alongside the game.
+fn load_world_data_from_package_ids(
+    packages_dir: &std::path::Path,
+    package_ids: &[String],
+) -> Result<(ofm_core::generator::WorldData, Vec<ofm_core::generator::PackageLock>), String> {
+    let mut loaded = Vec::with_capacity(package_ids.len());
+    let mut lockfile = Vec::with_capacity(package_ids.len());
+    for id in package_ids {
+        // Ids come from the frontend selection; reject traversal tokens before
+        // joining into a filesystem path under packages_dir.
+        crate::commands::world::validate_package_id(id)?;
+        let path = packages_dir.join(format!("{id}.ofm"));
+        let (pkg, errors) = ofm_core::generator::load_world_package_from_ofm(&path);
+        if !errors.is_empty() {
+            return Err("be.error.package.invalid".to_string());
+        }
+        let version = pkg.meta.as_ref().map(|m| m.version.clone()).unwrap_or_default();
+        let hash = ofm_core::generator::hash_package_file(&path).unwrap_or_default();
+        lockfile.push(ofm_core::generator::PackageLock { id: id.clone(), version, hash });
+        loaded.push(pkg);
+    }
+    let (merged, errors) = ofm_core::generator::merge_world_packages(loaded);
+    if !errors.is_empty() {
+        return Err("be.error.package.invalid".to_string());
+    }
+    let world = ofm_core::generator::build_world_from_package(&merged)?;
+    if world.teams.is_empty() {
+        return Err("be.error.package.noDatabasePackage".to_string());
+    }
+    Ok((world, lockfile))
 }
 
 fn world_start_year(
@@ -516,7 +558,8 @@ fn default_season_month_for_region(region_id: &str) -> u8 {
 
 fn brazil_state_region(city: &str) -> Option<&'static str> {
     match city {
-        "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino" | "Juiz de Fora" | "Vitória" => Some("southeast"),
+        "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino"
+        | "Juiz de Fora" | "Vitória" => Some("southeast"),
         "Porto Alegre" | "Curitiba" | "Florianópolis" => Some("south"),
         "Salvador" | "Recife" | "Fortaleza" | "Natal" | "Maceió" => Some("northeast"),
         "Goiânia" | "Belém" | "Manaus" | "Cuiabá" => Some("north-central-west"),
@@ -538,22 +581,31 @@ fn brazil_state_region(city: &str) -> Option<&'static str> {
 /// competition uses the default August start (no clock adjustment needed).
 fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
-    let country = if team.football_nation.is_empty() { &team.country } else { &team.football_nation };
+    let country = if team.football_nation.is_empty() {
+        &team.country
+    } else {
+        &team.football_nation
+    };
     if country == "BR" {
         let season_year = game.clock.start_date.year();
-        return Utc.with_ymd_and_hms(season_year - 1, 12, 15, 0, 0, 0).single();
+        return Utc
+            .with_ymd_and_hms(season_year - 1, 12, 15, 0, 0, 0)
+            .single();
     }
-    let competition = game
-        .competitions
-        .iter()
-        .find(|c| c.kind == CompetitionType::League && c.participant_ids.iter().any(|id| id == team_id))?;
+    let competition = game.competitions.iter().find(|c| {
+        c.kind == CompetitionType::League && c.participant_ids.iter().any(|id| id == team_id)
+    })?;
     if competition.region_id.as_deref() == Some("south-america") {
-        return competition.fixtures.iter()
+        return competition
+            .fixtures
+            .iter()
             .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
             .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
             .min()
             .and_then(|date| date.and_hms_opt(0, 0, 0))
-            .map(|date| DateTime::<Utc>::from_naive_utc_and_offset(date, Utc) - Duration::days(30));
+            .map(|date| {
+                DateTime::<Utc>::from_naive_utc_and_offset(date, Utc) - Duration::days(30)
+            });
     }
     let month = competition.season_start_month;
     let day = competition.season_start_day;
@@ -561,7 +613,7 @@ fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
         return None; // northern-hemisphere default — no adjustment
     }
     let year = game.clock.start_date.year();
-    Utc.with_ymd_and_hms(i32::from(year), u32::from(month), u32::from(day), 0, 0, 0)
+    Utc.with_ymd_and_hms(year, u32::from(month), u32::from(day), 0, 0, 0)
         .single()
 }
 
@@ -622,9 +674,16 @@ fn build_foundation_competition_plan(
         let country_label = ofm_core::nations::nation_display_name(&country);
         let country_slug = country.to_lowercase();
 
-        let league_month = if country == "BR" { 1 } else { default_season_month_for_region(&region_id) };
+        let league_month = if country == "BR" {
+            1
+        } else {
+            default_season_month_for_region(&region_id)
+        };
         let (league_start, _) = ofm_core::generator::start_date_at_game_open(
-            game_start, league_month, if country == "BR" { 28 } else { 1 });
+            game_start,
+            league_month,
+            if country == "BR" { 28 } else { 1 },
+        );
 
         // One or two divisions depending on how many clubs the country has.
         let divisions = split_into_divisions(&team_ids, TOP_DIVISION_SIZE);
@@ -667,6 +726,7 @@ fn build_foundation_competition_plan(
                         season_start_month: Some(month),
                         season_start_day: Some(1),
                         name_key: None,
+                        logo: None,
                     }
                 };
                 let tier_suffix = format!("d{}", tier + 1);
@@ -736,11 +796,16 @@ fn build_foundation_competition_plan(
                             league_month
                         }),
                         season_start_day: Some(if country == "BR" {
-                            if tier == 0 { 28 } else { actual_start.day() as u8 }
+                            if tier == 0 {
+                                28
+                            } else {
+                                actual_start.day() as u8
+                            }
                         } else {
                             1
                         }),
                         name_key: Some(division_tier_name_key(tier, division_count).to_string()),
+                        logo: None,
                     },
                     actual_start,
                 ));
@@ -749,7 +814,11 @@ fn build_foundation_competition_plan(
         }
 
         // National cup contested by every club in the country.
-        let cup_month = if ofm_core::nations::is_split_season_country(&country) { 2 } else { league_month };
+        let cup_month = if ofm_core::nations::is_split_season_country(&country) {
+            2
+        } else {
+            league_month
+        };
         let (actual_cup_start, _) =
             ofm_core::generator::start_date_at_game_open(game_start, cup_month, 1);
         let cup_actual_start = actual_cup_start + Duration::days(35);
@@ -772,6 +841,7 @@ fn build_foundation_competition_plan(
                 season_start_month: Some(cup_actual_start.month() as u8),
                 season_start_day: Some(cup_actual_start.day() as u8),
                 name_key: Some("tournaments.competitions.nationalCup".to_string()),
+                logo: None,
             },
             cup_actual_start,
         ));
@@ -800,15 +870,21 @@ fn build_foundation_competition_plan(
                     "competitionNames.brazilStateNorthCentralWest",
                 ),
             ];
-            let mut pools: BTreeMap<&str, Vec<String>> = labels
-                .iter()
-                .map(|(id, _, _)| (*id, Vec::new()))
-                .collect();
+            let mut pools: BTreeMap<&str, Vec<String>> =
+                labels.iter().map(|(id, _, _)| (*id, Vec::new())).collect();
             let mut unknown = Vec::new();
             for team_id in &team_ids {
-                let city = game.teams.iter().find(|team| &team.id == team_id).map(|team| team.city.as_str()).unwrap_or("");
-                if let Some(pool) = brazil_state_region(city) { pools.get_mut(pool).unwrap().push(team_id.clone()); }
-                else { unknown.push(team_id.clone()); }
+                let city = game
+                    .teams
+                    .iter()
+                    .find(|team| &team.id == team_id)
+                    .map(|team| team.city.as_str())
+                    .unwrap_or("");
+                if let Some(pool) = brazil_state_region(city) {
+                    pools.get_mut(pool).unwrap().push(team_id.clone());
+                } else {
+                    unknown.push(team_id.clone());
+                }
             }
             unknown.sort();
             for team_id in unknown {
@@ -822,17 +898,38 @@ fn build_foundation_competition_plan(
             let state_start = ofm_core::generator::start_date_at_game_open(game_start, 1, 11).0;
             for (id, name, name_key) in labels {
                 let participants = pools.remove(id).unwrap_or_default();
-                if participants.len() < 2 { continue; }
-                planned.push((CompetitionDefinition {
-                    id: format!("br-state-{id}"), name: name.to_string(),
-                    r#type: CompetitionType::Cup, scope: CompetitionScope::Regional,
-                    region_id: Some(region_id.clone()), country_id: Some(country.clone()),
-                    required_region_ids: vec![region_id.clone()], priority,
-                    format: FormatDef { kind: CompetitionFormat::GroupAndKnockout, legs: Some(1), group_size: Some(4), qualifiers_per_group: Some(2), best_third_qualifiers: None },
-                    participants: ParticipantSpec { explicit: Some(participants), selector: None },
-                    berths: Vec::new(), season_start_month: Some(1), season_start_day: Some(11),
-                    name_key: Some(name_key.to_string()),
-                }, state_start));
+                if participants.len() < 2 {
+                    continue;
+                }
+                planned.push((
+                    CompetitionDefinition {
+                        id: format!("br-state-{id}"),
+                        name: name.to_string(),
+                        r#type: CompetitionType::Cup,
+                        scope: CompetitionScope::Regional,
+                        region_id: Some(region_id.clone()),
+                        country_id: Some(country.clone()),
+                        required_region_ids: vec![region_id.clone()],
+                        priority,
+                        format: FormatDef {
+                            kind: CompetitionFormat::GroupAndKnockout,
+                            legs: Some(1),
+                            group_size: Some(4),
+                            qualifiers_per_group: Some(2),
+                            best_third_qualifiers: None,
+                        },
+                        participants: ParticipantSpec {
+                            explicit: Some(participants),
+                            selector: None,
+                        },
+                        berths: Vec::new(),
+                        season_start_month: Some(1),
+                        season_start_day: Some(11),
+                        name_key: Some(name_key.to_string()),
+                        logo: None,
+                    },
+                    state_start,
+                ));
                 priority += 1;
             }
         }
@@ -878,6 +975,7 @@ fn build_foundation_competition_plan(
                 berths: Vec::new(),
                 season_start_month: Some(10),
                 season_start_day: Some(1),
+                logo: None,
             },
             continental_start,
         ));
@@ -927,32 +1025,47 @@ fn rebuild_competitions_for_management_date(game: &mut Game, management_date: Da
         );
         let season = start.year() as u32;
         match competition.rules.format {
-            CompetitionFormat::LeagueTable => ofm_core::schedule::regenerate_league_for_season(competition, season, start),
-            CompetitionFormat::GroupAndKnockout => ofm_core::group_stage::regenerate_for_season(competition, season, start),
-            CompetitionFormat::Knockout => ofm_core::schedule::regenerate_knockout_for_season(competition, season, start),
+            CompetitionFormat::LeagueTable => {
+                ofm_core::schedule::regenerate_league_for_season(competition, season, start)
+            }
+            CompetitionFormat::GroupAndKnockout => {
+                ofm_core::group_stage::regenerate_for_season(competition, season, start)
+            }
+            CompetitionFormat::Knockout => {
+                ofm_core::schedule::regenerate_knockout_for_season(competition, season, start)
+            }
         }
         if is_mid_season {
             ofm_core::catchup::simulate_past_fixtures(competition, players, management_date);
         }
     }
 
-    let existing: std::collections::HashSet<String> = game.competitions.iter().map(|competition| competition.id.clone()).collect();
-    let season = preseason_league_year(&game.clock);
-    let mut missing_states: Vec<(League, DateTime<Utc>)> = build_foundation_competition_plan(game, management_date)
-        .into_iter()
-        .filter(|(definition, _)| definition.id.starts_with("br-state-") && !existing.contains(&definition.id))
-        .filter_map(|(definition, start)| {
-            let mut competition = ofm_core::generator::build_explicit_competition(&definition, season, start)?;
-            finalize_brazil_state_competition(&mut competition);
-            Some((competition, start))
-        })
+    let existing: std::collections::HashSet<String> = game
+        .competitions
+        .iter()
+        .map(|competition| competition.id.clone())
         .collect();
+    let season = preseason_league_year(&game.clock);
+    let mut missing_states: Vec<(League, DateTime<Utc>)> =
+        build_foundation_competition_plan(game, management_date)
+            .into_iter()
+            .filter(|(definition, _)| {
+                definition.id.starts_with("br-state-") && !existing.contains(&definition.id)
+            })
+            .filter_map(|(definition, start)| {
+                let mut competition =
+                    ofm_core::generator::build_explicit_competition(&definition, season, start)?;
+                finalize_brazil_state_competition(&mut competition);
+                Some((competition, start))
+            })
+            .collect();
     for (competition, start) in &mut missing_states {
         if *start <= management_date {
             ofm_core::catchup::simulate_past_fixtures(competition, &game.players, management_date);
         }
     }
-    game.competitions.extend(missing_states.into_iter().map(|(c, _)| c));
+    game.competitions
+        .extend(missing_states.into_iter().map(|(c, _)| c));
 }
 
 fn ensure_multi_competition_foundations(game: &mut Game) {
@@ -993,8 +1106,8 @@ fn ensure_international_windows(game: &mut Game) {
     // edition would simply never happen. It fills the summer break, so no window
     // friendlies/qualifiers are scheduled when it runs.
     let now = game.clock.current_date;
-    let opens_in_world_cup_summer = ofm_core::world_cup::is_world_cup_summer(now.year())
-        && (6..=8).contains(&now.month());
+    let opens_in_world_cup_summer =
+        ofm_core::world_cup::is_world_cup_summer(now.year()) && (6..=8).contains(&now.month());
     if opens_in_world_cup_summer
         && ofm_core::world_cup::schedule_world_cup_if_due(game, now + Duration::days(2))
     {
@@ -1098,9 +1211,11 @@ fn resolve_simulation_scope(
         }
     }
 
-    for competition in game.competitions.iter().filter(|competition| {
-        active_competition_ids.contains(&competition.id)
-    }) {
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| active_competition_ids.contains(&competition.id))
+    {
         for region_id in competition_required_region_ids(competition) {
             active_region_ids.insert(region_id);
         }
@@ -1324,14 +1439,17 @@ pub(crate) fn bootstrap_team_selection(
     start_phase: StartPhase,
     stats_state: StatsState,
 ) -> Result<StatsState, String> {
-    if has_existing_world_context(game, &stats_state) {
-        return bootstrap_existing_world_takeover(game, team_id, stats_state);
-    }
+    let stats_state = if has_existing_world_context(game, &stats_state) {
+        bootstrap_existing_world_takeover(game, team_id, stats_state)?
+    } else {
+        match start_phase {
+            StartPhase::SeasonStart => bootstrap_season_start(game, team_id)?,
+            StartPhase::MidSeason => bootstrap_midseason_takeover(game, team_id)?,
+        }
+    };
 
-    match start_phase {
-        StartPhase::SeasonStart => bootstrap_season_start(game, team_id),
-        StartPhase::MidSeason => bootstrap_midseason_takeover(game, team_id),
-    }
+    ofm_core::transfers::seed_opening_ai_loan_market(game);
+    Ok(stats_state)
 }
 
 /// Step 1: Create manager + generate world. No team assigned yet.
@@ -1385,9 +1503,9 @@ pub fn validate_competition_definitions(
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageIssue {
-    code: String,
-    file: String,
-    params: std::collections::HashMap<String, String>,
+    pub code: String,
+    pub file: String,
+    pub params: std::collections::HashMap<String, String>,
 }
 
 /// Validate a modular world-package directory. Returns the full list of problems
@@ -1467,8 +1585,10 @@ pub fn inspect_world_package(path: String) -> Result<WorldPackageInspection, Str
 
 /// world_source: "random" (default) or a file path to a JSON world database.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn start_new_game(
     state: State<'_, Arc<StateManager>>,
+    app_handle: tauri::AppHandle,
     first_name: String,
     last_name: String,
     dob: String,
@@ -1476,6 +1596,7 @@ pub async fn start_new_game(
     startup_options: Option<RawStartupOptions>,
     world_source: Option<String>,
     competition_definitions_json: Option<String>,
+    package_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     // Validate inputs
     let first_name = first_name.trim().to_string();
@@ -1496,7 +1617,16 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let mut world = load_world_data(world_source.as_deref())?;
+    let (mut world, package_lockfile) = if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
+        let packages_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("packages");
+        load_world_data_from_package_ids(&packages_dir, ids)?
+    } else {
+        (load_world_data(world_source.as_deref())?, vec![])
+    };
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via
@@ -1510,7 +1640,9 @@ pub async fn start_new_game(
     }
 
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    if matches!(world_source.as_deref(), Some(source) if source != "random") {
+    let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
+        || matches!(world_source.as_deref(), Some(source) if source != "random");
+    if is_non_random {
         ofm_core::generator::normalize_imported_world_for_career_start(&mut world);
     }
     let reference_date = clock.current_date.date_naive();
@@ -1540,8 +1672,10 @@ pub async fn start_new_game(
         world_source
     );
 
-    let (new_game, stats_state) =
+    let (mut new_game, stats_state) =
         build_game_from_world_data(clock, manager, &startup_options, world);
+
+    new_game.package_lockfile = package_lockfile;
 
     info!(
         "[cmd] start_new_game: world generated with {} teams, {} players, {} staff",
@@ -1588,12 +1722,8 @@ pub async fn select_team(
         }
     }
 
-    let (resolved_region_ids, resolved_competition_ids) = resolve_simulation_scope(
-        &game,
-        &team_id,
-        active_region_ids,
-        active_competition_ids,
-    )?;
+    let (resolved_region_ids, resolved_competition_ids) =
+        resolve_simulation_scope(&game, &team_id, active_region_ids, active_competition_ids)?;
     game.active_region_ids = resolved_region_ids;
     game.active_competition_ids = resolved_competition_ids;
 
@@ -1621,7 +1751,9 @@ pub async fn select_team(
 }
 
 #[tauri::command]
-pub async fn get_saves(sm_state: State<'_, Arc<SaveManagerState>>) -> Result<Vec<SaveEntry>, String> {
+pub async fn get_saves(
+    sm_state: State<'_, Arc<SaveManagerState>>,
+) -> Result<Vec<SaveEntry>, String> {
     log::debug!("[cmd] get_saves");
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     sm.load_saves()
@@ -1742,11 +1874,7 @@ pub fn bootstrap_game_for_mcp(
     // assigned to their team. Reusing it preserves the team assignment, career
     // history, and all manager state — no takeover/hiring logic needed.
     // If not found (e.g. RosterBaseline world), fall back to creating a fresh one.
-    let manager = if let Some(idx) = world
-        .managers
-        .iter()
-        .position(|m| m.id == "mgr_user")
-    {
+    let manager = if let Some(idx) = world.managers.iter().position(|m| m.id == "mgr_user") {
         let mut existing = world.managers.remove(idx);
         info!(
             "[mcp-bootstrap] Reusing existing manager {} {} (team_id={:?})",
@@ -1805,6 +1933,7 @@ pub fn bootstrap_game_for_mcp(
     let stats_state = if game.manager.team_id.is_some() {
         ofm_core::ai_hiring::seed_ai_managers(&mut game);
         ofm_core::season_context::refresh_game_context(&mut game);
+        ofm_core::transfers::seed_opening_ai_loan_market(&mut game);
         current_stats_state
     } else {
         // Manager has no team — need an explicit team_id to assign one
@@ -1840,12 +1969,12 @@ pub fn bootstrap_game_for_mcp(
 #[cfg(test)]
 mod tests {
     use super::{
-        age_on_date, apply_generated_past_history, bootstrap_team_selection,
-        brazil_state_region, build_foundation_competitions, build_game_from_world_data,
-        create_new_save, current_date_for_phase, ensure_international_windows,
-        game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
-        normalize_startup_options, package_folder_name, parse_competition_definitions,
-        preseason_league_year, preseason_season_start, rebuild_competitions_for_management_date,
+        age_on_date, apply_generated_past_history, bootstrap_team_selection, brazil_state_region,
+        build_foundation_competitions, build_game_from_world_data, create_new_save,
+        current_date_for_phase, ensure_international_windows, game_clock_for_world,
+        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
+        package_folder_name, parse_competition_definitions, preseason_league_year,
+        preseason_season_start, rebuild_competitions_for_management_date,
         require_active_stats_state, resolve_simulation_scope, select_continental_entrants,
         split_into_divisions, start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
@@ -1933,10 +2062,7 @@ mod tests {
         ensure_international_windows(&mut game);
 
         assert!(
-            !game
-                .competitions
-                .iter()
-                .any(|competition| is_world_cup_competition(competition)),
+            !game.competitions.iter().any(is_world_cup_competition),
             "no World Cup is staged outside a cup summer"
         );
     }
@@ -1976,10 +2102,18 @@ mod tests {
         // is created — keeping the structure fully deterministic.
         let mut teams = Vec::new();
         for index in 0..30 {
-            teams.push(nation_team(&format!("esp-{index:02}"), "ESP", 1000 - index as u32));
+            teams.push(nation_team(
+                &format!("esp-{index:02}"),
+                "ESP",
+                1000 - index as u32,
+            ));
         }
         for index in 0..6 {
-            teams.push(nation_team(&format!("fra-{index}"), "FRA", 500 - index as u32));
+            teams.push(nation_team(
+                &format!("fra-{index}"),
+                "FRA",
+                500 - index as u32,
+            ));
         }
         teams.push(nation_team("and-0", "AND", 100));
 
@@ -1995,31 +2129,80 @@ mod tests {
 
         let competitions = build_foundation_competitions(&game);
 
-        let summary: Vec<(CompetitionType, CompetitionScope, Option<String>, Option<String>, usize, u32, CompetitionFormat)> =
-            competitions
-                .iter()
-                .map(|competition| {
-                    (
-                        competition.kind.clone(),
-                        competition.scope.clone(),
-                        competition.region_id.clone(),
-                        competition.country_id.clone(),
-                        competition.participant_ids.len(),
-                        competition.priority,
-                        competition.rules.format.clone(),
-                    )
-                })
-                .collect();
+        type CompetitionSummary = (
+            CompetitionType,
+            CompetitionScope,
+            Option<String>,
+            Option<String>,
+            usize,
+            u32,
+            CompetitionFormat,
+        );
+
+        let summary: Vec<CompetitionSummary> = competitions
+            .iter()
+            .map(|competition| {
+                (
+                    competition.kind.clone(),
+                    competition.scope.clone(),
+                    competition.region_id.clone(),
+                    competition.country_id.clone(),
+                    competition.participant_ids.len(),
+                    competition.priority,
+                    competition.rules.format.clone(),
+                )
+            })
+            .collect();
 
         let europe = || Some("europe".to_string());
         assert_eq!(
             summary,
             vec![
-                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 20, 0, CompetitionFormat::LeagueTable),
-                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 10, 1, CompetitionFormat::LeagueTable),
-                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("ESP".to_string()), 30, 2, CompetitionFormat::Knockout),
-                (CompetitionType::League, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 3, CompetitionFormat::LeagueTable),
-                (CompetitionType::Cup, CompetitionScope::Domestic, europe(), Some("FRA".to_string()), 6, 4, CompetitionFormat::Knockout),
+                (
+                    CompetitionType::League,
+                    CompetitionScope::Domestic,
+                    europe(),
+                    Some("ESP".to_string()),
+                    20,
+                    0,
+                    CompetitionFormat::LeagueTable
+                ),
+                (
+                    CompetitionType::League,
+                    CompetitionScope::Domestic,
+                    europe(),
+                    Some("ESP".to_string()),
+                    10,
+                    1,
+                    CompetitionFormat::LeagueTable
+                ),
+                (
+                    CompetitionType::Cup,
+                    CompetitionScope::Domestic,
+                    europe(),
+                    Some("ESP".to_string()),
+                    30,
+                    2,
+                    CompetitionFormat::Knockout
+                ),
+                (
+                    CompetitionType::League,
+                    CompetitionScope::Domestic,
+                    europe(),
+                    Some("FRA".to_string()),
+                    6,
+                    3,
+                    CompetitionFormat::LeagueTable
+                ),
+                (
+                    CompetitionType::Cup,
+                    CompetitionScope::Domestic,
+                    europe(),
+                    Some("FRA".to_string()),
+                    6,
+                    4,
+                    CompetitionFormat::Knockout
+                ),
             ],
         );
 
@@ -2031,11 +2214,9 @@ mod tests {
         assert_eq!(competitions[3].fixtures.len(), 6 * 5);
 
         // No continental cup for a single-region field.
-        assert!(
-            !competitions
-                .iter()
-                .any(|competition| competition.kind == CompetitionType::ContinentalClub)
-        );
+        assert!(!competitions
+            .iter()
+            .any(|competition| competition.kind == CompetitionType::ContinentalClub));
 
         // Default continental berths: first division awards positions 1–4, the
         // cup awards its winner, the second division awards nothing.
@@ -2047,7 +2228,10 @@ mod tests {
             top_division.berths[0].rule,
             BerthRule::PositionRange { from: 1, to: 4 }
         ));
-        assert!(competitions[1].berths.is_empty(), "second division awards no berth");
+        assert!(
+            competitions[1].berths.is_empty(),
+            "second division awards no berth"
+        );
         let cup = &competitions[2];
         assert!(matches!(
             cup.berths.first().map(|berth| &berth.rule),
@@ -2298,7 +2482,10 @@ competitions:
         );
         eprintln!("PERF world-gen         = {gen:?}");
         eprintln!("PERF build-game        = {build:?}  (foundations + history)");
-        eprintln!("PERF {DAYS}x process_day   = {days:?}  ({:?}/day)", days / DAYS);
+        eprintln!(
+            "PERF {DAYS}x process_day   = {days:?}  ({:?}/day)",
+            days / DAYS
+        );
     }
 
     #[test]
@@ -2407,39 +2594,115 @@ competitions:
 
     #[test]
     fn brazil_foundations_use_the_2026_calendar_and_regional_state_series() {
-        let cities = ["São Paulo", "Rio", "Belo Horizonte", "Porto Alegre", "Salvador", "Recife", "Curitiba", "Fortaleza", "Goiânia", "Santos", "Campinas", "Belém", "Manaus", "Vitória", "Natal", "Florianópolis", "Cuiabá", "Maceió", "Bragantino", "Juiz de Fora"];
-        let mut teams: Vec<_> = (0..40).map(|index| {
-            let mut team = nation_team(&format!("br-{index}"), "BR", 1000 - index);
-            team.city = cities[index as usize % cities.len()].to_string();
-            team
-        }).collect();
+        let cities = [
+            "São Paulo",
+            "Rio",
+            "Belo Horizonte",
+            "Porto Alegre",
+            "Salvador",
+            "Recife",
+            "Curitiba",
+            "Fortaleza",
+            "Goiânia",
+            "Santos",
+            "Campinas",
+            "Belém",
+            "Manaus",
+            "Vitória",
+            "Natal",
+            "Florianópolis",
+            "Cuiabá",
+            "Maceió",
+            "Bragantino",
+            "Juiz de Fora",
+        ];
+        let mut teams: Vec<_> = (0..40)
+            .map(|index| {
+                let mut team = nation_team(&format!("br-{index}"), "BR", 1000 - index);
+                team.city = cities[index as usize % cities.len()].to_string();
+                team
+            })
+            .collect();
         let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap());
-        let mut game = Game::new(clock, manager_for("br-0"), std::mem::take(&mut teams), vec![], vec![], vec![]);
+        let mut game = Game::new(
+            clock,
+            manager_for("br-0"),
+            std::mem::take(&mut teams),
+            vec![],
+            vec![],
+            vec![],
+        );
         game.competitions = build_foundation_competitions(&game);
         ofm_core::schedule::append_south_american_preseason_friendlies(&mut game.competitions, &[]);
 
-        let serie_a = game.competitions.iter().find(|competition| competition.id == "br-d1").unwrap();
-        let serie_b = game.competitions.iter().find(|competition| competition.id == "br-d2").unwrap();
+        let serie_a = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "br-d1")
+            .unwrap();
+        let serie_b = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "br-d2")
+            .unwrap();
         assert_eq!(serie_a.season_start_day, 28);
         assert_eq!(serie_a.season_start_month, 1);
         assert_eq!(serie_b.season_start_day, 21);
         assert_eq!(serie_b.season_start_month, 3);
-        assert!(serie_a.fixtures.iter().any(|fixture| fixture.competition == FixtureCompetition::League && fixture.date == "2026-01-28"));
-        assert!(serie_b.fixtures.iter().any(|fixture| fixture.competition == FixtureCompetition::League && fixture.date == "2026-03-21"));
-        let friendly_dates: Vec<&str> = serie_a.fixtures.iter().filter(|fixture| fixture.competition == FixtureCompetition::Friendly).map(|fixture| fixture.date.as_str()).collect();
-        assert_eq!(friendly_dates.iter().copied().collect::<std::collections::HashSet<_>>(), ["2025-12-21", "2025-12-28", "2026-01-04"].into_iter().collect());
+        assert!(serie_a
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.competition == FixtureCompetition::League
+                && fixture.date == "2026-01-28"));
+        assert!(serie_b
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.competition == FixtureCompetition::League
+                && fixture.date == "2026-03-21"));
+        let friendly_dates: Vec<&str> = serie_a
+            .fixtures
+            .iter()
+            .filter(|fixture| fixture.competition == FixtureCompetition::Friendly)
+            .map(|fixture| fixture.date.as_str())
+            .collect();
+        assert_eq!(
+            friendly_dates
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+            ["2025-12-21", "2025-12-28", "2026-01-04"]
+                .into_iter()
+                .collect()
+        );
 
-        let states: Vec<_> = game.competitions.iter().filter(|competition| competition.id.starts_with("br-state-")).collect();
+        let states: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|competition| competition.id.starts_with("br-state-"))
+            .collect();
         assert_eq!(states.len(), 4);
-        assert!(states.iter().all(|competition| !competition.rules.counts_in_season_flow && competition.rules.group_stage_legs == 1 && competition.name_key.is_some()));
+        assert!(states
+            .iter()
+            .all(|competition| !competition.rules.counts_in_season_flow
+                && competition.rules.group_stage_legs == 1
+                && competition.name_key.is_some()));
         for team in &game.teams {
-            assert_eq!(states.iter().filter(|competition| competition.participant_ids.contains(&team.id)).count(), 1);
+            assert_eq!(
+                states
+                    .iter()
+                    .filter(|competition| competition.participant_ids.contains(&team.id))
+                    .count(),
+                1
+            );
         }
     }
 
     #[test]
     fn management_date_rebuild_preserves_authored_competition_identity() {
-        let teams = vec![nation_team("br-a", "BR", 500), nation_team("br-b", "BR", 400)];
+        let teams = vec![
+            nation_team("br-a", "BR", 500),
+            nation_team("br-b", "BR", 400),
+        ];
         let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap());
         let mut game = Game::new(clock, manager_for("br-a"), teams, vec![], vec![], vec![]);
         let mut authored = ofm_core::schedule::generate_league(
@@ -2460,9 +2723,16 @@ competitions:
         game.clock.current_date = anchor;
         rebuild_competitions_for_management_date(&mut game, anchor);
 
-        let competition = game.competitions.iter().find(|competition| competition.id == "authored-brasileirao").unwrap();
+        let competition = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "authored-brasileirao")
+            .unwrap();
         assert_eq!(competition.season, 2026);
-        assert!(competition.fixtures.iter().any(|fixture| fixture.date == "2026-01-28"));
+        assert!(competition
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.date == "2026-01-28"));
     }
 
     #[test]
@@ -2513,8 +2783,7 @@ competitions:
             &["team1".to_string(), "team2".to_string()],
         );
         continental.scope = CompetitionScope::Continental;
-        continental.required_region_ids =
-            vec!["south-america".to_string(), "europe".to_string()];
+        continental.required_region_ids = vec!["south-america".to_string(), "europe".to_string()];
         continental.priority = 1;
 
         game.competitions = vec![domestic.clone(), continental.clone()];
@@ -2796,6 +3065,7 @@ competitions:
                 snapshot_date: Some("2031-11-20T00:00:00Z".to_string()),
             },
             extra_translations: std::collections::HashMap::new(),
+            build_notices: Vec::new(),
         }
     }
 
@@ -3367,6 +3637,60 @@ competitions:
     }
 
     #[test]
+    fn bootstrap_team_selection_seeds_ai_loan_market() {
+        let mut game = make_bootstrap_test_game();
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team2")
+            .unwrap()
+            .starting_xi_ids = (0..11)
+            .map(|index| format!("team2-player-{index}"))
+            .collect();
+
+        for (id, date_of_birth) in [
+            ("team2-loan-1", "2007-01-01"),
+            ("team2-loan-2", "2006-01-01"),
+            ("team2-loan-3", "2005-01-01"),
+        ] {
+            let mut player = domain::player::Player::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                date_of_birth.to_string(),
+                "England".to_string(),
+                domain::player::Position::Midfielder,
+                default_player_attributes(),
+            );
+            player.team_id = Some("team2".to_string());
+            player.contract_end = Some("2035-06-30".to_string());
+            game.players.push(player);
+        }
+
+        bootstrap_team_selection(
+            &mut game,
+            "team1",
+            StartPhase::SeasonStart,
+            domain::stats::StatsState::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            game.players
+                .iter()
+                .filter(|player| {
+                    player.team_id.as_deref() == Some("team2") && player.loan_listed
+                })
+                .count(),
+            2
+        );
+        assert!(game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+            .all(|player| !player.loan_listed));
+    }
+
+    #[test]
     fn imported_historical_snapshot_preserves_state_while_backfilling_staff() {
         let manager = domain::manager::Manager::new(
             "mgr-user".to_string(),
@@ -3461,12 +3785,12 @@ competitions:
                 season_start_month: None,
                 season_start_day: None,
                 name_key: None,
+                logo: None,
             }],
         });
         let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
 
-        let (game, _stats) =
-            build_game_from_world_data(clock, manager, &startup_options, world);
+        let (game, _stats) = build_game_from_world_data(clock, manager, &startup_options, world);
 
         let custom = game
             .competitions
@@ -3475,10 +3799,8 @@ competitions:
             .expect("authored competition replaces the auto-built ones");
         assert_eq!(custom.participant_ids, team_ids);
         assert!(
-            game.competitions
-                .iter()
-                .all(|c| c.id == "custom-league"
-                    || c.kind == domain::league::CompetitionType::InternationalNation),
+            game.competitions.iter().all(|c| c.id == "custom-league"
+                || c.kind == domain::league::CompetitionType::InternationalNation),
             "no auto-generated club competitions when definitions are supplied"
         );
     }
@@ -3676,8 +3998,7 @@ competitions:
             "generated players should all start with generic (legacy-bucket) natural_position"
         );
 
-        bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state)
-            .unwrap();
+        bootstrap_team_selection(&mut game, "team1", StartPhase::SeasonStart, stats_state).unwrap();
         ofm_core::player_identity::upgrade_game_player_identities(&mut game);
 
         // After upgrade, outfield players on team1 should have granular natural_position
@@ -3706,9 +4027,25 @@ competitions:
         // All cities from STANDARD_NATIONS BR entry must map to a region so that
         // state-series competitions are generated for every club location.
         let br_cities = [
-            "São Paulo", "Rio", "Belo Horizonte", "Porto Alegre", "Salvador", "Recife",
-            "Curitiba", "Fortaleza", "Goiânia", "Santos", "Campinas", "Belém", "Manaus",
-            "Vitória", "Natal", "Florianópolis", "Cuiabá", "Maceió", "Bragantino",
+            "São Paulo",
+            "Rio",
+            "Belo Horizonte",
+            "Porto Alegre",
+            "Salvador",
+            "Recife",
+            "Curitiba",
+            "Fortaleza",
+            "Goiânia",
+            "Santos",
+            "Campinas",
+            "Belém",
+            "Manaus",
+            "Vitória",
+            "Natal",
+            "Florianópolis",
+            "Cuiabá",
+            "Maceió",
+            "Bragantino",
             "Juiz de Fora",
         ];
         for city in br_cities {
@@ -3717,7 +4054,10 @@ competitions:
                 "brazil_state_region returned None for BR city: {city}"
             );
         }
-        assert_eq!(brazil_state_region("Vitória"), Some("southeast"),
-            "Vitória (ES) belongs in the southeast region, not northeast");
+        assert_eq!(
+            brazil_state_region("Vitória"),
+            Some("southeast"),
+            "Vitória (ES) belongs in the southeast region, not northeast"
+        );
     }
 }

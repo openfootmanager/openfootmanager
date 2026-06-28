@@ -55,22 +55,6 @@ fn parse_amount_param(value: &str) -> Option<u64> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::parse_amount_param;
-
-    #[test]
-    fn parse_amount_param_keeps_compact_suffix_support() {
-        assert_eq!(parse_amount_param("75K"), Some(75_000));
-        assert_eq!(parse_amount_param("1.5M"), Some(1_500_000));
-    }
-
-    #[test]
-    fn parse_amount_param_treats_commas_as_separators_for_compact_values() {
-        assert_eq!(parse_amount_param("1,200K"), Some(1_200_000));
-    }
-}
-
 /// Apply the effect of a sponsor offer choice.
 pub fn apply_event_response(
     game: &mut Game,
@@ -271,5 +255,21 @@ pub fn apply_event_response(
         }
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_amount_param;
+
+    #[test]
+    fn parse_amount_param_keeps_compact_suffix_support() {
+        assert_eq!(parse_amount_param("75K"), Some(75_000));
+        assert_eq!(parse_amount_param("1.5M"), Some(1_500_000));
+    }
+
+    #[test]
+    fn parse_amount_param_treats_commas_as_separators_for_compact_values() {
+        assert_eq!(parse_amount_param("1,200K"), Some(1_200_000));
     }
 }

@@ -163,7 +163,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
   );
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>

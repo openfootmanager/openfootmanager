@@ -182,8 +182,7 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
     let player_wages: i64 = game
         .players
         .iter()
-        .filter(|player| player.team_id.as_deref() == Some(team_id))
-        .map(|player| player.wage as i64 / 52)
+        .map(|player| player_annual_wage_for_team(player, team_id) / 52)
         .sum();
 
     let staff_wages: i64 = game
@@ -200,8 +199,7 @@ pub fn calc_annual_wages(game: &Game, team_id: &str) -> i64 {
     let player_wages: i64 = game
         .players
         .iter()
-        .filter(|player| player.team_id.as_deref() == Some(team_id))
-        .map(|player| player.wage as i64)
+        .map(|player| player_annual_wage_for_team(player, team_id))
         .sum();
 
     let staff_wages: i64 = game
@@ -212,6 +210,29 @@ pub fn calc_annual_wages(game: &Game, team_id: &str) -> i64 {
         .sum();
 
     player_wages + staff_wages
+}
+
+fn player_annual_wage_for_team(player: &domain::player::Player, team_id: &str) -> i64 {
+    if let Some(loan) = &player.active_loan {
+        let wage = i64::from(player.wage);
+        let loan_share = (wage * i64::from(loan.wage_contribution_pct)) / 100;
+
+        if loan.loan_team_id == team_id {
+            return loan_share;
+        }
+
+        if loan.parent_team_id == team_id {
+            return wage.saturating_sub(loan_share);
+        }
+
+        return 0;
+    }
+
+    if player.team_id.as_deref() == Some(team_id) {
+        i64::from(player.wage)
+    } else {
+        0
+    }
 }
 
 pub fn calc_cash_runway_weeks(balance: i64, projected_weekly_net: i64) -> Option<i64> {
@@ -594,9 +615,8 @@ pub fn preview_board_support(game: &Game, team_id: &str) -> Result<BoardSupportR
         snapshot.weekly_wage_spend * BOARD_SUPPORT_TARGET_RUNWAY_WEEKS,
         BOARD_SUPPORT_MIN_AMOUNT,
     );
-    let support_amount = (reserve_target - team.finance)
-        .max(BOARD_SUPPORT_MIN_AMOUNT)
-        .min(BOARD_SUPPORT_MAX_AMOUNT);
+    let support_amount =
+        (reserve_target - team.finance).clamp(BOARD_SUPPORT_MIN_AMOUNT, BOARD_SUPPORT_MAX_AMOUNT);
     let transfer_budget_reduction = std::cmp::min(team.transfer_budget.max(0), support_amount / 2);
 
     Ok(BoardSupportResult {

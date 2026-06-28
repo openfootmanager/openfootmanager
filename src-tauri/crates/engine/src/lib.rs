@@ -16,6 +16,7 @@ pub use live_match::{
 };
 pub use report::{GoalDetail, GoalSource, MatchReport, PlayerMatchStats, TeamStats};
 pub use types::{
-    DefensiveLine, MarkingStyle, MatchConfig, PlayStyle, PlayerData, PlayerRole, Position,
-    PressingIntensity, Side, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, TeamData, Zone,
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
+    PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticsBuildUpStyle,
+    TacticsConfig, TacticsPitchWidth, Tempo, TeamData, Zone,
 };

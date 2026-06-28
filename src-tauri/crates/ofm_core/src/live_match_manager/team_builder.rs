@@ -1,9 +1,13 @@
 use crate::game::Game;
-use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
+use crate::player_rating::{
+    effective_rating_for_assignment, formation_slots, natural_ovr,
+    positional_fit_for_assignment,
+};
 use domain::player::Position as DomainPosition;
 use engine::{
-    DefensiveLine, MarkingStyle, PlayStyle, PlayerData, PlayerRole as EnginePlayerRole, Position,
-    PressingIntensity, TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, TeamData,
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, PlayStyle,
+    PlayerData, PlayerRole as EnginePlayerRole, Position, PressingIntensity, TacticsBuildUpStyle,
+    TacticsConfig, TacticsPitchWidth, Tempo, TeamData,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -52,12 +56,25 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         to_engine_player(p, role)
     };
 
-    let starting_players = select_starting_xi(saved_xi_ids, &available_players, &formation);
+    // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
+    // by a reputation-driven policy that picks a first-choice XI and rotates for
+    // load management. Gate on the user team explicitly, NOT on "saved XI empty",
+    // so the human's early-career auto-built XI stays reputation-independent.
+    let is_user_team = game.manager.team_id.as_deref() == Some(team_id);
+    let starting_players = if is_user_team {
+        select_starting_xi(saved_xi_ids, &available_players, &formation)
+    } else {
+        let quality = team_management_quality(game, team);
+        ai_select_starting_xi(&available_players, &formation, quality)
+    };
     let used_ids: HashSet<String> = starting_players
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    let starting_xi = starting_players.into_iter().map(|p| convert_player(p)).collect();
+    let starting_xi = starting_players
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
         .into_iter()
@@ -68,7 +85,10 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(|p| convert_player(p)).collect();
+    let bench = bench_domain
+        .into_iter()
+        .map(|p| convert_player(p))
+        .collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -177,6 +197,125 @@ fn auto_select_starting_xi<'a>(
     starting_xi
 }
 
+/// Maps a club's reputation to a 0.0–1.0 management-quality score. Generated club
+/// reputations span roughly 300 (lower divisions) to 900 (elite). Quality drives
+/// how proactively the AI rotates for player freshness.
+fn management_quality(reputation: u32) -> f64 {
+    (((reputation as f64) - 300.0) / 600.0).clamp(0.0, 1.0)
+}
+
+/// Maps a manager's overall rating (≈30–95) to a 0.0–1.0 management-quality score.
+fn management_quality_from_rating(rating: u8) -> f64 {
+    ((f64::from(rating) - 30.0) / 65.0).clamp(0.0, 1.0)
+}
+
+/// Resolves the AI management quality for a team: the linked manager's rating when
+/// one is hired (manager-specific skill), otherwise the club's reputation as a
+/// proxy. Defaults to a mid value when the team can't be found.
+fn team_management_quality(game: &Game, team: Option<&domain::team::Team>) -> f64 {
+    let Some(team) = team else {
+        return management_quality(500);
+    };
+
+    if let Some(manager_id) = &team.manager_id {
+        if let Some(manager) = game.managers.iter().find(|m| &m.id == manager_id) {
+            return management_quality_from_rating(manager.rating());
+        }
+    }
+
+    management_quality(team.reputation)
+}
+
+/// Reputation-aware AI lineup selection.
+///
+/// Step 1 picks the first-choice XI purely on condition-free positional fit, so a
+/// club always fields its best players when fresh. Step 2 applies load management:
+/// a tired starter is rested ONLY when (a) their condition is below a
+/// quality-dependent fatigue threshold AND (b) a fresher squad option exists whose
+/// quality is within a quality-dependent tolerance. Well-run clubs (high quality)
+/// rest players earlier and accept a slightly larger quality drop to keep the
+/// squad fresh; poorly-run clubs ride their best XI into the ground. The
+/// gap-aware tolerance guarantees a strong starter is never benched for a much
+/// weaker fresh player — better clubs still field better teams.
+fn ai_select_starting_xi<'a>(
+    available_players: &[&'a domain::player::Player],
+    formation: &str,
+    quality: f64,
+) -> Vec<&'a domain::player::Player> {
+    /// A rotation candidate must be at least this fresh to be worth considering.
+    const FRESH_FLOOR: f64 = 60.0;
+    /// And meaningfully fresher than the starter it would replace.
+    const MIN_FRESHNESS_GAIN: i16 = 10;
+
+    let slots = formation_slots(formation);
+    let mut used_ids: HashSet<String> = HashSet::new();
+    // (slot index, chosen player) so the rotation step can re-evaluate per slot.
+    let mut selected: Vec<(usize, &'a domain::player::Player)> = Vec::with_capacity(11);
+
+    // Step 1: first-choice XI by condition-free positional fit.
+    for (slot_index, slot) in slots.iter().take(11).enumerate() {
+        let best = available_players
+            .iter()
+            .copied()
+            .filter(|player| !used_ids.contains(&player.id))
+            .max_by(|left, right| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+        let Some(player) = best else {
+            break;
+        };
+        used_ids.insert(player.id.clone());
+        selected.push((slot_index, player));
+    }
+
+    // Step 2: reputation-driven load management.
+    let rest_threshold = 50.0 + 25.0 * quality; // 50 (poor) .. 75 (elite)
+    let fit_tolerance = 12.0 * quality; // 0 (poor) .. 12 (elite)
+
+    for entry in selected.iter_mut() {
+        let slot = &slots[entry.0];
+        let starter = entry.1;
+
+        if f64::from(starter.condition) >= rest_threshold {
+            continue; // Fresh enough — no reason to rotate.
+        }
+
+        let starter_fit = positional_fit_for_assignment(starter, slot);
+        let starter_group = starter.position.to_group_position();
+        let fresh_alternative = available_players
+            .iter()
+            .copied()
+            .filter(|player| !used_ids.contains(&player.id))
+            // Only rotate within the same position group, so load management never
+            // skews the formation's distribution (e.g. fielding a 5th midfielder
+            // in place of a defender, which would leave the XI a man short).
+            .filter(|player| player.position.to_group_position() == starter_group)
+            .filter(|player| f64::from(player.condition) >= FRESH_FLOOR)
+            .filter(|player| {
+                i16::from(player.condition) - i16::from(starter.condition) >= MIN_FRESHNESS_GAIN
+            })
+            .filter(|player| {
+                positional_fit_for_assignment(player, slot) >= starter_fit - fit_tolerance
+            })
+            .max_by(|left, right| {
+                positional_fit_for_assignment(left, slot)
+                    .partial_cmp(&positional_fit_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+        if let Some(fresh) = fresh_alternative {
+            used_ids.remove(&starter.id);
+            used_ids.insert(fresh.id.clone());
+            entry.1 = fresh;
+        }
+    }
+
+    selected.into_iter().map(|(_, player)| player).collect()
+}
+
 pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePlayerRole {
     match role {
         domain::team::PlayerRole::Standard => EnginePlayerRole::Standard,
@@ -236,6 +375,25 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
             domain::team::MarkingStyle::Zonal => MarkingStyle::Zonal,
             domain::team::MarkingStyle::Mixed => MarkingStyle::Mixed,
             domain::team::MarkingStyle::ManToMan => MarkingStyle::ManToMan,
+        },
+        tempo: match t.tempo {
+            domain::team::Tempo::Patient => Tempo::Patient,
+            domain::team::Tempo::Direct => Tempo::Direct,
+        },
+        defensive_shape: match t.defensive_shape {
+            domain::team::DefensiveShape::Stretched => DefensiveShape::Stretched,
+            domain::team::DefensiveShape::Normal => DefensiveShape::Normal,
+            domain::team::DefensiveShape::Compact => DefensiveShape::Compact,
+        },
+        counter_press_duration: match t.counter_press_duration {
+            domain::team::CounterPressDuration::None => CounterPressDuration::None,
+            domain::team::CounterPressDuration::Short => CounterPressDuration::Short,
+            domain::team::CounterPressDuration::Long => CounterPressDuration::Long,
+        },
+        break_speed: match t.break_speed {
+            domain::team::BreakSpeed::Slow => BreakSpeed::Slow,
+            domain::team::BreakSpeed::Medium => BreakSpeed::Medium,
+            domain::team::BreakSpeed::Fast => BreakSpeed::Fast,
         },
     }
 }
@@ -340,4 +498,185 @@ pub fn auto_select_set_pieces(
         .map(|p| p.id.clone());
 
     (captain, penalty, free_kick, corner)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::player::{Player, PlayerAttributes, Position as DomainPos};
+
+    /// Uniform attributes: `weighted_score` averages attributes, so setting them
+    /// all to `v` makes the condition-free positional fit ≈ `v` for any slot, with
+    /// the per-slot compatibility/foot penalty identical across players (same
+    /// position + footedness) — so it cancels in within-slot comparisons.
+    fn attrs(v: u8) -> PlayerAttributes {
+        PlayerAttributes {
+            pace: v,
+            stamina: v,
+            strength: v,
+            agility: v,
+            passing: v,
+            shooting: v,
+            tackling: v,
+            dribbling: v,
+            defending: v,
+            positioning: v,
+            vision: v,
+            decisions: v,
+            composure: v,
+            aggression: v,
+            teamwork: v,
+            leadership: v,
+            handling: v,
+            reflexes: v,
+            aerial: v,
+        }
+    }
+
+    fn mk(id: &str, attr: u8, condition: u8) -> Player {
+        mk_pos(id, DomainPos::CenterBack, attr, condition)
+    }
+
+    fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
+        let mut p = Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1998-01-01".to_string(),
+            "GB".to_string(),
+            position,
+            attrs(attr),
+        );
+        p.condition = condition;
+        p
+    }
+
+    #[test]
+    fn management_quality_maps_reputation_to_unit_range() {
+        assert_eq!(management_quality(300), 0.0);
+        assert_eq!(management_quality(900), 1.0);
+        assert!((management_quality(600) - 0.5).abs() < 1e-9);
+        assert_eq!(management_quality(100), 0.0); // clamped below
+        assert_eq!(management_quality(1200), 1.0); // clamped above
+    }
+
+    /// The discriminating test: an elite club must NOT bench a strong (but mildly
+    /// tired) starter for a much weaker fresh player. Better clubs field better
+    /// teams — the gap-aware tolerance enforces this.
+    #[test]
+    fn elite_club_keeps_strong_starters_over_fresh_scrubs() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 70)); // strong, mildly tired
+        }
+        for i in 0..3 {
+            squad.push(mk(&format!("weak{i}"), 50, 100)); // weak, fully fresh
+        }
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
+
+        assert_eq!(xi.len(), 11);
+        assert!(
+            xi.iter().all(|p| p.id.starts_with("star")),
+            "elite club fielded a weak fresh player over a strong starter: {:?}",
+            xi.iter().map(|p| &p.id).collect::<Vec<_>>()
+        );
+    }
+
+    /// An elite club rotates a tired starter for a *comparable* fresh deputy
+    /// (within the fit tolerance), but still leaves the much-weaker scrubs benched.
+    #[test]
+    fn elite_club_rotates_tired_starter_for_comparable_fresh_player() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 65)); // strong, tired
+        }
+        squad.push(mk("deputy", 72, 100)); // comparable, fresh
+        for i in 0..2 {
+            squad.push(mk(&format!("weak{i}"), 50, 100)); // scrub, fresh
+        }
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0);
+
+        assert_eq!(xi.len(), 11);
+        assert!(
+            xi.iter().any(|p| p.id == "deputy"),
+            "comparable fresh deputy should rotate in for a tired star"
+        );
+        assert_eq!(
+            xi.iter().filter(|p| p.id.starts_with("star")).count(),
+            10,
+            "exactly one tired star should be rested"
+        );
+        assert!(
+            xi.iter().all(|p| !p.id.starts_with("weak")),
+            "scrubs are too far below tolerance to be rotated in"
+        );
+    }
+
+    /// Same squad as above, but a poorly-run club: it rides its tired starters and
+    /// does not rotate. Proves the reputation gradient.
+    #[test]
+    fn low_reputation_club_rides_tired_starters() {
+        let mut squad = Vec::new();
+        for i in 0..11 {
+            squad.push(mk(&format!("star{i}"), 80, 65));
+        }
+        squad.push(mk("deputy", 72, 100));
+        for i in 0..2 {
+            squad.push(mk(&format!("weak{i}"), 50, 100));
+        }
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", management_quality(300)); // q = 0
+
+        assert_eq!(xi.len(), 11);
+        assert!(
+            xi.iter().all(|p| p.id.starts_with("star")),
+            "a low-reputation club should ride its tired first XI, not rotate"
+        );
+    }
+
+    /// Regression: load-management rotation must not skew the formation's
+    /// position distribution. A tired XI plus one fresh midfielder must still
+    /// field 1 GK / 4 DEF / 4 MID / 2 FWD — never a defender short (which
+    /// rendered only 10 players on the pitch).
+    #[test]
+    fn rotation_preserves_formation_position_distribution() {
+        use DomainPos::{
+            CentralMidfielder, CenterBack, Forward, Goalkeeper, LeftBack, LeftMidfielder,
+            RightBack, RightMidfielder, Striker,
+        };
+        let squad = vec![
+            mk_pos("gk", Goalkeeper, 75, 65),
+            mk_pos("d1", CenterBack, 75, 65),
+            mk_pos("d2", CenterBack, 75, 65),
+            mk_pos("d3", LeftBack, 75, 65),
+            mk_pos("d4", RightBack, 75, 65),
+            mk_pos("m1", CentralMidfielder, 75, 65),
+            mk_pos("m2", CentralMidfielder, 75, 65),
+            mk_pos("m3", LeftMidfielder, 75, 65),
+            mk_pos("m4", RightMidfielder, 75, 65),
+            mk_pos("f1", Striker, 75, 65),
+            mk_pos("f2", Striker, 75, 65),
+            // Fresh midfielder load management will want to bring in.
+            mk_pos("m_fresh", CentralMidfielder, 75, 100),
+        ];
+        let refs: Vec<&Player> = squad.iter().collect();
+
+        let xi = ai_select_starting_xi(&refs, "4-4-2", 1.0); // elite: rotates eagerly
+
+        assert_eq!(xi.len(), 11);
+        let group_count = |group: DomainPos| {
+            xi.iter()
+                .filter(|p| p.position.to_group_position() == group)
+                .count()
+        };
+        assert_eq!(group_count(Goalkeeper), 1, "exactly one keeper");
+        assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
+        assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
+        assert_eq!(group_count(Forward), 2, "must field two forwards");
+    }
 }

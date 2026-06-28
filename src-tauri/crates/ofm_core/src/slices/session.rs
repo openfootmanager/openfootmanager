@@ -204,7 +204,13 @@ mod tests {
         )
     }
 
-    fn make_fixture(id: &str, home: &str, away: &str, date: &str, status: FixtureStatus) -> Fixture {
+    fn make_fixture(
+        id: &str,
+        home: &str,
+        away: &str,
+        date: &str,
+        status: FixtureStatus,
+    ) -> Fixture {
         Fixture {
             id: id.to_string(),
             competition_id: "league1".to_string(),
@@ -222,21 +228,41 @@ mod tests {
         let team_a = make_team("t1", "Arsenal");
         let team_b = make_team("t2", "Chelsea");
 
-        let mut league = League::default();
-        league.id = "league1".to_string();
-        league.name = "Premier League".to_string();
-        league.participant_ids = vec!["t1".to_string(), "t2".to_string()];
-        league.standings = vec![
-            StandingEntry { team_id: "t1".to_string(), played: 2, won: 1, drawn: 1, lost: 0, goals_for: 3, goals_against: 1, points: 4 },
-            StandingEntry { team_id: "t2".to_string(), played: 2, won: 0, drawn: 1, lost: 1, goals_for: 1, goals_against: 3, points: 1 },
-        ];
-        league.fixtures = vec![
-            make_fixture("f0", "t2", "t1", "2025-08-10", FixtureStatus::Completed),
-            make_fixture("f1", "t1", "t2", "2025-08-24", FixtureStatus::Scheduled),
-            make_fixture("f2", "t1", "t2", "2025-09-07", FixtureStatus::Scheduled),
-            make_fixture("f3", "t2", "t1", "2025-09-21", FixtureStatus::Scheduled),
-            make_fixture("f4", "t2", "t1", "2025-10-05", FixtureStatus::Scheduled),
-        ];
+        let league = League {
+            id: "league1".to_string(),
+            name: "Premier League".to_string(),
+            participant_ids: vec!["t1".to_string(), "t2".to_string()],
+            standings: vec![
+                StandingEntry {
+                    team_id: "t1".to_string(),
+                    played: 2,
+                    won: 1,
+                    drawn: 1,
+                    lost: 0,
+                    goals_for: 3,
+                    goals_against: 1,
+                    points: 4,
+                },
+                StandingEntry {
+                    team_id: "t2".to_string(),
+                    played: 2,
+                    won: 0,
+                    drawn: 1,
+                    lost: 1,
+                    goals_for: 1,
+                    goals_against: 3,
+                    points: 1,
+                },
+            ],
+            fixtures: vec![
+                make_fixture("f0", "t2", "t1", "2025-08-10", FixtureStatus::Completed),
+                make_fixture("f1", "t1", "t2", "2025-08-24", FixtureStatus::Scheduled),
+                make_fixture("f2", "t1", "t2", "2025-09-07", FixtureStatus::Scheduled),
+                make_fixture("f3", "t2", "t1", "2025-09-21", FixtureStatus::Scheduled),
+                make_fixture("f4", "t2", "t1", "2025-10-05", FixtureStatus::Scheduled),
+            ],
+            ..Default::default()
+        };
 
         let mut game = Game::new(
             make_clock(),
@@ -288,9 +314,13 @@ mod tests {
     fn session_recent_capped_at_2_and_most_recent_first() {
         let mut game = make_game_with_team();
         // Add a second completed fixture with a later date.
-        game.competitions[0].fixtures.push(
-            make_fixture("f_past2", "t1", "t2", "2025-08-17", FixtureStatus::Completed)
-        );
+        game.competitions[0].fixtures.push(make_fixture(
+            "f_past2",
+            "t1",
+            "t2",
+            "2025-08-17",
+            FixtureStatus::Completed,
+        ));
 
         let session = project_session(&game);
         let comp = session.user_competition.as_ref().unwrap();
@@ -306,23 +336,39 @@ mod tests {
         let mut game = make_game_with_team();
 
         let mut unread_msg = InboxMessage::new(
-            "m1".to_string(), String::new(), String::new(), String::new(), "2025-01-01".to_string(),
+            "m1".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2025-01-01".to_string(),
         );
         unread_msg.read = false;
         let mut read_msg = InboxMessage::new(
-            "m2".to_string(), String::new(), String::new(), String::new(), "2025-01-01".to_string(),
+            "m2".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2025-01-01".to_string(),
         );
         read_msg.read = true;
         game.messages = vec![unread_msg, read_msg];
 
         let mut unread_article = NewsArticle::new(
-            "n1".to_string(), String::new(), String::new(), String::new(),
-            "2025-01-01".to_string(), NewsCategory::MatchReport,
+            "n1".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2025-01-01".to_string(),
+            NewsCategory::MatchReport,
         );
         unread_article.read = false;
         let mut read_article = NewsArticle::new(
-            "n2".to_string(), String::new(), String::new(), String::new(),
-            "2025-01-01".to_string(), NewsCategory::MatchReport,
+            "n2".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2025-01-01".to_string(),
+            NewsCategory::MatchReport,
         );
         read_article.read = true;
         game.news = vec![unread_article, read_article];

@@ -50,7 +50,7 @@ export default function TransferCentreWorldTab({
   const teamsById = teamMap(gameState.teams);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <Card accent="primary">
         <CardBody className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>

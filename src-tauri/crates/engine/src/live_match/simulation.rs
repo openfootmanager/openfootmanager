@@ -1,6 +1,10 @@
 use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
+use crate::shared::{
+    tactics_break_speed_counter, tactics_counter_press_rewin, tactics_pressing_contest,
+    tactics_tempo_retention,
+};
 use crate::types::{Side, Zone};
 
 use super::{LiveMatchState, MatchPhase, MinuteResult};
@@ -173,15 +177,34 @@ impl LiveMatchState {
             minute_events.extend(new_events);
         }
 
-        // Possession contest
+        // Possession contest. Tempo (retention) and pressing (ball-winning)
+        // weight the battle here; neutral dials are ×1.0 and the transition
+        // rolls only fire for non-neutral dials, so a default-vs-default match is
+        // byte-identical to the pre-dial engine.
         let poss_side = self.possession;
         let def_side = poss_side.opposite();
-        let mid_att = self.effective_midfield(poss_side);
-        let mid_def = self.effective_midfield(def_side);
+        let poss_tactics = self.team_ref(poss_side).tactics.clone();
+        let def_tactics = self.team_ref(def_side).tactics.clone();
+        let mid_att =
+            self.effective_midfield(poss_side) * tactics_tempo_retention(&poss_tactics);
+        let mid_def =
+            self.effective_midfield(def_side) * tactics_pressing_contest(&def_tactics);
         let retain = mid_att / (mid_att + mid_def);
         if rng.random_range(0.0..1.0f64) > retain {
-            self.possession = def_side;
-            self.ball_zone = Zone::Midfield;
+            // Counter-press: the side losing the ball may win it straight back.
+            let rewin = tactics_counter_press_rewin(&poss_tactics);
+            if rewin > 0.0 && rng.random_range(0.0..1.0f64) < rewin {
+                // Ball retained; possession and zone unchanged.
+            } else {
+                self.possession = def_side;
+                // Break speed: the winner may spring a fast counter forward.
+                let breakaway = tactics_break_speed_counter(&def_tactics);
+                if breakaway > 0.0 && rng.random_range(0.0..1.0f64) < breakaway {
+                    self.ball_zone = Zone::attacking_third(def_side);
+                } else {
+                    self.ball_zone = Zone::Midfield;
+                }
+            }
         }
 
         // Record ball zone for AI zone-pressure tracking (cap at 10)

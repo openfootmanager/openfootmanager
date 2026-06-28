@@ -177,6 +177,25 @@ export interface CareerEntry {
   assists: number;
 }
 
+export type PlayerMovementKind =
+  | "permanent_transfer"
+  | "loan_start"
+  | "loan_return"
+  | "loan_to_buy"
+  | "free_agent_signing"
+  | "released";
+
+export interface PlayerMovementEntry {
+  date: string;
+  kind: PlayerMovementKind;
+  from_team_id?: string | null;
+  from_team_name?: string | null;
+  to_team_id?: string | null;
+  to_team_name?: string | null;
+  fee?: number | null;
+  loan_end_date?: string | null;
+}
+
 export interface ContractExitIntentData {
   kind: "let_expire";
   set_on: string;
@@ -252,9 +271,12 @@ export interface PlayerData {
   market_value: number;
   stats: PlayerSeasonStats;
   career: CareerEntry[];
+  movement_history?: PlayerMovementEntry[];
   transfer_listed: boolean;
   loan_listed: boolean;
   transfer_offers: TransferOfferData[];
+  loan_offers?: LoanOfferData[];
+  active_loan?: ActiveLoanData | null;
   traits: string[];
   morale_core?: PlayerMoraleCoreData;
   /** Position-weighted overall rating (1–99). Computed by the backend from the player's natural position. */
@@ -273,8 +295,51 @@ export interface TransferOfferData {
   last_manager_fee: number | null;
   negotiation_round: number;
   suggested_counter_fee: number | null;
-  status: "Pending" | "Accepted" | "Rejected" | "Withdrawn";
+  status:
+    | "Pending"
+    | "PendingRegistration"
+    | "Accepted"
+    | "Rejected"
+    | "Withdrawn";
   date: string;
+  registration_date?: string | null;
+}
+
+export interface LoanOfferData {
+  id: string;
+  from_team_id: string;
+  parent_team_id: string;
+  start_date: string;
+  end_date: string;
+  wage_contribution_pct: number;
+  buy_option_fee?: number | null;
+  last_manager_wage_contribution_pct?: number | null;
+  last_manager_end_date?: string | null;
+  last_manager_buy_option_fee?: number | null;
+  negotiation_round?: number;
+  suggested_wage_contribution_pct?: number | null;
+  suggested_end_date?: string | null;
+  suggested_buy_option_fee?: number | null;
+  status:
+    | "Pending"
+    | "PendingRegistration"
+    | "Accepted"
+    | "Rejected"
+    | "Withdrawn";
+  date: string;
+}
+
+export interface ActiveLoanData {
+  parent_team_id: string;
+  loan_team_id: string;
+  start_date: string;
+  end_date: string;
+  wage_contribution_pct: number;
+  buy_option_fee?: number | null;
+  loan_start_minutes?: number;
+  loan_start_appearances?: number;
+  development_reported_minutes?: number;
+  development_reported_appearances?: number;
 }
 
 export interface StaffData {
@@ -701,4 +766,5 @@ export interface GameStateData {
   season_context?: SeasonContextData;
   available_staff_market_last_activity_date?: string | null;
   extra_translations?: Record<string, Record<string, unknown>>;
+  package_lockfile?: Array<{ id: string; version: string; hash: string }>;
 }

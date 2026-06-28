@@ -17,7 +17,15 @@
     "common.statsView",
     "common.radarView",
     "tactics.playerRoles.Carrilero",
-    "tactics.playerRoles.Mezzala"
+    "tactics.playerRoles.Mezzala",
+    "worldSelect.packageVersion",
+    "worldEditor.typePatch",
+    "worldEditor.confederationId",
+    "worldEditor.countryId",
+    "worldEditor.playerId",
+    "worldEditor.competitionId",
+    "worldEditor.teamId",
+    "worldEditor.staffId"
   ],
   "de": [
     "nations.eng",
@@ -74,6 +82,7 @@
     "staff.roles.Scout",
     "staff.specializations.Fitness",
     "finances.budget",
+    "worldEditor.teamBudget",
     "inbox.categories.Transfer",
     "inbox.categories.Training",
     "inbox.categories.System",
@@ -105,7 +114,27 @@
     "match.commentary.Foul.headline",
     "be.sender.scout",
     "traits.Dribbler.label",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageEditor.version",
+    "packageEditor.confederationName",
+    "packageEditor.countryName",
+    "packageEditor.competitionName",
+    "packageEditor.playerPosition",
+    "packageEditor.competitionFormat",
+    "packageEditor.competitionSelectorRegion",
+    "worldEditor.version",
+    "worldEditor.confederationName",
+    "worldEditor.countryName",
+    "worldEditor.playerPosition",
+    "worldEditor.competitionName",
+    "worldEditor.competitionFormat",
+    "worldEditor.competitionExplicitTeams",
+    "worldEditor.competitionSelectorRegion",
+    "worldEditor.sectionTeams",
+    "worldEditor.staffRole.Scout",
+    "worldEditor.staffSpecialization.Fitness",
+    "worldEditor.staffAttr.coaching",
+    "packageBuild.patches"
   ],
   "fr": [
     "nations.pt",
@@ -181,6 +210,7 @@
     "inbox.urgent",
     "dashboard.finances",
     "finances.budget",
+    "worldEditor.teamBudget",
     "inbox.categories.MatchPreview",
     "teamSelect.clubCount",
     "match.eventTypes.Corner",
@@ -206,7 +236,27 @@
     "training.groups.groupFocus",
     "playerProfile.renewalTension",
     "squad.kitPatterns.Diagonal",
-    "match.cornersGoals"
+    "packageEditor.version",
+    "packageEditor.description",
+    "packageEditor.competitionType",
+    "packageEditor.competitionFormat",
+    "packageEditor.competitionParticipantsMode",
+    "worldEditor.description",
+    "worldEditor.version",
+    "worldEditor.playerClub",
+    "worldEditor.competitionType",
+    "worldEditor.competitionFormat",
+    "worldEditor.competitionParticipantsMode",
+    "worldEditor.sectionClubs",
+    "worldEditor.licensePermissions",
+    "worldEditor.licenseConditions",
+    "worldEditor.licenseLimitations",
+    "worldEditor.worldDesc",
+    "match.cornersGoals",
+    "worldEditor.sectionStaff",
+    "worldEditor.staffClub",
+    "worldEditor.staffSpecialization.Technique",
+    "packageBuild.patches"
   ],
   "it": [
     "nations.sn",
@@ -260,6 +310,7 @@
     "schedule.calendar.sat",
     "common.morale",
     "finances.budget",
+    "worldEditor.teamBudget",
     "playerProfile.percentile",
     "teamSelect.regionLabels.oceania",
     "common.gf",
@@ -267,7 +318,12 @@
     "playerProfile.renewalRound",
     "match.max",
     "scouting.morale",
-    "training.groups.groupFocus"
+    "training.groups.groupFocus",
+    "worldEditor.playerClub",
+    "worldEditor.sectionStaff",
+    "worldEditor.staffClub",
+    "worldEditor.staffRole.Scout",
+    "worldEditor.staffSpecialization.Fitness"
   ],
   "es": [
     "nations.pt",
@@ -322,7 +378,12 @@
     "match.normal",
     "match.phases.Finished",
     "sacked.teamLabel",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageEditor.competitionSelector",
+    "worldEditor.playerClub",
+    "worldEditor.competitionSelector",
+    "worldEditor.staffClub",
+    "worldEditor.staffSpecialization.Fitness"
   ],
   "pt-BR": [
     "nations.pt",
@@ -364,7 +425,8 @@
     "match.normal",
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageBuild.patches"
   ],
   "pt": [
     "nations.pt",
@@ -404,7 +466,8 @@
     "match.normal",
     "match.phases.Finished",
     "match.commentary.Goal.hattrick.headline",
-    "squad.kitPatterns.Diagonal"
+    "squad.kitPatterns.Diagonal",
+    "packageBuild.patches"
   ],
   "ru": [
     "dashboard.recapTransferLine"

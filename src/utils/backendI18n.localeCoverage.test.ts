@@ -92,6 +92,8 @@ const REQUIRED_KEYS = [
   "be.news.seasonAwards.bodyPotyOnly",
   "be.news.majorTransfer.headline",
   "be.news.majorTransfer.body",
+  "be.news.loanMove.headline",
+  "be.news.loanMove.body",
   "be.error.noActiveGameSession",
   "be.error.noActiveSaveSession",
   "be.error.saveDeleteFailed",

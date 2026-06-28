@@ -27,7 +27,7 @@ export default function HallOfFameWorldTab({
   const worldCupChampions = gameState.world_history?.world_cup_champions ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="space-y-5">
       <Card accent="primary">
         <CardBody className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

@@ -112,6 +112,10 @@ export default function MatchSimulation() {
 
   // Fetch initial snapshot
   useEffect(() => {
+    // Don't refetch after finalize — finish_live_match has cleared the backend
+    // session, so get_match_snapshot would fail and the catch path would
+    // start_live_match a fresh 0-0 session, clobbering the final score.
+    if (hasFinalizedMatch) return;
     let isCancelled = false;
 
     const fetchSnapshot = async () => {
@@ -183,7 +187,7 @@ export default function MatchSimulation() {
     return () => {
       isCancelled = true;
     };
-  }, [gameState, matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
+  }, [hasFinalizedMatch, gameState, matchMode, navigate, routeState?.fixtureIndex, routeState?.snapshot]);
 
   // Skip pre-match for spectators
   useEffect(() => {

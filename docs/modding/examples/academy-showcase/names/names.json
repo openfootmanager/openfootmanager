@@ -1,0 +1,11 @@
+{
+  "schema": "names",
+  "version": 1,
+  "description": "Sample English name pool",
+  "pools": {
+    "ENG": {
+      "first_names": ["Jack", "Harry", "Charlie", "Oscar", "George", "Alfie", "Freddie"],
+      "last_names": ["Walker", "Wright", "Hughes", "Carter", "Mason", "Barnes", "Knight"]
+    }
+  }
+}

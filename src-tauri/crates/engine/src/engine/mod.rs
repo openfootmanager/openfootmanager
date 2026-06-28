@@ -5,7 +5,7 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
 use crate::report::MatchReport;
-use crate::shared::PlayerSnap;
+use crate::shared::{self, PlayerSnap};
 use crate::types::{MatchConfig, PlayerData, Position, Side, TeamData, Zone};
 
 // ---------------------------------------------------------------------------
@@ -214,14 +214,30 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
         resolution::resolve_action(ctx, minute, rng);
     }
 
-    // Possession contest via midfield battle
+    // Possession contest via midfield battle. Tempo (retention) and pressing
+    // (ball-winning) weight the battle; transition dials act on the flip. Neutral
+    // dials are ×1.0 / no-roll, so default sides match the pre-dial engine.
     let poss_side = ctx.possession;
     let def_side = poss_side.opposite();
-    let mid_att = resolution::effective_midfield(ctx, poss_side);
-    let mid_def = resolution::effective_midfield(ctx, def_side);
+    let poss_tactics = ctx.team(poss_side).tactics.clone();
+    let def_tactics = ctx.team(def_side).tactics.clone();
+    let mid_att = resolution::effective_midfield(ctx, poss_side)
+        * shared::tactics_tempo_retention(&poss_tactics);
+    let mid_def = resolution::effective_midfield(ctx, def_side)
+        * shared::tactics_pressing_contest(&def_tactics);
     let retain = mid_att / (mid_att + mid_def);
     if rng.random_range(0.0..1.0f64) > retain {
-        ctx.possession = def_side;
-        ctx.ball_zone = Zone::Midfield;
+        let rewin = shared::tactics_counter_press_rewin(&poss_tactics);
+        if rewin > 0.0 && rng.random_range(0.0..1.0f64) < rewin {
+            // Counter-press wins it straight back; nothing changes.
+        } else {
+            ctx.possession = def_side;
+            let breakaway = shared::tactics_break_speed_counter(&def_tactics);
+            if breakaway > 0.0 && rng.random_range(0.0..1.0f64) < breakaway {
+                ctx.ball_zone = Zone::attacking_third(def_side);
+            } else {
+                ctx.ball_zone = Zone::Midfield;
+            }
+        }
     }
 }

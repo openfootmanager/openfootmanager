@@ -288,9 +288,19 @@ fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
 
     let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
     game.competitions = vec![
-        first_division("es-1", "ES", "europe", &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]),
+        first_division(
+            "es-1",
+            "ES",
+            "europe",
+            &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"],
+        ),
         domestic_cup("es-cup", "ES", "europe", "es-e", "es-f"),
-        first_division("br-1", "BR", "south-america", &["br-a", "br-b", "br-c", "br-d", "br-e", "br-f"]),
+        first_division(
+            "br-1",
+            "BR",
+            "south-america",
+            &["br-a", "br-b", "br-c", "br-d", "br-e", "br-f"],
+        ),
         domestic_cup("br-cup", "BR", "south-america", "br-e", "br-f"),
         // Five-club fields so the top four plus the cup winner exactly fill each
         // bracket (no reputation top-up masking the cup berth).
@@ -339,7 +349,7 @@ fn continental_fields_requalify_per_region_from_standings_and_cup_winners() {
 
 /// Characterization: the built-in default berths (first division positions 1–4
 /// + cup winner) reproduce the inferred continental field exactly, so routing
-/// the generated world through berths is behavior-preserving.
+///   the generated world through berths is behavior-preserving.
 #[test]
 fn default_berths_reproduce_the_inferred_continental_field() {
     let mut teams = Vec::new();
@@ -506,7 +516,10 @@ fn rollover_passes_continental_qualifiers_into_the_next_season() {
     );
     manager.hire("eng-a".to_string());
 
-    let teams = vec![make_club("eng-a", "ENG", 800), make_club("eng-b", "ENG", 700)];
+    let teams = vec![
+        make_club("eng-a", "ENG", 800),
+        make_club("eng-b", "ENG", 700),
+    ];
     let mut p1 = make_player("p1", "Star", "eng-a", Position::Forward);
     p1.stats = PlayerSeasonStats {
         appearances: 30,
@@ -622,7 +635,12 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
     let mut game = make_completed_season_game();
     game.teams.push(make_team("team3", "Third FC"));
     game.teams.push(make_team("team4", "Fourth FC"));
-    let team3_initial_reputation = game.teams.iter().find(|t| t.id == "team3").unwrap().reputation;
+    let team3_initial_reputation = game
+        .teams
+        .iter()
+        .find(|t| t.id == "team3")
+        .unwrap()
+        .reputation;
 
     let div1 = League {
         id: "eng-1".to_string(),
@@ -664,7 +682,10 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
     let team3 = game.teams.iter().find(|t| t.id == "team3").unwrap();
 
     // Both divisions record season history with within-division positions.
-    let team3_record = team3.history.last().expect("second-division history recorded");
+    let team3_record = team3
+        .history
+        .last()
+        .expect("second-division history recorded");
     assert_eq!(team3_record.league_position, 1);
     assert_eq!(team3_record.season, 1);
 
@@ -731,7 +752,10 @@ fn relegated_user_receives_a_relegation_message() {
         .iter()
         .find(|m| m.id == "relegation_2")
         .expect("relegated user must be told");
-    assert_eq!(msg.subject_key.as_deref(), Some("be.msg.relegation.subject"));
+    assert_eq!(
+        msg.subject_key.as_deref(),
+        Some("be.msg.relegation.subject")
+    );
     assert_eq!(msg.body_key.as_deref(), Some("be.msg.relegation.body"));
     assert_eq!(
         msg.i18n_params.get("division"),
@@ -846,7 +870,11 @@ fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
         .find(|c| ofm_core::world_cup::is_world_cup_competition(c))
         .expect("a 2026 rollover stages the World Cup");
     assert_eq!(cup.name, "World Cup 2026");
-    assert_eq!(cup.participant_ids.len(), 48, "the 2026 format fields 48 nations");
+    assert_eq!(
+        cup.participant_ids.len(),
+        48,
+        "the 2026 format fields 48 nations"
+    );
     assert_eq!(cup.groups.len(), 12);
     assert!(
         !is_season_complete(&game),
@@ -988,7 +1016,10 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
         .iter()
         .find(|m| m.id == "season_payout_1")
         .expect("payout message for the user's division");
-    assert_eq!(payout.i18n_params.get("amount"), Some(&"2500000".to_string()));
+    assert_eq!(
+        payout.i18n_params.get("amount"),
+        Some(&"2500000".to_string())
+    );
 }
 
 #[test]
@@ -2222,11 +2253,9 @@ fn retired_player_creates_scout_candidate_with_deterministic_id() {
 
     let scout_id = "staff_retired_scout_retiree2";
     assert!(
-        game.staff
-            .iter()
-            .any(|s| s.id == scout_id
-                && matches!(s.role, domain::staff::StaffRole::Scout)
-                && s.team_id.is_none()),
+        game.staff.iter().any(|s| s.id == scout_id
+            && matches!(s.role, domain::staff::StaffRole::Scout)
+            && s.team_id.is_none()),
         "unattached scout '{}' should exist after season end",
         scout_id
     );
@@ -2260,14 +2289,20 @@ fn retiree_conversion_is_idempotent() {
         .iter()
         .filter(|m| m.id == "mgr_retired_idem1")
         .count();
-    assert_eq!(mgr_count, 1, "duplicate manager must not be created on second call");
+    assert_eq!(
+        mgr_count, 1,
+        "duplicate manager must not be created on second call"
+    );
 
     let scout_count = game
         .staff
         .iter()
         .filter(|s| s.id == "staff_retired_scout_idem1")
         .count();
-    assert_eq!(scout_count, 1, "duplicate scout must not be created on second call");
+    assert_eq!(
+        scout_count, 1,
+        "duplicate scout must not be created on second call"
+    );
 }
 
 #[test]
@@ -2280,7 +2315,10 @@ fn retired_player_with_no_career_is_not_converted() {
     process_end_of_season(&mut game);
 
     assert!(
-        !game.managers.iter().any(|m| m.id == "mgr_retired_no_career"),
+        !game
+            .managers
+            .iter()
+            .any(|m| m.id == "mgr_retired_no_career"),
         "players with no career entries must not become manager candidates"
     );
 }

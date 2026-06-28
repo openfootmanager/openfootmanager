@@ -757,7 +757,7 @@ fn high_ability_scout_attrs_are_close_to_real() {
         // Real pace is 70, with noise ±2 → should be in [68, 72]
         if let Some(pace) = report.pace {
             assert!(
-                pace >= 65 && pace <= 75,
+                (65..=75).contains(&pace),
                 "High-ability fuzzed pace {} should be close to real value 70",
                 pace
             );
@@ -784,17 +784,22 @@ fn low_ability_scout_attrs_have_more_noise() {
         .unwrap();
 
     // Just verify values are in valid range (1-99)
-    for val in [
+    for v in [
         report.pace,
         report.shooting,
         report.passing,
         report.dribbling,
         report.defending,
         report.physical,
-    ] {
-        if let Some(v) = val {
-            assert!(v >= 1 && v <= 99, "Fuzzed value {} should be in [1, 99]", v);
-        }
+    ]
+    .into_iter()
+    .flatten()
+    {
+        assert!(
+            (1..=99).contains(&v),
+            "Fuzzed value {} should be in [1, 99]",
+            v
+        );
     }
 }
 

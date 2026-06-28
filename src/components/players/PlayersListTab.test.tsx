@@ -16,7 +16,9 @@ import { createPlayer, createStaff, createTeam } from "../../test-utils/factorie
 import PlayersListTab from "./PlayersListTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: vi.fn((path: string) => path),
   invoke: vi.fn(),
+  isTauri: vi.fn(() => false),
 }));
 
 vi.mock("../../utils/backendI18n", () => ({

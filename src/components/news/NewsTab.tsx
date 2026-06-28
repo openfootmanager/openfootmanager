@@ -198,7 +198,7 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {/* Filters row */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Category pills */}

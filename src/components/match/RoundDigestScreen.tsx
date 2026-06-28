@@ -201,7 +201,7 @@ export default function RoundDigestScreen({
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* Header */}
       <header className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 px-6 py-4 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
             {headingParts && (
               <p className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-0.5">
@@ -236,7 +236,7 @@ export default function RoundDigestScreen({
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6 flex flex-col gap-6">
+        <div className="px-6 py-6 flex flex-col gap-6">
           {/* Your Result Hero Card */}
           <div
             className={`rounded-2xl border p-6 transition-colors duration-300 ${

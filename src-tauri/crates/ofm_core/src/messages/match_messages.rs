@@ -64,6 +64,7 @@ pub fn pre_match_message(
     .with_sender_i18n("be.sender.assistantManager", "be.role.assistantManager")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn match_result_message(
     fixture_id: &str,
     home_name: &str,

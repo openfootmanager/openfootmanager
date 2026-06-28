@@ -50,6 +50,16 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
         state.append_stats_state(capture);
     }
 
+    // apply_match_report_with_capture mutates the legacy `game.league` mirror
+    // (fixture status, fixture.result, standings). The modern `game.competitions`
+    // is the source of truth, and finish_live_match_day's sync_legacy_league
+    // would otherwise overwrite our changes with the stale competition copy.
+    if let Some(league) = game.league.clone() {
+        if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
+            game.competitions[idx] = league;
+        }
+    }
+
     let round_summary = build_round_summary_dto(&game, round_matchday, &round_previous_standings);
 
     ofm_core::turn::finish_live_match_day(&mut game);

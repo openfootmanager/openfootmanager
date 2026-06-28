@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { AlertTriangle } from "lucide-react";
 
 import type {
   PlayerData,
@@ -37,6 +38,9 @@ interface TransferCounterOfferModalProps {
   counterResult: TransferNegotiationResponseData["decision"] | "error" | null;
   counterError: string | null;
   counterLoading: boolean;
+  submitDisabled?: boolean;
+  blockingTitle?: string | null;
+  blockingDetail?: string | null;
   onSubmit: () => void;
   onClose: () => void;
 }
@@ -51,6 +55,9 @@ export default function TransferCounterOfferModal({
   counterResult,
   counterError,
   counterLoading,
+  submitDisabled = false,
+  blockingTitle = null,
+  blockingDetail = null,
   onSubmit,
   onClose,
 }: TransferCounterOfferModalProps) {
@@ -88,6 +95,20 @@ export default function TransferCounterOfferModal({
             </p>
           </div>
         </div>
+        {blockingTitle ? (
+          <div
+            role="alert"
+            className="mb-4 flex gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="text-xs">
+              <p className="font-heading font-bold uppercase tracking-wider">
+                {blockingTitle}
+              </p>
+              {blockingDetail ? <p className="mt-1">{blockingDetail}</p> : null}
+            </div>
+          </div>
+        ) : null}
         {counterFeedback ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
             {t("transfers.resumeNegotiationHint")}
@@ -141,8 +162,10 @@ export default function TransferCounterOfferModal({
         <div className="flex gap-2">
           <button
             onClick={onSubmit}
-            disabled={counterLoading || counterResult === "accepted"}
-            className="flex-1 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
+            disabled={
+              submitDisabled || counterLoading || counterResult === "accepted"
+            }
+            className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
           >
             {counterLoading
               ? t("transfers.submitting")

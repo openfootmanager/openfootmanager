@@ -363,8 +363,8 @@ export default function DashboardHeader({
         </div>
       </div>
 
-      <div className="relative mx-auto flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+      <div className="relative mx-auto flex-1 px-10">
+        <Search className="absolute left-13 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input
           type="text"
           placeholder={t("dashboard.searchPlaceholder")}

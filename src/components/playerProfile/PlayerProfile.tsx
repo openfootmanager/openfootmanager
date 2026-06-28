@@ -14,7 +14,10 @@ import {
   type ContractTerminationPreviewData,
 } from "../../services/contractService";
 import DashboardModalFrame from "../dashboard/DashboardModalFrame";
-import { Button } from "../ui";
+import { Button, Select } from "../ui";
+import { getRoleOptions } from "../../lib/playerRoles";
+import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
+import type { PlayerRole } from "../../store/types";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import {
@@ -30,6 +33,8 @@ import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
 import PlayerProfileContractCard from "./PlayerProfileContractCard";
 import PlayerProfileHeroCard from "./PlayerProfileHeroCard";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
+import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
+import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
 import PlayerProfileRecentMatchesCard, {
   type PlayerRecentMatchEntry,
 } from "./PlayerProfileRecentMatchesCard";
@@ -127,6 +132,8 @@ export default function PlayerProfile({
   const ovr = getPlayerOvr(player);
   const age = getPlayerAge(player.date_of_birth);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
+  const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
+  const tacticalRoleOptions = getRoleOptions(primaryPosition, currentTacticalRole);
   const teamName = getPlayerTeamName(
     gameState.teams,
     player.team_id,
@@ -188,6 +195,19 @@ export default function PlayerProfile({
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
   const managerTeamId = gameState.manager.team_id;
+  const contractOwnerTeamId =
+    player.active_loan?.parent_team_id ?? player.team_id ?? null;
+  const isContractOwnerClub = Boolean(
+    managerTeamId && contractOwnerTeamId === managerTeamId,
+  );
+  const isManagerOwnedProfile = player.active_loan
+    ? isContractOwnerClub
+    : isOwnClub || isContractOwnerClub;
+  const isManagerLoanClub = Boolean(
+    managerTeamId && player.active_loan?.loan_team_id === managerTeamId,
+  );
+  const isManagerSquadProfile =
+    isManagerOwnedProfile || isOwnClub || isManagerLoanClub;
   const hasAssistantManager = managerTeamId
     ? gameState.staff.some(
       (staff) => staff.team_id === managerTeamId && staff.role === "AssistantManager",
@@ -254,7 +274,7 @@ export default function PlayerProfile({
 
   useEffect(() => {
     if (
-      !isOwnClub ||
+      !isManagerOwnedProfile ||
       !startWithRenewalModal ||
       showRenewalModal ||
       hasConsumedInitialRenewalIntent
@@ -266,14 +286,14 @@ export default function PlayerProfile({
     openRenewalModal();
   }, [
     hasConsumedInitialRenewalIntent,
-    isOwnClub,
+    isManagerOwnedProfile,
     showRenewalModal,
     startWithRenewalModal,
   ]);
 
   useEffect(() => {
     if (
-      !isOwnClub ||
+      !isManagerOwnedProfile ||
       !startWithTerminationModal ||
       showTerminationModal ||
       hasConsumedInitialTerminationIntent
@@ -285,7 +305,7 @@ export default function PlayerProfile({
     void openTerminationModal();
   }, [
     hasConsumedInitialTerminationIntent,
-    isOwnClub,
+    isManagerOwnedProfile,
     showTerminationModal,
     startWithTerminationModal,
   ]);
@@ -612,6 +632,16 @@ export default function PlayerProfile({
     }
   }
 
+  async function handleTacticalRoleChange(role: PlayerRole): Promise<void> {
+    if (!onGameUpdate) return;
+    try {
+      const updated = await setPlayerRoleService(player.id, role);
+      onGameUpdate(updated);
+    } catch (error) {
+      console.error("Failed to set player role:", error);
+    }
+  }
+
   async function handleTerminateContract(): Promise<void> {
     if (contractActionSubmitting || !terminationPreview) {
       return;
@@ -633,7 +663,7 @@ export default function PlayerProfile({
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       <button
         onClick={onClose}
         className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
@@ -654,7 +684,7 @@ export default function PlayerProfile({
         weakFootValue={weakFootValue}
             annualSuffix={annualSuffix}
         language={i18n.language}
-        isOwnClub={isOwnClub || !onGameUpdate}
+        isOwnClub={isManagerSquadProfile || !onGameUpdate}
         scoutAvailability={scoutAvailability}
         scoutStatus={scoutStatus}
         scoutError={scoutError}
@@ -686,10 +716,40 @@ export default function PlayerProfile({
         t={t}
       />
 
+      {player.active_loan ? (
+        <PlayerProfileLoanStatusBanner
+          loan={player.active_loan}
+          teams={gameState.teams}
+          managerTeamId={managerTeamId}
+          language={i18n.language}
+          t={t}
+        />
+      ) : null}
+
       {/* Injury banner */}
       {player.injury ? (
         <PlayerProfileInjuryBanner injury={player.injury} t={t} />
       ) : null}
+
+      {isOwnClub && onGameUpdate && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-navy-600 dark:bg-navy-800">
+          <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-300">
+            {t("tactics.playerRoleLabel")}
+          </span>
+          <Select
+            selectSize="sm"
+            value={currentTacticalRole}
+            onChange={(e) => { void handleTacticalRoleChange(e.target.value as PlayerRole); }}
+            aria-label={t("tactics.playerRoleLabel")}
+          >
+            {tacticalRoleOptions.map((role) => (
+              <option key={role} value={role}>
+                {t(`tactics.playerRoles.${role}`, role)}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -705,7 +765,7 @@ export default function PlayerProfile({
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
-          isOwnClub={isOwnClub}
+          isOwnClub={isManagerOwnedProfile}
           isFreeAgent={isFreeAgent}
           hasLetExpireIntent={hasLetExpireIntent}
           actionSubmitting={contractActionSubmitting}
@@ -725,7 +785,7 @@ export default function PlayerProfile({
 
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
-          isOwnClub={isOwnClub}
+          isOwnClub={isManagerSquadProfile}
           isGk={primaryPosition === "Goalkeeper"}
           title={t("playerProfile.attributes")}
           averageLabel={t("common.average")}
@@ -740,6 +800,11 @@ export default function PlayerProfile({
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
+
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          t={t}
+        />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

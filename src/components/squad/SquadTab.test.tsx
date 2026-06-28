@@ -15,6 +15,10 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.letContractExpire") return "Let Expire";
       if (key === "playerProfile.reopenContractTalks") return "Reopen Talks";
       if (key === "playerProfile.terminateContract") return "Terminate Now";
+      if (key === "squad.addToLoanList") return "Add to Loan List";
+      if (key === "squad.removeFromLoanList") return "Remove from Loan List";
+      if (key === "transfers.loan") return "Loan";
+      if (key === "transfers.transfer") return "Transfer";
       if (key === "youthAcademy.delegateToYouthAcademy")
         return "Delegate to youth academy";
       if (key === "playerProfile.yearsRemaining") return "Years Remaining";
@@ -256,7 +260,7 @@ describe("SquadTab", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows annual wages and progressive injury details in the roster", () => {
+  it("shows progressive injury details in the roster", () => {
     const gameState = makeGameState();
     gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
       full_name: "Injured Keeper",
@@ -276,8 +280,6 @@ describe("SquadTab", () => {
       />,
     );
 
-    expect(screen.getByText("Wage/yr")).toBeInTheDocument();
-    expect(screen.getByText(/14K\/yr/)).toBeInTheDocument();
     expect(screen.getByText("Knee bruise")).toBeInTheDocument();
     expect(screen.getByText("10d")).toBeInTheDocument();
   });
@@ -327,7 +329,7 @@ describe("SquadTab", () => {
     expect(highIndex).toBeLessThan(lowIndex);
   });
 
-  it("shows contract inspection columns and renew entry points for expiring players", () => {
+  it("shows contract risk badge for expiring players and opens renewal from context menu", async () => {
     const onSelectPlayer = vi.fn();
     const gameState = makeGameState();
     gameState.clock.current_date = "2026-08-01";
@@ -335,13 +337,17 @@ describe("SquadTab", () => {
 
     renderSquadTab(gameState, { onSelectPlayer });
 
-    expect(screen.getByText("Years Remaining")).toBeInTheDocument();
-    expect(screen.getByText("Contract Risk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Renew Contract" })[0],
-    );
+    const playerRow = screen.getByText("Player gk1").closest("tr");
+    expect(playerRow).not.toBeNull();
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Renew Contract" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openRenewal: true,
@@ -374,6 +380,34 @@ describe("SquadTab", () => {
 
     expect(onSelectPlayer).toHaveBeenCalledWith("gk1", {
       openTermination: true,
+    });
+  });
+
+  it("shows loan-listed status immediately after using the roster context menu", async () => {
+    const gameState = makeGameState();
+    const updatedGameState = {
+      ...gameState,
+      players: gameState.players.map((player) =>
+        player.id === "gk1" ? { ...player, loan_listed: true } : player,
+      ),
+    };
+    const onGameUpdate = vi.fn();
+    renderSquadTab(gameState, { onGameUpdate });
+    mockedInvoke.mockResolvedValue(updatedGameState);
+
+    const playerRow = screen.getByText("Player gk1").closest("tr");
+    expect(playerRow).not.toBeNull();
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Add to Loan List" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("toggle_loan_list", {
+        playerId: "gk1",
+      });
+      expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
+      expect(
+        screen.getByText("Player gk1").closest("tr"),
+      ).toHaveTextContent("Loan");
     });
   });
 

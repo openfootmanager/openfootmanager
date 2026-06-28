@@ -386,6 +386,7 @@ fn complete_youth_scouting_assignment(
     ));
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_youth_recruitment_report(
     assignment_id: &str,
     scout_name: &str,
@@ -595,14 +596,13 @@ pub fn apply_youth_recruitment_response(
 
             let message = &mut game.messages[message_index];
             message.context.player_id = Some(player_id);
-            if let Some(prospects) = message.context.youth_prospects.as_mut() {
-                if let Some(updated_prospect) = prospects
+            if let Some(prospects) = message.context.youth_prospects.as_mut()
+                && let Some(updated_prospect) = prospects
                     .iter_mut()
                     .find(|candidate| candidate.id == prospect_id)
-                {
-                    updated_prospect.team_id = game.manager.team_id.clone();
-                    updated_prospect.squad_role = SquadRole::Youth;
-                }
+            {
+                updated_prospect.team_id = game.manager.team_id.clone();
+                updated_prospect.squad_role = SquadRole::Youth;
             }
             if let Some(action) = message.actions.get_mut(action_index) {
                 action.resolved = true;
@@ -711,6 +711,7 @@ fn youth_target_position_i18n_key(position: &Position) -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_scout_report(
     assignment_id: &str,
     scout_name: &str,
