@@ -445,6 +445,44 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn read_file_as_data_url_confines_reads_to_base_dir() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("ofm-asset-{unique}"));
+        std::fs::create_dir_all(base.join("assets/images")).unwrap();
+        let logo = base.join("assets/images/team.png");
+        std::fs::write(&logo, b"\x89PNG\r\n").unwrap();
+
+        // A logo inside the project dir resolves to a data URL.
+        let ok = read_file_as_data_url(
+            logo.to_str().unwrap().to_string(),
+            base.to_str().unwrap().to_string(),
+        );
+        assert!(ok.unwrap().starts_with("data:image/png;base64,"));
+
+        // A real, readable file that sits *outside* the base dir is rejected by
+        // the containment check (it is not a missing-file error).
+        let secret = std::env::temp_dir().join(format!("ofm-secret-{unique}.png"));
+        std::fs::write(&secret, b"\x89PNG\r\n").unwrap();
+        let denied = read_file_as_data_url(
+            secret.to_str().unwrap().to_string(),
+            base.to_str().unwrap().to_string(),
+        );
+        assert_eq!(denied, Err("be.error.invalidPath".to_string()));
+
+        // A relative traversal that escapes the base is likewise rejected.
+        let traversal = format!("{}/assets/images/../../../{}", base.display(),
+            secret.file_name().unwrap().to_str().unwrap());
+        let denied2 = read_file_as_data_url(traversal, base.to_str().unwrap().to_string());
+        assert_eq!(denied2, Err("be.error.invalidPath".to_string()));
+
+        std::fs::remove_dir_all(&base).ok();
+        std::fs::remove_file(&secret).ok();
+    }
 }
 
 /// Extract a `.ofm` archive to a temporary editing directory.
