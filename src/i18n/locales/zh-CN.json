@@ -1262,6 +1262,8 @@
     "loanMarket": "租借市场",
     "offers": "报价",
     "searchByName": "按姓名搜索...",
+    "affordableOnly": "在预算内",
+    "affordableOnlyHint": "隐藏挂牌转会但市值超过你的转会预算或俱乐部余额的球员。",
     "noPlayersListed": "你没有在转会或租借名单上的球员。",
     "goToProfile": "在“阵容”或“球员”中右键点击球员，将其挂牌转会或租借。",
     "noOffers": "当前没有活跃的转会报价。",

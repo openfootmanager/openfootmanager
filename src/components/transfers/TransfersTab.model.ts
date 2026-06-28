@@ -111,11 +111,26 @@ export function getCurrentTransferList(
   }
 }
 
+export interface TransferAffordability {
+  transferBudget: number;
+  finance: number;
+}
+
+// Mirrors ofm_core/src/transfers.rs: a bid `fee` exceeds the buyer's budget
+// when it overruns either the transfer budget or the club's cash balance.
+export function bidExceedsAffordability(
+  fee: number,
+  affordability: TransferAffordability,
+): boolean {
+  return fee > affordability.transferBudget || fee > affordability.finance;
+}
+
 export function filterTransferPlayers(
   players: PlayerData[],
   search: string,
   posFilter: string | null,
   availabilityFilter: TransferAvailabilityFilter = "all",
+  affordability: TransferAffordability | null = null,
 ): PlayerData[] {
   return players.filter((player) => {
     if (availabilityFilter === "transfer" && !player.transfer_listed) {
@@ -127,6 +142,15 @@ export function filterTransferPlayers(
     }
 
     if (availabilityFilter === "free_agent" && player.team_id !== null) {
+      return false;
+    }
+
+    if (
+      affordability &&
+      player.team_id !== null &&
+      player.transfer_listed &&
+      bidExceedsAffordability(player.market_value, affordability)
+    ) {
       return false;
     }
 

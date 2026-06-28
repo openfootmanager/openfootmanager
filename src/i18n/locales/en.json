@@ -1262,6 +1262,8 @@
     "loanMarket": "Loan Market",
     "offers": "Offers",
     "searchByName": "Search by name...",
+    "affordableOnly": "Within budget",
+    "affordableOnlyHint": "Hide transfer-listed players whose market value exceeds your transfer budget or club balance.",
     "noPlayersListed": "You have no players on the transfer or loan list.",
     "goToProfile": "Right-click a player in Squad or Players to list them for transfer or loan.",
     "noOffers": "No active transfer offers at this time.",

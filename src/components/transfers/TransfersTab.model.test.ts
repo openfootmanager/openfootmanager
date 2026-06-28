@@ -330,6 +330,69 @@ describe("TransfersTab.model", () => {
     ]);
   });
 
+  it("filters transfer-listed players whose market value exceeds the budget", () => {
+    const cheapTransfer = createPlayer({
+      id: "cheap-transfer",
+      team_id: "team-2",
+      transfer_listed: true,
+      market_value: 500_000,
+    });
+    const expensiveTransfer = createPlayer({
+      id: "expensive-transfer",
+      team_id: "team-2",
+      transfer_listed: true,
+      market_value: 50_000_000,
+    });
+    const loanOnly = createPlayer({
+      id: "loan-only",
+      team_id: "team-2",
+      loan_listed: true,
+      transfer_listed: false,
+      market_value: 50_000_000,
+    });
+    const freeAgent = createPlayer({
+      id: "free-agent",
+      team_id: null,
+      market_value: 50_000_000,
+    });
+
+    const players = [cheapTransfer, expensiveTransfer, loanOnly, freeAgent];
+
+    expect(
+      filterTransferPlayers(players, "", null, "all", {
+        transferBudget: 1_000_000,
+        finance: 10_000_000,
+      }).map((player) => player.id),
+    ).toEqual(["cheap-transfer", "loan-only", "free-agent"]);
+
+    expect(
+      filterTransferPlayers(players, "", null, "all").map((player) => player.id),
+    ).toEqual(["cheap-transfer", "expensive-transfer", "loan-only", "free-agent"]);
+  });
+
+  it("hides transfer-listed players whose fee would push the club into debt", () => {
+    const player = createPlayer({
+      id: "draining",
+      team_id: "team-2",
+      transfer_listed: true,
+      market_value: 5_000_000,
+    });
+
+    expect(
+      filterTransferPlayers([player], "", null, "all", {
+        transferBudget: 10_000_000,
+        finance: 1_000_000,
+      }),
+    ).toHaveLength(0);
+
+    expect(
+      filterTransferPlayers([player], "", null, "all", {
+        transferBudget: 10_000_000,
+        finance: 10_000_000,
+      }),
+    ).toHaveLength(1);
+  });
+
   it("filters a unified player market by availability", () => {
     const players = [
       createPlayer({

@@ -173,6 +173,7 @@ export default function TransfersTab({
     useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [affordableOnly, setAffordableOnly] = useState(false);
   const [marketPage, setMarketPage] = useState(1);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
@@ -716,8 +717,22 @@ export default function TransfersTab({
         search,
         posFilter,
         isPlayersView ? availabilityFilter : "all",
+        isPlayersView && affordableOnly && myTeam
+          ? {
+              transferBudget: myTeam.transfer_budget,
+              finance: myTeam.finance,
+            }
+          : null,
       ),
-    [availabilityFilter, currentList, isPlayersView, posFilter, search],
+    [
+      affordableOnly,
+      availabilityFilter,
+      currentList,
+      isPlayersView,
+      myTeam,
+      posFilter,
+      search,
+    ],
   );
   const marketTotalPages = Math.max(
     1,
@@ -1103,6 +1118,20 @@ export default function TransfersTab({
                 {filter.label} ({filter.count})
               </button>
             ))}
+            {myTeam && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAffordableOnly((prev) => !prev);
+                  setMarketPage(1);
+                }}
+                aria-pressed={affordableOnly}
+                title={t("transfers.affordableOnlyHint")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${affordableOnly ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
+              >
+                {t("transfers.affordableOnly")}
+              </button>
+            )}
           </div>
         )}
         <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">

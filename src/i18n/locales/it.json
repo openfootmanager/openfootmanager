@@ -1281,6 +1281,8 @@
     "loanMarket": "Mercato prestiti",
     "offers": "Offerte",
     "searchByName": "Cerca per nome...",
+    "affordableOnly": "Entro budget",
+    "affordableOnlyHint": "Nascondi i giocatori in lista trasferimenti il cui valore di mercato supera il tuo budget trasferimenti o il saldo del club.",
     "noPlayersListed": "Non hai giocatori nella lista trasferimenti o prestiti.",
     "goToProfile": "Fai clic destro su un giocatore in Rosa o Giocatori per inserirlo tra i cedibili o prestabili.",
     "noOffers": "Nessuna offerta di trasferimento attiva al momento.",
