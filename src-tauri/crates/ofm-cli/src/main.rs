@@ -348,8 +348,8 @@ const SCHEMA_STAFF: &str = r##"// Staff entity — place inside staff/*.json in 
                               //            | Attacking | GoalKeeping | Youth
   "dateOfBirth": "1975-01-01",// optional: ISO date (YYYY-MM-DD)
   "age": null,                // optional: integer (used if dateOfBirth absent)
-  "attributes": null          // optional: { "coaching": 60, "judging_ability": 60,
-                              //             "judging_potential": 60, "physiotherapy": 60 }
+  "attributes": null          // optional: { "coaching": 60, "judgingAbility": 60,
+                              //             "judgingPotential": 60, "physiotherapy": 60 }
 }"##;
 
 const SCHEMA_CONFEDERATION: &str = r##"// Confederation entity — place inside confederations/*.json in the "items" array.
@@ -415,12 +415,12 @@ const SCHEMA_NAMES: &str = r##"// Names entity — place inside names/*.json in 
   "pools": {
     // One entry per country ID. The engine merges all pools from all packages.
     "ENG": {
-      "firstNames": ["James", "Oliver", "Harry"],
-      "lastNames":  ["Smith", "Jones", "Williams"]
+      "first_names": ["James", "Oliver", "Harry"],
+      "last_names":  ["Smith", "Jones", "Williams"]
     },
     "BRA": {
-      "firstNames": ["Lucas", "Gabriel", "Pedro"],
-      "lastNames":  ["Silva", "Santos", "Oliveira"]
+      "first_names": ["Lucas", "Gabriel", "Pedro"],
+      "last_names":  ["Silva", "Santos", "Oliveira"]
     }
   }
 }"##;
