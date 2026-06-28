@@ -447,11 +447,14 @@ pub struct TransferOffer {
     pub status: TransferOfferStatus,
     #[serde(default = "default_transfer_offer_date")]
     pub date: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registration_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TransferOfferStatus {
     Pending,
+    PendingRegistration,
     Accepted,
     Rejected,
     Withdrawn,

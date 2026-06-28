@@ -1,3 +1,6 @@
+use crate::contract_wage_policy::{
+    renewal_wage_policy_error_message, wage_policy_allows_projection,
+};
 use crate::finances::calc_annual_wages;
 use crate::game::Game;
 use chrono::{Datelike, Duration, NaiveDate};
@@ -47,6 +50,58 @@ const LOAN_DEVELOPMENT_REPORT_INTERVAL_DAYS: i64 = 30;
 const OPENING_LOAN_LISTINGS_PER_AI_TEAM: usize = 2;
 const MIN_OPENING_LOAN_CONTRACT_RUNWAY_DAYS: i64 = 90;
 
+fn has_pending_loan_registration(player: &domain::player::Player) -> bool {
+    player
+        .loan_offers
+        .iter()
+        .any(|offer| offer.status == LoanOfferStatus::PendingRegistration)
+}
+
+fn has_pending_transfer_registration(player: &domain::player::Player) -> bool {
+    player
+        .transfer_offers
+        .iter()
+        .any(|offer| offer.status == TransferOfferStatus::PendingRegistration)
+}
+
+fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
+    player.active_loan.is_some() || has_pending_loan_registration(player)
+}
+
+fn player_has_pending_registration(player: &domain::player::Player) -> bool {
+    player_has_active_or_pending_loan(player) || has_pending_transfer_registration(player)
+}
+
+fn loan_wage_share(player: &domain::player::Player, wage_contribution_pct: u8) -> i64 {
+    (i64::from(player.wage) * i64::from(wage_contribution_pct)) / 100
+}
+
+fn validate_loan_borrower_affordability(
+    game: &Game,
+    borrower_team_id: &str,
+    player: &domain::player::Player,
+    wage_contribution_pct: u8,
+) -> Result<(), String> {
+    let borrower_team = game
+        .teams
+        .iter()
+        .find(|team| team.id == borrower_team_id)
+        .ok_or("be.error.teamNotFound")?;
+    let projected_wage_share = loan_wage_share(player, wage_contribution_pct);
+    let current_wage_bill = calc_annual_wages(game, borrower_team_id);
+    let projected_wage_bill = current_wage_bill.saturating_add(projected_wage_share);
+
+    if !wage_policy_allows_projection(borrower_team, current_wage_bill, projected_wage_bill) {
+        return Err(renewal_wage_policy_error_message(borrower_team));
+    }
+
+    if borrower_team.finance < projected_wage_share {
+        return Err(ERR_INSUFFICIENT_FUNDS.to_string());
+    }
+
+    Ok(())
+}
+
 /// Populate a small, deterministic opening loan market for AI clubs.
 ///
 /// This is intended for one-time career setup/save migration, not daily market
@@ -75,7 +130,7 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
             .filter(|player| {
                 player.team_id.as_deref() == Some(team_id.as_str())
                     && player.loan_listed
-                    && player.active_loan.is_none()
+                    && !player_has_pending_registration(player)
             })
             .count();
         let listings_needed = OPENING_LOAN_LISTINGS_PER_AI_TEAM.saturating_sub(existing_listings);
@@ -93,7 +148,7 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
                     && !player.retired
                     && !player.transfer_listed
                     && !player.loan_listed
-                    && player.active_loan.is_none()
+                    && !player_has_pending_registration(player)
                     && !starting_xi_ids.contains(&player.id)
                     && player.contract_end.as_deref().is_some_and(|contract_end| {
                         NaiveDate::parse_from_str(contract_end, "%Y-%m-%d").is_ok_and(|date| {
@@ -139,6 +194,8 @@ pub struct TransferNegotiationOutcome {
     pub decision: TransferNegotiationDecision,
     pub suggested_fee: Option<u64>,
     pub is_terminal: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registration_date: Option<String>,
     pub feedback: NegotiationFeedback,
 }
 
@@ -404,7 +461,7 @@ fn incoming_interest_score(current_date: NaiveDate, player: &domain::player::Pla
 }
 
 fn incoming_loan_interest_score(player: &domain::player::Player) -> i32 {
-    if !player.loan_listed || player.active_loan.is_some() {
+    if !player.loan_listed || player_has_pending_registration(player) {
         return 0;
     }
 
@@ -564,6 +621,33 @@ fn withdraw_pending_transfer_offers(player: &mut domain::player::Player) {
     }
 }
 
+fn finalize_successful_transfer_offer(
+    game: &mut Game,
+    player_id: &str,
+    accepted_offer_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+
+    for offer in &mut player.transfer_offers {
+        if offer.id != accepted_offer_id && offer.status == TransferOfferStatus::Pending {
+            offer.status = TransferOfferStatus::Withdrawn;
+            offer.suggested_counter_fee = None;
+        }
+    }
+
+    for offer in &mut player.loan_offers {
+        if offer.status == LoanOfferStatus::Pending {
+            offer.status = LoanOfferStatus::Withdrawn;
+        }
+    }
+
+    Ok(())
+}
+
 fn expire_stale_loan_offers(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
 
@@ -650,6 +734,7 @@ fn upsert_transfer_offer(
     last_manager_fee: Option<u64>,
     negotiation_round: u8,
     suggested_counter_fee: Option<u64>,
+    registration_date: Option<String>,
 ) -> String {
     if let Some(offer) = player.transfer_offers.iter_mut().find(|offer| {
         offer.from_team_id == from_team_id && offer.status == TransferOfferStatus::Pending
@@ -660,6 +745,7 @@ fn upsert_transfer_offer(
         offer.last_manager_fee = last_manager_fee;
         offer.negotiation_round = negotiation_round;
         offer.suggested_counter_fee = suggested_counter_fee;
+        offer.registration_date = registration_date;
         return offer.id.clone();
     }
 
@@ -674,6 +760,7 @@ fn upsert_transfer_offer(
         suggested_counter_fee,
         status,
         date: date.to_string(),
+        registration_date,
     });
     offer_id
 }
@@ -732,14 +819,14 @@ fn upsert_loan_offer(
     offer_id
 }
 
-fn transfer_window_is_open(game: &Game) -> bool {
+pub(crate) fn transfer_window_is_open(game: &Game) -> bool {
     matches!(
         game.season_context.transfer_window.status,
         TransferWindowStatus::Open | TransferWindowStatus::DeadlineDay
     )
 }
 
-fn loan_registration_date(game: &Game) -> Result<NaiveDate, String> {
+pub(crate) fn transfer_registration_date(game: &Game) -> Result<NaiveDate, String> {
     let current_date = game.clock.current_date.date_naive();
     if transfer_window_is_open(game) {
         return Ok(current_date);
@@ -759,6 +846,10 @@ fn loan_registration_date(game: &Game) -> Result<NaiveDate, String> {
     }
 
     Ok(registration_date)
+}
+
+fn loan_registration_date(game: &Game) -> Result<NaiveDate, String> {
+    transfer_registration_date(game)
 }
 
 pub fn evaluate_transfer_market(game: &mut Game) {
@@ -816,7 +907,7 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         let Some(owner_team_id) = player.team_id.as_deref() else {
             continue;
         };
-        if player.active_loan.is_some() {
+        if player_has_pending_registration(player) {
             continue;
         }
         let mut score = incoming_interest_score(current_date, player);
@@ -986,6 +1077,7 @@ fn create_incoming_user_offer(
             suggested_counter_fee: None,
             status: TransferOfferStatus::Pending,
             date: today.to_string(),
+            registration_date: None,
         });
 
         // Distinct clubs currently holding a live bid — the figure the digest
@@ -1124,12 +1216,14 @@ fn transfer_outcome(
     decision: TransferNegotiationDecision,
     suggested_fee: Option<u64>,
     is_terminal: bool,
+    registration_date: Option<String>,
     feedback: NegotiationFeedback,
 ) -> TransferNegotiationOutcome {
     TransferNegotiationOutcome {
         decision,
         suggested_fee,
         is_terminal,
+        registration_date,
         feedback,
     }
 }
@@ -1155,7 +1249,7 @@ pub fn project_transfer_bid_financial_impact(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.to_string());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_pending_registration(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
     }
 
@@ -1369,7 +1463,7 @@ pub fn make_loan_offer(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_pending_registration(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1393,6 +1487,11 @@ pub fn make_loan_offer(
         minimum_contribution
     };
     let accepted = wage_contribution_pct >= adjusted_minimum_contribution && buy_option_accepted;
+
+    if accepted {
+        validate_loan_borrower_affordability(game, &user_team_id, player, wage_contribution_pct)?;
+    }
+
     let status = if accepted {
         if register_immediately {
             LoanOfferStatus::Accepted
@@ -1462,9 +1561,10 @@ pub fn make_transfer_bid(
 ) -> Result<TransferNegotiationOutcome, String> {
     expire_stale_transfer_offers(game);
 
-    if !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
+    let current_date = game.clock.current_date.date_naive();
+    let registration_date = transfer_registration_date(game)?;
+    let register_immediately = registration_date == current_date;
+    let registration_date_string = registration_date.format("%Y-%m-%d").to_string();
 
     let user_team_id = game
         .manager
@@ -1482,8 +1582,12 @@ pub fn make_transfer_bid(
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
+    if has_pending_transfer_registration(player) {
+        return Err(ERR_OFFER_NOT_PENDING.into());
     }
 
     let owner_team_id = player.team_id.clone().ok_or(ERR_PLAYER_HAS_NO_TEAM)?;
@@ -1511,8 +1615,6 @@ pub fn make_transfer_bid(
         .ok_or("be.error.teamNotFound")?;
 
     let buyer_team = my_team;
-
-    let current_date = game.clock.current_date.date_naive();
 
     let threshold = minimum_acceptable_fee(current_date, player, owner_team, buyer_team);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
@@ -1546,45 +1648,66 @@ pub fn make_transfer_bid(
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
 
     if fee >= adjusted_threshold {
-        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+        let status = if register_immediately {
+            TransferOfferStatus::Accepted
+        } else {
+            TransferOfferStatus::PendingRegistration
+        };
+        let registration_date = (!register_immediately).then_some(registration_date_string.clone());
+        let offer_id = if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
             upsert_transfer_offer(
                 p,
                 &user_team_id,
                 fee,
-                TransferOfferStatus::Accepted,
+                status,
                 &date,
                 Some(fee),
                 round,
                 None,
-            );
+                registration_date,
+            )
+        } else {
+            return Err("be.error.playerNotFound".into());
+        };
+
+        if register_immediately {
+            execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
+            finalize_successful_transfer_offer(game, player_id, &offer_id)?;
+
+            let player_name = game
+                .players
+                .iter()
+                .find(|p| p.id == player_id)
+                .map(|p| p.full_name.clone())
+                .unwrap_or_default();
+
+            let msg = crate::messages::transfer_complete_message(&player_name, fee, &date);
+            game.messages.push(msg);
+        } else {
+            reserve_player_for_pending_transfer(game, player_id, &offer_id)?;
         }
-
-        // Execute transfer
-        execute_transfer(game, player_id, &user_team_id, &owner_team_id, fee)?;
-
-        // Generate message
-        let player_name = game
-            .players
-            .iter()
-            .find(|p| p.id == player_id)
-            .map(|p| p.full_name.clone())
-            .unwrap_or_default();
-
-        let msg = crate::messages::transfer_complete_message(&player_name, fee, &date);
-        game.messages.push(msg);
 
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
             None,
             true,
+            (!register_immediately).then_some(registration_date_string.clone()),
             build_transfer_feedback(
-                "transfers.transferFeedbackAcceptedHeadline",
-                "transfers.transferFeedbackAcceptedDetail",
+                if register_immediately {
+                    "transfers.transferFeedbackAcceptedHeadline"
+                } else {
+                    "transfers.transferFeedbackScheduledHeadline"
+                },
+                if register_immediately {
+                    "transfers.transferFeedbackAcceptedDetail"
+                } else {
+                    "transfers.transferFeedbackScheduledDetail"
+                },
                 NegotiationMood::Positive,
                 tension.saturating_sub(8),
                 patience.saturating_add(6).min(90),
                 round,
-                &[("fee", fee.to_string())],
+                &[("fee", fee.to_string()), ("date", registration_date_string)],
             ),
         ));
     }
@@ -1601,6 +1724,7 @@ pub fn make_transfer_bid(
                 Some(fee),
                 round,
                 Some(suggested_fee),
+                None,
             );
         }
 
@@ -1608,6 +1732,7 @@ pub fn make_transfer_bid(
             TransferNegotiationDecision::CounterOffer,
             Some(suggested_fee),
             false,
+            None,
             build_transfer_feedback(
                 "transfers.transferFeedbackCounterHeadline",
                 "transfers.transferFeedbackCounterDetail",
@@ -1642,6 +1767,7 @@ pub fn make_transfer_bid(
             Some(fee),
             round,
             None,
+            None,
         );
     }
 
@@ -1649,6 +1775,7 @@ pub fn make_transfer_bid(
         TransferNegotiationDecision::Rejected,
         None,
         true,
+        None,
         build_transfer_feedback(
             "transfers.transferFeedbackRejectedHeadline",
             "transfers.transferFeedbackRejectedDetail",
@@ -1670,10 +1797,6 @@ pub fn respond_to_offer(
 ) -> Result<(), String> {
     expire_stale_transfer_offers(game);
 
-    if accept && !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
-
     let user_team_id = game
         .manager
         .team_id
@@ -1686,8 +1809,12 @@ pub fn respond_to_offer(
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
+    if accept && has_pending_transfer_registration(player) {
+        return Err(ERR_OFFER_NOT_PENDING.into());
     }
 
     let offer = player
@@ -1699,6 +1826,13 @@ pub fn respond_to_offer(
     let from_team_id = offer.from_team_id.clone();
     let fee = offer.fee;
     let current_date = game.clock.current_date.date_naive();
+    let registration_date = if accept {
+        transfer_registration_date(game)?
+    } else {
+        current_date
+    };
+    let register_immediately = registration_date == current_date;
+    let registration_date_string = registration_date.format("%Y-%m-%d").to_string();
     let owner_team = game
         .teams
         .iter()
@@ -1716,14 +1850,28 @@ pub fn respond_to_offer(
         && let Some(o) = p.transfer_offers.iter_mut().find(|o| o.id == offer_id)
     {
         o.status = if accept {
-            TransferOfferStatus::Accepted
+            if register_immediately {
+                TransferOfferStatus::Accepted
+            } else {
+                TransferOfferStatus::PendingRegistration
+            }
         } else {
             TransferOfferStatus::Rejected
+        };
+        o.registration_date = if accept && !register_immediately {
+            Some(registration_date_string.clone())
+        } else {
+            None
         };
     }
 
     if accept {
-        execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
+        if register_immediately {
+            execute_transfer(game, player_id, &from_team_id, &user_team_id, fee)?;
+            finalize_successful_transfer_offer(game, player_id, offer_id)?;
+        } else {
+            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+        }
     } else if let Some(player) = game
         .players
         .iter_mut()
@@ -1756,7 +1904,7 @@ pub fn respond_to_loan_offer(
         .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if accept && player.active_loan.is_some() {
+    if accept && player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -1867,7 +2015,7 @@ pub fn counter_loan_offer(
         .find(|player| player.id == player_id && player.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if player_has_pending_registration(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
@@ -2053,10 +2201,6 @@ pub fn counter_offer(
 ) -> Result<TransferNegotiationOutcome, String> {
     expire_stale_transfer_offers(game);
 
-    if !transfer_window_is_open(game) {
-        return Err(ERR_TRANSFER_WINDOW_CLOSED.into());
-    }
-
     let user_team_id = game
         .manager
         .team_id
@@ -2069,8 +2213,12 @@ pub fn counter_offer(
         .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&user_team_id))
         .ok_or(ERR_PLAYER_NOT_OWNED_BY_USER)?;
 
-    if player.active_loan.is_some() {
+    if player_has_active_or_pending_loan(player) {
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
+    if has_pending_transfer_registration(player) {
+        return Err(ERR_OFFER_NOT_PENDING.into());
     }
 
     let offer = player
@@ -2091,6 +2239,9 @@ pub fn counter_offer(
 
     let buyer_team_id = buyer_team.id.clone();
     let current_date = game.clock.current_date.date_naive();
+    let registration_date = transfer_registration_date(game)?;
+    let register_immediately = registration_date == current_date;
+    let registration_date_string = registration_date.format("%Y-%m-%d").to_string();
     let round = offer.negotiation_round.max(1).saturating_add(1);
     let respected_signal = offer
         .suggested_counter_fee
@@ -2121,39 +2272,66 @@ pub fn counter_offer(
     {
         if accepted {
             offer.fee = requested_fee;
-            offer.status = TransferOfferStatus::Accepted;
+            offer.status = if register_immediately {
+                TransferOfferStatus::Accepted
+            } else {
+                TransferOfferStatus::PendingRegistration
+            };
             offer.last_manager_fee = Some(requested_fee);
             offer.negotiation_round = round;
             offer.suggested_counter_fee = None;
+            offer.registration_date = if register_immediately {
+                None
+            } else {
+                Some(registration_date_string.clone())
+            };
         } else if requested_fee > counter_window {
             offer.status = TransferOfferStatus::Rejected;
             offer.last_manager_fee = Some(requested_fee);
             offer.negotiation_round = round;
             offer.suggested_counter_fee = None;
+            offer.registration_date = None;
         }
         offer.date = date.clone();
     }
 
     if accepted {
-        execute_transfer(
-            game,
-            player_id,
-            &buyer_team_id,
-            &user_team_id,
-            requested_fee,
-        )?;
+        if register_immediately {
+            execute_transfer(
+                game,
+                player_id,
+                &buyer_team_id,
+                &user_team_id,
+                requested_fee,
+            )?;
+            finalize_successful_transfer_offer(game, player_id, offer_id)?;
+        } else {
+            reserve_player_for_pending_transfer(game, player_id, offer_id)?;
+        }
         return Ok(transfer_outcome(
             TransferNegotiationDecision::Accepted,
             None,
             true,
+            (!register_immediately).then_some(registration_date_string.clone()),
             build_transfer_feedback(
-                "transfers.transferFeedbackAcceptedHeadline",
-                "transfers.transferFeedbackAcceptedDetail",
+                if register_immediately {
+                    "transfers.transferFeedbackAcceptedHeadline"
+                } else {
+                    "transfers.transferFeedbackScheduledHeadline"
+                },
+                if register_immediately {
+                    "transfers.transferFeedbackAcceptedDetail"
+                } else {
+                    "transfers.transferFeedbackScheduledDetail"
+                },
                 NegotiationMood::Positive,
                 tension.saturating_sub(8),
                 patience.saturating_add(8).min(92),
                 round,
-                &[("fee", requested_fee.to_string())],
+                &[
+                    ("fee", requested_fee.to_string()),
+                    ("date", registration_date_string),
+                ],
             ),
         ));
     }
@@ -2174,6 +2352,7 @@ pub fn counter_offer(
             offer.last_manager_fee = Some(requested_fee);
             offer.negotiation_round = round;
             offer.suggested_counter_fee = Some(suggested_fee);
+            offer.registration_date = None;
             offer.date = date;
         }
 
@@ -2181,6 +2360,7 @@ pub fn counter_offer(
             TransferNegotiationDecision::CounterOffer,
             Some(suggested_fee),
             false,
+            None,
             build_transfer_feedback(
                 "transfers.transferFeedbackCounterHeadline",
                 "transfers.transferFeedbackCounterDetail",
@@ -2197,6 +2377,7 @@ pub fn counter_offer(
         TransferNegotiationDecision::Rejected,
         None,
         true,
+        None,
         build_transfer_feedback(
             "transfers.transferFeedbackRejectedHeadline",
             "transfers.transferFeedbackRejectedDetail",
@@ -2363,6 +2544,142 @@ fn reserve_player_for_pending_loan(
     Ok(())
 }
 
+fn reserve_player_for_pending_transfer(
+    game: &mut Game,
+    player_id: &str,
+    _accepted_offer_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+
+    if player_has_active_or_pending_loan(player) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
+    Ok(())
+}
+
+fn transfer_buyer_can_register(game: &Game, buyer_team_id: &str, fee: u64) -> bool {
+    let Ok(fee_i64) = i64::try_from(fee) else {
+        return false;
+    };
+
+    game.teams
+        .iter()
+        .find(|team| team.id == buyer_team_id)
+        .is_some_and(|team| team.finance >= fee_i64 && team.transfer_budget >= fee_i64)
+}
+
+pub fn process_pending_transfer_registrations(game: &mut Game) {
+    if !transfer_window_is_open(game) {
+        return;
+    }
+
+    let current_date = game.clock.current_date.date_naive();
+    let today = current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = game.manager.team_id.clone();
+    type DueTransferRegistration = (String, String, String, u64);
+
+    let due_registrations: Vec<DueTransferRegistration> = game
+        .players
+        .iter()
+        .flat_map(|player| {
+            player.transfer_offers.iter().filter_map(|offer| {
+                if offer.status != TransferOfferStatus::PendingRegistration {
+                    return None;
+                }
+
+                let registration_date = offer.registration_date.as_deref()?;
+                let registration_date =
+                    NaiveDate::parse_from_str(registration_date, "%Y-%m-%d").ok()?;
+                if registration_date > current_date {
+                    return None;
+                }
+
+                Some((
+                    player.id.clone(),
+                    offer.id.clone(),
+                    offer.from_team_id.clone(),
+                    offer.fee,
+                ))
+            })
+        })
+        .collect();
+
+    for (player_id, offer_id, buyer_team_id, fee) in due_registrations {
+        let player_snapshot = game
+            .players
+            .iter()
+            .find(|player| player.id == player_id)
+            .cloned();
+        let from_team_id = player_snapshot.as_ref().and_then(|player| {
+            player
+                .team_id
+                .as_deref()
+                .filter(|team_id| *team_id != buyer_team_id)
+                .map(str::to_string)
+        });
+        let agreement_is_valid = player_snapshot.as_ref().is_some_and(|player| {
+            player.active_loan.is_none()
+                && !has_pending_loan_registration(player)
+                && from_team_id.is_some()
+                && transfer_buyer_can_register(game, &buyer_team_id, fee)
+        });
+
+        let executed = if agreement_is_valid {
+            if let Some(from_team_id) = from_team_id.as_deref() {
+                if execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee).is_ok() {
+                    finalize_successful_transfer_offer(game, &player_id, &offer_id).is_ok()
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if executed && user_team_id.as_deref() == Some(buyer_team_id.as_str()) {
+            let player_name = game
+                .players
+                .iter()
+                .find(|player| player.id == player_id)
+                .map(|player| player.full_name.clone())
+                .unwrap_or_default();
+            game.messages
+                .push(crate::messages::transfer_complete_message(
+                    &player_name,
+                    fee,
+                    &today,
+                ));
+        }
+
+        if let Some(player) = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == player_id)
+            && let Some(offer) = player
+                .transfer_offers
+                .iter_mut()
+                .find(|offer| offer.id == offer_id)
+        {
+            offer.status = if executed {
+                TransferOfferStatus::Accepted
+            } else {
+                TransferOfferStatus::Withdrawn
+            };
+            if executed {
+                offer.registration_date = Some(today.clone());
+            }
+            offer.suggested_counter_fee = None;
+        }
+    }
+}
+
 pub fn process_pending_loan_registrations(game: &mut Game) {
     if !transfer_window_is_open(game) {
         return;
@@ -2370,6 +2687,7 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
 
     let current_date = game.clock.current_date.date_naive();
     let today = current_date.format("%Y-%m-%d").to_string();
+    let user_team_id = game.manager.team_id.clone();
     type DueLoanRegistration = (String, String, String, String, String, u8, Option<u64>);
 
     let due_registrations: Vec<DueLoanRegistration> = game
@@ -2414,8 +2732,18 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
             .iter()
             .find(|player| player.id == player_id)
             .is_some_and(|player| {
+                let borrower_can_register = user_team_id.as_deref() != Some(loan_team_id.as_str())
+                    || validate_loan_borrower_affordability(
+                        game,
+                        &loan_team_id,
+                        player,
+                        wage_contribution_pct,
+                    )
+                    .is_ok();
+
                 player.team_id.as_deref() == Some(&parent_team_id)
                     && player.active_loan.is_none()
+                    && borrower_can_register
                     && NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
                         .ok()
                         .is_some_and(|loan_end_date| {
@@ -2999,6 +3327,11 @@ fn execute_transfer(
         .find(|player| player.id == player_id)
         .cloned()
         .ok_or("be.error.playerNotFound")?;
+
+    if player_has_active_or_pending_loan(&player_snapshot) {
+        return Err(ERR_PLAYER_ALREADY_LOANED.into());
+    }
+
     let from_team_name = game
         .teams
         .iter()

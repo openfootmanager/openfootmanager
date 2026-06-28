@@ -1,5 +1,5 @@
 use domain::negotiation::NegotiationFeedback;
-use domain::player::Position;
+use domain::player::{LoanOfferStatus, Position};
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -19,12 +19,23 @@ const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingObjective";
 const INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR: &str =
     "be.error.transfers.invalidYouthScoutingTargetPosition";
+const ERR_PLAYER_NOT_OWNED_BY_USER: &str = "be.error.transfers.playerNotOwnedByUser";
+const ERR_PLAYER_ALREADY_LOANED: &str = "be.error.transfers.playerAlreadyLoaned";
+
+fn player_has_active_or_pending_loan(player: &domain::player::Player) -> bool {
+    player.active_loan.is_some()
+        || player
+            .loan_offers
+            .iter()
+            .any(|offer| offer.status == LoanOfferStatus::PendingRegistration)
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TransferNegotiationCommandResponse {
     pub decision: TransferNegotiationDecision,
     pub suggested_fee: Option<u64>,
     pub is_terminal: bool,
+    pub registration_date: Option<String>,
     pub feedback: NegotiationFeedback,
     pub game: Game,
 }
@@ -79,12 +90,27 @@ pub fn toggle_loan_list(
 pub fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
     mutate_active_game(state, |game| {
-        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-            p.loan_listed = !p.loan_listed;
-            Ok(())
-        } else {
-            Err("be.error.playerNotFound".into())
+        let user_team_id = game
+            .manager
+            .team_id
+            .clone()
+            .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+        let player = game
+            .players
+            .iter_mut()
+            .find(|player| player.id == player_id)
+            .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+
+        if player.team_id.as_deref() != Some(user_team_id.as_str()) {
+            return Err(ERR_PLAYER_NOT_OWNED_BY_USER.to_string());
         }
+
+        if player_has_active_or_pending_loan(player) {
+            return Err(ERR_PLAYER_ALREADY_LOANED.to_string());
+        }
+
+        player.loan_listed = !player.loan_listed;
+        Ok(())
     })
 }
 
@@ -353,6 +379,7 @@ fn map_transfer_negotiation_response(
         decision: outcome.decision,
         suggested_fee: outcome.suggested_fee,
         is_terminal: outcome.is_terminal,
+        registration_date: outcome.registration_date,
         feedback: outcome.feedback,
         game,
     }
@@ -479,7 +506,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::player::{
-        LoanOffer, LoanOfferStatus, Player, PlayerAttributes, Position, TransferOffer,
+        ActiveLoan, LoanOffer, LoanOfferStatus, Player, PlayerAttributes, Position, TransferOffer,
         TransferOfferStatus,
     };
     use domain::season::TransferWindowStatus;
@@ -567,6 +594,7 @@ mod tests {
             suggested_counter_fee: None,
             status: TransferOfferStatus::Pending,
             date: "2026-08-01".to_string(),
+            registration_date: None,
         });
         player
     }
@@ -687,6 +715,32 @@ mod tests {
                 .and_then(|player| player.team_id.clone())
                 .as_deref(),
             Some("team-1")
+        );
+    }
+
+    #[test]
+    fn make_transfer_bid_internal_preserves_scheduled_registration_date() {
+        let state = StateManager::new();
+        let mut game = make_bid_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
+        state.set_game(game);
+
+        let response = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
+
+        assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
+        assert_eq!(response.registration_date.as_deref(), Some("2027-01-01"));
+        assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
+        assert_eq!(
+            response.game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::PendingRegistration
+        );
+        assert_eq!(
+            response.game.players[0].transfer_offers[0]
+                .registration_date
+                .as_deref(),
+            Some("2027-01-01")
         );
     }
 
@@ -970,6 +1024,92 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("stored player should exist");
         assert!(stored_player.loan_listed);
+    }
+
+    #[test]
+    fn toggle_loan_list_internal_rejects_other_club_player() {
+        let state = StateManager::new();
+        state.set_game(make_bid_game());
+
+        let error = toggle_loan_list_internal(&state, "player-2")
+            .expect_err("loan listing another club's player should fail");
+
+        assert_eq!(error, "be.error.transfers.playerNotOwnedByUser");
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-2")
+            .expect("stored player should exist");
+        assert!(!stored_player.loan_listed);
+    }
+
+    #[test]
+    fn toggle_loan_list_internal_rejects_active_loan_player() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].active_loan = Some(ActiveLoan {
+            parent_team_id: "team-1".to_string(),
+            loan_team_id: "team-2".to_string(),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        state.set_game(game);
+
+        let error = toggle_loan_list_internal(&state, "player-1")
+            .expect_err("active loan player should not be loan-listed");
+
+        assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("stored player should exist");
+        assert!(!stored_player.loan_listed);
+    }
+
+    #[test]
+    fn toggle_loan_list_internal_rejects_pending_loan_registration_player() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.players[0].loan_offers.push(LoanOffer {
+            id: "pending-loan-registration".to_string(),
+            from_team_id: "team-2".to_string(),
+            parent_team_id: "team-1".to_string(),
+            start_date: "2026-09-01".to_string(),
+            end_date: "2027-01-01".to_string(),
+            wage_contribution_pct: 75,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::PendingRegistration,
+            date: "2026-08-01".to_string(),
+        });
+        state.set_game(game);
+
+        let error = toggle_loan_list_internal(&state, "player-1")
+            .expect_err("pending loan registration player should not be loan-listed");
+
+        assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
+        let stored_game = state.get_game(|game| game.clone()).expect("stored game");
+        let stored_player = stored_game
+            .players
+            .iter()
+            .find(|player| player.id == "player-1")
+            .expect("stored player should exist");
+        assert!(!stored_player.loan_listed);
     }
 
     #[test]

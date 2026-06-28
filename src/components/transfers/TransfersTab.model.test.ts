@@ -249,6 +249,11 @@ describe("TransfersTab.model", () => {
     expect(collections.loanPlayers.map((player) => player.id)).toEqual([
       "loan-player",
     ]);
+    expect(collections.availablePlayers.map((player) => player.id)).toEqual([
+      "market-player",
+      "loan-player",
+      "free-agent",
+    ]);
     expect(collections.playersWithOffers.map((player) => player.id)).toEqual([
       "offered-player",
       "loan-offered-player",
@@ -262,6 +267,11 @@ describe("TransfersTab.model", () => {
       marketPlayers: [createPlayer({ id: "market" })],
       freeAgentPlayers: [createPlayer({ id: "free-agent", team_id: null })],
       loanPlayers: [createPlayer({ id: "loan-market" })],
+      availablePlayers: [
+        createPlayer({ id: "market" }),
+        createPlayer({ id: "loan-market" }),
+        createPlayer({ id: "free-agent", team_id: null }),
+      ],
       playersWithOffers: [createPlayer({ id: "offers" })],
     };
 
@@ -269,9 +279,7 @@ describe("TransfersTab.model", () => {
       getCurrentTransferList(view, collections).map((player) => player.id);
 
     expect(getIds("my_list")).toEqual(["transfer", "loan"]);
-    expect(getIds("market")).toEqual(["market"]);
-    expect(getIds("free_agents")).toEqual(["free-agent"]);
-    expect(getIds("loans")).toEqual(["loan-market"]);
+    expect(getIds("players")).toEqual(["market", "loan-market", "free-agent"]);
     expect(getIds("offers")).toEqual(["offers"]);
   });
 
@@ -320,5 +328,39 @@ describe("TransfersTab.model", () => {
     expect(filterTransferPlayers(players, "ca", "Forward").map((player) => player.id)).toEqual([
       "forward",
     ]);
+  });
+
+  it("filters a unified player market by availability", () => {
+    const players = [
+      createPlayer({
+        id: "transfer",
+        team_id: "team-2",
+        transfer_listed: true,
+      }),
+      createPlayer({
+        id: "loan",
+        team_id: "team-2",
+        loan_listed: true,
+      }),
+      createPlayer({
+        id: "free-agent",
+        team_id: null,
+        contract_end: null,
+      }),
+    ];
+
+    expect(
+      filterTransferPlayers(players, "", null, "transfer").map(
+        (player) => player.id,
+      ),
+    ).toEqual(["transfer"]);
+    expect(
+      filterTransferPlayers(players, "", null, "loan").map((player) => player.id),
+    ).toEqual(["loan"]);
+    expect(
+      filterTransferPlayers(players, "", null, "free_agent").map(
+        (player) => player.id,
+      ),
+    ).toEqual(["free-agent"]);
   });
 });

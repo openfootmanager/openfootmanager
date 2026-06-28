@@ -1,12 +1,25 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  PlayerData,
+  StaffData,
+  TeamData,
+} from "../../store/gameStore";
 import TransfersTab from "./TransfersTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: vi.fn((path: string) => path),
   invoke: vi.fn(),
+  isTauri: vi.fn(() => false),
 }));
 
 vi.mock("../../utils/backendI18n", () => ({
@@ -23,6 +36,11 @@ vi.mock("react-i18next", () => ({
       if (key === "common.action") return "Action";
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
+      if (key === "scouting.nextPage") return "Next page";
+      if (key === "scouting.previousPage") return "Previous page";
+      if (key === "players.showingRange")
+        return `Showing ${params?.from}-${params?.to} of ${params?.total}`;
+      if (key === "dashboard.players") return "Players";
       if (key === "transfers.myTransferList") return "My Transfer List";
       if (key === "transfers.transferMarket") return "Transfer Market";
       if (key === "transfers.myTransferList") return "My Transfer List";
@@ -38,6 +56,7 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.close") return "Close";
       if (key === "transfers.counter") return "Counter";
       if (key === "transfers.offerContract") return "Offer Contract";
+      if (key === "transfers.makeOffer") return "Make Offer";
       if (key === "transfers.bid") return "Bid";
       if (key === "transfers.loanOffer") return "Loan Offer";
       if (key === "transfers.counterLoanOffer") return "Counter Loan Offer";
@@ -47,20 +66,30 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.loanEndDate") return "Loan End Date";
       if (key === "transfers.loanPeriod") return "Loan Length";
       if (key === "transfers.loanPeriodThreeMonths") return "3 months";
-      if (key === "transfers.loanPeriodJanuaryWindow") return "Until January window";
-      if (key === "transfers.loanPeriodEndOfSeason") return "Until end of season";
+      if (key === "transfers.loanPeriodJanuaryWindow")
+        return "Until January window";
+      if (key === "transfers.loanPeriodEndOfSeason")
+        return "Until end of season";
       if (key === "transfers.loanPeriodTwelveMonths") return "12 months";
-      if (key === "transfers.loanPeriodCurrentOffer") return "Current offer date";
-      if (key === "transfers.loanEndsOn") return `Loan ends on ${params?.endDate}`;
-      if (key === "transfers.noLoanPeriodAvailable") return "No valid loan length.";
-      if (key === "transfers.loanPeriodUnavailableRules") return "outside loan rules";
-      if (key === "transfers.loanPeriodUnavailableContract") return "contract expires first";
-      if (key === "transfers.loanWageContribution") return "Wage Contribution (%)";
-      if (key === "transfers.loanWageContributionManual") return "Manual percentage";
+      if (key === "transfers.loanPeriodCurrentOffer")
+        return "Current offer date";
+      if (key === "transfers.loanEndsOn")
+        return `Loan ends on ${params?.endDate}`;
+      if (key === "transfers.noLoanPeriodAvailable")
+        return "No valid loan length.";
+      if (key === "transfers.loanPeriodUnavailableRules")
+        return "outside loan rules";
+      if (key === "transfers.loanPeriodUnavailableContract")
+        return "contract expires first";
+      if (key === "transfers.loanWageContribution")
+        return "Wage Contribution (%)";
+      if (key === "transfers.loanWageContributionManual")
+        return "Manual percentage";
       if (key === "transfers.loanWageSummary")
         return `${params?.percent}% wages: ${params?.wage}`;
       if (key === "transfers.loanToBuyOption") return "Loan-to-buy option";
-      if (key === "transfers.loanToBuyOptionDesc") return "Include a permanent purchase clause.";
+      if (key === "transfers.loanToBuyOptionDesc")
+        return "Include a permanent purchase clause.";
       if (key === "transfers.buyOptionFee") return "Buy Option Fee";
       if (key === "transfers.buyOptionFeeShort") return `Option ${params?.fee}`;
       if (key === "transfers.loanBuyOptionSummary")
@@ -70,8 +99,10 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.submitLoanCounter") return "Submit Counter";
       if (key === "transfers.loanOfferAccepted") return "Loan accepted";
       if (key === "transfers.loanOfferRejected") return "Loan rejected";
-      if (key === "transfers.loanCounterAccepted") return "Loan counter accepted";
-      if (key === "transfers.loanCounterRejected") return "Loan counter rejected";
+      if (key === "transfers.loanCounterAccepted")
+        return "Loan counter accepted";
+      if (key === "transfers.loanCounterRejected")
+        return "Loan counter rejected";
       if (key === "transfers.loanCounterCountered")
         return "They pushed back with adjusted loan terms.";
       if (key === "transfers.loanCounterSuggestedTerms")
@@ -94,9 +125,12 @@ vi.mock("react-i18next", () => ({
         return "This bid exceeds your transfer budget";
       if (key === "transfers.bidImpactOverBalance")
         return "This bid would push the club into debt";
-      if (key === "transfers.resumeNegotiationHint") return "Talks are still live with this club.";
-      if (key === "transfers.resumeNegotiationHeadline") return "The other club are waiting for your next move.";
-      if (key === "transfers.resumeNegotiationDetail") return `Their last signal pointed toward ${params?.fee}.`;
+      if (key === "transfers.resumeNegotiationHint")
+        return "Talks are still live with this club.";
+      if (key === "transfers.resumeNegotiationHeadline")
+        return "The other club are waiting for your next move.";
+      if (key === "transfers.resumeNegotiationDetail")
+        return `Their last signal pointed toward ${params?.fee}.`;
       if (key === "transfers.negotiationHistory") return "Recent exchange";
       if (key === "transfers.lastBidLabel") return "Your last bid";
       if (key === "transfers.lastClubSignalLabel") return "Their last signal";
@@ -108,16 +142,24 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.offerStatusAccepted") return "Accepted";
       if (key === "transfers.offerStatusRejected") return "Rejected";
       if (key === "transfers.offerStatusWithdrawn") return "Talks cooled off";
-      if (key === "transfers.negotiationExpiredError") return "Talks cooled off before you could answer. Start a new negotiation if the club comes back.";
+      if (key === "transfers.negotiationExpiredError")
+        return "Talks cooled off before you could answer. Start a new negotiation if the club comes back.";
       if (key === "transfers.acceptOffer") return "Accept";
       if (key === "transfers.rejectOffer") return "Reject";
       if (key === "transfers.negotiationPulse") return "Negotiation pulse";
       if (key === "transfers.negotiationRound") return `Round ${params?.count}`;
       if (key === "transfers.negotiationPatience") return "Patience";
       if (key === "transfers.negotiationTension") return "Tension";
-      if (key === "transfers.counterCountered") return "They pushed back with a lower number.";
-      if (key === "transfers.transferFeedbackCounterHeadline") return "They want more before shaking hands.";
-      if (key === "transfers.transferFeedbackCounterDetail") return `The bid was close enough to keep talking, but their side are signalling a price nearer ${params?.fee}.`;
+      if (key === "transfers.counterCountered")
+        return "They pushed back with a lower number.";
+      if (key === "transfers.transferFeedbackCounterHeadline")
+        return "They want more before shaking hands.";
+      if (key === "transfers.transferFeedbackCounterDetail")
+        return `The bid was close enough to keep talking, but their side are signalling a price nearer ${params?.fee}.`;
+      if (key === "transfers.transferFeedbackScheduledHeadline")
+        return "Deal agreed for the next registration window.";
+      if (key === "transfers.transferFeedbackScheduledDetail")
+        return `The terms are accepted. Registration is scheduled for ${params?.date}.`;
       if (key === "season.windowClosed") return "Transfer window closed";
       if (key === "season.windowOpensInDays")
         return `${params?.count} days until the window opens`;
@@ -133,7 +175,8 @@ vi.mock("react-i18next", () => ({
         return `Loan agreed. Registration scheduled for ${params?.date}.`;
       if (key === "squad.viewProfile") return "View profile";
       if (key === "squad.addToTransferList") return "Add to transfer list";
-      if (key === "squad.removeFromTransferList") return "Remove from transfer list";
+      if (key === "squad.removeFromTransferList")
+        return "Remove from transfer list";
       if (key === "squad.addToLoanList") return "Add to loan list";
       if (key === "squad.removeFromLoanList") return "Remove from loan list";
       if (key === "scouting.scoutBtn") return "Scout";
@@ -141,7 +184,8 @@ vi.mock("react-i18next", () => ({
       if (key === "scouting.noScoutsFree") return "No scouts free";
       if (key === "playerProfile.renewalWage") return "Offered Wage";
       if (key === "playerProfile.renewalLength") return "Contract Length";
-      if (key === "playerProfile.renewalProjectionTitle") return "Projected financial impact";
+      if (key === "playerProfile.renewalProjectionTitle")
+        return "Projected financial impact";
       if (key === "playerProfile.renewalProjectionWageBill")
         return `Weekly wage bill ${params?.before} -> ${params?.after}`;
       if (key === "playerProfile.renewalProjectionBudgetUsage")
@@ -149,7 +193,8 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalProjectionRunway")
         return `Cash runway ${params?.before} -> ${params?.after}`;
       if (key === "playerProfile.renewalBudgetWarning") return "Budget warning";
-      if (key === "playerProfile.renewalConversationTitle") return "Negotiation pulse";
+      if (key === "playerProfile.renewalConversationTitle")
+        return "Negotiation pulse";
       if (key === "playerProfile.renewalRound") return `Round ${params?.count}`;
       if (key === "playerProfile.renewalPatience") return "Patience";
       if (key === "playerProfile.renewalTension") return "Tension";
@@ -159,6 +204,11 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.renewalCounter")
         return `Wants more: ${params?.wage} for ${params?.years} years`;
       if (key === "playerProfile.renewalBlocked") return "Talks blocked";
+      if (key === "be.error.transfers.playerAlreadyLoaned")
+        return "Player already loaned";
+      if (params && typeof params === "object" && "defaultValue" in params) {
+        return String(params.defaultValue);
+      }
       return key;
     },
     i18n: { language: "en" },
@@ -166,6 +216,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 const mockedInvoke = vi.mocked(invoke);
+const mockedIsTauri = vi.mocked(isTauri);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -305,7 +356,9 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
   };
 }
 
-function createGameState(players: PlayerData[] = [createPlayer()]): GameStateData {
+function createGameState(
+  players: PlayerData[] = [createPlayer()],
+): GameStateData {
   return {
     clock: {
       current_date: "2026-08-01T12:00:00Z",
@@ -372,49 +425,64 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
 describe("TransfersTab", function (): void {
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
-    mockedInvoke.mockImplementation(
-      async (command: string, payload?: any) => {
-        if (command === "preview_transfer_bid_financial_impact") {
-          const fee = Number(payload?.fee ?? 0);
-          const transferBudgetBefore = 2000000;
-          const financeBefore = 5000000;
-          return {
-            projection: {
-              transfer_budget_before: transferBudgetBefore,
-              transfer_budget_after: transferBudgetBefore - fee,
-              finance_before: financeBefore,
-              finance_after: financeBefore - fee,
-              annual_wage_bill_before: 1000,
-              annual_wage_bill_after: 2000,
-              annual_wage_budget: 50000,
-              projected_wage_budget_usage_pct: 4,
-              exceeds_transfer_budget: transferBudgetBefore - fee < 0,
-              exceeds_finance: financeBefore - fee < 0,
-            },
-          };
-        }
+    mockedIsTauri.mockReturnValue(false);
+    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+      if (command === "generate_player_portrait") {
+        const playerId = String(payload?.request?.playerId ?? "player");
+        return {
+          generator: "test",
+          cacheKey: playerId,
+          sourceId: playerId,
+          cachePath: `/tmp/${playerId}.png`,
+          dataUrl: null,
+          generated: true,
+          renderMs: 10,
+          elapsedMs: 10,
+          width: 128,
+          height: 128,
+        };
+      }
 
-        if (command === "preview_free_agent_contract_impact") {
-          const wage = Number(payload?.weeklyWage ?? 0);
-          return {
-            projection: {
-              current_annual_wage_bill: 0,
-              projected_annual_wage_bill: wage,
-              annual_wage_budget: 50000,
-              annual_soft_cap: 55000,
-              current_weekly_wage_spend: 0,
-              projected_weekly_wage_spend: wage,
-              current_cash_runway_weeks: 40,
-              projected_cash_runway_weeks: 30,
-              currently_over_budget: false,
-              policy_allows: true,
-            },
-          };
-        }
+      if (command === "preview_transfer_bid_financial_impact") {
+        const fee = Number(payload?.fee ?? 0);
+        const transferBudgetBefore = 2000000;
+        const financeBefore = 5000000;
+        return {
+          projection: {
+            transfer_budget_before: transferBudgetBefore,
+            transfer_budget_after: transferBudgetBefore - fee,
+            finance_before: financeBefore,
+            finance_after: financeBefore - fee,
+            annual_wage_bill_before: 1000,
+            annual_wage_bill_after: 2000,
+            annual_wage_budget: 50000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: transferBudgetBefore - fee < 0,
+            exceeds_finance: financeBefore - fee < 0,
+          },
+        };
+      }
 
-        return {};
-      },
-    );
+      if (command === "preview_free_agent_contract_impact") {
+        const wage = Number(payload?.weeklyWage ?? 0);
+        return {
+          projection: {
+            current_annual_wage_bill: 0,
+            projected_annual_wage_bill: wage,
+            annual_wage_budget: 50000,
+            annual_soft_cap: 55000,
+            current_weekly_wage_spend: 0,
+            projected_weekly_wage_spend: wage,
+            current_cash_runway_weeks: 40,
+            projected_cash_runway_weeks: 30,
+            currently_over_budget: false,
+            policy_allows: true,
+          },
+        };
+      }
+
+      return {};
+    });
   });
 
   it("renders a dual transfer and loan listed player once with both status badges", function (): void {
@@ -434,10 +502,85 @@ describe("TransfersTab", function (): void {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
     expect(screen.getAllByText("Dual Listed")).toHaveLength(1);
     expect(screen.getByText("TRANSFER")).toBeInTheDocument();
     expect(screen.getByText("LOAN")).toBeInTheDocument();
     expect(screen.getByText(/My Transfer List \(1\)/)).toBeInTheDocument();
+  });
+
+  it("paginates the transfer players list instead of mounting every market row", function (): void {
+    const marketPlayers = Array.from({ length: 65 }, (_, index) =>
+      createPlayer({
+        id: `market-player-${index + 1}`,
+        full_name: `Market Player ${index + 1}`,
+        match_name: `M. Player ${index + 1}`,
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    );
+
+    render(
+      <TransfersTab
+        gameState={createGameState(marketPlayers)}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText(/^Market Player \d+$/)).toHaveLength(30);
+    expect(screen.getByText("Market Player 30")).toBeInTheDocument();
+    expect(screen.queryByText("Market Player 31")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 1-30 of 65")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(screen.queryByText("Market Player 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Market Player 31")).toBeInTheDocument();
+    expect(screen.getByText("Showing 31-60 of 65")).toBeInTheDocument();
+  });
+
+  it("starts runtime portrait loading for the visible transfer market page", async function (): Promise<void> {
+    mockedIsTauri.mockReturnValue(true);
+    const marketPlayers = Array.from({ length: 35 }, (_, index) =>
+      createPlayer({
+        id: `portrait-player-${index + 1}`,
+        full_name: `Portrait Player ${index + 1}`,
+        match_name: `P. Player ${index + 1}`,
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+      }),
+    );
+
+    render(
+      <TransfersTab
+        gameState={createGameState(marketPlayers)}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(function (): void {
+      const portraitCalls = mockedInvoke.mock.calls.filter(
+        ([command]) => command === "generate_player_portrait",
+      );
+      expect(portraitCalls).toHaveLength(30);
+      expect(portraitCalls[0]?.[1]).toEqual({
+        request: expect.objectContaining({ playerId: "portrait-player-1" }),
+      });
+      expect(
+        portraitCalls.some(([, payload]) => {
+          const portraitPayload = payload as
+            { request?: { playerId?: string } } | undefined;
+          return portraitPayload?.request?.playerId === "portrait-player-31";
+        }),
+      ).toBe(false);
+    });
   });
 
   it("submits a counter offer for a pending incoming bid and publishes the updated game", async function (): Promise<void> {
@@ -544,7 +687,6 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
 
     await waitFor(() => {
@@ -557,9 +699,15 @@ describe("TransfersTab", function (): void {
       );
     });
 
-    expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
-    expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
-    expect(screen.getByText("Their last signal pointed toward €1,150,000.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Talks are still live with this club."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("The other club are waiting for your next move."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Their last signal pointed toward €1,150,000."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Your last bid")).toBeInTheDocument();
     expect(screen.getByText("Their last signal")).toBeInTheDocument();
@@ -567,10 +715,10 @@ describe("TransfersTab", function (): void {
     expect(screen.getByDisplayValue("1.15")).toBeInTheDocument();
   });
 
-  it("shows scout assignment errors inline on the transfer market", async function (): Promise<void> {
+  it("shows scout assignment errors inline on the player market", async function (): Promise<void> {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
-      .mockImplementation(() => { });
+      .mockImplementation(() => {});
     try {
       const state = createGameState([
         createPlayer({
@@ -595,7 +743,6 @@ describe("TransfersTab", function (): void {
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
       const playerRow = screen.getByText("John Smith").closest("tr");
       expect(playerRow).not.toBeNull();
 
@@ -643,9 +790,15 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
     fireEvent.click(screen.getByRole("button", { name: /counter offer/i }));
 
-    expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
-    expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
-    expect(screen.getByText("Their last signal pointed toward €1,150,000.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Talks are still live with this club."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("The other club are waiting for your next move."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Their last signal pointed toward €1,150,000."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();
     expect(screen.getByText("Your last counter")).toBeInTheDocument();
     expect(screen.getByText("Their current offer")).toBeInTheDocument();
@@ -730,7 +883,6 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
     fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
     fireEvent.change(screen.getByLabelText(/bid amount/i), {
       target: { value: "9.0" },
@@ -741,11 +893,116 @@ describe("TransfersTab", function (): void {
       expect(
         screen.getByText("This bid exceeds your transfer budget"),
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: /submit bid/i }),
+      ).toBeDisabled();
     });
   });
 
-  it("shows free agents in a dedicated view and opens the contract modal", async function (): Promise<void> {
+  it("closes the deal workspace after an accepted transfer bid settles", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "player-market-1",
+        team_id: "team-2",
+        transfer_listed: true,
+        transfer_offers: [],
+        market_value: 1000000,
+      }),
+    ]);
+    const updatedState = createGameState([
+      createPlayer({
+        id: "player-market-1",
+        team_id: "team-1",
+        transfer_listed: false,
+        transfer_offers: [],
+        market_value: 1000000,
+      }),
+    ]);
+
+    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        const fee = Number(payload?.fee ?? 0);
+        return {
+          projection: {
+            transfer_budget_before: 2000000,
+            transfer_budget_after: 2000000 - fee,
+            finance_before: 5000000,
+            finance_after: 5000000 - fee,
+            annual_wage_bill_before: 1000,
+            annual_wage_bill_after: 2000,
+            annual_wage_budget: 50000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "accepted",
+          suggested_fee: null,
+          is_terminal: true,
+          feedback: {
+            mood: "positive",
+            headline_key: "transfers.transferFeedbackAcceptedHeadline",
+            detail_key: "transfers.transferFeedbackAcceptedDetail",
+            tension: 20,
+            patience: 80,
+            round: 1,
+            params: { fee: "1000000" },
+          },
+          game: updatedState,
+        };
+      }
+
+      return {};
+    });
+
+    try {
+      render(
+        <TransfersTab
+          gameState={state}
+          onSelectPlayer={vi.fn()}
+          onSelectTeam={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+      expect(
+        screen.getByRole("dialog", { name: /john smith/i }),
+      ).toBeInTheDocument();
+
+      await waitFor(function (): void {
+        expect(
+          screen.getByRole("button", { name: /submit bid/i }),
+        ).toBeEnabled();
+      });
+      vi.useFakeTimers();
+      fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "player-market-1",
+        fee: 1000000,
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(
+        screen.queryByRole("dialog", { name: /john smith/i }),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("filters free agents in the player market and opens the contract modal", async function (): Promise<void> {
     const state = createGameState([
       createPlayer({
         id: "free-agent-1",
@@ -765,7 +1022,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /free agents/i }));
+    fireEvent.click(screen.getByRole("button", { name: /free agent \(1\)/i }));
 
     expect(screen.getByText("John Smith")).toBeInTheDocument();
     expect(screen.getAllByText("Free Agent").length).toBeGreaterThan(0);
@@ -773,12 +1030,14 @@ describe("TransfersTab", function (): void {
     fireEvent.click(screen.getByRole("button", { name: /offer contract/i }));
 
     await waitFor(function (): void {
-      expect(screen.getByText("Projected financial impact")).toBeInTheDocument();
+      expect(
+        screen.getByText("Projected financial impact"),
+      ).toBeInTheDocument();
       expect(screen.getByLabelText("Offered Wage")).toBeInTheDocument();
     });
   });
 
-  it("submits a loan offer from the loan market", async function (): Promise<void> {
+  it("submits a loan offer from the player market", async function (): Promise<void> {
     const initialState = createGameState([
       createPlayer({
         id: "loan-target",
@@ -819,7 +1078,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan \(1\)/i }));
     fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
     expect(screen.getByLabelText(/loan length/i)).toHaveValue("january_window");
     fireEvent.change(screen.getByLabelText(/wage contribution/i), {
@@ -838,7 +1097,7 @@ describe("TransfersTab", function (): void {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
-  it("explains deferred registration and allows loan negotiations while transfers remain blocked", async function (): Promise<void> {
+  it("explains deferred registration and allows closed-window loan negotiations", async function (): Promise<void> {
     const state = createGameState([
       createPlayer({
         id: "loan-target",
@@ -889,8 +1148,11 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    expect(
+      screen.getByRole("button", { name: /make transfer bid/i }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Transfer window closed",
@@ -901,9 +1163,7 @@ describe("TransfersTab", function (): void {
     expect(
       screen.getByRole("button", { name: /submit loan offer/i }),
     ).toBeEnabled();
-    fireEvent.click(
-      screen.getByRole("button", { name: /submit loan offer/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /submit loan offer/i }));
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
         playerId: "loan-target",
@@ -914,18 +1174,110 @@ describe("TransfersTab", function (): void {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
-    fireEvent.click(screen.getByRole("button", { name: /transfer market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /submit bid/i })).toBeDisabled();
-    });
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Transfer window closed",
-    );
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
   });
 
-  it("blocks closed-window loan submission when the opening date is stale", function (): void {
+  it("allows closed-window transfer bid submission when the next opening date is scheduled", async function (): Promise<void> {
+    const state = createGameState([
+      createPlayer({
+        id: "transfer-target",
+        team_id: "team-2",
+        transfer_listed: true,
+        loan_listed: true,
+        transfer_offers: [],
+        market_value: 1_000_000,
+      }),
+    ]);
+    state.season_context!.transfer_window = {
+      status: "Closed",
+      opens_on: "2027-01-01",
+      closes_on: null,
+      days_until_opens: 12,
+      days_remaining: null,
+    };
+    const updatedState = structuredClone(state);
+    updatedState.players[0].transfer_offers = [
+      {
+        id: "scheduled-transfer",
+        from_team_id: "team-1",
+        fee: 1_000_000,
+        wage_offered: 0,
+        last_manager_fee: 1_000_000,
+        negotiation_round: 1,
+        suggested_counter_fee: null,
+        status: "PendingRegistration",
+        date: "2026-12-20",
+        registration_date: "2027-01-01",
+      },
+    ];
+
+    mockedInvoke.mockImplementation(async (command: string, payload?: any) => {
+      if (command === "preview_transfer_bid_financial_impact") {
+        const fee = Number(payload?.fee ?? 0);
+        return {
+          projection: {
+            transfer_budget_before: 2_000_000,
+            transfer_budget_after: 2_000_000 - fee,
+            finance_before: 5_000_000,
+            finance_after: 5_000_000 - fee,
+            annual_wage_bill_before: 1_000,
+            annual_wage_bill_after: 2_000,
+            annual_wage_budget: 50_000,
+            projected_wage_budget_usage_pct: 4,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+          },
+        };
+      }
+
+      if (command === "make_transfer_bid") {
+        return {
+          decision: "accepted",
+          suggested_fee: null,
+          is_terminal: true,
+          registration_date: "2027-01-01",
+          feedback: {
+            mood: "positive",
+            headline_key: "transfers.transferFeedbackScheduledHeadline",
+            detail_key: "transfers.transferFeedbackScheduledDetail",
+            tension: 20,
+            patience: 80,
+            round: 1,
+            params: { date: "2027-01-01" },
+          },
+          game: updatedState,
+        };
+      }
+
+      return {};
+    });
+
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make transfer bid/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /submit bid/i })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        playerId: "transfer-target",
+        fee: 1_000_000,
+      });
+    });
+  });
+
+  it("locks transfer and loan routes when the opening date is stale", function (): void {
     const state = createGameState([
       createPlayer({
         id: "loan-target",
@@ -953,18 +1305,20 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
-    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Transfer window closed",
-    );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Loan registration is unavailable until the next transfer window is scheduled.",
-    );
     expect(
-      screen.getByRole("button", { name: /submit loan offer/i }),
+      screen.getByRole("button", { name: /make transfer bid/i }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /make loan offer/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getAllByText("Transfer window closed").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", { name: /submit loan offer/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("submits a loan offer with a buy option", async function (): Promise<void> {
@@ -1009,7 +1363,7 @@ describe("TransfersTab", function (): void {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan market/i }));
+    fireEvent.click(screen.getByRole("button", { name: /loan \(1\)/i }));
     fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
     fireEvent.change(screen.getByLabelText(/loan length/i), {
       target: { value: "end_of_season" },
@@ -1236,6 +1590,8 @@ describe("TransfersTab", function (): void {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
     const playerRow = screen.getByText("John Smith").closest("tr");
     expect(playerRow).not.toBeNull();
 
@@ -1252,13 +1608,46 @@ describe("TransfersTab", function (): void {
     });
   });
 
+  it("surfaces listing toggle failures from the my-list context menu", async function (): Promise<void> {
+    const gameState = createGameState([
+      createPlayer({ transfer_listed: true, loan_listed: false }),
+    ]);
+    const onGameUpdate = vi.fn();
+
+    mockedInvoke.mockRejectedValueOnce(
+      "be.error.transfers.playerAlreadyLoaned",
+    );
+
+    render(
+      <TransfersTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={onGameUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
+    const playerRow = screen.getByText("John Smith").closest("tr");
+    expect(playerRow).not.toBeNull();
+
+    fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Add to loan list" }));
+
+    await waitFor(function (): void {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Player already loaned",
+      );
+    });
+    expect(onGameUpdate).not.toHaveBeenCalled();
+  });
+
   it("shows wage budget in annual units (/yr) matching the player wage display (regression #212)", function (): void {
     // wage_budget = 52000 annual → should render as "50K/yr" style value
     // If shown weekly: floor(52000/52) = 1000 → "1K/wk" — a clear unit mismatch
     // Player.wage = 52000 annual → displayed as "50K/yr" in the player row
-    const state = createGameState([
-      createPlayer({ wage: 52000 }),
-    ]);
+    const state = createGameState([createPlayer({ wage: 52000 })]);
     state.teams[0].wage_budget = 52000;
 
     render(
@@ -1297,6 +1686,7 @@ describe("TransfersTab", function (): void {
     expect(
       screen.getByRole("button", { name: /my transfer list \(1\)/i }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
     expect(screen.getAllByText("John Smith")).toHaveLength(1);
   });
 });

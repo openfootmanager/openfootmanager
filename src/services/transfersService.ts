@@ -16,6 +16,7 @@ export interface TransferNegotiationResponseData {
   decision: "accepted" | "rejected" | "counter_offer";
   suggested_fee: number | null;
   is_terminal: boolean;
+  registration_date?: string | null;
   feedback: TransferNegotiationFeedbackData;
   game: GameStateData;
 }

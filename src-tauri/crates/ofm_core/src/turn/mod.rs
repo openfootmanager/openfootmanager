@@ -178,6 +178,8 @@ where
     progress_injury_recovery(game);
     random_events::check_random_events(game);
     scouting::process_scouting(game);
+    transfers::process_pending_transfer_registrations(game);
+    transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
@@ -189,7 +191,6 @@ where
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::job_offers::check_job_offers(game);
 
-    transfers::process_pending_loan_registrations(game);
     debug!("[turn] process_day {}: complete, advancing clock", today);
     game.clock.advance_days(1);
     crate::season_context::refresh_game_context(game);
@@ -214,6 +215,8 @@ pub fn finish_live_match_day(game: &mut Game) {
     progress_injury_recovery(game);
     random_events::check_random_events(game);
     scouting::process_scouting(game);
+    transfers::process_pending_transfer_registrations(game);
+    transfers::process_pending_loan_registrations(game);
     transfers::generate_incoming_transfer_offers(game);
     crate::generator::process_available_staff_market(game);
     crate::ai_hiring::update_ai_manager_satisfaction(game);
@@ -224,7 +227,6 @@ pub fn finish_live_match_day(game: &mut Game) {
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::job_offers::check_job_offers(game);
 
-    transfers::process_pending_loan_registrations(game);
     game.clock.advance_days(1);
     game.sync_legacy_league();
     crate::season_context::refresh_game_context(game);

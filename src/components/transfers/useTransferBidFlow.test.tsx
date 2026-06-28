@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -177,12 +177,14 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
 function HookHarness({
     gameState,
     target,
+    onAccepted,
 }: {
     gameState: GameStateData;
     target: PlayerData;
+    onAccepted?: (playerId: string) => void;
 }): JSX.Element {
-    const { bidAmount, setBidAmount, openBidNegotiation, handleMakeBid } =
-        useTransferBidFlow({ gameState });
+    const { bidAmount, bidResult, setBidAmount, openBidNegotiation, handleMakeBid } =
+        useTransferBidFlow({ gameState, onAccepted });
 
     return (
         <div>
@@ -194,6 +196,7 @@ function HookHarness({
                 onChange={(event) => setBidAmount(event.target.value)}
             />
             <button onClick={() => void handleMakeBid()}>Submit</button>
+            <output aria-label="bid-result">{bidResult ?? "idle"}</output>
         </div>
     );
 }
@@ -241,5 +244,56 @@ describe("useTransferBidFlow", function (): void {
         await waitFor(function (): void {
             expect(mockedMakeTransferBid).not.toHaveBeenCalled();
         });
+    });
+
+    it("cancels the accepted-bid auto-close timeout on unmount", async function (): Promise<void> {
+        vi.useFakeTimers();
+        try {
+            const target = createPlayer();
+            const gameState = createGameState([target]);
+            const onAccepted = vi.fn();
+            mockedMakeTransferBid.mockResolvedValue({
+                decision: "accepted",
+                suggested_fee: null,
+                is_terminal: true,
+                feedback: {
+                    mood: "positive",
+                    headline_key: "transfers.transferFeedbackAcceptedHeadline",
+                    detail_key: "transfers.transferFeedbackAcceptedDetail",
+                    tension: 20,
+                    patience: 80,
+                    round: 1,
+                    params: { fee: "1500000" },
+                },
+                game: gameState,
+            });
+
+            const { unmount } = render(
+                <HookHarness
+                    gameState={gameState}
+                    target={target}
+                    onAccepted={onAccepted}
+                />,
+            );
+
+            fireEvent.click(screen.getByRole("button", { name: "Open" }));
+            fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+            await act(async function flushAcceptedBid(): Promise<void> {
+                await Promise.resolve();
+            });
+
+            expect(screen.getByLabelText("bid-result")).toHaveTextContent("accepted");
+
+            unmount();
+
+            act(function advanceAutoCloseTimer(): void {
+                vi.advanceTimersByTime(2000);
+            });
+
+            expect(onAccepted).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
