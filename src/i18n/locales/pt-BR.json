@@ -2565,7 +2565,8 @@
         "validationFailed": "O pacote tem erros de validação: {{errors}}",
         "unknownCompetition": "\"{{field}}\" referencia uma competição desconhecida \"{{id}}\".",
         "unknownRegion": "\"{{field}}\" referencia uma região desconhecida \"{{id}}\".",
-        "reversedRange": "O time \"{{team}}\" tem um {{field}} invertido (mín > máx)."
+        "reversedRange": "O time \"{{team}}\" tem um {{field}} invertido (mín > máx).",
+        "outOfRange": "O time \"{{team}}\" tem valores de {{field}} fora do intervalo (reputação 0–1000, finanças ≥ 0)."
       },
       "competitionDef": {
         "invalidEmbedded": "As definições de competições deste mundo são inválidas e não foi possível carregá-las.",

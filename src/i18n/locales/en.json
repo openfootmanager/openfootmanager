@@ -2578,7 +2578,8 @@
         "validationFailed": "The package has validation errors: {{errors}}",
         "unknownCompetition": "\"{{field}}\" references unknown competition \"{{id}}\".",
         "unknownRegion": "\"{{field}}\" references unknown region \"{{id}}\".",
-        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max)."
+        "reversedRange": "Team \"{{team}}\" has a reversed {{field}} (min > max).",
+        "outOfRange": "Team \"{{team}}\" has out-of-range {{field}} values (reputation 0–1000, finance ≥ 0)."
       },
       "conflict": {
         "duplicateId": "Packages \"{{packages}}\" both define {{entityKind}} \"{{entityId}}\" with different content. The last package wins.",

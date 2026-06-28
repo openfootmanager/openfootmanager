@@ -238,6 +238,10 @@ const UNKNOWN_TEAM: &str = "be.error.package.unknownTeam";
 const UNKNOWN_COMPETITION: &str = "be.error.package.unknownCompetition";
 const UNKNOWN_REGION: &str = "be.error.package.unknownRegion";
 const REVERSED_RANGE: &str = "be.error.package.reversedRange";
+const OUT_OF_RANGE: &str = "be.error.package.outOfRange";
+
+/// Maximum team reputation. Reputation is a `u32`, so it cannot go below 0.
+const MAX_REPUTATION: u32 = 1000;
 
 /// A structured problem found while loading a package. `code` is an i18n key,
 /// `file` locates the offending file (empty for aggregate-level problems), and
@@ -646,7 +650,8 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
         }
     }
 
-    // Check for reversed reputation / finance ranges (min > max).
+    // Check team reputation / finance ranges for reversed (min > max) and
+    // out-of-bounds endpoints (reputation 0..=1000, finance >= 0).
     for team in &package.teams {
         if let Some([min, max]) = team.reputation_range {
             if min > max {
@@ -656,11 +661,25 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                         .with("field", "reputationRange"),
                 );
             }
+            if min > MAX_REPUTATION || max > MAX_REPUTATION {
+                errors.push(
+                    PackageError::new(OUT_OF_RANGE, "")
+                        .with("team", &team.id)
+                        .with("field", "reputationRange"),
+                );
+            }
         }
         if let Some([min, max]) = team.finance_range {
             if min > max {
                 errors.push(
                     PackageError::new(REVERSED_RANGE, "")
+                        .with("team", &team.id)
+                        .with("field", "financeRange"),
+                );
+            }
+            if min < 0 || max < 0 {
+                errors.push(
+                    PackageError::new(OUT_OF_RANGE, "")
                         .with("team", &team.id)
                         .with("field", "financeRange"),
                 );
@@ -2086,6 +2105,45 @@ colors:
         assert!(
             errors.iter().any(|e| e.code == REVERSED_RANGE),
             "reversed reputationRange must produce a REVERSED_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reputation_above_1000_is_out_of_range() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\nreputationRange: [500, 2000]\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == OUT_OF_RANGE),
+            "reputation above 1000 must produce an OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn negative_finance_is_out_of_range() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\nfinanceRange: [-100, 500000]\n",
+        )]);
+        assert!(
+            errors.iter().any(|e| e.code == OUT_OF_RANGE),
+            "negative finance must produce an OUT_OF_RANGE error: {errors:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn in_bounds_ranges_are_accepted() {
+        let (_, errors, dir) = package_from_files(&[(
+            "a.yaml",
+            "schema: team\nid: team-a\nname: Team A\ncity: City A\ncountry: ES\ncolors: { primary: \"#111\", secondary: \"#fff\" }\nreputationRange: [300, 900]\nfinanceRange: [500000, 10000000]\n",
+        )]);
+        assert!(
+            !errors.iter().any(|e| e.code == OUT_OF_RANGE || e.code == REVERSED_RANGE),
+            "valid ranges must not error: {errors:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
     }
