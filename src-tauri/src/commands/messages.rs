@@ -147,7 +147,7 @@ pub fn resolve_message_action_internal(
         "[cmd] resolve_message_action: msg={}, action={}, option={:?}",
         message_id, action_id, option_id
     );
-    let result = state.update_game(|game| {
+    let (game, effect, effect_i18n_key, effect_i18n_params) = state.update_game(|game| -> Result<_, String> {
         let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
             let player_effect =
                 ofm_core::player_events::apply_player_response(game, message_id, action_id, opt);
@@ -184,7 +184,7 @@ pub fn resolve_message_action_internal(
                                 Some(effect.i18n_key),
                                 Some(effect.i18n_params),
                             ),
-                            None => (None, None, None),
+                            None => return Err("be.error.unknownMessageAction".to_string()),
                         },
                     }
                 }
@@ -198,11 +198,10 @@ pub fn resolve_message_action_internal(
             (None, None, None)
         };
 
-        (game.clone(), effect, effect_i18n_key, effect_i18n_params)
+        Ok((game.clone(), effect, effect_i18n_key, effect_i18n_params))
     })
-    .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let (game, effect, effect_i18n_key, effect_i18n_params) = result;
+    .ok_or("be.error.noActiveGameSession".to_string())
+    .and_then(|r| r)?;
     Ok(serde_json::json!({
         "game": game,
         "effect": effect,

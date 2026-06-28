@@ -431,10 +431,10 @@ pub fn start_youth_scouting(
         "[cmd] start_youth_scouting: scout_id={}, region={:?}, objective={:?}, target_position={:?}",
         scout_id, region, objective, target_position
     );
+    let region = parse_youth_region(region.as_deref())?;
+    let objective = parse_youth_objective(objective.as_deref())?;
+    let target_position = parse_youth_target_position(target_position.as_deref())?;
     state.update_game(|game| {
-        let region = parse_youth_region(region.as_deref())?;
-        let objective = parse_youth_objective(objective.as_deref())?;
-        let target_position = parse_youth_target_position(target_position.as_deref())?;
         ofm_core::scouting::start_youth_scouting(game, &scout_id, region, objective, target_position)?;
         Ok(game.clone())
     })
