@@ -467,7 +467,9 @@ export default function MainMenu() {
   const loadInstalledPackages = async () => {
     try {
       const pkgs = await invoke<PackageInfo[]>("list_installed_packages");
-      setInstalledPackages(pkgs);
+      // Tauri commands can resolve to null; never let installedPackages become
+      // null or downstream `.filter` calls (here and in PackageBuildStep) throw.
+      setInstalledPackages(pkgs ?? []);
     } catch (err) {
       console.error("Failed to list packages:", err);
     }

@@ -7,6 +7,7 @@ function makeHook(names: NamesDefinition) {
   const setNames = vi.fn();
   const captureHistory = vi.fn();
   const saveNames = vi.fn().mockResolvedValue(undefined);
+  const onClose = vi.fn();
   const hook = renderHook(() =>
     useNamesPoolEditor({
       names,
@@ -15,11 +16,11 @@ function makeHook(names: NamesDefinition) {
       captureHistory,
       saveNames,
       onOpen: vi.fn(),
-      onClose: vi.fn(),
+      onClose,
       setIsBusy: vi.fn(),
     }),
   );
-  return { hook, setNames, captureHistory };
+  return { hook, setNames, captureHistory, onClose };
 }
 
 const NAMES: NamesDefinition = {
@@ -67,5 +68,18 @@ describe("useNamesPoolEditor", () => {
     act(() => { hook.result.current.syncEditing(reverted); });
     expect(hook.result.current.revision).toBeGreaterThan(before);
     expect(hook.result.current.editingPool).toEqual({ first_names: ["Reverted"], last_names: ["Name"] });
+  });
+
+  it("syncEditing closes the editor when the restored snapshot removed the active key", () => {
+    const { hook, onClose } = makeHook(NAMES);
+    act(() => { hook.result.current.handleSelectPool("ENG"); });
+    // An undo that dropped the ENG pool entirely. Without closing, a later save
+    // would recreate the key the user just reverted.
+    const withoutEng: NamesDefinition = {
+      ...NAMES,
+      pools: { BRA: NAMES.pools.BRA },
+    };
+    act(() => { hook.result.current.syncEditing(withoutEng); });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

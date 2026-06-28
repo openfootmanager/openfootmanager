@@ -466,7 +466,18 @@ pub fn extract_ofm_for_editing(
         .map_err(|e| e.to_string())?;
     let edit_dir = base_dir.join("world-editor-temp").join(stem);
 
-    extract_ofm_to_dir(ofm, &edit_dir)?;
+    // Always start from a clean directory so stale files from a previous edit of
+    // a same-named archive can't leak into the freshly opened project.
+    if edit_dir.exists() {
+        std::fs::remove_dir_all(&edit_dir).map_err(|e| e.to_string())?;
+    }
+
+    if let Err(err) = extract_ofm_to_dir(ofm, &edit_dir) {
+        // Don't leave a half-unpacked directory behind when an entry is rejected.
+        std::fs::remove_dir_all(&edit_dir).ok();
+        return Err(err);
+    }
+
     edit_dir
         .to_str()
         .map(|s: &str| s.to_string())

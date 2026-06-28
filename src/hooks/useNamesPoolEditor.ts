@@ -59,9 +59,14 @@ export function useNamesPoolEditor({
   /// Refresh the open pool buffer from a restored snapshot (undo/redo) so a save
   /// can't reapply values the user just reverted.
   function syncEditing(newNames: NamesDefinition) {
-    if (editingPoolKey && newNames.pools[editingPoolKey]) {
+    if (!editingPoolKey) return;
+    if (newNames.pools[editingPoolKey]) {
       setEditingPool({ ...newNames.pools[editingPoolKey] });
       setRevision((r) => r + 1);
+    } else {
+      // The restored snapshot no longer contains the key being edited (e.g. an
+      // undo that removed it). Close the editor so a save can't recreate it.
+      onClose();
     }
   }
 

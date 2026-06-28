@@ -351,10 +351,12 @@ pub fn export_directory_to_ofm(dir: &Path, output: &Path) -> Result<(), String> 
         current: &Path,
         options: SimpleFileOptions,
     ) -> Result<(), String> {
-        let Ok(entries) = std::fs::read_dir(current) else {
-            return Ok(());
-        };
-        for entry in entries.flatten() {
+        // Propagate read failures instead of silently producing a partial
+        // archive that is missing whole subtrees.
+        let entries =
+            std::fs::read_dir(current).map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
+        for entry in entries {
+            let entry = entry.map_err(|_| WORLD_SERIALIZE_FAILED_ERROR.to_string())?;
             let path = entry.path();
             if path.is_dir() {
                 add_dir(zip, base, &path, options)?;
@@ -808,5 +810,41 @@ mod tests {
             database.snapshot_date.as_deref(),
             Some("2031-11-20T00:00:00+00:00")
         );
+    }
+
+    #[test]
+    fn export_directory_to_ofm_includes_nested_subtree_files() {
+        let temp = TempWorldDir::new();
+        let src = temp.path().join("src");
+        fs::create_dir_all(src.join("assets/logos")).expect("nested dirs should be created");
+        fs::write(src.join("world.json"), b"{}").expect("root file should be written");
+        fs::write(src.join("assets/logos/team.png"), b"PNG").expect("nested file should be written");
+
+        let out = temp.path().join("out.ofm");
+        export_directory_to_ofm(&src, &out).expect("export of a valid tree should succeed");
+
+        let archive = fs::File::open(&out).expect("archive should open");
+        let mut zip = zip::ZipArchive::new(archive).expect("archive should be a valid zip");
+        let names: Vec<String> = (0..zip.len())
+            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .collect();
+        assert!(names.contains(&"world.json".to_string()));
+        // The nested file proves the recursive read_dir walk still descends after
+        // switching from swallow-on-error to propagate-on-error.
+        assert!(
+            names.contains(&"assets/logos/team.png".to_string()),
+            "nested entry missing from archive: {names:?}"
+        );
+    }
+
+    #[test]
+    fn export_directory_to_ofm_errors_when_source_is_unreadable() {
+        let temp = TempWorldDir::new();
+        // Point at a path that does not exist: read_dir fails and the error must
+        // now propagate instead of yielding an empty/partial archive.
+        let missing = temp.path().join("does-not-exist");
+        let out = temp.path().join("out.ofm");
+        let result = export_directory_to_ofm(&missing, &out);
+        assert!(result.is_err(), "unreadable source dir should surface an error");
     }
 }
