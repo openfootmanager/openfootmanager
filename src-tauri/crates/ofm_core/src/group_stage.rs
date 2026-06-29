@@ -366,6 +366,8 @@ mod tests {
             home_scorers: vec![],
             away_scorers: vec![],
             report: None,
+            home_penalties: None,
+            away_penalties: None,
         });
         process_completed_fixture(league, index);
     }

@@ -319,7 +319,7 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
         .iter()
         .filter_map(|fixture| {
             let result = fixture.result.as_ref()?;
-            if result.home_goals >= result.away_goals {
+            if result.advancing_is_home() {
                 Some(fixture.home_team_id.clone())
             } else {
                 Some(fixture.away_team_id.clone())
@@ -596,6 +596,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 });
             }
         }

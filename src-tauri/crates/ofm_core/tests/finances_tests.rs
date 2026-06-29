@@ -866,6 +866,8 @@ fn home_match_generates_income() {
                 home_scorers: vec![],
                 away_scorers: vec![],
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
             ..Default::default()
         }],
@@ -916,6 +918,8 @@ fn away_match_no_income() {
                 home_scorers: vec![],
                 away_scorers: vec![],
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
             ..Default::default()
         }],

@@ -641,12 +641,33 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             .collect();
 
         for fixture_index in due {
-            let (home_id, away_id) = {
+            let (home_id, away_id, fixture_id) = {
                 let fixture = &game.competitions[competition_index].fixtures[fixture_index];
-                (fixture.home_team_id.clone(), fixture.away_team_id.clone())
+                (
+                    fixture.home_team_id.clone(),
+                    fixture.away_team_id.clone(),
+                    fixture.id.clone(),
+                )
             };
-            let (home_goals, away_goals, home_scorers, away_scorers) =
-                crate::national_team::play_national_match(game, &home_id, &away_id, rng);
+            // Knockout ties must produce a winner: extra time, then penalties.
+            let is_knockout = game.competitions[competition_index]
+                .knockout_rounds
+                .iter()
+                .any(|round| round.fixture_ids.contains(&fixture_id));
+            let (
+                home_goals,
+                away_goals,
+                home_scorers,
+                away_scorers,
+                home_penalties,
+                away_penalties,
+            ) = if is_knockout {
+                crate::national_team::play_national_knockout_match(game, &home_id, &away_id, rng)
+            } else {
+                let (home_goals, away_goals, home_scorers, away_scorers) =
+                    crate::national_team::play_national_match(game, &home_id, &away_id, rng);
+                (home_goals, away_goals, home_scorers, away_scorers, None, None)
+            };
 
             let competition = &mut game.competitions[competition_index];
             let fixture = &mut competition.fixtures[fixture_index];
@@ -657,6 +678,8 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
                 home_scorers,
                 away_scorers,
                 report: None,
+                home_penalties,
+                away_penalties,
             });
             crate::group_stage::process_completed_fixture(competition, fixture_index);
             crate::schedule::advance_knockout_competition_round(competition);
@@ -679,7 +702,7 @@ pub fn world_cup_champion(competition: &League) -> Option<String> {
         .iter()
         .find(|fixture| last_round.fixture_ids.contains(&fixture.id))?;
     let result = final_fixture.result.as_ref()?;
-    Some(if result.home_goals >= result.away_goals {
+    Some(if result.advancing_is_home() {
         final_fixture.home_team_id.clone()
     } else {
         final_fixture.away_team_id.clone()

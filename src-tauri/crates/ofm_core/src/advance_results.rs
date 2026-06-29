@@ -158,6 +158,8 @@ mod tests {
                 home_scorers: Vec::new(),
                 away_scorers: Vec::new(),
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
         }
     }
@@ -248,6 +250,8 @@ mod tests {
                 home_scorers: Vec::new(),
                 away_scorers: Vec::new(),
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
         }
     }
