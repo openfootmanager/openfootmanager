@@ -1523,10 +1523,10 @@
       "participating": "Участвует",
       "worldCup": "Чемпионат мира {{year}}",
       "worldCupQualifying": "Отбор на Чемпионат мира {{year}}",
-      "league": "Лига",
-      "firstDivision": "Первый дивизион",
-      "secondDivision": "Второй дивизион",
-      "nationalCup": "Национальный кубок",
+      "league": "{{country}} Лига",
+      "firstDivision": "{{country}} Первый дивизион",
+      "secondDivision": "{{country}} Второй дивизион",
+      "nationalCup": "{{country}} Кубок",
       "continentalChampionsCup": "Континентальный кубок чемпионов"
     }
   },

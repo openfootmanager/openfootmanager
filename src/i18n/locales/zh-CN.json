@@ -1523,10 +1523,10 @@
       "participating": "参与中",
       "worldCup": "{{year}} 世界杯",
       "worldCupQualifying": "世界杯预选赛 {{year}}",
-      "league": "联赛",
-      "firstDivision": "甲级联赛",
-      "secondDivision": "乙级联赛",
-      "nationalCup": "国家杯",
+      "league": "{{country}}联赛",
+      "firstDivision": "{{country}}甲级联赛",
+      "secondDivision": "{{country}}乙级联赛",
+      "nationalCup": "{{country}}杯",
       "continentalChampionsCup": "洲际冠军杯"
     }
   },

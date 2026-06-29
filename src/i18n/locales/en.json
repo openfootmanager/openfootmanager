@@ -1523,10 +1523,10 @@
       "participating": "Participating",
       "worldCup": "{{year}} World Cup",
       "worldCupQualifying": "World Cup Qualifying {{year}}",
-      "league": "League",
-      "firstDivision": "First Division",
-      "secondDivision": "Second Division",
-      "nationalCup": "National Cup",
+      "league": "{{country}} League",
+      "firstDivision": "{{country}} First Division",
+      "secondDivision": "{{country}} Second Division",
+      "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup"
     }
   },

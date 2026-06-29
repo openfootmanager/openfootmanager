@@ -1542,10 +1542,10 @@
       "participating": "Partecipante",
       "worldCup": "Coppa del Mondo {{year}}",
       "worldCupQualifying": "Qualificazioni Coppa del Mondo {{year}}",
-      "league": "Lega",
-      "firstDivision": "Prima Divisione",
-      "secondDivision": "Seconda Divisione",
-      "nationalCup": "Coppa Nazionale",
+      "league": "Lega di {{country}}",
+      "firstDivision": "Prima Divisione di {{country}}",
+      "secondDivision": "Seconda Divisione di {{country}}",
+      "nationalCup": "Coppa di {{country}}",
       "continentalChampionsCup": "Coppa dei Campioni Continentale"
     }
   },

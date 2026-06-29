@@ -19,6 +19,7 @@ import {
 import { countryName } from "../lib/countries";
 import { formatVal, getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
+import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, Checkbox, Select, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
 import {
   ArrowLeft,
@@ -123,8 +124,7 @@ function sortCompetitions(competitions: LeagueData[]): LeagueData[] {
 
 export default function TeamSelection() {
   const { t, i18n } = useTranslation();
-  const compName = (c: LeagueData) =>
-    c.name_key ? t(c.name_key, { year: c.season }) : c.name;
+  const compName = (c: LeagueData) => competitionDisplayName(c, t);
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
