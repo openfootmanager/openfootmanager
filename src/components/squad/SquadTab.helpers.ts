@@ -498,30 +498,42 @@ export function getBestRoleForFormation(
   formation: string,
 ): string {
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
-  const preferredPositions = getPreferredPositions(player);
+  // Best role is an ability recommendation, so it is driven by the player's
+  // natural position (not player.position, which is only a coarse bucket).
+  const naturalPosition = canonicalPosition(player.natural_position || player.position);
+  const alternatePositions = (player.alternate_positions || []).map(canonicalPosition);
 
-  const exactPreferredRole = preferredPositions.find((position) =>
-    formationSlots.includes(position),
-  );
-  if (exactPreferredRole) {
-    return exactPreferredRole;
+  // 1. The player's natural position has an exact slot in this formation.
+  if (formationSlots.includes(naturalPosition)) {
+    return naturalPosition;
   }
 
-  const playerGroup = normalisePosition(player.natural_position || player.position);
+  // 2. The closest role within the player's primary position group. This is
+  //    preferred over tangential alternates so a DM in a DM-less formation
+  //    resolves to CM, never to an unrelated alternate such as RB.
+  const playerGroup = normalisePosition(naturalPosition);
   const groupRolePreferences = GROUP_ROLE_PREFERENCES[playerGroup] ?? [];
   const preferredGroupRole = groupRolePreferences.find((position) =>
     formationSlots.includes(position),
   );
-
   if (preferredGroupRole) {
     return preferredGroupRole;
   }
 
+  // 3. An alternate position the player can play that exists in the formation.
+  const exactAlternateRole = alternatePositions.find((position) =>
+    formationSlots.includes(position),
+  );
+  if (exactAlternateRole) {
+    return exactAlternateRole;
+  }
+
+  // 4. Fallbacks: any slot in the player's group, else first preferred position.
   const firstGroupRole = formationSlots.find(
     (position) => normalisePosition(position) === playerGroup,
   );
 
-  return firstGroupRole ?? preferredPositions[0] ?? canonicalPosition(player.position);
+  return firstGroupRole ?? getPreferredPositions(player)[0] ?? naturalPosition;
 }
 
 export function getPlayStyleFit(player: PlayerData, playStyle: string): SquadStyleFit {

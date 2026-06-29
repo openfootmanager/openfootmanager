@@ -526,6 +526,31 @@ describe("SquadTab helpers", () => {
     ).toBe("CentralMidfielder");
   });
 
+  it("prefers the natural position group over a tangential alternate", () => {
+    // A DM with RB among alternates in a DM-less formation must resolve to a
+    // midfield role, not jump across groups to RightBack.
+    expect(
+      getBestRoleForFormation(
+        makePlayer("dm", "Defensive Midfielder", {
+          natural_position: "Defensive Midfielder",
+          alternate_positions: ["Right Back"],
+        }),
+        "4-4-2",
+      ),
+    ).toBe("CentralMidfielder");
+
+    // The alternate is still used when no role in the player's own group fits.
+    expect(
+      getBestRoleForFormation(
+        makePlayer("st", "Striker", {
+          natural_position: "Striker",
+          alternate_positions: ["Right Back"],
+        }),
+        "4-0-0",
+      ),
+    ).toBe("RightBack");
+  });
+
   it("scores play-style fit using relevant attribute mixes", () => {
     expect(
       getPlayStyleFit(
