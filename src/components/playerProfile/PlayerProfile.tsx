@@ -12,10 +12,8 @@ import type { PlayerRole } from "../../store/types";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import {
-  buildPlayerAdvancedStats,
   getPlayerAge,
   getPlayerTeamName,
-  type PlayerAdvancedStatsSummary,
 } from "./PlayerProfile.helpers";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups } from "./PlayerProfile.attributes";
@@ -26,9 +24,7 @@ import PlayerProfileHeroCard from "./PlayerProfileHeroCard";
 import PlayerProfileInjuryBanner from "./PlayerProfileInjuryBanner";
 import PlayerProfileLoanStatusBanner from "./PlayerProfileLoanStatusBanner";
 import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard";
-import PlayerProfileRecentMatchesCard, {
-  type PlayerRecentMatchEntry,
-} from "./PlayerProfileRecentMatchesCard";
+import PlayerProfileRecentMatchesCard from "./PlayerProfileRecentMatchesCard";
 import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import {
@@ -38,6 +34,7 @@ import {
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { useContractActionsFlow } from "./useContractActionsFlow";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
+import { usePlayerProfileData } from "./usePlayerProfileData";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -48,13 +45,6 @@ interface PlayerProfileProps {
   onClose: () => void;
   onSelectTeam?: (id: string) => void;
   onGameUpdate?: (g: GameStateData) => void;
-}
-
-function areAdvancedStatsEqual(
-  left: PlayerAdvancedStatsSummary,
-  right: PlayerAdvancedStatsSummary,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export default function PlayerProfile({
@@ -80,9 +70,6 @@ export default function PlayerProfile({
     "idle",
   );
   const [scoutError, setScoutError] = useState<string | null>(null);
-  const [advancedStatsOverride, setAdvancedStatsOverride] =
-    useState<PlayerAdvancedStatsSummary | null>(null);
-  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
   const [hasConsumedInitialRenewalIntent, setHasConsumedInitialRenewalIntent] =
     useState(false);
   const [hasConsumedInitialTerminationIntent, setHasConsumedInitialTerminationIntent] =
@@ -119,8 +106,10 @@ export default function PlayerProfile({
     scoutStatus,
   });
   const attrGroups = buildPlayerAttributeGroups(player, t);
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(player, gameState.players);
-  const advancedStats = advancedStatsOverride ?? fallbackAdvancedStats;
+  const { advancedStats, recentMatches } = usePlayerProfileData({
+    player,
+    allPlayers: gameState.players,
+  });
   const hasLetExpireIntent =
     player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
   const isFreeAgent = player.team_id === null && !player.retired;
@@ -242,95 +231,6 @@ export default function PlayerProfile({
     showTerminationModal,
     startWithTerminationModal,
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setAdvancedStatsOverride((current) => (current === null ? current : null));
-
-    const loadAdvancedStats = async (): Promise<void> => {
-      try {
-        const result = await invoke<PlayerAdvancedStatsSummary>(
-          "get_player_stats_overview",
-          {
-            playerId: player.id,
-          },
-        );
-
-        if (!cancelled && !areAdvancedStatsEqual(result, fallbackAdvancedStats)) {
-          setAdvancedStatsOverride(result);
-        }
-      } catch {
-        if (!cancelled) {
-          setAdvancedStatsOverride((current) => (current === null ? current : null));
-        }
-      }
-    };
-
-    void loadAdvancedStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    player.id,
-    player.stats.minutes_played,
-    player.stats.shots,
-    player.stats.shots_on_target,
-    player.stats.passes_completed,
-    player.stats.passes_attempted,
-    player.stats.tackles_won,
-    player.stats.interceptions,
-    player.stats.fouls_committed,
-  ]);
-
-  useEffect(() => {
-    if (player.stats.appearances <= 0) {
-      setRecentMatches([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadRecentMatches = async (): Promise<void> => {
-      try {
-        const result = await invoke<PlayerRecentMatchEntry[]>(
-          "get_player_match_history",
-          {
-            playerId: player.id,
-            limit: 5,
-          },
-        );
-
-        if (!cancelled) {
-          setRecentMatches((current) => {
-            if (
-              current.length === result.length &&
-              current.every(
-                (entry, index) => entry.fixture_id === result[index]?.fixture_id,
-              )
-            ) {
-              return current;
-            }
-
-            return result;
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setRecentMatches((current) =>
-            current.length === 0 ? current : [],
-          );
-        }
-      }
-    };
-
-    void loadRecentMatches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [player.id, player.stats.appearances]);
 
   async function handleTacticalRoleChange(role: PlayerRole): Promise<void> {
     if (!onGameUpdate) return;
