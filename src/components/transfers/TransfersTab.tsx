@@ -45,7 +45,6 @@ import {
   resolveTranslatedErrorMessage,
 } from "../../utils/errorMessage";
 import {
-  counterLoanOffer,
   counterOffer,
   exerciseLoanBuyOption,
   respondToOffer,
@@ -53,18 +52,13 @@ import {
   toggleLoanList,
   toggleTransferList,
   type TransferNegotiationResponseData,
-  type LoanOfferResponseData,
 } from "../../services/transfersService";
 import { sendScout } from "../../services/scoutingService";
 import {
-  buildLoanPeriodOptions,
   buildResumedCounterFeedback,
   formatTransferFeeInput,
-  getDefaultLoanPeriodId,
-  getLoanPeriodIdForEndDate,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
-  type LoanPeriodOptionId,
   mapTransferNegotiationError,
   normalizeTransferNegotiationFeedback,
   parseTransferFeeInput,
@@ -93,6 +87,7 @@ import FreeAgentContractModal, {
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 import { useLoanOfferFlow } from "./useLoanOfferFlow";
+import { useLoanCounterOfferFlow } from "./useLoanCounterOfferFlow";
 
 interface TransfersTabProps {
   gameState: GameStateData;
@@ -110,10 +105,6 @@ type CounterTarget = {
   fee: number;
 };
 
-type LoanCounterTarget = {
-  player: PlayerData;
-  offer: LoanOfferData;
-};
 
 function parseDateOnlyMs(value: string | null | undefined): number | null {
   if (!value) {
@@ -188,26 +179,6 @@ export default function TransfersTab({
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [listingError, setListingError] = useState<string | null>(null);
-  const [loanCounterTarget, setLoanCounterTarget] =
-    useState<LoanCounterTarget | null>(null);
-  const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
-    LoanPeriodOptionId | ""
-  >(getDefaultLoanPeriodId(loanRegistrationDate, null));
-  const [loanCounterWageContributionPct, setLoanCounterWageContributionPct] =
-    useState(100);
-  const [loanCounterBuyOptionEnabled, setLoanCounterBuyOptionEnabled] =
-    useState(false);
-  const [loanCounterBuyOptionFee, setLoanCounterBuyOptionFee] = useState("");
-  const [loanCounterLoading, setLoanCounterLoading] = useState(false);
-  const [loanCounterError, setLoanCounterError] = useState<string | null>(null);
-  const [loanCounterResult, setLoanCounterResult] = useState<
-    LoanOfferResponseData["decision"] | "error" | null
-  >(null);
-  const [loanCounterSuggestedTerms, setLoanCounterSuggestedTerms] = useState<{
-    wageContributionPct: number;
-    endDate: string;
-    buyOptionFee?: number | null;
-  } | null>(null);
   const [dealWorkspaceTarget, setDealWorkspaceTarget] =
     useState<PlayerData | null>(null);
   const [dealWorkspaceKind, setDealWorkspaceKind] =
@@ -216,46 +187,6 @@ export default function TransfersTab({
     setDealWorkspaceTarget((target) =>
       target?.id === playerId ? null : target,
     );
-  };
-
-  const openLoanCounterOffer = (player: PlayerData, offer: LoanOfferData) => {
-    setLoanCounterTarget({ player, offer });
-    setLoanCounterPeriodId(
-      getLoanPeriodIdForEndDate(
-        loanRegistrationDate,
-        player.contract_end,
-        offer.suggested_end_date ?? offer.end_date,
-      ),
-    );
-    setLoanCounterWageContributionPct(
-      Math.min(
-        100,
-        Math.max(
-          offer.suggested_wage_contribution_pct ?? offer.wage_contribution_pct,
-          offer.wage_contribution_pct,
-        ),
-      ),
-    );
-    const buyOptionFee =
-      offer.suggested_buy_option_fee ?? offer.buy_option_fee ?? null;
-    setLoanCounterBuyOptionEnabled(Boolean(buyOptionFee));
-    setLoanCounterBuyOptionFee(
-      buyOptionFee ? formatTransferFeeInput(buyOptionFee) : "",
-    );
-    setLoanCounterError(null);
-    setLoanCounterResult(null);
-    setLoanCounterSuggestedTerms(null);
-  };
-
-  const closeLoanCounterOffer = () => {
-    setLoanCounterTarget(null);
-    setLoanCounterPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, null));
-    setLoanCounterWageContributionPct(100);
-    setLoanCounterBuyOptionEnabled(false);
-    setLoanCounterBuyOptionFee("");
-    setLoanCounterError(null);
-    setLoanCounterResult(null);
-    setLoanCounterSuggestedTerms(null);
   };
 
   const openCounterNegotiation = (
@@ -299,73 +230,6 @@ export default function TransfersTab({
       if (onGameUpdate) onGameUpdate(game);
     } catch (err) {
       console.error("Failed to respond to loan offer:", err);
-    }
-  };
-
-  const handleCounterLoanOffer = async () => {
-    if (!loanCounterTarget || !selectedLoanCounterPeriodOption) return;
-
-    setLoanCounterLoading(true);
-    setLoanCounterError(null);
-    setLoanCounterResult(null);
-    setLoanCounterSuggestedTerms(null);
-
-    try {
-      const response = await counterLoanOffer(
-        loanCounterTarget.player.id,
-        loanCounterTarget.offer.id,
-        selectedLoanCounterPeriodOption.endDate,
-        Math.max(0, Math.min(100, Math.round(loanCounterWageContributionPct))),
-        loanCounterBuyOptionEnabled
-          ? parseTransferFeeInput(loanCounterBuyOptionFee)
-          : null,
-      );
-      setLoanCounterResult(response.decision);
-      if (response.decision === "counter_offer") {
-        setLoanCounterSuggestedTerms({
-          wageContributionPct:
-            response.suggested_wage_contribution_pct ??
-            loanCounterWageContributionPct,
-          endDate:
-            response.suggested_end_date ??
-            selectedLoanCounterPeriodOption.endDate,
-          buyOptionFee: response.suggested_buy_option_fee,
-        });
-        if (response.suggested_wage_contribution_pct !== null) {
-          setLoanCounterWageContributionPct(
-            response.suggested_wage_contribution_pct,
-          );
-        }
-        if (response.suggested_end_date) {
-          setLoanCounterPeriodId(
-            getLoanPeriodIdForEndDate(
-              loanRegistrationDate,
-              loanCounterTarget.player.contract_end,
-              response.suggested_end_date,
-            ),
-          );
-        }
-        if (response.suggested_buy_option_fee) {
-          setLoanCounterBuyOptionEnabled(true);
-          setLoanCounterBuyOptionFee(
-            formatTransferFeeInput(response.suggested_buy_option_fee),
-          );
-        }
-      }
-      if (onGameUpdate) onGameUpdate(response.game);
-
-      if (response.decision === "accepted") {
-        setTimeout(() => {
-          closeLoanCounterOffer();
-        }, 1500);
-      }
-    } catch (err: any) {
-      setLoanCounterResult("error");
-      setLoanCounterError(
-        resolveTranslatedErrorMessage(getErrorMessage(err), t),
-      );
-    } finally {
-      setLoanCounterLoading(false);
     }
   };
 
@@ -520,33 +384,6 @@ export default function TransfersTab({
   );
   const isPlayersView = view === "players";
   const isScoutingView = isPlayersView;
-  const parsedLoanCounterBuyOptionFee = loanCounterBuyOptionEnabled
-    ? parseTransferFeeInput(loanCounterBuyOptionFee)
-    : null;
-  const loanCounterReferenceEndDate =
-    loanCounterSuggestedTerms?.endDate ??
-    loanCounterTarget?.offer.suggested_end_date ??
-    loanCounterTarget?.offer.end_date ??
-    null;
-  const loanCounterPeriodOptions = loanCounterTarget
-    ? buildLoanPeriodOptions(
-        loanRegistrationDate,
-        loanCounterTarget.player.contract_end,
-        loanCounterReferenceEndDate,
-      )
-    : [];
-  const selectedLoanCounterPeriodOption =
-    loanCounterPeriodOptions.find(
-      (option) => option.id === loanCounterPeriodId && !option.disabled,
-    ) ?? null;
-  const loanCounterSubmitDisabled =
-    loanCounterLoading ||
-    !selectedLoanCounterPeriodOption ||
-    loanCounterResult === "accepted" ||
-    transferWindowBlocksRegistration ||
-    (loanCounterBuyOptionEnabled &&
-      (parsedLoanCounterBuyOptionFee === null ||
-        parsedLoanCounterBuyOptionFee <= 0));
 
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -681,6 +518,31 @@ export default function TransfersTab({
     transferWindowBlocksRegistration,
     onGameUpdate,
     onAccepted: closeAcceptedDealWorkspace,
+  });
+  const {
+    loanCounterTarget,
+    loanCounterPeriodId,
+    setLoanCounterPeriodId,
+    loanCounterWageContributionPct,
+    setLoanCounterWageContributionPct,
+    loanCounterBuyOptionEnabled,
+    setLoanCounterBuyOptionEnabled,
+    loanCounterBuyOptionFee,
+    setLoanCounterBuyOptionFee,
+    loanCounterLoading,
+    loanCounterError,
+    loanCounterResult,
+    loanCounterSuggestedTerms,
+    loanCounterPeriodOptions,
+    selectedLoanCounterPeriodOption,
+    loanCounterSubmitDisabled,
+    openLoanCounterOffer,
+    closeLoanCounterOffer,
+    handleCounterLoanOffer,
+  } = useLoanCounterOfferFlow({
+    loanRegistrationDate,
+    transferWindowBlocksRegistration,
+    onGameUpdate,
   });
 
   const getDealKinds = (player: PlayerData): DealKind[] => {
