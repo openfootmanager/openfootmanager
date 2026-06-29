@@ -611,6 +611,17 @@ describe("SquadTab helpers", () => {
     ).toBe("risky");
   });
 
+  it("downgrades play-style fit when the player is out of position", () => {
+    const striker = makePlayer("st", "Striker", { natural_position: "Striker" });
+
+    // Attribute-only fit (no position) is unchanged.
+    expect(getPlayStyleFit(striker, "Attacking")).toBe("good");
+    // In a natural slot the position imposes no penalty.
+    expect(getPlayStyleFit(striker, "Attacking", "Striker")).toBe("good");
+    // Played out of position the same attributes yield a worse fit.
+    expect(getPlayStyleFit(striker, "Attacking", "CenterBack")).toBe("risky");
+  });
+
   it("summarises role coverage for the active shape", () => {
     const players = [
       makePlayer("gk", "Goalkeeper"),

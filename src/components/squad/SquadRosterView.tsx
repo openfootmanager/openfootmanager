@@ -399,7 +399,10 @@ export default function SquadRosterView({
 
   const renderRoleAndStyleMeta = (player: PlayerData) => {
     const bestRole = getBestRoleForFormation(player, formation);
-    const styleFit = getPlayStyleFit(player, activePlayStyle);
+    const currentPos = xiIds.has(player.id)
+      ? xiActivePosition.get(player.id) || player.position
+      : player.natural_position || player.position;
+    const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
 
     return (
       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">

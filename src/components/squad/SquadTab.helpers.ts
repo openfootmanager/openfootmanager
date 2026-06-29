@@ -536,8 +536,20 @@ export function getBestRoleForFormation(
   return firstGroupRole ?? getPreferredPositions(player)[0] ?? naturalPosition;
 }
 
-export function getPlayStyleFit(player: PlayerData, playStyle: string): SquadStyleFit {
-  const fitScore = (() => {
+// Penalty (in attribute points) applied to the style-fit score based on how
+// naturally the player suits their current field position. Tunable.
+const STYLE_FIT_POSITION_PENALTY: Record<SquadTacticalFit, number> = {
+  natural: 0,
+  adapted: 8,
+  out: 18,
+};
+
+export function getPlayStyleFit(
+  player: PlayerData,
+  playStyle: string,
+  currentPos?: string,
+): SquadStyleFit {
+  const attributeScore = (() => {
     switch (playStyle) {
       case "Attacking":
         return averageAttributes(player, ["shooting", "dribbling", "pace", "passing"]);
@@ -553,6 +565,14 @@ export function getPlayStyleFit(player: PlayerData, playStyle: string): SquadSty
         return averageAttributes(player, ["decisions", "teamwork", "composure", "stamina"]);
     }
   })();
+
+  // A player asked to execute a style out of position is a worse fit regardless
+  // of raw attributes (e.g. a striker shoehorned at centre-back). When no
+  // position is supplied the score is attribute-only as before.
+  const positionPenalty = currentPos
+    ? STYLE_FIT_POSITION_PENALTY[getSquadTacticalFit(player, currentPos)]
+    : 0;
+  const fitScore = attributeScore - positionPenalty;
 
   if (fitScore >= 72) {
     return "strong";

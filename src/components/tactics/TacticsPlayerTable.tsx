@@ -385,7 +385,7 @@ function TacticsTableRow({
   );
   const tacticalFit = getSquadTacticalFit(player, activePosition);
   const styleFitBadge = getStyleFitBadge(
-    getPlayStyleFit(player, activePlayStyle),
+    getPlayStyleFit(player, activePlayStyle, activePosition),
     translateLabel,
   );
   const moraleState = getMoraleState(player.morale, translateLabel);
