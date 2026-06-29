@@ -4,7 +4,6 @@ import {
   LoanOfferData,
   PlayerData,
   PlayerSelectionOptions,
-  TransferOfferData,
 } from "../../store/gameStore";
 import { Card, CardBody, Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
@@ -35,7 +34,6 @@ import { countryName } from "../../lib/countries";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
-import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import TransferBidModal, { TransferBidForm } from "./TransferBidModal";
 import TransferCounterOfferModal from "./TransferCounterOfferModal";
 import LoanOfferModal, { LoanOfferForm } from "./LoanOfferModal";
@@ -45,23 +43,16 @@ import {
   resolveTranslatedErrorMessage,
 } from "../../utils/errorMessage";
 import {
-  counterOffer,
   exerciseLoanBuyOption,
   respondToOffer,
   respondToLoanOffer,
   toggleLoanList,
   toggleTransferList,
-  type TransferNegotiationResponseData,
 } from "../../services/transfersService";
 import { sendScout } from "../../services/scoutingService";
 import {
-  buildResumedCounterFeedback,
-  formatTransferFeeInput,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
-  mapTransferNegotiationError,
-  normalizeTransferNegotiationFeedback,
-  parseTransferFeeInput,
 } from "./TransfersTab.helpers";
 import {
   deriveTransferCollections,
@@ -88,6 +79,7 @@ import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 import { useLoanOfferFlow } from "./useLoanOfferFlow";
 import { useLoanCounterOfferFlow } from "./useLoanCounterOfferFlow";
+import { useTransferCounterOfferFlow } from "./useTransferCounterOfferFlow";
 
 interface TransfersTabProps {
   gameState: GameStateData;
@@ -97,13 +89,6 @@ interface TransfersTabProps {
 }
 
 const TRANSFER_MARKET_PAGE_SIZE = 30;
-
-type CounterTarget = {
-  player: PlayerData;
-  offerId: string;
-  fromTeamId: string;
-  fee: number;
-};
 
 
 function parseDateOnlyMs(value: string | null | undefined): number | null {
@@ -165,17 +150,6 @@ export default function TransfersTab({
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<string | null>(null);
   const [marketPage, setMarketPage] = useState(1);
-  const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
-    null,
-  );
-  const [counterAmount, setCounterAmount] = useState("");
-  const [counterLoading, setCounterLoading] = useState(false);
-  const [counterError, setCounterError] = useState<string | null>(null);
-  const [counterResult, setCounterResult] = useState<
-    TransferNegotiationResponseData["decision"] | "error" | null
-  >(null);
-  const [counterFeedback, setCounterFeedback] =
-    useState<NegotiationFeedbackPanelData | null>(null);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const [listingError, setListingError] = useState<string | null>(null);
@@ -187,24 +161,6 @@ export default function TransfersTab({
     setDealWorkspaceTarget((target) =>
       target?.id === playerId ? null : target,
     );
-  };
-
-  const openCounterNegotiation = (
-    player: PlayerData,
-    offer: TransferOfferData,
-  ) => {
-    setCounterTarget({
-      player,
-      offerId: offer.id,
-      fromTeamId: offer.from_team_id,
-      fee: offer.fee,
-    });
-    setCounterAmount(
-      formatTransferFeeInput(offer.suggested_counter_fee ?? offer.fee),
-    );
-    setCounterError(null);
-    setCounterResult(null);
-    setCounterFeedback(buildResumedCounterFeedback(offer));
   };
 
   const handleRespondOffer = async (
@@ -239,48 +195,6 @@ export default function TransfersTab({
       if (onGameUpdate) onGameUpdate(game);
     } catch (err) {
       console.error("Failed to exercise loan buy option:", err);
-    }
-  };
-
-  const handleCounterOffer = async () => {
-    const requestedFee = parseTransferFeeInput(counterAmount);
-
-    if (!counterTarget || requestedFee === null || requestedFee <= 0) return;
-
-    setCounterLoading(true);
-    setCounterError(null);
-    setCounterResult(null);
-    setCounterFeedback(null);
-
-    try {
-      const response = await counterOffer(
-        counterTarget.player.id,
-        counterTarget.offerId,
-        requestedFee,
-      );
-
-      if (onGameUpdate) onGameUpdate(response.game);
-      setCounterResult(response.decision);
-      setCounterFeedback(
-        normalizeTransferNegotiationFeedback(response.feedback),
-      );
-      if (response.suggested_fee !== null) {
-        setCounterAmount(formatTransferFeeInput(response.suggested_fee));
-      }
-      if (response.decision === "accepted") {
-        setTimeout(() => {
-          setCounterTarget(null);
-          setCounterAmount("");
-          setCounterResult(null);
-          setCounterFeedback(null);
-        }, 1500);
-      }
-    } catch (err: any) {
-      setCounterError(
-        mapTransferNegotiationError(t, err?.toString() || "error"),
-      );
-    } finally {
-      setCounterLoading(false);
     }
   };
 
@@ -319,11 +233,6 @@ export default function TransfersTab({
     allScoutingAssignments,
   );
   const alreadyScoutingIds = buildAlreadyScoutingIds(scoutingAssignments);
-  const activeCounterOffer = counterTarget
-    ? (counterTarget.player.transfer_offers.find(
-        (offer) => offer.id === counterTarget.offerId,
-      ) ?? null)
-    : null;
   const transferWindowVariant =
     transferWindow.status === "DeadlineDay"
       ? "danger"
@@ -544,6 +453,19 @@ export default function TransfersTab({
     transferWindowBlocksRegistration,
     onGameUpdate,
   });
+  const {
+    counterTarget,
+    counterAmount,
+    setCounterAmount,
+    counterLoading,
+    counterError,
+    counterResult,
+    counterFeedback,
+    activeCounterOffer,
+    openCounterNegotiation,
+    closeCounterNegotiation,
+    handleCounterOffer,
+  } = useTransferCounterOfferFlow({ onGameUpdate });
 
   const getDealKinds = (player: PlayerData): DealKind[] => {
     const kinds: DealKind[] = [];
@@ -1594,13 +1516,7 @@ export default function TransfersTab({
           blockingTitle={transferWindowBlockingTitle}
           blockingDetail={transferWindowBlockingDetail}
           onSubmit={handleCounterOffer}
-          onClose={() => {
-            setCounterTarget(null);
-            setCounterAmount("");
-            setCounterError(null);
-            setCounterResult(null);
-            setCounterFeedback(null);
-          }}
+          onClose={closeCounterNegotiation}
         />
       )}
       {freeAgentTarget && !dealWorkspaceTarget && (
