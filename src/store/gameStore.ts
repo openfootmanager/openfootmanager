@@ -188,13 +188,14 @@ interface GameStore {
   showFiredModal: boolean;
   setGameActive: (active: boolean, managerName?: string) => void;
   setGameState: (state: GameStateData) => void;
+  setMessages: (messages: MessageData[]) => void;
   setSessionState: (state: SessionState) => void;
   markClean: () => void;
   setShowFiredModal: (show: boolean) => void;
   clearGame: () => void;
 }
 
-export const useGameStore = create<GameStore>((set) => ({
+export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveGame: false,
   managerName: null,
   gameState: null,
@@ -208,6 +209,16 @@ export const useGameStore = create<GameStore>((set) => ({
   setGameState: (state) => {
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
+  },
+  // Lightweight patch for inbox-only mutations that return just the message
+  // slice (not the whole game). Patching messages here re-derives sessionState
+  // so the sidebar unread badge updates immediately, without round-tripping the
+  // entire world on every read/delete.
+  setMessages: (messages) => {
+    const current = get().gameState;
+    if (!current) return;
+    const next = { ...current, messages };
+    set({ gameState: next, sessionState: deriveSessionState(next), isDirty: true });
   },
   setSessionState: (state) => set({ sessionState: state }),
   markClean: () => set({ isDirty: false }),

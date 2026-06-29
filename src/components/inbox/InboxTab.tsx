@@ -61,6 +61,14 @@ export default function InboxTab({
     return () => { cancelled = true; };
   }, [clockDate]);
 
+  // Inbox mutations return the full message list. Patch both the local cache
+  // (drives this view) and the global store (re-derives sessionState so the
+  // sidebar unread badge updates immediately).
+  function applyMessages(updated: MessageData[]): void {
+    setFetchedMessages(updated);
+    useGameStore.getState().setMessages(updated);
+  }
+
   const messages = fetchedMessages ?? gameState?.messages ?? EMPTY_MESSAGES;
   const allMessages = useMemo(() => messages.map(resolveMessage), [messages]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
@@ -140,7 +148,7 @@ export default function InboxTab({
     if (message && !message.read) {
       try {
         const updated = await markMessageRead(messageId);
-        setFetchedMessages(updated);
+        applyMessages(updated);
       } catch { }
     }
   }
@@ -196,14 +204,14 @@ export default function InboxTab({
   async function handleMarkAllRead(): Promise<void> {
     try {
       const updated = await markAllMessagesRead();
-      setFetchedMessages(updated);
+      applyMessages(updated);
     } catch { }
   }
 
   async function handleClearOld(): Promise<void> {
     try {
       const updated = await clearOldMessages();
-      setFetchedMessages(updated);
+      applyMessages(updated);
       setSelectedMessageId(null);
     } catch { }
   }
@@ -228,7 +236,7 @@ export default function InboxTab({
         setBulkSelectionEnabled(false);
       }
 
-      setFetchedMessages(updatedMessages);
+      applyMessages(updatedMessages);
       setSelectedMessageIds((currentIds) =>
         currentIds.filter((messageId) => !deletedMessageIds.includes(messageId)),
       );
