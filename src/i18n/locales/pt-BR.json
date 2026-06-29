@@ -3452,6 +3452,14 @@
         "bodyMultiple": "Após o resultado {{result}}, o técnico do {{team}} falou com a imprensa.\n\n{{quotes}}\n\nA coletiva abordou o resultado, a abordagem tática e o que vem pela frente para o time.",
         "bodySingle": "O técnico do {{team}} falou brevemente após o resultado {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "O técnico do {{team}} não quis falar longamente após o resultado {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "A corrida para sediar {{year}}",
+        "body": "{{count}} nações entraram na disputa para sediar a Copa do Mundo de {{year}}. Estádios, infraestrutura e paixão pelo futebol pesarão na decisão."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} vai sediar a Copa do Mundo de {{year}}",
+        "body": "{{nation}} conquistou o direito de organizar a Copa do Mundo de {{year}}. O país inteiro começa a contagem regressiva para a maior festa do futebol."
       }
     },
     "competition": {

@@ -152,6 +152,13 @@ pub fn process_national_team_fixtures_due(
             home_penalties: None,
             away_penalties: None,
         });
+        game.world_history.apply_national_result(
+            &crate::world_cup::nation_code_of_national_team(&home_id),
+            &crate::world_cup::nation_code_of_national_team(&away_id),
+            home_goals,
+            away_goals,
+            false,
+        );
         simulated += 1;
     }
     simulated

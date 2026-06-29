@@ -3449,6 +3449,14 @@
         "bodyMultiple": "在{{result}}的比赛之后，{{team}}主帅接受了媒体采访。\n\n{{quotes}}\n\n这场发布会谈到了比赛结果、战术安排以及球队接下来的方向。",
         "bodySingle": "{{team}}主帅在{{result}}的结果后简短发言。\n\n\"{{quote}}\"",
         "bodyNone": "在{{result}}的结果后，{{team}}主帅拒绝长时间发言。"
+      },
+      "worldCupHostBid": {
+        "headline": "{{year}}年世界杯主办权之争",
+        "body": "{{count}}个国家竞逐{{year}}年世界杯的主办权。球场、基础设施与足球热情都将影响最终决定。"
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}}将主办{{year}}年世界杯",
+        "body": "{{nation}}赢得了{{year}}年世界杯的主办权。全国上下开始为这场足球盛宴倒计时。"
       }
     },
     "competition": {

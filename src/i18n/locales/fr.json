@@ -3452,6 +3452,14 @@
         "bodyMultiple": "Après le résultat {{result}}, l'entraîneur de {{team}} a pris la parole face à la presse.\n\n{{quotes}}\n\nLa conférence a abordé le résultat, l'approche tactique et la suite pour l'équipe.",
         "bodySingle": "L'entraîneur de {{team}} s'est exprimé brièvement après le résultat {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "L'entraîneur de {{team}} a décliné de s'exprimer longuement après le résultat {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "La course à l'organisation {{year}}",
+        "body": "{{count}} nations se sont portées candidates à l'organisation de la Coupe du Monde {{year}}. Stades, infrastructures et passion du football pèseront dans la décision."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} accueillera la Coupe du Monde {{year}}",
+        "body": "{{nation}} a obtenu le droit d'organiser la Coupe du Monde {{year}}. Tout un pays entame le compte à rebours vers la plus grande fête du football."
       }
     },
     "competition": {

@@ -3452,6 +3452,14 @@
         "bodyMultiple": "Após o resultado {{result}}, o treinador do {{team}} falou com a imprensa.\n\n{{quotes}}\n\nA conferência abordou o resultado, a abordagem tática e o que se segue para a equipa.",
         "bodySingle": "O treinador do {{team}} falou brevemente após o resultado {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "O treinador do {{team}} recusou falar longamente após o resultado {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "A corrida para organizar {{year}}",
+        "body": "{{count}} nações candidataram-se a organizar o Campeonato do Mundo de {{year}}. Estádios, infraestruturas e paixão pelo futebol pesarão na decisão."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} vai organizar o Mundial de {{year}}",
+        "body": "{{nation}} conquistou o direito de organizar o Campeonato do Mundo de {{year}}. Todo o país inicia a contagem decrescente para a maior festa do futebol."
       }
     },
     "competition": {
