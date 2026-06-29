@@ -411,6 +411,43 @@ pub fn berths_by_region(
     berths
 }
 
+/// Spread qualifying fixtures so each matchday's matches fan out across its
+/// international window's [`INTERNATIONAL_WINDOW_SPAN_DAYS`]-day block (matchday
+/// N opens on `window_dates[N-1]`) rather than all landing on the opening date.
+/// The per-day count is sized so every match still fits inside the block.
+fn spread_qualifying_over_windows(fixtures: &mut [domain::league::Fixture], window_dates: &[String]) {
+    use std::collections::BTreeMap;
+    if window_dates.is_empty() {
+        return;
+    }
+    let span = crate::national_team::INTERNATIONAL_WINDOW_SPAN_DAYS;
+
+    let mut per_matchday: BTreeMap<u32, usize> = BTreeMap::new();
+    for fixture in fixtures.iter() {
+        *per_matchday.entry(fixture.matchday).or_default() += 1;
+    }
+
+    // Deterministic order so day assignment is stable across runs.
+    fixtures.sort_by(|a, b| a.matchday.cmp(&b.matchday).then(a.id.cmp(&b.id)));
+
+    let mut seen: BTreeMap<u32, i64> = BTreeMap::new();
+    for fixture in fixtures.iter_mut() {
+        let window = (fixture.matchday as usize).saturating_sub(1).min(window_dates.len() - 1);
+        let Some(base) = chrono::NaiveDate::parse_from_str(&window_dates[window], "%Y-%m-%d").ok()
+        else {
+            continue;
+        };
+        let count = per_matchday.get(&fixture.matchday).copied().unwrap_or(1) as i64;
+        let per_day = ((count + span - 1) / span).max(1);
+        let index = seen.entry(fixture.matchday).or_default();
+        let offset = (*index / per_day).min(span - 1);
+        *index += 1;
+        fixture.date = (base + chrono::Duration::days(offset))
+            .format("%Y-%m-%d")
+            .to_string();
+    }
+}
+
 fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
     b.points
         .cmp(&a.points)
@@ -474,7 +511,7 @@ pub fn schedule_world_cup_qualifying(
                 .collect();
             participant_ids.extend(team_ids.iter().cloned());
 
-            let mut fixtures = crate::schedule::build_round_robin_fixtures_with(
+            let fixtures = crate::schedule::build_round_robin_fixtures_with(
                 &competition_id,
                 &team_ids,
                 base_date,
@@ -482,11 +519,6 @@ pub fn schedule_world_cup_qualifying(
                 1,
                 3,
             );
-            // Pin each matchday onto an international window date.
-            for fixture in &mut fixtures {
-                let window = (fixture.matchday as usize - 1).min(window_dates.len() - 1);
-                fixture.date = window_dates[window].clone();
-            }
             competition.fixtures.extend(fixtures);
             competition.groups.push(GroupState {
                 id: format!("{competition_id}-{region}-{group_index}"),
@@ -503,6 +535,9 @@ pub fn schedule_world_cup_qualifying(
     if competition.groups.is_empty() {
         return;
     }
+    // Every group plays the same matchday in a window; spread those matches
+    // across the window's multi-day block so no single calendar day is swamped.
+    spread_qualifying_over_windows(&mut competition.fixtures, window_dates);
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
     game.competitions.push(competition);
@@ -770,6 +805,8 @@ mod tests {
 
         schedule_world_cup_qualifying(&mut game, 2026, &windows);
 
+        // Matches spread across each window's multi-day block.
+        let window_block = crate::national_team::international_window_span_dates(&windows);
         {
             let qualifying = game
                 .competitions
@@ -778,7 +815,7 @@ mod tests {
                 .expect("qualifying is scheduled");
             assert!(!qualifying.groups.is_empty());
             assert!(qualifying.fixtures.iter().all(|f| {
-                windows.contains(&f.date)
+                window_block.contains(&f.date)
                     && f.competition == FixtureCompetition::InternationalNation
             }));
         }
@@ -787,9 +824,9 @@ mod tests {
             "the qualifying campaign makes the news"
         );
 
-        // Play every qualifying matchday.
+        // Play every qualifying matchday across the spread window blocks.
         let mut rng = StdRng::seed_from_u64(11);
-        for date in &windows {
+        for date in &window_block {
             process_world_cup_fixtures_due(&mut game, date, &mut rng);
         }
         // Group tables recorded results.
@@ -807,6 +844,78 @@ mod tests {
         assert_eq!(field.len(), FORMAT_16.field);
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
         assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+    }
+
+    /// Max number of fixtures that fall on any single calendar date.
+    fn max_fixtures_per_day(competition: &League) -> usize {
+        let mut per_day: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for fixture in &competition.fixtures {
+            *per_day.entry(fixture.date.as_str()).or_default() += 1;
+        }
+        per_day.values().copied().max().unwrap_or(0)
+    }
+
+    #[test]
+    fn world_cup_finals_never_overload_a_calendar_day() {
+        // FORMAT_48 finals: groups + knockouts must never overload a calendar day.
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2026), &FORMAT_48);
+        let mut rng = StdRng::seed_from_u64(99);
+        for _ in 0..400 {
+            let next = game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_competition(c))
+                .flat_map(|c| c.fixtures.iter())
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .map(|f| f.date.clone())
+                .min();
+            let Some(date) = next else { break };
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        let finals = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap();
+        assert!(
+            max_fixtures_per_day(finals) <= 4,
+            "finals should never exceed 4 matches on one day, saw {}",
+            max_fixtures_per_day(finals)
+        );
+    }
+
+    #[test]
+    fn qualifying_spreads_matches_across_window_blocks() {
+        // Every region's groups play the same matchday in a window; without
+        // spreading, a full catalog world piles ~28 matches onto one date.
+        let mut game = empty_game();
+        let windows = crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        schedule_world_cup_qualifying(&mut game, 2026, &windows);
+        let qualifying = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_qualifying(c))
+            .unwrap();
+
+        // No date holds an unrealistic pile of matches any more.
+        assert!(
+            max_fixtures_per_day(qualifying) <= 8,
+            "qualifying should be spread under 8 matches/day, saw {}",
+            max_fixtures_per_day(qualifying)
+        );
+
+        // Every match still falls inside a reserved international-window block.
+        let block: std::collections::HashSet<String> = crate::national_team::
+            international_window_span_dates(&windows)
+            .into_iter()
+            .collect();
+        assert!(
+            qualifying.fixtures.iter().all(|f| block.contains(&f.date)),
+            "qualifying matches must stay inside the window span blocks"
+        );
     }
 
     #[test]
