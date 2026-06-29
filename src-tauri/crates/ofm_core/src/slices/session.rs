@@ -85,7 +85,15 @@ pub fn project_session(game: &Game) -> SessionState {
         scouting_assignments: game.scouting_assignments.clone(),
         youth_scouting_assignments: game.youth_scouting_assignments.clone(),
         active_competition_ids: game.active_competition_ids.clone(),
-        unread_news_count: game.news.iter().filter(|a| !a.read).count(),
+        unread_news_count: {
+            // Don't count future-dated articles (e.g. a World Cup kickoff dated
+            // at kickoff) — they aren't shown in the feed until their day.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            game.news
+                .iter()
+                .filter(|a| !a.read && crate::slices::news::article_is_visible(&a.date, &today))
+                .count()
+        },
         unread_messages_count: game.messages.iter().filter(|m| !m.read).count(),
         user_competition,
     }
