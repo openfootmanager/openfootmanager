@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
     GameStateData,
@@ -19,6 +19,7 @@ import {
     getOutgoingNegotiationOffer,
     normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
+import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 
 interface UseTransferBidFlowArgs {
     gameState: GameStateData;
@@ -63,7 +64,7 @@ export function useTransferBidFlow({
         useState<TransferNegotiationFeedbackData | null>(null);
     const [bidProjection, setBidProjection] =
         useState<TransferBidProjectionData["projection"] | null>(null);
-    const autoCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { scheduleAutoClose, clearAutoClose } = useAutoCloseTimeout();
 
     const activeBidOffer = bidTarget
         ? getOutgoingNegotiationOffer(bidTarget, userTeamId)
@@ -72,15 +73,6 @@ export function useTransferBidFlow({
     const bidFee = Number.isFinite(bidAmountMillions)
         ? Math.round(bidAmountMillions * 1_000_000)
         : null;
-
-    const clearAutoCloseTimeout = (): void => {
-        if (autoCloseTimeoutRef.current !== null) {
-            clearTimeout(autoCloseTimeoutRef.current);
-            autoCloseTimeoutRef.current = null;
-        }
-    };
-
-    useEffect(() => clearAutoCloseTimeout, []);
 
     useEffect(() => {
         if (!bidTarget || bidFee === null || bidFee <= 0) {
@@ -117,7 +109,7 @@ export function useTransferBidFlow({
     const openBidNegotiation = (player: PlayerData): void => {
         const existingOffer = getOutgoingNegotiationOffer(player, userTeamId);
 
-        clearAutoCloseTimeout();
+        clearAutoClose();
         setBidTarget(player);
         setBidAmount(
             (
@@ -133,7 +125,7 @@ export function useTransferBidFlow({
     };
 
     const closeBidNegotiation = (): void => {
-        clearAutoCloseTimeout();
+        clearAutoClose();
         setBidTarget(null);
         setBidAmount("");
         setBidResult(null);
@@ -162,9 +154,7 @@ export function useTransferBidFlow({
 
             if (response.decision === "accepted") {
                 const acceptedPlayerId = bidTarget.id;
-                clearAutoCloseTimeout();
-                autoCloseTimeoutRef.current = setTimeout(() => {
-                    autoCloseTimeoutRef.current = null;
+                scheduleAutoClose(() => {
                     closeBidNegotiation();
                     onAccepted?.(acceptedPlayerId);
                 }, 2000);
