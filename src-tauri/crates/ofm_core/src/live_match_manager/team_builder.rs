@@ -39,12 +39,16 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
         .collect();
     let player_roles = team.map(|t| &t.player_roles);
-    let convert_player = |p: &domain::player::Player| {
+    // `deployed` is the granular slot the player occupies; `None` for the bench,
+    // where the player's own position is used instead. The engine's coarse
+    // position is derived from this so a player fielded out of position (e.g. a
+    // striker at centre-back) is simulated in the position they actually play.
+    let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
         let role = player_roles
             .and_then(|roles| roles.get(&p.id))
             .map(domain_to_engine_role)
             .unwrap_or(EnginePlayerRole::Standard);
-        to_engine_player(p, role)
+        to_engine_player(p, role, deployed)
     };
 
     let starting_players = select_starting_xi(saved_xi_ids, &available_players, &formation);
@@ -52,7 +56,12 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .map(|player| player.id.clone())
         .collect();
-    let starting_xi = starting_players.into_iter().map(|p| convert_player(p)).collect();
+    let slots = formation_slots(&formation);
+    let starting_xi = starting_players
+        .into_iter()
+        .enumerate()
+        .map(|(slot_index, p)| convert_player(p, slots.get(slot_index)))
+        .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
         .into_iter()
@@ -63,7 +72,7 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain.into_iter().map(|p| convert_player(p)).collect();
+    let bench = bench_domain.into_iter().map(|p| convert_player(p, None)).collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -203,8 +212,16 @@ pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePl
     }
 }
 
-fn to_engine_player(p: &domain::player::Player, role: EnginePlayerRole) -> PlayerData {
-    let pos = match p.position.to_group_position() {
+fn to_engine_player(
+    p: &domain::player::Player,
+    role: EnginePlayerRole,
+    deployed: Option<&DomainPosition>,
+) -> PlayerData {
+    let group = deployed
+        .cloned()
+        .unwrap_or_else(|| p.position.clone())
+        .to_group_position();
+    let pos = match group {
         DomainPosition::Goalkeeper => Position::Goalkeeper,
         DomainPosition::Defender => Position::Defender,
         DomainPosition::Midfielder => Position::Midfielder,

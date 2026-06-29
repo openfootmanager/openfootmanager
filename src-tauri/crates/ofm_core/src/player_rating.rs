@@ -14,6 +14,22 @@ pub fn formation_slots(formation: &str) -> Vec<Position> {
         .collect()
 }
 
+/// The granular field position a player is deployed in for `team`, derived from
+/// the team's formation and starting XI order.
+///
+/// Returns `None` when the player is not in the starting XI (e.g. on the bench);
+/// such players have no deployed slot and callers should fall back to the
+/// player's natural position. This is the single source of truth for "where the
+/// player is currently playing", since `player.position` is no longer mutated to
+/// encode the deployed slot.
+pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<Position> {
+    let slot_index = team
+        .starting_xi_ids
+        .iter()
+        .position(|id| id == player_id)?;
+    formation_slots(&team.formation).get(slot_index).cloned()
+}
+
 /// Refresh a player's derived fields: `ovr`, `potential`, and `traits`.
 ///
 /// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
@@ -487,6 +503,35 @@ mod tests {
                 Position::Striker,
             ]
         );
+    }
+
+    #[test]
+    fn deployed_position_maps_starting_xi_index_to_formation_slot() {
+        use domain::team::Team;
+
+        let mut team = Team::new(
+            "t1".to_string(),
+            "Test FC".to_string(),
+            "TFC".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        );
+        team.formation = "4-4-2".to_string();
+        team.starting_xi_ids = vec![
+            "gk".to_string(),
+            "lb".to_string(),
+            "cb1".to_string(),
+            "cb2".to_string(),
+            "rb".to_string(),
+        ];
+
+        assert_eq!(deployed_position(&team, "gk"), Some(Position::Goalkeeper));
+        assert_eq!(deployed_position(&team, "lb"), Some(Position::LeftBack));
+        assert_eq!(deployed_position(&team, "rb"), Some(Position::RightBack));
+        // Not in the starting XI -> no deployed slot.
+        assert_eq!(deployed_position(&team, "bench"), None);
     }
 
     #[test]

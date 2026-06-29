@@ -35,60 +35,14 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
-        // Parse formation into (def, mid, fwd) counts
-        let parts: Vec<usize> = formation
-            .split('-')
-            .filter_map(|s| s.parse().ok())
-            .collect();
-        let (num_def, num_mid, num_fwd) = match parts.len() {
-            3 => (parts[0], parts[1], parts[2]),
-            4 => (parts[0], parts[1] + parts[2], parts[3]),
-            _ => (4, 4, 2),
-        };
-
+        // Note: `player.position` is intentionally NOT mutated here. A player's
+        // stored position is their natural position; the position they are
+        // *deployed* in is derived on demand from the formation + starting XI
+        // (see `player_rating::deployed_position`). The previous stat-ranked
+        // bucket overwrite corrupted role validation and match simulation
+        // (issue #257).
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             team.formation = formation.to_string();
-        }
-
-        // Reassign positions for outfield players on this team
-        let player_ids: Vec<String> = game
-            .players
-            .iter()
-            .filter(|p| {
-                p.team_id.as_deref() == Some(&team_id)
-                    && p.position != domain::player::Position::Goalkeeper
-            })
-            .map(|p| p.id.clone())
-            .collect();
-
-        // Sort by defensive ability (most defensive first)
-        let mut sorted_ids = player_ids.clone();
-        sorted_ids.sort_by(|a_id, b_id| {
-            let pa = game.players.iter().find(|p| p.id == *a_id).unwrap();
-            let pb = game.players.iter().find(|p| p.id == *b_id).unwrap();
-            let def_a = pa.attributes.defending as u16
-                + pa.attributes.tackling as u16
-                + pa.attributes.strength as u16;
-            let def_b = pb.attributes.defending as u16
-                + pb.attributes.tackling as u16
-                + pb.attributes.strength as u16;
-            def_b.cmp(&def_a)
-        });
-
-        // Assign positions
-        for (slot, pid) in sorted_ids.iter().enumerate() {
-            let new_pos = if slot < num_def {
-                domain::player::Position::Defender
-            } else if slot < num_def + num_mid {
-                domain::player::Position::Midfielder
-            } else if slot < num_def + num_mid + num_fwd {
-                domain::player::Position::Forward
-            } else {
-                continue;
-            };
-            if let Some(player) = game.players.iter_mut().find(|p| p.id == *pid) {
-                player.position = new_pos;
-            }
         }
 
         reconcile_player_roles(game, &team_id);
@@ -668,20 +622,39 @@ pub fn set_player_role(
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
+    set_player_role_internal(&state, player_id, role)
+}
+
+pub fn set_player_role_internal(
+    state: &StateManager,
+    player_id: String,
+    role: Option<String>,
+) -> Result<Game, String> {
     info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
-    mutate_active_game(&state, |game| {
+    mutate_active_game(state, |game| {
         let team_id = game
             .manager
             .team_id
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
-        let player_position = game
+        // Validate the role against where the player is actually deployed (the
+        // granular slot from formation + starting XI), falling back to their
+        // natural position when they are not in the starting XI. Using the
+        // deployed slot keeps the validator in agreement with the role options
+        // the UI offers and fixes spurious rejections (issue #257).
+        let natural_position = game
             .players
             .iter()
             .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&team_id))
-            .map(|p| p.position.clone())
+            .map(|p| p.natural_position.clone())
             .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
+        let validation_position = game
+            .teams
+            .iter()
+            .find(|t| t.id == team_id)
+            .and_then(|team| ofm_core::player_rating::deployed_position(team, &player_id))
+            .unwrap_or(natural_position);
 
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             match role {
@@ -689,7 +662,7 @@ pub fn set_player_role(
                     let role_enum = r
                         .parse::<domain::team::PlayerRole>()
                         .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
-                    if !role_valid_for_position(&role_enum, &player_position) {
+                    if !role_valid_for_position(&role_enum, &validation_position) {
                         return Err("be.error.roleNotValidForPosition".to_string());
                     }
                     team.player_roles.insert(player_id.clone(), role_enum);
@@ -763,7 +736,10 @@ pub fn set_tactics_phase(
 
 #[cfg(test)]
 mod tests {
-    use super::{set_player_squad_role_internal, set_player_training_focus_internal};
+    use super::{
+        set_formation_internal, set_player_role_internal, set_player_squad_role_internal,
+        set_player_training_focus_internal,
+    };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position, SquadRole};
@@ -912,6 +888,62 @@ mod tests {
             game.teams[0].player_roles.get("player-1"),
             Some(&PlayerRole::Standard)
         );
+    }
+
+    #[test]
+    fn set_formation_internal_does_not_mutate_player_position() {
+        let state = StateManager::new();
+        // player-1 is a Forward and the only outfield player on the team.
+        state.set_game(make_game(make_player("1998-01-01")));
+
+        set_formation_internal(&state, "4-4-2").expect("formation set");
+
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        // Previously set_formation stat-ranked this player into the Defender
+        // bucket; their stored position must now be left untouched.
+        assert_eq!(stored.players[0].position, Position::Forward);
+        assert_eq!(stored.teams[0].formation, "4-4-2");
+    }
+
+    #[test]
+    fn set_player_role_internal_validates_against_deployed_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            // Deploy the (natural Forward) player at the right-back slot of 4-4-2
+            // (slot index 4). The validator must judge the role by that slot.
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            team.starting_xi_ids = vec![
+                "x0".to_string(),
+                "x1".to_string(),
+                "x2".to_string(),
+                "x3".to_string(),
+                "player-1".to_string(),
+            ];
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+
+        // A full-back role is valid at the RB slot even though the player's
+        // natural position is Forward (the issue #257 repro).
+        let result =
+            set_player_role_internal(&state, "player-1".to_string(), Some("DefensiveFB".to_string()))
+                .expect("DefensiveFB is valid at the RB slot");
+        assert_eq!(
+            result.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::DefensiveFB)
+        );
+
+        // A midfield role is not valid at the RB slot.
+        let error = set_player_role_internal(
+            &state,
+            "player-1".to_string(),
+            Some("BoxToBox".to_string()),
+        )
+        .expect_err("BoxToBox is not valid at the RB slot");
+        assert_eq!(error, "be.error.roleNotValidForPosition");
     }
 
     #[test]
