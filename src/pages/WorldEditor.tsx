@@ -18,6 +18,7 @@ import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
 import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
 import { useFlashMessages } from "../hooks/useFlashMessages";
+import { useRecentProjects } from "../hooks/useRecentProjects";
 import { createWriteQueue } from "../lib/writeQueue";
 import type {
   CompetitionDef,
@@ -31,7 +32,7 @@ import type {
   TeamDef,
   WorldMetaDef,
 } from "../components/menu/PackageEditor/types";
-import { WorldEditorHome, type RecentProject } from "../components/worldEditor/WorldEditorHome";
+import { WorldEditorHome } from "../components/worldEditor/WorldEditorHome";
 import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
@@ -40,17 +41,6 @@ import { WorldEditorFormPanel, type FormPanel } from "../components/worldEditor/
 import { WorldEditorListContent } from "../components/worldEditor/WorldEditorListContent";
 
 const AUTO_SAVE_KEY = "worldEditor.autoSave";
-const RECENT_PROJECTS_KEY = "worldEditor.recentProjects";
-const MAX_RECENT = 8;
-
-function readRecentProjects(): RecentProject[] {
-  try {
-    const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
-    return raw ? (JSON.parse(raw) as RecentProject[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 interface EntitySnapshot {
   meta: WorldMetaDef;
@@ -102,7 +92,7 @@ export default function WorldEditor() {
   const [autoSave, setAutoSave] = useState<boolean>(readAutoSave);
 
   // Recent projects
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(readRecentProjects);
+  const { recentProjects, addRecentProject } = useRecentProjects();
 
   // ---------------------------------------------------------------------------
   // Snapshot helpers
@@ -165,20 +155,6 @@ export default function WorldEditor() {
     setIssues(data.issues);
     clearHistory();
     setIsDirty(false);
-  }
-
-  function addRecentProject(path: string, name: string) {
-    setRecentProjects((prev) => {
-      const filtered = prev.filter((p) => p.path !== path);
-      const updated = [{ path, name, openedAt: new Date().toISOString() }, ...filtered].slice(
-        0,
-        MAX_RECENT,
-      );
-      try {
-        localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(updated));
-      } catch { /* ignore */ }
-      return updated;
-    });
   }
 
   // Latest committed slices, read at write time so a serialized/queued persist
