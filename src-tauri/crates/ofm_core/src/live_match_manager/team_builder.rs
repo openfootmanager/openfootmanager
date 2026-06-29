@@ -1,6 +1,6 @@
 use crate::game::Game;
 use crate::player_rating::{
-    effective_rating_for_assignment, formation_slots, natural_ovr,
+    deployed_position, effective_rating_for_assignment, formation_slots, natural_ovr,
     positional_fit_for_assignment,
 };
 use domain::player::Position as DomainPosition;
@@ -79,7 +79,21 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
     let starting_xi = starting_players
         .into_iter()
         .enumerate()
-        .map(|(slot_index, p)| convert_player(p, slots.get(slot_index)))
+        .map(|(slot_index, p)| {
+            // The deployed slot must agree with deployed_position / the UI, which
+            // key off the RAW starting_xi_ids. For the user team, select_starting_xi
+            // compacts around unavailable (injured/sold) starters, so the list
+            // index is NOT a reliable slot — resolve it from the saved XI instead
+            // (replacements not in the saved XI fall back to their natural
+            // position). The AI selection is built per-slot in order, so for it the
+            // list index IS the slot.
+            let deployed: Option<DomainPosition> = if is_user_team {
+                team.and_then(|t| deployed_position(t, &p.id))
+            } else {
+                slots.get(slot_index).cloned()
+            };
+            convert_player(p, deployed.as_ref())
+        })
         .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
@@ -406,9 +420,12 @@ fn to_engine_player(
     role: EnginePlayerRole,
     deployed: Option<&DomainPosition>,
 ) -> PlayerData {
+    // Fall back to the player's natural position (not `p.position`, which on
+    // legacy saves can still hold a stale coarse bucket written by the old
+    // set_formation stat-ranking).
     let group = deployed
         .cloned()
-        .unwrap_or_else(|| p.position.clone())
+        .unwrap_or_else(|| p.natural_position.clone())
         .to_group_position();
     let pos = match group {
         DomainPosition::Goalkeeper => Position::Goalkeeper,
@@ -689,5 +706,66 @@ mod tests {
         assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
         assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
         assert_eq!(group_count(Forward), 2, "must field two forwards");
+    }
+
+    /// When a saved starter is unavailable the user XI compacts; the surviving
+    /// starters must keep their real saved slot (matching deployed_position /
+    /// the UI), not shift up into the vacated slot. Regression for an injured
+    /// keeper turning an outfielder into the engine's goalkeeper.
+    #[test]
+    fn user_team_starter_keeps_saved_slot_when_xi_compacts() {
+        use crate::clock::GameClock;
+        use chrono::{TimeZone, Utc};
+        use domain::manager::Manager;
+        use domain::team::Team;
+
+        let mut players: Vec<Player> = (1..=11)
+            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
+            .collect();
+        // p1 is a natural Forward saved into the LEFT-BACK slot (index 1).
+        players[0] = mk_pos("p1", DomainPos::Forward, 70, 100);
+        for player in players.iter_mut() {
+            player.team_id = Some("user".to_string());
+        }
+
+        let mut team = Team::new(
+            "user".to_string(),
+            "User FC".to_string(),
+            "USR".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        );
+        team.formation = "4-4-2".to_string();
+        // Slot 0 (GK) references a player that no longer exists, so
+        // select_starting_xi drops it and the survivors compact.
+        team.starting_xi_ids = std::iter::once("ghost-gk".to_string())
+            .chain((1..=10).map(|i| format!("p{i}")))
+            .collect();
+
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("user".to_string());
+
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let game = Game::new(clock, manager, vec![team], players, vec![], vec![]);
+
+        let (team_data, _bench) = build_team_with_bench(&game, "user");
+
+        let p1 = team_data
+            .players
+            .iter()
+            .find(|p| p.id == "p1")
+            .expect("p1 should be fielded");
+        // Saved at the left-back slot -> simulated as a defender, never shoved
+        // into the vacated goalkeeper slot.
+        assert_eq!(p1.position, Position::Defender);
+        assert_ne!(p1.position, Position::Goalkeeper);
     }
 }
