@@ -8,12 +8,10 @@ import {
 import { Card, CardBody, Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
 import {
-  Search,
   TrendingUp,
   ShoppingCart,
   Handshake,
   ArrowRightLeft,
-  Filter,
   Gavel,
   Check,
   X,
@@ -76,6 +74,7 @@ import FreeAgentContractModal, {
   FreeAgentContractForm,
 } from "./FreeAgentContractModal";
 import TransfersBudgetHeader from "./TransfersBudgetHeader";
+import TransfersControls from "./TransfersControls";
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 import { useLoanOfferFlow } from "./useLoanOfferFlow";
@@ -662,92 +661,36 @@ export default function TransfersTab({
         />
       )}
 
-      {/* Tab navigation */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {tabs.map((tab) => (
-          <button
-            type="button"
-            key={tab.id}
-            onClick={() => {
-              setView(tab.id);
-              setMarketPage(1);
-              if (tab.id !== "players") {
-                setAvailabilityFilter("all");
-              }
-            }}
-            className={`px-4 py-2 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              view === tab.id
-                ? "bg-primary-700 text-white shadow-md shadow-primary-700/20"
-                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600 hover:text-gray-700 dark:hover:text-gray-200"
-            }`}
-          >
-            {tab.icon} {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4 items-center">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            placeholder={t("transfers.searchByName")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setMarketPage(1);
-            }}
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-          />
-        </div>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setPosFilter(null);
-              setMarketPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${!posFilter ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-          >
-            {t("common.all")}
-          </button>
-          {positions.map((pos) => (
-            <button
-              type="button"
-              key={pos}
-              onClick={() => {
-                setPosFilter(posFilter === pos ? null : pos);
-                setMarketPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${posFilter === pos ? "bg-primary-700 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-            >
-              {t(`common.posAbbr.${pos}`)}
-            </button>
-          ))}
-        </div>
-        {isPlayersView && (
-          <div className="flex flex-wrap gap-1.5">
-            {availabilityFilters.map((filter) => (
-              <button
-                type="button"
-                key={filter.id}
-                onClick={() => {
-                  setAvailabilityFilter(filter.id);
-                  setMarketPage(1);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${availabilityFilter === filter.id ? "bg-accent-500 text-navy-900 shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-              >
-                {filter.label} ({filter.count})
-              </button>
-            ))}
-          </div>
-        )}
-        <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
-          <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
-          {t("common.nResults", { count: filteredList.length })}
-        </p>
-      </div>
+      <TransfersControls
+        tabs={tabs}
+        activeView={view}
+        onSelectView={(nextView) => {
+          setView(nextView);
+          setMarketPage(1);
+          if (nextView !== "players") {
+            setAvailabilityFilter("all");
+          }
+        }}
+        search={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setMarketPage(1);
+        }}
+        positions={positions}
+        posFilter={posFilter}
+        onSelectPosition={(pos) => {
+          setPosFilter(pos);
+          setMarketPage(1);
+        }}
+        isPlayersView={isPlayersView}
+        availabilityFilters={availabilityFilters}
+        availabilityFilter={availabilityFilter}
+        onSelectAvailability={(id) => {
+          setAvailabilityFilter(id);
+          setMarketPage(1);
+        }}
+        resultCount={filteredList.length}
+      />
 
       {scoutError && isScoutingView ? (
         <p
