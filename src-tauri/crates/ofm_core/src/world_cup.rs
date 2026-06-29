@@ -57,8 +57,9 @@ pub const FORMAT_16: WorldCupFormat = WorldCupFormat {
 const TOPPED_UP_POOL: usize = 18;
 /// Days between group matchdays — the tournament must fit the summer break.
 const GROUP_MATCHDAY_GAP_DAYS: i64 = 2;
-/// Days between knockout rounds.
-const KNOCKOUT_GAP_DAYS: u32 = 4;
+/// Days between knockout rounds, kept tight so the finals fit a real ~5-week
+/// World Cup window.
+const KNOCKOUT_GAP_DAYS: u32 = 3;
 
 /// World Cups take place in the summers of 2022, 2026, 2030, …
 pub fn is_world_cup_summer(year: i32) -> bool {
@@ -1182,6 +1183,19 @@ mod tests {
             max_fixtures_per_day(finals) <= 4,
             "finals should never exceed 4 matches on one day, saw {}",
             max_fixtures_per_day(finals)
+        );
+
+        // The whole tournament should fit a real World Cup window (~5-6 weeks).
+        let dates: Vec<chrono::NaiveDate> = finals
+            .fixtures
+            .iter()
+            .filter_map(|f| chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").ok())
+            .collect();
+        let span_days =
+            (*dates.iter().max().unwrap() - *dates.iter().min().unwrap()).num_days();
+        assert!(
+            span_days <= 42,
+            "finals should fit a real World Cup window, spanned {span_days} days"
         );
     }
 
