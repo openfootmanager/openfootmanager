@@ -484,7 +484,15 @@ pub fn info_season_context(ctx: Arc<McpContext>) -> Result<String, String> {
 pub fn info_news(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
 
-    let news: Vec<_> = game.news.iter().take(10).collect();
+    // Hide future-dated articles (e.g. a World Cup kickoff dated at kickoff) so
+    // they don't show here every day before they happen — same rule as the feed.
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let news: Vec<_> = game
+        .news
+        .iter()
+        .filter(|n| ofm_core::slices::news::article_is_visible(&n.date, &today))
+        .take(10)
+        .collect();
     if news.is_empty() {
         return Ok("## News\n\nNo recent news.".to_string());
     }

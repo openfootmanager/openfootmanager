@@ -15,23 +15,29 @@ pub struct NewsFeed {
     pub league_name: Option<String>,
 }
 
+/// The `YYYY-MM-DD` day an article is dated on. Article dates come in two
+/// shapes — a bare `YYYY-MM-DD` and an RFC3339 timestamp
+/// (`YYYY-MM-DDThh:mm:ss+00:00`) — so compare on the day prefix.
+pub fn article_day(date: &str) -> &str {
+    date.get(..10).unwrap_or(date)
+}
+
+/// Whether an article dated `date` is visible at game-date `today` (formatted
+/// `%Y-%m-%d`). Future-dated articles (e.g. the World Cup kickoff, dated at
+/// kickoff) stay hidden until their day, so they can't sit permanently atop the
+/// feed "every day" until they arrive. Comparing on the day prefix avoids an
+/// RFC3339 timestamp sorting *after* the bare day and hiding same-day news.
+pub fn article_is_visible(date: &str, today: &str) -> bool {
+    article_day(date) <= today
+}
+
 pub fn query_news_feed(game: &Game, _query: &NewsFeedQuery) -> NewsFeed {
-    // Only surface news that has already happened. Some articles are dated for a
-    // future event (e.g. the World Cup kickoff is dated at kickoff), and without
-    // this guard a future-dated article sits permanently atop the feed —
-    // appearing "every day" until its date arrives.
+    // Only surface news that has already happened.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    // Article dates come in two shapes: a bare `YYYY-MM-DD` and an RFC3339
-    // timestamp (`YYYY-MM-DDThh:mm:ss+00:00`). Compare on the `YYYY-MM-DD`
-    // prefix only — a full-timestamp string is lexically *greater* than the
-    // bare day, so a naive `<= today` would hide same-day RFC3339 articles.
     let articles: Vec<NewsArticle> = game
         .news
         .iter()
-        .filter(|article| {
-            let day = article.date.get(..10).unwrap_or(article.date.as_str());
-            day <= today.as_str()
-        })
+        .filter(|article| article_is_visible(&article.date, &today))
         .cloned()
         .collect();
 
