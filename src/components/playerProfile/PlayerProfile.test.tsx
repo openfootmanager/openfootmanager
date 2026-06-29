@@ -1302,6 +1302,72 @@ describe("PlayerProfile contract surfaces", () => {
       expect(screen.getByText("No Contract")).toBeInTheDocument();
     });
   });
+
+  it("auto-opens the renewal modal when startWithRenewalModal is set", async () => {
+    const player = createPlayer();
+    const gameState = createGameState(player);
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub
+        startWithRenewalModal
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Offered Wage")).toBeInTheDocument();
+    });
+  });
+
+  it("auto-opens the termination modal when startWithTerminationModal is set", async () => {
+    const player = createPlayer();
+    const gameState = createGameState(player);
+
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "preview_contract_termination") {
+        return {
+          preview: {
+            player_id: "player-1",
+            player_name: "J. Smith",
+            severance_cost: 132000,
+            squad_safety: {
+              team_id: "team-1",
+              projected_roster_size: 11,
+              healthy_players: 11,
+              healthy_goalkeepers: 1,
+              effective_xi_size: 11,
+              can_field_matchday_squad: true,
+              missing_reasons: [],
+            },
+          },
+        };
+      }
+
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub
+        startWithTerminationModal
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("preview_contract_termination", {
+        playerId: "player-1",
+      });
+      expect(screen.getByText("Severance")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("PlayerProfile free agent signing", () => {
