@@ -388,14 +388,25 @@ pub fn schedule_world_cup_with_field(
     format: &WorldCupFormat,
     predetermined_field: Option<Vec<String>>,
 ) {
-    let field = predetermined_field.unwrap_or_else(|| select_field(game, format));
+    let year = kickoff.year();
+    let host_code = host_for_year(game, year);
+    let mut field = predetermined_field.unwrap_or_else(|| select_field(game, format));
     if field.len() < 4 {
         return;
+    }
+    // The host auto-qualifies: ensure it is in the field, displacing the weakest
+    // entrant if the field is already full so the size stays constant.
+    if let Some(host) = host_code.as_deref()
+        && !field.iter().any(|code| code == host)
+    {
+        if field.len() >= format.field {
+            field.pop();
+        }
+        field.push(host.to_string());
     }
     prepare_national_squads(game, &field);
     seed_world_ranking(game, &field);
 
-    let year = kickoff.year();
     let id_for = |code: &str| -> String {
         game.national_teams
             .iter()
@@ -406,7 +417,6 @@ pub fn schedule_world_cup_with_field(
     // FIFA draw: pots seeded by world ranking (host into Pot 1), one team per
     // confederation per group except UEFA (≤2). Deterministic per cup year.
     let mut draw_rng = StdRng::seed_from_u64(year as u64);
-    let host_code = host_for_year(game, year);
     let group_ids: Vec<Vec<String>> =
         draw_world_cup_groups(game, &field, host_code.as_deref(), &mut draw_rng)
             .iter()
@@ -1335,6 +1345,33 @@ mod tests {
             Some("be.news.worldCupKickoff.headline")
         );
         assert_eq!(kickoff_news.i18n_params.get("nations"), Some(&"16".to_string()));
+    }
+
+    #[test]
+    fn the_host_auto_qualifies_into_the_field() {
+        let mut game = empty_game();
+        // Award an obscure, weak nation the 2030 hosting rights — one that would
+        // never reach the finals on strength alone.
+        game.world_history.record_world_cup_host(WorldCupHostRecord {
+            year: 2030,
+            nation_code: "AND".to_string(),
+            nation_name: "Andorra".to_string(),
+        });
+
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_16);
+
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .expect("a World Cup must be scheduled");
+        let host_qualified = cup.participant_ids.iter().any(|id| {
+            game.national_teams
+                .iter()
+                .any(|team| &team.id == id && team.football_nation == "AND")
+        });
+        assert!(host_qualified, "the host auto-qualifies into the finals field");
+        assert_eq!(cup.participant_ids.len(), 16, "the field size is preserved");
     }
 
     #[test]
