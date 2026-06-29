@@ -72,12 +72,25 @@ export default function YouthAcademyTab({
   const [youthSearchError, setYouthSearchError] = useState<string | null>(null);
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
 
   useEffect(() => {
     if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-    void getStaff(teamId).then(setFetchedStaff).catch(() => {});
-  }, [teamId]);
+    let cancelled = false;
+    void getSquad(teamId)
+      .then((squad) => {
+        if (!cancelled) setFetchedSquad(squad);
+      })
+      .catch(() => {});
+    void getStaff(teamId)
+      .then((staff) => {
+        if (!cancelled) setFetchedStaff(staff);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, clockDate]);
 
   const team = sessionState?.team ?? gameState?.teams.find((tm) => tm.id === teamId) ?? null;
   const scouts =

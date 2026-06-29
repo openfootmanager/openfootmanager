@@ -77,6 +77,7 @@ export default function TacticsTab({
   const { sessionState } = useGameStore();
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -122,8 +123,16 @@ export default function TacticsTab({
 
   useEffect(() => {
     if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-  }, [teamId]);
+    let cancelled = false;
+    void getSquad(teamId)
+      .then((squad) => {
+        if (!cancelled) setFetchedSquad(squad);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, clockDate]);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];

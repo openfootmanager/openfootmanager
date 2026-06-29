@@ -100,11 +100,20 @@ export default function TrainingTab({
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
 
   useEffect(() => {
     if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-  }, [teamId]);
+    let cancelled = false;
+    void getSquad(teamId)
+      .then((squad) => {
+        if (!cancelled) setFetchedSquad(squad);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, clockDate]);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -135,7 +144,6 @@ export default function TrainingTab({
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const criticalCount = roster.filter((player) => player.condition < 25).length;
 
-  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays =
     SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;

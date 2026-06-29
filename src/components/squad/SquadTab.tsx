@@ -33,20 +33,28 @@ export default function SquadTab({
 
   const teamId =
     sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate =
+    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
 
+  // Refetch when the team OR the game clock changes so condition/fitness and
+  // other per-day fields refresh after advancing a day (not only on tab switch).
   useEffect(() => {
     if (!teamId) return;
+    let cancelled = false;
     void getSquad(teamId)
-      .then(setFetchedSquad)
+      .then((squad) => {
+        if (!cancelled) setFetchedSquad(squad);
+      })
       .catch(() => {});
-  }, [teamId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, clockDate]);
 
   const team =
     sessionState?.team ??
     gameState?.teams.find((t) => t.manager_id === managerId) ??
     null;
-  const clockDate =
-    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const players =
     fetchedSquad ??
     gameState?.players.filter((p) => p.team_id === teamId) ??
