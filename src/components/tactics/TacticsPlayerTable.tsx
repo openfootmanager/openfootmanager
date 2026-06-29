@@ -384,6 +384,13 @@ function TacticsTableRow({
     translateLabel,
   );
   const tacticalFit = getSquadTacticalFit(player, activePosition);
+  // Functions available to a player follow their current field position. If a
+  // previously-assigned function is no longer valid for where they now play
+  // (e.g. a striker's Poacher after being moved to defence), show Standard
+  // rather than the stale attacker function.
+  const roleOptions = getRolesForPosition(canonicalPosition(activePosition));
+  const effectiveRole =
+    playerRole && roleOptions.includes(playerRole) ? playerRole : "Standard";
   const styleFitBadge = getStyleFitBadge(
     getPlayStyleFit(player, activePlayStyle, activePosition),
     translateLabel,
@@ -576,13 +583,13 @@ function TacticsTableRow({
 
             <td className="px-4 py-3 align-top">
               <Select
-                value={playerRole ?? "Standard"}
+                value={effectiveRole}
                 onChange={(e) => {
                   const val = e.target.value;
                   onSetPlayerRole?.(player.id, val === "Standard" ? null : (val as PlayerRole));
                 }}
               >
-                {getRolesForPosition(canonicalPosition(activePosition)).map((role) => (
+                {roleOptions.map((role) => (
                   <option key={role} value={role}>
                     {t(`tactics.playerRoles.${role}`, role)}
                   </option>

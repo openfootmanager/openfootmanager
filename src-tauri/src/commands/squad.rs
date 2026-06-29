@@ -91,6 +91,8 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
             }
         }
 
+        reconcile_player_roles(game, &team_id);
+
         Ok(())
     })
 }
@@ -109,6 +111,8 @@ pub fn set_starting_xi_internal(
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             team.starting_xi_ids = player_ids;
         }
+
+        reconcile_player_roles(game, &team_id);
 
         Ok(())
     })
@@ -523,6 +527,43 @@ pub fn set_team_kit_pattern(
     set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
+/// Drop any assigned player function (role) that is no longer valid for the
+/// granular field position the player now occupies in the starting XI.
+///
+/// The backend only tracks coarse position buckets on `player.position`, so the
+/// granular slot is derived from the team's formation + starting XI order (the
+/// same mapping the UI uses). This keeps player functions dependent on the
+/// player's *current* field position: e.g. a striker's `Poacher` is cleared
+/// when they are moved into a defensive slot.
+fn reconcile_player_roles(game: &mut Game, team_id: &str) {
+    let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) else {
+        return;
+    };
+    if team.player_roles.is_empty() {
+        return;
+    }
+
+    let slots = ofm_core::player_rating::formation_slots(&team.formation);
+    let invalid: Vec<String> = team
+        .starting_xi_ids
+        .iter()
+        .enumerate()
+        .filter_map(|(slot_index, player_id)| {
+            let slot_position = slots.get(slot_index)?;
+            let role = team.player_roles.get(player_id)?;
+            if role_valid_for_position(role, slot_position) {
+                None
+            } else {
+                Some(player_id.clone())
+            }
+        })
+        .collect();
+
+    for player_id in invalid {
+        team.player_roles.remove(&player_id);
+    }
+}
+
 fn role_valid_for_position(
     role: &domain::team::PlayerRole,
     pos: &domain::player::Position,
@@ -828,6 +869,49 @@ mod tests {
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.players[0].squad_role, SquadRole::Youth);
         assert!(stored_game.teams[0].starting_xi_ids.is_empty());
+    }
+
+    #[test]
+    fn reconcile_player_roles_clears_function_invalid_for_current_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // Slot 0 in 4-4-2 is the Goalkeeper; a striker function is invalid there.
+            team.starting_xi_ids = vec!["player-1".to_string()];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Poacher);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert!(!game.teams[0].player_roles.contains_key("player-1"));
+    }
+
+    #[test]
+    fn reconcile_player_roles_keeps_function_valid_for_current_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // Standard is valid for every position and must be preserved.
+            team.starting_xi_ids = vec!["player-1".to_string()];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Standard);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert_eq!(
+            game.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::Standard)
+        );
     }
 
     #[test]
