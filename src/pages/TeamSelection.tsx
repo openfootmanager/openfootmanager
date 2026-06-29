@@ -1,12 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   GameStateData,
   LeagueData,
@@ -14,22 +9,11 @@ import {
   TeamData,
   useGameStore,
 } from "../store/gameStore";
-import { formatVal, getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
+import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
-import { Badge, Card, CardBody, TeamLocation, TeamLogo, ThemeToggle } from "../components/ui";
-import {
-  ArrowLeft,
-  ChevronRight,
-  Globe,
-  Landmark,
-  Loader2,
-  Shield,
-  Star,
-  Target,
-  Trophy,
-  Users,
-} from "lucide-react";
+import { Badge, Card, CardBody, ThemeToggle } from "../components/ui";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import {
@@ -40,6 +24,8 @@ import {
   teamCompetitions,
 } from "./TeamSelection.helpers";
 import TeamSelectionScopePanel from "./TeamSelectionScopePanel";
+import TeamSelectionGrid from "./TeamSelectionGrid";
+import TeamSelectionSidebar from "./TeamSelectionSidebar";
 
 type CompetitionSelection = Record<string, boolean>;
 type RegionSelection = Record<string, boolean>;
@@ -49,7 +35,7 @@ type ScopeMessage = {
 };
 
 export default function TeamSelection() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const compName = (c: LeagueData) => competitionDisplayName(c, t);
   const navigate = useNavigate();
   const { gameState, setGameState, setGameActive } = useGameStore();
@@ -272,18 +258,6 @@ export default function TeamSelection() {
     return Math.round(
       players.reduce((sum, player) => sum + getPlayerOvr(player), 0) / players.length,
     );
-  };
-
-  const getReputationLabel = (
-    rep: number,
-  ): {
-    label: string;
-    variant: "primary" | "accent" | "success" | "danger" | "neutral";
-  } => {
-    if (rep >= 750) return { label: t("teamSelect.repWorldClass"), variant: "accent" };
-    if (rep >= 600) return { label: t("teamSelect.repStrong"), variant: "success" };
-    if (rep >= 400) return { label: t("teamSelect.repAverage"), variant: "neutral" };
-    return { label: t("teamSelect.repDeveloping"), variant: "danger" };
   };
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0] ?? null;
@@ -547,221 +521,23 @@ export default function TeamSelection() {
         />
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                value={clubSearch}
-                onChange={(event) => setClubSearch(event.target.value)}
-                placeholder={t("teamSelect.searchClubs")}
-                className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 dark:border-navy-600 dark:bg-navy-800 dark:text-gray-200"
-              />
-              <span className="shrink-0 text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("teamSelect.clubCount", { n: filteredTeams.length })}
-              </span>
-            </div>
-            {filteredTeams.length === 0 ? (
-              <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                {t("teamSelect.noClubsMatch")}
-              </p>
-            ) : (
-              <div className="max-h-[640px] space-y-5 overflow-y-auto pr-1">
-                {teamGroups.map((group) => (
-                  <div key={group.id}>
-                    <p className="mb-2 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                      {group.name}
-                    </p>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {group.teams.map((team) => {
-              const isSelected = selectedTeam?.id === team.id;
-              const avgOvr = getTeamAvgOvr(team.id);
-              const repInfo = getReputationLabel(team.reputation);
-              const playerCount = getTeamPlayers(team.id).length;
+          <TeamSelectionGrid
+            clubSearch={clubSearch}
+            onClubSearchChange={setClubSearch}
+            filteredTeamsCount={filteredTeams.length}
+            teamGroups={teamGroups}
+            selectedTeamId={selectedTeam?.id ?? null}
+            onSelectTeam={setSelectedTeamId}
+            getTeamAvgOvr={getTeamAvgOvr}
+            getTeamPlayerCount={(teamId) => getTeamPlayers(teamId).length}
+          />
 
-              return (
-                <button
-                  key={team.id}
-                  onClick={() => setSelectedTeamId(team.id)}
-                  className={`rounded-xl text-left transition-all duration-200 ${
-                    isSelected
-                      ? "scale-[1.01] ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-navy-900"
-                      : "hover:scale-[1.01]"
-                  }`}
-                >
-                  <Card accent={isSelected ? "primary" : "none"} className="h-full">
-                    <div
-                      className={`rounded-t-xl p-4 ${
-                        isSelected
-                          ? "bg-gradient-to-r from-primary-600 to-primary-700"
-                          : "bg-gradient-to-r from-navy-700 to-navy-800"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <TeamLogo
-                            team={team}
-                            className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg font-heading text-lg font-bold ${
-                              isSelected ? "bg-white/20 text-white" : "bg-white/10 text-gray-300"
-                            }`}
-                          />
-                          <div>
-                            <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
-                              {team.name}
-                            </h3>
-                            <TeamLocation
-                              city={team.city}
-                              countryCode={team.country}
-                              locale={i18n.language}
-                              className="mt-0.5 text-xs text-gray-300"
-                              iconClassName="w-3 h-3"
-                              flagClassName="text-xs leading-none"
-                            />
-                          </div>
-                        </div>
-                        {isSelected && <Star className="h-5 w-5 fill-current text-accent-400" />}
-                      </div>
-                    </div>
-
-                    <CardBody className="p-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <InfoStat
-                          icon={<Trophy className="h-3.5 w-3.5" />}
-                          label={t("teamSelect.reputation")}
-                          value={
-                            <Badge variant={repInfo.variant} size="sm">
-                              {repInfo.label}
-                            </Badge>
-                          }
-                        />
-                        <InfoStat
-                          icon={<Users className="h-3.5 w-3.5" />}
-                          label={t("teamSelect.squad")}
-                          value={
-                            <span className="font-heading font-bold text-gray-800 dark:text-gray-200">
-                              {playerCount}
-                            </span>
-                          }
-                        />
-                        <InfoStat
-                          icon={<Landmark className="h-3.5 w-3.5" />}
-                          label={t("teamSelect.finances")}
-                          value={
-                            <span className="font-heading font-bold text-gray-800 dark:text-gray-200">
-                              {formatVal(team.finance)}
-                            </span>
-                          }
-                        />
-                        <InfoStat
-                          icon={<Star className="h-3.5 w-3.5" />}
-                          label={t("teamSelect.avgOvr")}
-                          value={
-                            <span className="font-heading text-lg font-bold text-primary-500">
-                              {avgOvr}
-                            </span>
-                          }
-                        />
-                      </div>
-                    </CardBody>
-                  </Card>
-                </button>
-              );
-            })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Card accent="accent" className="h-fit">
-            <CardBody className="space-y-5 p-5">
-              {selectedTeam ? (
-                <>
-                  <div>
-                    <p className="text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                      {t("teamSelect.selectedClub")}
-                    </p>
-                    <h2 className="mt-1 font-heading text-2xl font-bold text-gray-900 dark:text-white">
-                      {selectedTeam.name}
-                    </h2>
-                    <TeamLocation
-                      city={selectedTeam.city}
-                      countryCode={selectedTeam.country}
-                      locale={i18n.language}
-                      className="mt-2 text-sm text-gray-500 dark:text-gray-400"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <DetailTile
-                      icon={<Target className="h-4 w-4" />}
-                      label={t("teamSelect.formation")}
-                      value={selectedTeam.formation}
-                    />
-                    <DetailTile
-                      icon={<Shield className="h-4 w-4" />}
-                      label={t("teamSelect.overall")}
-                      value={String(getTeamAvgOvr(selectedTeam.id))}
-                    />
-                    <DetailTile
-                      icon={<Users className="h-4 w-4" />}
-                      label={t("teamSelect.likelyXi")}
-                      value={t("teamSelect.playersCount", { count: selectedTeamXi.length })}
-                    />
-                    <DetailTile
-                      icon={<Globe className="h-4 w-4" />}
-                      label={t("teamSelect.competitions")}
-                      value={String(selectedTeamCompetitions.length)}
-                    />
-                  </div>
-
-                  <div>
-                    <p className="mb-3 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                      {t("teamSelect.keyPlayers")}
-                    </p>
-                    <div className="space-y-2">
-                      {selectedTeamXi.slice(0, 5).map((player) => (
-                        <div
-                          key={player.id}
-                          className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 dark:bg-navy-800"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                              {player.match_name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {player.position}
-                            </p>
-                          </div>
-                          <Badge variant="accent">{getPlayerOvr(player)}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="mb-3 text-xs font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                      {t("teamSelect.activeCompetitions")}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTeamCompetitions.map((competition) => (
-                        <Badge key={competition.id} variant="primary">
-                          {compName(competition)}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                      {t("teamSelect.clubCompetitionsAlwaysSimulated")}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t("teamSelect.selectClubPrompt")}
-                </p>
-              )}
-            </CardBody>
-          </Card>
+          <TeamSelectionSidebar
+            selectedTeam={selectedTeam}
+            selectedTeamXi={selectedTeamXi}
+            selectedTeamCompetitions={selectedTeamCompetitions}
+            getTeamAvgOvr={getTeamAvgOvr}
+          />
         </div>
 
         <Card>
@@ -786,40 +562,3 @@ export default function TeamSelection() {
   );
 }
 
-function InfoStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-        {icon} {label}
-      </span>
-      {value}
-    </div>
-  );
-}
-
-function DetailTile({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl bg-gray-50 px-3 py-3 dark:bg-navy-800">
-      <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-        {icon} {label}
-      </p>
-      <p className="mt-1 font-heading font-bold text-gray-900 dark:text-white">{value}</p>
-    </div>
-  );
-}
