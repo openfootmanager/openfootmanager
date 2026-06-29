@@ -2085,6 +2085,69 @@ mod tests {
     }
 
     #[test]
+    fn rebuilding_competitions_leaves_the_world_cup_schedule_intact() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        // A 2026 World Cup summer career, staged at the June anchor.
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+        game.active_competition_ids = vec!["dummy".to_string()];
+        ensure_international_windows(&mut game);
+
+        // Capture the World Cup's id and fixture dates before any re-anchoring.
+        let (wc_id, before): (String, Vec<String>) = {
+            let world_cup = game
+                .competitions
+                .iter()
+                .find(|competition| is_world_cup_competition(competition))
+                .expect("the World Cup is staged");
+            (
+                world_cup.id.clone(),
+                world_cup
+                    .fixtures
+                    .iter()
+                    .map(|fixture| fixture.date.clone())
+                    .collect(),
+            )
+        };
+        assert!(
+            !before.is_empty(),
+            "the staged World Cup has fixtures to protect"
+        );
+
+        // Re-anchor competitions to a February management date — the Argentina
+        // mid-season scenario that previously orphaned the cup's June schedule.
+        let management_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        rebuild_competitions_for_management_date(&mut game, management_date);
+
+        let world_cup = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == wc_id)
+            .expect("the World Cup survives the re-anchor");
+        let after: Vec<String> = world_cup
+            .fixtures
+            .iter()
+            .map(|fixture| fixture.date.clone())
+            .collect();
+        assert_eq!(
+            before, after,
+            "the World Cup keeps its June schedule through a February re-anchor"
+        );
+        assert!(
+            after.iter().all(|date| date.starts_with("2026-06")
+                || date.starts_with("2026-07")),
+            "World Cup fixtures stay in the cup window, not pulled back to February"
+        );
+    }
+
+    #[test]
     fn non_world_cup_year_career_stages_no_tournament() {
         use ofm_core::world_cup::is_world_cup_competition;
         let clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
