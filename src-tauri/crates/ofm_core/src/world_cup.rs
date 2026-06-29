@@ -3,7 +3,7 @@
 //! from the strongest national pools in the world; nations without enough
 //! players get squads synthesised as free agents, so any world can stage it.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, Datelike, Utc};
 use domain::league::{
@@ -118,7 +118,7 @@ fn select_field(game: &Game, format: &WorldCupFormat) -> Vec<String> {
             continue;
         }
         by_region
-            .entry(nations::region_for_code(&code).to_string())
+            .entry(region_of_code(game, &code))
             .or_default()
             .push(code);
     }
@@ -185,8 +185,7 @@ fn seed_points_for(strength: f64) -> f64 {
 /// Seed world-ranking points (from squad strength) for any field nation that
 /// has not been ranked yet. Existing ranking points are left untouched so
 /// accumulated results are preserved across tournaments.
-pub(crate) fn seed_world_ranking(game: &mut Game, field: &[String]) {
-    let pools = national_pools(game);
+fn seed_world_ranking(game: &mut Game, field: &[String], pools: &BTreeMap<String, Vec<u8>>) {
     for code in field {
         let strength = pools.get(code).map(|ovrs| pool_strength(ovrs)).unwrap_or(0.0);
         game.world_history.seed_ranking(code, seed_points_for(strength));
@@ -196,7 +195,15 @@ pub(crate) fn seed_world_ranking(game: &mut Game, field: &[String]) {
 /// Order nation `codes` by world ranking, strongest first, falling back to
 /// squad strength for any nation not yet ranked.
 pub(crate) fn ranked_field(game: &Game, codes: &[String]) -> Vec<String> {
-    let pools = national_pools(game);
+    ranked_field_with_pools(game, codes, &national_pools(game))
+}
+
+/// As [`ranked_field`], but reusing pools already computed by the caller.
+fn ranked_field_with_pools(
+    game: &Game,
+    codes: &[String],
+    pools: &BTreeMap<String, Vec<u8>>,
+) -> Vec<String> {
     let points_of = |code: &str| -> f64 {
         game.world_history.ranking_points(code).unwrap_or_else(|| {
             seed_points_for(pools.get(code).map(|ovrs| pool_strength(ovrs)).unwrap_or(0.0))
@@ -219,13 +226,14 @@ fn confederation_cap(region: &str) -> usize {
 }
 
 /// Whether `code` may be added to `group` without breaching the confederation
-/// cap.
-fn group_admits(group: &[String], code: &str) -> bool {
-    let region = nations::region_for_code(code);
+/// cap. Regions come from a precomputed map so the draw honours the same
+/// (possibly world-overridden) confederation classification as qualifying.
+fn group_admits(group: &[String], code: &str, regions: &HashMap<String, String>) -> bool {
+    let region = regions.get(code).map(String::as_str).unwrap_or_default();
     let cap = confederation_cap(region);
     group
         .iter()
-        .filter(|other| nations::region_for_code(other) == region)
+        .filter(|other| regions.get(*other).map(String::as_str) == Some(region))
         .count()
         < cap
 }
@@ -233,17 +241,23 @@ fn group_admits(group: &[String], code: &str) -> bool {
 /// Place each team of one pot into a distinct group (one per group) without
 /// breaching the confederation cap, by backtracking. Returns whether it found a
 /// full assignment.
-fn place_pot(pot: &[String], used: &mut [bool], group_index: usize, groups: &mut [Vec<String>]) -> bool {
+fn place_pot(
+    pot: &[String],
+    used: &mut [bool],
+    group_index: usize,
+    groups: &mut [Vec<String>],
+    regions: &HashMap<String, String>,
+) -> bool {
     if group_index == groups.len() {
         return true;
     }
     for (i, code) in pot.iter().enumerate() {
-        if used[i] || !group_admits(&groups[group_index], code) {
+        if used[i] || !group_admits(&groups[group_index], code, regions) {
             continue;
         }
         groups[group_index].push(code.clone());
         used[i] = true;
-        if place_pot(pot, used, group_index + 1, groups) {
+        if place_pot(pot, used, group_index + 1, groups, regions) {
             return true;
         }
         used[i] = false;
@@ -260,10 +274,11 @@ fn draw_world_cup_groups(
     game: &Game,
     field_codes: &[String],
     host_code: Option<&str>,
+    pools: &BTreeMap<String, Vec<u8>>,
     rng: &mut impl Rng,
 ) -> Vec<Vec<String>> {
     const GROUP_SIZE: usize = 4;
-    let mut ranked = ranked_field(game, field_codes);
+    let mut ranked = ranked_field_with_pools(game, field_codes, pools);
     // The host is seeded into Pot 1 regardless of its ranking.
     if let Some(host) = host_code
         && let Some(position) = ranked.iter().position(|code| code == host)
@@ -271,7 +286,13 @@ fn draw_world_cup_groups(
         let host = ranked.remove(position);
         ranked.insert(0, host);
     }
-    let group_count = (ranked.len() / GROUP_SIZE).max(1);
+    // Confederation per nation, resolved once via the world's region map (which
+    // honours league-defined overrides), shared by every cap check below.
+    let regions: HashMap<String, String> =
+        ranked.iter().map(|code| (code.clone(), region_of_code(game, code))).collect();
+    // Round up so every team lands in a group: a field that is not a multiple of
+    // four yields a few groups of three rather than silently dropping teams.
+    let group_count = ranked.len().div_ceil(GROUP_SIZE).max(1);
     let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
 
     for pot_index in 0..GROUP_SIZE {
@@ -281,21 +302,26 @@ fn draw_world_cup_groups(
             break;
         }
         let mut pot: Vec<String> = ranked[start..end].to_vec();
-        let mut placed = false;
+        // A short final pot (degenerate field) can't fill one team per group, so
+        // skip the constraint search and distribute it directly.
+        let mut placed = pot.len() < group_count;
         // Reshuffle a few times until the confederation constraint is satisfiable.
-        for _ in 0..64 {
-            pot.shuffle(rng);
-            let mut used = vec![false; pot.len()];
-            let mut trial = groups.clone();
-            if place_pot(&pot, &mut used, 0, &mut trial) {
-                groups = trial;
-                placed = true;
-                break;
+        if !placed {
+            for _ in 0..64 {
+                pot.shuffle(rng);
+                let mut used = vec![false; pot.len()];
+                let mut trial = groups.clone();
+                if place_pot(&pot, &mut used, 0, &mut trial, &regions) {
+                    groups = trial;
+                    placed = true;
+                    break;
+                }
             }
         }
-        if !placed {
-            // Constraint unsatisfiable for this pot (degenerate field): fall back
-            // to a plain one-per-group placement.
+        if !placed || pot.len() < group_count {
+            // Either the constraint was unsatisfiable for a full pot, or this is
+            // the short final pot: fall back to a plain one-per-group spread.
+            pot.shuffle(rng);
             for (offset, code) in pot.iter().enumerate() {
                 groups[offset % group_count].push(code.clone());
             }
@@ -394,33 +420,33 @@ pub fn schedule_world_cup_with_field(
     if field.len() < 4 {
         return;
     }
-    // The host auto-qualifies: ensure it is in the field, displacing the weakest
-    // entrant if the field is already full so the size stays constant.
+    // The host auto-qualifies: ensure it is in the field, displacing the
+    // genuinely weakest entrant (by ranking) if the field is already full so the
+    // size stays constant.
     if let Some(host) = host_code.as_deref()
         && !field.iter().any(|code| code == host)
     {
-        if field.len() >= format.field {
-            field.pop();
+        if field.len() >= format.field
+            && let Some(weakest) = ranked_field(game, &field).pop()
+            && let Some(position) = field.iter().position(|code| code == &weakest)
+        {
+            field.remove(position);
         }
         field.push(host.to_string());
     }
     prepare_national_squads(game, &field);
-    seed_world_ranking(game, &field);
+    // Pools are stable now that squads are built; reuse them for both the
+    // ranking seed and the draw rather than scanning the player base twice.
+    let pools = national_pools(game);
+    seed_world_ranking(game, &field, &pools);
 
-    let id_for = |code: &str| -> String {
-        game.national_teams
-            .iter()
-            .find(|team| team.football_nation == code)
-            .map(|team| team.id.clone())
-            .unwrap_or_else(|| national_team_id(code))
-    };
     // FIFA draw: pots seeded by world ranking (host into Pot 1), one team per
     // confederation per group except UEFA (≤2). Deterministic per cup year.
     let mut draw_rng = StdRng::seed_from_u64(year as u64);
     let group_ids: Vec<Vec<String>> =
-        draw_world_cup_groups(game, &field, host_code.as_deref(), &mut draw_rng)
+        draw_world_cup_groups(game, &field, host_code.as_deref(), &pools, &mut draw_rng)
             .iter()
-            .map(|group| group.iter().map(|code| id_for(code)).collect())
+            .map(|group| group.iter().map(|code| national_team_id_for(game, code)).collect())
             .collect();
 
     let mut cup = crate::group_stage::generate_group_knockout_cup_with_groups(
@@ -1296,6 +1322,37 @@ mod tests {
         );
         assert!(game.news.iter().any(|a| a.id == "world_cup_host_2042"));
         assert!(game.news.iter().any(|a| a.id == "world_cup_host_bid_2042"));
+    }
+
+    #[test]
+    fn draw_places_every_team_when_the_field_is_not_a_multiple_of_four() {
+        let mut game = empty_game();
+        // A degenerate 18-nation field (host ES already present, so no
+        // displacement) for the 48-slot format: the draw must not drop the two
+        // teams beyond the nearest multiple of four.
+        let field: Vec<String> = [
+            "ES", "FR", "DE", "IT", "NL", "PT", "BE", "BR", "AR", "UY", "US", "MX", "JP", "KR",
+            "SA", "AU", "NG", "EG",
+        ]
+        .iter()
+        .map(|code| code.to_string())
+        .collect();
+        let field_size = field.len();
+
+        schedule_world_cup_with_field(&mut game, kickoff(2030), &FORMAT_48, Some(field));
+
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .expect("a World Cup must be scheduled");
+        assert_eq!(
+            cup.participant_ids.len(),
+            field_size,
+            "every nation in a non-multiple-of-four field reaches the tournament"
+        );
+        let placed: usize = cup.groups.iter().map(|group| group.team_ids.len()).sum();
+        assert_eq!(placed, field_size, "every nation is drawn into a group");
     }
 
     #[test]
