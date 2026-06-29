@@ -12,6 +12,7 @@ import {
 } from "../../utils/errorMessage";
 import {
   buildLoanPeriodOptions,
+  clampWageContributionPct,
   formatTransferFeeInput,
   getDefaultLoanPeriodId,
   getLoanPeriodIdForEndDate,
@@ -131,7 +132,7 @@ export function useLoanOfferFlow({
       const response = await makeLoanOffer(
         loanTarget.id,
         selectedLoanPeriodOption.endDate,
-        Math.max(0, Math.min(100, Math.round(loanWageContributionPct))),
+        clampWageContributionPct(loanWageContributionPct),
         loanBuyOptionEnabled ? parseTransferFeeInput(loanBuyOptionFee) : null,
       );
       setLoanResult(response.decision);
@@ -145,13 +146,7 @@ export function useLoanOfferFlow({
         });
         if (response.suggested_wage_contribution_pct !== null) {
           setLoanWageContributionPct(
-            Math.max(
-              0,
-              Math.min(
-                100,
-                Math.round(response.suggested_wage_contribution_pct),
-              ),
-            ),
+            clampWageContributionPct(response.suggested_wage_contribution_pct),
           );
         }
         if (response.suggested_end_date) {

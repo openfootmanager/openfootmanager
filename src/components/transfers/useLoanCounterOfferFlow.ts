@@ -16,6 +16,7 @@ import {
 } from "../../utils/errorMessage";
 import {
   buildLoanPeriodOptions,
+  clampWageContributionPct,
   formatTransferFeeInput,
   getDefaultLoanPeriodId,
   getLoanPeriodIdForEndDate,
@@ -171,7 +172,7 @@ export function useLoanCounterOfferFlow({
         loanCounterTarget.player.id,
         loanCounterTarget.offer.id,
         selectedLoanCounterPeriodOption.endDate,
-        Math.max(0, Math.min(100, Math.round(loanCounterWageContributionPct))),
+        clampWageContributionPct(loanCounterWageContributionPct),
         loanCounterBuyOptionEnabled
           ? parseTransferFeeInput(loanCounterBuyOptionFee)
           : null,

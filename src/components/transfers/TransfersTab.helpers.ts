@@ -237,6 +237,10 @@ export function parseTransferFeeInput(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function clampWageContributionPct(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 export function normalizeTransferNegotiationFeedback(
   feedback: TransferNegotiationFeedbackData | null,
 ): TransferNegotiationFeedbackData | null {
