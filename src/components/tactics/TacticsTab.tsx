@@ -9,7 +9,8 @@ import type {
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { getSquad, setPlayerRole, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import { setPlayerRole, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -72,9 +73,9 @@ export default function TacticsTab({
 }: TacticsTabProps): JSX.Element {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad] = useFetchedSquad(teamId, clockDate);
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -115,19 +116,6 @@ export default function TacticsTab({
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!teamId) return;
-    let cancelled = false;
-    void getSquad(teamId)
-      .then((squad) => {
-        if (!cancelled) setFetchedSquad(squad);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [teamId, clockDate]);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];

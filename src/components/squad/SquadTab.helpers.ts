@@ -206,6 +206,21 @@ export function translatePositionAbbreviation(
   });
 }
 
+/**
+ * The position a player is currently in: their assigned pitch slot when they are
+ * in the starting XI (`xiActivePosition` only holds XI players), otherwise their
+ * natural position. `player.position` is only a last-resort fallback because on
+ * legacy saves it can still hold a coarse bucket.
+ */
+export function getCurrentPosition(
+  player: PlayerData,
+  xiActivePosition: Map<string, string>,
+): string {
+  return (
+    xiActivePosition.get(player.id) || player.natural_position || player.position
+  );
+}
+
 export function getPreferredPositions(player: PlayerData): string[] {
   return [
     ...new Set(

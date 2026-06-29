@@ -7,6 +7,7 @@ import {
   buildDemoteFromStartingXi,
   buildRoleCoverageSummary,
   getBestRoleForFormation,
+  getCurrentPosition,
   getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
@@ -620,6 +621,70 @@ describe("SquadTab helpers", () => {
     expect(getPlayStyleFit(striker, "Attacking", "Striker")).toBe("good");
     // Played out of position the same attributes yield a worse fit.
     expect(getPlayStyleFit(striker, "Attacking", "CenterBack")).toBe("risky");
+  });
+
+  it("getCurrentPosition returns the assigned slot for XI players, natural otherwise", () => {
+    const xiActivePosition = new Map<string, string>([["p1", "RightBack"]]);
+    // A natural striker fielded at right-back reads as RightBack (his slot).
+    const starter = makePlayer("p1", "Striker", { natural_position: "Striker" });
+    expect(getCurrentPosition(starter, xiActivePosition)).toBe("RightBack");
+
+    // A bench player (absent from the map) reads as his natural position.
+    const benchPlayer = makePlayer("p2", "Forward", {
+      natural_position: "Left Winger",
+    });
+    expect(getCurrentPosition(benchPlayer, xiActivePosition)).toBe("Left Winger");
+  });
+
+  // Parity guard: the TS pitch layout MUST match the Rust formation_slots layout
+  // (src-tauri/crates/ofm_core/src/player_rating.rs tests). The backend role
+  // validator and match engine resolve a player's slot from that ordering, so a
+  // divergence here reintroduces the issue-#257 desync.
+  it("buildPitchRows slot order matches the Rust formation_slots layout", () => {
+    const slots = (formation: string) =>
+      buildPitchRows(formation).flatMap((row) => row.positions);
+
+    expect(slots("4-4-2")).toEqual([
+      "Goalkeeper",
+      "LeftBack",
+      "CenterBack",
+      "CenterBack",
+      "RightBack",
+      "LeftMidfielder",
+      "CentralMidfielder",
+      "CentralMidfielder",
+      "RightMidfielder",
+      "Striker",
+      "Striker",
+    ]);
+
+    expect(slots("4-3-3")).toEqual([
+      "Goalkeeper",
+      "LeftBack",
+      "CenterBack",
+      "CenterBack",
+      "RightBack",
+      "DefensiveMidfielder",
+      "CentralMidfielder",
+      "AttackingMidfielder",
+      "LeftWinger",
+      "Striker",
+      "RightWinger",
+    ]);
+
+    expect(slots("5-3-2")).toEqual([
+      "Goalkeeper",
+      "LeftWingBack",
+      "CenterBack",
+      "CenterBack",
+      "CenterBack",
+      "RightWingBack",
+      "DefensiveMidfielder",
+      "CentralMidfielder",
+      "AttackingMidfielder",
+      "Striker",
+      "Striker",
+    ]);
   });
 
   it("summarises role coverage for the active shape", () => {
