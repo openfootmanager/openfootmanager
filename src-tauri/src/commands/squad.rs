@@ -998,6 +998,99 @@ mod tests {
         assert_eq!(error, "be.error.roleNotValidForPosition");
     }
 
+    /// Pins the backend validator to the canonical position->roles table. This
+    /// MUST stay in lock-step with the front-end mirror in
+    /// src/lib/playerRoles.ts (guarded there by playerRoles.test.ts). If you
+    /// change one side, change the other.
+    #[test]
+    fn role_valid_for_position_matches_canonical_table() {
+        use domain::player::Position as P;
+        use domain::team::PlayerRole as R;
+
+        let all_roles = [
+            R::Standard,
+            R::BallPlayingKeeper,
+            R::SweeperKeeper,
+            R::Stopper,
+            R::CoverCB,
+            R::BallPlayingCB,
+            R::AttackingFB,
+            R::DefensiveFB,
+            R::InvertedFB,
+            R::WingBack,
+            R::AnchorMan,
+            R::BallWinner,
+            R::DeepLyingPlaymaker,
+            R::BoxToBox,
+            R::Carrilero,
+            R::Mezzala,
+            R::AdvancedPlaymaker,
+            R::ShadowStriker,
+            R::WideForward,
+            R::InsideForward,
+            R::InvertedWinger,
+            R::Poacher,
+            R::TargetMan,
+            R::DeepLyingForward,
+            R::False9,
+            R::PressingForward,
+            R::CompleteForward,
+        ];
+
+        // One representative per granular branch (FB and wide-mid positions share
+        // a branch in role_valid_for_position).
+        let canonical: &[(P, &[R])] = &[
+            (P::Goalkeeper, &[R::Standard, R::BallPlayingKeeper, R::SweeperKeeper]),
+            (P::CenterBack, &[R::Standard, R::Stopper, R::CoverCB, R::BallPlayingCB]),
+            (
+                P::RightBack,
+                &[R::Standard, R::AttackingFB, R::DefensiveFB, R::InvertedFB, R::WingBack],
+            ),
+            (
+                P::DefensiveMidfielder,
+                &[R::Standard, R::AnchorMan, R::BallWinner, R::DeepLyingPlaymaker],
+            ),
+            (
+                P::CentralMidfielder,
+                &[R::Standard, R::BoxToBox, R::Carrilero, R::Mezzala],
+            ),
+            (
+                P::AttackingMidfielder,
+                &[R::Standard, R::AdvancedPlaymaker, R::ShadowStriker],
+            ),
+            (
+                P::RightMidfielder,
+                &[R::Standard, R::WideForward, R::InsideForward, R::InvertedWinger],
+            ),
+            (
+                P::Striker,
+                &[
+                    R::Standard,
+                    R::Poacher,
+                    R::TargetMan,
+                    R::DeepLyingForward,
+                    R::False9,
+                    R::PressingForward,
+                    R::CompleteForward,
+                ],
+            ),
+        ];
+
+        for (pos, expected) in canonical {
+            for role in &all_roles {
+                let want = expected.contains(role);
+                assert_eq!(
+                    super::role_valid_for_position(role, pos),
+                    want,
+                    "role {:?} at {:?}: expected valid={}",
+                    role,
+                    pos,
+                    want
+                );
+            }
+        }
+    }
+
     #[test]
     fn set_player_squad_role_internal_rejects_overage_youth_assignment() {
         let state = StateManager::new();
