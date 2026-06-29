@@ -57,4 +57,44 @@ describe("useFlashMessages", () => {
     expect(result.current.errorMsg).toBe("err");
     expect(result.current.successMsg).toBe("ok");
   });
+
+  it("a rapid second flash resets its own timer instead of being cleared early", () => {
+    const { result } = renderHook(() => useFlashMessages());
+
+    act(() => {
+      result.current.flashError("first");
+    });
+    // Almost-but-not-quite expire, then flash again.
+    act(() => {
+      vi.advanceTimersByTime(4000);
+      result.current.flashError("second");
+    });
+    expect(result.current.errorMsg).toBe("second");
+
+    // The first timer (had it survived) would fire here; it must not clear.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.errorMsg).toBe("second");
+
+    // The second timer's full duration clears it.
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(result.current.errorMsg).toBeNull();
+  });
+
+  it("clears the pending timer on unmount", () => {
+    const { result, unmount } = renderHook(() => useFlashMessages());
+
+    act(() => {
+      result.current.flashError("boom");
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+    // Without the cleanup effect this timer would survive and fire setState
+    // after unmount.
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

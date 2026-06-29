@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const FLASH_DURATION_MS = 5000;
 
@@ -12,24 +12,41 @@ export interface FlashMessages {
 /**
  * Transient toast-style messages that auto-dismiss after a fixed delay.
  *
- * NOTE: the timers intentionally have no cleanup and no clear-before-set, to
- * preserve the original WorldEditor behaviour exactly. This means a flash fired
- * shortly after another can be cleared early by the earlier timer, and a flash
- * fired right before unmount will call setState after unmount. Both are
- * pre-existing and left untouched by this faithful extraction.
+ * Each channel (error / success) owns its own timer, cleared before being
+ * re-armed so a rapid second flash can't be dismissed early by the previous
+ * one's timer, and cleared on unmount to avoid a setState-after-unmount.
+ * Mirrors the ref + cleanup pattern in useAutoCloseTimeout.
  */
 export function useFlashMessages(): FlashMessages {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimer.current !== null) clearTimeout(errorTimer.current);
+      if (successTimer.current !== null) clearTimeout(successTimer.current);
+    };
+  }, []);
+
   function flashError(msg: string) {
+    if (errorTimer.current !== null) clearTimeout(errorTimer.current);
     setErrorMsg(msg);
-    setTimeout(() => setErrorMsg(null), FLASH_DURATION_MS);
+    errorTimer.current = setTimeout(() => {
+      errorTimer.current = null;
+      setErrorMsg(null);
+    }, FLASH_DURATION_MS);
   }
 
   function flashSuccess(msg: string) {
+    if (successTimer.current !== null) clearTimeout(successTimer.current);
     setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), FLASH_DURATION_MS);
+    successTimer.current = setTimeout(() => {
+      successTimer.current = null;
+      setSuccessMsg(null);
+    }, FLASH_DURATION_MS);
   }
 
   return { errorMsg, successMsg, flashError, flashSuccess };
