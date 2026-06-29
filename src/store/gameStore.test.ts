@@ -154,8 +154,8 @@ describe("useGameStore", () => {
             role: "Coach",
             attributes: {
               coaching: 70,
-              judging_ability: 70,
-              judging_potential: 70,
+              judgingAbility: 70,
+              judgingPotential: 70,
               physiotherapy: 30,
             },
             team_id: "team1",
