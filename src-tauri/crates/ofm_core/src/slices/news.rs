@@ -21,10 +21,17 @@ pub fn query_news_feed(game: &Game, _query: &NewsFeedQuery) -> NewsFeed {
     // this guard a future-dated article sits permanently atop the feed —
     // appearing "every day" until its date arrives.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    // Article dates come in two shapes: a bare `YYYY-MM-DD` and an RFC3339
+    // timestamp (`YYYY-MM-DDThh:mm:ss+00:00`). Compare on the `YYYY-MM-DD`
+    // prefix only — a full-timestamp string is lexically *greater* than the
+    // bare day, so a naive `<= today` would hide same-day RFC3339 articles.
     let articles: Vec<NewsArticle> = game
         .news
         .iter()
-        .filter(|article| article.date.as_str() <= today.as_str())
+        .filter(|article| {
+            let day = article.date.get(..10).unwrap_or(article.date.as_str());
+            day <= today.as_str()
+        })
         .cloned()
         .collect();
 
@@ -120,5 +127,30 @@ mod tests {
         game.news = vec![article("future", "2026-06-03")];
         let feed = query_news_feed(&game, &NewsFeedQuery {});
         assert_eq!(feed.articles.len(), 1);
+    }
+
+    #[test]
+    fn news_feed_shows_same_day_rfc3339_articles() {
+        // Many articles (weekly digests, injuries, transfer rumours) store an
+        // RFC3339 timestamp rather than a bare date. The day-of-publication
+        // feed must still show them — a naive string compare would hide them
+        // because the timestamp sorts after the bare `YYYY-MM-DD` of "today".
+        let mut game = game_on("2026-02-15");
+        game.news = vec![
+            article("digest", "2026-02-15T00:00:00+00:00"),
+            article("future", "2026-06-03T12:00:00+00:00"),
+        ];
+
+        let feed = query_news_feed(&game, &NewsFeedQuery {});
+        let ids: Vec<&str> = feed.articles.iter().map(|a| a.id.as_str()).collect();
+
+        assert!(
+            ids.contains(&"digest"),
+            "a same-day RFC3339 article must appear on its publication day"
+        );
+        assert!(
+            !ids.contains(&"future"),
+            "a future-dated RFC3339 article must still be hidden until its date"
+        );
     }
 }
