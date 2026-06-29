@@ -11,6 +11,7 @@ import {
   type TransferNegotiationResponseData,
 } from "../../services/transfersService";
 import { type NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
+import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 import {
   buildResumedCounterFeedback,
   formatTransferFeeInput,
@@ -48,6 +49,7 @@ export function useTransferCounterOfferFlow({
   onGameUpdate,
 }: UseTransferCounterOfferFlowArgs): UseTransferCounterOfferFlowResult {
   const { t } = useTranslation();
+  const { scheduleAutoClose } = useAutoCloseTimeout();
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
   );
@@ -118,7 +120,7 @@ export function useTransferCounterOfferFlow({
         setCounterAmount(formatTransferFeeInput(response.suggested_fee));
       }
       if (response.decision === "accepted") {
-        setTimeout(() => {
+        scheduleAutoClose(() => {
           setCounterTarget(null);
           setCounterAmount("");
           setCounterResult(null);

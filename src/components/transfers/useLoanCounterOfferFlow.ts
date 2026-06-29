@@ -14,6 +14,7 @@ import {
   getErrorMessage,
   resolveTranslatedErrorMessage,
 } from "../../utils/errorMessage";
+import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 import {
   buildLoanPeriodOptions,
   clampWageContributionPct,
@@ -70,6 +71,7 @@ export function useLoanCounterOfferFlow({
   onGameUpdate,
 }: UseLoanCounterOfferFlowArgs): UseLoanCounterOfferFlowResult {
   const { t } = useTranslation();
+  const { scheduleAutoClose } = useAutoCloseTimeout();
   const [loanCounterTarget, setLoanCounterTarget] =
     useState<LoanCounterTarget | null>(null);
   const [loanCounterPeriodId, setLoanCounterPeriodId] = useState<
@@ -212,7 +214,7 @@ export function useLoanCounterOfferFlow({
       if (onGameUpdate) onGameUpdate(response.game);
 
       if (response.decision === "accepted") {
-        setTimeout(() => {
+        scheduleAutoClose(() => {
           closeLoanCounterOffer();
         }, 1500);
       }

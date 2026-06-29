@@ -10,6 +10,7 @@ import {
   getErrorMessage,
   resolveTranslatedErrorMessage,
 } from "../../utils/errorMessage";
+import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 import {
   buildLoanPeriodOptions,
   clampWageContributionPct,
@@ -63,6 +64,7 @@ export function useLoanOfferFlow({
   onAccepted,
 }: UseLoanOfferFlowArgs): UseLoanOfferFlowResult {
   const { t } = useTranslation();
+  const { scheduleAutoClose } = useAutoCloseTimeout();
   const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
   const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
     getDefaultLoanPeriodId(loanRegistrationDate, null),
@@ -172,7 +174,7 @@ export function useLoanOfferFlow({
 
       if (response.decision === "accepted") {
         const acceptedPlayerId = loanTarget.id;
-        setTimeout(() => {
+        scheduleAutoClose(() => {
           closeLoanOffer();
           onAccepted?.(acceptedPlayerId);
         }, 1500);
