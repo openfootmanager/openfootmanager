@@ -27,7 +27,6 @@ import {
   type SquadSection,
 } from "../squad/SquadTab.helpers";
 import {
-  TACTICS_PRESETS,
   buildTacticsPitchSlots,
   buildTacticsRoster,
   countOutOfPositionPlayers,
@@ -41,18 +40,12 @@ import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerList from "./TacticsPlayerList";
 import TacticsRightPanel from "./TacticsRightPanel";
 import {
-  buildCustomTacticsStorageKey,
-  loadCustomTactics,
-  saveCustomTactics,
-} from "./TacticsCustomTactics.helpers";
-import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
-import TacticsCommandBar, {
-  type TacticsLibraryEntry,
-} from "./TacticsCommandBar";
+import TacticsCommandBar from "./TacticsCommandBar";
 import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
+import { useTacticsLibrary } from "./useTacticsLibrary";
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -92,35 +85,19 @@ export default function TacticsTab({
   const [pendingStartingXiIds, setPendingStartingXiIds] = useState<
     string[] | null
   >(null);
-  const [presetAnchorId, setPresetAnchorId] = useState<string | null>(
-    initialPreset?.id ?? null,
-  );
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedPlayerSection, setSelectedPlayerSection] =
     useState<SquadSection | null>(null);
   const [comparePlayerId, setComparePlayerId] = useState<string | null>(null);
   const [comparePlayerSection, setComparePlayerSection] =
     useState<SquadSection | null>(null);
-  const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
-    gameState ? loadCustomTactics(gameState) : [],
-  );
-  const [activeTacticId, setActiveTacticId] = useState<string | null>(
-    initialPreset ? `preset:${initialPreset.id}` : null,
-  );
-  const [draftTacticName, setDraftTacticName] = useState(
-    initialPreset?.id
-      ? t(`tactics.presetNames.${initialPreset.id}`, initialPreset.id)
-      : t("tactics.customTactic"),
-  );
   const dragStateRef = useRef<DragState | null>(null);
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
-  const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];
   const roster = team ? buildTacticsRoster(players, team.id) : [];
-  const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
 
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
@@ -185,22 +162,6 @@ export default function TacticsTab({
     playersById,
     selectedPlayerId,
   );
-
-  useEffect(() => {
-    if (!gameState || !customTacticsStorageKey) return;
-    hydratedCustomTacticsScopeRef.current = null;
-    setCustomTactics(loadCustomTactics(gameState));
-  }, [customTacticsStorageKey, gameState]);
-
-  useEffect(() => {
-    if (!gameState || !customTacticsStorageKey) return;
-    if (hydratedCustomTacticsScopeRef.current !== customTacticsStorageKey) {
-      hydratedCustomTacticsScopeRef.current = customTacticsStorageKey;
-      return;
-    }
-
-    saveCustomTactics(gameState, customTactics);
-  }, [customTactics, customTacticsStorageKey, gameState]);
 
   const canConfirmSwap = useMemo(() => {
     if (
@@ -296,197 +257,23 @@ export default function TacticsTab({
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles),
     [team?.match_roles, startingXI],
   );
-  const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
-  const anchoredPreset = presetAnchorId
-    ? TACTICS_PRESETS.find((preset) => preset.id === presetAnchorId) ?? null
-    : null;
-  const isPresetDirty = Boolean(
-    anchoredPreset &&
-      (formation !== anchoredPreset.formation ||
-        activePlayStyle !== anchoredPreset.playStyle),
-  );
-  const translatedPresetLibrary = useMemo<TacticsLibraryEntry[]>(
-    () =>
-      TACTICS_PRESETS.map((preset) => ({
-        description: t(preset.descriptionKey),
-        formation: preset.formation,
-        id: `preset:${preset.id}`,
-        name: t(`tactics.presetNames.${preset.id}`, preset.id),
-        playStyle: preset.playStyle,
-        sourcePresetName: null,
-        type: "preset",
-      })),
-    [t],
-  );
-  const tacticLibrary = useMemo(
-    () => [...customTactics, ...translatedPresetLibrary],
-    [customTactics, translatedPresetLibrary],
-  );
-  const currentSetupFallbackTactic = useMemo<TacticsLibraryEntry>(
-    () => ({
-      description: t("tactics.customTacticDescription"),
-      formation,
-      id: "current:setup",
-      name: t("tactics.customTactic"),
-      playStyle: activePlayStyle,
-      sourcePresetName: null,
-      type: "custom",
-    }),
-    [activePlayStyle, formation, t],
-  );
-  const activeTactic =
-    tacticLibrary.find((entry) => entry.id === activeTacticId) ??
-    translatedPresetLibrary.find((entry) => entry.id === `preset:${matchedPreset?.id}`) ??
-    currentSetupFallbackTactic;
-  const isActiveCustomTactic = activeTactic?.type === "custom";
-  const isActiveTacticDirty = Boolean(
-    activeTactic &&
-      (formation !== activeTactic.formation ||
-        activePlayStyle !== activeTactic.playStyle ||
-        (isActiveCustomTactic &&
-          draftTacticName.trim().length > 0 &&
-          draftTacticName.trim() !== activeTactic.name)),
-  );
-  const isCommandBarDirty = isActiveCustomTactic
-    ? isActiveTacticDirty
-    : isActiveTacticDirty || isPresetDirty;
 
-  useEffect(() => {
-    if (!matchedPreset) {
-      return;
-    }
-
-    if (matchedPreset.id !== presetAnchorId) {
-      setPresetAnchorId(matchedPreset.id);
-    }
-
-    const nextActivePresetId = `preset:${matchedPreset.id}`;
-    setActiveTacticId((current) =>
-      current?.startsWith("custom:") || current === nextActivePresetId
-        ? current
-        : nextActivePresetId,
-    );
-  }, [matchedPreset, presetAnchorId]);
-
-  useEffect(() => {
-    if (!activeTactic) {
-      return;
-    }
-
-    const nextName =
-      activeTactic.type === "custom"
-        ? activeTactic.name
-        : t(`tactics.presetNames.${activeTactic.id.replace("preset:", "")}`);
-    setDraftTacticName(nextName);
-  }, [activeTactic?.id, activeTactic?.name, activeTactic?.type, t]);
-
-  function createCustomTacticEntry(
-    overrides: Partial<TacticsLibraryEntry> = {},
-  ): TacticsLibraryEntry {
-    const customCount = customTactics.length + 1;
-    const sourcePresetName =
-      matchedPreset
-        ? t(`tactics.presetNames.${matchedPreset.id}`, matchedPreset.id)
-        : null;
-
-    return {
-      description:
-        overrides.description ??
-        t("tactics.customTacticDescription"),
-      formation: overrides.formation ?? formation,
-      id:
-        overrides.id ??
-        `custom:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name:
-        overrides.name ??
-        t("tactics.customTacticNumber", { count: customCount }),
-      playStyle: overrides.playStyle ?? activePlayStyle,
-      sourcePresetName:
-        overrides.sourcePresetName === undefined
-          ? sourcePresetName
-          : overrides.sourcePresetName,
-      type: "custom",
-    };
-  }
-
-  async function applyTacticSelection(nextTactic: TacticsLibraryEntry): Promise<void> {
-    if (formation !== nextTactic.formation) {
-      const didUpdateFormation = await handleFormationChange(nextTactic.formation);
-      if (!didUpdateFormation) {
-        return;
-      }
-    }
-
-    if (activePlayStyle !== nextTactic.playStyle) {
-      const didUpdatePlayStyle = await handlePlayStyleChange(nextTactic.playStyle);
-      if (!didUpdatePlayStyle) {
-        return;
-      }
-    }
-
-    setActiveTacticId(nextTactic.id);
-    setDraftTacticName(nextTactic.name);
-
-    if (nextTactic.id.startsWith("preset:")) {
-      setPresetAnchorId(nextTactic.id.replace("preset:", ""));
-    }
-  }
-
-  function handleCreateCustomTactic(): void {
-    const nextTactic = createCustomTacticEntry();
-    setCustomTactics((current) => [nextTactic, ...current]);
-    setActiveTacticId(nextTactic.id);
-    setDraftTacticName(nextTactic.name);
-  }
-
-  function handleDuplicateTactic(): void {
-    const nextTactic = createCustomTacticEntry({
-      description: activeTactic?.description,
-      formation,
-      name: t("tactics.copyOfTactic", {
-        name: draftTacticName.trim() || activeTactic?.name || t("tactics.customTactic"),
-      }),
-      playStyle: activePlayStyle,
-      sourcePresetName: activeTactic?.sourcePresetName ?? activeTactic?.name ?? null,
-    });
-
-    setCustomTactics((current) => [nextTactic, ...current]);
-    setActiveTacticId(nextTactic.id);
-    setDraftTacticName(nextTactic.name);
-  }
-
-  function handleSaveTactic(): void {
-    const nextName = draftTacticName.trim() || t("tactics.customTactic");
-
-    if (isActiveCustomTactic && activeTactic && customTactics.some((e) => e.id === activeTactic.id)) {
-      setCustomTactics((current) =>
-        current.map((entry) =>
-          entry.id === activeTactic.id
-            ? {
-                ...entry,
-                description: activeTactic.description,
-                formation,
-                name: nextName,
-                playStyle: activePlayStyle,
-              }
-            : entry,
-        ),
-      );
-      return;
-    }
-
-    const nextTactic = createCustomTacticEntry({
-      description: activeTactic?.description,
-      formation,
-      name: nextName,
-      playStyle: activePlayStyle,
-      sourcePresetName: activeTactic?.name ?? null,
-    });
-
-    setCustomTactics((current) => [nextTactic, ...current]);
-    setActiveTacticId(nextTactic.id);
-    setDraftTacticName(nextTactic.name);
-  }
+  const {
+    activeTactic,
+    tacticLibrary,
+    isCommandBarDirty,
+    applyTacticSelection,
+    handleCreateCustomTactic,
+    handleDuplicateTactic,
+    handleSaveTactic,
+  } = useTacticsLibrary({
+    gameState,
+    formation,
+    activePlayStyle,
+    initialPreset,
+    onFormationChange: handleFormationChange,
+    onPlayStyleChange: handlePlayStyleChange,
+  });
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
     setPendingStartingXiIds(playerIds);
