@@ -207,10 +207,11 @@ pub fn generate_youth_academy_recruit_with_nationality(
         .map(generation::canonicalize_generated_nationality)
         .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
     let youth_slots: &[usize] = match target_position.map(Position::to_group_position) {
+        Some(Position::Goalkeeper) => &[1],
         Some(Position::Defender) => &[8],
         Some(Position::Midfielder) => &[15],
         Some(Position::Forward) => &[21],
-        _ => &[8, 15, 21],
+        _ => &[1, 8, 15, 21],
     };
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
@@ -231,6 +232,7 @@ pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Pl
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
     let slot = match squad_slot % 22 {
+        1 => 0,
         8 => 7,
         15 => 14,
         21 => 20,
@@ -1365,6 +1367,37 @@ mod tests {
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
+    }
+
+    #[test]
+    fn test_youth_recruit_targets_goalkeeper() {
+        let team = domain::team::Team::new(
+            "team-1".to_string(),
+            "London FC".to_string(),
+            "LON".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+
+        for _ in 0..16 {
+            let player = generate_youth_academy_recruit_with_nationality(
+                &team,
+                Some(&Position::Goalkeeper),
+                None,
+            );
+            assert_eq!(
+                player.position,
+                Position::Goalkeeper,
+                "targeted youth recruit must be a goalkeeper",
+            );
+            assert!(
+                opening_player_age(&player.date_of_birth)
+                    .is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE),
+                "targeted youth recruit must be youth-aged",
+            );
+        }
     }
 
     #[test]

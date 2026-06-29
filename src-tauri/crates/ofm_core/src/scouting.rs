@@ -704,6 +704,7 @@ fn objective_i18n_key(objective: YouthScoutingObjective) -> &'static str {
 
 fn youth_target_position_i18n_key(position: &Position) -> &'static str {
     match position {
+        Position::Goalkeeper => "common.positions.Goalkeeper",
         Position::Defender => "common.positions.Defender",
         Position::Midfielder => "common.positions.Midfielder",
         Position::Forward => "common.positions.Forward",

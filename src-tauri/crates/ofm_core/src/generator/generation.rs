@@ -171,9 +171,10 @@ pub(super) fn generate_random_player_from_def(
     let p_id = Uuid::new_v4().to_string();
     let nationality = nationality.to_string();
 
-    // Reserve slots across the back line, midfield, and attack always start youth-aged
-    // so each club can open with real academy prospects instead of an empty youth squad.
-    let age = if matches!(index, 8 | 15 | 21) {
+    // Reserve one slot per position group (GK + back line + midfield + attack) as
+    // youth-aged so scouted youth recruits land at a consistent age across positions
+    // and clubs can open with real academy prospects instead of an empty youth squad.
+    let age = if matches!(index, 1 | 8 | 15 | 21) {
         rng.random_range(17..22)
     } else {
         rng.random_range(17..36)

@@ -488,6 +488,7 @@ fn parse_youth_objective(value: Option<&str>) -> Result<YouthScoutingObjective, 
 fn parse_youth_target_position(value: Option<&str>) -> Result<Option<Position>, String> {
     match value {
         None | Some("") => Ok(None),
+        Some("Goalkeeper") => Ok(Some(Position::Goalkeeper)),
         Some("Defender") => Ok(Some(Position::Defender)),
         Some("Midfielder") => Ok(Some(Position::Midfielder)),
         Some("Forward") => Ok(Some(Position::Forward)),
@@ -1151,11 +1152,18 @@ mod tests {
 
     #[test]
     fn parse_youth_target_position_returns_backend_key_when_value_is_unsupported() {
-        let result = super::parse_youth_target_position(Some("Goalkeeper"));
+        let result = super::parse_youth_target_position(Some("Sweeper"));
 
         assert_eq!(
             result.unwrap_err(),
             super::INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR
         );
+    }
+
+    #[test]
+    fn parse_youth_target_position_accepts_goalkeeper() {
+        let result = super::parse_youth_target_position(Some("Goalkeeper"));
+
+        assert_eq!(result.unwrap(), Some(Position::Goalkeeper));
     }
 }
