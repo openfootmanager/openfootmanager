@@ -52,6 +52,10 @@ import {
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../store/settingsStore";
+import {
+  getBackgroundPortraitPrewarmKey,
+  queueBackgroundPortraitPrewarm,
+} from "../services/portraitService";
 
 const CLUB_TABS = new Set(["Squad", "Tactics", "Training", "Staff", "Scouting", "Youth", "Finances", "Transfers"]);
 
@@ -91,6 +95,8 @@ export default function Dashboard(): JSX.Element {
   } = useGameStore();
   const { t } = useTranslation();
   const { settings, loaded: settingsLoaded, loadSettings } = useSettingsStore();
+  const latestGameStateRef = useRef<GameStateData | null>(null);
+  latestGameStateRef.current = gameState ?? null;
 
   // Load settings on mount
   useEffect(() => {
@@ -170,6 +176,9 @@ export default function Dashboard(): JSX.Element {
   const isUnemployed = gameState?.manager.team_id === null;
   const todayMatchFixture = gameState ? getTodayMatchFixture(gameState) : null;
   const hasMatchToday = todayMatchFixture !== null;
+  const backgroundPortraitPrewarmKey = gameState
+    ? getBackgroundPortraitPrewarmKey(gameState)
+    : null;
 
   useEffect(() => {
     if (!gameState) {
@@ -206,6 +215,19 @@ export default function Dashboard(): JSX.Element {
   useEffect(() => {
     setSquadListSortState(DEFAULT_SQUAD_LIST_SORT_STATE);
   }, [activeSaveId]);
+
+  useEffect(() => {
+    if (!backgroundPortraitPrewarmKey) {
+      return;
+    }
+
+    const currentGameState = latestGameStateRef.current;
+    if (!currentGameState) {
+      return;
+    }
+
+    return queueBackgroundPortraitPrewarm(currentGameState);
+  }, [backgroundPortraitPrewarmKey]);
 
   useEffect(() => {
     if (!isOnboardingPageTab(profileNavigation.activeTab)) {
@@ -259,6 +281,7 @@ export default function Dashboard(): JSX.Element {
     digestStopReason,
     isDigestVisible,
     isDigestRunning,
+    isDigestAborting,
     startDigest,
     abortDigest,
     dismissDigest,
@@ -479,6 +502,7 @@ export default function Dashboard(): JSX.Element {
           setIsSidebarCollapsed((currentValue) => !currentValue);
         }}
         unreadMessagesCount={unreadMessagesCount}
+        todayHasMatch={hasMatchToday}
         managerName={managerName}
         teamName={myTeamName}
         onNavigateSettings={handleNavigateSettings}
@@ -515,9 +539,7 @@ export default function Dashboard(): JSX.Element {
         digestStopReason={digestStopReason}
         isDigestVisible={isDigestVisible}
         isDigestRunning={isDigestRunning}
-        onDigestViewBlockers={(blockers) =>
-          setBlockerModal({ blockers })
-        }
+        isDigestAborting={isDigestAborting}
         onDigestContinueAfterBlocker={() => void startDigest()}
         onDismissDigest={dismissDigest}
         onDigestStop={abortDigest}

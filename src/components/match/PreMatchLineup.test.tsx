@@ -50,6 +50,7 @@ const makePlayer = (overrides: Partial<EnginePlayerData> = {}): EnginePlayerData
   composure: 70, aggression: 50, teamwork: 70,
   leadership: 50, handling: 70, reflexes: 70, aerial: 70,
   traits: [],
+  role: "Standard",
   ...overrides,
 });
 
@@ -244,13 +245,6 @@ describe("PreMatchLineup component", () => {
     render(<PreMatchLineup {...defaultProps} />);
     expect(screen.getByText("match.substitutes")).toBeInTheDocument();
     expect(screen.getByText("Bench One")).toBeInTheDocument();
-  });
-
-  it("renders opponent info", () => {
-    render(<PreMatchLineup {...defaultProps} />);
-    expect(screen.getByText("match.opponent")).toBeInTheDocument();
-    expect(screen.getByText("Rival United")).toBeInTheDocument();
-    expect(screen.getByText("3-5-2 · Counter")).toBeInTheDocument();
   });
 
   it("renders auto-select button and calls onAutoSelect", () => {

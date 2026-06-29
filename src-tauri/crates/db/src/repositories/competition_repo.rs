@@ -47,7 +47,10 @@ fn parse_competition_scope(value: &str) -> CompetitionScope {
     }
 }
 
-pub fn replace_competitions(conn: &Connection, competitions: &[CompetitionState]) -> Result<(), String> {
+pub fn replace_competitions(
+    conn: &Connection,
+    competitions: &[CompetitionState],
+) -> Result<(), String> {
     conn.execute("DELETE FROM competitions", [])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 

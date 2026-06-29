@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import CompetitionsOverview from "./CompetitionsOverview";
+import KnockoutBracket from "./KnockoutBracket";
 import { invoke } from "@tauri-apps/api/core";
 import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
@@ -423,7 +424,7 @@ export default function TournamentsTab({
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>
@@ -767,48 +768,19 @@ export default function TournamentsTab({
               </CardBody>
             </Card>
           )}
-          {knockoutRounds.map((round) => {
-            const roundFixtures = round.fixture_ids
-              .map((fixtureId) =>
-                league.fixtures.find((fixture) => fixture.id === fixtureId),
-              )
-              .filter((fixture): fixture is FixtureData => Boolean(fixture));
-            const byeTeamIds = round.bye_team_ids ?? [];
-            return (
-              <Card key={round.id}>
-                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
-                  <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                    {localizedRoundName(t, round.name)}
-                  </h4>
-                  <Badge variant={round.completed ? "accent" : "neutral"} size="sm">
-                    {round.completed
-                      ? t("tournaments.roundComplete")
-                      : t("tournaments.roundInProgress")}
-                  </Badge>
-                </div>
-                <CardBody className="p-0">
-                  <div className="divide-y divide-gray-100 dark:divide-navy-600">
-                    {roundFixtures.map((fixture) =>
-                      renderFixtureRow(fixture, `tournaments-bracket-${fixture.id}`),
-                    )}
-                    {byeTeamIds.length > 0 && (
-                      <div
-                        className="flex items-center gap-2 px-5 py-2.5 text-xs text-gray-500 dark:text-gray-400"
-                        data-testid={`tournaments-byes-${round.id}`}
-                      >
-                        <Badge variant="neutral" size="sm">
-                          {t("tournaments.bye")}
-                        </Badge>
-                        <span>
-                          {byeTeamIds.map((teamId) => resolveTeamName(teamId)).join(", ")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
+          {knockoutRounds.length > 0 && (
+            <KnockoutBracket
+              rounds={knockoutRounds}
+              fixtures={league.fixtures}
+              resolveTeamName={resolveTeamName}
+              localizedRoundName={(name) => localizedRoundName(t, name)}
+              userTeamId={userTeamId}
+              roundCompleteLabel={t("tournaments.roundComplete")}
+              roundInProgressLabel={t("tournaments.roundInProgress")}
+              byeLabel={t("tournaments.bye")}
+              tbdLabel={t("tournaments.tbd")}
+            />
+          )}
         </div>
       )}
 

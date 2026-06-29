@@ -18,7 +18,7 @@ use domain::manager::Manager;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::generator::{
-    generate_world_data_seeded_with, repair_opening_youth_academies, WorldGenConfig,
+    WorldGenConfig, generate_world_data_seeded_with, repair_opening_youth_academies,
 };
 use ofm_core::turn;
 use std::collections::HashSet;

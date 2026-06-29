@@ -168,7 +168,7 @@ export default function SetPieceSelector({
       </button>
 
       {expanded && (
-         <div className="mt-1 bg-white dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600 p-2 flex flex-col gap-1 max-h-56 overflow-auto transition-colors duration-300">
+        <div className="mt-1 bg-white dark:bg-navy-700 rounded-lg border border-gray-200 dark:border-navy-600 p-2 flex flex-col gap-0.5 max-h-56 overflow-auto">
           {sortedPlayers.map((p) => {
             const isCurrent = p.id === currentId;
             return (
@@ -178,57 +178,29 @@ export default function SetPieceSelector({
                   onSelect(p.id);
                   setExpanded(false);
                 }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded text-left transition-colors ${
+                className={`flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${
                   isCurrent
-                     ? "bg-primary-500/20 text-primary-500 dark:text-primary-400"
-                     : "hover:bg-gray-100 dark:hover:bg-navy-600 text-gray-700 dark:text-gray-300"
+                    ? "bg-primary-500/20 text-primary-500 dark:text-primary-400"
+                    : "hover:bg-gray-100 dark:hover:bg-navy-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                {isCurrent && <Check className="w-3 h-3 text-primary-400" />}
-                <span className="text-sm font-medium flex-1 truncate">
+                <span className="w-3 shrink-0">
+                  {isCurrent && <Check className="w-3 h-3 text-primary-400" />}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {p.name}
                 </span>
                 <Badge variant="neutral" size="sm">
                   {getTranslatedPositionAbbreviation(p.position)}
                 </Badge>
-                {p.spStats.stats.map((s) => (
-                  <span
-                    key={s.label}
-                    title={getTranslatedStatLabel(s.label)}
-                     className="w-10 rounded-md bg-gray-100 dark:bg-navy-800/80 px-1.5 py-1 text-center text-xs font-heading font-bold transition-colors duration-300"
-                  >
-                    <span className={getAttributeValueClassName(s.value)}>
-                      {s.value}
-                    </span>
-                  </span>
-                ))}
                 <span
-                  className={`text-xs font-heading font-bold w-8 text-right ${getAttributeValueClassName(
-                    p.spStats.score,
-                  )}`}
+                  className={`w-7 shrink-0 text-right text-xs font-heading font-bold tabular-nums ${getAttributeValueClassName(p.spStats.score)}`}
                 >
                   {p.spStats.score}
                 </span>
               </button>
             );
           })}
-          {/* Column headers */}
-          {sortedPlayers.length > 0 && (
-             <div className="mt-1 flex items-center gap-2 border-t border-gray-200 dark:border-navy-600 px-3 py-2 text-xs font-heading font-bold text-gray-600 dark:text-gray-300">
-              <span className="flex-1" />
-              <span className="w-8" />
-              {sortedPlayers[0].spStats.stats.map((s) => (
-                <span
-                  key={s.label}
-                  title={getTranslatedStatLabel(s.label)}
-                  className="w-10 truncate text-center"
-                >
-                  {getTranslatedStatLabel(s.label)}
-                </span>
-              ))}
-              <span className="w-8 text-right">{t("preMatch.fit")}</span>
-            </div>
-          )}
         </div>
       )}
     </div>

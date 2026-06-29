@@ -261,6 +261,12 @@ export default function FinancesTab({
   } | null>(null);
 
   const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
+  const financePlayers = gameState.players.filter(
+    (player) =>
+      player.team_id === myTeam.id ||
+      player.active_loan?.parent_team_id === myTeam.id ||
+      player.active_loan?.loan_team_id === myTeam.id,
+  );
   const teamStaff = gameState.staff.filter(
     (staffMember) => staffMember.team_id === myTeam.id,
   );
@@ -278,9 +284,19 @@ export default function FinancesTab({
     myTeam.sponsorship?.sponsor_name ?? "",
     myTeam.sponsorship?.base_value ?? 0,
     myTeam.sponsorship?.remaining_weeks ?? 0,
-    roster
+    financePlayers
       .map(
-        (player) => `${player.id}:${player.wage}:${player.contract_end ?? ""}`,
+        (player) =>
+          [
+            player.id,
+            player.team_id ?? "",
+            player.wage,
+            player.contract_end ?? "",
+            player.active_loan?.parent_team_id ?? "",
+            player.active_loan?.loan_team_id ?? "",
+            player.active_loan?.wage_contribution_pct ?? "",
+            player.active_loan?.end_date ?? "",
+          ].join(":"),
       )
       .join("|"),
     teamStaff
@@ -296,7 +312,7 @@ export default function FinancesTab({
     myTeam,
     getTeamFinanceSnapshot(
       myTeam,
-      roster,
+      financePlayers,
       teamStaff,
       gameState.clock.current_date,
     ),
@@ -678,7 +694,7 @@ export default function FinancesTab({
   ];
 
   return (
-    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       {/* Financial overview */}
       <Card accent="accent" className="lg:col-span-2">
         <CardHeader>{t("finances.overview")}</CardHeader>

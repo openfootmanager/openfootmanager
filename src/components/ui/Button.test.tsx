@@ -27,7 +27,7 @@ describe("Button", () => {
 
   it("applies primary variant by default", () => {
     render(<Button>Primary</Button>);
-    expect(screen.getByRole("button").className).toContain("bg-primary-500");
+    expect(screen.getByRole("button").className).toContain("bg-primary-700");
   });
 
   it("applies accent variant classes", () => {

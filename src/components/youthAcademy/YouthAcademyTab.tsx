@@ -225,7 +225,7 @@ export default function YouthAcademyTab({
   };
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <GraduationCap className="w-5 h-5 text-primary-500" />

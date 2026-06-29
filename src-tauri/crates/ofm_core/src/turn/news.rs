@@ -363,11 +363,11 @@ fn weekly_rumour_articles(
     articles
 }
 
-fn completed_preseason_fixtures_for_window<'a>(
-    league: &'a League,
+fn completed_preseason_fixtures_for_window(
+    league: &League,
     current_date: NaiveDate,
     window_days: i64,
-) -> Vec<&'a Fixture> {
+) -> Vec<&Fixture> {
     let window_start = current_date - Duration::days(window_days.saturating_sub(1));
 
     league
@@ -1113,14 +1113,14 @@ mod tests {
                     minute: 10,
                     scorer_id: "p1".to_string(),
                     assist_id: None,
-                    is_penalty: false,
+                    goal_source: engine::report::GoalSource::OpenPlay,
                     side: Side::Home,
                 },
                 GoalDetail {
                     minute: 74,
                     scorer_id: "ghost9".to_string(),
                     assist_id: None,
-                    is_penalty: false,
+                    goal_source: engine::report::GoalSource::OpenPlay,
                     side: Side::Away,
                 },
             ],
@@ -1536,7 +1536,7 @@ mod tests {
             weekly_digest.i18n_params.get("weekStart"),
             Some(&"2025-08-11".to_string())
         );
-        assert!(weekly_digest.i18n_params.get("weekLabel").is_none());
+        assert!(!weekly_digest.i18n_params.contains_key("weekLabel"));
 
         let title_race = game
             .news

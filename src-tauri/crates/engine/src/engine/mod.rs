@@ -5,7 +5,7 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
 use crate::report::MatchReport;
-use crate::shared::PlayerSnap;
+use crate::shared::{self, PlayerSnap};
 use crate::types::{MatchConfig, PlayerData, Position, Side, TeamData, Zone};
 
 // ---------------------------------------------------------------------------
@@ -108,6 +108,17 @@ pub(crate) struct MatchContext<'a> {
     pub(crate) away_possession_ticks: u32,
     pub(crate) yellows: std::collections::HashMap<String, u8>,
     pub(crate) sent_off: std::collections::HashSet<String>,
+    /// Team-level condition scalar (0.0–1.0). Starts from mean player condition, depletes per minute.
+    pub(crate) home_condition: f64,
+    pub(crate) away_condition: f64,
+}
+
+fn team_avg_condition(team: &TeamData) -> f64 {
+    if team.players.is_empty() {
+        return 1.0;
+    }
+    let sum: f64 = team.players.iter().map(|p| p.condition as f64).sum();
+    (sum / team.players.len() as f64 / 100.0).clamp(0.5, 1.0)
 }
 
 impl<'a> MatchContext<'a> {
@@ -125,6 +136,8 @@ impl<'a> MatchContext<'a> {
             away_possession_ticks: 0,
             yellows: std::collections::HashMap::new(),
             sent_off: std::collections::HashSet::new(),
+            home_condition: team_avg_condition(home),
+            away_condition: team_avg_condition(away),
         }
     }
 
@@ -190,19 +203,41 @@ fn simulate_minute<R: Rng>(ctx: &mut MatchContext, minute: u8, rng: &mut R) {
         Side::Away => ctx.away_possession_ticks += 1,
     }
 
+    // Deplete team condition ~0.18 over 90 minutes (floor at 0.70, but never increase
+    // if condition is already below 0.70 at match start).
+    let depletion = ctx.config.fatigue_per_minute / 100.0;
+    ctx.home_condition = (ctx.home_condition - depletion).max(0.70_f64.min(ctx.home_condition));
+    ctx.away_condition = (ctx.away_condition - depletion).max(0.70_f64.min(ctx.away_condition));
+
     let actions = rng.random_range(1..=3u8);
     for _ in 0..actions {
         resolution::resolve_action(ctx, minute, rng);
     }
 
-    // Possession contest via midfield battle
+    // Possession contest via midfield battle. Tempo (retention) and pressing
+    // (ball-winning) weight the battle; transition dials act on the flip. Neutral
+    // dials are ×1.0 / no-roll, so default sides match the pre-dial engine.
     let poss_side = ctx.possession;
     let def_side = poss_side.opposite();
-    let mid_att = resolution::effective_midfield(ctx, poss_side);
-    let mid_def = resolution::effective_midfield(ctx, def_side);
+    let poss_tactics = ctx.team(poss_side).tactics.clone();
+    let def_tactics = ctx.team(def_side).tactics.clone();
+    let mid_att = resolution::effective_midfield(ctx, poss_side)
+        * shared::tactics_tempo_retention(&poss_tactics);
+    let mid_def = resolution::effective_midfield(ctx, def_side)
+        * shared::tactics_pressing_contest(&def_tactics);
     let retain = mid_att / (mid_att + mid_def);
     if rng.random_range(0.0..1.0f64) > retain {
-        ctx.possession = def_side;
-        ctx.ball_zone = Zone::Midfield;
+        let rewin = shared::tactics_counter_press_rewin(&poss_tactics);
+        if rewin > 0.0 && rng.random_range(0.0..1.0f64) < rewin {
+            // Counter-press wins it straight back; nothing changes.
+        } else {
+            ctx.possession = def_side;
+            let breakaway = shared::tactics_break_speed_counter(&def_tactics);
+            if breakaway > 0.0 && rng.random_range(0.0..1.0f64) < breakaway {
+                ctx.ball_zone = Zone::attacking_third(def_side);
+            } else {
+                ctx.ball_zone = Zone::Midfield;
+            }
+        }
     }
 }

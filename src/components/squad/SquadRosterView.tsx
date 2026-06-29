@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   GameStateData,
@@ -6,11 +6,12 @@ import type {
   PlayerSelectionOptions,
   TeamData,
 } from "../../store/gameStore";
-import { Badge, Button, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
+import { Badge, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
 import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  MoreVertical,
   Repeat,
   RotateCcw,
   TimerOff,
@@ -19,8 +20,6 @@ import {
 } from "lucide-react";
 import {
   calcAge,
-  formatAnnualAmount,
-  formatVal,
   getPlayerOvr,
   getContractRiskBadgeVariant,
   getContractRiskLevel,
@@ -28,17 +27,14 @@ import {
   positionBadgeVariant,
 } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isSeniorSquadPlayer } from "../../lib/playerSquad";
-import { TraitList } from "../TraitBadge";
+import { getInjurySeverity, resolveInjuryName } from "../../lib/injury";
 import { useTranslation } from "react-i18next";
-import ContextMenu from "../ContextMenu";
+import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import {
   clearContractExitIntent,
   setContractExitIntent,
 } from "../../services/contractService";
-import { assignJerseyNumber, setPlayerSquadRole } from "../../services/squadService";
-import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import JerseyNumberInput from "./JerseyNumberInput";
-import KitEditorCard from "./KitEditorCard";
+import { setPlayerSquadRole } from "../../services/squadService";
 import {
   toggleLoanList,
   toggleTransferList,
@@ -103,7 +99,6 @@ export default function SquadRosterView({
   onSortStateChange,
 }: SquadRosterViewProps) {
   const { t } = useTranslation();
-  const annualSuffix = t("finances.perYearSuffix", "/yr");
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<FilterScope>("all");
@@ -116,7 +111,7 @@ export default function SquadRosterView({
   const [contractActionError, setContractActionError] = useState<string | null>(
     null,
   );
-  const [jerseyError, setJerseyError] = useState<string | null>(null);
+  const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
 
   const posOrder: Record<string, number> = {
     Goalkeeper: 1,
@@ -444,13 +439,7 @@ export default function SquadRosterView({
   );
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-4">
-      <KitEditorCard
-        primaryColor={team.colors.primary}
-        secondaryColor={team.colors.secondary}
-        currentPattern={team.kit_pattern ?? "Solid"}
-        onMutationComplete={onMutationComplete}
-      />
+    <div className="flex flex-col gap-4">
       <Card>
         <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
           <div>
@@ -625,7 +614,7 @@ export default function SquadRosterView({
             <thead>
               <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("squad.jerseyNumber")}
+                  #
                 </th>
                 <SortHeader col="pos" label={t("squad.pos")} />
                 <SortHeader col="name" label={t("common.name")} />
@@ -636,19 +625,7 @@ export default function SquadRosterView({
                 <SortHeader col="condition" label={t("common.condition")} />
                 <SortHeader col="morale" label={t("common.morale")} />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("squad.traits")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("common.value")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("finances.wagePerYear")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("playerProfile.yearsRemaining")}
-                </th>
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("finances.contractRisk")}
+                  {t("common.contract")}
                 </th>
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("common.actions")}
@@ -682,7 +659,34 @@ export default function SquadRosterView({
                 const isContractActionSubmitting =
                   contractActionPlayerId === player.id;
 
+                const injurySeverity = player.injury
+                  ? getInjurySeverity(player.injury.days_remaining)
+                  : null;
+                const injuryDotClass = injurySeverity === "major" ? "bg-red-500"
+                  : injurySeverity === "serious" ? "bg-orange-400"
+                  : injurySeverity === "moderate" ? "bg-amber-400"
+                  : injurySeverity === "minor" ? "bg-yellow-400"
+                  : null;
+                const rowBorderClass = player.injury
+                  ? (injurySeverity === "major" || injurySeverity === "serious"
+                    ? "border-l-2 border-l-red-500"
+                    : "border-l-2 border-l-amber-400")
+                  : contractRiskLevel === "critical"
+                    ? "border-l-2 border-l-orange-500"
+                    : contractRiskLevel === "warning"
+                      ? "border-l-2 border-l-yellow-400"
+                      : "";
+                const hasUrgentItems = Boolean(player.injury) || contractRiskLevel !== "stable";
+
                 const contextItems = [
+                  ...(player.injury ? [
+                    {
+                      type: "label" as const,
+                      label: `${resolveInjuryName(player.injury.name, t)} — ${t("playerProfile.injuryDaysShort", { count: player.injury.days_remaining })}`,
+                      icon: <AlertTriangle className="w-3.5 h-3.5" />,
+                    },
+                    buildDividerMenuItem(),
+                  ] : []),
                   buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
                   inXI
                     ? {
@@ -707,6 +711,7 @@ export default function SquadRosterView({
                   {
                     label: t("common.renewContract"),
                     icon: <Repeat className="w-4 h-4" />,
+                    urgent: contractRiskLevel !== "stable",
                     disabled: !player.contract_end,
                     onClick: () =>
                       onSelectPlayer(player.id, {
@@ -781,30 +786,20 @@ export default function SquadRosterView({
                 ];
 
                 return (
-                  <ContextMenu items={contextItems} key={player.id}>
+                  <ContextMenu
+                    items={contextItems}
+                    key={player.id}
+                    ref={(handle) => {
+                      if (handle) menuRefs.current.set(player.id, handle);
+                      else menuRefs.current.delete(player.id);
+                    }}
+                  >
                     <tr
                       onClick={() => onSelectPlayer(player.id)}
-                      className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors group cursor-pointer"
+                      className={`hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors group cursor-pointer ${rowBorderClass}`}
                     >
-                      <td
-                        className="py-2.5 px-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <JerseyNumberInput
-                          value={player.jersey_number ?? null}
-                          primaryColor={team.colors.primary}
-                          secondaryColor={team.colors.secondary}
-                          pattern={team.kit_pattern ?? "Solid"}
-                          onCommit={async (num) => {
-                            setJerseyError(null);
-                            try {
-                              const updated = await assignJerseyNumber(player.id, num);
-                              onMutationComplete?.(updated);
-                            } catch (err) {
-                              setJerseyError(resolveTranslatedErrorMessage(err, t));
-                            }
-                          }}
-                        />
+                      <td className="py-2.5 px-4 tabular-nums text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {player.jersey_number ?? "—"}
                       </td>
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5">
@@ -828,11 +823,28 @@ export default function SquadRosterView({
                         <div className="flex items-center gap-3">
                           <PlayerAvatar player={player} />
                           <div className="min-w-0">
-                            <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                            <div className="flex items-center gap-1.5 font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                              {injuryDotClass && (
+                                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${injuryDotClass}`} />
+                              )}
                               {player.full_name}
                             </div>
                             {renderPreferredPositionMeta(player)}
                             {renderRoleAndStyleMeta(player)}
+                            {player.transfer_listed || player.loan_listed ? (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {player.transfer_listed ? (
+                                  <Badge variant="accent" size="sm">
+                                    {t("transfers.transfer")}
+                                  </Badge>
+                                ) : null}
+                                {player.loan_listed ? (
+                                  <Badge variant="primary" size="sm">
+                                    {t("transfers.loan")}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            ) : null}
                             {player.injury ? (
                               <InjuryBadge injury={player.injury} />
                             ) : null}
@@ -880,66 +892,38 @@ export default function SquadRosterView({
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}
                       </td>
-                      <td className="py-2.5 px-4">
-                        {player.traits && player.traits.length > 0 ? (
-                          <TraitList traits={player.traits} size="xs" max={2} />
-                        ) : (
-                          <span className="text-xs text-gray-500">-</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                        {formatVal(player.market_value)}
-                      </td>
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                        {formatAnnualAmount(formatVal(player.wage), annualSuffix)}
-                      </td>
                       <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
                         <div className="space-y-1">
-                          <div className="font-medium text-gray-700 dark:text-gray-300">
-                            {getContractYearsRemaining(
-                              player.contract_end,
-                              clockDate,
-                            )}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {getContractYearsRemaining(player.contract_end, clockDate)}
+                            </span>
+                            <Badge variant={getContractRiskBadgeVariant(contractRiskLevel)} size="sm">
+                              {contractRiskLabel}
+                            </Badge>
                           </div>
-                          <div>
+                          <div className="text-gray-500 dark:text-gray-400">
                             {player.contract_end
-                              ? t("finances.contractExpiresOn", {
-                                date: player.contract_end,
-                              })
-                              : "-"}
+                              ? t("finances.contractExpiresOn", { date: player.contract_end })
+                              : "—"}
                           </div>
                         </div>
                       </td>
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={getContractRiskBadgeVariant(
-                            contractRiskLevel,
-                          )}
-                          size="sm"
+                      <td className="py-2.5 px-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
+                          }}
+                          className="relative rounded-md p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                         >
-                          {contractRiskLabel}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        {player.contract_end &&
-                          contractRiskLevel !== "stable" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSelectPlayer(player.id, {
-                                openRenewal: true,
-                              });
-                            }}
-                          >
-                            {t("common.renewContract")}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            -
-                          </span>
-                        )}
+                          <MoreVertical className="h-4 w-4" />
+                          {hasUrgentItems && (
+                            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-400" />
+                          )}
+                        </button>
                       </td>
                       <td className="py-2.5 px-4 text-right">
                         <span
@@ -970,11 +954,6 @@ export default function SquadRosterView({
       {contractActionError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {contractActionError}
-        </div>
-      ) : null}
-      {jerseyError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          {jerseyError}
         </div>
       ) : null}
     </div>

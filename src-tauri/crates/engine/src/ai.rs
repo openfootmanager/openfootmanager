@@ -216,12 +216,8 @@ fn consider_substitution<R: Rng>(
                 .collect();
 
             if let Some(player_off) = forwards.first()
-                && let Some(defender_on) = find_best_bench_replacement(
-                    bench,
-                    Position::Defender,
-                    &snap.sent_off,
-                    None,
-                )
+                && let Some(defender_on) =
+                    find_best_bench_replacement(bench, Position::Defender, &snap.sent_off, None)
             {
                 return Some(MatchCommand::Substitute {
                     side,
@@ -246,9 +242,7 @@ fn find_best_bench_replacement<'a>(
         let mut role_candidates: Vec<&PlayerData> = bench
             .iter()
             .filter(|p| {
-                p.position == preferred_position
-                    && p.role == role
-                    && !sent_off.contains(&p.id)
+                p.position == preferred_position && p.role == role && !sent_off.contains(&p.id)
             })
             .collect();
         role_candidates.sort_by(|a, b| {

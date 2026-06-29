@@ -179,7 +179,11 @@ export default function InboxMessageDetailPane({
             .split("\n")
             .map((line, index) => renderMessageBodyLine(line, index))}
 
-          {linkedPlayerId ? (
+          {linkedPlayerId
+            && !selectedMessage.context?.scout_report
+            && !hasYouthProspects
+            && !selectedMessage.context?.delegated_renewal_report
+            ? (
             <div className="mt-4 flex">
               <Button
                 type="button"

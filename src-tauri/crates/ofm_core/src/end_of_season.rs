@@ -1,5 +1,4 @@
 use crate::game::Game;
-use crate::schedule::{append_fixtures, generate_preseason_friendlies};
 use crate::season_awards::compute_division_season_awards;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
@@ -246,8 +245,10 @@ fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         }
         indices.sort_by_key(|&index| competitions[index].priority);
 
-        let mut divisions: Vec<League> =
-            indices.iter().map(|&index| competitions[index].clone()).collect();
+        let mut divisions: Vec<League> = indices
+            .iter()
+            .map(|&index| competitions[index].clone())
+            .collect();
         crate::promotion::apply_promotion_relegation(&mut divisions);
 
         for (slot, &index) in indices.iter().enumerate() {
@@ -408,9 +409,7 @@ pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
 /// is a lower-preference target used when the club doesn't earn the primary.
 /// Returns `target_id -> field`; targets without incoming berths are absent
 /// (the caller keeps the inferred path for those).
-pub fn resolve_continental_fields(
-    game: &Game,
-) -> std::collections::HashMap<String, Vec<String>> {
+pub fn resolve_continental_fields(game: &Game) -> std::collections::HashMap<String, Vec<String>> {
     use std::collections::{HashMap, HashSet};
 
     // Berth-fed continental targets, most prestigious (lowest priority) first.
@@ -423,8 +422,10 @@ pub fn resolve_continental_fields(
         })
         .collect();
     targets.sort_by(|a, b| a.priority.cmp(&b.priority).then_with(|| a.id.cmp(&b.id)));
-    let priority_of: HashMap<&str, u32> =
-        targets.iter().map(|c| (c.id.as_str(), c.priority)).collect();
+    let priority_of: HashMap<&str, u32> = targets
+        .iter()
+        .map(|c| (c.id.as_str(), c.priority))
+        .collect();
 
     // Each club keeps the most prestigious target any of its berths award it;
     // a berth's primary target outranks its fallback for the same club.
@@ -537,10 +538,10 @@ fn regenerate_competitions_for_new_season(
     rollover_anchor: DateTime<Utc>,
 ) {
     // Fall back to the legacy single league when no competition list exists yet.
-    if game.competitions.is_empty() {
-        if let Some(league) = game.league.clone() {
-            game.competitions.push(league);
-        }
+    if game.competitions.is_empty()
+        && let Some(league) = game.league.clone()
+    {
+        game.competitions.push(league);
     }
     if game.competitions.is_empty() {
         return;
@@ -651,7 +652,13 @@ fn regenerate_competitions_for_new_season(
         }
     }
 
-    manage_international_calendar(game, rollover_anchor, kickoff, world_cup_due, qualified_field);
+    manage_international_calendar(
+        game,
+        rollover_anchor,
+        kickoff,
+        world_cup_due,
+        qualified_field,
+    );
     game.sync_legacy_league();
 }
 
@@ -686,13 +693,6 @@ fn manage_international_calendar(
         return;
     }
 
-    // Outside a cup summer, clubs play their preseason friendlies as usual.
-    if let Some(primary) = game.competitions.first_mut() {
-        let friendlies =
-            generate_preseason_friendlies(&primary.participant_ids.clone(), next_start, 4);
-        append_fixtures(primary, friendlies);
-    }
-
     let window_dates = crate::national_team::international_window_dates(next_start);
     if window_dates.is_empty() {
         return;
@@ -703,6 +703,14 @@ fn manage_international_calendar(
     for competition in game.competitions.iter_mut() {
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
     }
+    crate::schedule::append_south_american_preseason_friendlies(
+        &mut game.competitions,
+        &window_dates,
+    );
+    crate::schedule::append_other_preseason_friendlies(
+        &mut game.competitions,
+        &window_dates,
+    );
 
     if crate::world_cup::season_leads_into_world_cup(next_start) {
         // The windows host World Cup qualifying instead of friendlies.
@@ -1033,8 +1041,8 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     //    season_start_month; `rollover_anchor` is just the global trigger point.
     let next_season = season + 1;
     let rollover_anchor = game.clock.current_date + Duration::days(28);
-    let user_division_before = user_division(game, &user_team_id)
-        .map(|division| (division.id.clone(), division.priority));
+    let user_division_before =
+        user_division(game, &user_team_id).map(|division| (division.id.clone(), division.priority));
     regenerate_competitions_for_new_season(game, next_season, rollover_anchor);
     notify_user_division_change(
         game,
@@ -1197,18 +1205,18 @@ fn convert_retired_players_to_candidates(game: &mut Game) {
             let first_name = name_parts.next().unwrap_or(&p.full_name).to_string();
             let last_name = name_parts.next().unwrap_or("").to_string();
             RetiredSnapshot {
-            player_id: p.id.clone(),
-            first_name,
-            last_name,
-            date_of_birth: p.date_of_birth.clone(),
-            nationality: p.nationality.clone(),
-            ovr: p.ovr,
-            career_len: p.career.len(),
-            vision: p.attributes.vision,
-            decisions: p.attributes.decisions,
-            positioning: p.attributes.positioning,
-            teamwork: p.attributes.teamwork,
-            leadership: p.attributes.leadership,
+                player_id: p.id.clone(),
+                first_name,
+                last_name,
+                date_of_birth: p.date_of_birth.clone(),
+                nationality: p.nationality.clone(),
+                ovr: p.ovr,
+                career_len: p.career.len(),
+                vision: p.attributes.vision,
+                decisions: p.attributes.decisions,
+                positioning: p.attributes.positioning,
+                teamwork: p.attributes.teamwork,
+                leadership: p.attributes.leadership,
             }
         })
         .collect();
@@ -1251,10 +1259,8 @@ fn convert_retired_players_to_candidates(game: &mut Game) {
         // Scout candidate
         let scout_id = format!("staff_retired_scout_{}", r.player_id);
         if !existing_staff_ids.contains(&scout_id) {
-            let judging_ability =
-                ((r.vision as u16 + r.decisions as u16) / 2).min(100) as u8;
-            let judging_potential =
-                ((r.positioning as u16 + r.teamwork as u16) / 2).min(100) as u8;
+            let judging_ability = ((r.vision as u16 + r.decisions as u16) / 2).min(100) as u8;
+            let judging_potential = ((r.positioning as u16 + r.teamwork as u16) / 2).min(100) as u8;
             let coaching = (r.leadership / 2).max(10);
 
             let mut scout = Staff::new(

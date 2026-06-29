@@ -100,7 +100,11 @@ fn build_league_season_standings(
     team_ids: &[String],
 ) -> Vec<StandingEntry> {
     let num_teams = team_ids.len() as u32;
-    let matches_played = if num_teams > 1 { (num_teams - 1) * 2 } else { 0 };
+    let matches_played = if num_teams > 1 {
+        (num_teams - 1) * 2
+    } else {
+        0
+    };
 
     let mut ranking_scores: Vec<(String, u32)> = team_ids
         .iter()
@@ -608,7 +612,7 @@ mod tests {
             format!("team-{}", index + 1),
             format!("Club {}", index + 1),
             format!("C{}", index + 1),
-            if index % 2 == 0 {
+            if index.is_multiple_of(2) {
                 "England".to_string()
             } else {
                 "Spain".to_string()
@@ -799,7 +803,10 @@ mod tests {
         assert!(
             standings.iter().all(|entry| entry.played == 10),
             "expected per-league 10-match seasons, got {:?}",
-            standings.iter().map(|entry| entry.played).collect::<Vec<_>>()
+            standings
+                .iter()
+                .map(|entry| entry.played)
+                .collect::<Vec<_>>()
         );
     }
 

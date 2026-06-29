@@ -4,6 +4,13 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { i18nReady } from "./i18n";
 import App from "./App";
 
+// On Linux/WebKitGTK an unhandled promise rejection restarts the webview
+// process. Swallow any that escape their own try-catch so the app stays up.
+window.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault();
+  console.error("Unhandled promise rejection:", event.reason);
+});
+
 const rootElement = document.getElementById("root") as HTMLElement | null;
 
 if (!rootElement) {

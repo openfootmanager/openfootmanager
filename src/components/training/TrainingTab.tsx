@@ -183,7 +183,7 @@ export default function TrainingTab({
   });
 
   return (
-    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2 flex flex-col gap-5">
         {staffAdvice ? (
           <div
@@ -318,7 +318,7 @@ export default function TrainingTab({
                             : "text-gray-800 dark:text-gray-200"
                         }`}
                     >
-                      {player.match_name}
+                      {player.match_name}{player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
                     </span>
                     <ProgressBar
                       value={player.condition}

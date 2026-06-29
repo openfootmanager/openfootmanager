@@ -1,7 +1,10 @@
 use rand::{Rng, RngExt};
 
 use crate::event::{DangerBand, FoulSeverity, GoalContext, SaveQuality};
-use crate::shared::{PlayStylePhase, PlayerSnap, home_mod, play_style_modifier};
+use crate::shared::{
+    PlayStylePhase, PlayerSnap, home_mod, play_style_modifier, tactics_pressing_fatigue,
+    tactics_pressing_press,
+};
 use crate::types::{PlayerData, Position, Side, TeamData};
 
 use super::{LiveMatchState, SetPieceTakers};
@@ -12,9 +15,18 @@ use super::{LiveMatchState, SetPieceTakers};
 
 impl LiveMatchState {
     pub(super) fn deplete_stamina_tick(&mut self) {
-        let fatigue_rate = self.config.fatigue_per_minute;
-        // Iterate over all on-pitch players
-        for p in self.home.players.iter().chain(self.away.players.iter()) {
+        let base_rate = self.config.fatigue_per_minute;
+        // Aggressive pressing tires a side faster; neutral (Medium) is ×1.0.
+        let home_rate = base_rate * tactics_pressing_fatigue(&self.home.tactics);
+        let away_rate = base_rate * tactics_pressing_fatigue(&self.away.tactics);
+        // Iterate over all on-pitch players, each with their team's fatigue rate.
+        let players = self
+            .home
+            .players
+            .iter()
+            .map(|p| (p, home_rate))
+            .chain(self.away.players.iter().map(|p| (p, away_rate)));
+        for (p, fatigue_rate) in players {
             if self.sent_off.contains(&p.id) {
                 continue;
             }
@@ -148,7 +160,9 @@ impl LiveMatchState {
             ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
         });
         let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
-        base * modifier * home_mod(pressing_side, &self.config)
+        base * modifier
+            * tactics_pressing_press(&team.tactics)
+            * home_mod(pressing_side, &self.config)
     }
 
     // -----------------------------------------------------------------------
@@ -332,6 +346,7 @@ mod commentary_detail_tests {
                 make_test_player(&format!("{}_f1", id), Position::Forward),
                 make_test_player(&format!("{}_f2", id), Position::Forward),
             ],
+            tactics: crate::types::TacticsConfig::default(),
         };
         LiveMatchState::new(
             make_team("home"),

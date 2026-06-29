@@ -141,6 +141,57 @@ describe("advanceRecap", function (): void {
     });
   });
 
+  it("keeps completed loan move news in the advance recap", function (): void {
+    const game = createGame({
+      news: [
+        {
+          id: "loan-news-player-1-team-2-team-1-2026-07-02",
+          headline: "",
+          body: "",
+          date: "2026-07-02",
+          category: "TransferRumour",
+          team_ids: ["team-1", "team-2"],
+          player_ids: ["player-1"],
+          read: false,
+          headline_key: "be.news.loanMove.headline",
+          body_key: "be.news.loanMove.body",
+          i18n_params: {
+            player: "John Star",
+            fromTeam: "Rival FC",
+            toTeam: "User FC",
+            endDate: "2027-01-01",
+          },
+        },
+        {
+          id: "ordinary-rumour",
+          headline: "Rumour mill",
+          body: "",
+          date: "2026-07-02",
+          category: "TransferRumour",
+          team_ids: ["team-2"],
+          player_ids: ["player-1"],
+          read: false,
+        },
+      ],
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.news.map((article) => article.id)).toEqual([
+      "loan-news-player-1-team-2-team-1-2026-07-02",
+    ]);
+    expect(recap.news[0]).toMatchObject({
+      textKey: "be.news.loanMove.headline",
+      params: {
+        player: "John Star",
+        fromTeam: "Rival FC",
+        toTeam: "User FC",
+        endDate: "2027-01-01",
+      },
+    });
+    expect(recap.hasEvents).toBe(true);
+  });
+
   it("collects only high-priority inbox items from the advance", function (): void {
     const game = createGame({
       messages: [

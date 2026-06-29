@@ -117,6 +117,9 @@ pub struct Game {
     /// custom competition `name_key` values resolve to package-supplied strings.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub extra_translations: std::collections::HashMap<String, serde_json::Value>,
+    /// Records which `.ofm` packages were used to build this save.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub package_lockfile: Vec<crate::generator::PackageLock>,
 }
 
 impl Game {
@@ -154,6 +157,7 @@ impl Game {
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
             extra_translations: std::collections::HashMap::new(),
+            package_lockfile: vec![],
         };
         game.promote_legacy_league();
         crate::football_identity::upgrade_game_football_identities(&mut game);

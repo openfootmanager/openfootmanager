@@ -42,3 +42,8 @@ test-world.json
 
 # Personal-use imported world assets/data
 /public/assets/worlds/
+
+# Built OFM packages (generated locally; saving here during tauri dev would
+# trigger the file watcher and restart the app)
+/src-tauri/data/*.ofm
+/src-tauri/databases/*.ofm

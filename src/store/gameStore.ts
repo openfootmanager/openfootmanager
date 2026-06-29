@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameStateData, SeasonContextData } from './types';
+import type { GameStateData, MessageData, SeasonContextData } from './types';
 import type { SessionState, UserCompetitionSummary, StandingRow } from '../services/sessionService';
 
 type FootballIdentityCarrier = {
@@ -140,11 +140,15 @@ export type {
   TeamData,
   PlayerSeasonStats,
   CareerEntry,
+  PlayerMovementEntry,
+  PlayerMovementKind,
   ContractExitIntentData,
   ContractRenewalStateData,
   PlayerMoraleCoreData,
   PlayerData,
   TransferOfferData,
+  LoanOfferData,
+  ActiveLoanData,
   StaffData,
   MessageAction,
   MessageActionOption,
@@ -215,9 +219,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // so the sidebar unread badge updates immediately, without round-tripping the
   // entire world on every read/delete.
   setMessages: (messages) => {
-    const current = get().gameState;
-    if (!current) return;
-    const next = { ...current, messages };
+    const { gameState } = get();
+    if (!gameState) return;
+    const next = { ...gameState, messages };
     set({ gameState: next, sessionState: deriveSessionState(next), isDirty: true });
   },
   setSessionState: (state) => set({ sessionState: state }),

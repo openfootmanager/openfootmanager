@@ -9,13 +9,13 @@ import type {
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
-import { getSquad, setPlayerRole as setPlayerRoleService, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
-import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
+import { getSquad, setPlayerRole, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import type { TacticsPhaseSettings } from "../../store/types";
+
 import {
   applyLineupDrop,
   applyLineupSwap,
   buildAssignBestFitSlot,
-  buildAssignStartingXiSlot,
   buildActivePositionMap,
   buildDemoteFromStartingXi,
   buildPitchRows,
@@ -25,24 +25,20 @@ import {
   type PitchSlotRow,
   type SquadSection,
 } from "../squad/SquadTab.helpers";
-import TacticsFilters from "./TacticsFilters";
 import {
   TACTICS_PRESETS,
   buildTacticsPitchSlots,
   buildTacticsRoster,
-  buildFormationSlotOptions,
   countOutOfPositionPlayers,
   findTacticsPresetBySetup,
   filterAndSortTacticsPlayers,
   getSelectedAndComparePlayers,
   resolveStartingXiIds,
   type SortKey,
-  type TacticsTableMode,
 } from "./TacticsTab.helpers";
 import TacticsPitch from "./TacticsPitch";
-import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
-import TacticsPlayerTable from "./TacticsPlayerTable";
-import TacticsRolesPanel from "./TacticsRolesPanel";
+import TacticsPlayerList from "./TacticsPlayerList";
+import TacticsRightPanel from "./TacticsRightPanel";
 import {
   buildCustomTacticsStorageKey,
   loadCustomTactics,
@@ -55,6 +51,7 @@ import {
 import TacticsCommandBar, {
   type TacticsLibraryEntry,
 } from "./TacticsCommandBar";
+import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -87,8 +84,8 @@ export default function TacticsTab({
     : null;
   const [playerSearch, setPlayerSearch] = useState("");
   const [positionFilter, setPositionFilter] = useState("All");
-  const [sortKey, setSortKey] = useState<SortKey>("pos");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const sortKey: SortKey = "pos";
+  const sortDir: "asc" | "desc" = "asc";
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
   const [pendingStartingXiIds, setPendingStartingXiIds] = useState<
@@ -103,8 +100,6 @@ export default function TacticsTab({
   const [comparePlayerId, setComparePlayerId] = useState<string | null>(null);
   const [comparePlayerSection, setComparePlayerSection] =
     useState<SquadSection | null>(null);
-  const [activeTab, setActiveTab] = useState<"lineup" | "roles">("lineup");
-  const [tableMode, setTableMode] = useState<TacticsTableMode>("lineup");
   const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
     gameState ? loadCustomTactics(gameState) : [],
   );
@@ -141,7 +136,6 @@ export default function TacticsTab({
 
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
-  const playerRoles = team?.player_roles ?? {};
   const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
   const playersById = useMemo(
     () => new Map(roster.map((player) => [player.id, player])),
@@ -191,20 +185,6 @@ export default function TacticsTab({
     () => buildTacticsPitchSlots(pitchSlotRows),
     [pitchSlotRows],
   );
-  const formationSlotOptions = useMemo(
-    () => buildFormationSlotOptions(formation, t),
-    [formation, t],
-  );
-  const xiSlotIndexByPlayerId = useMemo(
-    () =>
-      new Map(
-        pitchSlots
-          .filter((slot) => slot.player)
-          .map((slot) => [slot.player!.id, slot.index] as const),
-      ),
-    [pitchSlots],
-  );
-
   const xiIds = new Set(startingXiIds);
   const bench = roster.filter((player) => !xiIds.has(player.id));
   const xiActivePosition = useMemo(
@@ -273,16 +253,6 @@ export default function TacticsTab({
     selectedPlayerSection,
     startingXiIds,
   ]);
-
-  function toggleSort(key: SortKey): void {
-    if (sortKey === key) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-
-    setSortKey(key);
-    setSortDir(key === "ovr" ? "desc" : "asc");
-  }
 
   const filteredStartingXI = useMemo(
     () =>
@@ -569,24 +539,6 @@ export default function TacticsTab({
     }
   }
 
-  async function handleAssignSlot(
-    playerId: string,
-    targetSlotIndex: number,
-  ): Promise<void> {
-    const nextXiIds = buildAssignStartingXiSlot(
-      startingXiIds,
-      playerId,
-      targetSlotIndex,
-    );
-
-    if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
-      return;
-    }
-
-    await persistStartingXI(nextXiIds);
-    clearLineupSelection();
-  }
-
   async function handleAssignBestFit(playerId: string): Promise<void> {
     const nextXiIds = buildAssignBestFitSlot(
       startingXiIds,
@@ -851,18 +803,6 @@ export default function TacticsTab({
     );
   }
 
-  async function handleSetPlayerRole(
-    playerId: string,
-    role: PlayerRole | null,
-  ): Promise<void> {
-    try {
-      const updated = await setPlayerRoleService(playerId, role);
-      onGameUpdate(updated);
-    } catch (error) {
-      console.error("Failed to set player role:", error);
-    }
-  }
-
   async function handleTacticsPhaseChange(
     patch: Partial<TacticsPhaseSettings>,
   ): Promise<void> {
@@ -874,133 +814,94 @@ export default function TacticsTab({
     }
   }
 
-  const lineupWorkspace = (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(38rem,1.1fr)] xl:items-start 2xl:gap-8">
-      <div className="flex flex-col gap-5">
-        <TacticsFilters
-          onClear={handleClearFilters}
-          onPlayerSearchChange={setPlayerSearch}
-          onPositionFilterChange={setPositionFilter}
-          playerSearch={playerSearch}
-          positionFilter={positionFilter}
-        />
+  if (!team) {
+    return (
+      <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
+    );
+  }
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2 dark:border-navy-600 dark:bg-navy-800/70">
-          <div>
-            <div className="text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
-              {t("tactics.tableView")}
-            </div>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {tableMode === "lineup"
-                ? t("tactics.tableModeHints.lineup")
-                : t("tactics.tableModeHints.roles")}
-            </p>
-          </div>
-          <div className="flex gap-1 rounded-lg bg-white p-1 shadow-sm dark:bg-navy-700">
-            {([
-              ["lineup", t("tactics.tableModes.lineup")],
-              ["roles", t("tactics.tableModes.roles")],
-            ] as const).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={tableMode === mode}
-                onClick={() => setTableMode(mode)}
-                className={`rounded-md px-3 py-1.5 text-[11px] font-heading font-bold uppercase tracking-[0.2em] transition-colors ${
-                  tableMode === mode
-                    ? "bg-primary-500 text-white"
-                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+  return (
+    <div className="flex w-full flex-col gap-5">
+      <div
+        ref={dragPreviewRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
+      />
+      <TacticsCommandBar
+        activeTactic={activeTactic}
+        activePlayStyle={activePlayStyle}
+        formation={formation}
+        isDirty={isCommandBarDirty}
+        onCreateNew={handleCreateCustomTactic}
+        onDuplicate={handleDuplicateTactic}
+        onFormationChange={(nextFormation) => {
+          void handleFormationChange(nextFormation);
+        }}
+        onPlayStyleChange={(playStyle) => {
+          void handlePlayStyleChange(playStyle);
+        }}
+        onSave={handleSaveTactic}
+        onSelectTactic={(id) => {
+          const nextTactic = tacticLibrary.find((entry) => entry.id === id);
+          if (!nextTactic) {
+            return;
+          }
 
-        <TacticsPlayerTable
-          activePlayStyle={activePlayStyle}
+          void applyTacticSelection(nextTactic);
+        }}
+        tacticLibrary={tacticLibrary}
+      />
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[260px_1fr_270px] xl:items-start">
+        {/* Left: player list */}
+        <TacticsPlayerList
+          bench={filteredBench}
           comparePlayerId={comparePlayerId}
-          emptyMessage={t("squad.noLineupMatches")}
-          formation={formation}
-          highlightedPlayerId={selectedPlayerId}
+          dragState={dragState}
           matchRoles={effectiveMatchRoles}
-          onAssignBestFit={handleAssignBestFit}
           onAssignMatchRole={(role, playerId) => {
             void handleAssignMatchRole(role, playerId);
           }}
-          onAssignSlot={(playerId, targetSlotIndex) => {
-            void handleAssignSlot(playerId, targetSlotIndex);
-          }}
-          onClearTacticsSelection={clearLineupSelection}
+          onClearFilters={handleClearFilters}
           onDemoteStarter={(playerId) => {
             void handleDemoteStarter(playerId);
           }}
-          onSelectPlayer={onSelectPlayer}
-          onSetPlayerRole={(playerId, role) => {
-            void handleSetPlayerRole(playerId, role);
-          }}
-          onTacticalSelect={(playerId, section) => {
-            void handleLineupPlayerClick(playerId, section);
-          }}
-          playerRoles={playerRoles}
-          players={filteredStartingXI}
-          section="xi"
-          sortDir={sortDir}
-          sortKey={sortKey}
-          slotOptions={formationSlotOptions}
-          tableMode={tableMode}
-          title={t("preMatch.startingXI")}
-          toggleSort={toggleSort}
-          totalCount={startingXI.length}
-          xiActivePosition={xiActivePosition}
-          xiSlotIndexByPlayerId={xiSlotIndexByPlayerId}
-        />
-
-        <TacticsPlayerTable
-          activePlayStyle={activePlayStyle}
-          comparePlayerId={comparePlayerId}
-          emptyMessage={t("squad.noBenchMatches")}
-          formation={formation}
-          highlightedPlayerId={selectedPlayerId}
-          matchRoles={effectiveMatchRoles}
-          onAssignMatchRole={(role, playerId) => {
-            void handleAssignMatchRole(role, playerId);
-          }}
-          onSelectPlayer={onSelectPlayer}
-          onSetPlayerRole={(playerId, role) => {
-            void handleSetPlayerRole(playerId, role);
-          }}
+          onDragEnd={resetDragState}
+          onDragStart={handleDragStart}
+          onOpenPlayerProfile={onSelectPlayer}
+          onPlayerSearchChange={setPlayerSearch}
+          onPositionFilterChange={setPositionFilter}
           onPromoteBench={(playerId) => {
             void handlePromoteBenchPlayer(playerId);
           }}
           onTacticalSelect={(playerId, section) => {
             void handleLineupPlayerClick(playerId, section);
           }}
-          playerRoles={playerRoles}
-          players={filteredBench}
-          section="bench"
-          sortDir={sortDir}
-          sortKey={sortKey}
-          slotOptions={formationSlotOptions}
-          tableMode={tableMode}
-          title={t("preMatch.substitutes")}
-          toggleSort={toggleSort}
-          totalCount={bench.length}
-          xiActivePosition={xiActivePosition}
-          xiSlotIndexByPlayerId={xiSlotIndexByPlayerId}
+          playerSearch={playerSearch}
+          positionFilter={positionFilter}
+          selectedPlayerId={selectedPlayerId}
+          starters={filteredStartingXI}
         />
-      </div>
 
-      <div className="flex flex-col gap-5">
+        {/* Center: pitch */}
         <TacticsPitch
-          benchPlayers={bench}
           dragState={dragState}
           formation={formation}
           comparePlayerId={comparePlayerId}
           hoveredSlot={hoveredSlot}
           matchRoles={effectiveMatchRoles}
+          onRoleChange={(playerId, role) => {
+            void setPlayerRole(playerId, role)
+              .then(onGameUpdate)
+              .catch((error: unknown) => {
+                console.error("Failed to set player role:", error);
+              });
+          }}
+          playerRoles={team?.player_roles}
           tacticsPhase={team?.tactics_phase}
+          teamKitPattern={team?.kit_pattern}
+          teamPrimaryColor={team?.colors?.primary}
+          teamSecondaryColor={team?.colors?.secondary}
           onAssignBestFit={(playerId) => {
             void handleAssignBestFit(playerId);
           }}
@@ -1032,97 +933,39 @@ export default function TacticsTab({
           selectedPlayer={selectedPlayer}
           selectedPlayerId={selectedPlayerId}
         />
-        <TacticsPlayerFocusPanel
-          canConfirmSwap={canConfirmSwap}
-          onConfirmSwap={() => {
-            void handleConfirmSwap();
-          }}
-          selectedPlayer={selectedPlayer}
-          comparePlayer={comparePlayer}
-        />
-      </div>
-    </div>
-  );
 
-  if (!team) {
-    return (
-      <p className="text-gray-500 dark:text-gray-400">{t("common.noTeam")}</p>
-    );
-  }
-
-  return (
-    <div className="mx-auto flex w-full max-w-[118rem] flex-col gap-5">
-      <div
-        ref={dragPreviewRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed -left-20 top-0 h-8 w-8 rounded-full border border-white/15 bg-navy-900/90 shadow-lg"
-      />
-      <TacticsCommandBar
-        activeTactic={activeTactic}
-        activePlayStyle={activePlayStyle}
-        formation={formation}
-        isDirty={isCommandBarDirty}
-        onCreateNew={handleCreateCustomTactic}
-        onDuplicate={handleDuplicateTactic}
-        onFormationChange={(nextFormation) => {
-          void handleFormationChange(nextFormation);
-        }}
-        onPlayStyleChange={(playStyle) => {
-          void handlePlayStyleChange(playStyle);
-        }}
-        onSave={handleSaveTactic}
-        onSelectTactic={(id) => {
-          const nextTactic = tacticLibrary.find((entry) => entry.id === id);
-          if (!nextTactic) {
-            return;
-          }
-
-          void applyTacticSelection(nextTactic);
-        }}
-        onTacticsPhaseChange={(patch) => {
-          void handleTacticsPhaseChange(patch);
-        }}
-        tacticLibrary={tacticLibrary}
-        tacticsPhase={team?.tactics_phase}
-      />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex gap-1 self-start rounded-lg bg-gray-100 p-1 dark:bg-navy-800">
-          <button
-            type="button"
-            onClick={() => setActiveTab("lineup")}
-            aria-pressed={activeTab === "lineup"}
-            className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-              activeTab === "lineup"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            {t("tactics.lineupTab")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("roles")}
-            aria-pressed={activeTab === "roles"}
-            className={`rounded-md px-4 py-2 text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-              activeTab === "roles"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-navy-700 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            {t("tactics.rolesTab")}
-          </button>
-        </div>
-      </div>
-
-      {activeTab === "lineup" ? (
-        lineupWorkspace
-      ) : (
-        <TacticsRolesPanel
+        {/* Right: roles + phase blueprint */}
+        <TacticsRightPanel
           allSquad={roster}
           matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
+          onTacticsPhaseChange={(patch) => {
+            void handleTacticsPhaseChange(patch);
+          }}
           startingPlayers={startingXI}
+          tacticsPhase={team?.tactics_phase}
         />
+      </div>
+
+      {/* Inspector modal — only when both players are selected for comparison */}
+      {selectedPlayer && comparePlayer && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={clearLineupSelection}
+          />
+          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="pointer-events-auto w-full max-w-lg max-h-[85vh] overflow-y-auto">
+              <TacticsPlayerFocusPanel
+                canConfirmSwap={canConfirmSwap}
+                comparePlayer={comparePlayer}
+                onClose={clearLineupSelection}
+                onConfirmSwap={() => { void handleConfirmSwap(); }}
+                selectedPlayer={selectedPlayer}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

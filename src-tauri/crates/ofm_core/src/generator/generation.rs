@@ -55,9 +55,7 @@ pub(super) fn pick_nationality_from_def(
 ) -> String {
     // Map team country name → ISO code for the 60% local weight
     let local_code = country_to_iso(team_country);
-    let selected_code = if rng.random_range(0..100) < 60 {
-        local_code.to_string()
-    } else if available_codes.is_empty() {
+    let selected_code = if available_codes.is_empty() || rng.random_range(0..100) < 60 {
         local_code.to_string()
     } else {
         available_codes[rng.random_range(0..available_codes.len())].clone()
@@ -447,6 +445,62 @@ pub(super) fn generate_random_staff_unattached_from_def(
 }
 
 // ---------------------------------------------------------------------------
+// Authored staff (world packages)
+// ---------------------------------------------------------------------------
+
+/// Convert a hand-authored [`super::package::StaffDef`] into a domain [`Staff`].
+/// Fills any missing fields (id, dob, attributes) with sensible random defaults.
+pub(super) fn generate_staff_from_authored_def(
+    def: &super::package::StaffDef,
+    team_id: Option<&str>,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> Staff {
+    let nationality = if def.nationality.is_empty() { "ENG" } else { def.nationality.as_str() };
+    let first_name = if def.first_name.is_empty() {
+        let (f, _) = pick_name_from_def(nationality, names_def, rng);
+        f
+    } else {
+        def.first_name.clone()
+    };
+    let last_name = if def.last_name.is_empty() {
+        let (_, l) = pick_name_from_def(nationality, names_def, rng);
+        l
+    } else {
+        def.last_name.clone()
+    };
+
+    let current_year: u32 = 2026;
+    let birth_year = if let Some(dob) = &def.date_of_birth {
+        dob.split('-').next().and_then(|y| y.parse::<u32>().ok()).unwrap_or(current_year - 40)
+    } else if let Some(age) = def.age {
+        current_year.saturating_sub(age)
+    } else {
+        current_year - rng.random_range(30..55)
+    };
+    let dob = def.date_of_birth.clone()
+        .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
+
+    let attributes = def.attributes.clone().unwrap_or_else(|| {
+        generate_random_staff_from_def(
+            team_id.unwrap_or(""),
+            def.role.clone(),
+            nationality,
+            names_def,
+            rng,
+        )
+        .attributes
+    });
+
+    let id = if def.id.is_empty() { Uuid::new_v4().to_string() } else { def.id.clone() };
+    let mut s = Staff::new(id, first_name, last_name, dob, def.role.clone(), attributes);
+    s.nationality = nationality.to_string();
+    s.team_id = team_id.map(|t| t.to_string());
+    s.specialization = def.specialization.clone();
+    s
+}
+
+// ---------------------------------------------------------------------------
 // Authored players (world packages)
 // ---------------------------------------------------------------------------
 
@@ -581,9 +635,10 @@ pub(super) fn generate_player_from_def(
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
     let age = current_year.saturating_sub(birth_year);
 
-    let attributes = def.attributes.clone().unwrap_or_else(|| {
-        attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng)
-    });
+    let attributes = def
+        .attributes
+        .clone()
+        .unwrap_or_else(|| attributes_for_overall(def.overall.unwrap_or(65), &def.position, rng));
 
     let approx_ovr = (attributes.pace as u32
         + attributes.stamina as u32
@@ -635,6 +690,16 @@ pub(super) fn generate_player_from_def(
     player.contract_end = Some(contract_end);
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
+    if let Some(ref foot_str) = def.footedness {
+        player.footedness = match foot_str.as_str() {
+            "Left" => domain::player::Footedness::Left,
+            "Both" => domain::player::Footedness::Both,
+            _ => domain::player::Footedness::Right,
+        };
+    }
+    if def.youth {
+        player.squad_role = domain::player::SquadRole::Youth;
+    }
 
     let temp_ovr = {
         use crate::player_rating::natural_ovr;

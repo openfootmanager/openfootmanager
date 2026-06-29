@@ -1,8 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
-import { makeTeamFallback } from "./helpers";
-import { Badge, TeamLogo } from "../ui";
-import type { TeamData } from "../../store/gameStore";
+import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -144,35 +142,36 @@ export function parseFormationNeeds(formation: string): Record<string, number> {
 interface PreMatchLineupProps {
   userTeam: MatchSnapshot["home_team"];
   userBench: EnginePlayerData[];
-  oppTeam: MatchSnapshot["home_team"];
-  oppFullTeam?: TeamData;
+  oppTeam?: MatchSnapshot["home_team"];
   userColor: string;
-  homeTeamColor: string;
-  awayTeamColor: string;
-  userSide: "Home" | "Away";
+  homeTeamColor?: string;
+  awayTeamColor?: string;
+  userSide?: "Home" | "Away";
   formationNeeds: Record<string, number>;
   selectedStarterId: string | null;
   isAutoSelecting: boolean;
   onSelectStarter: (id: string | null) => void;
   onSwap: (benchPlayerId: string) => void;
   onAutoSelect: () => void;
+  /**
+   * When false, the textual Starting XI list is hidden — used by the pre-match
+   * "command" layout where the pitch is the primary XI visualisation. The
+   * formation-fit bar and bench (for swapping) still render. Defaults to true.
+   */
+  showStartingList?: boolean;
 }
 
 export default function PreMatchLineup({
   userTeam,
   userBench,
-  oppTeam,
-  oppFullTeam,
   userColor,
-  homeTeamColor,
-  awayTeamColor,
-  userSide,
   formationNeeds,
   selectedStarterId,
   isAutoSelecting,
   onSelectStarter,
   onSwap,
   onAutoSelect,
+  showStartingList = true,
 }: PreMatchLineupProps) {
   const { t } = useTranslation();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
@@ -221,9 +220,9 @@ export default function PreMatchLineup({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Starting XI */}
-        <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+      {/* Starting XI */}
+      {showStartingList && (
+      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
               {t("match.startingXI")}
@@ -356,6 +355,7 @@ export default function PreMatchLineup({
             );
           })}
         </div>
+      )}
 
         {/* Bench */}
         <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
@@ -456,34 +456,7 @@ export default function PreMatchLineup({
             </div>
           )}
 
-          {/* Opponent Info */}
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-navy-700">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-              {t("match.opponent")}
-            </h3>
-            <div className="flex items-center gap-3 mb-2">
-              <TeamLogo
-                team={oppFullTeam ?? makeTeamFallback(oppTeam.name)}
-                className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
-                imageClassName="h-8 w-8 object-contain drop-shadow"
-                style={{
-                  backgroundColor:
-                    (userSide === "Home" ? awayTeamColor : homeTeamColor) +
-                    "30",
-                }}
-              />
-              <div>
-                <p className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200">
-                  {oppTeam.name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {oppTeam.formation} · {t(`common.playStyles.${oppTeam.play_style}`, oppTeam.play_style)}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
   );
 }

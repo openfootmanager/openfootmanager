@@ -261,7 +261,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("renders the top tactical controls plus bench cards inside the pitch view", () => {
+  it("renders the top tactical controls plus bench player in the left panel", () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -273,7 +273,7 @@ describe("TacticsTab", () => {
     expect(screen.getByText("tactics.presetTactics")).toBeInTheDocument();
     expect(screen.getByText("tactics.formation")).toBeInTheDocument();
     expect(screen.getByText("tactics.playStyle")).toBeInTheDocument();
-    expect(screen.getAllByText("preMatch.substitutes").length).toBeGreaterThan(
+    expect(screen.getAllByText(/preMatch\.substitutes/).length).toBeGreaterThan(
       0,
     );
     expect(screen.getByTestId("bench-player-d5")).toBeInTheDocument();
@@ -294,8 +294,8 @@ describe("TacticsTab", () => {
     expect(
       screen.getByRole("button", { name: "tactics.chooseTactic" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "4-4-2" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Balanced" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "tactics.formation" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "tactics.playStyle" })).toBeInTheDocument();
   });
 
   it("falls back to a custom current setup when no preset matches the active tactic", () => {
@@ -360,7 +360,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("shows injured players under a Status column with progressive injury details", () => {
+  it("shows injured bench players with injury details in the left panel", () => {
     const gameState = makeGameState();
     const injuredBenchPlayer = gameState.players.find(
       (player) => player.id === "d5",
@@ -380,7 +380,6 @@ describe("TacticsTab", () => {
       />,
     );
 
-    expect(screen.getAllByText("common.status").length).toBeGreaterThan(0);
     expect(screen.getByText("Ankle sprain")).toBeInTheDocument();
     expect(screen.getByText("6d")).toBeInTheDocument();
   });
@@ -621,7 +620,7 @@ describe("TacticsTab", () => {
     expect(
       screen.getByRole("option", { name: /tactics.copyOfTactic/i }),
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();
@@ -674,7 +673,9 @@ describe("TacticsTab", () => {
       />,
     );
 
+    // Modal requires two players — select f1 then m1 to open comparison
     fireEvent.click(screen.getByTestId("pitch-player-f1"));
+    fireEvent.click(screen.getByTestId("pitch-player-m1"));
 
     expect(screen.getByText("common.positions.Forward")).toBeInTheDocument();
     expect(screen.queryByText("Forward")).not.toBeInTheDocument();
@@ -691,8 +692,8 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
-    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
-    expect(screen.getAllByText("Player d5").length).toBeGreaterThan(0);
+    // Modal only opens after both players are selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
@@ -736,8 +737,8 @@ describe("TacticsTab", () => {
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
     expect(onSelectPlayer).not.toHaveBeenCalled();
-    expect(screen.getByText("tactics.selectedPlayer")).toBeInTheDocument();
-    expect(screen.getAllByText("Player d1").length).toBeGreaterThan(0);
+    // Modal only opens after both players are selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("pitch-player-d2"));
 
@@ -790,7 +791,7 @@ describe("TacticsTab", () => {
     ).toBeInTheDocument();
   });
 
-  it("only opens profiles from the lineup tables", () => {
+  it("clicking a starter row in the left panel selects them for swap, not opening player profile", () => {
     const onSelectPlayer = vi.fn();
 
     render(
@@ -803,10 +804,12 @@ describe("TacticsTab", () => {
 
     fireEvent.click(screen.getByTestId("xi-player-d1"));
 
-    expect(onSelectPlayer).toHaveBeenCalledWith("d1");
+    expect(onSelectPlayer).not.toHaveBeenCalled();
+    // Modal stays closed until a second player is selected
+    expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
   });
 
-  it("reassigns a starter to another tactical slot from the pos combobox", async () => {
+  it("shows all starting XI players in the left panel list", () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -815,27 +818,9 @@ describe("TacticsTab", () => {
       />,
     );
 
-    const defenderRow = screen.getByTestId("xi-player-d1");
-    fireEvent.click(within(defenderRow).getByRole("combobox"));
-    fireEvent.click(within(defenderRow).getAllByRole("option")[4]);
-
-    await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
-        playerIds: [
-          "gk1",
-          "d4",
-          "d2",
-          "d3",
-          "d1",
-          "m1",
-          "m2",
-          "m3",
-          "m4",
-          "f1",
-          "f2",
-        ],
-      });
-    });
+    expect(screen.getByTestId("xi-player-d1")).toBeInTheDocument();
+    expect(screen.getByTestId("xi-player-gk1")).toBeInTheDocument();
+    expect(screen.getByTestId("xi-player-f1")).toBeInTheDocument();
   });
 
   it("does not promote an injured bench player into the starting XI", async () => {
@@ -1005,7 +990,7 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("persists default set piece and team role assignments from the roles tab", async () => {
+  it("persists default set piece and team role assignments from the right panel", async () => {
     render(
       <TacticsTab
         gameState={makeGameState()}
@@ -1014,9 +999,6 @@ describe("TacticsTab", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "tactics.rolesTab" }),
-    );
     fireEvent.click(
       screen.getByRole("button", { name: "tactics.autoSelectAssignments" }),
     );

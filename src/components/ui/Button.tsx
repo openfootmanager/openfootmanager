@@ -23,7 +23,7 @@ export function Button({
 
   const variants = {
     primary:
-      "bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white shadow-md hover:shadow-lg focus:ring-primary-500 dark:focus:ring-offset-navy-800",
+      "bg-primary-700 hover:bg-primary-800 active:bg-primary-900 text-white shadow-md hover:shadow-lg focus:ring-primary-700 dark:focus:ring-offset-navy-800",
     accent:
       "bg-accent-400 hover:bg-accent-500 active:bg-accent-600 text-navy-900 shadow-md hover:shadow-lg focus:ring-accent-400 dark:focus:ring-offset-navy-800",
     ghost:

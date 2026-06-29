@@ -1,0 +1,15 @@
+{
+  "schema": "world",
+  "id": "northshire-mini-league",
+  "name": "Northshire Mini League",
+  "description": "A four-team example league for the Northshire region. Great starting point for learning the .ofm format.",
+  "version": "1.0.0",
+  "author": "Example Author",
+  "license": "CC0-1.0",
+  "packageType": "database",
+  "gameMinVersion": "0.3.0",
+  "formatVersion": 1,
+  "baseYear": 2026,
+  "defaultActiveRegions": [],
+  "defaultActiveCompetitions": ["northshire-premier"]
+}

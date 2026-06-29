@@ -36,6 +36,8 @@ pub struct GameMeta {
     pub active_competition_ids_json: String,
     #[serde(default = "default_extra_translations_json")]
     pub extra_translations_json: String,
+    #[serde(default = "default_package_lockfile_json")]
+    pub package_lockfile_json: String,
 }
 
 fn default_vacant_team_days_json() -> String {
@@ -51,7 +53,8 @@ fn default_world_history_json() -> String {
 /// rejects saves newer than this and migrates + restamps older ones.
 /// v3 = `competitions` is the source of truth (legacy `game.league` demoted to a
 /// back-compat mirror, populated from it on load for pre-v3 saves).
-pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 3;
+/// v4 = opening AI loan listings are seeded once for existing careers.
+pub const CURRENT_SAVE_FORMAT_VERSION: u32 = 4;
 
 /// Baseline for a save that predates the version field entirely (reads as the
 /// pre-gate format, so it gets migrated and restamped to current on load).
@@ -71,11 +74,15 @@ fn default_extra_translations_json() -> String {
     "{}".to_string()
 }
 
+fn default_package_lockfile_json() -> String {
+    "[]".to_string()
+}
+
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
         params![
             meta.save_id,
             meta.save_name,
@@ -95,6 +102,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.active_region_ids_json,
             meta.active_competition_ids_json,
             meta.extra_translations_json,
+            meta.package_lockfile_json,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -105,7 +113,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -135,6 +143,9 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 extra_translations_json: row
                     .get(17)
                     .unwrap_or_else(|_| default_extra_translations_json()),
+                package_lockfile_json: row
+                    .get(18)
+                    .unwrap_or_else(|_| default_package_lockfile_json()),
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -177,6 +188,7 @@ mod tests {
             active_region_ids_json: "[]".to_string(),
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
+            package_lockfile_json: "[]".to_string(),
         };
 
         upsert_meta(db.conn(), &meta).unwrap();
@@ -222,6 +234,7 @@ mod tests {
             active_region_ids_json: "[]".to_string(),
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
+            package_lockfile_json: "[]".to_string(),
         };
         upsert_meta(db.conn(), &meta1).unwrap();
 
@@ -244,6 +257,7 @@ mod tests {
             active_region_ids_json: "[]".to_string(),
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
+            package_lockfile_json: "[]".to_string(),
         };
         upsert_meta(db.conn(), &meta2).unwrap();
 
@@ -279,6 +293,7 @@ mod tests {
             active_region_ids_json: "[]".to_string(),
             active_competition_ids_json: "[]".to_string(),
             extra_translations_json: "{}".to_string(),
+            package_lockfile_json: "[]".to_string(),
         };
 
         let result = upsert_meta(&conn, &meta);

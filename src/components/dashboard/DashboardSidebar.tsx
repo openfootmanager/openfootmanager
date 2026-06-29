@@ -5,16 +5,17 @@ import {
   Calendar as CalendarIcon,
   Mail,
   Settings,
-  Briefcase,
+  LayoutDashboard,
   Medal,
   Trophy,
   TrendingUp,
-  ArrowLeftRight,
+  Globe,
   Crosshair,
   Dumbbell,
   DollarSign,
   Eye,
   UsersRound,
+  UserCheck,
   Building2,
   UserCog,
   Newspaper,
@@ -31,6 +32,7 @@ interface DashboardSidebarProps {
   onNavClick: (tab: string) => void;
   onToggleCollapse: () => void;
   unreadMessagesCount: number;
+  todayHasMatch?: boolean;
   managerName: string | null;
   teamName: string | null;
   onNavigateSettings: () => void;
@@ -40,7 +42,7 @@ interface DashboardSidebarProps {
 
 interface NavItemProps {
   active?: boolean;
-  badge?: number;
+  badge?: number | string;
   collapsed: boolean;
   icon: ReactNode;
   label: string;
@@ -69,7 +71,11 @@ function NavItem({
     <button
       onClick={onClick}
       title={collapsed ? label : undefined}
-      aria-label={label}
+      aria-label={
+        badge !== undefined && badge !== 0 && badge !== ""
+          ? `${label} (${badge})`
+          : label
+      }
       className={buttonClassName}
     >
       <div
@@ -82,7 +88,7 @@ function NavItem({
           </span>
         )}
       </div>
-      {badge !== undefined && badge > 0 && (
+      {badge !== undefined && badge !== 0 && badge !== "" && (
         <span
           className={
             collapsed
@@ -103,6 +109,7 @@ export default function DashboardSidebar({
   onNavClick,
   onToggleCollapse,
   unreadMessagesCount,
+  todayHasMatch,
   managerName,
   teamName,
   onNavigateSettings,
@@ -129,10 +136,10 @@ export default function DashboardSidebar({
     { icon: <TrendingUp />, label: t("dashboard.transfers"), tab: "Transfers" },
   ];
   const worldItems: Array<{ icon: JSX.Element; label: string; tab: string }> = [
-    { icon: <ArrowLeftRight />, label: t("transfers.centre"), tab: "TransferCentre" },
+    { icon: <Globe />, label: t("transfers.centre"), tab: "TransferCentre" },
     { icon: <Medal />, label: t("dashboard.hallOfFame"), tab: "HallOfFame" },
     { icon: <UsersRound />, label: t("dashboard.players"), tab: "Players" },
-    { icon: <UsersRound />, label: t("dashboard.managers"), tab: "Managers" },
+    { icon: <UserCheck />, label: t("dashboard.managers"), tab: "Managers" },
     { icon: <Building2 />, label: t("dashboard.teams"), tab: "Teams" },
     {
       icon: <Trophy />,
@@ -226,7 +233,7 @@ export default function DashboardSidebar({
           }`}
       >
         <NavItem
-          icon={<Briefcase />}
+          icon={<LayoutDashboard />}
           label={t("dashboard.home")}
           badge={undefined}
           active={activeTab === "Home"}
@@ -251,6 +258,7 @@ export default function DashboardSidebar({
         <NavItem
           icon={<CalendarIcon />}
           label={t("dashboard.schedule")}
+          badge={todayHasMatch ? "!" : undefined}
           active={activeTab === "Schedule"}
           collapsed={collapsed}
           onClick={() => onNavClick("Schedule")}
@@ -258,8 +266,9 @@ export default function DashboardSidebar({
 
         {!isUnemployed && (
           <>
+            <hr className="my-2 border-navy-700" />
             {collapsed ? null : (
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-heading px-3 pt-3 pb-1">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-heading px-3 pt-1 pb-1">
                 {t("dashboard.sectionClub")}
               </p>
             )}
@@ -276,8 +285,9 @@ export default function DashboardSidebar({
           </>
         )}
 
+        <hr className="my-2 border-navy-700" />
         {collapsed ? null : (
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest font-heading px-3 pt-3 pb-1">
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest font-heading px-3 pt-1 pb-1">
             {t("dashboard.sectionWorld")}
           </p>
         )}

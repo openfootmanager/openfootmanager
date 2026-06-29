@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{LiveMatchState, MatchSnapshot};
+use super::{LiveMatchState, MatchPhase, MatchSnapshot, PenaltyShootoutSnapshot};
 
 // ---------------------------------------------------------------------------
 // Snapshot generation — read-only view of match state for the UI
@@ -40,6 +40,19 @@ impl LiveMatchState {
             }
         }
 
+        let has_shootout_data = self.penalty_state.home_taken > 0 || self.penalty_state.away_taken > 0;
+        let penalty_shootout = if self.phase == MatchPhase::PenaltyShootout || (self.phase == MatchPhase::Finished && has_shootout_data) {
+            Some(PenaltyShootoutSnapshot {
+                home_taken: self.penalty_state.home_taken,
+                away_taken: self.penalty_state.away_taken,
+                home_scored: self.penalty_state.home_scored,
+                away_scored: self.penalty_state.away_scored,
+                sudden_death: self.penalty_state.sudden_death,
+            })
+        } else {
+            None
+        };
+
         MatchSnapshot {
             phase: self.phase,
             current_minute: self.current_minute,
@@ -64,6 +77,7 @@ impl LiveMatchState {
             home_yellows,
             away_yellows,
             sent_off: self.sent_off.clone(),
+            penalty_shootout,
         }
     }
 }

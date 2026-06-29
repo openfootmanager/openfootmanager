@@ -16,7 +16,7 @@ import {
 import { Check, ChevronDown } from "lucide-react";
 
 interface SelectProps {
-  selectSize?: "xs" | "sm" | "md";
+  selectSize?: "2xs" | "xs" | "sm" | "md";
   variant?: "default" | "subtle" | "muted" | "highlighted" | "placeholder" | "ghost";
   icon?: ReactNode;
   fullWidth?: boolean;
@@ -221,24 +221,25 @@ export function Select({
   };
 
   const sizes = {
+    "2xs": "py-0.5 text-[9px]",
     xs: "py-0.5 text-[10px]",
     sm: "py-1.5 text-xs",
     md: "py-2 text-sm",
   };
 
   const leftPadding = icon
-    ? { xs: "pl-7", sm: "pl-8", md: "pl-9" }[selectSize]
-    : "pl-3";
+    ? { "2xs": "pl-6", xs: "pl-7", sm: "pl-8", md: "pl-9" }[selectSize]
+    : { "2xs": "pl-1.5", xs: "pl-3", sm: "pl-3", md: "pl-3" }[selectSize];
 
-  const rightPadding = { xs: "pr-6", sm: "pr-8", md: "pr-9" }[selectSize];
-  const iconInset = { xs: "left-2", sm: "left-2.5", md: "left-3" }[selectSize];
-  const chevronInset = { xs: "right-2", sm: "right-2.5", md: "right-3" }[
+  const rightPadding = { "2xs": "pr-4", xs: "pr-6", sm: "pr-8", md: "pr-9" }[selectSize];
+  const iconInset = { "2xs": "left-1.5", xs: "left-2", sm: "left-2.5", md: "left-3" }[selectSize];
+  const chevronInset = { "2xs": "right-1", xs: "right-2", sm: "right-2.5", md: "right-3" }[
     selectSize
   ];
-  const chevronSize = { xs: "w-3 h-3", sm: "w-4 h-4", md: "w-4 h-4" }[
+  const chevronSize = { "2xs": "w-2.5 h-2.5", xs: "w-3 h-3", sm: "w-4 h-4", md: "w-4 h-4" }[
     selectSize
   ];
-  const optionTextSize = { xs: "text-[10px]", sm: "text-xs", md: "text-sm" }[
+  const optionTextSize = { "2xs": "text-[9px]", xs: "text-[10px]", sm: "text-xs", md: "text-sm" }[
     selectSize
   ];
 

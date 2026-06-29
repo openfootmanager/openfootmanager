@@ -9,6 +9,8 @@ use super::snap_player;
 
 /// `fouled_snap` is the player who was fouled; `fouler_snap` committed the foul.
 /// `fouling_side` is the side that committed the foul.
+/// `tactics_mod` is a pre-computed multiplier from the fouling team's pressing/marking settings.
+/// Returns `true` if a foul was committed.
 pub(super) fn maybe_foul<R: Rng>(
     ctx: &mut MatchContext,
     minute: u8,
@@ -17,13 +19,15 @@ pub(super) fn maybe_foul<R: Rng>(
     fouler_snap: &PlayerSnap,
     zone: Zone,
     rng: &mut R,
-) {
+    tactics_mod: f64,
+) -> bool {
     let aggression_mod = fouler_snap.aggression as f64 / 100.0;
     let foul_chance = ctx.config.foul_probability
         * (0.6 + aggression_mod * 0.8)
-        * trait_bonus(fouler_snap, TraitContext::Foul);
+        * trait_bonus(fouler_snap, TraitContext::Foul)
+        * tactics_mod;
     if rng.random_range(0.0..1.0f64) >= foul_chance {
-        return;
+        return false;
     }
 
     ctx.emit(
@@ -53,9 +57,11 @@ pub(super) fn maybe_foul<R: Rng>(
             MatchEvent::new(minute, EventType::Injury, att_side, zone).with_player(&fouled_snap.id),
         );
     }
+
+    true
 }
 
-fn maybe_card<R: Rng>(
+pub(super) fn maybe_card<R: Rng>(
     ctx: &mut MatchContext,
     minute: u8,
     side: Side,
@@ -94,7 +100,7 @@ fn maybe_card<R: Rng>(
     }
 }
 
-fn resolve_penalty<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng: &mut R) {
+pub(super) fn resolve_penalty<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng: &mut R) {
     let taker = snap_player(ctx, att_side, Position::Forward, rng);
     let gk = snap_player(ctx, att_side.opposite(), Position::Goalkeeper, rng);
 

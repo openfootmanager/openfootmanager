@@ -1,0 +1,4 @@
+# Prevent tauri dev watcher from restarting the app when a built .ofm
+# is saved here for local testing. The ignore crate (used by tauri-cli)
+# respects this file even for git-tracked assets.
+*.ofm

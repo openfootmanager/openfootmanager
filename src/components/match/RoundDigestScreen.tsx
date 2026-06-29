@@ -26,7 +26,6 @@ interface RoundDigestScreenProps {
   onPressConference: () => void;
   onFinish: () => void;
 }
-
 export default function RoundDigestScreen({
   snapshot,
   gameState,
@@ -107,7 +106,7 @@ export default function RoundDigestScreen({
       case "PenaltyGoal":
         return `${primary} (P)`;
       case "PenaltyMiss":
-        return `${primary} (P)`;
+        return `${primary} (PM)`;
       case "Substitution":
         return `${primary} ${t("match.subFor", { name: getPlayerDisplayName(event.secondary_player_id) })}`;
       default:
@@ -169,12 +168,20 @@ export default function RoundDigestScreen({
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
-  const userScore =
-    userSide === "Home" ? snapshot.home_score : snapshot.away_score;
-  const oppScore =
-    userSide === "Home" ? snapshot.away_score : snapshot.home_score;
   const resultType =
-    userScore > oppScore ? "win" : userScore < oppScore ? "loss" : "draw";
+    userSide === "Home"
+      ? snapshot.home_score > snapshot.away_score
+        ? "win"
+        : snapshot.home_score < snapshot.away_score
+          ? "loss"
+          : "draw"
+      : userSide === "Away"
+        ? snapshot.away_score > snapshot.home_score
+          ? "win"
+          : snapshot.away_score < snapshot.home_score
+            ? "loss"
+            : "draw"
+        : "neutral";
 
   // Position context from standings delta
   const userStanding = roundSummary?.standings_delta.find(
@@ -194,7 +201,7 @@ export default function RoundDigestScreen({
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* Header */}
       <header className="bg-white dark:bg-navy-800 border-b border-gray-200 dark:border-navy-700 px-6 py-4 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
             {headingParts && (
               <p className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-0.5">
@@ -229,7 +236,7 @@ export default function RoundDigestScreen({
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6 flex flex-col gap-6">
+        <div className="px-6 py-6 flex flex-col gap-6">
           {/* Your Result Hero Card */}
           <div
             className={`rounded-2xl border p-6 transition-colors duration-300 ${
@@ -647,4 +654,3 @@ export default function RoundDigestScreen({
     </div>
   );
 }
-

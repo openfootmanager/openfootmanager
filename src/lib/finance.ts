@@ -29,22 +29,88 @@ export function annualAmountToWeeklyCommitment(amount: number): number {
   return Math.floor(Math.max(0, amount) / 52);
 }
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, value));
+}
+
+export function getPlayerAnnualWageCommitment(
+  player: PlayerData,
+  teamId?: string | null,
+): number {
+  const annualWage = Math.max(0, player.wage);
+
+  if (!teamId) {
+    return annualWage;
+  }
+
+  const activeLoan = player.active_loan ?? null;
+  if (!activeLoan) {
+    return player.team_id === teamId ? annualWage : 0;
+  }
+
+  const loanTeamContributionPct = clampPercent(
+    activeLoan.wage_contribution_pct,
+  );
+  const loanTeamShare = Math.floor(
+    (annualWage * loanTeamContributionPct) / 100,
+  );
+
+  if (activeLoan.loan_team_id === teamId) {
+    return loanTeamShare;
+  }
+
+  if (activeLoan.parent_team_id === teamId) {
+    return annualWage - loanTeamShare;
+  }
+
+  return 0;
+}
+
 export function getAnnualWageBill(
   players: PlayerData[],
   staff: StaffData[] = [],
+  teamId?: string | null,
 ): number {
-  return [...players, ...staff].reduce((sum, person) => {
-    return sum + Math.max(0, person.wage);
+  const playerWages = players.reduce((sum, player) => {
+    return sum + getPlayerAnnualWageCommitment(player, teamId);
   }, 0);
+  const staffWages = staff.reduce((sum, staffMember) => {
+    if (teamId && staffMember.team_id !== teamId) {
+      return sum;
+    }
+
+    return sum + Math.max(0, staffMember.wage);
+  }, 0);
+
+  return playerWages + staffWages;
 }
 
 export function getWeeklyWageSpend(
   players: PlayerData[],
   staff: StaffData[] = [],
+  teamId?: string | null,
 ): number {
-  return [...players, ...staff].reduce((sum, person) => {
-    return sum + annualAmountToWeeklyCommitment(person.wage);
+  const playerWages = players.reduce((sum, player) => {
+    return (
+      sum +
+      annualAmountToWeeklyCommitment(
+        getPlayerAnnualWageCommitment(player, teamId),
+      )
+    );
   }, 0);
+  const staffWages = staff.reduce((sum, staffMember) => {
+    if (teamId && staffMember.team_id !== teamId) {
+      return sum;
+    }
+
+    return sum + annualAmountToWeeklyCommitment(Math.max(0, staffMember.wage));
+  }, 0);
+
+  return playerWages + staffWages;
 }
 
 export function getCashRunwayWeeks(
@@ -152,8 +218,8 @@ export function getTeamFinanceSnapshot(
   staff: StaffData[] = [],
   currentDate?: string,
 ): TeamFinanceSnapshot {
-  const annualWageBill = getAnnualWageBill(players, staff);
-  const weeklyWageSpend = getWeeklyWageSpend(players, staff);
+  const annualWageBill = getAnnualWageBill(players, staff, team.id);
+  const weeklyWageSpend = getWeeklyWageSpend(players, staff, team.id);
   const weeklyWageBudget = annualAmountToWeeklyCommitment(team.wage_budget);
   const weeklySponsorIncome = team.sponsorship?.base_value ?? 0;
   const projectedWeeklyNet = weeklySponsorIncome - weeklyWageSpend;

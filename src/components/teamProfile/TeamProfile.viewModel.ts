@@ -1,4 +1,5 @@
 import { getPlayerOvr } from "../../lib/helpers";
+import { getPlayerAnnualWageCommitment } from "../../lib/finance";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 
 import type { LeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
@@ -58,7 +59,10 @@ export function buildTeamProfileViewModel(
   return {
     roster,
     avgOvr: calculateAverageOvr(roster),
-    totalWages: roster.reduce((sum, player) => sum + player.wage, 0),
+    totalWages: gameState.players.reduce(
+      (sum, player) => sum + getPlayerAnnualWageCommitment(player, team.id),
+      0,
+    ),
     totalValue: roster.reduce((sum, player) => sum + player.market_value, 0),
     manager: gameState.manager.team_id === team.id ? gameState.manager : null,
     leaguePos: allStandings.findIndex((entry) => entry.team_id === team.id) + 1,

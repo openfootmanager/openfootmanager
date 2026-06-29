@@ -126,6 +126,14 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     }
   }, []);
 
+  // Auto-scroll to the next user fixture on load when mid-season (past groups present).
+  useEffect(() => {
+    if (!slice?.next_user_match_date || slice.past_groups.length === 0) return;
+    const date = slice.next_user_match_date;
+    const id = setTimeout(() => scrollToDate(date), 50);
+    return () => clearTimeout(id);
+  }, [slice?.competition_id, slice?.next_user_match_date, slice?.past_groups.length, scrollToDate]);
+
   const buildTeamMenuItem = (label: string, teamId: string): ContextMenuItem => ({
     label,
     onClick: () => onSelectTeam(teamId),
@@ -155,7 +163,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
   );
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
       {isPreseason && (
         <Card accent="accent" className="mb-5">
           <CardBody>

@@ -135,7 +135,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const roles = ["AssistantManager", "Coach", "Scout", "Physio"];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div>
       {/* View toggle */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <div className="flex gap-2">
@@ -255,7 +255,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                 ];
             const staffCard = (
               <div data-testid={`staff-card-${staff.id}`} className="h-full">
-                <Card>
+                <Card className="h-full">
                   <CardBody>
                     <div className="flex items-start gap-4">
                       {/* Avatar */}

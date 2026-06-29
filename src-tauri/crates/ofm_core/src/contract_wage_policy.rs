@@ -19,11 +19,19 @@ fn backend_error_with_param(key: &str, param_name: &str, param_value: i64) -> St
     message
 }
 
+fn contract_owner_team_id(player: &domain::player::Player) -> Option<&str> {
+    player
+        .active_loan
+        .as_ref()
+        .map(|loan| loan.parent_team_id.as_str())
+        .or(player.team_id.as_deref())
+}
+
 fn annual_team_wage_bill(game: &Game, team_id: &str) -> i64 {
     let player_wages: i64 = game
         .players
         .iter()
-        .filter(|player| player.team_id.as_deref() == Some(team_id))
+        .filter(|player| contract_owner_team_id(player) == Some(team_id))
         .map(|player| player.wage as i64)
         .sum();
 
@@ -79,15 +87,7 @@ pub fn project_contract_offer_financial_impact(
     }
 }
 
-pub fn renewal_wage_policy_allows(
-    game: &Game,
-    team: &Team,
-    current_player_wage: u32,
-    offered_wage: u32,
-) -> bool {
-    let current_bill = annual_team_wage_bill(game, &team.id);
-    let projected_bill =
-        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
+pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_bill: i64) -> bool {
     let soft_cap = (team.wage_budget * WAGE_SOFT_CAP_PCT) / 100;
 
     if current_bill <= team.wage_budget {
@@ -104,6 +104,19 @@ pub fn renewal_wage_policy_allows(
     );
 
     projected_bill <= current_bill + legacy_grace
+}
+
+pub fn renewal_wage_policy_allows(
+    game: &Game,
+    team: &Team,
+    current_player_wage: u32,
+    offered_wage: u32,
+) -> bool {
+    let current_bill = annual_team_wage_bill(game, &team.id);
+    let projected_bill =
+        projected_annual_wage_bill(game, &team.id, current_player_wage, offered_wage);
+
+    wage_policy_allows_projection(team, current_bill, projected_bill)
 }
 
 pub fn renewal_wage_policy_error_message(team: &Team) -> String {
@@ -124,10 +137,8 @@ pub fn project_renewal_financial_impact(
         .iter()
         .find(|player| player.id == player_id)
         .ok_or_else(|| "be.error.playerNotFound".to_string())?;
-    let team_id = player
-        .team_id
-        .as_deref()
-        .ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
+    let team_id =
+        contract_owner_team_id(player).ok_or_else(|| ERR_PLAYER_HAS_NO_TEAM.to_string())?;
     let team = game
         .teams
         .iter()

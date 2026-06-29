@@ -1,0 +1,23 @@
+{
+  "schema": "competition",
+  "id": "northshire-premier",
+  "name": "Northshire Premier League",
+  "type": "League",
+  "scope": "Domestic",
+  "countryId": "ENG",
+  "priority": 10,
+  "format": {
+    "kind": "LeagueTable",
+    "legs": 2
+  },
+  "participants": {
+    "explicit": [
+      "northshire-fc",
+      "westbrook-united",
+      "eastgate-city",
+      "southfield-rovers"
+    ]
+  },
+  "seasonStartMonth": 8,
+  "seasonStartDay": 1
+}

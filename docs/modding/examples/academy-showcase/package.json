@@ -1,0 +1,15 @@
+{
+  "schema": "world",
+  "id": "harbor-academy-showcase",
+  "name": "Harbor Academy Showcase",
+  "description": "One club authored end to end: first-team players, youth prospects, coaching staff, and a name pool. A reference for the World Editor's Players, Youth, Staff, and Names sections.",
+  "version": "1.0.0",
+  "author": "Example Author",
+  "license": "CC0-1.0",
+  "packageType": "database",
+  "gameMinVersion": "0.3.0",
+  "formatVersion": 1,
+  "baseYear": 2026,
+  "defaultActiveRegions": [],
+  "defaultActiveCompetitions": ["harbor-league"]
+}

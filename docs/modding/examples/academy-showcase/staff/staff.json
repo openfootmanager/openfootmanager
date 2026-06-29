@@ -1,0 +1,53 @@
+{
+  "schema": "staff",
+  "items": [
+    {
+      "id": "diane-cole",
+      "firstName": "Diane",
+      "lastName": "Cole",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "role": "AssistantManager",
+      "specialization": null,
+      "dateOfBirth": "1974-03-15",
+      "attributes": {
+        "coaching": 72,
+        "judgingAbility": 68,
+        "judgingPotential": 65,
+        "physiotherapy": 40
+      }
+    },
+    {
+      "id": "victor-pratt",
+      "firstName": "Victor",
+      "lastName": "Pratt",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "role": "Coach",
+      "specialization": "Youth",
+      "dateOfBirth": "1980-11-08",
+      "attributes": {
+        "coaching": 70,
+        "judgingAbility": 55,
+        "judgingPotential": 60,
+        "physiotherapy": 35
+      }
+    },
+    {
+      "id": "amir-khan",
+      "firstName": "Amir",
+      "lastName": "Khan",
+      "club": "harbor-town-fc",
+      "nationality": "ENG",
+      "role": "Scout",
+      "specialization": null,
+      "dateOfBirth": "1983-07-22",
+      "attributes": {
+        "coaching": 45,
+        "judgingAbility": 78,
+        "judgingPotential": 80,
+        "physiotherapy": 30
+      }
+    }
+  ]
+}

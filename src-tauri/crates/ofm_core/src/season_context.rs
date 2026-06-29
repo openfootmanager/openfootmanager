@@ -1,6 +1,6 @@
 use crate::end_of_season::is_league_complete;
 use crate::game::Game;
-use chrono::{Duration, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 use domain::league::League;
 use domain::season::{SeasonContext, SeasonPhase, TransferWindowContext, TransferWindowStatus};
 
@@ -74,12 +74,18 @@ fn derive_transfer_window_context(
     current_date: NaiveDate,
     season_start: Option<NaiveDate>,
 ) -> TransferWindowContext {
-    let Some(season_start) = season_start else {
+    let Some(mut window_season_start) = season_start else {
         return TransferWindowContext::default();
     };
 
-    let opens_on = season_start - Duration::days(TRANSFER_WINDOW_PRESEASON_DAYS);
-    let closes_on = season_start + Duration::days(TRANSFER_WINDOW_POST_START_DAYS);
+    let mut opens_on = transfer_window_opens_on(window_season_start);
+    let mut closes_on = transfer_window_closes_on(window_season_start);
+
+    while current_date > closes_on {
+        window_season_start = add_year_clamped(window_season_start);
+        opens_on = transfer_window_opens_on(window_season_start);
+        closes_on = transfer_window_closes_on(window_season_start);
+    }
 
     let (status, days_until_opens, days_remaining) = if current_date < opens_on {
         (
@@ -110,6 +116,27 @@ fn derive_transfer_window_context(
 
 fn format_date(date: NaiveDate) -> String {
     date.format("%Y-%m-%d").to_string()
+}
+
+fn transfer_window_opens_on(season_start: NaiveDate) -> NaiveDate {
+    season_start - Duration::days(TRANSFER_WINDOW_PRESEASON_DAYS)
+}
+
+fn transfer_window_closes_on(season_start: NaiveDate) -> NaiveDate {
+    season_start + Duration::days(TRANSFER_WINDOW_POST_START_DAYS)
+}
+
+fn add_year_clamped(date: NaiveDate) -> NaiveDate {
+    let target_year = date.year() + 1;
+    date.with_year(target_year).unwrap_or_else(|| {
+        NaiveDate::from_ymd_opt(target_year, date.month(), 1)
+            .and_then(|first_of_month| {
+                first_of_month
+                    .checked_add_months(chrono::Months::new(1))
+                    .and_then(|next_month| next_month.checked_sub_signed(Duration::days(1)))
+            })
+            .expect("target year and month should produce a valid date")
+    })
 }
 
 #[cfg(test)]
@@ -244,6 +271,43 @@ mod tests {
             TransferWindowStatus::DeadlineDay
         );
         assert_eq!(context.transfer_window.days_remaining, Some(0));
+    }
+
+    #[test]
+    fn derives_next_window_after_current_window_has_closed() {
+        let league = League {
+            id: "league1".to_string(),
+            name: "Premier Division".to_string(),
+            season: 2026,
+            fixtures: vec![make_fixture(
+                "fx1",
+                "2026-08-01",
+                FixtureStatus::Completed,
+                1,
+            )],
+            standings: vec![
+                StandingEntry::new("team1".to_string()),
+                StandingEntry::new("team2".to_string()),
+            ],
+            transfer_log: vec![],
+            transfer_rumours: vec![],
+            ..Default::default()
+        };
+        let game = make_game((2026, 9, 15), Some(league));
+
+        let context = derive_season_context(&game);
+
+        assert_eq!(context.transfer_window.status, TransferWindowStatus::Closed);
+        assert_eq!(
+            context.transfer_window.opens_on.as_deref(),
+            Some("2027-07-02")
+        );
+        assert_eq!(
+            context.transfer_window.closes_on.as_deref(),
+            Some("2027-08-31")
+        );
+        assert_eq!(context.transfer_window.days_until_opens, Some(290));
+        assert_eq!(context.transfer_window.days_remaining, None);
     }
 
     #[test]

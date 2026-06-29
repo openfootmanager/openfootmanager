@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import {
+  counterLoanOffer,
   counterOffer,
+  exerciseLoanBuyOption,
+  makeLoanOffer,
   makeTransferBid,
   previewTransferBidFinancialImpact,
+  respondToLoanOffer,
   respondToOffer,
 } from "./transfersService";
 
@@ -39,6 +43,57 @@ describe("transfersService", () => {
       playerId: "player-1",
       offerId: "offer-1",
       accept: true,
+    });
+  });
+
+  it("calls the make loan offer backend command", async () => {
+    const response = { decision: "accepted" };
+    mockedInvoke.mockResolvedValueOnce(response);
+
+    await expect(makeLoanOffer("player-1", "2027-01-01", 75)).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+      playerId: "player-1",
+      endDate: "2027-01-01",
+      wageContributionPct: 75,
+      buyOptionFee: null,
+    });
+  });
+
+  it("calls the exercise loan buy option backend command", async () => {
+    const response = { manager: { id: "manager-1" } };
+    mockedInvoke.mockResolvedValueOnce(response);
+
+    await expect(exerciseLoanBuyOption("player-1")).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
+      playerId: "player-1",
+    });
+  });
+
+  it("calls the respond to loan offer backend command", async () => {
+    const response = { manager: { id: "manager-1" } };
+    mockedInvoke.mockResolvedValueOnce(response);
+
+    await expect(respondToLoanOffer("player-1", "loan-offer-1", true)).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
+      playerId: "player-1",
+      offerId: "loan-offer-1",
+      accept: true,
+    });
+  });
+
+  it("calls the counter loan offer backend command", async () => {
+    const response = { decision: "counter_offer" };
+    mockedInvoke.mockResolvedValueOnce(response);
+
+    await expect(
+      counterLoanOffer("player-1", "loan-offer-1", "2027-01-01", 85, 1200000),
+    ).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("counter_loan_offer", {
+      playerId: "player-1",
+      offerId: "loan-offer-1",
+      endDate: "2027-01-01",
+      wageContributionPct: 85,
+      buyOptionFee: 1200000,
     });
   });
 
