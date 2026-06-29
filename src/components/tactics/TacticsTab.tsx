@@ -31,10 +31,8 @@ import {
   buildTacticsRoster,
   countOutOfPositionPlayers,
   findTacticsPresetBySetup,
-  filterAndSortTacticsPlayers,
   getSelectedAndComparePlayers,
   resolveStartingXiIds,
-  type SortKey,
 } from "./TacticsTab.helpers";
 import TacticsPitch from "./TacticsPitch";
 import TacticsPlayerList from "./TacticsPlayerList";
@@ -46,6 +44,7 @@ import {
 import TacticsCommandBar from "./TacticsCommandBar";
 import TacticsPlayerFocusPanel from "./TacticsPlayerFocusPanel";
 import { useTacticsLibrary } from "./useTacticsLibrary";
+import { useTacticsFilters } from "./useTacticsFilters";
 
 interface TacticsTabProps {
   gameState: GameStateData | null;
@@ -76,10 +75,6 @@ export default function TacticsTab({
         initialTeam.play_style || "Balanced",
       )
     : null;
-  const [playerSearch, setPlayerSearch] = useState("");
-  const [positionFilter, setPositionFilter] = useState("All");
-  const sortKey: SortKey = "pos";
-  const sortDir: "asc" | "desc" = "asc";
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
   const [pendingStartingXiIds, setPendingStartingXiIds] = useState<
@@ -203,51 +198,15 @@ export default function TacticsTab({
     startingXiIds,
   ]);
 
-  const filteredStartingXI = useMemo(
-    () =>
-      filterAndSortTacticsPlayers(
-        startingXI,
-        {
-          playerSearch,
-          positionFilter,
-          section: "xi",
-          xiActivePosition,
-        },
-        {
-          section: "xi",
-          sortDir,
-          sortKey,
-          xiActivePosition,
-        },
-      ),
-    [
-      startingXI,
-      playerSearch,
-      positionFilter,
-      sortKey,
-      sortDir,
-      xiActivePosition,
-    ],
-  );
-  const filteredBench = useMemo(
-    () =>
-      filterAndSortTacticsPlayers(
-        bench,
-        {
-          playerSearch,
-          positionFilter,
-          section: "bench",
-          xiActivePosition,
-        },
-        {
-          section: "bench",
-          sortDir,
-          sortKey,
-          xiActivePosition,
-        },
-      ),
-    [bench, playerSearch, positionFilter, sortKey, sortDir, xiActivePosition],
-  );
+  const {
+    playerSearch,
+    setPlayerSearch,
+    positionFilter,
+    setPositionFilter,
+    filteredStartingXI,
+    filteredBench,
+    handleClearFilters,
+  } = useTacticsFilters({ startingXI, bench, xiActivePosition });
 
   const outOfPositionCount = countOutOfPositionPlayers(
     startingXI,
@@ -544,11 +503,6 @@ export default function TacticsTab({
 
     await persistStartingXI(nextXiIds);
     clearLineupSelection();
-  }
-
-  function handleClearFilters(): void {
-    setPlayerSearch("");
-    setPositionFilter("All");
   }
 
   async function persistMatchRoles(
