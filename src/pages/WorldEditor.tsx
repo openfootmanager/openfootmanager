@@ -17,6 +17,7 @@ import {
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useEntityEditor } from "../hooks/useEntityEditor";
 import { useNamesPoolEditor } from "../hooks/useNamesPoolEditor";
+import { useFlashMessages } from "../hooks/useFlashMessages";
 import { createWriteQueue } from "../lib/writeQueue";
 import type {
   CompetitionDef,
@@ -93,8 +94,7 @@ export default function WorldEditor() {
 
   // Async state
   const [isBusy, setIsBusy] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { errorMsg, successMsg, flashError, flashSuccess } = useFlashMessages();
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isDirty, setIsDirty] = useState(false);
 
@@ -152,16 +152,6 @@ export default function WorldEditor() {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
-  function flashError(msg: string) {
-    setErrorMsg(msg);
-    setTimeout(() => setErrorMsg(null), 5000);
-  }
-
-  function flashSuccess(msg: string) {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 5000);
-  }
 
   function loadProjectState(data: PackageProjectData) {
     setMeta(data.meta);
