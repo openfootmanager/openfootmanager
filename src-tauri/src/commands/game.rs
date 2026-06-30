@@ -613,6 +613,9 @@ fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
         .fixtures
         .iter()
         .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
+        .filter(|fixture| {
+            fixture.home_team_id == team_id || fixture.away_team_id == team_id
+        })
         .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
         .min()
         .and_then(|date| date.and_hms_opt(0, 0, 0))
@@ -1164,6 +1167,14 @@ fn ensure_international_windows(game: &mut Game) {
         window_dates.clone()
     };
     for competition in &mut game.competitions {
+        // The World Cup and its qualifying own the reserved window — they are the
+        // reason it is reserved — so shifting them off it would move the fixtures
+        // we just scheduled there. Only club competitions step aside.
+        if ofm_core::world_cup::is_world_cup_competition(competition)
+            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        {
+            continue;
+        }
         ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
     ofm_core::schedule::append_south_american_preseason_friendlies(
