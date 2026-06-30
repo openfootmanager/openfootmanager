@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Trophy, Users } from "lucide-react";
 import type { LeagueData } from "../../store/types";
 import { getCompetitiveFixtures } from "../../lib/fixtures";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 
 interface Props {
@@ -94,9 +95,7 @@ export default function CompetitionsOverview({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
-                          {comp.name_key
-                            ? t(comp.name_key, { year: comp.season })
-                            : comp.name}
+                          {competitionDisplayName(comp, t)}
                         </span>
                         <Badge variant="neutral" size="sm">
                           {t(`teamSelect.kinds.${comp.kind ?? "League"}`)}

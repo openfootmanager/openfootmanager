@@ -44,6 +44,29 @@ pub fn international_window_dates(season_start: DateTime<Utc>) -> Vec<String> {
         .collect()
 }
 
+/// Consecutive days a single international window spans. When many national
+/// matches share a window (e.g. World Cup qualifying, with every group playing
+/// the same matchday), they are spread across this block instead of piling
+/// onto the opening date.
+pub const INTERNATIONAL_WINDOW_SPAN_DAYS: i64 = 5;
+
+/// Every calendar date covered by the international windows, expanding each
+/// window into its [`INTERNATIONAL_WINDOW_SPAN_DAYS`]-day block. National-team
+/// match nights spread across this block, so club fixtures must keep clear of
+/// the whole span — not just each window's opening date.
+pub fn international_window_span_dates(window_dates: &[String]) -> Vec<String> {
+    window_dates
+        .iter()
+        .filter_map(|date| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .flat_map(|date| {
+            (0..INTERNATIONAL_WINDOW_SPAN_DAYS).filter_map(move |offset| {
+                date.checked_add_signed(chrono::Duration::days(offset))
+                    .map(|day| day.format("%Y-%m-%d").to_string())
+            })
+        })
+        .collect()
+}
+
 /// Schedule one friendly per international window for every national team that
 /// can field a squad. Fixtures are stored on the **home** team only so each
 /// match is simulated exactly once during day processing.

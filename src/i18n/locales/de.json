@@ -1528,10 +1528,10 @@
       "participating": "Teilnehmend",
       "worldCup": "Weltmeisterschaft {{year}}",
       "worldCupQualifying": "WM-Qualifikation {{year}}",
-      "league": "Liga",
-      "firstDivision": "Erste Division",
-      "secondDivision": "Zweite Division",
-      "nationalCup": "Nationalpokal",
+      "league": "{{country}} Liga",
+      "firstDivision": "{{country}} Erste Division",
+      "secondDivision": "{{country}} Zweite Division",
+      "nationalCup": "{{country}} Pokal",
       "continentalChampionsCup": "Kontinentaler Meisterpokal"
     }
   },

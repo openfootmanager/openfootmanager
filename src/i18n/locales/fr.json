@@ -1528,10 +1528,10 @@
       "participating": "Participant",
       "worldCup": "Coupe du Monde {{year}}",
       "worldCupQualifying": "Qualifications Coupe du Monde {{year}}",
-      "league": "Ligue",
-      "firstDivision": "Première Division",
-      "secondDivision": "Deuxième Division",
-      "nationalCup": "Coupe Nationale",
+      "league": "Championnat de {{country}}",
+      "firstDivision": "Première Division de {{country}}",
+      "secondDivision": "Deuxième Division de {{country}}",
+      "nationalCup": "Coupe de {{country}}",
       "continentalChampionsCup": "Coupe Continentale des Champions"
     }
   },

@@ -1528,10 +1528,10 @@
       "participating": "Participando",
       "worldCup": "Copa do Mundo {{year}}",
       "worldCupQualifying": "Qualificação para a Copa do Mundo {{year}}",
-      "league": "Liga",
-      "firstDivision": "Primeira Divisão",
-      "secondDivision": "Segunda Divisão",
-      "nationalCup": "Copa Nacional",
+      "league": "Liga de {{country}}",
+      "firstDivision": "Primeira Divisão de {{country}}",
+      "secondDivision": "Segunda Divisão de {{country}}",
+      "nationalCup": "Copa de {{country}}",
       "continentalChampionsCup": "Copa Continental de Campeões"
     }
   },

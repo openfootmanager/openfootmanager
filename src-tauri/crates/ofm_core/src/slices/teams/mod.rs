@@ -34,8 +34,13 @@ pub struct LeagueGroup {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_id: Option<String>,
     pub teams: Vec<TeamCard>,
 }
+
+/// Map key that groups teams by their league: `(id, name, name_key, country_id)`.
+type LeagueKey = (String, String, Option<String>, Option<String>);
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct TeamCard {
@@ -96,8 +101,7 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         .filter(|s| !s.is_empty())
         .map(str::to_ascii_lowercase);
 
-    let mut regions: BTreeMap<String, BTreeMap<(String, String, Option<String>), Vec<TeamCard>>> =
-        BTreeMap::new();
+    let mut regions: BTreeMap<String, BTreeMap<LeagueKey, Vec<TeamCard>>> = BTreeMap::new();
 
     for team in &game.teams {
         if let Some(needle) = &needle
@@ -111,16 +115,23 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         let region_id = league
             .and_then(|l| l.region_id.clone())
             .unwrap_or_else(|| region_for_code(&team.country).to_string());
-        let (league_id, league_name, league_name_key) = league
-            .map(|l| (l.id.clone(), l.name.clone(), l.name_key.clone()))
-            .unwrap_or_else(|| (UNGROUPED_LEAGUE_ID.to_string(), String::new(), None));
+        let (league_id, league_name, league_name_key, league_country_id) = league
+            .map(|l| {
+                (
+                    l.id.clone(),
+                    l.name.clone(),
+                    l.name_key.clone(),
+                    l.country_id.clone(),
+                )
+            })
+            .unwrap_or_else(|| (UNGROUPED_LEAGUE_ID.to_string(), String::new(), None, None));
 
         let card = project_card(team, &players_by_team, &standing_by_team);
 
         regions
             .entry(region_id)
             .or_default()
-            .entry((league_id, league_name, league_name_key))
+            .entry((league_id, league_name, league_name_key, league_country_id))
             .or_default()
             .push(card);
     }
@@ -134,11 +145,13 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
 
 fn build_region_group(
     region_id: String,
-    leagues_map: BTreeMap<(String, String, Option<String>), Vec<TeamCard>>,
+    leagues_map: BTreeMap<LeagueKey, Vec<TeamCard>>,
 ) -> RegionGroup {
     let mut leagues: Vec<LeagueGroup> = leagues_map
         .into_iter()
-        .map(|((id, name, name_key), teams)| build_league_group(id, name, name_key, teams))
+        .map(|((id, name, name_key, country_id), teams)| {
+            build_league_group(id, name, name_key, country_id, teams)
+        })
         .collect();
 
     leagues.sort_by(|a, b| match (a.id.as_str(), b.id.as_str()) {
@@ -152,11 +165,17 @@ fn build_region_group(
     RegionGroup { id: region_id, leagues, team_count }
 }
 
-fn build_league_group(id: String, name: String, name_key: Option<String>, mut teams: Vec<TeamCard>) -> LeagueGroup {
+fn build_league_group(
+    id: String,
+    name: String,
+    name_key: Option<String>,
+    country_id: Option<String>,
+    mut teams: Vec<TeamCard>,
+) -> LeagueGroup {
     teams.sort_by(|a, b| {
         let pa = if a.league_pos == 0 { u32::MAX } else { a.league_pos };
         let pb = if b.league_pos == 0 { u32::MAX } else { b.league_pos };
         pa.cmp(&pb).then_with(|| a.team.name.cmp(&b.team.name))
     });
-    LeagueGroup { id, name, name_key, teams }
+    LeagueGroup { id, name, name_key, country_id, teams }
 }
