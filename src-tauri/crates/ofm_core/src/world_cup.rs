@@ -320,10 +320,17 @@ fn draw_world_cup_groups(
         }
         if !placed || pot.len() < group_count {
             // Either the constraint was unsatisfiable for a full pot, or this is
-            // the short final pot: fall back to a plain one-per-group spread.
+            // the short final pot. Still honour the confederation cap: drop each
+            // team into the smallest group that admits it, falling back to an
+            // even modulo spread only when no group can (an over-constrained
+            // degenerate field).
             pot.shuffle(rng);
             for (offset, code) in pot.iter().enumerate() {
-                groups[offset % group_count].push(code.clone());
+                let target = (0..group_count)
+                    .filter(|&g| group_admits(&groups[g], code, &regions))
+                    .min_by_key(|&g| groups[g].len())
+                    .unwrap_or(offset % group_count);
+                groups[target].push(code.clone());
             }
         }
     }

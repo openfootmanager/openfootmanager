@@ -46,10 +46,15 @@ describe("KnockoutBracket penalty shootouts", () => {
     renderBracket(penaltyFixture());
 
     const slot = screen.getByTestId("tournaments-bracket-ko-1");
-    // The away side won 4-2 on penalties: its shootout tally is shown and the
-    // level scoreline does not leave both teams unmarked.
+    // The away side won 4-2 on penalties: its shootout tally is shown...
     expect(within(slot).getByText("(4)")).toBeInTheDocument();
     expect(within(slot).getByText("(2)")).toBeInTheDocument();
+    // ...and it is actually marked as the winner — the level score must not
+    // leave both rows neutral (the "wrong team advanced" regression).
+    const awayRow = within(slot).getByText("France").closest("div");
+    const homeRow = within(slot).getByText("Brazil").closest("div");
+    expect(awayRow?.className).toContain("bg-primary-50");
+    expect(homeRow?.className).not.toContain("bg-primary-50");
   });
 
   it("does not show a shootout tally when the tie was settled in normal time", () => {

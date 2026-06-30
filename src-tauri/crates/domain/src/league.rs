@@ -277,7 +277,11 @@ impl MatchResult {
     /// (a level result with no shootout still favours home, as before).
     pub fn advancing_is_home(&self) -> bool {
         match (self.home_penalties, self.away_penalties) {
-            (Some(home), Some(away)) => home >= away,
+            // A shootout only decides a tie that was level after regulation (and
+            // extra time). Guarding on equal goals keeps a malformed or
+            // mis-deserialized result — penalties set on a non-level score — from
+            // flipping the rightful winner.
+            (Some(home), Some(away)) if self.home_goals == self.away_goals => home >= away,
             _ => self.home_goals >= self.away_goals,
         }
     }
@@ -306,6 +310,14 @@ mod match_result_tests {
         // Decisive in regulation: goals decide, shootout untouched.
         assert!(result(2, 1, None).advancing_is_home());
         assert!(!result(0, 2, None).advancing_is_home());
+    }
+
+    #[test]
+    fn penalties_only_decide_a_level_score() {
+        // Malformed data: penalties present on a decisive 2-1. The goals must
+        // win — the (lower) penalty tally cannot flip the rightful winner.
+        assert!(result(2, 1, Some((1, 5))).advancing_is_home());
+        assert!(!result(1, 2, Some((5, 1))).advancing_is_home());
     }
 }
 
