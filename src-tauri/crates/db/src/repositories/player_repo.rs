@@ -41,14 +41,52 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
     let training_focus_str: Option<String> = p.training_focus.as_ref().map(|f| format!("{:?}", f));
 
     conn.execute(
-        "INSERT OR REPLACE INTO players
+        "INSERT INTO players
          (id, match_name, full_name, date_of_birth, nationality, football_nation, birth_country, position,
           attributes, condition, morale, injury, team_id, retired, traits,
           contract_end, wage, market_value, stats, career,
           transfer_listed, loan_listed, transfer_offers, alternate_positions,
           natural_position, training_focus, morale_core, footedness, weak_foot, fitness, squad_role,
           ovr, potential, media_json, jersey_number, loan_offers, active_loan, movement_history)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)
+         ON CONFLICT(id) DO UPDATE SET
+           match_name = excluded.match_name,
+           full_name = excluded.full_name,
+           date_of_birth = excluded.date_of_birth,
+           nationality = excluded.nationality,
+           football_nation = excluded.football_nation,
+           birth_country = excluded.birth_country,
+           position = excluded.position,
+           attributes = excluded.attributes,
+           condition = excluded.condition,
+           morale = excluded.morale,
+           injury = excluded.injury,
+           team_id = excluded.team_id,
+           retired = excluded.retired,
+           traits = excluded.traits,
+           contract_end = excluded.contract_end,
+           wage = excluded.wage,
+           market_value = excluded.market_value,
+           stats = excluded.stats,
+           career = excluded.career,
+           transfer_listed = excluded.transfer_listed,
+           loan_listed = excluded.loan_listed,
+           transfer_offers = excluded.transfer_offers,
+           alternate_positions = excluded.alternate_positions,
+           natural_position = excluded.natural_position,
+           training_focus = excluded.training_focus,
+           morale_core = excluded.morale_core,
+           footedness = excluded.footedness,
+           weak_foot = excluded.weak_foot,
+           fitness = excluded.fitness,
+           squad_role = excluded.squad_role,
+           ovr = excluded.ovr,
+           potential = excluded.potential,
+           media_json = excluded.media_json,
+           jersey_number = excluded.jersey_number,
+           loan_offers = excluded.loan_offers,
+           active_loan = excluded.active_loan,
+           movement_history = excluded.movement_history",
         params![
             p.id,
             p.match_name,
@@ -583,6 +621,36 @@ mod tests {
         upsert_players(db.conn(), &players).unwrap();
         let all = load_all_players(db.conn()).unwrap();
         assert_eq!(all.len(), 3);
+    }
+
+    // Reproduces the squad-eating bug: when a player arrives at a team and is
+    // assigned a jersey number that's already taken, the previous holder must
+    // not silently disappear. Persistence should refuse the second write loudly,
+    // not delete the first row to make room.
+    #[test]
+    fn test_assigning_taken_jersey_must_not_delete_previous_holder() {
+        let db = test_db();
+
+        let mut original = sample_player("p-original", Some("team-dortmund"));
+        original.jersey_number = Some(6);
+        upsert_player(db.conn(), &original).unwrap();
+
+        let mut newcomer = sample_player("p-newcomer", Some("team-dortmund"));
+        newcomer.jersey_number = Some(6);
+        let result = upsert_player(db.conn(), &newcomer);
+
+        assert!(
+            result.is_err(),
+            "second save into an occupied (team, jersey) slot must fail loudly"
+        );
+
+        let all = load_all_players(db.conn()).unwrap();
+        let ids: std::collections::HashSet<&str> =
+            all.iter().map(|player| player.id.as_str()).collect();
+        assert!(
+            ids.contains("p-original"),
+            "original #6 wearer must still exist in the DB"
+        );
     }
 
     #[test]

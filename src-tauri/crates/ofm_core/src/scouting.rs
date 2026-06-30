@@ -590,6 +590,12 @@ pub fn apply_youth_recruitment_response(
             let mut signed_player = prospect;
             signed_player.team_id = game.manager.team_id.clone();
             signed_player.squad_role = SquadRole::Youth;
+            if let Some(team_id) = signed_player.team_id.clone()
+                && let Some(team) = game.teams.iter().find(|team| team.id == team_id)
+            {
+                signed_player.jersey_number =
+                    crate::roster::resolve_jersey_for(game, &signed_player, team);
+            }
             let player_id = signed_player.id.clone();
             let player_name = signed_player.full_name.clone();
             game.players.push(signed_player);

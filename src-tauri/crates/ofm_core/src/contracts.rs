@@ -673,8 +673,12 @@ pub fn offer_free_agent_contract(
             .checked_add_months(Months::new(offer.contract_years * 12))
             .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE.to_string())?;
 
+        let resolved_jersey_number =
+            crate::roster::resolve_jersey_for(game, &game.players[player_index], &team);
+
         let player = &mut game.players[player_index];
         player.team_id = Some(team.id.clone());
+        player.jersey_number = resolved_jersey_number;
         player.wage = offer.weekly_wage;
         player.contract_end = Some(new_contract_end.format("%Y-%m-%d").to_string());
         player.transfer_listed = false;
