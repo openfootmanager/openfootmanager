@@ -297,7 +297,7 @@ export default function TeamSelection() {
       }
       const group = groups.get(league.id) ?? {
         id: league.id,
-        name: league.name,
+        name: competitionDisplayName(league, t),
         order: league.priority ?? 0,
         teams: [],
       };
