@@ -566,6 +566,7 @@ impl SaveManager {
         drop(db);
 
         if needs_resave {
+            snapshot_db_before_write(&db_path)?;
             let db = GameDatabase::open(&db_path)?;
             GamePersistenceWriter::write_game(&db, &game, save_id, &save_name)?;
             drop(db);
