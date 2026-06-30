@@ -47,6 +47,8 @@ pub(crate) fn apply_simulated_result(
         home_scorers: Vec::new(),
         away_scorers: Vec::new(),
         report: None,
+        home_penalties: None,
+        away_penalties: None,
     });
     if counts {
         if let Some(entry) = competition

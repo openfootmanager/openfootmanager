@@ -518,6 +518,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -535,6 +537,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -603,6 +607,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -620,6 +626,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -693,6 +701,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -710,6 +720,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -758,6 +770,8 @@ mod tests {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             }
@@ -908,6 +922,8 @@ mod tests {
             home_scorers: vec![],
             away_scorers: vec![],
             report: None,
+            home_penalties: None,
+            away_penalties: None,
         });
         game.league = Some(league);
 

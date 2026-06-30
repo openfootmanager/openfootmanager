@@ -221,7 +221,13 @@ fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::Wo
 fn load_world_data_from_package_ids(
     packages_dir: &std::path::Path,
     package_ids: &[String],
-) -> Result<(ofm_core::generator::WorldData, Vec<ofm_core::generator::PackageLock>), String> {
+) -> Result<
+    (
+        ofm_core::generator::WorldData,
+        Vec<ofm_core::generator::PackageLock>,
+    ),
+    String,
+> {
     let mut loaded = Vec::with_capacity(package_ids.len());
     let mut lockfile = Vec::with_capacity(package_ids.len());
     for id in package_ids {
@@ -233,9 +239,17 @@ fn load_world_data_from_package_ids(
         if !errors.is_empty() {
             return Err("be.error.package.invalid".to_string());
         }
-        let version = pkg.meta.as_ref().map(|m| m.version.clone()).unwrap_or_default();
+        let version = pkg
+            .meta
+            .as_ref()
+            .map(|m| m.version.clone())
+            .unwrap_or_default();
         let hash = ofm_core::generator::hash_package_file(&path).unwrap_or_default();
-        lockfile.push(ofm_core::generator::PackageLock { id: id.clone(), version, hash });
+        lockfile.push(ofm_core::generator::PackageLock {
+            id: id.clone(),
+            version,
+            hash,
+        });
         loaded.push(pkg);
     }
     let (merged, errors) = ofm_core::generator::merge_world_packages(loaded);
@@ -1026,6 +1040,15 @@ fn build_foundation_competitions(game: &Game) -> Vec<League> {
 fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
     let players = &game.players;
     for competition in &mut game.competitions {
+        // International tournaments (the World Cup and its qualifying) own a fixed
+        // calendar tied to the cup year, not the club's hemisphere. Re-anchoring
+        // them against a club's season start would corrupt their dates (and
+        // orphan a future-dated kickoff), so leave them untouched.
+        if ofm_core::world_cup::is_world_cup_competition(competition)
+            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        {
+            continue;
+        }
         let (start, is_mid_season) = ofm_core::generator::start_date_at_game_open(
             management_date,
             competition.season_start_month,
@@ -1642,16 +1665,17 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let (mut world, package_lockfile) = if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
-        let packages_dir = app_handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("packages");
-        load_world_data_from_package_ids(&packages_dir, ids)?
-    } else {
-        (load_world_data(world_source.as_deref())?, vec![])
-    };
+    let (mut world, package_lockfile) =
+        if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
+            let packages_dir = app_handle
+                .path()
+                .app_data_dir()
+                .map_err(|e| e.to_string())?
+                .join("packages");
+            load_world_data_from_package_ids(&packages_dir, ids)?
+        } else {
+            (load_world_data(world_source.as_deref())?, vec![])
+        };
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via
@@ -2068,6 +2092,69 @@ mod tests {
                 .iter()
                 .any(|article| article.id.starts_with("world_cup_kickoff_")),
             "a kickoff news article is published"
+        );
+    }
+
+    #[test]
+    fn rebuilding_competitions_leaves_the_world_cup_schedule_intact() {
+        use ofm_core::world_cup::is_world_cup_competition;
+        // A 2026 World Cup summer career, staged at the June anchor.
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(
+            clock,
+            manager_for("team-1"),
+            vec![nation_team("team-1", "ES", 500)],
+            vec![],
+            vec![],
+            vec![],
+        );
+        game.active_competition_ids = vec!["dummy".to_string()];
+        ensure_international_windows(&mut game);
+
+        // Capture the World Cup's id and fixture dates before any re-anchoring.
+        let (wc_id, before): (String, Vec<String>) = {
+            let world_cup = game
+                .competitions
+                .iter()
+                .find(|competition| is_world_cup_competition(competition))
+                .expect("the World Cup is staged");
+            (
+                world_cup.id.clone(),
+                world_cup
+                    .fixtures
+                    .iter()
+                    .map(|fixture| fixture.date.clone())
+                    .collect(),
+            )
+        };
+        assert!(
+            !before.is_empty(),
+            "the staged World Cup has fixtures to protect"
+        );
+
+        // Re-anchor competitions to a February management date — the Argentina
+        // mid-season scenario that previously orphaned the cup's June schedule.
+        let management_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
+        rebuild_competitions_for_management_date(&mut game, management_date);
+
+        let world_cup = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == wc_id)
+            .expect("the World Cup survives the re-anchor");
+        let after: Vec<String> = world_cup
+            .fixtures
+            .iter()
+            .map(|fixture| fixture.date.clone())
+            .collect();
+        assert_eq!(
+            before, after,
+            "the World Cup keeps its June schedule through a February re-anchor"
+        );
+        assert!(
+            after.iter().all(|date| date.starts_with("2026-06")
+                || date.starts_with("2026-07")),
+            "World Cup fixtures stay in the cup window, not pulled back to February"
         );
     }
 
@@ -2644,10 +2731,12 @@ competitions:
         team.football_nation = "JP".to_string();
 
         let mut game = Game::new(clock, manager, vec![team], vec![], vec![], vec![]);
-        let mut league =
-            League::new("jp-league".to_string(), "JP League".to_string(), 2026, &[
-                "jp-1".to_string(),
-            ]);
+        let mut league = League::new(
+            "jp-league".to_string(),
+            "JP League".to_string(),
+            2026,
+            &["jp-1".to_string()],
+        );
         league.region_id = Some("asia".to_string());
         league.fixtures.push(domain::league::Fixture {
             id: "f1".to_string(),

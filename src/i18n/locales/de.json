@@ -3457,6 +3457,14 @@
         "bodyMultiple": "Nach dem Ergebnis {{result}} sprach der Trainer von {{team}} mit der Presse.\n\n{{quotes}}\n\nDie Pressekonferenz behandelte das Ergebnis, den taktischen Ansatz und das, was als Nächstes für das Team ansteht.",
         "bodySingle": "Der Trainer von {{team}} sprach kurz nach dem Ergebnis {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "Der Trainer von {{team}} lehnte ein ausführliches Statement nach dem Ergebnis {{result}} ab."
+      },
+      "worldCupHostBid": {
+        "headline": "Das Rennen um die Austragung {{year}}",
+        "body": "{{count}} Nationen haben sich um die Austragung der Weltmeisterschaft {{year}} beworben. Stadien, Infrastruktur und Fußballbegeisterung werden über die Entscheidung mitbestimmen."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} richtet die WM {{year}} aus",
+        "body": "{{nation}} hat den Zuschlag für die Weltmeisterschaft {{year}} erhalten. Die ganze Nation beginnt den Countdown zum größten Fest des Fußballs."
       }
     },
     "competition": {

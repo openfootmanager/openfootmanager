@@ -85,7 +85,15 @@ pub fn project_session(game: &Game) -> SessionState {
         scouting_assignments: game.scouting_assignments.clone(),
         youth_scouting_assignments: game.youth_scouting_assignments.clone(),
         active_competition_ids: game.active_competition_ids.clone(),
-        unread_news_count: game.news.iter().filter(|a| !a.read).count(),
+        unread_news_count: {
+            // Don't count future-dated articles (e.g. a World Cup kickoff dated
+            // at kickoff) — they aren't shown in the feed until their day.
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            game.news
+                .iter()
+                .filter(|a| !a.read && crate::slices::news::article_is_visible(&a.date, &today))
+                .count()
+        },
         unread_messages_count: game.messages.iter().filter(|m| !m.read).count(),
         user_competition,
     }
@@ -274,6 +282,38 @@ mod tests {
         );
         game.competitions = vec![league];
         game
+    }
+
+    fn news_article(id: &str, date: &str, read: bool) -> NewsArticle {
+        let mut article = NewsArticle::new(
+            id.to_string(),
+            "Headline".to_string(),
+            "Body".to_string(),
+            "Source".to_string(),
+            date.to_string(),
+            NewsCategory::Editorial,
+        );
+        article.read = read;
+        article
+    }
+
+    #[test]
+    fn session_unread_news_excludes_future_dated_articles() {
+        use chrono::TimeZone;
+        let mut game = make_game_with_team();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 15, 12, 0, 0).unwrap();
+        game.news = vec![
+            news_article("past-unread", "2026-02-10", false),
+            news_article("today-unread", "2026-02-15T08:00:00+00:00", false),
+            news_article("future-unread", "2026-06-03", false),
+            news_article("past-read", "2026-02-01", true),
+        ];
+
+        let session = project_session(&game);
+
+        // Past + same-day unread count; the future-dated article (e.g. a World
+        // Cup kickoff) does not inflate the badge before it happens.
+        assert_eq!(session.unread_news_count, 2);
     }
 
     #[test]

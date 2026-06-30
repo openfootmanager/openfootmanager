@@ -174,7 +174,12 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
         .iter()
         .filter_map(|fixture| {
             let result = fixture.result.as_ref()?;
-            if result.home_goals == result.away_goals {
+            // A level scoreline is only a non-result when nothing breaks the
+            // tie. A knockout decided on penalties is level on goals but still
+            // has a winner, so it can be a giant-killing upset.
+            let decided_by_penalties =
+                result.home_penalties.is_some() && result.away_penalties.is_some();
+            if result.home_goals == result.away_goals && !decided_by_penalties {
                 return None;
             }
 
@@ -210,7 +215,7 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
                 return None;
             };
 
-            let winner_id = if result.home_goals > result.away_goals {
+            let winner_id = if result.advancing_is_home() {
                 fixture.home_team_id.as_str()
             } else {
                 fixture.away_team_id.as_str()

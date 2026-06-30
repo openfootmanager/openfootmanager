@@ -293,6 +293,8 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -310,6 +312,8 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -327,6 +331,8 @@ fn check_random_events_board_confidence_triggers_on_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -381,6 +387,8 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -398,6 +406,8 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -415,6 +425,8 @@ fn check_random_events_board_confidence_no_trigger_without_losses() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },

@@ -38,6 +38,15 @@ function ScoreBadge({ score }: { score: number }): JSX.Element {
   );
 }
 
+/** Shootout tally shown in parentheses for a penalty-decided tie, e.g. "(4)". */
+function PenaltyScore({ score }: { score: number }): JSX.Element {
+  return (
+    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+      ({score})
+    </span>
+  );
+}
+
 function MatchSlot({
   fixtureId,
   fixture,
@@ -64,8 +73,23 @@ function MatchSlot({
     ? resolveTeamName(fixture.away_team_id)
     : tbdLabel;
 
-  const isHomeWinner = result && result.home_goals > result.away_goals;
-  const isAwayWinner = result && result.away_goals > result.home_goals;
+  // A knockout decided on penalties is level on goals: fall back to the
+  // shootout score so the advancing side is highlighted, not left neutral.
+  const decidedByPenalties =
+    !!result &&
+    result.home_penalties != null &&
+    result.away_penalties != null &&
+    result.home_goals === result.away_goals;
+  const isHomeWinner =
+    !!result &&
+    (decidedByPenalties
+      ? result.home_penalties! > result.away_penalties!
+      : result.home_goals > result.away_goals);
+  const isAwayWinner =
+    !!result &&
+    (decidedByPenalties
+      ? result.away_penalties! > result.home_penalties!
+      : result.away_goals > result.home_goals);
 
   const userInvolved =
     userTeamId &&
@@ -95,6 +119,7 @@ function MatchSlot({
       {/* Home team row */}
       <div className={`${baseRow} ${homeRowStyle}`}>
         <span className="flex-1 truncate max-w-[9rem]">{homeName}</span>
+        {decidedByPenalties && <PenaltyScore score={result.home_penalties ?? 0} />}
         {result && <ScoreBadge score={result.home_goals} />}
       </div>
       {/* Divider */}
@@ -102,6 +127,7 @@ function MatchSlot({
       {/* Away team row */}
       <div className={`${baseRow} ${awayRowStyle}`}>
         <span className="flex-1 truncate max-w-[9rem]">{awayName}</span>
+        {decidedByPenalties && <PenaltyScore score={result.away_penalties ?? 0} />}
         {result && <ScoreBadge score={result.away_goals} />}
       </div>
     </div>

@@ -149,7 +149,16 @@ pub fn process_national_team_fixtures_due(
             home_scorers,
             away_scorers,
             report: None,
+            home_penalties: None,
+            away_penalties: None,
         });
+        game.world_history.apply_national_result(
+            &crate::world_cup::nation_code_of_national_team(&home_id),
+            &crate::world_cup::nation_code_of_national_team(&away_id),
+            home_goals,
+            away_goals,
+            false,
+        );
         simulated += 1;
     }
     simulated
@@ -224,6 +233,96 @@ pub(crate) fn simulate_scoreline(
     let home_xg = (1.3 + 0.25 * edge).clamp(0.2, 4.0);
     let away_xg = (1.1 - 0.25 * edge).clamp(0.2, 4.0);
     (sample_goals(home_xg, rng), sample_goals(away_xg, rng))
+}
+
+/// Extra-time scoreline for a knockout tie still level after 90 minutes: a
+/// shorter, lower-scoring period derived from the same strengths.
+pub(crate) fn simulate_extra_time(
+    home_strength: f64,
+    away_strength: f64,
+    rng: &mut impl Rng,
+) -> (u8, u8) {
+    let edge = (home_strength - away_strength) / 10.0;
+    // ~30 minutes at roughly a third of a full match's expected goals.
+    let home_xg = (0.45 + 0.1 * edge).clamp(0.05, 1.5);
+    let away_xg = (0.40 - 0.1 * edge).clamp(0.05, 1.5);
+    (sample_goals(home_xg, rng), sample_goals(away_xg, rng))
+}
+
+/// A penalty shootout decided from squad strength: five kicks each, then sudden
+/// death until one side leads after equal kicks. Returns `(home, away)` — never
+/// a tie.
+pub(crate) fn simulate_shootout(
+    home_strength: f64,
+    away_strength: f64,
+    rng: &mut impl Rng,
+) -> (u8, u8) {
+    // Conversion rates nudged a little by the strength edge around a ~0.75 base.
+    let edge = (home_strength - away_strength) / 100.0;
+    let home_rate = (0.75 + edge).clamp(0.55, 0.92);
+    let away_rate = (0.75 - edge).clamp(0.55, 0.92);
+    let mut home = 0u8;
+    let mut away = 0u8;
+    for _ in 0..5 {
+        if rng.random_range(0.0..1.0) < home_rate {
+            home += 1;
+        }
+        if rng.random_range(0.0..1.0) < away_rate {
+            away += 1;
+        }
+    }
+    while home == away {
+        if rng.random_range(0.0..1.0) < home_rate {
+            home += 1;
+        }
+        if rng.random_range(0.0..1.0) < away_rate {
+            away += 1;
+        }
+    }
+    (home, away)
+}
+
+/// Play a national-team **knockout** match: regulation, then extra time if
+/// level, then a penalty shootout if still level — so a winner always emerges.
+/// Returns the (possibly extra-time) goals and scorers plus the shootout score
+/// when one was needed. Applies the same carry-back as a normal match.
+pub fn play_national_knockout_match(
+    game: &mut Game,
+    home_national_team_id: &str,
+    away_national_team_id: &str,
+    rng: &mut impl Rng,
+) -> (u8, u8, Vec<GoalEvent>, Vec<GoalEvent>, Option<u8>, Option<u8>) {
+    let home_squad = squad_ids_for(game, home_national_team_id);
+    let away_squad = squad_ids_for(game, away_national_team_id);
+    let home_strength = squad_strength(&home_squad, &game.players);
+    let away_strength = squad_strength(&away_squad, &game.players);
+
+    let (mut home_goals, mut away_goals) = simulate_scoreline(home_strength, away_strength, rng);
+    if home_goals == away_goals {
+        let (extra_home, extra_away) = simulate_extra_time(home_strength, away_strength, rng);
+        home_goals = home_goals.saturating_add(extra_home);
+        away_goals = away_goals.saturating_add(extra_away);
+    }
+    let (home_penalties, away_penalties) = if home_goals == away_goals {
+        let (home, away) = simulate_shootout(home_strength, away_strength, rng);
+        (Some(home), Some(away))
+    } else {
+        (None, None)
+    };
+
+    let home_scorers = simulate_goal_scorers(&home_squad, &game.players, home_goals, rng);
+    let away_scorers = simulate_goal_scorers(&away_squad, &game.players, away_goals, rng);
+
+    apply_carry_back(game, &home_squad, home_goals, away_goals, rng);
+    apply_carry_back(game, &away_squad, away_goals, home_goals, rng);
+    (
+        home_goals,
+        away_goals,
+        home_scorers,
+        away_scorers,
+        home_penalties,
+        away_penalties,
+    )
 }
 
 /// Distribute `goal_count` goals among squad players, weighted by OVR.
@@ -326,6 +425,15 @@ mod tests {
     use domain::player::{Player, PlayerAttributes, Position};
     use rand::SeedableRng;
     use rand::rngs::StdRng;
+
+    #[test]
+    fn penalty_shootout_always_produces_a_winner() {
+        for seed in 0..50u64 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let (home, away) = simulate_shootout(75.0, 75.0, &mut rng);
+            assert_ne!(home, away, "a shootout must not end level (seed {seed})");
+        }
+    }
 
     fn attrs() -> PlayerAttributes {
         PlayerAttributes {

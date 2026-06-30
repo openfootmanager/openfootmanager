@@ -20,6 +20,8 @@ export interface AdvanceMatchResultData {
   away_team: string;
   home_goals: number;
   away_goals: number;
+  home_penalties?: number | null;
+  away_penalties?: number | null;
   involves_user: boolean;
 }
 

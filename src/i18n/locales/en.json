@@ -3453,6 +3453,14 @@
         "bodyMultiple": "Speaking after the {{result}} result, the {{team}} manager addressed the press.\n\n{{quotes}}\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
         "bodySingle": "The {{team}} manager spoke briefly after the {{result}} result.\n\n\"{{quote}}\"",
         "bodyNone": "The {{team}} manager declined to speak at length after the {{result}} result."
+      },
+      "worldCupHostBid": {
+        "headline": "The Race to Host {{year}}",
+        "body": "{{count}} nations have entered the bidding to host the {{year}} World Cup. Stadiums, infrastructure and football passion will all weigh on the decision."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} Will Host the {{year}} World Cup",
+        "body": "{{nation}} has won the right to stage the {{year}} World Cup. The whole nation begins the countdown to football's greatest festival."
       }
     },
     "competition": {

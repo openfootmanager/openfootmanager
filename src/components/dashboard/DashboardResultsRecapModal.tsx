@@ -121,8 +121,19 @@ export default function DashboardResultsRecapModal({
                     <span className="flex-1 truncate text-right">
                       {match.home_team}
                     </span>
-                    <span className="font-heading font-bold tabular-nums">
-                      {match.home_goals} - {match.away_goals}
+                    <span className="flex flex-col items-center font-heading font-bold tabular-nums">
+                      <span>
+                        {match.home_goals} - {match.away_goals}
+                      </span>
+                      {match.home_penalties != null &&
+                        match.away_penalties != null && (
+                          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                            {t("match.shootout.shootoutScore", {
+                              h: match.home_penalties,
+                              a: match.away_penalties,
+                            })}
+                          </span>
+                        )}
                     </span>
                     <span className="flex flex-1 items-center gap-1.5 truncate text-left">
                       {match.away_team}

@@ -254,7 +254,7 @@ pub enum FixtureStatus {
     Completed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MatchResult {
     pub home_goals: u8,
     pub away_goals: u8,
@@ -262,6 +262,63 @@ pub struct MatchResult {
     pub away_scorers: Vec<GoalEvent>,
     #[serde(default)]
     pub report: Option<CompactMatchReport>,
+    /// Penalty-shootout score when a knockout tie is level after extra time.
+    /// `None` for matches that never went to a shootout (the default). When set,
+    /// it — not the regulation goals — decides who advances.
+    #[serde(default)]
+    pub home_penalties: Option<u8>,
+    #[serde(default)]
+    pub away_penalties: Option<u8>,
+}
+
+impl MatchResult {
+    /// Whether the home side advances from a knockout tie: the penalty
+    /// shootout decides it when the tie went to one, otherwise the goals do
+    /// (a level result with no shootout still favours home, as before).
+    pub fn advancing_is_home(&self) -> bool {
+        match (self.home_penalties, self.away_penalties) {
+            // A shootout only decides a tie that was level after regulation (and
+            // extra time). Guarding on equal goals keeps a malformed or
+            // mis-deserialized result — penalties set on a non-level score — from
+            // flipping the rightful winner.
+            (Some(home), Some(away)) if self.home_goals == self.away_goals => home >= away,
+            _ => self.home_goals >= self.away_goals,
+        }
+    }
+}
+
+#[cfg(test)]
+mod match_result_tests {
+    use super::MatchResult;
+
+    fn result(home: u8, away: u8, pens: Option<(u8, u8)>) -> MatchResult {
+        MatchResult {
+            home_goals: home,
+            away_goals: away,
+            home_penalties: pens.map(|(h, _)| h),
+            away_penalties: pens.map(|(_, a)| a),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn shootout_decides_a_level_knockout_not_the_home_side() {
+        // 1-1, away wins the shootout 4-2 → away advances, not home.
+        assert!(!result(1, 1, Some((2, 4))).advancing_is_home());
+        // 1-1, home wins the shootout → home advances.
+        assert!(result(1, 1, Some((5, 4))).advancing_is_home());
+        // Decisive in regulation: goals decide, shootout untouched.
+        assert!(result(2, 1, None).advancing_is_home());
+        assert!(!result(0, 2, None).advancing_is_home());
+    }
+
+    #[test]
+    fn penalties_only_decide_a_level_score() {
+        // Malformed data: penalties present on a decisive 2-1. The goals must
+        // win — the (lower) penalty tally cannot flip the rightful winner.
+        assert!(result(2, 1, Some((1, 5))).advancing_is_home());
+        assert!(!result(1, 2, Some((5, 1))).advancing_is_home());
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
