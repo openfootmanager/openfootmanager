@@ -206,13 +206,7 @@ pub fn generate_youth_academy_recruit_with_nationality(
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
         .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
-    let youth_slots: &[usize] = match target_position.map(Position::to_group_position) {
-        Some(Position::Goalkeeper) => &[1],
-        Some(Position::Defender) => &[8],
-        Some(Position::Midfielder) => &[15],
-        Some(Position::Forward) => &[21],
-        _ => &[1, 8, 15, 21],
-    };
+    let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
         generate_random_player_from_def(&team.id, slot_index, &nationality, &names_def, &mut rng);
@@ -231,13 +225,7 @@ pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Pl
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
-    let slot = match squad_slot % 22 {
-        1 => 0,
-        8 => 7,
-        15 => 14,
-        21 => 20,
-        other => other,
-    };
+    let slot = senior_slot(squad_slot % 22);
     let mut player =
         generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
     player.team_id = None;
@@ -1398,6 +1386,32 @@ mod tests {
                 "targeted youth recruit must be youth-aged",
             );
         }
+    }
+
+    #[test]
+    fn test_national_team_player_remaps_youth_goalkeeper_slot() {
+        // Slot 1 is youth-reserved; the national-team generator must remap it to a
+        // senior goalkeeper slot. The remapped slot keeps the goalkeeper group while
+        // drawing from the senior age range, so over many draws the ages must reach
+        // past the youth cap (the youth-reserved slot would cap every player at it).
+        let mut saw_senior_age = false;
+        for _ in 0..64 {
+            let player = generate_national_team_player("GB", 1);
+            assert_eq!(
+                player.position,
+                Position::Goalkeeper,
+                "national-team slot 1 must produce a goalkeeper",
+            );
+            if opening_player_age(&player.date_of_birth)
+                .is_some_and(|age| age > OPENING_YOUTH_MAX_AGE)
+            {
+                saw_senior_age = true;
+            }
+        }
+        assert!(
+            saw_senior_age,
+            "national-team goalkeeper must draw from the senior age range",
+        );
     }
 
     #[test]
