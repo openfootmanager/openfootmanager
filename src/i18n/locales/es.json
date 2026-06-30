@@ -3423,6 +3423,10 @@
         "headline": "Comienza el camino al Mundial de {{year}}",
         "body": "{{nations}} selecciones inician su clasificación para el Mundial de {{year}}, disputada en las ventanas internacionales de esta temporada."
       },
+      "worldCupPlayoff": {
+        "headline": "Drama en la repesca intercontinental para {{year}}",
+        "body": "{{nations}} superaron la repesca intercontinental para hacerse con las últimas plazas del Mundial de {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "Comienza el Mundial de {{year}}",
         "body": "{{nations}} selecciones se han reunido para el Mundial de {{year}}. Este verano nada más importa mientras los mejores del mundo persiguen el mayor trofeo del fútbol."

@@ -3393,6 +3393,10 @@
         "headline": "La route vers la Coupe du monde {{year}} commence",
         "body": "{{nations}} nations débutent leur qualification pour la Coupe du monde {{year}}, disputée lors des fenêtres internationales cette saison."
       },
+      "worldCupPlayoff": {
+        "headline": "Suspense lors des barrages intercontinentaux pour {{year}}",
+        "body": "{{nations}} ont franchi les barrages intercontinentaux pour décrocher les dernières places à la Coupe du monde {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "La Coupe du monde {{year}} commence",
         "body": "{{nations}} nations sont réunies pour la Coupe du monde {{year}}. Cet été, plus rien ne compte tandis que les meilleurs du monde visent le plus beau trophée du football."

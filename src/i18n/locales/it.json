@@ -3393,6 +3393,10 @@
         "headline": "Inizia la corsa al Mondiale {{year}}",
         "body": "{{nations}} nazionali iniziano le qualificazioni al Mondiale {{year}}, disputate nelle finestre internazionali di questa stagione."
       },
+      "worldCupPlayoff": {
+        "headline": "Spareggi intercontinentali decisivi per {{year}}",
+        "body": "{{nations}} hanno superato gli spareggi intercontinentali conquistando gli ultimi posti per il Mondiale {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "Inizia il Mondiale {{year}}",
         "body": "{{nations}} nazionali si sono riunite per il Mondiale {{year}}. Quest'estate nient'altro conta mentre i migliori al mondo inseguono il trofeo più prestigioso del calcio."

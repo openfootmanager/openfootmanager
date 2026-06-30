@@ -3389,6 +3389,10 @@
         "headline": "Road to the {{year}} World Cup Begins",
         "body": "{{nations}} nations begin their campaign to qualify for the {{year}} World Cup, contested across the international windows this season."
       },
+      "worldCupPlayoff": {
+        "headline": "Intercontinental Play-off Drama for {{year}}",
+        "body": "{{nations}} have come through the inter-confederation play-off to claim the last places at the {{year}} World Cup."
+      },
       "worldCupKickoff": {
         "headline": "The {{year}} World Cup Begins",
         "body": "{{nations}} nations have gathered for the {{year}} World Cup. Football stops for nothing else this summer as the world's best chase the greatest prize in the game."

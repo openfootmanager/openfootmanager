@@ -3393,6 +3393,10 @@
         "headline": "Der Weg zur WM {{year}} beginnt",
         "body": "{{nations}} Nationen starten ihre Qualifikation für die WM {{year}}, ausgetragen in den Länderspielfenstern dieser Saison."
       },
+      "worldCupPlayoff": {
+        "headline": "Interkontinentales Playoff-Drama um {{year}}",
+        "body": "{{nations}} haben sich im interkontinentalen Playoff durchgesetzt und sichern sich die letzten Startplätze für die WM {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "Die WM {{year}} beginnt",
         "body": "{{nations}} Nationen treten bei der WM {{year}} an. In diesem Sommer steht alles still, während die Besten der Welt um die größte Trophäe des Fußballs kämpfen."

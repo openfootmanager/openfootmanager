@@ -3393,6 +3393,10 @@
         "headline": "Começa o caminho para a Copa do Mundo de {{year}}",
         "body": "{{nations}} seleções iniciam as Eliminatórias para a Copa do Mundo de {{year}}, disputadas nas janelas internacionais desta temporada."
       },
+      "worldCupPlayoff": {
+        "headline": "Drama na repescagem intercontinental para {{year}}",
+        "body": "{{nations}} avançaram na repescagem intercontinental e garantiram as últimas vagas na Copa do Mundo de {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "Começa a Copa do Mundo de {{year}}",
         "body": "{{nations}} seleções se reuniram para a Copa do Mundo de {{year}}. Neste verão nada mais importa enquanto os melhores do mundo perseguem o maior troféu do futebol."
