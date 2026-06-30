@@ -21,6 +21,6 @@ export function calculateAvailableScouts(
   return scouts.filter(
     (scout) =>
       scoutAssignmentCount(assignments, scout.id) <
-      scoutMaxSlots(scout.attributes.judging_ability),
+      scoutMaxSlots(scout.attributes.judgingAbility),
   );
 }

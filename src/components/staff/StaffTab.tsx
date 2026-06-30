@@ -47,8 +47,8 @@ const ROLE_COLORS: Record<string, string> = {
 function bestAttr(s: StaffData): { key: string; value: number } {
   const attrs = [
     { key: "coaching", value: s.attributes.coaching },
-    { key: "judgingAbility", value: s.attributes.judging_ability },
-    { key: "judgingPotential", value: s.attributes.judging_potential },
+    { key: "judgingAbility", value: s.attributes.judgingAbility },
+    { key: "judgingPotential", value: s.attributes.judgingPotential },
     { key: "physiotherapy", value: s.attributes.physiotherapy },
   ];
   return attrs.reduce((a, b) => (b.value > a.value ? b : a));
@@ -57,8 +57,8 @@ function bestAttr(s: StaffData): { key: string; value: number } {
 function ovrRating(s: StaffData): number {
   return Math.round(
     (s.attributes.coaching +
-      s.attributes.judging_ability +
-      s.attributes.judging_potential +
+      s.attributes.judgingAbility +
+      s.attributes.judgingPotential +
       s.attributes.physiotherapy) /
     4,
   );
@@ -336,11 +336,11 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           />
                           <AttrBar
                             label={t("staff.attrs.judgingAbility")}
-                            value={staff.attributes.judging_ability}
+                            value={staff.attributes.judgingAbility}
                           />
                           <AttrBar
                             label={t("staff.attrs.judgingPotential")}
-                            value={staff.attributes.judging_potential}
+                            value={staff.attributes.judgingPotential}
                           />
                           <AttrBar
                             label={t("staff.attrs.physiotherapy")}

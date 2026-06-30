@@ -16,8 +16,8 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
         role: "Scout",
         attributes: {
             coaching: 10,
-            judging_ability: 14,
-            judging_potential: 13,
+            judgingAbility: 14,
+            judgingPotential: 13,
             physiotherapy: 1,
         },
         team_id: "team-1",

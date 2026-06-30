@@ -34,7 +34,7 @@ export default function ScoutingScoutDetailsCard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {scouts.map((scout) => {
             const count = scoutAssignmentCount(assignments, scout.id);
-            const maxSlots = scoutMaxSlots(scout.attributes.judging_ability);
+            const maxSlots = scoutMaxSlots(scout.attributes.judgingAbility);
             const isFull = count >= maxSlots;
             const scoutAssignments = assignments.filter(
               (assignment) => assignment.scout_id === scout.id,
@@ -72,7 +72,7 @@ export default function ScoutingScoutDetailsCard({
                       {t("scouting.judgingAbility")}
                     </p>
                     <ProgressBar
-                      value={scout.attributes.judging_ability}
+                      value={scout.attributes.judgingAbility}
                       variant="auto"
                       size="sm"
                     />
@@ -82,7 +82,7 @@ export default function ScoutingScoutDetailsCard({
                       {t("scouting.judgingPotential")}
                     </p>
                     <ProgressBar
-                      value={scout.attributes.judging_potential}
+                      value={scout.attributes.judgingPotential}
                       variant="auto"
                       size="sm"
                     />
