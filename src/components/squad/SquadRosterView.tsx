@@ -44,6 +44,7 @@ import {
   buildRoleCoverageSummary,
   buildDemoteFromStartingXi,
   getBestRoleForFormation,
+  getCurrentPosition,
   getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
@@ -192,23 +193,24 @@ export default function SquadRosterView({
   };
 
   const isOutOfPosition = (player: PlayerData): boolean => {
-    const currentPos = xiActivePosition.get(player.id) || player.position;
-    return xiIds.has(player.id) && isPlayerOutOfPosition(player, currentPos);
+    return (
+      xiIds.has(player.id) &&
+      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition))
+    );
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    const currentPos = xiIds.has(player.id)
-      ? xiActivePosition.get(player.id) || player.position
-      : player.natural_position || player.position;
-
-    return getSquadTacticalFit(player, currentPos);
+    return getSquadTacticalFit(
+      player,
+      getCurrentPosition(player, xiActivePosition),
+    );
   };
 
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
-    const currentPos = inXI
-      ? normalisePosition(xiActivePosition.get(player.id) || player.position)
-      : normalisePosition(player.position);
+    const currentPos = normalisePosition(
+      getCurrentPosition(player, xiActivePosition),
+    );
     const preferredPositions = getPreferredPositions(player);
     const search = playerSearch.trim().toLowerCase();
 
@@ -256,14 +258,8 @@ export default function SquadRosterView({
   const filteredRoster = useMemo(() => {
     const list = roster.filter((player) => matchesFilters(player));
     const sorted = [...list].sort((a, b) => {
-      const getPos = (player: PlayerData) => {
-        if (xiIds.has(player.id)) {
-          return normalisePosition(
-            xiActivePosition.get(player.id) || player.position,
-          );
-        }
-        return normalisePosition(player.position);
-      };
+      const getPos = (player: PlayerData) =>
+        normalisePosition(getCurrentPosition(player, xiActivePosition));
 
       switch (sortKey) {
         case "pos": {
@@ -394,7 +390,8 @@ export default function SquadRosterView({
 
   const renderRoleAndStyleMeta = (player: PlayerData) => {
     const bestRole = getBestRoleForFormation(player, formation);
-    const styleFit = getPlayStyleFit(player, activePlayStyle);
+    const currentPos = getCurrentPosition(player, xiActivePosition);
+    const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
 
     return (
       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
@@ -633,9 +630,7 @@ export default function SquadRosterView({
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {filteredRoster.map((player) => {
                 const inXI = xiIds.has(player.id);
-                const currentPos = inXI
-                  ? xiActivePosition.get(player.id) || player.position
-                  : player.natural_position || player.position;
+                const currentPos = getCurrentPosition(player, xiActivePosition);
                 const ovr = getPlayerOvr(player);
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);

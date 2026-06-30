@@ -352,8 +352,8 @@ export interface StaffData {
   role: "AssistantManager" | "Coach" | "Scout" | "Physio";
   attributes: {
     coaching: number;
-    judging_ability: number;
-    judging_potential: number;
+    judgingAbility: number;
+    judgingPotential: number;
     physiotherapy: number;
   };
   team_id: string | null;

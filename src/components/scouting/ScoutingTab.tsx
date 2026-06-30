@@ -215,7 +215,7 @@ export default function ScoutingTab({
         assignmentCount={allAssignments.length}
         availableScoutCount={availableScouts.length}
         totalCapacity={scouts.reduce(
-          (sum, scout) => sum + scoutMaxSlots(scout.attributes.judging_ability),
+          (sum, scout) => sum + scoutMaxSlots(scout.attributes.judgingAbility),
           0,
         )}
         labels={{

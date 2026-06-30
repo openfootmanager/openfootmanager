@@ -26,8 +26,8 @@ describe("PlayerProfileScoutAction", () => {
         role: "Scout",
         attributes: {
             coaching: 0,
-            judging_ability: 14,
-            judging_potential: 15,
+            judgingAbility: 14,
+            judgingPotential: 15,
             physiotherapy: 0,
         },
         team_id: "team-1",

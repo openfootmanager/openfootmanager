@@ -154,8 +154,8 @@ describe("useGameStore", () => {
             role: "Coach",
             attributes: {
               coaching: 70,
-              judging_ability: 70,
-              judging_potential: 70,
+              judgingAbility: 70,
+              judgingPotential: 70,
               physiotherapy: 30,
             },
             team_id: "team1",
@@ -281,6 +281,28 @@ describe("useGameStore", () => {
       // Past + same-day unread count; the future-dated article (e.g. a World
       // Cup kickoff) must not inflate the badge before it happens.
       expect(useGameStore.getState().sessionState?.unread_news_count).toBe(2);
+    });
+  });
+
+  describe("setMessages", () => {
+    const makeMessages = (reads: boolean[]) =>
+      reads.map((read, index) => ({ id: `m${index}`, read })) as unknown as GameStateData["messages"];
+
+    it("patches gameState.messages and re-derives the unread count", () => {
+      useGameStore.getState().setGameState(
+        makeGameState({ messages: makeMessages([false, false]) }),
+      );
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(2);
+
+      useGameStore.getState().setMessages(makeMessages([true, false]));
+
+      expect(useGameStore.getState().gameState?.messages).toHaveLength(2);
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(1);
+    });
+
+    it("is a no-op when there is no active game", () => {
+      useGameStore.getState().setMessages(makeMessages([false]));
+      expect(useGameStore.getState().gameState).toBeNull();
     });
   });
 

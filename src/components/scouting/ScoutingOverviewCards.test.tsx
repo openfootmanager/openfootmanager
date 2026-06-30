@@ -14,8 +14,8 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
     role: "Scout",
     attributes: {
       coaching: 20,
-      judging_ability: 65,
-      judging_potential: 70,
+      judgingAbility: 65,
+      judgingPotential: 70,
       physiotherapy: 10,
     },
     team_id: "team-1",
@@ -31,8 +31,8 @@ describe("ScoutingOverviewCards", () => {
     render(
       <ScoutingOverviewCards
         scouts={[
-          createScout({ id: "staff-1", attributes: { coaching: 20, judging_ability: 65, judging_potential: 70, physiotherapy: 10 } }),
-          createScout({ id: "staff-2", attributes: { coaching: 20, judging_ability: 80, judging_potential: 75, physiotherapy: 10 } }),
+          createScout({ id: "staff-1", attributes: { coaching: 20, judgingAbility: 65, judgingPotential: 70, physiotherapy: 10 } }),
+          createScout({ id: "staff-2", attributes: { coaching: 20, judgingAbility: 80, judgingPotential: 75, physiotherapy: 10 } }),
         ]}
         assignmentCount={3}
         availableScoutCount={1}
