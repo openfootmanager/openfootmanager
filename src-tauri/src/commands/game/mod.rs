@@ -1,15 +1,17 @@
 mod foundation;
 mod regions;
 mod startup;
+mod util;
 use self::regions::*;
 pub(crate) use self::foundation::*;
 pub(crate) use self::startup::*;
+pub(crate) use self::util::*;
 
 use log::info;
 use std::sync::Arc;
 use tauri::{Manager as TauriManager, State};
 
-use chrono::{Datelike, Duration, Utc};
+use chrono::Utc;
 
 use db::{save_index::SaveEntry, save_manager::SaveManager};
 use domain::league::League;
@@ -47,34 +49,6 @@ fn require_active_stats_state(state: &StateManager) -> Result<StatsState, String
     state
         .get_stats_state(|stats| stats.clone())
         .ok_or("be.error.noActiveStatsSession".to_string())
-}
-
-fn default_league_name() -> String {
-    ["Premier", "Division"].join(" ")
-}
-
-fn long_date_format() -> String {
-    ['%', 'B', ' ', '%', 'd', ',', ' ', '%', 'Y']
-        .into_iter()
-        .collect()
-}
-
-pub(crate) fn default_save_name(manager_name: &str) -> String {
-    let mut save_name = manager_name.to_string();
-    save_name.push('\'');
-    save_name.push('s');
-    save_name.push(' ');
-    save_name.push_str("Career");
-    save_name
-}
-
-fn preseason_season_start(clock: &GameClock) -> chrono::DateTime<Utc> {
-    clock.start_date + Duration::days(30)
-}
-
-fn preseason_league_year(clock: &GameClock) -> u32 {
-    let year = clock.start_date.year() + i32::from(clock.start_date.month() == 12);
-    u32::try_from(year).unwrap_or(2020)
 }
 
 fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOptions) {
