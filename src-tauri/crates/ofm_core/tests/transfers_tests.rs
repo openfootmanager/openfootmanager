@@ -2732,8 +2732,14 @@ fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
         Some("team-1"),
         "existing player must stay at the buying club"
     );
-    assert_ne!(
-        existing_after.jersey_number, incoming_after.jersey_number,
-        "two players at the same club must have different jersey numbers"
+    assert_eq!(
+        existing_after.jersey_number,
+        Some(6),
+        "existing player must keep their #6 — the resolver must not churn settled assignments"
+    );
+    assert_eq!(
+        incoming_after.jersey_number,
+        Some(1),
+        "incoming player whose #6 is taken must get the lowest free number (#1)"
     );
 }

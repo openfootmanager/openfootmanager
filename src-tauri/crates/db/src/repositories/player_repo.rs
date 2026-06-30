@@ -422,6 +422,54 @@ mod tests {
         assert_eq!(all[0].birth_country, None);
     }
 
+    // Pins the contract of the `INSERT ... ON CONFLICT(id) DO UPDATE SET ...`
+    // upsert: every column listed in the SET clause must actually overwrite
+    // the previously stored value on a second save with the same id. If a
+    // future field is added to `Player` and the SET clause is not updated to
+    // match, this test starts failing because the stored row keeps stale data
+    // on subsequent saves.
+    #[test]
+    fn test_upsert_player_with_same_id_overwrites_all_fields() {
+        let db = test_db();
+        let mut player = sample_player("p-mutating", Some("team-1"));
+        player.jersey_number = Some(10);
+        player.condition = 80;
+        player.morale = 70;
+        upsert_player(db.conn(), &player).unwrap();
+
+        player.team_id = Some("team-2".to_string());
+        player.jersey_number = Some(7);
+        player.condition = 50;
+        player.morale = 40;
+        player.wage = 12_000;
+        player.market_value = 1_200_000;
+        player.transfer_listed = true;
+        player.loan_listed = true;
+        player.position = Position::Striker;
+        player.natural_position = Position::Forward;
+        player.ovr = 88;
+        player.potential = 95;
+        player.contract_end = Some("2030-06-30".to_string());
+        upsert_player(db.conn(), &player).unwrap();
+
+        let all = load_all_players(db.conn()).unwrap();
+        assert_eq!(all.len(), 1, "same id must update in place, not duplicate");
+        let stored = &all[0];
+        assert_eq!(stored.team_id.as_deref(), Some("team-2"));
+        assert_eq!(stored.jersey_number, Some(7));
+        assert_eq!(stored.condition, 50);
+        assert_eq!(stored.morale, 40);
+        assert_eq!(stored.wage, 12_000);
+        assert_eq!(stored.market_value, 1_200_000);
+        assert!(stored.transfer_listed);
+        assert!(stored.loan_listed);
+        assert_eq!(stored.position, Position::Striker);
+        assert_eq!(stored.natural_position, Position::Forward);
+        assert_eq!(stored.ovr, 88);
+        assert_eq!(stored.potential, 95);
+        assert_eq!(stored.contract_end.as_deref(), Some("2030-06-30"));
+    }
+
     #[test]
     fn test_player_football_identity_roundtrip() {
         let db = test_db();
