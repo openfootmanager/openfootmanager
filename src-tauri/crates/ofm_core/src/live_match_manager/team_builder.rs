@@ -169,7 +169,15 @@ fn select_starting_xi<'a>(
         }
     }
 
-    chosen.into_iter().flatten().collect()
+    // If a slot could not be filled (fewer available players than slots), fall
+    // back to a contiguous slot-aligned selection. flatten()ing a list with a
+    // gap would shift later starters into earlier slots and break the caller's
+    // index->slot mapping.
+    if chosen.iter().any(Option::is_none) {
+        return auto_select_starting_xi(available_players, formation);
+    }
+
+    chosen.into_iter().map(Option::unwrap).collect()
 }
 
 fn auto_select_starting_xi<'a>(
@@ -694,6 +702,25 @@ mod tests {
         assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
         assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
         assert_eq!(group_count(Forward), 2, "must field two forwards");
+    }
+
+    /// With fewer available players than formation slots, the slot-aligned fill
+    /// leaves gaps; the function must fall back to a contiguous selection rather
+    /// than flatten()ing those gaps (which would shift starters into wrong slots).
+    #[test]
+    fn select_starting_xi_falls_back_when_fewer_players_than_slots() {
+        let squad: Vec<Player> = (0..9)
+            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
+            .collect();
+        let refs: Vec<&Player> = squad.iter().collect();
+        let saved: Vec<String> = (0..9).map(|i| format!("p{i}")).collect();
+
+        let xi = select_starting_xi(&saved, &refs, "4-4-2");
+
+        // Every available player fielded once, with no slot-misaligning gaps.
+        assert_eq!(xi.len(), 9);
+        let unique: HashSet<&String> = xi.iter().map(|p| &p.id).collect();
+        assert_eq!(unique.len(), 9);
     }
 
     /// When a saved starter is unavailable the user XI compacts; the surviving

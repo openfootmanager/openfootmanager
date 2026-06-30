@@ -27,6 +27,13 @@ export function useFetchedSquad(
   const setSquadForCurrentTeam: Dispatch<SetStateAction<PlayerData[] | null>> = (
     next,
   ) => {
+    // With no active team there is nothing to cache — never let an optimistic
+    // update repopulate (and thus re-expose) a roster in the teamless state.
+    if (!teamId) {
+      setFetchedTeamId(null);
+      setFetchedSquad(null);
+      return;
+    }
     setFetchedTeamId(teamId);
     setFetchedSquad(next);
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useFetchedSquad } from "./useFetchedSquad";
 import type { PlayerData } from "../store/gameStore";
@@ -102,5 +102,12 @@ describe("useFetchedSquad", () => {
     rerender({ teamId: null, clockDate: "2026-08-01" });
 
     await waitFor(() => expect(result.current[0]).toBeNull());
+
+    // An optimistic update via the returned setter must not repopulate the cache
+    // while there is no active team.
+    act(() => {
+      result.current[1](squad("ghost"));
+    });
+    expect(result.current[0]).toBeNull();
   });
 });
