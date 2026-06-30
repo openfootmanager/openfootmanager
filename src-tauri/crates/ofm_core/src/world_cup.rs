@@ -1013,6 +1013,9 @@ pub fn qualified_field_from_game(
 
     let mut field: Vec<String> = Vec::new();
     let mut playoff_entrants: Vec<String> = Vec::new();
+    // Qualifiers that finished below the direct cut, strongest-first per
+    // confederation, kept as a backfill pool for the safety net below.
+    let mut reserves: Vec<String> = Vec::new();
     for (confederation, groups) in &groups_by_confed {
         let direct_quota = directs.get(confederation).copied().unwrap_or(0);
         let playoff_count = PLAYOFF_ENTRANTS_BY_CONFED
@@ -1035,10 +1038,11 @@ pub fn qualified_field_from_game(
             if directs_taken.len() < direct_quota {
                 directs_taken.push(code);
             } else if playoff_taken < playoff_count {
-                playoff_entrants.push(code);
+                playoff_entrants.push(code.clone());
                 playoff_taken += 1;
+                reserves.push(code);
             } else {
-                break;
+                reserves.push(code);
             }
         }
         field.extend(directs_taken);
@@ -1049,6 +1053,24 @@ pub fn qualified_field_from_game(
     let playoff_winners = resolve_inter_confed_playoff(game, &playoff_entrants, &mut rng);
     field.extend(playoff_winners.iter().cloned());
     announce_inter_confed_playoff(game, year, &playoff_winners);
+
+    // Safety net: a lopsided world (e.g. one confederation holding nearly every
+    // entrant) can starve the non-UEFA playoff pool of two winners, leaving the
+    // field short. Backfill from the strongest remaining qualifiers so the field
+    // still reaches its target when entrants allow. With the real catalog the
+    // pool always yields two winners, so this never fires there; B2's distinct
+    // per-confederation formats keep the pools full too, leaving it a B1 net.
+    if field.len() < field_size {
+        let chosen: std::collections::HashSet<String> = field.iter().cloned().collect();
+        let leftovers: Vec<String> =
+            reserves.into_iter().filter(|code| !chosen.contains(code)).collect();
+        for code in ranked_field(game, &leftovers) {
+            if field.len() >= field_size {
+                break;
+            }
+            field.push(code);
+        }
+    }
 
     Some(field)
 }
@@ -1451,6 +1473,37 @@ mod tests {
         let distinct: std::collections::HashSet<&String> = winners.iter().collect();
         assert_eq!(distinct.len(), 2, "the two qualifiers are distinct");
         assert!(winners.iter().all(|w| entrants.contains(w)));
+    }
+
+    #[test]
+    fn a_starved_playoff_pool_still_backfills_a_full_field() {
+        // A degenerate world where every entrant maps to one confederation:
+        // made-up codes default to europe/UEFA, so the non-UEFA playoff pool is
+        // empty and the playoff yields no winners. The 46 directs must still be
+        // topped up to the full 48 from the strongest spare qualifiers.
+        let mut game = empty_game();
+        let codes: Vec<String> = (0..50).map(|i| format!("ZZ{i}")).collect();
+        let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}2026");
+        let mut competition =
+            League::new(competition_id.clone(), "WC Qualifying 2026".to_string(), 2026, &[]);
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        for (group_index, chunk) in codes.chunks(QUALIFYING_GROUP_SIZE).enumerate() {
+            let team_ids: Vec<String> = chunk.iter().map(|code| national_team_id(code)).collect();
+            competition.groups.push(GroupState {
+                id: format!("{competition_id}-uefa-{group_index}"),
+                name: format!("uefa {}", group_index + 1),
+                standings: team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect(),
+                team_ids,
+            });
+        }
+        game.competitions.push(competition);
+
+        let field = qualified_field_from_game(&mut game, FORMAT_48.field, None)
+            .expect("a field is derived even from a one-confederation world");
+        assert_eq!(field.len(), FORMAT_48.field, "the starved playoff pool is backfilled to 48");
+        let distinct: std::collections::HashSet<&String> = field.iter().collect();
+        assert_eq!(distinct.len(), field.len(), "the backfilled field stays distinct");
     }
 
     #[test]
