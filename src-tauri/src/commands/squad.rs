@@ -494,6 +494,15 @@ pub fn set_team_kit_pattern(
 /// player's *current* field position: e.g. a striker's `Poacher` is cleared
 /// when they are moved into a defensive slot.
 fn reconcile_player_roles(game: &mut Game, team_id: &str) {
+    // Natural position of every player on the team, for validating roles of
+    // players who are not in the starting XI (bench players have no slot).
+    let natural_positions: std::collections::HashMap<String, domain::player::Position> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id))
+        .map(|p| (p.id.clone(), p.natural_position.clone()))
+        .collect();
+
     let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) else {
         return;
     };
@@ -502,14 +511,21 @@ fn reconcile_player_roles(game: &mut Game, team_id: &str) {
     }
 
     let slots = ofm_core::player_rating::formation_slots(&team.formation);
+    // Validate EVERY assigned role, not just starters: a role that was valid in
+    // a player's slot must be cleared once they are benched (validated against
+    // their natural position there), otherwise the stale assignment persists and
+    // leaks back into match simulation.
     let invalid: Vec<String> = team
-        .starting_xi_ids
+        .player_roles
         .iter()
-        .enumerate()
-        .filter_map(|(slot_index, player_id)| {
-            let slot_position = slots.get(slot_index)?;
-            let role = team.player_roles.get(player_id)?;
-            if role_valid_for_position(role, slot_position) {
+        .filter_map(|(player_id, role)| {
+            let position = team
+                .starting_xi_ids
+                .iter()
+                .position(|id| id == player_id)
+                .and_then(|slot_index| slots.get(slot_index).cloned())
+                .or_else(|| natural_positions.get(player_id).cloned())?;
+            if role_valid_for_position(role, &position) {
                 None
             } else {
                 Some(player_id.clone())
@@ -943,6 +959,50 @@ mod tests {
     }
 
     #[test]
+    fn reconcile_player_roles_clears_invalid_role_for_benched_player() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // player-1 (a natural Forward) is benched; a centre-back function is
+            // invalid for their natural position and must be cleared.
+            team.starting_xi_ids = vec![];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Stopper);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert!(!game.teams[0].player_roles.contains_key("player-1"));
+    }
+
+    #[test]
+    fn reconcile_player_roles_keeps_valid_role_for_benched_player() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // A forward function is valid for a benched forward and is preserved.
+            team.starting_xi_ids = vec![];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Poacher);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert_eq!(
+            game.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::Poacher)
+        );
+    }
+
+    #[test]
     fn set_formation_internal_does_not_mutate_player_position() {
         let state = StateManager::new();
         // player-1 is a Forward and the only outfield player on the team.
@@ -1066,6 +1126,53 @@ mod tests {
                 P::Striker,
                 &[
                     R::Standard,
+                    R::Poacher,
+                    R::TargetMan,
+                    R::DeepLyingForward,
+                    R::False9,
+                    R::PressingForward,
+                    R::CompleteForward,
+                ],
+            ),
+            // Legacy coarse buckets (deny-list branches): the union of the
+            // group's detailed roles.
+            (
+                P::Defender,
+                &[
+                    R::Standard,
+                    R::Stopper,
+                    R::CoverCB,
+                    R::BallPlayingCB,
+                    R::AttackingFB,
+                    R::DefensiveFB,
+                    R::InvertedFB,
+                    R::WingBack,
+                ],
+            ),
+            (
+                P::Midfielder,
+                &[
+                    R::Standard,
+                    R::AnchorMan,
+                    R::BallWinner,
+                    R::DeepLyingPlaymaker,
+                    R::BoxToBox,
+                    R::Carrilero,
+                    R::Mezzala,
+                    R::AdvancedPlaymaker,
+                    R::ShadowStriker,
+                    R::WideForward,
+                    R::InsideForward,
+                    R::InvertedWinger,
+                ],
+            ),
+            (
+                P::Forward,
+                &[
+                    R::Standard,
+                    R::WideForward,
+                    R::InsideForward,
+                    R::InvertedWinger,
                     R::Poacher,
                     R::TargetMan,
                     R::DeepLyingForward,

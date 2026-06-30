@@ -26,6 +26,22 @@ const CANONICAL: Record<string, PlayerRole[]> = {
     "Standard", "Poacher", "TargetMan", "DeepLyingForward", "False9",
     "PressingForward", "CompleteForward",
   ],
+  // Legacy coarse buckets (canonicalised/legacy positions) — the union of their
+  // group's detailed roles, matching the backend's P::Defender/Midfielder/Forward
+  // deny-list branches.
+  Defender: [
+    "Standard", "Stopper", "CoverCB", "BallPlayingCB",
+    "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack",
+  ],
+  Midfielder: [
+    "Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker",
+    "BoxToBox", "Carrilero", "Mezzala", "AdvancedPlaymaker", "ShadowStriker",
+    "WideForward", "InsideForward", "InvertedWinger",
+  ],
+  Forward: [
+    "Standard", "WideForward", "InsideForward", "InvertedWinger",
+    "Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward",
+  ],
 };
 
 describe("playerRoles position->roles parity", () => {

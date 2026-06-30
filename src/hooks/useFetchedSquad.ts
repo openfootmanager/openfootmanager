@@ -19,13 +19,31 @@ export function useFetchedSquad(
   clockDate: string,
 ): [PlayerData[] | null, Dispatch<SetStateAction<PlayerData[] | null>>] {
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
+  // The team the cached squad belongs to. Used to scope the cache so switching
+  // clubs (or going unemployed) never exposes the previous team's roster while
+  // the new fetch is still pending.
+  const [fetchedTeamId, setFetchedTeamId] = useState<string | null>(null);
+
+  const setSquadForCurrentTeam: Dispatch<SetStateAction<PlayerData[] | null>> = (
+    next,
+  ) => {
+    setFetchedTeamId(teamId);
+    setFetchedSquad(next);
+  };
 
   useEffect(() => {
-    if (!teamId) return;
+    if (!teamId) {
+      setFetchedTeamId(null);
+      setFetchedSquad(null);
+      return;
+    }
     let cancelled = false;
     void getSquad(teamId)
       .then((squad) => {
-        if (!cancelled) setFetchedSquad(squad);
+        if (!cancelled) {
+          setFetchedTeamId(teamId);
+          setFetchedSquad(squad);
+        }
       })
       .catch(() => {});
     return () => {
@@ -33,5 +51,6 @@ export function useFetchedSquad(
     };
   }, [teamId, clockDate]);
 
-  return [fetchedSquad, setFetchedSquad];
+  // Only serve the cache for the team currently requested.
+  return [fetchedTeamId === teamId ? fetchedSquad : null, setSquadForCurrentTeam];
 }

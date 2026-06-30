@@ -68,4 +68,39 @@ describe("useFetchedSquad", () => {
     renderHook(() => useFetchedSquad(null, "2026-08-01"));
     expect(mockedGetSquad).not.toHaveBeenCalled();
   });
+
+  it("does not expose the previous team's squad after a team switch", async () => {
+    mockedGetSquad.mockImplementation((id: string) => Promise.resolve(squad(id)));
+
+    const { result, rerender } = renderHook(
+      ({ teamId, clockDate }: { teamId: string | null; clockDate: string }) =>
+        useFetchedSquad(teamId, clockDate),
+      { initialProps: { teamId: "team1" as string | null, clockDate: "2026-08-01" } },
+    );
+
+    await waitFor(() => expect(result.current[0]?.[0]?.id).toBe("team1"));
+
+    rerender({ teamId: "team2", clockDate: "2026-08-01" });
+    // Cache is scoped to the team — the old roster is withheld until the new
+    // request for team2 resolves.
+    expect(result.current[0]).toBeNull();
+
+    await waitFor(() => expect(result.current[0]?.[0]?.id).toBe("team2"));
+  });
+
+  it("clears the cached squad when the team becomes null", async () => {
+    mockedGetSquad.mockResolvedValue(squad("p1"));
+
+    const { result, rerender } = renderHook(
+      ({ teamId, clockDate }: { teamId: string | null; clockDate: string }) =>
+        useFetchedSquad(teamId, clockDate),
+      { initialProps: { teamId: "team1" as string | null, clockDate: "2026-08-01" } },
+    );
+
+    await waitFor(() => expect(result.current[0]).not.toBeNull());
+
+    rerender({ teamId: null, clockDate: "2026-08-01" });
+
+    await waitFor(() => expect(result.current[0]).toBeNull());
+  });
 });
