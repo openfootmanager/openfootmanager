@@ -1432,6 +1432,86 @@ mod tests {
     }
 
     #[test]
+    fn host_injection_displaces_the_weakest_entrant_not_the_last() {
+        let mut game = empty_game();
+        // A full 16-nation field with explicit rankings. The weakest nation
+        // ("N07") sits in the MIDDLE and a strong nation ("N15") sits LAST, so a
+        // naive "drop the last entry" would keep N07 and eject N15 — the inverse
+        // of what should happen.
+        let field: Vec<String> = (0..16).map(|i| format!("N{i:02}")).collect();
+        for (index, code) in field.iter().enumerate() {
+            let points = if code == "N07" { 100.0 } else { 2000.0 - index as f64 };
+            game.world_history.set_ranking_points(code, points);
+        }
+        // The host is a 17th nation absent from the already-full field.
+        game.world_history.record_world_cup_host(WorldCupHostRecord {
+            year: 2030,
+            nation_code: "HOST".to_string(),
+            nation_name: "Host".to_string(),
+        });
+
+        schedule_world_cup_with_field(&mut game, kickoff(2030), &FORMAT_16, Some(field));
+
+        let cup = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .expect("a World Cup must be scheduled");
+        let participant_codes: std::collections::HashSet<String> = cup
+            .participant_ids
+            .iter()
+            .filter_map(|id| {
+                game.national_teams
+                    .iter()
+                    .find(|team| &team.id == id)
+                    .map(|team| team.football_nation.clone())
+            })
+            .collect();
+
+        assert_eq!(cup.participant_ids.len(), 16, "the field size is preserved");
+        assert!(participant_codes.contains("HOST"), "the host is admitted");
+        assert!(
+            !participant_codes.contains("N07"),
+            "the weakest entrant is the one displaced"
+        );
+        assert!(
+            participant_codes.contains("N15"),
+            "a strong nation that merely happens to be last is kept"
+        );
+    }
+
+    #[test]
+    fn region_classification_honours_world_defined_overrides() {
+        let mut game = empty_game();
+        // The catalog places Brazil in South America.
+        assert_ne!(nations::region_for_code("BR"), "europe");
+
+        // A world that assigns Brazil's league to the European region overrides
+        // its confederation. select_field and the group draw both classify
+        // nations through region_of_code, so the override must win — otherwise
+        // the FIFA per-group caps and berth split are computed against the wrong
+        // confederation than qualifying used.
+        let mut league =
+            League::new("br-league".to_string(), "Brazil League".to_string(), 2030, &[]);
+        league.country_id = Some("BR".to_string());
+        league.region_id = Some("europe".to_string());
+        game.competitions.push(league);
+
+        assert_eq!(
+            region_of_code(&game, "BR"),
+            "europe",
+            "the draw classifies nations by the world's region map, not the catalog default"
+        );
+        // The draw and select_field both resolve confederations through
+        // region_of_code (not nations::region_for_code), so this override flows
+        // into the per-group caps and berth split. A deterministic end-to-end
+        // draw assertion isn't possible — the caps are symmetric and the
+        // randomised fallback masks an infeasible draw — so this pins the shared
+        // classifier the draw depends on; cap *enforcement* is covered by
+        // draw_keeps_at_most_one_confederation_per_group_except_uefa.
+    }
+
+    #[test]
     fn is_due_respects_the_calendar_and_never_doubles_up() {
         let mut game = empty_game();
 

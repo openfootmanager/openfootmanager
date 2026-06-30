@@ -284,6 +284,38 @@ mod tests {
         game
     }
 
+    fn news_article(id: &str, date: &str, read: bool) -> NewsArticle {
+        let mut article = NewsArticle::new(
+            id.to_string(),
+            "Headline".to_string(),
+            "Body".to_string(),
+            "Source".to_string(),
+            date.to_string(),
+            NewsCategory::Editorial,
+        );
+        article.read = read;
+        article
+    }
+
+    #[test]
+    fn session_unread_news_excludes_future_dated_articles() {
+        use chrono::TimeZone;
+        let mut game = make_game_with_team();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 15, 12, 0, 0).unwrap();
+        game.news = vec![
+            news_article("past-unread", "2026-02-10", false),
+            news_article("today-unread", "2026-02-15T08:00:00+00:00", false),
+            news_article("future-unread", "2026-06-03", false),
+            news_article("past-read", "2026-02-01", true),
+        ];
+
+        let session = project_session(&game);
+
+        // Past + same-day unread count; the future-dated article (e.g. a World
+        // Cup kickoff) does not inflate the badge before it happens.
+        assert_eq!(session.unread_news_count, 2);
+    }
+
     #[test]
     fn session_includes_manager_team() {
         let game = make_game_with_team();

@@ -479,30 +479,73 @@ pub fn info_season_context(ctx: Arc<McpContext>) -> Result<String, String> {
 
 // ─── info_news ──────────────────────────────────────────────────────────────
 
-// ─── info_news ──────────────────────────────────────────────────────────────
-
 pub fn info_news(ctx: Arc<McpContext>) -> Result<String, String> {
     let game = require_game(&ctx.state_manager)?;
-
-    // Hide future-dated articles (e.g. a World Cup kickoff dated at kickoff) so
-    // they don't show here every day before they happen — same rule as the feed.
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let news: Vec<_> = game
-        .news
+    Ok(render_recent_news(&game.news, &today))
+}
+
+/// Render the "Recent News" table, hiding future-dated articles (e.g. a World
+/// Cup kickoff dated at kickoff) so they don't show here every day before they
+/// happen — the same rule the feed applies.
+fn render_recent_news(news: &[domain::news::NewsArticle], today: &str) -> String {
+    let visible: Vec<_> = news
         .iter()
-        .filter(|n| ofm_core::slices::news::article_is_visible(&n.date, &today))
+        .filter(|n| ofm_core::slices::news::article_is_visible(&n.date, today))
         .take(10)
         .collect();
-    if news.is_empty() {
-        return Ok("## News\n\nNo recent news.".to_string());
+    if visible.is_empty() {
+        return "## News\n\nNo recent news.".to_string();
     }
 
-    let mut output = format!("## Recent News\n\n| # | Headline | Date |\n|---|----------|------|\n");
-    for (i, n) in news.iter().enumerate() {
+    let mut output =
+        "## Recent News\n\n| # | Headline | Date |\n|---|----------|------|\n".to_string();
+    for (i, n) in visible.iter().enumerate() {
         output.push_str(&format!("| {} | {} | {} |\n", i + 1, n.headline, n.date));
     }
+    output
+}
 
-    Ok(output)
+#[cfg(test)]
+mod info_news_tests {
+    use super::render_recent_news;
+    use domain::news::{NewsArticle, NewsCategory};
+
+    fn article(id: &str, date: &str) -> NewsArticle {
+        NewsArticle::new(
+            id.to_string(),
+            format!("{id} headline"),
+            "Body".to_string(),
+            "Source".to_string(),
+            date.to_string(),
+            NewsCategory::Editorial,
+        )
+    }
+
+    #[test]
+    fn recent_news_hides_future_dated_articles() {
+        let news = vec![
+            article("today", "2026-02-15"),
+            article("kickoff", "2026-06-03"),
+        ];
+
+        let rendered = render_recent_news(&news, "2026-02-15");
+
+        assert!(rendered.contains("today headline"));
+        assert!(
+            !rendered.contains("kickoff headline"),
+            "a future-dated article must not show in the MCP news tool"
+        );
+    }
+
+    #[test]
+    fn recent_news_shows_same_day_rfc3339_articles() {
+        let news = vec![article("digest", "2026-02-15T08:00:00+00:00")];
+
+        let rendered = render_recent_news(&news, "2026-02-15");
+
+        assert!(rendered.contains("digest headline"));
+    }
 }
 
 // ─── info_match_preview ─────────────────────────────────────────────────────
