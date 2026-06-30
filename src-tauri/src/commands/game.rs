@@ -1970,13 +1970,15 @@ pub fn bootstrap_game_for_mcp(
 mod tests {
     use super::{
         age_on_date, apply_generated_past_history, bootstrap_team_selection, brazil_state_region,
-        build_foundation_competitions, build_game_from_world_data, create_new_save,
-        current_date_for_phase, ensure_international_windows, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        package_folder_name, parse_competition_definitions, preseason_league_year,
-        preseason_season_start, rebuild_competitions_for_management_date,
-        require_active_stats_state, resolve_simulation_scope, select_continental_entrants,
-        split_into_divisions, start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
+        build_foundation_competitions, build_game_from_world_data,
+        competition_required_region_ids, create_new_save, current_date_for_phase,
+        default_season_month_for_region, division_name, division_tier_name, division_tier_name_key,
+        ensure_international_windows, game_clock_for_world, load_world_data_from_path,
+        map_save_manager_lock_error, normalize_startup_options, package_folder_name,
+        parse_competition_definitions, preseason_league_year, preseason_season_start,
+        rebuild_competitions_for_management_date, require_active_stats_state,
+        resolve_simulation_scope, select_continental_entrants, split_into_divisions,
+        start_date_for_year, RawStartupOptions, StartPhase, StartupOptions,
         DEFAULT_GENERATED_HISTORY_DEPTH_YEARS, MAX_GENERATED_HISTORY_DEPTH_YEARS,
     };
     use chrono::{TimeZone, Utc};
@@ -4059,5 +4061,74 @@ competitions:
             Some("southeast"),
             "Vitória (ES) belongs in the southeast region, not northeast"
         );
+    }
+
+    #[test]
+    fn division_tier_name_labels_single_and_multi_division_pyramids() {
+        assert_eq!(division_tier_name(0, 1), "League");
+        assert_eq!(division_tier_name(0, 2), "First Division");
+        assert_eq!(division_tier_name(1, 2), "Second Division");
+        // Any tier below the top in a multi-division pyramid reads as "Second Division".
+        assert_eq!(division_tier_name(2, 3), "Second Division");
+    }
+
+    #[test]
+    fn division_tier_name_key_mirrors_the_display_labels() {
+        assert_eq!(division_tier_name_key(0, 1), "tournaments.competitions.league");
+        assert_eq!(
+            division_tier_name_key(0, 2),
+            "tournaments.competitions.firstDivision"
+        );
+        assert_eq!(
+            division_tier_name_key(1, 2),
+            "tournaments.competitions.secondDivision"
+        );
+        assert_eq!(
+            division_tier_name_key(3, 4),
+            "tournaments.competitions.secondDivision"
+        );
+    }
+
+    #[test]
+    fn division_name_prefixes_the_country() {
+        assert_eq!(division_name("England", 0, 1), "England League");
+        assert_eq!(division_name("Spain", 0, 2), "Spain First Division");
+        assert_eq!(division_name("Italy", 1, 2), "Italy Second Division");
+    }
+
+    #[test]
+    fn default_season_month_for_region_maps_known_regions_and_defaults_to_august() {
+        assert_eq!(default_season_month_for_region("south-america"), 3);
+        assert_eq!(default_season_month_for_region("asia"), 2);
+        assert_eq!(default_season_month_for_region("oceania"), 10);
+        assert_eq!(default_season_month_for_region("europe"), 8);
+        assert_eq!(default_season_month_for_region("unknown-region"), 8);
+    }
+
+    #[test]
+    fn competition_required_region_ids_includes_domestic_region_and_dedups() {
+        let mut league = League::new("l1".to_string(), "League One".to_string(), 2026, &[]);
+        league.scope = CompetitionScope::Domestic;
+        league.region_id = Some("south-america".to_string());
+        league.required_region_ids =
+            vec!["europe".to_string(), "asia".to_string(), "europe".to_string()];
+
+        assert_eq!(
+            competition_required_region_ids(&league),
+            vec![
+                "asia".to_string(),
+                "europe".to_string(),
+                "south-america".to_string(),
+            ],
+        );
+    }
+
+    #[test]
+    fn competition_required_region_ids_ignores_region_for_non_regional_scopes() {
+        let mut league = League::new("l2".to_string(), "Continental Cup".to_string(), 2026, &[]);
+        league.scope = CompetitionScope::Continental;
+        league.region_id = Some("europe".to_string());
+
+        assert!(competition_required_region_ids(&league).is_empty());
     }
 }
