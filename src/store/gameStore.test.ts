@@ -252,6 +252,38 @@ describe("useGameStore", () => {
     });
   });
 
+  describe("unread news badge", () => {
+    const article = (id: string, date: string, read: boolean) => ({
+      id,
+      headline: "H",
+      body: "B",
+      source: "S",
+      date,
+      category: "Editorial",
+      read,
+      team_ids: [],
+      player_ids: [],
+      match_score: null,
+    });
+
+    it("excludes future-dated articles from the unread count", () => {
+      const gs = makeGameState({
+        clock: { current_date: "2026-02-15T00:00:00+00:00", start_date: "2026-08-01" },
+        news: [
+          article("past", "2026-02-10", false),
+          article("today", "2026-02-15T08:00:00+00:00", false),
+          article("future", "2026-06-03", false),
+          article("read", "2026-02-01", true),
+        ],
+      });
+      useGameStore.getState().setGameState(gs);
+
+      // Past + same-day unread count; the future-dated article (e.g. a World
+      // Cup kickoff) must not inflate the badge before it happens.
+      expect(useGameStore.getState().sessionState?.unread_news_count).toBe(2);
+    });
+  });
+
   describe("clearGame", () => {
     it("resets all fields to initial state", () => {
       useGameStore.getState().setGameActive(true, "Test Manager");
