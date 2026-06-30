@@ -1,23 +1,29 @@
 import type { PlayerRole } from "../store/types";
 
+// IMPORTANT: this table is the front-end mirror of the backend role validator
+// `role_valid_for_position` (src-tauri/src/commands/squad.rs). The backend is the
+// authority — it rejects an out-of-position role with `be.error.roleNotValidForPosition`
+// — so every role offered here MUST be one the backend accepts for that position,
+// or the dropdown selection silently reverts. The cross-language parity is pinned
+// by tests on both sides (playerRoles.test.ts and squad.rs role-validity tests).
 export const ROLE_OPTIONS_BY_POSITION: Record<string, PlayerRole[]> = {
   Goalkeeper: ["Standard", "BallPlayingKeeper", "SweeperKeeper"],
   CenterBack: ["Standard", "Stopper", "CoverCB", "BallPlayingCB"],
   RightBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
   LeftBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
-  RightWingBack: ["Standard", "WingBack", "AttackingFB"],
-  LeftWingBack: ["Standard", "WingBack", "AttackingFB"],
-  DefensiveMidfielder: ["Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker", "BoxToBox"],
-  CentralMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "DeepLyingPlaymaker", "AdvancedPlaymaker"],
-  RightMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "WideForward", "InsideForward"],
-  LeftMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala", "WideForward", "InsideForward"],
-  AttackingMidfielder: ["Standard", "AdvancedPlaymaker", "ShadowStriker", "Mezzala"],
+  RightWingBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
+  LeftWingBack: ["Standard", "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack"],
+  DefensiveMidfielder: ["Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker"],
+  CentralMidfielder: ["Standard", "BoxToBox", "Carrilero", "Mezzala"],
+  AttackingMidfielder: ["Standard", "AdvancedPlaymaker", "ShadowStriker"],
+  RightMidfielder: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
+  LeftMidfielder: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
   RightWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
   LeftWinger: ["Standard", "WideForward", "InsideForward", "InvertedWinger"],
   Striker: ["Standard", "Poacher", "TargetMan", "DeepLyingForward", "False9", "PressingForward", "CompleteForward"],
   // Broad outfield categories (reached via canonicalised/legacy positions like
   // "Defender"/"Midfielder"/"Forward") map to the union of their detailed roles,
-  // so e.g. a generic Defender is never offered goalkeeper or striker roles.
+  // matching the backend's legacy-bucket branches.
   Defender: [
     "Standard", "Stopper", "CoverCB", "BallPlayingCB",
     "AttackingFB", "DefensiveFB", "InvertedFB", "WingBack",
@@ -25,7 +31,7 @@ export const ROLE_OPTIONS_BY_POSITION: Record<string, PlayerRole[]> = {
   Midfielder: [
     "Standard", "AnchorMan", "BallWinner", "DeepLyingPlaymaker",
     "BoxToBox", "Carrilero", "Mezzala", "AdvancedPlaymaker", "ShadowStriker",
-    "WideForward", "InsideForward",
+    "WideForward", "InsideForward", "InvertedWinger",
   ],
   Forward: [
     "Standard", "WideForward", "InsideForward", "InvertedWinger",

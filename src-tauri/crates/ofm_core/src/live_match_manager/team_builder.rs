@@ -1,7 +1,6 @@
 use crate::game::Game;
 use crate::player_rating::{
-    effective_rating_for_assignment, formation_slots, natural_ovr,
-    positional_fit_for_assignment,
+    effective_rating_for_assignment, formation_slots, natural_ovr, positional_fit_for_assignment,
 };
 use domain::player::Position as DomainPosition;
 use engine::{
@@ -48,12 +47,16 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
         .collect();
     let player_roles = team.map(|t| &t.player_roles);
-    let convert_player = |p: &domain::player::Player| {
+    // `deployed` is the granular slot the player occupies; `None` for the bench,
+    // where the player's own position is used instead. The engine's coarse
+    // position is derived from this so a player fielded out of position (e.g. a
+    // striker at centre-back) is simulated in the position they actually play.
+    let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
         let role = player_roles
             .and_then(|roles| roles.get(&p.id))
             .map(domain_to_engine_role)
             .unwrap_or(EnginePlayerRole::Standard);
-        to_engine_player(p, role)
+        to_engine_player(p, role, deployed)
     };
 
     // The user manages their own XI by hand (saved_xi_ids); AI clubs are managed
@@ -71,9 +74,13 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         .iter()
         .map(|player| player.id.clone())
         .collect();
+    // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
+    // (entry i plays formation slot i), so the list index is the deployed slot.
+    let slots = formation_slots(&formation);
     let starting_xi = starting_players
         .into_iter()
-        .map(|p| convert_player(p))
+        .enumerate()
+        .map(|(slot_index, p)| convert_player(p, slots.get(slot_index)))
         .collect();
 
     let mut bench_domain: Vec<&domain::player::Player> = available_players
@@ -85,10 +92,7 @@ pub(super) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
             .partial_cmp(&natural_ovr(left))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    let bench = bench_domain
-        .into_iter()
-        .map(|p| convert_player(p))
-        .collect();
+    let bench = bench_domain.into_iter().map(|p| convert_player(p, None)).collect();
 
     let team_data = TeamData {
         id: team_id.to_string(),
@@ -111,60 +115,69 @@ fn select_starting_xi<'a>(
         .iter()
         .map(|player| (player.id.as_str(), *player))
         .collect();
-    let mut saved_used_ids = HashSet::new();
-    let mut valid_saved_players = Vec::with_capacity(11);
 
-    for player_id in saved_xi_ids {
-        let Some(player) = players_by_id.get(player_id.as_str()) else {
+    // Count the distinct saved starters that are still available.
+    let mut seen_saved = HashSet::new();
+    let valid_saved = saved_xi_ids
+        .iter()
+        .filter(|id| players_by_id.contains_key(id.as_str()) && seen_saved.insert((*id).clone()))
+        .count();
+
+    // Too few of the saved XI remain valid — rebuild a fresh, slot-aligned XI.
+    if valid_saved < 8 {
+        return auto_select_starting_xi(available_players, formation);
+    }
+
+    let slots = formation_slots(formation);
+    let slot_count = slots.len().min(11);
+    let mut chosen: Vec<Option<&domain::player::Player>> = vec![None; slot_count];
+    let mut used_ids: HashSet<String> = HashSet::new();
+
+    // Pass 1: keep each available saved starter at the slot it was saved in, so
+    // the result is indexed by slot (chosen[i] plays formation slot i).
+    for (slot_index, chosen_slot) in chosen.iter_mut().enumerate() {
+        if let Some(player) = saved_xi_ids
+            .get(slot_index)
+            .and_then(|id| players_by_id.get(id.as_str()))
+        {
+            if used_ids.insert(player.id.clone()) {
+                *chosen_slot = Some(*player);
+            }
+        }
+    }
+
+    // Pass 2: fill any slot vacated by an unavailable saved starter (e.g. an
+    // injured goalkeeper) with the best-fit remaining player FOR THAT SLOT, so
+    // the lineup never loses a position and stays slot-aligned.
+    for (slot_index, chosen_slot) in chosen.iter_mut().enumerate() {
+        if chosen_slot.is_some() {
             continue;
-        };
-
-        if saved_used_ids.insert(player_id.clone()) {
-            valid_saved_players.push(*player);
         }
-    }
-
-    if valid_saved_players.len() >= 8 {
-        let mut selected = valid_saved_players;
-        selected.truncate(11);
-        let mut used_ids: HashSet<String> =
-            selected.iter().map(|player| player.id.clone()).collect();
-        let slots = formation_slots(formation);
-
-        while selected.len() < 11 {
-            let slot = slots.get(selected.len());
-            let best_index = available_players
-                .iter()
-                .enumerate()
-                .filter(|(_, player)| !used_ids.contains(&player.id))
-                .max_by(|(_, left), (_, right)| {
-                    let left_rating = slot.map_or_else(
-                        || natural_ovr(left),
-                        |slot| effective_rating_for_assignment(left, slot),
-                    );
-                    let right_rating = slot.map_or_else(
-                        || natural_ovr(right),
-                        |slot| effective_rating_for_assignment(right, slot),
-                    );
-                    left_rating
-                        .partial_cmp(&right_rating)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
-                .map(|(index, _)| index);
-
-            let Some(best_index) = best_index else {
-                break;
-            };
-
-            let player = available_players[best_index];
+        let slot = &slots[slot_index];
+        let best = available_players
+            .iter()
+            .copied()
+            .filter(|player| !used_ids.contains(&player.id))
+            .max_by(|left, right| {
+                effective_rating_for_assignment(left, slot)
+                    .partial_cmp(&effective_rating_for_assignment(right, slot))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        if let Some(player) = best {
             used_ids.insert(player.id.clone());
-            selected.push(player);
+            *chosen_slot = Some(player);
         }
-
-        return selected;
     }
 
-    auto_select_starting_xi(available_players, formation)
+    // If a slot could not be filled (fewer available players than slots), fall
+    // back to a contiguous slot-aligned selection. flatten()ing a list with a
+    // gap would shift later starters into earlier slots and break the caller's
+    // index->slot mapping.
+    if chosen.iter().any(Option::is_none) {
+        return auto_select_starting_xi(available_players, formation);
+    }
+
+    chosen.into_iter().map(Option::unwrap).collect()
 }
 
 fn auto_select_starting_xi<'a>(
@@ -398,8 +411,19 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
     }
 }
 
-fn to_engine_player(p: &domain::player::Player, role: EnginePlayerRole) -> PlayerData {
-    let pos = match p.position.to_group_position() {
+fn to_engine_player(
+    p: &domain::player::Player,
+    role: EnginePlayerRole,
+    deployed: Option<&DomainPosition>,
+) -> PlayerData {
+    // Fall back to the player's natural position (not `p.position`, which on
+    // legacy saves can still hold a stale coarse bucket written by the old
+    // set_formation stat-ranking).
+    let group = deployed
+        .cloned()
+        .unwrap_or_else(|| p.natural_position.clone())
+        .to_group_position();
+    let pos = match group {
         DomainPosition::Goalkeeper => Position::Goalkeeper,
         DomainPosition::Defender => Position::Defender,
         DomainPosition::Midfielder => Position::Midfielder,
@@ -678,5 +702,95 @@ mod tests {
         assert_eq!(group_count(DomainPos::Defender), 4, "must field four defenders");
         assert_eq!(group_count(DomainPos::Midfielder), 4, "must field four midfielders");
         assert_eq!(group_count(Forward), 2, "must field two forwards");
+    }
+
+    /// With fewer available players than formation slots, the slot-aligned fill
+    /// leaves gaps; the function must fall back to a contiguous selection rather
+    /// than flatten()ing those gaps (which would shift starters into wrong slots).
+    #[test]
+    fn select_starting_xi_falls_back_when_fewer_players_than_slots() {
+        let squad: Vec<Player> = (0..9)
+            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
+            .collect();
+        let refs: Vec<&Player> = squad.iter().collect();
+        let saved: Vec<String> = (0..9).map(|i| format!("p{i}")).collect();
+
+        let xi = select_starting_xi(&saved, &refs, "4-4-2");
+
+        // Every available player fielded once, with no slot-misaligning gaps.
+        assert_eq!(xi.len(), 9);
+        let unique: HashSet<&String> = xi.iter().map(|p| &p.id).collect();
+        assert_eq!(unique.len(), 9);
+    }
+
+    /// When a saved starter is unavailable the user XI compacts; the surviving
+    /// starters must keep their real saved slot (matching deployed_position /
+    /// the UI), not shift up into the vacated slot. Regression for an injured
+    /// keeper turning an outfielder into the engine's goalkeeper.
+    #[test]
+    fn user_team_starter_keeps_saved_slot_when_xi_compacts() {
+        use crate::clock::GameClock;
+        use chrono::{TimeZone, Utc};
+        use domain::manager::Manager;
+        use domain::team::Team;
+
+        let mut players: Vec<Player> = (1..=11)
+            .map(|i| mk_pos(&format!("p{i}"), DomainPos::CenterBack, 70, 100))
+            .collect();
+        // p1 is a natural Forward saved into the LEFT-BACK slot (index 1).
+        players[0] = mk_pos("p1", DomainPos::Forward, 70, 100);
+        for player in players.iter_mut() {
+            player.team_id = Some("user".to_string());
+        }
+
+        let mut team = Team::new(
+            "user".to_string(),
+            "User FC".to_string(),
+            "USR".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        );
+        team.formation = "4-4-2".to_string();
+        // Slot 0 (GK) references a player that no longer exists, so
+        // select_starting_xi drops it and the survivors compact.
+        team.starting_xi_ids = std::iter::once("ghost-gk".to_string())
+            .chain((1..=10).map(|i| format!("p{i}")))
+            .collect();
+
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("user".to_string());
+
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let game = Game::new(clock, manager, vec![team], players, vec![], vec![]);
+
+        let (team_data, _bench) = build_team_with_bench(&game, "user");
+
+        let p1 = team_data
+            .players
+            .iter()
+            .find(|p| p.id == "p1")
+            .expect("p1 should be fielded");
+        // Saved at the left-back slot -> simulated as a defender, never shoved
+        // into the vacated goalkeeper slot.
+        assert_eq!(p1.position, Position::Defender);
+        assert_ne!(p1.position, Position::Goalkeeper);
+
+        // The vacated goalkeeper slot must be refilled, so the XI still fields
+        // exactly one keeper (otherwise the engine's goalkeeper rating collapses
+        // to its empty-set fallback).
+        let keepers = team_data
+            .players
+            .iter()
+            .filter(|p| p.position == Position::Goalkeeper)
+            .count();
+        assert_eq!(keepers, 1, "the XI must still contain a goalkeeper");
     }
 }

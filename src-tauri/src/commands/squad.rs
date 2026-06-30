@@ -35,61 +35,17 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
-        // Parse formation into (def, mid, fwd) counts
-        let parts: Vec<usize> = formation
-            .split('-')
-            .filter_map(|s| s.parse().ok())
-            .collect();
-        let (num_def, num_mid, num_fwd) = match parts.len() {
-            3 => (parts[0], parts[1], parts[2]),
-            4 => (parts[0], parts[1] + parts[2], parts[3]),
-            _ => (4, 4, 2),
-        };
-
+        // Note: `player.position` is intentionally NOT mutated here. A player's
+        // stored position is their natural position; the position they are
+        // *deployed* in is derived on demand from the formation + starting XI
+        // (see `player_rating::deployed_position`). The previous stat-ranked
+        // bucket overwrite corrupted role validation and match simulation
+        // (issue #257).
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             team.formation = formation.to_string();
         }
 
-        // Reassign positions for outfield players on this team
-        let player_ids: Vec<String> = game
-            .players
-            .iter()
-            .filter(|p| {
-                p.team_id.as_deref() == Some(&team_id)
-                    && p.position != domain::player::Position::Goalkeeper
-            })
-            .map(|p| p.id.clone())
-            .collect();
-
-        // Sort by defensive ability (most defensive first)
-        let mut sorted_ids = player_ids.clone();
-        sorted_ids.sort_by(|a_id, b_id| {
-            let pa = game.players.iter().find(|p| p.id == *a_id).unwrap();
-            let pb = game.players.iter().find(|p| p.id == *b_id).unwrap();
-            let def_a = pa.attributes.defending as u16
-                + pa.attributes.tackling as u16
-                + pa.attributes.strength as u16;
-            let def_b = pb.attributes.defending as u16
-                + pb.attributes.tackling as u16
-                + pb.attributes.strength as u16;
-            def_b.cmp(&def_a)
-        });
-
-        // Assign positions
-        for (slot, pid) in sorted_ids.iter().enumerate() {
-            let new_pos = if slot < num_def {
-                domain::player::Position::Defender
-            } else if slot < num_def + num_mid {
-                domain::player::Position::Midfielder
-            } else if slot < num_def + num_mid + num_fwd {
-                domain::player::Position::Forward
-            } else {
-                continue;
-            };
-            if let Some(player) = game.players.iter_mut().find(|p| p.id == *pid) {
-                player.position = new_pos;
-            }
-        }
+        reconcile_player_roles(game, &team_id);
 
         Ok(())
     })
@@ -109,6 +65,8 @@ pub fn set_starting_xi_internal(
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             team.starting_xi_ids = player_ids;
         }
+
+        reconcile_player_roles(game, &team_id);
 
         Ok(())
     })
@@ -527,6 +485,59 @@ pub fn set_team_kit_pattern(
     set_team_kit_pattern_internal(&state, kit_pattern)
 }
 
+/// Drop any assigned player function (role) that is no longer valid for the
+/// granular field position the player now occupies in the starting XI.
+///
+/// The backend only tracks coarse position buckets on `player.position`, so the
+/// granular slot is derived from the team's formation + starting XI order (the
+/// same mapping the UI uses). This keeps player functions dependent on the
+/// player's *current* field position: e.g. a striker's `Poacher` is cleared
+/// when they are moved into a defensive slot.
+fn reconcile_player_roles(game: &mut Game, team_id: &str) {
+    // Natural position of every player on the team, for validating roles of
+    // players who are not in the starting XI (bench players have no slot).
+    let natural_positions: std::collections::HashMap<String, domain::player::Position> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some(team_id))
+        .map(|p| (p.id.clone(), p.natural_position.clone()))
+        .collect();
+
+    let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) else {
+        return;
+    };
+    if team.player_roles.is_empty() {
+        return;
+    }
+
+    let slots = ofm_core::player_rating::formation_slots(&team.formation);
+    // Validate EVERY assigned role, not just starters: a role that was valid in
+    // a player's slot must be cleared once they are benched (validated against
+    // their natural position there), otherwise the stale assignment persists and
+    // leaks back into match simulation.
+    let invalid: Vec<String> = team
+        .player_roles
+        .iter()
+        .filter_map(|(player_id, role)| {
+            let position = team
+                .starting_xi_ids
+                .iter()
+                .position(|id| id == player_id)
+                .and_then(|slot_index| slots.get(slot_index).cloned())
+                .or_else(|| natural_positions.get(player_id).cloned())?;
+            if role_valid_for_position(role, &position) {
+                None
+            } else {
+                Some(player_id.clone())
+            }
+        })
+        .collect();
+
+    for player_id in invalid {
+        team.player_roles.remove(&player_id);
+    }
+}
+
 fn role_valid_for_position(
     role: &domain::team::PlayerRole,
     pos: &domain::player::Position,
@@ -643,23 +654,39 @@ pub fn set_player_role(
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
-    info!(
-        "[cmd] set_player_role: player={} role={:?}",
-        player_id, role
-    );
-    mutate_active_game(&state, |game| {
+    set_player_role_internal(&state, player_id, role)
+}
+
+pub fn set_player_role_internal(
+    state: &StateManager,
+    player_id: String,
+    role: Option<String>,
+) -> Result<Game, String> {
+    info!("[cmd] set_player_role: player={} role={:?}", player_id, role);
+    mutate_active_game(state, |game| {
         let team_id = game
             .manager
             .team_id
             .clone()
             .ok_or("be.error.noTeamAssigned".to_string())?;
 
-        let player_position = game
+        // Validate the role against where the player is actually deployed (the
+        // granular slot from formation + starting XI), falling back to their
+        // natural position when they are not in the starting XI. Using the
+        // deployed slot keeps the validator in agreement with the role options
+        // the UI offers and fixes spurious rejections (issue #257).
+        let natural_position = game
             .players
             .iter()
             .find(|p| p.id == player_id && p.team_id.as_deref() == Some(&team_id))
-            .map(|p| p.position.clone())
+            .map(|p| p.natural_position.clone())
             .ok_or_else(|| "be.error.playerNotOnTeam".to_string())?;
+        let validation_position = game
+            .teams
+            .iter()
+            .find(|t| t.id == team_id)
+            .and_then(|team| ofm_core::player_rating::deployed_position(team, &player_id))
+            .unwrap_or(natural_position);
 
         if let Some(team) = game.teams.iter_mut().find(|t| t.id == team_id) {
             match role {
@@ -667,7 +694,7 @@ pub fn set_player_role(
                     let role_enum = r
                         .parse::<domain::team::PlayerRole>()
                         .map_err(|_| "be.error.invalidPlayerRole".to_string())?;
-                    if !role_valid_for_position(&role_enum, &player_position) {
+                    if !role_valid_for_position(&role_enum, &validation_position) {
                         return Err("be.error.roleNotValidForPosition".to_string());
                     }
                     team.player_roles.insert(player_id.clone(), role_enum);
@@ -777,7 +804,10 @@ pub fn set_tactics_phase(
 
 #[cfg(test)]
 mod tests {
-    use super::{set_player_squad_role_internal, set_player_training_focus_internal};
+    use super::{
+        set_formation_internal, set_player_role_internal, set_player_squad_role_internal,
+        set_player_training_focus_internal,
+    };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position, SquadRole};
@@ -883,6 +913,289 @@ mod tests {
         let stored_game = state.get_game(|game| game.clone()).expect("stored game");
         assert_eq!(stored_game.players[0].squad_role, SquadRole::Youth);
         assert!(stored_game.teams[0].starting_xi_ids.is_empty());
+    }
+
+    #[test]
+    fn reconcile_player_roles_clears_function_invalid_for_current_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // Slot 0 in 4-4-2 is the Goalkeeper; a striker function is invalid there.
+            team.starting_xi_ids = vec!["player-1".to_string()];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Poacher);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert!(!game.teams[0].player_roles.contains_key("player-1"));
+    }
+
+    #[test]
+    fn reconcile_player_roles_keeps_function_valid_for_current_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // Standard is valid for every position and must be preserved.
+            team.starting_xi_ids = vec!["player-1".to_string()];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Standard);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert_eq!(
+            game.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::Standard)
+        );
+    }
+
+    #[test]
+    fn reconcile_player_roles_clears_invalid_role_for_benched_player() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // player-1 (a natural Forward) is benched; a centre-back function is
+            // invalid for their natural position and must be cleared.
+            team.starting_xi_ids = vec![];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Stopper);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert!(!game.teams[0].player_roles.contains_key("player-1"));
+    }
+
+    #[test]
+    fn reconcile_player_roles_keeps_valid_role_for_benched_player() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            // A forward function is valid for a benched forward and is preserved.
+            team.starting_xi_ids = vec![];
+            team
+                .player_roles
+                .insert("player-1".to_string(), PlayerRole::Poacher);
+        }
+
+        super::reconcile_player_roles(&mut game, "team-1");
+
+        assert_eq!(
+            game.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::Poacher)
+        );
+    }
+
+    #[test]
+    fn set_formation_internal_does_not_mutate_player_position() {
+        let state = StateManager::new();
+        // player-1 is a Forward and the only outfield player on the team.
+        state.set_game(make_game(make_player("1998-01-01")));
+
+        set_formation_internal(&state, "4-4-2").expect("formation set");
+
+        let stored = state.get_game(|game| game.clone()).expect("stored game");
+        // Previously set_formation stat-ranked this player into the Defender
+        // bucket; their stored position must now be left untouched.
+        assert_eq!(stored.players[0].position, Position::Forward);
+        assert_eq!(stored.teams[0].formation, "4-4-2");
+    }
+
+    #[test]
+    fn set_player_role_internal_validates_against_deployed_slot() {
+        use domain::team::PlayerRole;
+
+        let mut game = make_game(make_player("1998-01-01"));
+        {
+            // Deploy the (natural Forward) player at the right-back slot of 4-4-2
+            // (slot index 4). The validator must judge the role by that slot.
+            let team = &mut game.teams[0];
+            team.formation = "4-4-2".to_string();
+            team.starting_xi_ids = vec![
+                "x0".to_string(),
+                "x1".to_string(),
+                "x2".to_string(),
+                "x3".to_string(),
+                "player-1".to_string(),
+            ];
+        }
+        let state = StateManager::new();
+        state.set_game(game);
+
+        // A full-back role is valid at the RB slot even though the player's
+        // natural position is Forward (the issue #257 repro).
+        let result =
+            set_player_role_internal(&state, "player-1".to_string(), Some("DefensiveFB".to_string()))
+                .expect("DefensiveFB is valid at the RB slot");
+        assert_eq!(
+            result.teams[0].player_roles.get("player-1"),
+            Some(&PlayerRole::DefensiveFB)
+        );
+
+        // A midfield role is not valid at the RB slot.
+        let error = set_player_role_internal(
+            &state,
+            "player-1".to_string(),
+            Some("BoxToBox".to_string()),
+        )
+        .expect_err("BoxToBox is not valid at the RB slot");
+        assert_eq!(error, "be.error.roleNotValidForPosition");
+    }
+
+    /// Pins the backend validator to the canonical position->roles table. This
+    /// MUST stay in lock-step with the front-end mirror in
+    /// src/lib/playerRoles.ts (guarded there by playerRoles.test.ts). If you
+    /// change one side, change the other.
+    #[test]
+    fn role_valid_for_position_matches_canonical_table() {
+        use domain::player::Position as P;
+        use domain::team::PlayerRole as R;
+
+        let all_roles = [
+            R::Standard,
+            R::BallPlayingKeeper,
+            R::SweeperKeeper,
+            R::Stopper,
+            R::CoverCB,
+            R::BallPlayingCB,
+            R::AttackingFB,
+            R::DefensiveFB,
+            R::InvertedFB,
+            R::WingBack,
+            R::AnchorMan,
+            R::BallWinner,
+            R::DeepLyingPlaymaker,
+            R::BoxToBox,
+            R::Carrilero,
+            R::Mezzala,
+            R::AdvancedPlaymaker,
+            R::ShadowStriker,
+            R::WideForward,
+            R::InsideForward,
+            R::InvertedWinger,
+            R::Poacher,
+            R::TargetMan,
+            R::DeepLyingForward,
+            R::False9,
+            R::PressingForward,
+            R::CompleteForward,
+        ];
+
+        // One representative per granular branch (FB and wide-mid positions share
+        // a branch in role_valid_for_position).
+        let canonical: &[(P, &[R])] = &[
+            (P::Goalkeeper, &[R::Standard, R::BallPlayingKeeper, R::SweeperKeeper]),
+            (P::CenterBack, &[R::Standard, R::Stopper, R::CoverCB, R::BallPlayingCB]),
+            (
+                P::RightBack,
+                &[R::Standard, R::AttackingFB, R::DefensiveFB, R::InvertedFB, R::WingBack],
+            ),
+            (
+                P::DefensiveMidfielder,
+                &[R::Standard, R::AnchorMan, R::BallWinner, R::DeepLyingPlaymaker],
+            ),
+            (
+                P::CentralMidfielder,
+                &[R::Standard, R::BoxToBox, R::Carrilero, R::Mezzala],
+            ),
+            (
+                P::AttackingMidfielder,
+                &[R::Standard, R::AdvancedPlaymaker, R::ShadowStriker],
+            ),
+            (
+                P::RightMidfielder,
+                &[R::Standard, R::WideForward, R::InsideForward, R::InvertedWinger],
+            ),
+            (
+                P::Striker,
+                &[
+                    R::Standard,
+                    R::Poacher,
+                    R::TargetMan,
+                    R::DeepLyingForward,
+                    R::False9,
+                    R::PressingForward,
+                    R::CompleteForward,
+                ],
+            ),
+            // Legacy coarse buckets (deny-list branches): the union of the
+            // group's detailed roles.
+            (
+                P::Defender,
+                &[
+                    R::Standard,
+                    R::Stopper,
+                    R::CoverCB,
+                    R::BallPlayingCB,
+                    R::AttackingFB,
+                    R::DefensiveFB,
+                    R::InvertedFB,
+                    R::WingBack,
+                ],
+            ),
+            (
+                P::Midfielder,
+                &[
+                    R::Standard,
+                    R::AnchorMan,
+                    R::BallWinner,
+                    R::DeepLyingPlaymaker,
+                    R::BoxToBox,
+                    R::Carrilero,
+                    R::Mezzala,
+                    R::AdvancedPlaymaker,
+                    R::ShadowStriker,
+                    R::WideForward,
+                    R::InsideForward,
+                    R::InvertedWinger,
+                ],
+            ),
+            (
+                P::Forward,
+                &[
+                    R::Standard,
+                    R::WideForward,
+                    R::InsideForward,
+                    R::InvertedWinger,
+                    R::Poacher,
+                    R::TargetMan,
+                    R::DeepLyingForward,
+                    R::False9,
+                    R::PressingForward,
+                    R::CompleteForward,
+                ],
+            ),
+        ];
+
+        for (pos, expected) in canonical {
+            for role in &all_roles {
+                let want = expected.contains(role);
+                assert_eq!(
+                    super::role_valid_for_position(role, pos),
+                    want,
+                    "role {:?} at {:?}: expected valid={}",
+                    role,
+                    pos,
+                    want
+                );
+            }
+        }
     }
 
     #[test]

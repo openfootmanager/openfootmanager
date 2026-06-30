@@ -214,6 +214,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
   },
+  // Lightweight patch for inbox-only mutations that return just the message
+  // slice (not the whole game). Patching messages here re-derives sessionState
+  // so the sidebar unread badge updates immediately, without round-tripping the
+  // entire world on every read/delete.
   setMessages: (messages) => {
     const { gameState } = get();
     if (!gameState) return;

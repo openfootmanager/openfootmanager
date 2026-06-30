@@ -252,6 +252,28 @@ describe("useGameStore", () => {
     });
   });
 
+  describe("setMessages", () => {
+    const makeMessages = (reads: boolean[]) =>
+      reads.map((read, index) => ({ id: `m${index}`, read })) as unknown as GameStateData["messages"];
+
+    it("patches gameState.messages and re-derives the unread count", () => {
+      useGameStore.getState().setGameState(
+        makeGameState({ messages: makeMessages([false, false]) }),
+      );
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(2);
+
+      useGameStore.getState().setMessages(makeMessages([true, false]));
+
+      expect(useGameStore.getState().gameState?.messages).toHaveLength(2);
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(1);
+    });
+
+    it("is a no-op when there is no active game", () => {
+      useGameStore.getState().setMessages(makeMessages([false]));
+      expect(useGameStore.getState().gameState).toBeNull();
+    });
+  });
+
   describe("clearGame", () => {
     it("resets all fields to initial state", () => {
       useGameStore.getState().setGameActive(true, "Test Manager");
