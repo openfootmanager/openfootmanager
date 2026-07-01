@@ -146,6 +146,40 @@ pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
     }
 }
 
+/// Squad slots reserved as youth-aged, one per position group in
+/// `[GK, DEF, MID, FWD]` order. Scouted youth recruits target these slots so they
+/// generate at a consistent academy age, and senior generation must avoid them.
+/// This is the single source of truth shared by the youth-recruit targeting,
+/// youth-age generation, and national-team senior remap logic.
+pub(super) const YOUTH_RESERVED_SLOTS: [usize; 4] = [1, 8, 15, 21];
+
+/// Candidate youth slots for a (group) position target. A specific group yields
+/// its single reserved slot; `None` (or any other position) yields all of them.
+pub(super) fn youth_slots_for_target(group: Option<Position>) -> &'static [usize] {
+    match group {
+        Some(Position::Goalkeeper) => &YOUTH_RESERVED_SLOTS[0..1],
+        Some(Position::Defender) => &YOUTH_RESERVED_SLOTS[1..2],
+        Some(Position::Midfielder) => &YOUTH_RESERVED_SLOTS[2..3],
+        Some(Position::Forward) => &YOUTH_RESERVED_SLOTS[3..4],
+        _ => &YOUTH_RESERVED_SLOTS,
+    }
+}
+
+/// Whether a squad slot is reserved for a youth-aged player.
+pub(super) fn is_youth_reserved_slot(slot: usize) -> bool {
+    YOUTH_RESERVED_SLOTS.contains(&slot)
+}
+
+/// Remap a youth-reserved slot to the adjacent senior slot (same position group)
+/// so the player generates at a senior age; non-reserved slots pass through.
+pub(super) fn senior_slot(slot: usize) -> usize {
+    if is_youth_reserved_slot(slot) {
+        slot - 1
+    } else {
+        slot
+    }
+}
+
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
@@ -174,7 +208,7 @@ pub(super) fn generate_random_player_from_def(
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = if matches!(index, 1 | 8 | 15 | 21) {
+    let age = if is_youth_reserved_slot(index) {
         rng.random_range(17..22)
     } else {
         rng.random_range(17..36)
