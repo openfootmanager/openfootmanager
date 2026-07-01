@@ -934,6 +934,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                         kind: FinancialTransactionKind::PrizeMoney,
                     });
                 }
+
+                // Refresh the transfer envelope for the new season. Formula
+                // matches worldgen (generator/mod.rs:543): 15% of finance.
+                // Since `execute_transfer` debits the budget on every buy and
+                // no other path adds to it, without this refill the market
+                // would freeze after 2-3 seasons as every club drained to
+                // zero.
+                team.transfer_budget = (team.finance as f64 * 0.15) as i64;
             }
         }
 
