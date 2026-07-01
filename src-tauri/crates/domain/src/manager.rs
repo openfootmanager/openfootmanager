@@ -142,8 +142,7 @@ impl Manager {
     /// the top and flatten the rotation gradient.
     pub fn rating(&self) -> u8 {
         let reputation = ((f64::from(self.reputation) - 300.0) / 600.0).clamp(0.0, 1.0);
-        let experience =
-            (f64::from(self.career_stats.matches_managed) / 250.0).clamp(0.0, 1.0);
+        let experience = (f64::from(self.career_stats.matches_managed) / 250.0).clamp(0.0, 1.0);
         let win_rate = (f64::from(self.win_rate()) / 100.0).clamp(0.0, 1.0);
         let trophies = (f64::from(self.career_stats.trophies) / 10.0).clamp(0.0, 1.0);
         let track_record = 0.7 * win_rate + 0.3 * trophies;
@@ -195,7 +194,10 @@ mod tests {
             elite_rating > journeyman_rating,
             "elite ({elite_rating}) should outrate journeyman ({journeyman_rating})"
         );
-        assert!(elite_rating >= 80, "decorated manager should be high, got {elite_rating}");
+        assert!(
+            elite_rating >= 80,
+            "decorated manager should be high, got {elite_rating}"
+        );
         assert!(
             (30..=99).contains(&elite_rating) && (30..=99).contains(&journeyman_rating),
             "ratings stay in the OVR-like band"

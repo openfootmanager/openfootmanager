@@ -59,9 +59,7 @@ impl OfmMcpHandler {
 
 impl ServerHandler for OfmMcpHandler {
     fn get_info(&self) -> rmcp::model::ServerInfo {
-        let capabilities = ServerCapabilities::builder()
-            .enable_tools()
-            .build();
+        let capabilities = ServerCapabilities::builder().enable_tools().build();
         rmcp::model::ServerInfo::new(capabilities).with_server_info(Implementation::new(
             "OpenFoot Manager MCP Server",
             env!("CARGO_PKG_VERSION"),

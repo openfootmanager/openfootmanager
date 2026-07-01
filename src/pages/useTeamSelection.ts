@@ -10,6 +10,7 @@ import {
 } from "../store/gameStore";
 import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
 import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
+import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import {
@@ -41,8 +42,7 @@ export function useTeamSelection({
   navigate,
 }: UseTeamSelectionArgs) {
   const { t } = useTranslation();
-  const compName = (c: LeagueData) =>
-    c.name_key ? t(c.name_key, { year: c.season }) : c.name;
+  const compName = (c: LeagueData) => competitionDisplayName(c, t);
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [clubSearch, setClubSearch] = useState("");
@@ -209,7 +209,7 @@ export function useTeamSelection({
       }
       const group = groups.get(league.id) ?? {
         id: league.id,
-        name: league.name,
+        name: competitionDisplayName(league, t),
         order: league.priority ?? 0,
         teams: [],
       };

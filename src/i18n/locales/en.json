@@ -1262,6 +1262,11 @@
     "loanMarket": "Loan Market",
     "offers": "Offers",
     "searchByName": "Search by name...",
+    "affordableOnly": "Within budget",
+    "affordableOnlyHint": "Hide transfer-listed players whose market value exceeds your transfer budget or club balance.",
+    "allPositions": "All positions",
+    "refinePositionGroup": "Refine {{group}}",
+    "positionGroupPartialSelection": "{{group}}, {{selected}} of {{total}} selected",
     "noPlayersListed": "You have no players on the transfer or loan list.",
     "goToProfile": "Right-click a player in Squad or Players to list them for transfer or loan.",
     "noOffers": "No active transfer offers at this time.",
@@ -1523,10 +1528,10 @@
       "participating": "Participating",
       "worldCup": "{{year}} World Cup",
       "worldCupQualifying": "World Cup Qualifying {{year}}",
-      "league": "League",
-      "firstDivision": "First Division",
-      "secondDivision": "Second Division",
-      "nationalCup": "National Cup",
+      "league": "{{country}} League",
+      "firstDivision": "{{country}} First Division",
+      "secondDivision": "{{country}} Second Division",
+      "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup"
     }
   },
@@ -3448,6 +3453,14 @@
         "bodyMultiple": "Speaking after the {{result}} result, the {{team}} manager addressed the press.\n\n{{quotes}}\n\nThe conference covered the result, tactical approach, and what lies ahead for the team.",
         "bodySingle": "The {{team}} manager spoke briefly after the {{result}} result.\n\n\"{{quote}}\"",
         "bodyNone": "The {{team}} manager declined to speak at length after the {{result}} result."
+      },
+      "worldCupHostBid": {
+        "headline": "The Race to Host {{year}}",
+        "body": "{{count}} nations have entered the bidding to host the {{year}} World Cup. Stadiums, infrastructure and football passion will all weigh on the decision."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} Will Host the {{year}} World Cup",
+        "body": "{{nation}} has won the right to stage the {{year}} World Cup. The whole nation begins the countdown to football's greatest festival."
       }
     },
     "competition": {

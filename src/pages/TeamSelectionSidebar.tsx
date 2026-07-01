@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
+import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, TeamLocation } from "../components/ui";
 import { Globe, Shield, Target, Users } from "lucide-react";
 
@@ -20,8 +21,7 @@ export default function TeamSelectionSidebar({
   getTeamAvgOvr,
 }: TeamSelectionSidebarProps) {
   const { t, i18n } = useTranslation();
-  const compName = (c: LeagueData) =>
-    c.name_key ? t(c.name_key, { year: c.season }) : c.name;
+  const compName = (c: LeagueData) => competitionDisplayName(c, t);
 
   return (
     <Card accent="accent" className="h-fit">

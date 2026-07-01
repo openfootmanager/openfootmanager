@@ -1292,6 +1292,11 @@
     "loanMarket": "Mercado de Cesiones",
     "offers": "Ofertas",
     "searchByName": "Buscar por nombre...",
+    "affordableOnly": "Dentro del presupuesto",
+    "affordableOnlyHint": "Ocultar jugadores en venta cuyo valor de mercado supere tu presupuesto de fichajes o el saldo del club.",
+    "allPositions": "Todas las posiciones",
+    "refinePositionGroup": "Filtrar {{group}}",
+    "positionGroupPartialSelection": "{{group}}, {{selected}} de {{total}} seleccionados",
     "noPlayersListed": "No tienes jugadores en la lista de fichajes o cesiones.",
     "goToProfile": "Haz clic derecho en un jugador de Plantilla o Jugadores para ponerlo en venta o cesión.",
     "noOffers": "No hay ofertas de fichaje activas por ahora.",
@@ -1553,10 +1558,10 @@
       "participating": "Participando",
       "worldCup": "Copa del Mundo {{year}}",
       "worldCupQualifying": "Clasificación Copa del Mundo {{year}}",
-      "league": "Liga",
-      "firstDivision": "Primera División",
-      "secondDivision": "Segunda División",
-      "nationalCup": "Copa Nacional",
+      "league": "Liga de {{country}}",
+      "firstDivision": "Primera División de {{country}}",
+      "secondDivision": "Segunda División de {{country}}",
+      "nationalCup": "Copa de {{country}}",
       "continentalChampionsCup": "Copa Continental de Campeones"
     }
   },
@@ -3482,6 +3487,14 @@
         "bodyMultiple": "Tras el resultado {{result}}, el técnico del {{team}} atendió a la prensa.\n\n{{quotes}}\n\nLa comparecencia abordó el resultado, el planteamiento táctico y lo que viene para el equipo.",
         "bodySingle": "El técnico del {{team}} habló brevemente tras el resultado {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "El técnico del {{team}} declinó hablar en profundidad tras el resultado {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "La carrera por organizar {{year}}",
+        "body": "{{count}} naciones se han postulado para organizar la Copa del Mundo {{year}}. Estadios, infraestructura y pasión futbolística pesarán en la decisión."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} será la sede del Mundial {{year}}",
+        "body": "{{nation}} ha ganado el derecho a organizar la Copa del Mundo {{year}}. Todo el país comienza la cuenta atrás para la mayor fiesta del fútbol."
       }
     },
     "competition": {

@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type GameStateData,
-  type PlayerData,
   useGameStore,
 } from "../../store/gameStore";
 import type { PlayerSelectionOptions } from "../../store/gameStore";
-import { getSquad } from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import SquadRosterView from "./SquadRosterView";
 import type { SquadListSortState } from "./SquadRosterView.state";
 
@@ -29,24 +27,17 @@ export default function SquadTab({
 }: SquadTabProps) {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
 
   const teamId =
     sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
-
-  useEffect(() => {
-    if (!teamId) return;
-    void getSquad(teamId)
-      .then(setFetchedSquad)
-      .catch(() => {});
-  }, [teamId]);
+  const clockDate =
+    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
 
   const team =
     sessionState?.team ??
     gameState?.teams.find((t) => t.manager_id === managerId) ??
     null;
-  const clockDate =
-    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const players =
     fetchedSquad ??
     gameState?.players.filter((p) => p.team_id === teamId) ??

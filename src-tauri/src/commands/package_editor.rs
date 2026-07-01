@@ -64,7 +64,15 @@ fn names_to_file(names: &NamesDefinition) -> Result<serde_json::Value, String> {
 // ---------------------------------------------------------------------------
 
 fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), String> {
-    let subdirs = ["teams", "players", "staff", "confederations", "countries", "competitions", "names"];
+    let subdirs = [
+        "teams",
+        "players",
+        "staff",
+        "confederations",
+        "countries",
+        "competitions",
+        "names",
+    ];
     for sub in &subdirs {
         std::fs::create_dir_all(pkg_dir.join(sub)).map_err(|e| e.to_string())?;
     }
@@ -73,13 +81,41 @@ fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), Strin
     write_json_atomic(&pkg_dir.join("package.json"), &manifest)?;
 
     let stubs: &[(&str, &str, serde_json::Value)] = &[
-        ("teams", "teams.json", json!({"schema": "team", "items": []})),
-        ("players", "players.json", json!({"schema": "player", "items": []})),
-        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
-        ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
-        ("countries", "countries.json", json!({"schema": "country", "items": []})),
-        ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
-        ("names", "names.json", json!({"schema": "names", "version": 1, "description": "", "pools": {}})),
+        (
+            "teams",
+            "teams.json",
+            json!({"schema": "team", "items": []}),
+        ),
+        (
+            "players",
+            "players.json",
+            json!({"schema": "player", "items": []}),
+        ),
+        (
+            "staff",
+            "staff.json",
+            json!({"schema": "staff", "items": []}),
+        ),
+        (
+            "confederations",
+            "confederations.json",
+            json!({"schema": "confederation", "items": []}),
+        ),
+        (
+            "countries",
+            "countries.json",
+            json!({"schema": "country", "items": []}),
+        ),
+        (
+            "competitions",
+            "competitions.json",
+            json!({"schema": "competition", "items": []}),
+        ),
+        (
+            "names",
+            "names.json",
+            json!({"schema": "names", "version": 1, "description": "", "pools": {}}),
+        ),
     ];
 
     for (sub, file, content) in stubs {
@@ -90,7 +126,9 @@ fn scaffold_project_dir(pkg_dir: &Path, meta: &WorldMetaDef) -> Result<(), Strin
 }
 
 fn dir_is_nonempty(path: &Path) -> bool {
-    std::fs::read_dir(path).map(|mut d| d.next().is_some()).unwrap_or(false)
+    std::fs::read_dir(path)
+        .map(|mut d| d.next().is_some())
+        .unwrap_or(false)
 }
 
 /// Create a new package project directory with an empty scaffold.
@@ -112,7 +150,10 @@ pub fn create_world_project(
     meta: WorldMetaDef,
 ) -> Result<String, String> {
     sanitize_entity_id(&slug)?;
-    let base_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let base_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let project_dir = base_dir.join("world-editor").join(&slug);
     if project_dir.exists() && dir_is_nonempty(&project_dir) {
         return Err("be.error.package.projectAlreadyExists".to_string());
@@ -200,7 +241,10 @@ pub fn save_package_project(
         &json!({"schema": "staff", "items": stf}),
     )?;
 
-    write_json_atomic(&pkg_dir.join("names").join("names.json"), &names_to_file(&names)?)?;
+    write_json_atomic(
+        &pkg_dir.join("names").join("names.json"),
+        &names_to_file(&names)?,
+    )?;
 
     let comps = serde_json::to_value(&competitions).map_err(|e| e.to_string())?;
     write_json_atomic(
@@ -410,12 +454,18 @@ mod tests {
         assert_eq!(p.last_name, "Rooney");
         assert_eq!(p.position, Position::Striker);
         assert_eq!(p.date_of_birth.as_deref(), Some("1985-10-24"));
-        let attrs = p.attributes.as_ref().expect("attributes must survive round-trip");
+        let attrs = p
+            .attributes
+            .as_ref()
+            .expect("attributes must survive round-trip");
         assert_eq!(attrs.shooting, 88);
         assert_eq!(attrs.pace, 75);
 
         let names_rt = loaded.names.expect("names must survive round-trip");
-        let eng = names_rt.pools.get("ENG").expect("ENG pool must survive round-trip");
+        let eng = names_rt
+            .pools
+            .get("ENG")
+            .expect("ENG pool must survive round-trip");
         assert_eq!(eng.first_names, ["James", "John"]);
         assert_eq!(eng.last_names, ["Smith", "Jones"]);
 
@@ -426,7 +476,10 @@ mod tests {
         assert_eq!(s.first_name, "Alex");
         assert_eq!(s.role, StaffRole::AssistantManager);
         assert_eq!(s.club, "man-utd");
-        let s_attrs = s.attributes.as_ref().expect("staff attributes must survive round-trip");
+        let s_attrs = s
+            .attributes
+            .as_ref()
+            .expect("staff attributes must survive round-trip");
         assert_eq!(s_attrs.coaching, 90);
 
         // Exercises competition type PascalCase and selector kind camelCase
@@ -475,8 +528,11 @@ mod tests {
         assert_eq!(denied, Err("be.error.invalidPath".to_string()));
 
         // A relative traversal that escapes the base is likewise rejected.
-        let traversal = format!("{}/assets/images/../../../{}", base.display(),
-            secret.file_name().unwrap().to_str().unwrap());
+        let traversal = format!(
+            "{}/assets/images/../../../{}",
+            base.display(),
+            secret.file_name().unwrap().to_str().unwrap()
+        );
         let denied2 = read_file_as_data_url(traversal, base.to_str().unwrap().to_string());
         assert_eq!(denied2, Err("be.error.invalidPath".to_string()));
 
@@ -493,10 +549,7 @@ pub fn extract_ofm_for_editing(
     ofm_path: String,
 ) -> Result<String, String> {
     let ofm = Path::new(&ofm_path);
-    let stem = ofm
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("world");
+    let stem = ofm.file_stem().and_then(|s| s.to_str()).unwrap_or("world");
 
     let base_dir = app_handle
         .path()
@@ -529,8 +582,7 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
     // Prevent the output archive from being written inside the source directory,
     // which would cause it to zip itself into the archive.
     let out_parent = out_path.parent().unwrap_or(out_path);
-    if let (Ok(abs_dir), Ok(abs_out_parent)) =
-        (dir_path.canonicalize(), out_parent.canonicalize())
+    if let (Ok(abs_dir), Ok(abs_out_parent)) = (dir_path.canonicalize(), out_parent.canonicalize())
     {
         if abs_out_parent == abs_dir || abs_out_parent.starts_with(&abs_dir) {
             return Err("be.error.package.outputInsideSource".to_string());
@@ -544,7 +596,10 @@ pub fn build_ofm(dir: String, output: String) -> Result<(), String> {
             .map(|e| format!("{}: {}", e.file, e.code))
             .collect::<Vec<_>>()
             .join("; ");
-        return Err(format!("be.error.package.validationFailed?errors={}", summary));
+        return Err(format!(
+            "be.error.package.validationFailed?errors={}",
+            summary
+        ));
     }
 
     export_directory_to_ofm(dir_path, out_path)

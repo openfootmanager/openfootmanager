@@ -14,7 +14,9 @@ use super::foundation::ensure_multi_competition_foundations;
 use super::startup::{current_date_for_phase, start_date_for_year, StartupOptions};
 use super::util::preseason_league_year;
 
-pub(crate) fn load_world_data_from_path(world_source: &str) -> Result<ofm_core::generator::WorldData, String> {
+pub(crate) fn load_world_data_from_path(
+    world_source: &str,
+) -> Result<ofm_core::generator::WorldData, String> {
     let path = world_source.strip_prefix("file:").unwrap_or(world_source);
     ofm_core::generator::load_world_from_path(std::path::Path::new(path))
         .map_err(|_| "be.error.worldReadFileFailed".to_string())
@@ -38,7 +40,9 @@ pub(crate) fn apply_generated_past_history(game: &mut Game, startup_options: &St
     );
 }
 
-pub(crate) fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::generator::WorldData, String> {
+pub(crate) fn load_world_data(
+    world_source: Option<&str>,
+) -> Result<ofm_core::generator::WorldData, String> {
     match world_source {
         None | Some("random") => Ok(ofm_core::generator::generate_world_data(None)),
         Some(source) => {
@@ -58,7 +62,13 @@ pub(crate) fn load_world_data(world_source: Option<&str>) -> Result<ofm_core::ge
 pub(crate) fn load_world_data_from_package_ids(
     packages_dir: &std::path::Path,
     package_ids: &[String],
-) -> Result<(ofm_core::generator::WorldData, Vec<ofm_core::generator::PackageLock>), String> {
+) -> Result<
+    (
+        ofm_core::generator::WorldData,
+        Vec<ofm_core::generator::PackageLock>,
+    ),
+    String,
+> {
     let mut loaded = Vec::with_capacity(package_ids.len());
     let mut lockfile = Vec::with_capacity(package_ids.len());
     for id in package_ids {
@@ -70,9 +80,17 @@ pub(crate) fn load_world_data_from_package_ids(
         if !errors.is_empty() {
             return Err("be.error.package.invalid".to_string());
         }
-        let version = pkg.meta.as_ref().map(|m| m.version.clone()).unwrap_or_default();
+        let version = pkg
+            .meta
+            .as_ref()
+            .map(|m| m.version.clone())
+            .unwrap_or_default();
         let hash = ofm_core::generator::hash_package_file(&path).unwrap_or_default();
-        lockfile.push(ofm_core::generator::PackageLock { id: id.clone(), version, hash });
+        lockfile.push(ofm_core::generator::PackageLock {
+            id: id.clone(),
+            version,
+            hash,
+        });
         loaded.push(pkg);
     }
     let (merged, errors) = ofm_core::generator::merge_world_packages(loaded);

@@ -492,21 +492,22 @@ mod tests {
             .iter()
             .find(|entry| entry.team_id == "team2")
             .expect("opponent team standings entry");
-        assert_eq!(opp_entry.played, 1, "opponent played count must also update");
+        assert_eq!(
+            opp_entry.played, 1,
+            "opponent played count must also update"
+        );
         assert_eq!(
             user_entry.points + opp_entry.points,
-            user_entry.won * 3
-                + opp_entry.won * 3
-                + (user_entry.drawn + opp_entry.drawn),
+            user_entry.won * 3 + opp_entry.won * 3 + (user_entry.drawn + opp_entry.drawn),
             "points must agree with W/D record",
         );
 
-        let user_fixture = competition
-            .fixtures
-            .first()
-            .expect("user fixture retained");
+        let user_fixture = competition.fixtures.first().expect("user fixture retained");
         assert!(
-            matches!(user_fixture.status, domain::league::FixtureStatus::Completed),
+            matches!(
+                user_fixture.status,
+                domain::league::FixtureStatus::Completed
+            ),
             "user fixture must be marked Completed",
         );
         assert!(

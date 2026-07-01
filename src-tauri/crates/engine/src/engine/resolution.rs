@@ -56,7 +56,8 @@ fn resolve_buildup<R: Rng>(
     let ball_zone = ctx.ball_zone;
 
     let buildup_mod = tactics_buildup_mod(&ctx.team(att_side).tactics);
-    let success_chance = (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
+    let success_chance =
+        (pass_skill * 1.3 * buildup_mod) / (pass_skill * 1.3 * buildup_mod + press);
     if rng.random_range(0.0..1.0f64) < success_chance {
         ctx.emit(
             MatchEvent::new(minute, EventType::PassCompleted, att_side, ball_zone)
@@ -235,7 +236,16 @@ fn resolve_attacking_third<R: Rng>(
                 MatchEvent::new(minute, EventType::Tackle, def_side, zone)
                     .with_player(&defender.id),
             );
-            maybe_foul(ctx, minute, def_side, &attacker, &defender, zone, rng, tactics_foul_modifier(&ctx.team(def_side).tactics))
+            maybe_foul(
+                ctx,
+                minute,
+                def_side,
+                &attacker,
+                &defender,
+                zone,
+                rng,
+                tactics_foul_modifier(&ctx.team(def_side).tactics),
+            )
         } else {
             ctx.emit(
                 MatchEvent::new(minute, EventType::Clearance, def_side, zone)
@@ -275,7 +285,12 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
                 .with_secondary(&fouled.id),
         );
         if rng.random_range(0.0..1.0f64) < ctx.config.penalty_probability {
-            ctx.emit(MatchEvent::new(minute, EventType::PenaltyAwarded, att_side, zone));
+            ctx.emit(MatchEvent::new(
+                minute,
+                EventType::PenaltyAwarded,
+                att_side,
+                zone,
+            ));
             fouls::resolve_penalty(ctx, minute, att_side, rng);
             fouls::maybe_card(ctx, minute, def_side, &fouler.id, zone, rng);
             ctx.ball_zone = Zone::Midfield;
@@ -290,8 +305,16 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
     let assister = snap_player(ctx, att_side, Position::Midfielder, rng);
     let goalkeeper = snap_player(ctx, def_side, Position::Goalkeeper, rng);
 
-    let att_cond = if att_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
-    let def_cond = if def_side == Side::Home { ctx.home_condition } else { ctx.away_condition };
+    let att_cond = if att_side == Side::Home {
+        ctx.home_condition
+    } else {
+        ctx.away_condition
+    };
+    let def_cond = if def_side == Side::Home {
+        ctx.home_condition
+    } else {
+        ctx.away_condition
+    };
 
     let shoot_rating =
         (shooter.shooting as f64 + shooter.composure as f64 + shooter.decisions as f64) / 3.0
@@ -328,9 +351,9 @@ fn resolve_shot<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng:
     }
 
     let def_line_mod = tactics_defensive_conversion_mod(&ctx.team(def_side).tactics);
-    let conversion =
-        (ctx.config.goal_conversion_base * def_line_mod + (shoot_rating - gk_rating) / 150.0)
-            .clamp(0.10, 0.70);
+    let conversion = (ctx.config.goal_conversion_base * def_line_mod
+        + (shoot_rating - gk_rating) / 150.0)
+        .clamp(0.10, 0.70);
 
     if rng.random_range(0.0..1.0f64) < conversion {
         ctx.emit(
@@ -374,7 +397,5 @@ fn effective_press(ctx: &MatchContext, pressing_side: Side) -> f64 {
         ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
     });
     let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
-    base * modifier
-        * tactics_pressing_press(&team.tactics)
-        * home_mod(pressing_side, ctx.config)
+    base * modifier * tactics_pressing_press(&team.tactics) * home_mod(pressing_side, ctx.config)
 }

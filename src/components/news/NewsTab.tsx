@@ -20,6 +20,7 @@ import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import AwardsCeremonyScreen from "../season/AwardsCeremonyScreen";
 import { Select } from "../ui";
 import { fetchNewsFeed, type NewsFeed } from "../../services/newsService";
+import { isNewsArticleVisible } from "../../utils/newsVisibility";
 import { formatMatchDate as fmtMatchDate } from "../../lib/helpers";
 
 const CAT_ICONS: Record<string, React.ReactNode> = {
@@ -119,8 +120,12 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     };
   }, [currentDate]);
 
-  // Use slice data when available; fall back to gameState while loading.
-  const rawArticles = feed?.articles ?? gameState.news ?? [];
+  // Use slice data when available; fall back to gameState while loading. The
+  // fallback is unfiltered, so drop future-dated articles (e.g. a World Cup
+  // kickoff dated at kickoff) the way the backend feed already does.
+  const rawArticles = (feed?.articles ?? gameState.news ?? []).filter((a) =>
+    isNewsArticleVisible(a.date, currentDate),
+  );
   const fallbackTeamNames: Record<string, string> = Object.fromEntries(
     (gameState.teams ?? []).map((t) => [t.id, t.name]),
   );

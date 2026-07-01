@@ -1649,6 +1649,8 @@ fn make_round_summary_game() -> Game {
                         minute: 77,
                     }],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -1675,6 +1677,8 @@ fn make_round_summary_game() -> Game {
                     ],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -1816,6 +1820,44 @@ fn build_round_summary_picks_biggest_overall_gap_upset() {
     assert_eq!(upset.underdog_team_id, "team2");
     assert_eq!(upset.favorite_team_id, "team1");
     assert!(upset.strength_gap > 0.0);
+}
+
+#[test]
+fn build_round_summary_detects_a_penalty_decided_upset() {
+    let mut game = make_round_summary_game();
+    {
+        let league = game.league.as_mut().unwrap();
+        // Favourite team1 (90) drew the underdog team2 (50) 1-1 and lost the
+        // shootout — a penalty-decided giant-killing that must still register.
+        league.fixtures[0].result = Some(domain::league::MatchResult {
+            home_goals: 1,
+            away_goals: 1,
+            home_scorers: vec![],
+            away_scorers: vec![],
+            report: None,
+            home_penalties: Some(3),
+            away_penalties: Some(5),
+        });
+        // The other match is an ordinary draw, so the shootout is the only upset.
+        league.fixtures[1].result = Some(domain::league::MatchResult {
+            home_goals: 1,
+            away_goals: 1,
+            home_scorers: vec![],
+            away_scorers: vec![],
+            report: None,
+            home_penalties: None,
+            away_penalties: None,
+        });
+    }
+
+    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
+        .expect("expected round summary");
+    let upset = summary
+        .notable_upset
+        .expect("a penalty-decided upset is reported");
+    assert_eq!(upset.fixture_id, "fix1");
+    assert_eq!(upset.underdog_team_id, "team2");
+    assert_eq!(upset.favorite_team_id, "team1");
 }
 
 #[test]

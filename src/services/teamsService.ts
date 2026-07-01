@@ -52,6 +52,7 @@ export interface LeagueGroup {
   id: string;
   name: string;
   name_key?: string | null;
+  country_id?: string | null;
   teams: TeamCard[];
 }
 

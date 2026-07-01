@@ -352,8 +352,8 @@ export interface StaffData {
   role: "AssistantManager" | "Coach" | "Scout" | "Physio";
   attributes: {
     coaching: number;
-    judging_ability: number;
-    judging_potential: number;
+    judgingAbility: number;
+    judgingPotential: number;
     physiotherapy: number;
   };
   team_id: string | null;
@@ -526,6 +526,9 @@ export interface FixtureData {
     home_scorers: { player_id: string; minute: number }[];
     away_scorers: { player_id: string; minute: number }[];
     report?: CompactMatchReportData | null;
+    /** Shootout score when a knockout tie was decided on penalties. */
+    home_penalties?: number | null;
+    away_penalties?: number | null;
   };
 }
 

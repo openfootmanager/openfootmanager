@@ -38,6 +38,11 @@ semver = "1"
 base64 = "0.22"
 image = { version = "0.25.6", default-features = false, features = ["png", "webp"] }
 webp = "0.3.1"
+# Pin `time` below 0.3.52: that release made a breaking change to
+# `Parsable::parse` within a 0.3.x patch, which fails to compile against the
+# transitive `cookie` 0.18.1 (pulled in by Tauri). Remove once Tauri/cookie
+# ship a fix. See PR #265 CI failure.
+time = "=0.3.51"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own
@@ -51,6 +56,10 @@ opt-level = 3
 
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]
+# Forwards to `db/save-snapshots`. Enable with `tauri dev -f save-snapshots`
+# (or via the `ofm-dev-snap` alias from shell.nix) to write a date-stamped
+# copy of each save's `.db` before every overwrite. Dev-only.
+save-snapshots = ["db/save-snapshots"]
 
 [dependencies.rmcp]
 version = "1.7"

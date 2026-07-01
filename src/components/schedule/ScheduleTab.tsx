@@ -17,6 +17,7 @@ import {
   getUserCalledUpPlayers,
 } from "../../lib/helpers";
 import { resolveSeasonContext } from "../../lib/seasonContext";
+import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData, LeagueData } from "../../store/gameStore";
 import {
   fetchSchedule,
@@ -156,7 +157,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
     >
       {activeCompetitions.map((c) => (
         <option key={c.id} value={c.id}>
-          {c.name_key ? t(c.name_key, { year: c.season }) : c.name}
+          {competitionDisplayName(c, t)}
         </option>
       ))}
     </Select>
@@ -708,9 +709,8 @@ function StandingsView({
       <div className="rounded-t-xl border-b border-gray-100 bg-gradient-to-r from-navy-700 to-navy-800 p-5 dark:border-navy-600">
         <h3 className="flex items-center gap-2 font-heading text-lg font-bold uppercase tracking-wide text-white">
           <Trophy className="h-5 w-5 text-accent-400" />
-          {competition?.name_key
-            ? t(competition.name_key, { year: competition.season })
-            : (competition?.name ?? t("schedule.fixtures"))} –{" "}
+          {(competition && competitionDisplayName(competition, t)) ||
+            t("schedule.fixtures")} –{" "}
           {t("schedule.season", { number: competition?.season ?? 0 })}
         </h3>
       </div>

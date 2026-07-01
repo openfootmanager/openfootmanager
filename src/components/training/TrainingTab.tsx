@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   BedDouble,
@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { isSeniorSquadPlayer } from "../../lib/playerSquad";
-import { getSquad } from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
@@ -97,14 +97,10 @@ export default function TrainingTab({
 }: TrainingTabProps) {
   const { t } = useTranslation();
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
-
-  useEffect(() => {
-    if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-  }, [teamId]);
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad] = useFetchedSquad(teamId, clockDate);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -135,7 +131,6 @@ export default function TrainingTab({
   const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const criticalCount = roster.filter((player) => player.condition < 25).length;
 
-  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays =
     SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;

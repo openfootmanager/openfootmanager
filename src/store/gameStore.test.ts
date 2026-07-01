@@ -154,8 +154,8 @@ describe("useGameStore", () => {
             role: "Coach",
             attributes: {
               coaching: 70,
-              judging_ability: 70,
-              judging_potential: 70,
+              judgingAbility: 70,
+              judgingPotential: 70,
               physiotherapy: 30,
             },
             team_id: "team1",
@@ -249,6 +249,60 @@ describe("useGameStore", () => {
       useGameStore.getState().setGameState(gs1);
       useGameStore.getState().setGameState(gs2);
       expect(useGameStore.getState().gameState?.clock.current_date).toBe("2026-09-01");
+    });
+  });
+
+  describe("unread news badge", () => {
+    const article = (id: string, date: string, read: boolean) => ({
+      id,
+      headline: "H",
+      body: "B",
+      source: "S",
+      date,
+      category: "Editorial",
+      read,
+      team_ids: [],
+      player_ids: [],
+      match_score: null,
+    });
+
+    it("excludes future-dated articles from the unread count", () => {
+      const gs = makeGameState({
+        clock: { current_date: "2026-02-15T00:00:00+00:00", start_date: "2026-08-01" },
+        news: [
+          article("past", "2026-02-10", false),
+          article("today", "2026-02-15T08:00:00+00:00", false),
+          article("future", "2026-06-03", false),
+          article("read", "2026-02-01", true),
+        ],
+      });
+      useGameStore.getState().setGameState(gs);
+
+      // Past + same-day unread count; the future-dated article (e.g. a World
+      // Cup kickoff) must not inflate the badge before it happens.
+      expect(useGameStore.getState().sessionState?.unread_news_count).toBe(2);
+    });
+  });
+
+  describe("setMessages", () => {
+    const makeMessages = (reads: boolean[]) =>
+      reads.map((read, index) => ({ id: `m${index}`, read })) as unknown as GameStateData["messages"];
+
+    it("patches gameState.messages and re-derives the unread count", () => {
+      useGameStore.getState().setGameState(
+        makeGameState({ messages: makeMessages([false, false]) }),
+      );
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(2);
+
+      useGameStore.getState().setMessages(makeMessages([true, false]));
+
+      expect(useGameStore.getState().gameState?.messages).toHaveLength(2);
+      expect(useGameStore.getState().sessionState?.unread_messages_count).toBe(1);
+    });
+
+    it("is a no-op when there is no active game", () => {
+      useGameStore.getState().setMessages(makeMessages([false]));
+      expect(useGameStore.getState().gameState).toBeNull();
     });
   });
 

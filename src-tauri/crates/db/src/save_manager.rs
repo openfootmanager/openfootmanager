@@ -44,6 +44,80 @@ fn save_not_found_error(save_id: &str) -> String {
     backend_error_with_param("be.error.saveNotFound", "saveId", save_id)
 }
 
+/// Number of `.db.snap-*` files to keep next to each save when the
+/// `save-snapshots` Cargo feature is enabled. Older snapshots are pruned
+/// automatically.
+#[cfg(feature = "save-snapshots")]
+const MAX_SNAPSHOTS_PER_SAVE: usize = 20;
+
+/// Copy `db_path` to a date-stamped sibling before the file is overwritten,
+/// then prune older snapshots so at most `MAX_SNAPSHOTS_PER_SAVE` survive.
+///
+/// Only compiled when the `save-snapshots` Cargo feature is on. Without it
+/// this is a zero-cost no-op (the `_db_path` arg is ignored).
+#[cfg(feature = "save-snapshots")]
+fn snapshot_db_before_write(db_path: &Path) -> Result<(), String> {
+    if !db_path.exists() {
+        return Ok(());
+    }
+    let stamp = Utc::now().format("%Y%m%d-%H%M%S%.3f").to_string();
+    let file_name = db_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "save-snapshot: invalid db filename".to_string())?;
+    let snap_name = format!("{}.snap-{}", file_name, stamp);
+    let snap_path = db_path.with_file_name(&snap_name);
+    fs::copy(db_path, &snap_path).map_err(|err| format!("save-snapshot: copy failed: {err}"))?;
+    info!(
+        "[save_manager] snapshot {} -> {}",
+        db_path.display(),
+        snap_path.display()
+    );
+    prune_old_snapshots(db_path, MAX_SNAPSHOTS_PER_SAVE);
+    Ok(())
+}
+
+#[cfg(not(feature = "save-snapshots"))]
+fn snapshot_db_before_write(_db_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+/// Drop the oldest `.db.snap-*` siblings of `db_path` until at most `keep`
+/// remain. Errors are swallowed (best-effort cleanup) — losing the prune is
+/// far less bad than failing a save.
+#[cfg(feature = "save-snapshots")]
+fn prune_old_snapshots(db_path: &Path, keep: usize) {
+    let Some(parent) = db_path.parent() else {
+        return;
+    };
+    let Some(file_name) = db_path.file_name().and_then(|name| name.to_str()) else {
+        return;
+    };
+    let prefix = format!("{}.snap-", file_name);
+
+    let Ok(entries) = fs::read_dir(parent) else {
+        return;
+    };
+    let mut snapshots: Vec<PathBuf> = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(&prefix))
+        })
+        .collect();
+    // Names share a fixed prefix and end with a sortable timestamp, so
+    // lexicographic order matches chronological order.
+    snapshots.sort();
+    while snapshots.len() > keep {
+        if let Some(oldest) = snapshots.first() {
+            let _ = fs::remove_file(oldest);
+        }
+        snapshots.remove(0);
+    }
+}
+
 impl SaveManager {
     /// Initialize the SaveManager without blocking startup on a missing save index.
     pub fn init(saves_dir: &Path) -> Result<Self, String> {
@@ -230,6 +304,7 @@ impl SaveManager {
 
         canonicalize_game_starting_xi_ids(&mut persisted_game);
 
+        snapshot_db_before_write(&db_path)?;
         let db = GameDatabase::open(&db_path)?;
         GamePersistenceWriter::write_game(&db, &persisted_game, save_id, &save_name)?;
         drop(db);
@@ -261,6 +336,7 @@ impl SaveManager {
             .clone();
 
         let db_path = self.saves_dir.join(&entry.db_filename);
+        snapshot_db_before_write(&db_path)?;
         let db = GameDatabase::open(&db_path)?;
         GamePersistenceWriter::write_stats_state(&db, stats)?;
         drop(db);
@@ -302,6 +378,8 @@ impl SaveManager {
         let mut persisted_game = game.clone();
         canonicalize_game_starting_xi_ids(&mut persisted_game);
         let clone_ms = clone_timer.elapsed().as_millis();
+
+        snapshot_db_before_write(&db_path)?;
 
         let db_open_timer = Instant::now();
         let db = GameDatabase::open(&db_path)?;
@@ -487,6 +565,7 @@ impl SaveManager {
         drop(db);
 
         if needs_resave {
+            snapshot_db_before_write(&db_path)?;
             let db = GameDatabase::open(&db_path)?;
             GamePersistenceWriter::write_game(&db, &game, save_id, &save_name)?;
             drop(db);

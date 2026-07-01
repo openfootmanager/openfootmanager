@@ -153,6 +153,7 @@ export default function ScoutingYouthRecruitmentCard({
                             onChange={(event) => onTargetPositionChange(event.target.value)}
                         >
                             <option value="">{t("scouting.youthAnyPosition")}</option>
+                            <option value="Goalkeeper">{t("common.positions.Goalkeeper")}</option>
                             <option value="Defender">{t("common.positions.Defender")}</option>
                             <option value="Midfielder">{t("common.positions.Midfielder")}</option>
                             <option value="Forward">{t("common.positions.Forward")}</option>

@@ -146,6 +146,40 @@ pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
     }
 }
 
+/// Squad slots reserved as youth-aged, one per position group in
+/// `[GK, DEF, MID, FWD]` order. Scouted youth recruits target these slots so they
+/// generate at a consistent academy age, and senior generation must avoid them.
+/// This is the single source of truth shared by the youth-recruit targeting,
+/// youth-age generation, and national-team senior remap logic.
+pub(super) const YOUTH_RESERVED_SLOTS: [usize; 4] = [1, 8, 15, 21];
+
+/// Candidate youth slots for a (group) position target. A specific group yields
+/// its single reserved slot; `None` (or any other position) yields all of them.
+pub(super) fn youth_slots_for_target(group: Option<Position>) -> &'static [usize] {
+    match group {
+        Some(Position::Goalkeeper) => &YOUTH_RESERVED_SLOTS[0..1],
+        Some(Position::Defender) => &YOUTH_RESERVED_SLOTS[1..2],
+        Some(Position::Midfielder) => &YOUTH_RESERVED_SLOTS[2..3],
+        Some(Position::Forward) => &YOUTH_RESERVED_SLOTS[3..4],
+        _ => &YOUTH_RESERVED_SLOTS,
+    }
+}
+
+/// Whether a squad slot is reserved for a youth-aged player.
+pub(super) fn is_youth_reserved_slot(slot: usize) -> bool {
+    YOUTH_RESERVED_SLOTS.contains(&slot)
+}
+
+/// Remap a youth-reserved slot to the adjacent senior slot (same position group)
+/// so the player generates at a senior age; non-reserved slots pass through.
+pub(super) fn senior_slot(slot: usize) -> usize {
+    if is_youth_reserved_slot(slot) {
+        slot - 1
+    } else {
+        slot
+    }
+}
+
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
@@ -171,9 +205,10 @@ pub(super) fn generate_random_player_from_def(
     let p_id = Uuid::new_v4().to_string();
     let nationality = nationality.to_string();
 
-    // Reserve slots across the back line, midfield, and attack always start youth-aged
-    // so each club can open with real academy prospects instead of an empty youth squad.
-    let age = if matches!(index, 8 | 15 | 21) {
+    // Reserve one slot per position group (GK + back line + midfield + attack) as
+    // youth-aged so scouted youth recruits land at a consistent age across positions
+    // and clubs can open with real academy prospects instead of an empty youth squad.
+    let age = if is_youth_reserved_slot(index) {
         rng.random_range(17..22)
     } else {
         rng.random_range(17..36)
@@ -456,7 +491,11 @@ pub(super) fn generate_staff_from_authored_def(
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Staff {
-    let nationality = if def.nationality.is_empty() { "ENG" } else { def.nationality.as_str() };
+    let nationality = if def.nationality.is_empty() {
+        "ENG"
+    } else {
+        def.nationality.as_str()
+    };
     let first_name = if def.first_name.is_empty() {
         let (f, _) = pick_name_from_def(nationality, names_def, rng);
         f
@@ -472,13 +511,18 @@ pub(super) fn generate_staff_from_authored_def(
 
     let current_year: u32 = 2026;
     let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-').next().and_then(|y| y.parse::<u32>().ok()).unwrap_or(current_year - 40)
+        dob.split('-')
+            .next()
+            .and_then(|y| y.parse::<u32>().ok())
+            .unwrap_or(current_year - 40)
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
         current_year - rng.random_range(30..55)
     };
-    let dob = def.date_of_birth.clone()
+    let dob = def
+        .date_of_birth
+        .clone()
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
 
     let attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -492,7 +536,11 @@ pub(super) fn generate_staff_from_authored_def(
         .attributes
     });
 
-    let id = if def.id.is_empty() { Uuid::new_v4().to_string() } else { def.id.clone() };
+    let id = if def.id.is_empty() {
+        Uuid::new_v4().to_string()
+    } else {
+        def.id.clone()
+    };
     let mut s = Staff::new(id, first_name, last_name, dob, def.role.clone(), attributes);
     s.nationality = nationality.to_string();
     s.team_id = team_id.map(|t| t.to_string());

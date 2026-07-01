@@ -184,8 +184,12 @@ impl MatchReport {
                     stats.shots += 1;
                     stats.shots_on_target += 1;
                     let source = match last_set_piece.take() {
-                        Some((EventType::Corner, sp_side)) if sp_side == event.side => GoalSource::Corner,
-                        Some((EventType::FreeKick, sp_side)) if sp_side == event.side => GoalSource::FreeKick,
+                        Some((EventType::Corner, sp_side)) if sp_side == event.side => {
+                            GoalSource::Corner
+                        }
+                        Some((EventType::FreeKick, sp_side)) if sp_side == event.side => {
+                            GoalSource::FreeKick
+                        }
                         _ => GoalSource::OpenPlay,
                     };
                     goals.push(GoalDetail {

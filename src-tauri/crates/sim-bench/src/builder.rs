@@ -1,4 +1,4 @@
-use engine::{PlayerData, PlayerRole, PlayStyle, Position, TacticsConfig, TeamData};
+use engine::{PlayStyle, PlayerData, PlayerRole, Position, TacticsConfig, TeamData};
 use rand::{Rng, RngExt};
 
 /// Build a synthetic team with per-attribute values centered on `avg_ovr`.
@@ -12,7 +12,15 @@ pub fn build_team(
     formation: &str,
     rng: &mut impl Rng,
 ) -> TeamData {
-    build_team_with_tactics(id, name, avg_ovr, play_style, formation, TacticsConfig::default(), rng)
+    build_team_with_tactics(
+        id,
+        name,
+        avg_ovr,
+        play_style,
+        formation,
+        TacticsConfig::default(),
+        rng,
+    )
 }
 
 pub fn build_team_with_tactics(
@@ -27,28 +35,69 @@ pub fn build_team_with_tactics(
     let (n_def, n_mid, n_fwd, used_fallback) = parse_formation(formation);
     let mut players = Vec::with_capacity(11);
 
-    players.push(make_player(id, "GK", 1, 1, Position::Goalkeeper, avg_ovr, rng));
+    players.push(make_player(
+        id,
+        "GK",
+        1,
+        1,
+        Position::Goalkeeper,
+        avg_ovr,
+        rng,
+    ));
     for i in 1..=n_def {
-        players.push(make_player(id, "DEF", i, n_def, Position::Defender, avg_ovr, rng));
+        players.push(make_player(
+            id,
+            "DEF",
+            i,
+            n_def,
+            Position::Defender,
+            avg_ovr,
+            rng,
+        ));
     }
     for i in 1..=n_mid {
-        players.push(make_player(id, "MID", i, n_mid, Position::Midfielder, avg_ovr, rng));
+        players.push(make_player(
+            id,
+            "MID",
+            i,
+            n_mid,
+            Position::Midfielder,
+            avg_ovr,
+            rng,
+        ));
     }
     for i in 1..=n_fwd {
-        players.push(make_player(id, "FWD", i, n_fwd, Position::Forward, avg_ovr, rng));
+        players.push(make_player(
+            id,
+            "FWD",
+            i,
+            n_fwd,
+            Position::Forward,
+            avg_ovr,
+            rng,
+        ));
     }
 
     TeamData {
         id: id.to_string(),
         name: name.to_string(),
-        formation: if used_fallback { "4-4-2".to_string() } else { formation.to_string() },
+        formation: if used_fallback {
+            "4-4-2".to_string()
+        } else {
+            formation.to_string()
+        },
         play_style,
         tactics,
         players,
     }
 }
 
-fn sample_role(position: Position, slot_idx: u8, total_in_position: u8, rng: &mut impl Rng) -> PlayerRole {
+fn sample_role(
+    position: Position,
+    slot_idx: u8,
+    total_in_position: u8,
+    rng: &mut impl Rng,
+) -> PlayerRole {
     match position {
         Position::Goalkeeper => {
             const ROLES: [PlayerRole; 3] = [
@@ -65,8 +114,11 @@ fn sample_role(position: Position, slot_idx: u8, total_in_position: u8, rng: &mu
             let cb_count = total_in_position - fb_count;
             if slot_idx <= cb_count {
                 // CB slots
-                const ROLES: [PlayerRole; 3] =
-                    [PlayerRole::Stopper, PlayerRole::CoverCB, PlayerRole::BallPlayingCB];
+                const ROLES: [PlayerRole; 3] = [
+                    PlayerRole::Stopper,
+                    PlayerRole::CoverCB,
+                    PlayerRole::BallPlayingCB,
+                ];
                 ROLES[rng.random_range(0usize..3)]
             } else {
                 // FB/WB slots
@@ -82,8 +134,11 @@ fn sample_role(position: Position, slot_idx: u8, total_in_position: u8, rng: &mu
         Position::Midfielder => {
             if slot_idx == 1 {
                 // Holding/DM slot
-                const ROLES: [PlayerRole; 3] =
-                    [PlayerRole::AnchorMan, PlayerRole::BallWinner, PlayerRole::DeepLyingPlaymaker];
+                const ROLES: [PlayerRole; 3] = [
+                    PlayerRole::AnchorMan,
+                    PlayerRole::BallWinner,
+                    PlayerRole::DeepLyingPlaymaker,
+                ];
                 ROLES[rng.random_range(0usize..3)]
             } else {
                 const ROLES: [PlayerRole; 5] = [

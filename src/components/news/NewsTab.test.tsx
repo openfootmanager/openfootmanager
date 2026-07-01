@@ -162,6 +162,33 @@ describe("NewsTab", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("hides future-dated articles in the gameState fallback", () => {
+    render(
+      <NewsTab
+        gameState={createGameState([
+          createNewsArticle({
+            id: "news-now",
+            headline: "Today headline",
+            date: "2026-08-01",
+          }),
+          createNewsArticle({
+            id: "news-kickoff",
+            headline: "World Cup kickoff headline",
+            date: "2026-12-01",
+          }),
+        ])}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Today headline/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /World Cup kickoff headline/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens the dedicated awards ceremony page from a season awards article", () => {
     render(
       <NewsTab

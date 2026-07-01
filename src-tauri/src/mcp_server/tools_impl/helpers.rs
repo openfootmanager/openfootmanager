@@ -24,7 +24,9 @@ pub(crate) fn user_team(game: &ofm_core::game::Game) -> Result<&domain::team::Te
 }
 
 /// Get the league, returning a formatted error if none.
-pub(crate) fn require_league(game: &ofm_core::game::Game) -> Result<&domain::league::League, String> {
+pub(crate) fn require_league(
+    game: &ofm_core::game::Game,
+) -> Result<&domain::league::League, String> {
     game.league
         .as_ref()
         .ok_or_else(|| "No league found. Season may not have started yet.".to_string())

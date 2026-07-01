@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { GameStateData, MessageData, SeasonContextData } from './types';
 import type { SessionState, UserCompetitionSummary, StandingRow } from '../services/sessionService';
+import { isNewsArticleVisible } from '../utils/newsVisibility';
 
 type FootballIdentityCarrier = {
   nationality: string;
@@ -126,7 +127,9 @@ function deriveSessionState(state: GameStateData): SessionState {
     scouting_assignments: state.scouting_assignments ?? [],
     youth_scouting_assignments: state.youth_scouting_assignments ?? [],
     active_competition_ids: state.active_competition_ids ?? [],
-    unread_news_count: (state.news ?? []).filter((a) => !a.read).length,
+    unread_news_count: (state.news ?? []).filter(
+      (a) => !a.read && isNewsArticleVisible(a.date, state.clock?.current_date),
+    ).length,
     unread_messages_count: (state.messages ?? []).filter((m) => !m.read).length,
     user_competition,
   };
@@ -214,6 +217,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
   },
+  // Lightweight patch for inbox-only mutations that return just the message
+  // slice (not the whole game). Patching messages here re-derives sessionState
+  // so the sidebar unread badge updates immediately, without round-tripping the
+  // entire world on every read/delete.
   setMessages: (messages) => {
     const { gameState } = get();
     if (!gameState) return;

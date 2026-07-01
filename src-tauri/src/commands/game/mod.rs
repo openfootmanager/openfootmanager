@@ -208,16 +208,17 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let (mut world, package_lockfile) = if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
-        let packages_dir = app_handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("packages");
-        load_world_data_from_package_ids(&packages_dir, ids)?
-    } else {
-        (load_world_data(world_source.as_deref())?, vec![])
-    };
+    let (mut world, package_lockfile) =
+        if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
+            let packages_dir = app_handle
+                .path()
+                .app_data_dir()
+                .map_err(|e| e.to_string())?
+                .join("packages");
+            load_world_data_from_package_ids(&packages_dir, ids)?
+        } else {
+            (load_world_data(world_source.as_deref())?, vec![])
+        };
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via

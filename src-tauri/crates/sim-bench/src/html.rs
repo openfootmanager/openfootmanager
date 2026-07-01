@@ -805,10 +805,28 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
             "pct",
         ),
         ("BTTS %", stats.btts_pct(), 50.0, 55.0, "pct"),
-        ("Open play goals %", stats.open_play_goal_pct(), 60.0, 75.0, "pct"),
+        (
+            "Open play goals %",
+            stats.open_play_goal_pct(),
+            60.0,
+            75.0,
+            "pct",
+        ),
         ("Corner goals %", stats.corner_goal_pct(), 10.0, 20.0, "pct"),
-        ("Free kick goals %", stats.free_kick_goal_pct(), 5.0, 15.0, "pct"),
-        ("Penalty goals %", stats.penalty_goal_pct(), 5.0, 15.0, "pct"),
+        (
+            "Free kick goals %",
+            stats.free_kick_goal_pct(),
+            5.0,
+            15.0,
+            "pct",
+        ),
+        (
+            "Penalty goals %",
+            stats.penalty_goal_pct(),
+            5.0,
+            15.0,
+            "pct",
+        ),
         ("xG/game (proxy)", xg, 0.0, 9999.0, "f64"),
     ];
 

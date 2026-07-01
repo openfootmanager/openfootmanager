@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { getSquad } from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { getStaff, type StaffSlice } from "../../services/staffService";
 import {
   Card,
@@ -62,7 +62,6 @@ export default function YouthAcademyTab({
 }: YouthAcademyTabProps) {
   const { t, i18n } = useTranslation();
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const [fetchedStaff, setFetchedStaff] = useState<StaffSlice | null>(null);
   const [selectedYouthScoutId, setSelectedYouthScoutId] = useState("");
   const [youthRegion, setYouthRegion] = useState("Domestic");
@@ -72,12 +71,21 @@ export default function YouthAcademyTab({
   const [youthSearchError, setYouthSearchError] = useState<string | null>(null);
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
 
   useEffect(() => {
     if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-    void getStaff(teamId).then(setFetchedStaff).catch(() => {});
-  }, [teamId]);
+    let cancelled = false;
+    void getStaff(teamId)
+      .then((staff) => {
+        if (!cancelled) setFetchedStaff(staff);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, clockDate]);
 
   const team = sessionState?.team ?? gameState?.teams.find((tm) => tm.id === teamId) ?? null;
   const scouts =

@@ -78,8 +78,8 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
     role: "Coach",
     attributes: {
       coaching: 70,
-      judging_ability: 50,
-      judging_potential: 55,
+      judgingAbility: 50,
+      judgingPotential: 55,
       physiotherapy: 30,
     },
     team_id: "team-1",
@@ -248,6 +248,36 @@ describe("StaffTab", () => {
       expect(invokeMock).toHaveBeenCalledWith("release_staff", { staffId: "staff-1" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
+  });
+
+  it("renders judging attribute values when backend sends camelCase keys", async () => {
+    // Regression: domain::StaffAttributes serializes as camelCase
+    // (judgingAbility / judgingPotential); the frontend used to read
+    // snake_case → values came back undefined, OVR rendered as "NaN OVR" and
+    // the AttrBar showed no number with a full-width bar. See commit 09d33244.
+    const staffCamelCase = createStaff({
+      attributes: { coaching: 63, judgingAbility: 52, judgingPotential: 71, physiotherapy: 44 },
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") {
+        return {
+          team_staff: [staffCamelCase],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      }
+      return createGameState([]);
+    });
+
+    render(<StaffTab gameState={createGameState([])} />);
+
+    const card = await screen.findByTestId("staff-card-staff-1");
+    // OVR = (63+52+71+44)/4 = 57.5 → 58
+    expect(within(card).getByText("58 OVR")).toBeInTheDocument();
+    expect(within(card).getByText("52")).toBeInTheDocument();
+    expect(within(card).getByText("71")).toBeInTheDocument();
+    expect(within(card).getByText(/judgingPotential \(71\)/)).toBeInTheDocument();
   });
 
   it("shows scout workload details and opens the scouting workflow", async () => {

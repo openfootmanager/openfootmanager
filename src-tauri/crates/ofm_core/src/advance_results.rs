@@ -17,6 +17,9 @@ pub struct AdvanceMatchResult {
     pub away_team: String,
     pub home_goals: u8,
     pub away_goals: u8,
+    /// Shootout score for a knockout decided on penalties; `None` otherwise.
+    pub home_penalties: Option<u8>,
+    pub away_penalties: Option<u8>,
     /// True when the user's club featured (for highlighting).
     pub involves_user: bool,
 }
@@ -84,9 +87,12 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
                 away_team,
                 home_goals: result.home_goals,
                 away_goals: result.away_goals,
-                involves_user: !is_wc && user_team_id.is_some_and(|team_id| {
-                    fixture.home_team_id == team_id || fixture.away_team_id == team_id
-                }),
+                home_penalties: result.home_penalties,
+                away_penalties: result.away_penalties,
+                involves_user: !is_wc
+                    && user_team_id.is_some_and(|team_id| {
+                        fixture.home_team_id == team_id || fixture.away_team_id == team_id
+                    }),
             });
         }
     }
@@ -107,6 +113,8 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
                 away_team: national_team_name(game, &fixture.away_team_id),
                 home_goals: result.home_goals,
                 away_goals: result.away_goals,
+                home_penalties: result.home_penalties,
+                away_penalties: result.away_penalties,
                 involves_user: false,
             });
         }
@@ -158,6 +166,8 @@ mod tests {
                 home_scorers: Vec::new(),
                 away_scorers: Vec::new(),
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
         }
     }
@@ -248,6 +258,8 @@ mod tests {
                 home_scorers: Vec::new(),
                 away_scorers: Vec::new(),
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             }),
         }
     }
@@ -263,10 +275,25 @@ mod tests {
         );
         let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
         game.national_teams = vec![
-            NationalTeam::new("nt-bra".to_string(), "Brazil".to_string(), "BR".to_string(), None),
-            NationalTeam::new("nt-ger".to_string(), "Germany".to_string(), "DE".to_string(), None),
+            NationalTeam::new(
+                "nt-bra".to_string(),
+                "Brazil".to_string(),
+                "BR".to_string(),
+                None,
+            ),
+            NationalTeam::new(
+                "nt-ger".to_string(),
+                "Germany".to_string(),
+                "DE".to_string(),
+                None,
+            ),
         ];
-        let mut wc = League::new("wc-2026".to_string(), "World Cup 2026".to_string(), 2026, &[]);
+        let mut wc = League::new(
+            "wc-2026".to_string(),
+            "World Cup 2026".to_string(),
+            2026,
+            &[],
+        );
         wc.kind = CompetitionType::InternationalNation;
         wc.scope = CompetitionScope::International;
         wc.fixtures = vec![
@@ -300,5 +327,23 @@ mod tests {
         let results = collect_advance_results(&game, "2026-06-20");
 
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn carries_penalty_shootout_scores() {
+        let mut game = game_with_wc();
+        let wc = &mut game.competitions[0];
+        let mut knockout = wc_fixture("ko", "2026-07-10", "nt-bra", "nt-ger", 1, 1);
+        if let Some(result) = knockout.result.as_mut() {
+            result.home_penalties = Some(4);
+            result.away_penalties = Some(2);
+        }
+        wc.fixtures = vec![knockout];
+
+        let results = collect_advance_results(&game, "2026-07-01");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].home_penalties, Some(4));
+        assert_eq!(results[0].away_penalties, Some(2));
     }
 }

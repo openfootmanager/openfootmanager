@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
 
 import { formatVal } from "../../lib/helpers";
 import { buildRegionLabel } from "../../lib/teamRegions";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { GameStateData } from "../../store/gameStore";
 import {
   fetchTeamsDirectory,
@@ -73,9 +74,7 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           name:
             league.id === UNGROUPED_LEAGUE_ID
               ? t("teams.otherClubs")
-              : league.name_key
-                ? t(league.name_key)
-                : league.name,
+              : competitionDisplayName(league, t),
           teams: league.teams,
         })),
       }))

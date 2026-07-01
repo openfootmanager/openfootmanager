@@ -262,10 +262,34 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let fkp = stats.free_kick_goal_pct();
     let pep = stats.penalty_goal_pct();
 
-    metric("  Open play %      ", op, 1, "60–75%", check(op, 60.0, 75.0));
-    metric("  Corners %        ", co, 1, "10–20%", check(co, 10.0, 20.0));
-    metric("  Free kicks %     ", fkp, 1, "5–15%", check(fkp, 5.0, 15.0));
-    metric("  Penalties %      ", pep, 1, "5–15%", check(pep, 5.0, 15.0));
+    metric(
+        "  Open play %      ",
+        op,
+        1,
+        "60–75%",
+        check(op, 60.0, 75.0),
+    );
+    metric(
+        "  Corners %        ",
+        co,
+        1,
+        "10–20%",
+        check(co, 10.0, 20.0),
+    );
+    metric(
+        "  Free kicks %     ",
+        fkp,
+        1,
+        "5–15%",
+        check(fkp, 5.0, 15.0),
+    );
+    metric(
+        "  Penalties %      ",
+        pep,
+        1,
+        "5–15%",
+        check(pep, 5.0, 15.0),
+    );
     println!();
 
     // ── Possession & passing ─────────────────────────────────────────────────

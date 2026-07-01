@@ -247,7 +247,10 @@ pub fn preview_renewal_financial_impact_internal(
         player_id, weekly_wage
     );
 
-    state.get_game(|game| ofm_core::contracts::project_renewal_financial_impact(game, player_id, weekly_wage))
+    state
+        .get_game(|game| {
+            ofm_core::contracts::project_renewal_financial_impact(game, player_id, weekly_wage)
+        })
         .ok_or("be.error.noActiveGameSession".to_string())
         .and_then(|r| r)
         .map(|projection| RenewalFinancialProjectionCommandResponse { projection })
@@ -301,7 +304,10 @@ pub fn preview_free_agent_contract_impact_internal(
         player_id, weekly_wage
     );
 
-    state.get_game(|game| ofm_core::contracts::project_free_agent_contract_impact(game, player_id, weekly_wage))
+    state
+        .get_game(|game| {
+            ofm_core::contracts::project_free_agent_contract_impact(game, player_id, weekly_wage)
+        })
         .ok_or("be.error.noActiveGameSession".to_string())
         .and_then(|r| r)
         .map(|projection| FreeAgentContractProjectionCommandResponse { projection })
@@ -314,12 +320,13 @@ pub fn set_contract_exit_intent_internal(
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] set_contract_exit_intent: player_id={}", player_id);
 
-    state.update_game(|game| {
-        ofm_core::contracts::set_contract_exit_intent(game, player_id, reason)?;
-        Ok(ContractExitIntentCommandResponse { game: game.clone() })
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::contracts::set_contract_exit_intent(game, player_id, reason)?;
+            Ok(ContractExitIntentCommandResponse { game: game.clone() })
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn clear_contract_exit_intent_internal(
@@ -328,12 +335,13 @@ pub fn clear_contract_exit_intent_internal(
 ) -> Result<ContractExitIntentCommandResponse, String> {
     info!("[cmd] clear_contract_exit_intent: player_id={}", player_id);
 
-    state.update_game(|game| {
-        ofm_core::contracts::clear_contract_exit_intent(game, player_id)?;
-        Ok(ContractExitIntentCommandResponse { game: game.clone() })
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::contracts::clear_contract_exit_intent(game, player_id)?;
+            Ok(ContractExitIntentCommandResponse { game: game.clone() })
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn preview_contract_termination_internal(
@@ -345,7 +353,8 @@ pub fn preview_contract_termination_internal(
         player_id
     );
 
-    state.get_game(|game| ofm_core::contracts::preview_contract_termination(game, player_id))
+    state
+        .get_game(|game| ofm_core::contracts::preview_contract_termination(game, player_id))
         .ok_or("be.error.noActiveGameSession".to_string())
         .and_then(|r| r)
         .map(|preview| ContractTerminationPreviewCommandResponse { preview })
@@ -357,19 +366,20 @@ pub fn terminate_contract_now_internal(
 ) -> Result<ContractTerminationCommandResponse, String> {
     info!("[cmd] terminate_contract_now: player_id={}", player_id);
 
-    state.update_game(|game| {
-        let ContractTerminationResult {
-            severance_cost,
-            squad_safety,
-        } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
-        Ok(ContractTerminationCommandResponse {
-            game: game.clone(),
-            severance_cost,
-            squad_safety,
+    state
+        .update_game(|game| {
+            let ContractTerminationResult {
+                severance_cost,
+                squad_safety,
+            } = ofm_core::contracts::terminate_contract_now(game, player_id)?;
+            Ok(ContractTerminationCommandResponse {
+                game: game.clone(),
+                severance_cost,
+                squad_safety,
+            })
         })
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[cfg(test)]

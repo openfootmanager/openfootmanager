@@ -1281,6 +1281,11 @@
     "loanMarket": "Mercato prestiti",
     "offers": "Offerte",
     "searchByName": "Cerca per nome...",
+    "affordableOnly": "Entro budget",
+    "affordableOnlyHint": "Nascondi i giocatori in lista trasferimenti il cui valore di mercato supera il tuo budget trasferimenti o il saldo del club.",
+    "allPositions": "Tutte le posizioni",
+    "refinePositionGroup": "Affina {{group}}",
+    "positionGroupPartialSelection": "{{group}}, {{selected}} di {{total}} selezionati",
     "noPlayersListed": "Non hai giocatori nella lista trasferimenti o prestiti.",
     "goToProfile": "Fai clic destro su un giocatore in Rosa o Giocatori per inserirlo tra i cedibili o prestabili.",
     "noOffers": "Nessuna offerta di trasferimento attiva al momento.",
@@ -1542,10 +1547,10 @@
       "participating": "Partecipante",
       "worldCup": "Coppa del Mondo {{year}}",
       "worldCupQualifying": "Qualificazioni Coppa del Mondo {{year}}",
-      "league": "Lega",
-      "firstDivision": "Prima Divisione",
-      "secondDivision": "Seconda Divisione",
-      "nationalCup": "Coppa Nazionale",
+      "league": "Lega di {{country}}",
+      "firstDivision": "Prima Divisione di {{country}}",
+      "secondDivision": "Seconda Divisione di {{country}}",
+      "nationalCup": "Coppa di {{country}}",
       "continentalChampionsCup": "Coppa dei Campioni Continentale"
     }
   },
@@ -3452,6 +3457,14 @@
         "bodyMultiple": "Dopo il risultato {{result}}, l'allenatore del {{team}} ha parlato con la stampa.\n\n{{quotes}}\n\nLa conferenza ha toccato il risultato, l'approccio tattico e ciò che attende la squadra.",
         "bodySingle": "L'allenatore del {{team}} ha parlato brevemente dopo il risultato {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "L'allenatore del {{team}} ha rifiutato di parlare a lungo dopo il risultato {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "La corsa a ospitare {{year}}",
+        "body": "{{count}} nazioni si sono candidate a ospitare la Coppa del Mondo {{year}}. Stadi, infrastrutture e passione calcistica peseranno sulla decisione."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} ospiterà il Mondiale {{year}}",
+        "body": "{{nation}} ha conquistato il diritto di organizzare la Coppa del Mondo {{year}}. L'intera nazione inizia il conto alla rovescia per la più grande festa del calcio."
       }
     },
     "competition": {

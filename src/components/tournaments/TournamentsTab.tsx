@@ -17,6 +17,7 @@ import {
   type CompetitionsView,
 } from "../../services/competitionsService";
 import ContextMenu from "../ContextMenu";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { Card, CardHeader, CardBody, Badge, Select } from "../ui";
 import {
   Trophy,
@@ -458,9 +459,7 @@ export default function TournamentsTab({
             </div>
             <div className="flex-1">
               <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-wide">
-                {league.name_key
-                  ? t(league.name_key, { year: league.season })
-                  : league.name}
+                {competitionDisplayName(league, t)}
               </h2>
               <p className="text-gray-400 text-sm mt-0.5">
                 {t("schedule.season", { number: league.season })} —{" "}
@@ -479,9 +478,7 @@ export default function TournamentsTab({
                     key={competition.id}
                     value={competition.id}
                   >
-                    {competition.name_key
-                      ? t(competition.name_key, { year: competition.season })
-                      : competition.name}
+                    {competitionDisplayName(competition, t)}
                   </option>
                 ))}
               </Select>
@@ -816,9 +813,7 @@ export default function TournamentsTab({
             <div className="p-5 border-b border-gray-100 dark:border-navy-600 bg-gradient-to-r from-navy-700 to-navy-800 rounded-t-xl">
               <h3 className="text-lg font-heading font-bold text-white flex items-center gap-2 uppercase tracking-wide">
                 <Trophy className="text-accent-400 w-5 h-5" />
-                {league.name_key
-                  ? t(league.name_key, { year: league.season })
-                  : league.name} —{" "}
+                {competitionDisplayName(league, t)} —{" "}
                 {t("schedule.season", { number: league.season })}
               </h3>
             </div>

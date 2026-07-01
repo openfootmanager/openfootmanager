@@ -147,36 +147,30 @@ pub fn resolve_message_action_internal(
         "[cmd] resolve_message_action: msg={}, action={}, option={:?}",
         message_id, action_id, option_id
     );
-    let (game, effect, effect_i18n_key, effect_i18n_params) = state.update_game(|game| -> Result<_, String> {
-        let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
-            let player_effect =
-                ofm_core::player_events::apply_player_response(game, message_id, action_id, opt);
-            if let Some(player_effect) = player_effect {
-                (
-                    Some(player_effect.message),
-                    Some(player_effect.i18n_key),
-                    Some(player_effect.i18n_params),
-                )
-            } else {
-                let random_effect = ofm_core::random_events::apply_event_response(
+    let (game, effect, effect_i18n_key, effect_i18n_params) = state
+        .update_game(|game| -> Result<_, String> {
+            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
+                let player_effect = ofm_core::player_events::apply_player_response(
                     game, message_id, action_id, opt,
                 );
-                if let Some(effect) = random_effect {
+                if let Some(player_effect) = player_effect {
                     (
-                        Some(effect.message),
-                        Some(effect.i18n_key),
-                        Some(effect.i18n_params),
+                        Some(player_effect.message),
+                        Some(player_effect.i18n_key),
+                        Some(player_effect.i18n_params),
                     )
                 } else {
-                    match ofm_core::job_offers::apply_job_offer_response(
+                    let random_effect = ofm_core::random_events::apply_event_response(
                         game, message_id, action_id, opt,
-                    ) {
-                        Some(effect) => (
+                    );
+                    if let Some(effect) = random_effect {
+                        (
                             Some(effect.message),
                             Some(effect.i18n_key),
                             Some(effect.i18n_params),
-                        ),
-                        None => match ofm_core::scouting::apply_youth_recruitment_response(
+                        )
+                    } else {
+                        match ofm_core::job_offers::apply_job_offer_response(
                             game, message_id, action_id, opt,
                         ) {
                             Some(effect) => (
@@ -184,24 +178,32 @@ pub fn resolve_message_action_internal(
                                 Some(effect.i18n_key),
                                 Some(effect.i18n_params),
                             ),
-                            None => return Err("be.error.unknownMessageAction".to_string()),
-                        },
+                            None => match ofm_core::scouting::apply_youth_recruitment_response(
+                                game, message_id, action_id, opt,
+                            ) {
+                                Some(effect) => (
+                                    Some(effect.message),
+                                    Some(effect.i18n_key),
+                                    Some(effect.i18n_params),
+                                ),
+                                None => return Err("be.error.unknownMessageAction".to_string()),
+                            },
+                        }
                     }
                 }
-            }
-        } else {
-            if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
-                if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
-                    action.resolved = true;
+            } else {
+                if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
+                    if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
+                        action.resolved = true;
+                    }
                 }
-            }
-            (None, None, None)
-        };
+                (None, None, None)
+            };
 
-        Ok((game.clone(), effect, effect_i18n_key, effect_i18n_params))
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)?;
+            Ok((game.clone(), effect, effect_i18n_key, effect_i18n_params))
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)?;
     Ok(serde_json::json!({
         "game": game,
         "effect": effect,

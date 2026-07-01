@@ -697,22 +697,27 @@ fn manage_international_calendar(
     if window_dates.is_empty() {
         return;
     }
+    // Qualifying spreads each window's matches across a multi-day block, so club
+    // fixtures must keep clear of the whole span rather than just the openers.
+    let leads_into_world_cup = crate::world_cup::season_leads_into_world_cup(next_start);
+    let reserved_dates = if leads_into_world_cup {
+        crate::national_team::international_window_span_dates(&window_dates)
+    } else {
+        window_dates.clone()
+    };
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
     for competition in game.competitions.iter_mut() {
-        crate::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+        crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
     crate::schedule::append_south_american_preseason_friendlies(
         &mut game.competitions,
-        &window_dates,
+        &reserved_dates,
     );
-    crate::schedule::append_other_preseason_friendlies(
-        &mut game.competitions,
-        &window_dates,
-    );
+    crate::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
 
-    if crate::world_cup::season_leads_into_world_cup(next_start) {
+    if leads_into_world_cup {
         // The windows host World Cup qualifying instead of friendlies.
         crate::world_cup::schedule_world_cup_qualifying(game, next_start.year() + 1, &window_dates);
         return;

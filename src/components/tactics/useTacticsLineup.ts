@@ -8,7 +8,8 @@ import type {
   TeamMatchRolesData,
 } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { getSquad, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import { setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -53,8 +54,10 @@ export function useTacticsLineup({
   onGameUpdate,
 }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate =
+    sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad] = useFetchedSquad(teamId, clockDate);
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -76,11 +79,6 @@ export function useTacticsLineup({
   const dragStateRef = useRef<DragState | null>(null);
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!teamId) return;
-    void getSquad(teamId).then(setFetchedSquad).catch(() => {});
-  }, [teamId]);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];

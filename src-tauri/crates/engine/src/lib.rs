@@ -11,12 +11,12 @@ pub use engine::simulate;
 pub use engine::simulate_with_rng;
 pub use event::{EventType, MatchEvent};
 pub use live_match::{
-    LiveMatchState, MatchCommand, MatchPhase, MatchSnapshot, MinuteResult,
-    PenaltyShootoutSnapshot, SetPieceTakers, SubstitutionRecord,
+    LiveMatchState, MatchCommand, MatchPhase, MatchSnapshot, MinuteResult, PenaltyShootoutSnapshot,
+    SetPieceTakers, SubstitutionRecord,
 };
 pub use report::{GoalDetail, GoalSource, MatchReport, PlayerMatchStats, TeamStats};
 pub use types::{
     BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, MarkingStyle, MatchConfig,
     PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticsBuildUpStyle,
-    TacticsConfig, TacticsPitchWidth, Tempo, TeamData, Zone,
+    TacticsConfig, TacticsPitchWidth, TeamData, Tempo, Zone,
 };

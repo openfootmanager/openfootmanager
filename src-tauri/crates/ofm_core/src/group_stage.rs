@@ -126,6 +126,63 @@ pub fn generate_group_knockout_cup_with(
     config: &GroupStageConfig,
 ) -> League {
     let competition_id = Uuid::new_v4().to_string();
+    let group_states = seed_groups(&competition_id, team_ids);
+    let groups: Vec<Vec<String>> = group_states
+        .into_iter()
+        .map(|group| group.team_ids)
+        .collect();
+    build_group_cup(
+        competition_id,
+        name,
+        season,
+        team_ids,
+        &groups,
+        start_date,
+        kind,
+        scope,
+        config,
+    )
+}
+
+/// Generate a group-and-knockout competition from an explicit group assignment
+/// (e.g. a World Cup draw), instead of snake-seeding. Each inner vector is one
+/// group's team ids, in draw order.
+pub fn generate_group_knockout_cup_with_groups(
+    name: &str,
+    season: u32,
+    groups: &[Vec<String>],
+    start_date: DateTime<Utc>,
+    kind: CompetitionType,
+    scope: CompetitionScope,
+    config: &GroupStageConfig,
+) -> League {
+    let competition_id = Uuid::new_v4().to_string();
+    let team_ids: Vec<String> = groups.iter().flatten().cloned().collect();
+    build_group_cup(
+        competition_id,
+        name,
+        season,
+        &team_ids,
+        groups,
+        start_date,
+        kind,
+        scope,
+        config,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_group_cup(
+    competition_id: String,
+    name: &str,
+    season: u32,
+    team_ids: &[String],
+    groups: &[Vec<String>],
+    start_date: DateTime<Utc>,
+    kind: CompetitionType,
+    scope: CompetitionScope,
+    config: &GroupStageConfig,
+) -> League {
     let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
     cup.kind = kind.clone();
     cup.scope = scope;
@@ -140,7 +197,19 @@ pub fn generate_group_knockout_cup_with(
         knockout_matches_per_day: config.knockout_matches_per_day,
     };
     cup.standings.clear();
-    cup.groups = seed_groups(&competition_id, team_ids);
+    cup.groups = groups
+        .iter()
+        .enumerate()
+        .map(|(index, group_team_ids)| GroupState {
+            id: format!("{competition_id}-group-{}", group_label(index)),
+            name: group_label(index),
+            team_ids: group_team_ids.clone(),
+            standings: group_team_ids
+                .iter()
+                .map(|id| StandingEntry::new(id.clone()))
+                .collect(),
+        })
+        .collect();
 
     let fixture_competition = fixture_competition_for(&kind);
     for group in &cup.groups {
@@ -366,6 +435,8 @@ mod tests {
             home_scorers: vec![],
             away_scorers: vec![],
             report: None,
+            home_penalties: None,
+            away_penalties: None,
         });
         process_completed_fixture(league, index);
     }
@@ -557,8 +628,21 @@ mod tests {
 
     #[test]
     fn regeneration_preserves_single_leg_weekly_group_schedule() {
-        let config = GroupStageConfig { legs: 1, matchday_gap_days: 7, knockout_round_gap_days: 7, ..Default::default() };
-        let mut cup = generate_group_knockout_cup_with("State Series", 2026, &clubs(8), start(), CompetitionType::Cup, CompetitionScope::Regional, &config);
+        let config = GroupStageConfig {
+            legs: 1,
+            matchday_gap_days: 7,
+            knockout_round_gap_days: 7,
+            ..Default::default()
+        };
+        let mut cup = generate_group_knockout_cup_with(
+            "State Series",
+            2026,
+            &clubs(8),
+            start(),
+            CompetitionType::Cup,
+            CompetitionScope::Regional,
+            &config,
+        );
         regenerate_for_season(&mut cup, 2027, start());
         assert_eq!(cup.rules.group_stage_legs, 1);
         assert_eq!(cup.rules.group_matchday_gap_days, 7);

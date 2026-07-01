@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   GameStateData,
   PlayerData,
@@ -37,6 +37,7 @@ import {
   filterTransferPlayers,
   getCurrentTransferList,
   getMyListedPlayers,
+  SPECIFIC_POSITIONS_BY_GROUP,
   type TransferAvailabilityFilter,
   type TransferTabView,
 } from "./TransfersTab.model";
@@ -121,7 +122,12 @@ export default function TransfersTab({
   const [availabilityFilter, setAvailabilityFilter] =
     useState<TransferAvailabilityFilter>("all");
   const [search, setSearch] = useState("");
-  const [posFilter, setPosFilter] = useState<string | null>(null);
+  const [specificPositions, setSpecificPositions] = useState<string[]>([]);
+  const [openPositionPopover, setOpenPositionPopover] = useState<string | null>(
+    null,
+  );
+  const positionFilterRef = useRef<HTMLDivElement | null>(null);
+  const [affordableOnly, setAffordableOnly] = useState(false);
   const [marketPage, setMarketPage] = useState(1);
   const [scoutingPlayerId, setScoutingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
@@ -299,15 +305,97 @@ export default function TransfersTab({
     () => getCurrentTransferList(view, transferCollections),
     [transferCollections, view],
   );
+
+  useEffect(() => {
+    if (!openPositionPopover) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!positionFilterRef.current) return;
+      if (positionFilterRef.current.contains(event.target as Node)) return;
+      setOpenPositionPopover(null);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openPositionPopover]);
+
+  const handleSelectPositionGroup = (group: string | null) => {
+    setMarketPage(1);
+
+    if (group === null) {
+      setSpecificPositions([]);
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    const groupSpecifics = SPECIFIC_POSITIONS_BY_GROUP[group] ?? [];
+
+    // No popover for single-position groups (just GK). Treat as a toggle on
+    // its lone specific so the chip can also be used to deactivate.
+    if (groupSpecifics.length <= 1) {
+      const only = groupSpecifics[0];
+      if (only) {
+        setSpecificPositions((prev) =>
+          prev.includes(only)
+            ? prev.filter((entry) => entry !== only)
+            : [...prev, only],
+        );
+      }
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    // Re-clicking the chip whose popover is open just closes the popover —
+    // the user is done refining.
+    if (openPositionPopover === group) {
+      setOpenPositionPopover(null);
+      return;
+    }
+
+    // Otherwise: union this group's specifics into the existing selection and
+    // open the refinement popover. This makes the category a "select all"
+    // shortcut without resetting earlier picks from other groups.
+    setSpecificPositions((prev) => {
+      const set = new Set(prev);
+      for (const position of groupSpecifics) set.add(position);
+      return Array.from(set);
+    });
+    setOpenPositionPopover(group);
+  };
+
+  const handleToggleSpecificPosition = (position: string) => {
+    setMarketPage(1);
+    setSpecificPositions((prev) =>
+      prev.includes(position)
+        ? prev.filter((entry) => entry !== position)
+        : [...prev, position],
+    );
+  };
+
   const filteredList = useMemo(
     () =>
       filterTransferPlayers(
         currentList,
         search,
-        posFilter,
+        null,
         isPlayersView ? availabilityFilter : "all",
+        isPlayersView && affordableOnly && myTeam
+          ? {
+              transferBudget: myTeam.transfer_budget,
+              finance: myTeam.finance,
+            }
+          : null,
+        specificPositions,
       ),
-    [availabilityFilter, currentList, isPlayersView, posFilter, search],
+    [
+      affordableOnly,
+      availabilityFilter,
+      currentList,
+      isPlayersView,
+      myTeam,
+      search,
+      specificPositions,
+    ],
   );
   const marketTotalPages = Math.max(
     1,
@@ -650,9 +738,15 @@ export default function TransfersTab({
           setMarketPage(1);
         }}
         positions={positions}
-        posFilter={posFilter}
-        onSelectPosition={(pos) => {
-          setPosFilter(pos);
+        specificPositions={specificPositions}
+        openPositionPopover={openPositionPopover}
+        positionFilterRef={positionFilterRef}
+        onSelectPositionGroup={handleSelectPositionGroup}
+        onToggleSpecificPosition={handleToggleSpecificPosition}
+        showAffordable={Boolean(myTeam)}
+        affordableOnly={affordableOnly}
+        onToggleAffordable={() => {
+          setAffordableOnly((prev) => !prev);
           setMarketPage(1);
         }}
         isPlayersView={isPlayersView}

@@ -396,6 +396,8 @@ mod tests {
                     }],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },

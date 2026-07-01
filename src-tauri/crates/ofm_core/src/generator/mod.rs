@@ -12,10 +12,11 @@ pub use competition_def::*;
 pub use definitions::*;
 pub use file_format::{load_definition_file, parse_definition_str};
 pub use package::{
-    hash_package_file, load_world_package, load_world_package_files, load_world_package_from_ofm,
-    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm, validate_package_stack,
-    validate_references, ConflictSeverity, ConfederationDef, CountryDef, PackageError, PackageInfo,
-    PackageLock, PlayerDef, StaffDef, StackConflict, WorldMetaDef, WorldPackage, MAX_ARCHIVE_BYTES,
+    ConfederationDef, ConflictSeverity, CountryDef, MAX_ARCHIVE_BYTES, PackageError, PackageInfo,
+    PackageLock, PlayerDef, StackConflict, StaffDef, WorldMetaDef, WorldPackage, hash_package_file,
+    load_world_package, load_world_package_files, load_world_package_from_ofm,
+    merge_world_packages, read_logo_from_ofm, read_package_manifest_from_ofm,
+    validate_package_stack, validate_references,
 };
 pub use world_io::*;
 
@@ -206,12 +207,7 @@ pub fn generate_youth_academy_recruit_with_nationality(
     let nationality = nationality_override
         .map(generation::canonicalize_generated_nationality)
         .unwrap_or_else(|| pick_nationality_from_def(&team.country, &country_codes, &mut rng));
-    let youth_slots: &[usize] = match target_position.map(Position::to_group_position) {
-        Some(Position::Defender) => &[8],
-        Some(Position::Midfielder) => &[15],
-        Some(Position::Forward) => &[21],
-        _ => &[8, 15, 21],
-    };
+    let youth_slots = youth_slots_for_target(target_position.map(Position::to_group_position));
     let slot_index = youth_slots[rng.random_range(0..youth_slots.len())];
     let mut player =
         generate_random_player_from_def(&team.id, slot_index, &nationality, &names_def, &mut rng);
@@ -230,12 +226,7 @@ pub fn generate_national_team_player(nationality: &str, squad_slot: usize) -> Pl
     let names_def = default_names_definition();
     let nationality = generation::canonicalize_generated_nationality(nationality);
     // Avoid the youth-reserved slots so the player generates at a senior age.
-    let slot = match squad_slot % 22 {
-        8 => 7,
-        15 => 14,
-        21 => 20,
-        other => other,
-    };
+    let slot = senior_slot(squad_slot % 22);
     let mut player =
         generate_random_player_from_def("national-pool", slot, &nationality, &names_def, &mut rng);
     player.team_id = None;
@@ -714,11 +705,27 @@ fn regions_from_package(
 /// Generate procedural filler club definitions for a given country code. Used
 /// to pad thin packages that have only one authored team. Matches the country's
 /// `NationGen` from the standard set when available; falls back to generic names.
-fn filler_club_defs(country: &str, count: usize, rng: &mut impl rand::Rng) -> Vec<definitions::TeamDef> {
+fn filler_club_defs(
+    country: &str,
+    count: usize,
+    rng: &mut impl rand::Rng,
+) -> Vec<definitions::TeamDef> {
     const GENERIC_CITIES: &[&str] = &[
-        "Northtown", "Eastford", "Westbridge", "Southport", "Riverside",
-        "Hillside", "Lakewood", "Oakdale", "Greenfield", "Pinecrest",
-        "Fairview", "Clearwater", "Springfield", "Millbrook", "Stonehaven",
+        "Northtown",
+        "Eastford",
+        "Westbridge",
+        "Southport",
+        "Riverside",
+        "Hillside",
+        "Lakewood",
+        "Oakdale",
+        "Greenfield",
+        "Pinecrest",
+        "Fairview",
+        "Clearwater",
+        "Springfield",
+        "Millbrook",
+        "Stonehaven",
     ];
     let known = clubs::STANDARD_NATIONS.iter().any(|n| n.code == country);
     let nation = clubs::STANDARD_NATIONS
@@ -769,7 +776,9 @@ fn build_fallback_competition(
         id: "ofm-fallback-league".to_string(),
         // A custom name is used verbatim; otherwise keep the localized default
         // name (driven by name_key, with `name` as the raw fallback).
-        name: custom_name.clone().unwrap_or_else(|| "Default League".to_string()),
+        name: custom_name
+            .clone()
+            .unwrap_or_else(|| "Default League".to_string()),
         r#type: domain::league::CompetitionType::League,
         scope,
         priority: 10,
@@ -861,7 +870,10 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         let mut replaced_staff_slots = vec![false; team_staff.len()];
         for sdef in authored_staff {
             let authored_member = generation::generate_staff_from_authored_def(
-                sdef, Some(&team.id), &names_def, &mut rng,
+                sdef,
+                Some(&team.id),
+                &names_def,
+                &mut rng,
             );
             // Only the original auto-generated slots are replacement candidates;
             // already-placed authored staff (appended below) are never overwritten.
@@ -884,7 +896,9 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
     }
     // Unattached authored staff (no club) go directly into the staff list.
     for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
-        staff.push(generation::generate_staff_from_authored_def(sdef, None, &names_def, &mut rng));
+        staff.push(generation::generate_staff_from_authored_def(
+            sdef, None, &names_def, &mut rng,
+        ));
     }
 
     let mut build_notices: Vec<String> = Vec::new();
@@ -921,7 +935,10 @@ pub fn build_world_data_from_package(package: &package::WorldPackage) -> WorldDa
         // for the frontend to surface; it is not persisted to the save.
         build_notices.push("be.error.notice.fallbackLeagueGenerated".to_string());
         let explicit: Vec<String> = teams.iter().map(|t| t.id.clone()).collect();
-        let cfg = package.meta.as_ref().and_then(|m| m.fallback_league.as_ref());
+        let cfg = package
+            .meta
+            .as_ref()
+            .and_then(|m| m.fallback_league.as_ref());
         let fallback = build_fallback_competition(cfg, explicit);
         Some(CompetitionDefinitionFile {
             format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
@@ -1095,7 +1112,11 @@ mod tests {
 
     #[test]
     fn fallback_competition_ignores_out_of_range_legs() {
-        let cfg = package::FallbackLeagueConfig { name: None, legs: Some(7), scope: None };
+        let cfg = package::FallbackLeagueConfig {
+            name: None,
+            legs: Some(7),
+            scope: None,
+        };
         let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string()]);
         assert_eq!(comp.format.legs, Some(2)); // 7 is meaningless → default 2
     }
@@ -1109,7 +1130,11 @@ mod tests {
             country_codes.insert(nation.code);
             region_ids.insert(nation.region_id);
         }
-        let ctx = WorldValidationContext { team_ids, country_codes, region_ids };
+        let ctx = WorldValidationContext {
+            team_ids,
+            country_codes,
+            region_ids,
+        };
 
         for scope in [
             CompetitionScope::Domestic,
@@ -1117,14 +1142,22 @@ mod tests {
             CompetitionScope::Continental,
             CompetitionScope::International,
         ] {
-            let cfg = package::FallbackLeagueConfig { name: None, legs: None, scope: Some(scope.clone()) };
-            let comp = build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
+            let cfg = package::FallbackLeagueConfig {
+                name: None,
+                legs: None,
+                scope: Some(scope.clone()),
+            };
+            let comp =
+                build_fallback_competition(Some(&cfg), vec!["a".to_string(), "b".to_string()]);
             let file = CompetitionDefinitionFile {
                 format_version: SUPPORTED_DEFINITION_FORMAT_VERSION,
                 competitions: vec![comp],
             };
             let errors = validate_definitions(&file, &ctx);
-            assert!(errors.is_empty(), "scope {scope:?} produced errors: {errors:?}");
+            assert!(
+                errors.is_empty(),
+                "scope {scope:?} produced errors: {errors:?}"
+            );
         }
     }
 
@@ -1365,6 +1398,63 @@ mod tests {
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
+    }
+
+    #[test]
+    fn test_youth_recruit_targets_goalkeeper() {
+        let team = domain::team::Team::new(
+            "team-1".to_string(),
+            "London FC".to_string(),
+            "LON".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+
+        for _ in 0..16 {
+            let player = generate_youth_academy_recruit_with_nationality(
+                &team,
+                Some(&Position::Goalkeeper),
+                None,
+            );
+            assert_eq!(
+                player.position,
+                Position::Goalkeeper,
+                "targeted youth recruit must be a goalkeeper",
+            );
+            assert!(
+                opening_player_age(&player.date_of_birth)
+                    .is_some_and(|age| age <= OPENING_YOUTH_MAX_AGE),
+                "targeted youth recruit must be youth-aged",
+            );
+        }
+    }
+
+    #[test]
+    fn test_national_team_player_remaps_youth_goalkeeper_slot() {
+        // Slot 1 is youth-reserved; the national-team generator must remap it to a
+        // senior goalkeeper slot. The remapped slot keeps the goalkeeper group while
+        // drawing from the senior age range, so over many draws the ages must reach
+        // past the youth cap (the youth-reserved slot would cap every player at it).
+        let mut saw_senior_age = false;
+        for _ in 0..64 {
+            let player = generate_national_team_player("GB", 1);
+            assert_eq!(
+                player.position,
+                Position::Goalkeeper,
+                "national-team slot 1 must produce a goalkeeper",
+            );
+            if opening_player_age(&player.date_of_birth)
+                .is_some_and(|age| age > OPENING_YOUTH_MAX_AGE)
+            {
+                saw_senior_age = true;
+            }
+        }
+        assert!(
+            saw_senior_age,
+            "national-team goalkeeper must draw from the senior age range",
+        );
     }
 
     #[test]

@@ -109,9 +109,17 @@ const CONTINENTAL_QUALIFYING_POSITIONS: u32 = 4;
 /// years so the WC opens in June). Each competition's start date is derived from
 /// its region's default season month via
 /// [`ofm_core::generator::start_date_at_game_open`].
-/// When a player picks SeasonStart, find the team's primary competition and
-/// return its actual calendar season-start date. Returns None when the
-/// competition uses the default August start (no clock adjustment needed).
+/// Days before a club's first competitive match that a Season-Start career
+/// begins, so the player gets a pre-season (with friendlies) instead of being
+/// dropped onto matchday one. Covers the four-friendly pre-season window
+/// (earliest friendly is ~28 days out).
+const PRESEASON_ANCHOR_BUFFER_DAYS: i64 = 30;
+
+/// When a player picks SeasonStart, anchor the clock a pre-season buffer before
+/// the team's first competitive fixture so they begin in pre-season. Returns
+/// `None` only when the club has no league. Northern (August) leagues resolve to
+/// a date after the July game anchor, so the caller's `actual_start < now` guard
+/// leaves them on the default start.
 pub(crate) fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<Utc>> {
     let team = game.teams.iter().find(|team| team.id == team_id)?;
     let country = if team.football_nation.is_empty() {
@@ -128,26 +136,24 @@ pub(crate) fn team_season_anchor(game: &Game, team_id: &str) -> Option<DateTime<
     let competition = game.competitions.iter().find(|c| {
         c.kind == CompetitionType::League && c.participant_ids.iter().any(|id| id == team_id)
     })?;
-    if competition.region_id.as_deref() == Some("south-america") {
-        return competition
-            .fixtures
-            .iter()
-            .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
-            .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
-            .min()
-            .and_then(|date| date.and_hms_opt(0, 0, 0))
-            .map(|date| {
-                DateTime::<Utc>::from_naive_utc_and_offset(date, Utc) - Duration::days(30)
-            });
-    }
-    let month = competition.season_start_month;
-    let day = competition.season_start_day;
-    if month == 8 && day == 1 {
-        return None; // northern-hemisphere default — no adjustment
-    }
-    let year = game.clock.start_date.year();
-    Utc.with_ymd_and_hms(year, u32::from(month), u32::from(day), 0, 0, 0)
-        .single()
+    // Anchor a pre-season buffer before the club's first competitive fixture so
+    // every calendar (South America in March, Asia in February, Oceania in
+    // October, …) starts the player in pre-season — with the generated
+    // friendlies still in the future and playable — rather than dropping them
+    // onto matchday one. Northern (August) leagues land their buffered date
+    // after the July game anchor, so the caller's guard leaves them untouched.
+    competition
+        .fixtures
+        .iter()
+        .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
+        .filter(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+        .filter_map(|fixture| chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok())
+        .min()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|date| {
+            DateTime::<Utc>::from_naive_utc_and_offset(date, Utc)
+                - Duration::days(PRESEASON_ANCHOR_BUFFER_DAYS)
+        })
 }
 
 fn build_foundation_competition_plan(
@@ -548,9 +554,21 @@ pub(crate) fn build_foundation_competitions(game: &Game) -> Vec<League> {
         .collect()
 }
 
-pub(crate) fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
+pub(crate) fn rebuild_competitions_for_management_date(
+    game: &mut Game,
+    management_date: DateTime<Utc>,
+) {
     let players = &game.players;
     for competition in &mut game.competitions {
+        // International tournaments (the World Cup and its qualifying) own a fixed
+        // calendar tied to the cup year, not the club's hemisphere. Re-anchoring
+        // them against a club's season start would corrupt their dates (and
+        // orphan a future-dated kickoff), so leave them untouched.
+        if ofm_core::world_cup::is_world_cup_competition(competition)
+            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        {
+            continue;
+        }
         let (start, is_mid_season) = ofm_core::generator::start_date_at_game_open(
             management_date,
             competition.season_start_month,
@@ -664,10 +682,12 @@ pub(crate) fn ensure_international_windows(game: &mut Game) {
         .competitions
         .iter()
         .any(ofm_core::world_cup::is_world_cup_qualifying);
+    let leads_into_world_cup =
+        ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock));
     if needs_fixtures && !qualifying_running {
         // A career starting the season before a World Cup opens with the
         // qualifying campaign; any other season opens with friendlies.
-        if ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock)) {
+        if leads_into_world_cup {
             ofm_core::world_cup::schedule_world_cup_qualifying(
                 game,
                 preseason_season_start(&game.clock).year() + 1,
@@ -682,12 +702,27 @@ pub(crate) fn ensure_international_windows(game: &mut Game) {
         }
     }
 
+    // Qualifying spreads each window's matches across a multi-day block, so club
+    // fixtures must keep clear of the whole span rather than just the openers.
+    let reserved_dates = if leads_into_world_cup || qualifying_running {
+        ofm_core::national_team::international_window_span_dates(&window_dates)
+    } else {
+        window_dates.clone()
+    };
     for competition in &mut game.competitions {
-        ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &window_dates);
+        // The World Cup and its qualifying own the reserved window — they are the
+        // reason it is reserved — so shifting them off it would move the fixtures
+        // we just scheduled there. Only club competitions step aside.
+        if ofm_core::world_cup::is_world_cup_competition(competition)
+            || ofm_core::world_cup::is_world_cup_qualifying(competition)
+        {
+            continue;
+        }
+        ofm_core::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
     ofm_core::schedule::append_south_american_preseason_friendlies(
         &mut game.competitions,
-        &window_dates,
+        &reserved_dates,
     );
-    ofm_core::schedule::append_other_preseason_friendlies(&mut game.competitions, &window_dates);
+    ofm_core::schedule::append_other_preseason_friendlies(&mut game.competitions, &reserved_dates);
 }

@@ -1262,6 +1262,11 @@
     "loanMarket": "Marché des prêts",
     "offers": "Offres",
     "searchByName": "Rechercher par nom...",
+    "affordableOnly": "Dans le budget",
+    "affordableOnlyHint": "Masquer les joueurs listés au transfert dont la valeur marchande dépasse votre budget de transfert ou le solde du club.",
+    "allPositions": "Toutes les positions",
+    "refinePositionGroup": "Affiner {{group}}",
+    "positionGroupPartialSelection": "{{group}}, {{selected}} sur {{total}} sélectionnés",
     "noPlayersListed": "Vous n'avez aucun joueur inscrit sur la liste des transferts ou des prêts.",
     "goToProfile": "Faites un clic droit sur un joueur dans Effectif ou Joueurs pour le placer sur la liste des transferts ou des prêts.",
     "noOffers": "Aucune offre de transfert active pour le moment.",
@@ -1523,10 +1528,10 @@
       "participating": "Participant",
       "worldCup": "Coupe du Monde {{year}}",
       "worldCupQualifying": "Qualifications Coupe du Monde {{year}}",
-      "league": "Ligue",
-      "firstDivision": "Première Division",
-      "secondDivision": "Deuxième Division",
-      "nationalCup": "Coupe Nationale",
+      "league": "Championnat de {{country}}",
+      "firstDivision": "Première Division de {{country}}",
+      "secondDivision": "Deuxième Division de {{country}}",
+      "nationalCup": "Coupe de {{country}}",
       "continentalChampionsCup": "Coupe Continentale des Champions"
     }
   },
@@ -3452,6 +3457,14 @@
         "bodyMultiple": "Après le résultat {{result}}, l'entraîneur de {{team}} a pris la parole face à la presse.\n\n{{quotes}}\n\nLa conférence a abordé le résultat, l'approche tactique et la suite pour l'équipe.",
         "bodySingle": "L'entraîneur de {{team}} s'est exprimé brièvement après le résultat {{result}}.\n\n\"{{quote}}\"",
         "bodyNone": "L'entraîneur de {{team}} a décliné de s'exprimer longuement après le résultat {{result}}."
+      },
+      "worldCupHostBid": {
+        "headline": "La course à l'organisation {{year}}",
+        "body": "{{count}} nations se sont portées candidates à l'organisation de la Coupe du Monde {{year}}. Stades, infrastructures et passion du football pèseront dans la décision."
+      },
+      "worldCupHostChosen": {
+        "headline": "{{nation}} accueillera la Coupe du Monde {{year}}",
+        "body": "{{nation}} a obtenu le droit d'organiser la Coupe du Monde {{year}}. Tout un pays entame le compte à rebours vers la plus grande fête du football."
       }
     },
     "competition": {

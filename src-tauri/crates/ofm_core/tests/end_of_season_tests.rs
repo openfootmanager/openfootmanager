@@ -81,6 +81,8 @@ fn make_completed_fixture(id: &str, home: &str, away: &str, hg: u8, ag: u8) -> F
             home_scorers: vec![],
             away_scorers: vec![],
             report: None,
+            home_penalties: None,
+            away_penalties: None,
         }),
         ..Default::default()
     }
@@ -952,6 +954,8 @@ fn season_not_complete_while_another_division_is_unfinished() {
         home_scorers: vec![],
         away_scorers: vec![],
         report: None,
+        home_penalties: None,
+        away_penalties: None,
     });
     assert!(is_season_complete(&game));
 }
@@ -1158,6 +1162,8 @@ fn season_not_complete_with_truncated_completed_fixture_list() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -1175,6 +1181,8 @@ fn season_not_complete_with_truncated_completed_fixture_list() {
                     home_scorers: vec![],
                     away_scorers: vec![],
                     report: None,
+                    home_penalties: None,
+                    away_penalties: None,
                 }),
                 ..Default::default()
             },
@@ -2279,6 +2287,8 @@ fn retiree_conversion_is_idempotent() {
                 home_scorers: vec![],
                 away_scorers: vec![],
                 report: None,
+                home_penalties: None,
+                away_penalties: None,
             });
         }
     }

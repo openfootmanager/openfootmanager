@@ -590,8 +590,15 @@ pub fn apply_youth_recruitment_response(
             let mut signed_player = prospect;
             signed_player.team_id = game.manager.team_id.clone();
             signed_player.squad_role = SquadRole::Youth;
+            if let Some(team_id) = signed_player.team_id.clone()
+                && let Some(team) = game.teams.iter().find(|team| team.id == team_id)
+            {
+                signed_player.jersey_number =
+                    crate::roster::resolve_jersey_for(game, &signed_player, team);
+            }
             let player_id = signed_player.id.clone();
             let player_name = signed_player.full_name.clone();
+            let signed_jersey_number = signed_player.jersey_number;
             game.players.push(signed_player);
 
             let message = &mut game.messages[message_index];
@@ -603,6 +610,7 @@ pub fn apply_youth_recruitment_response(
             {
                 updated_prospect.team_id = game.manager.team_id.clone();
                 updated_prospect.squad_role = SquadRole::Youth;
+                updated_prospect.jersey_number = signed_jersey_number;
             }
             if let Some(action) = message.actions.get_mut(action_index) {
                 action.resolved = true;
@@ -704,6 +712,7 @@ fn objective_i18n_key(objective: YouthScoutingObjective) -> &'static str {
 
 fn youth_target_position_i18n_key(position: &Position) -> &'static str {
     match position {
+        Position::Goalkeeper => "common.positions.Goalkeeper",
         Position::Defender => "common.positions.Defender",
         Position::Midfielder => "common.positions.Midfielder",
         Position::Forward => "common.positions.Forward",

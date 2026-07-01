@@ -69,16 +69,17 @@ pub fn toggle_transfer_list_internal(
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
-    state.update_game(|game| {
-        if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
-            p.transfer_listed = !p.transfer_listed;
-            Ok(game.clone())
-        } else {
-            Err("be.error.playerNotFound".into())
-        }
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
+                p.transfer_listed = !p.transfer_listed;
+                Ok(game.clone())
+            } else {
+                Err("be.error.playerNotFound".into())
+            }
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -212,14 +213,15 @@ pub fn exercise_loan_buy_option_internal(
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
-    state.update_game(|current| {
-        let mut game = current.clone();
-        ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
-        *current = game.clone();
-        Ok(game)
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
+            *current = game.clone();
+            Ok(game)
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -231,7 +233,10 @@ pub fn preview_transfer_bid_financial_impact_internal(
         "[cmd] preview_transfer_bid_financial_impact: player_id={}, fee={}",
         player_id, fee
     );
-    state.get_game(|game| ofm_core::transfers::project_transfer_bid_financial_impact(game, player_id, fee))
+    state
+        .get_game(|game| {
+            ofm_core::transfers::project_transfer_bid_financial_impact(game, player_id, fee)
+        })
         .ok_or("be.error.noActiveGameSession".to_string())
         .and_then(|r| r)
         .map(|projection| TransferBidFinancialProjectionCommandResponse { projection })
@@ -282,14 +287,15 @@ pub fn respond_to_loan_offer_internal(
         "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    state.update_game(|current| {
-        let mut game = current.clone();
-        ofm_core::transfers::respond_to_loan_offer(&mut game, player_id, offer_id, accept)?;
-        *current = game.clone();
-        Ok(game)
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|current| {
+            let mut game = current.clone();
+            ofm_core::transfers::respond_to_loan_offer(&mut game, player_id, offer_id, accept)?;
+            *current = game.clone();
+            Ok(game)
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -409,12 +415,13 @@ pub fn send_scout(
         "[cmd] send_scout: scout_id={}, player_id={}",
         scout_id, player_id
     );
-    state.update_game(|game| {
-        ofm_core::scouting::send_scout(game, &scout_id, &player_id)?;
-        Ok(game.clone())
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::scouting::send_scout(game, &scout_id, &player_id)?;
+            Ok(game.clone())
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -432,12 +439,19 @@ pub fn start_youth_scouting(
     let region = parse_youth_region(region.as_deref())?;
     let objective = parse_youth_objective(objective.as_deref())?;
     let target_position = parse_youth_target_position(target_position.as_deref())?;
-    state.update_game(|game| {
-        ofm_core::scouting::start_youth_scouting(game, &scout_id, region, objective, target_position)?;
-        Ok(game.clone())
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::scouting::start_youth_scouting(
+                game,
+                &scout_id,
+                region,
+                objective,
+                target_position,
+            )?;
+            Ok(game.clone())
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -449,12 +463,13 @@ pub fn cancel_youth_scouting(
         "[cmd] cancel_youth_scouting: assignment_id={}",
         assignment_id
     );
-    state.update_game(|game| {
-        ofm_core::scouting::cancel_youth_scouting(game, &assignment_id)?;
-        Ok(game.clone())
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::scouting::cancel_youth_scouting(game, &assignment_id)?;
+            Ok(game.clone())
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 #[tauri::command]
@@ -467,12 +482,13 @@ pub fn reassign_youth_scouting(
         "[cmd] reassign_youth_scouting: assignment_id={}, scout_id={}",
         assignment_id, scout_id
     );
-    state.update_game(|game| {
-        ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)?;
-        Ok(game.clone())
-    })
-    .ok_or("be.error.noActiveGameSession".to_string())
-    .and_then(|r| r)
+    state
+        .update_game(|game| {
+            ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)?;
+            Ok(game.clone())
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())
+        .and_then(|r| r)
 }
 
 fn parse_youth_region(value: Option<&str>) -> Result<YouthScoutingRegion, String> {
@@ -495,6 +511,7 @@ fn parse_youth_objective(value: Option<&str>) -> Result<YouthScoutingObjective, 
 fn parse_youth_target_position(value: Option<&str>) -> Result<Option<Position>, String> {
     match value {
         None | Some("") => Ok(None),
+        Some("Goalkeeper") => Ok(Some(Position::Goalkeeper)),
         Some("Defender") => Ok(Some(Position::Defender)),
         Some("Midfielder") => Ok(Some(Position::Midfielder)),
         Some("Forward") => Ok(Some(Position::Forward)),
@@ -1158,11 +1175,18 @@ mod tests {
 
     #[test]
     fn parse_youth_target_position_returns_backend_key_when_value_is_unsupported() {
-        let result = super::parse_youth_target_position(Some("Goalkeeper"));
+        let result = super::parse_youth_target_position(Some("Sweeper"));
 
         assert_eq!(
             result.unwrap_err(),
             super::INVALID_YOUTH_SCOUTING_TARGET_POSITION_ERROR
         );
+    }
+
+    #[test]
+    fn parse_youth_target_position_accepts_goalkeeper() {
+        let result = super::parse_youth_target_position(Some("Goalkeeper"));
+
+        assert_eq!(result.unwrap(), Some(Position::Goalkeeper));
     }
 }

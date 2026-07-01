@@ -35,9 +35,7 @@ enum Commands {
         r#type: String,
     },
     /// Print an annotated schema template for an entity type
-    Schema {
-        entity: EntityKind,
-    },
+    Schema { entity: EntityKind },
     /// Add a scaffolded entity file to an existing package directory
     Add {
         entity: EntityKind,
@@ -54,9 +52,7 @@ enum Commands {
         format: String,
     },
     /// Validate a package directory or .ofm archive
-    Validate {
-        path: PathBuf,
-    },
+    Validate { path: PathBuf },
     /// Pack a package directory into a .ofm archive
     Pack {
         dir: PathBuf,
@@ -65,9 +61,7 @@ enum Commands {
         output: Option<PathBuf>,
     },
     /// Show metadata from a .ofm file
-    Info {
-        file: PathBuf,
-    },
+    Info { file: PathBuf },
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -120,7 +114,13 @@ fn main() {
 fn slugify(s: &str) -> String {
     let raw: String = s
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     raw.split('-')
         .filter(|p| !p.is_empty())
@@ -495,26 +495,66 @@ fn cmd_new(name: &str, dir: Option<&Path>, author: &str, version: &str, pkg_type
     }
 
     let stubs: &[(&str, &str, Value)] = &[
-        ("teams", "teams.json", json!({"schema": "team", "items": []})),
-        ("players", "players.json", json!({"schema": "player", "items": []})),
-        ("staff", "staff.json", json!({"schema": "staff", "items": []})),
-        ("confederations", "confederations.json", json!({"schema": "confederation", "items": []})),
-        ("countries", "countries.json", json!({"schema": "country", "items": []})),
-        ("competitions", "competitions.json", json!({"schema": "competition", "items": []})),
-        ("names", "names.json", json!({"schema": "names", "items": []})),
+        (
+            "teams",
+            "teams.json",
+            json!({"schema": "team", "items": []}),
+        ),
+        (
+            "players",
+            "players.json",
+            json!({"schema": "player", "items": []}),
+        ),
+        (
+            "staff",
+            "staff.json",
+            json!({"schema": "staff", "items": []}),
+        ),
+        (
+            "confederations",
+            "confederations.json",
+            json!({"schema": "confederation", "items": []}),
+        ),
+        (
+            "countries",
+            "countries.json",
+            json!({"schema": "country", "items": []}),
+        ),
+        (
+            "competitions",
+            "competitions.json",
+            json!({"schema": "competition", "items": []}),
+        ),
+        (
+            "names",
+            "names.json",
+            json!({"schema": "names", "items": []}),
+        ),
     ];
 
     for (sub, file, content) in stubs {
         let path = pkg_dir.join(sub).join(file);
         if let Err(e) = write_json(&path, content) {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), path.display(), e);
+            eprintln!(
+                "{} Failed to write {}: {}",
+                "error:".red().bold(),
+                path.display(),
+                e
+            );
             return 1;
         }
     }
 
-    println!("{} Created package directory: {}", "✓".green().bold(), pkg_dir.display());
+    println!(
+        "{} Created package directory: {}",
+        "✓".green().bold(),
+        pkg_dir.display()
+    );
     println!("  Edit {} to fill in metadata.", "package.json".cyan());
-    println!("  Add entities with {}.", "ofm-cli add <entity> \"Name\"".cyan());
+    println!(
+        "  Add entities with {}.",
+        "ofm-cli add <entity> \"Name\"".cyan()
+    );
     println!("  Validate with {}.", "ofm-cli validate .".cyan());
     0
 }
@@ -574,17 +614,29 @@ fn cmd_add(
         }
         let target = pkg_dir.join(sub).join(target_file);
         if !target.exists() {
-            eprintln!("{} File not found: {}", "error:".red().bold(), target.display());
+            eprintln!(
+                "{} File not found: {}",
+                "error:".red().bold(),
+                target.display()
+            );
             return 1;
         }
         let raw = match std::fs::read_to_string(&target) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("{} Failed to read {}: {}", "error:".red().bold(), target.display(), e);
+                eprintln!(
+                    "{} Failed to read {}: {}",
+                    "error:".red().bold(),
+                    target.display(),
+                    e
+                );
                 return 1;
             }
         };
-        let ext = target.extension().and_then(|e| e.to_str()).unwrap_or("json");
+        let ext = target
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("json");
         let mut value: Value = if ext == "yaml" || ext == "yml" {
             match serde_yaml::from_str(&raw) {
                 Ok(v) => v,
@@ -626,10 +678,20 @@ fn cmd_add(
             write_json(&target, &value)
         };
         if let Err(e) = result {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), target.display(), e);
+            eprintln!(
+                "{} Failed to write {}: {}",
+                "error:".red().bold(),
+                target.display(),
+                e
+            );
             return 1;
         }
-        println!("{} Appended {} to {}", "✓".green().bold(), schema, target.display());
+        println!(
+            "{} Appended {} to {}",
+            "✓".green().bold(),
+            schema,
+            target.display()
+        );
     } else {
         let slug = name
             .map(slugify)
@@ -655,7 +717,11 @@ fn cmd_add(
 
         if !entity_subdir.exists() {
             if let Err(e) = std::fs::create_dir_all(&entity_subdir) {
-                eprintln!("{} Failed to create directory: {}", "error:".red().bold(), e);
+                eprintln!(
+                    "{} Failed to create directory: {}",
+                    "error:".red().bold(),
+                    e
+                );
                 return 1;
             }
         }
@@ -670,17 +736,31 @@ fn cmd_add(
             write_json(&target, &container)
         };
         if let Err(e) = result {
-            eprintln!("{} Failed to write {}: {}", "error:".red().bold(), target.display(), e);
+            eprintln!(
+                "{} Failed to write {}: {}",
+                "error:".red().bold(),
+                target.display(),
+                e
+            );
             return 1;
         }
-        println!("{} Created {} at {}", "✓".green().bold(), schema, target.display());
+        println!(
+            "{} Created {} at {}",
+            "✓".green().bold(),
+            schema,
+            target.display()
+        );
     }
     0
 }
 
 fn cmd_validate(path: &Path) -> i32 {
     if !path.exists() {
-        eprintln!("{} Path not found: {}", "error:".red().bold(), path.display());
+        eprintln!(
+            "{} Path not found: {}",
+            "error:".red().bold(),
+            path.display()
+        );
         return 1;
     }
     println!("Validating {}...", path.display());
@@ -706,8 +786,11 @@ fn cmd_validate(path: &Path) -> i32 {
     } else {
         println!("{} {} error(s):", "✗".red().bold(), errors.len());
         for err in &errors {
-            let params: Vec<String> =
-                err.params.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+            let params: Vec<String> = err
+                .params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
             let param_str = if params.is_empty() {
                 String::new()
             } else {
@@ -721,17 +804,27 @@ fn cmd_validate(path: &Path) -> i32 {
 
 fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
     if !dir.exists() {
-        eprintln!("{} Directory not found: {}", "error:".red().bold(), dir.display());
+        eprintln!(
+            "{} Directory not found: {}",
+            "error:".red().bold(),
+            dir.display()
+        );
         return 1;
     }
 
     println!("Validating {}...", dir.display());
     let (pkg, errors) = load_world_package(dir);
     if !errors.is_empty() {
-        println!("{} Validation failed — fix these errors before packing:", "✗".red().bold());
+        println!(
+            "{} Validation failed — fix these errors before packing:",
+            "✗".red().bold()
+        );
         for err in &errors {
-            let params: Vec<String> =
-                err.params.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+            let params: Vec<String> = err
+                .params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
             let param_str = if params.is_empty() {
                 String::new()
             } else {
@@ -742,11 +835,12 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
         return 1;
     }
 
-    let id = pkg
-        .meta
-        .as_ref()
-        .map(|m| m.id.clone())
-        .unwrap_or_else(|| dir.file_name().and_then(|n| n.to_str()).unwrap_or("package").to_string());
+    let id = pkg.meta.as_ref().map(|m| m.id.clone()).unwrap_or_else(|| {
+        dir.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("package")
+            .to_string()
+    });
 
     let out_path = output
         .map(PathBuf::from)
@@ -773,7 +867,11 @@ fn cmd_pack(dir: &Path, output: Option<&Path>) -> i32 {
 
 fn cmd_info(file: &Path) -> i32 {
     if !file.exists() {
-        eprintln!("{} File not found: {}", "error:".red().bold(), file.display());
+        eprintln!(
+            "{} File not found: {}",
+            "error:".red().bold(),
+            file.display()
+        );
         return 1;
     }
 
@@ -805,7 +903,10 @@ fn cmd_info(file: &Path) -> i32 {
     table.add_row(vec!["Players", &pkg.players.len().to_string()]);
     table.add_row(vec!["Competitions", &pkg.competitions.len().to_string()]);
     table.add_row(vec!["Countries", &pkg.countries.len().to_string()]);
-    table.add_row(vec!["Confederations", &pkg.confederations.len().to_string()]);
+    table.add_row(vec![
+        "Confederations",
+        &pkg.confederations.len().to_string(),
+    ]);
 
     if !errors.is_empty() {
         table.add_row(vec!["Errors", &errors.len().to_string()]);
@@ -814,7 +915,11 @@ fn cmd_info(file: &Path) -> i32 {
     println!("{}", table);
 
     if !errors.is_empty() {
-        println!("{} {} validation error(s)", "⚠".yellow().bold(), errors.len());
+        println!(
+            "{} {} validation error(s)",
+            "⚠".yellow().bold(),
+            errors.len()
+        );
         for err in &errors {
             println!("  {} {}", err.file.yellow(), err.code.red());
         }

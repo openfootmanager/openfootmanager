@@ -295,8 +295,8 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
     role: "AssistantManager" as const,
     attributes: {
       coaching: 70,
-      judging_ability: 60,
-      judging_potential: 60,
+      judgingAbility: 60,
+      judgingPotential: 60,
       physiotherapy: 20,
     },
     team_id: "team-1",

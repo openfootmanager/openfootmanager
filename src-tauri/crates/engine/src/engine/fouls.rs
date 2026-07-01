@@ -100,7 +100,12 @@ pub(super) fn maybe_card<R: Rng>(
     }
 }
 
-pub(super) fn resolve_penalty<R: Rng>(ctx: &mut MatchContext, minute: u8, att_side: Side, rng: &mut R) {
+pub(super) fn resolve_penalty<R: Rng>(
+    ctx: &mut MatchContext,
+    minute: u8,
+    att_side: Side,
+    rng: &mut R,
+) {
     let taker = snap_player(ctx, att_side, Position::Forward, rng);
     let gk = snap_player(ctx, att_side.opposite(), Position::Goalkeeper, rng);
 

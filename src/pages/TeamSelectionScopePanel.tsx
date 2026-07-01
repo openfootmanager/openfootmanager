@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { LeagueData, WorldRegionData } from "../store/gameStore";
 import { countryName } from "../lib/countries";
 import { buildRegionLabel } from "../lib/teamRegions";
+import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, Checkbox, Select } from "../components/ui";
 import { ChevronRight, Globe, Trophy } from "lucide-react";
 import {
@@ -47,8 +48,7 @@ export default function TeamSelectionScopePanel({
   onCompetitionToggle,
 }: TeamSelectionScopePanelProps) {
   const { t, i18n } = useTranslation();
-  const compName = (c: LeagueData) =>
-    c.name_key ? t(c.name_key, { year: c.season }) : c.name;
+  const compName = (c: LeagueData) => competitionDisplayName(c, t);
 
   return (
     <Card>
