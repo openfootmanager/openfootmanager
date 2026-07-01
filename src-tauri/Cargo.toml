@@ -56,6 +56,10 @@ opt-level = 3
 
 [features]
 mcp = ["dep:rmcp", "dep:axum", "dep:tower", "dep:tokio", "dep:tokio-util"]
+# Forwards to `db/save-snapshots`. Enable with `tauri dev -f save-snapshots`
+# (or via the `ofm-dev-snap` alias from shell.nix) to write a date-stamped
+# copy of each save's `.db` before every overwrite. Dev-only.
+save-snapshots = ["db/save-snapshots"]
 
 [dependencies.rmcp]
 version = "1.7"
