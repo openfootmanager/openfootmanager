@@ -1,5 +1,4 @@
 import {
-  act,
   fireEvent,
   render,
   screen,
@@ -899,7 +898,7 @@ describe("TransfersTab", function (): void {
     });
   });
 
-  it("closes the deal workspace after an accepted transfer bid settles", async function (): Promise<void> {
+  it("keeps the bid modal and deal workspace open after acceptance so the user can review the result", async function (): Promise<void> {
     const state = createGameState([
       createPlayer({
         id: "player-market-1",
@@ -959,47 +958,48 @@ describe("TransfersTab", function (): void {
       return {};
     });
 
-    try {
-      render(
-        <TransfersTab
-          gameState={state}
-          onSelectPlayer={vi.fn()}
-          onSelectTeam={vi.fn()}
-          onGameUpdate={vi.fn()}
-        />,
-      );
+    render(
+      <TransfersTab
+        gameState={state}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
 
-      fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    expect(
+      screen.getByRole("dialog", { name: /john smith/i }),
+    ).toBeInTheDocument();
+
+    await waitFor(function (): void {
       expect(
-        screen.getByRole("dialog", { name: /john smith/i }),
-      ).toBeInTheDocument();
+        screen.getByRole("button", { name: /submit bid/i }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
 
-      await waitFor(function (): void {
-        expect(
-          screen.getByRole("button", { name: /submit bid/i }),
-        ).toBeEnabled();
-      });
-      vi.useFakeTimers();
-      fireEvent.click(screen.getByRole("button", { name: /submit bid/i }));
-
-      await act(async () => {
-        await Promise.resolve();
-      });
+    await waitFor(function (): void {
       expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
         playerId: "player-market-1",
         fee: 1000000,
       });
+    });
 
-      await act(async () => {
-        vi.advanceTimersByTime(2000);
-      });
+    // Modal must stay open on acceptance so the user can read the
+    // confirmation. Any auto-close reintroduces the 2-second flicker
+    // and the double-unmount of the deal workspace parent.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(
+      screen.getByRole("dialog", { name: /john smith/i }),
+    ).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
+    await waitFor(function (): void {
       expect(
         screen.queryByRole("dialog", { name: /john smith/i }),
       ).not.toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("filters free agents in the player market and opens the contract modal", async function (): Promise<void> {
