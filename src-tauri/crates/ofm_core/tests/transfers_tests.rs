@@ -2684,3 +2684,62 @@ fn completed_transfer_news_is_not_duplicated_when_article_already_exists() {
         1
     );
 }
+
+// A transfer must succeed end-to-end even when the incoming player's jersey
+// number is already worn by someone at the buying club. Both players must
+// remain in the game and end up with distinct jerseys at the new club.
+#[test]
+fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
+    // Player being transferred (currently at the selling club, wears #6 there).
+    let mut incoming = make_player("incoming-six");
+    incoming.jersey_number = Some(6);
+    incoming.contract_end = Some("2028-06-30".to_string());
+    incoming.market_value = 1_000_000;
+
+    let mut game = make_game_with_player(incoming, vec![], 5_000_000, 2_000_000);
+
+    // An existing squad member at the buying club, also wearing #6.
+    let mut existing = make_user_player("existing-six");
+    existing.jersey_number = Some(6);
+    game.players.push(existing);
+
+    let result = make_transfer_bid(&mut game, "incoming-six", 1_500_000)
+        .expect("bid for an affordable player should be accepted");
+    assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+
+    // If the bid is registered immediately, the transfer is already complete;
+    // otherwise process the scheduled registration to finalize the move.
+    process_pending_transfer_registrations(&mut game);
+
+    let existing_after = game
+        .players
+        .iter()
+        .find(|player| player.id == "existing-six")
+        .expect("existing #6 must not be silently dropped by the transfer");
+    let incoming_after = game
+        .players
+        .iter()
+        .find(|player| player.id == "incoming-six")
+        .expect("incoming player must be present after transfer");
+
+    assert_eq!(
+        incoming_after.team_id.as_deref(),
+        Some("team-1"),
+        "incoming player must end up at the buying club"
+    );
+    assert_eq!(
+        existing_after.team_id.as_deref(),
+        Some("team-1"),
+        "existing player must stay at the buying club"
+    );
+    assert_eq!(
+        existing_after.jersey_number,
+        Some(6),
+        "existing player must keep their #6 — the resolver must not churn settled assignments"
+    );
+    assert_eq!(
+        incoming_after.jersey_number,
+        Some(1),
+        "incoming player whose #6 is taken must get the lowest free number (#1)"
+    );
+}

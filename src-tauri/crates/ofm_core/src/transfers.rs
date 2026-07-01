@@ -2449,6 +2449,12 @@ fn execute_loan(
     let parent_team_name = team_name_or_id(game, parent_team_id);
     let loan_team_name = team_name_or_id(game, loan_team_id);
 
+    let resolved_jersey_number = game
+        .teams
+        .iter()
+        .find(|team| team.id == loan_team_id)
+        .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
+
     for team in &mut game.teams {
         team.remove_player_references(player_id);
     }
@@ -2460,6 +2466,7 @@ fn execute_loan(
         .ok_or("be.error.playerNotFound")?;
 
     player.team_id = Some(loan_team_id.to_string());
+    player.jersey_number = resolved_jersey_number;
     player.transfer_listed = false;
     player.loan_listed = false;
     player.active_loan = Some(ActiveLoan {
@@ -3263,10 +3270,13 @@ pub fn process_loan_returns(game: &mut Game) {
             continue;
         }
 
-        let loan_snapshot = game
+        let player_snapshot = game
             .players
             .iter()
             .find(|player| player.id == player_id)
+            .cloned();
+        let loan_snapshot = player_snapshot
+            .as_ref()
             .and_then(|player| player.active_loan.clone());
         let movement_context = loan_snapshot.as_ref().map(|loan| {
             (
@@ -3277,6 +3287,14 @@ pub fn process_loan_returns(game: &mut Game) {
                 loan.end_date.clone(),
             )
         });
+        let resolved_jersey_number = match (&player_snapshot, &loan_snapshot) {
+            (Some(snap), Some(loan)) => game
+                .teams
+                .iter()
+                .find(|team| team.id == loan.parent_team_id)
+                .and_then(|team| crate::roster::resolve_jersey_for(game, snap, team)),
+            _ => None,
+        };
 
         for team in &mut game.teams {
             team.remove_player_references(&player_id);
@@ -3289,6 +3307,7 @@ pub fn process_loan_returns(game: &mut Game) {
             && let Some(loan) = player.active_loan.take()
         {
             player.team_id = Some(loan.parent_team_id);
+            player.jersey_number = resolved_jersey_number;
             player.loan_listed = false;
             if let Some((
                 loan_team_id,
@@ -3359,9 +3378,16 @@ fn execute_transfer(
         })
         .unwrap_or_default();
 
+    let resolved_jersey_number = game
+        .teams
+        .iter()
+        .find(|team| team.id == to_team_id)
+        .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
+
     // Move player
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
         p.team_id = Some(to_team_id.to_string());
+        p.jersey_number = resolved_jersey_number;
         p.transfer_listed = false;
         p.loan_listed = false;
         p.movement_history.push(PlayerMovementEntry {
