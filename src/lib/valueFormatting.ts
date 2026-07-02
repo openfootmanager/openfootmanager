@@ -56,10 +56,15 @@ export function calcAgeOnDate(dob: string, asOfDate: string): number {
     const birthDate = new Date(dob);
     const currentDate = new Date(asOfDate);
 
-    if (Number.isNaN(birthDate.getTime()) || Number.isNaN(currentDate.getTime())) {
+    if (Number.isNaN(birthDate.getTime())) {
         // Naive year difference, mirroring the old fallback behavior
         // (NaN in, NaN out) without re-entering calcAge.
         return new Date().getUTCFullYear() - birthDate.getUTCFullYear();
+    }
+    if (Number.isNaN(currentDate.getTime())) {
+        // Valid DOB but unusable reference date: keep the birthday-aware
+        // logic, anchored to the real-world date.
+        return calcAgeOnDate(dob, new Date().toISOString().slice(0, 10));
     }
 
     let age = currentDate.getUTCFullYear() - birthDate.getUTCFullYear();

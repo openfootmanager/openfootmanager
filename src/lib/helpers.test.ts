@@ -352,7 +352,7 @@ describe("calcAge", () => {
   // Regression: calcAge was hardcoded to `2026 - birth year`, so every
   // displayed age froze at the starting season as the game clock advanced.
   afterEach(() => {
-    useGameStore.setState({ gameState: null });
+    useGameStore.getState().clearGame();
   });
 
   it("ages players as the in-game clock advances across seasons", () => {
