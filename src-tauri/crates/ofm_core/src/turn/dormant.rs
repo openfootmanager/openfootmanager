@@ -179,7 +179,7 @@ mod tests {
                 break;
             }
             assert!(
-                result.home_penalties.is_none(),
+                result.home_penalties.is_none() && result.away_penalties.is_none(),
                 "decisive results must not carry a shootout (seed {seed})"
             );
         }

@@ -755,7 +755,7 @@ fn simulate_other_matches_settles_knockout_draws_with_shootout() {
             break;
         }
         assert!(
-            result.home_penalties.is_none(),
+            result.home_penalties.is_none() && result.away_penalties.is_none(),
             "decisive results must not carry a shootout"
         );
     }

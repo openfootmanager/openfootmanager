@@ -189,6 +189,7 @@ mod tests {
 
         let result = cup.fixtures[0].result.as_ref().unwrap();
         assert_eq!(result.home_penalties, None);
+        assert_eq!(result.away_penalties, None);
         assert!(result.advancing_is_home());
     }
 }
