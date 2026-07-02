@@ -3413,9 +3413,14 @@ fn execute_transfer(
         }
     }
 
-    // Debit buying team
+    // Debit buying team. The transfer budget is a spend pool, not a per-bid
+    // cap: consume it like the loan buy-option path does, so a club can't buy
+    // an unlimited number of players each individually within budget. The
+    // bid-time projection (project_transfer_bid_financial_impact) already
+    // models transfer_budget_after = budget - fee.
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id) {
         t.finance -= fee as i64;
+        t.transfer_budget -= fee as i64;
         // Remove from starting XI if player was there
         if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
             t.starting_xi_ids.remove(pos);

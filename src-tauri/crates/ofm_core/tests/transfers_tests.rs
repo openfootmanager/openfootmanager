@@ -317,6 +317,36 @@ fn incoming_transfer_offers_do_not_arrive_when_window_is_closed() {
     assert!(game.messages.is_empty());
 }
 
+// Regression: execute_transfer adjusted only `finance`; `transfer_budget` was
+// checked as a cap but never consumed, so a club with a 5M budget could buy an
+// unlimited number of players each individually within budget. The bid-time
+// projection already modelled transfer_budget_after = budget - fee.
+#[test]
+fn completed_transfer_consumes_the_buyers_transfer_budget() {
+    let player = make_player("player-budget-consumed");
+    let mut game = make_game_with_player(player, vec![], 10_000_000, 5_000_000);
+
+    make_transfer_bid(&mut game, "player-budget-consumed", 2_000_000)
+        .expect("open-window bid over market value should be accepted");
+
+    let buyer = game.teams.iter().find(|team| team.id == "team-1").unwrap();
+    assert_eq!(
+        buyer.transfer_budget, 3_000_000,
+        "the fee must be consumed from the transfer budget"
+    );
+    assert_eq!(buyer.finance, 8_000_000);
+    // The player actually moved (the bid was executed, not just negotiated).
+    assert_eq!(
+        game.players
+            .iter()
+            .find(|player| player.id == "player-budget-consumed")
+            .unwrap()
+            .team_id
+            .as_deref(),
+        Some("team-1")
+    );
+}
+
 #[test]
 fn accepted_closed_window_transfer_bid_is_registered_when_the_window_opens() {
     let player = make_player("player-bid-closed");
