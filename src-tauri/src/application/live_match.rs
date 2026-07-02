@@ -168,6 +168,40 @@ pub fn start_live_match(
         snapshot.home_team.players.len(),
         snapshot.away_team.players.len()
     );
+
+    // Simulate the rest of today's fixtures in this competition, exactly like
+    // the GUI match-day path does. Without this, an MCP `match_start` →
+    // `match_finish` flow advanced the clock past fixtures that were never
+    // played, stranding them Scheduled in the past. simulate_other_matches
+    // only touches Scheduled fixtures, so the session-restore path (where
+    // they are already Completed) is naturally idempotent.
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let fixture_is_today = game
+        .league
+        .as_ref()
+        .and_then(|league| league.fixtures.get(fixture_index))
+        .map(|fixture| fixture.date == today)
+        .unwrap_or(false);
+    if fixture_is_today {
+        let mut captures = Vec::new();
+        ofm_core::turn::simulate_other_matches_with_capture(
+            &mut game,
+            &today,
+            Some(fixture_index),
+            &mut |capture| captures.push(capture),
+        );
+        if let Some(league) = game.league.clone() {
+            if let Some(idx) = game.competitions.iter().position(|c| c.id == league.id) {
+                game.competitions[idx] = league;
+                game.sync_legacy_league();
+            }
+        }
+        for capture in captures {
+            state.append_stats_state(capture);
+        }
+        state.set_game(game);
+    }
+
     state.set_live_match(session);
     Ok(snapshot)
 }
