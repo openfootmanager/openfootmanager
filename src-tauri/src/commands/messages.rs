@@ -153,64 +153,67 @@ pub fn resolve_message_action_internal(
         "[cmd] resolve_message_action: msg={}, action={}, option={:?}",
         message_id, action_id, option_id
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    // Try to apply player conversation or random event response
-    let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
-        // Try player events first, then random events
-        let player_effect =
-            ofm_core::player_events::apply_player_response(&mut game, message_id, action_id, opt);
-        if let Some(player_effect) = player_effect {
-            (
-                Some(player_effect.message),
-                Some(player_effect.i18n_key),
-                Some(player_effect.i18n_params),
-            )
-        } else {
-            let random_effect = ofm_core::random_events::apply_event_response(
-                &mut game, message_id, action_id, opt,
-            );
-            if let Some(effect) = random_effect {
-                (
-                    Some(effect.message),
-                    Some(effect.i18n_key),
-                    Some(effect.i18n_params),
-                )
-            } else {
-                match ofm_core::job_offers::apply_job_offer_response(
-                    &mut game, message_id, action_id, opt,
-                ) {
-                    Some(effect) => (
-                        Some(effect.message),
-                        Some(effect.i18n_key),
-                        Some(effect.i18n_params),
-                    ),
-                    None => match ofm_core::scouting::apply_youth_recruitment_response(
-                        &mut game, message_id, action_id, opt,
-                    ) {
-                        Some(effect) => (
+    // Mutate under the game lock (update_game) so a concurrent GUI/MCP write
+    // between read and write-back is not silently discarded.
+    let (game, effect, effect_i18n_key, effect_i18n_params) = state
+        .update_game(|game| {
+            // Try to apply player conversation or random event response
+            let (effect, effect_i18n_key, effect_i18n_params) = if let Some(opt) = option_id {
+                // Try player events first, then random events
+                let player_effect = ofm_core::player_events::apply_player_response(
+                    game, message_id, action_id, opt,
+                );
+                if let Some(player_effect) = player_effect {
+                    (
+                        Some(player_effect.message),
+                        Some(player_effect.i18n_key),
+                        Some(player_effect.i18n_params),
+                    )
+                } else {
+                    let random_effect = ofm_core::random_events::apply_event_response(
+                        game, message_id, action_id, opt,
+                    );
+                    if let Some(effect) = random_effect {
+                        (
                             Some(effect.message),
                             Some(effect.i18n_key),
                             Some(effect.i18n_params),
-                        ),
-                        None => (None, None, None),
-                    },
+                        )
+                    } else {
+                        match ofm_core::job_offers::apply_job_offer_response(
+                            game, message_id, action_id, opt,
+                        ) {
+                            Some(effect) => (
+                                Some(effect.message),
+                                Some(effect.i18n_key),
+                                Some(effect.i18n_params),
+                            ),
+                            None => match ofm_core::scouting::apply_youth_recruitment_response(
+                                game, message_id, action_id, opt,
+                            ) {
+                                Some(effect) => (
+                                    Some(effect.message),
+                                    Some(effect.i18n_key),
+                                    Some(effect.i18n_params),
+                                ),
+                                None => (None, None, None),
+                            },
+                        }
+                    }
                 }
-            }
-        }
-    } else {
-        // Standard resolve — just mark action as resolved
-        if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
-            if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
-                action.resolved = true;
-            }
-        }
-        (None, None, None)
-    };
+            } else {
+                // Standard resolve — just mark action as resolved
+                if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
+                    if let Some(action) = msg.actions.iter_mut().find(|a| a.id == action_id) {
+                        action.resolved = true;
+                    }
+                }
+                (None, None, None)
+            };
+            (game.clone(), effect, effect_i18n_key, effect_i18n_params)
+        })
+        .ok_or("be.error.noActiveGameSession".to_string())?;
 
-    state.set_game(game.clone());
     Ok(serde_json::json!({
         "game": game,
         "effect": effect,
@@ -350,6 +353,58 @@ mod tests {
             .collect();
         assert_eq!(stored_ids.len(), 3);
         assert!(!stored_ids.contains(&"remove-stale"));
+    }
+
+    // Regression: resolve_message_action used to clone the game, mutate the
+    // clone, and set_game it back — so of N concurrent resolves, only the last
+    // writer's change survived. With the mutation under the game lock
+    // (update_game), every resolve must land.
+    #[test]
+    fn concurrent_resolves_are_not_lost() {
+        use std::sync::{Arc, Barrier};
+
+        const WRITERS: usize = 8;
+        let state = Arc::new(StateManager::new());
+        let mut game = make_game();
+        game.messages = (0..WRITERS)
+            .map(|index| unresolved_action_message(&format!("concurrent-{index}"), "2026-08-01"))
+            .collect();
+        state.set_game(game);
+
+        let barrier = Arc::new(Barrier::new(WRITERS));
+        let handles: Vec<_> = (0..WRITERS)
+            .map(|index| {
+                let state = Arc::clone(&state);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    resolve_message_action_internal(
+                        &state,
+                        &format!("concurrent-{index}"),
+                        &format!("action-concurrent-{index}"),
+                        None,
+                    )
+                    .expect("resolve succeeds");
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().expect("thread completes");
+        }
+
+        let resolved = state
+            .get_game(|game| {
+                game.messages
+                    .iter()
+                    .flat_map(|message| message.actions.iter())
+                    .filter(|action| action.resolved)
+                    .count()
+            })
+            .expect("game present");
+        assert_eq!(
+            resolved, WRITERS,
+            "every concurrently-resolved action must survive"
+        );
     }
 
     #[test]
