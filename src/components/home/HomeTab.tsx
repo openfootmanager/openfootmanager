@@ -123,14 +123,17 @@ export default function HomeTab({
           })
           : t("season.windowClosed");
 
-  // League position
+  // League position — sort a copy: sorting the store's array in place is a
+  // state mutation during render. Tiebreak matches the standings table
+  // (points → goal difference → goals for).
   const myStanding =
     !isPreseason && league && myTeam
-      ? league.standings
+      ? [...league.standings]
         .sort(
           (a, b) =>
             b.points - a.points ||
-            b.goals_for - b.goals_against - (a.goals_for - a.goals_against),
+            b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
+            b.goals_for - a.goals_for,
         )
         .findIndex((s) => s.team_id === myTeam.id) + 1
       : null;
@@ -147,8 +150,8 @@ export default function HomeTab({
   const schedLabel = t(`common.trainingSchedules.${schedule}`, schedule);
   const focus = myTeam?.training_focus || "Physical";
 
-  // Latest news
-  const latestNews = (gameState.news || [])
+  // Latest news — copy before sorting; gameState.news is the store's array.
+  const latestNews = [...(gameState.news || [])]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 2)
     .map(resolveNewsArticle);
