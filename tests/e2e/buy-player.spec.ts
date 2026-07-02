@@ -13,7 +13,7 @@ import { browser, $, expect } from "@wdio/globals";
 // above threshold and stays under the €842k transfer_budget.
 describe("Buy a player — e2e", () => {
     it("bids on a listed player and finds him in the squad afterwards", async function () {
-        this.timeout(0); // browser.debug() halts open-ended
+        this.timeout(120_000);
 
         await $("#root").waitForExist({ timeout: 30_000 });
 
@@ -47,27 +47,39 @@ describe("Buy a player — e2e", () => {
         await submit.waitForClickable({ timeout: 10_000 });
         await submit.click();
 
-        // 6. Wait past the acceptance flow. The bid modal auto-closes
-        //    ~2s after acceptance, then we can navigate away.
-        await browser.pause(3500);
+        // 6. Regression guard: the bid modal must NOT auto-close after
+        //    acceptance. Wait longer than any legacy auto-close timer
+        //    (was 2s), then assert the dialog is still on screen.
+        //    Rejection / counter-offer paths already leave modals open
+        //    until the user dismisses them; acceptance must behave the
+        //    same way so the user has a chance to read the outcome.
+        await browser.pause(3000);
+        const dialog = await $('[role="dialog"]');
+        await expect(dialog).toBeDisplayed();
 
-        // 7. Navigate to Squad tab.
+        // 7. Dismiss the modal explicitly, as a user would.
+        const closeButton = await $("button=Close");
+        await closeButton.waitForClickable({ timeout: 5_000 });
+        await closeButton.click();
+        await dialog.waitForExist({ reverse: true, timeout: 5_000 });
+
+        // 8. Navigate to Squad tab.
         const squadTab = await $('button[aria-label="Squad"]');
         await squadTab.waitForClickable({ timeout: 10_000 });
         await squadTab.click();
 
-        // 8. Assert Aneurin Morgan is in the squad now. XPath because
+        // 9. Assert Aneurin Morgan is in the squad now. XPath because
         //    `*=` maps to "partial link text" in wdio and the player
         //    name is rendered in a non-link element.
         const player = await $('//*[contains(text(), "Aneurin Morgan")]');
         await player.waitForExist({ timeout: 15_000 });
         await expect(player).toBeExisting();
 
-        // 9. After an incoming transfer, no two squad members should
-        //    share a jersey number. The Squad roster is a <table>
-        //    where each row's first <td> holds the jersey number (or
-        //    "—" when unset). See
-        //    src/components/squad/SquadRosterView.tsx:793-795.
+        // 10. After an incoming transfer, no two squad members should
+        //     share a jersey number. The Squad roster is a <table>
+        //     where each row's first <td> holds the jersey number (or
+        //     "—" when unset). See
+        //     src/components/squad/SquadRosterView.tsx:793-795.
         const jerseyNumbers: string[] = await browser.execute(() => {
             const rows = document.querySelectorAll("table tbody tr");
             return Array.from(rows)
@@ -81,5 +93,19 @@ describe("Buy a player — e2e", () => {
             seen.add(n);
         }
         await expect(duplicates).toEqual([]);
+
+        // 11. After an accepted transfer, the user's inbox should contain
+        //     the "Transfer Complete" message. See
+        //     src-tauri/crates/ofm_core/src/messages.rs:158 and the
+        //     i18n key be.msg.transferComplete.subject
+        //     ("Transfer Complete: {{player}}").
+        const inboxTab = await $('button[aria-label*="Inbox"]');
+        await inboxTab.waitForClickable({ timeout: 10_000 });
+        await inboxTab.click();
+        const inboxEntry = await $(
+            '//*[contains(text(), "Transfer Complete") and contains(text(), "Aneurin Morgan")]',
+        );
+        await inboxEntry.waitForExist({ timeout: 10_000 });
+        await expect(inboxEntry).toBeExisting();
     });
 });
