@@ -25,7 +25,7 @@
     "openDiscord": "Otevřít Discord",
     "openGithub": "Otevřít GitHub",
     "mainMenu": "Hlavní menu",
-    "worldEditor": "World Editor"
+    "worldEditor": "Editor světa"
   },
   "managerProfiles": {
     "saveConfirm": {
@@ -51,8 +51,8 @@
     "selectCountry": "Vybrat zemi/region...",
     "searchNationalities": "Hledat národnosti...",
     "chooseWorld": "Vybrat World",
-    "placeholderFirst": "e.g. José",
-    "placeholderLast": "e.g. Mourinho"
+    "placeholderFirst": "např. José",
+    "placeholderLast": "např. Mourinho"
   },
   "validation": {
     "required": "Pole {{field}} je povinné",
@@ -111,7 +111,7 @@
     "packageStackErrors": "Chyby v kombinaci balíčků",
     "stackConflictWarnings": "{{count}} konfliktů mezi balíčky — hra použije verzi, která je v pořadí jako poslední",
     "competitions": "{{count}} soutěží",
-    "packageAuthor": "by {{author}}",
+    "packageAuthor": "od {{author}}",
     "packageVersion": "v{{version}}"
   },
   "dashboard": {
@@ -814,7 +814,7 @@
       "Poacher": "Koncový hráč",
       "TargetMan": "Cílový hráč",
       "DeepLyingForward": "Zatažený útočník",
-      "False9": "False 9",
+      "False9": "Falešná devítka",
       "PressingForward": "Napadající útočník",
       "CompleteForward": "Komplexní útočník"
     },
@@ -1593,6 +1593,7 @@
     "renewalFeedbackTenseHeadline": "Jednání začíná být náročné.",
     "renewalFeedbackTenseDetail": "Nízká důvěra, slabá morálka nebo tlak na smlouvu nutí jejich stranu k tvrdému přístupu. Další slabá nabídka by mohla dveře definitivně zavřít.",
     "renewalFeedbackAcceptedHeadline": "Nabídka se jim líbila a jednání se posunula rychle.",
+    "renewalFeedbackAcceptedDetail": "Nabídka byla dost blízko jejich očekáváním, takže jednání zůstala konstruktivní.",
     "transferFeedbackAcceptedDetail": "Nabídka se blížila jejich představám, takže rozhovory zůstaly konstruktivní.",
     "renewalFeedbackAcceptedLateHeadline": "Nabídku přijali, ale už jim docházela trpělivost.",
     "renewalFeedbackAcceptedLateDetail": "Dohodu se vám podařilo uzavřít až po tvrdé výměně názorů. Jejich strana byla blízko k odchodu od vyjednávání.",
@@ -1715,7 +1716,8 @@
       "it": "Italština",
       "ptBR": "Portugalština (Brazílie)",
       "zhCN": "Zjednodušená čínština",
-      "ru": "Ruština"
+      "ru": "Ruština",
+      "cs": "Čeština"
     },
     "gameplay": "Hratelnost",
     "defaultMatchMode": "Výchozí režim zápasu",
@@ -3556,7 +3558,7 @@
   "date": {
     "day": "DD",
     "month": "Měsíc",
-    "year": "YYYY"
+    "year": "RRRR"
   },
   "sacked": {
     "title": "Byl jste propuštěn",
