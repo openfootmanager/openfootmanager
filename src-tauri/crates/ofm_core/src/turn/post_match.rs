@@ -114,8 +114,8 @@ pub fn apply_match_report_with_capture<F>(
         home_scorers,
         away_scorers,
         report: Some(compact_match_report(report)),
-        home_penalties: None,
-        away_penalties: None,
+        home_penalties: report.home_penalties,
+        away_penalties: report.away_penalties,
     };
     let mut counts_for_standings = false;
     let mut generates_match_news = false;

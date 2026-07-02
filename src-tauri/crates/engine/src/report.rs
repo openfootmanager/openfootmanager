@@ -102,6 +102,12 @@ pub struct MatchReport {
     pub home_possession: f64,
     /// Total simulated minutes (90 + stoppage).
     pub total_minutes: u8,
+    /// Penalty-shootout score when the match went to one; `None` otherwise.
+    /// Shootout kicks are never counted in `home_goals`/`away_goals`.
+    #[serde(default)]
+    pub home_penalties: Option<u8>,
+    #[serde(default)]
+    pub away_penalties: Option<u8>,
 }
 
 impl MatchReport {
@@ -318,6 +324,10 @@ impl MatchReport {
                 EventType::PenaltyAwarded => {
                     stats.penalties += 1;
                 }
+                // Shootout kicks are intentionally excluded from goals,
+                // GoalDetails, and player stats — the shootout is scored
+                // separately via home_penalties/away_penalties.
+                EventType::ShootoutGoal | EventType::ShootoutMiss => {}
                 _ => {}
             }
         }
@@ -346,6 +356,8 @@ impl MatchReport {
             player_stats,
             home_possession,
             total_minutes,
+            home_penalties: None,
+            away_penalties: None,
         }
     }
 }
@@ -391,5 +403,43 @@ fn populate_minutes_played(
 
     for (player_id, minutes_played) in minutes_by_player {
         player_stats.entry(player_id).or_default().minutes_played = minutes_played;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn event(minute: u8, event_type: EventType, side: Side, player: &str) -> MatchEvent {
+        MatchEvent::new(minute, event_type, side, Zone::attacking_box(side)).with_player(player)
+    }
+
+    // Regression: shootout kicks used to be counted as match goals, inflating
+    // the scoreline (1-1 won 4-3 on pens was reported as 5-4) and the
+    // scorers' goal tallies.
+    #[test]
+    fn shootout_kicks_are_not_goals() {
+        let events = vec![
+            event(20, EventType::Goal, Side::Home, "h1"),
+            event(55, EventType::PenaltyGoal, Side::Away, "a1"),
+            // Shootout after extra time
+            event(121, EventType::ShootoutGoal, Side::Home, "h1"),
+            event(121, EventType::ShootoutGoal, Side::Away, "a2"),
+            event(122, EventType::ShootoutGoal, Side::Home, "h2"),
+            event(122, EventType::ShootoutMiss, Side::Away, "a3"),
+        ];
+        let report = MatchReport::from_events(events, 50, 50, 120);
+
+        assert_eq!(report.home_goals, 1);
+        assert_eq!(report.away_goals, 1);
+        assert_eq!(report.goals.len(), 2, "GoalDetails must exclude shootout kicks");
+        assert_eq!(report.player_stats["h1"].goals, 1);
+        assert_eq!(report.player_stats["a1"].goals, 1);
+        assert!(
+            report.player_stats.get("h2").map_or(true, |p| p.goals == 0),
+            "shootout-only kicker must not be credited a goal"
+        );
+        // In-match penalties still count.
+        assert_eq!(report.goals[1].goal_source, GoalSource::Penalty);
     }
 }

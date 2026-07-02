@@ -44,7 +44,7 @@ impl LiveMatchState {
         // Now mutate penalty_state
         let scored = rng.random_range(0.0..1.0f64) < conversion;
         if scored {
-            let evt = MatchEvent::new(minute, EventType::PenaltyGoal, kicking_side, zone)
+            let evt = MatchEvent::new(minute, EventType::ShootoutGoal, kicking_side, zone)
                 .with_player(&taker.id);
             self.events.push(evt.clone());
             events.push(evt);
@@ -53,7 +53,7 @@ impl LiveMatchState {
                 Side::Away => self.penalty_state.away_scored += 1,
             }
         } else {
-            let evt = MatchEvent::new(minute, EventType::PenaltyMiss, kicking_side, zone)
+            let evt = MatchEvent::new(minute, EventType::ShootoutMiss, kicking_side, zone)
                 .with_player(&taker.id);
             self.events.push(evt.clone());
             events.push(evt);
@@ -80,9 +80,8 @@ impl LiveMatchState {
         // Check if shootout is decided
         let decided = self.check_penalty_decided();
         if decided {
-            // Add penalty goals to score
-            self.home_score += self.penalty_state.home_scored;
-            self.away_score += self.penalty_state.away_scored;
+            // The match score stays the regulation/ET score; the shootout
+            // tally lives in penalty_state and is reported separately.
             self.phase = super::MatchPhase::Finished;
 
             let evt = MatchEvent::new(minute, EventType::FullTime, Side::Home, Zone::Midfield);
