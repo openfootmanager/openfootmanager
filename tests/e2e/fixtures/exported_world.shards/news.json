@@ -1,0 +1,65 @@
+[
+  {
+    "id": "world_cup_kickoff_2026",
+    "headline": "",
+    "body": "",
+    "source": "",
+    "date": "2026-06-03",
+    "category": "Editorial",
+    "team_ids": [],
+    "player_ids": [],
+    "match_score": null,
+    "read": false,
+    "headline_key": "be.news.worldCupKickoff.headline",
+    "body_key": "be.news.worldCupKickoff.body",
+    "source_key": "be.source.footballHerald",
+    "i18n_params": {
+      "year": "2026",
+      "nations": "48"
+    }
+  },
+  {
+    "id": "managerial_change_dda1d67c-3bca-47c4-8c78-e5bd19d00886_2026-01-02",
+    "headline": "",
+    "body": "",
+    "source": "",
+    "date": "2026-01-02",
+    "category": "ManagerialChange",
+    "team_ids": [
+      "dda1d67c-3bca-47c4-8c78-e5bd19d00886"
+    ],
+    "player_ids": [],
+    "match_score": null,
+    "read": false,
+    "headline_key": "be.news.managerialChange.headline",
+    "body_key": "be.news.managerialChange.body",
+    "source_key": "be.source.leagueWire",
+    "i18n_params": {
+      "manager": "Matias Fernandez",
+      "managerId": "mgr_dda1d67c-3bca-47c4-8c78-e5bd19d00886_eab367f4-5fba-4616-bf7b-4adc33f03537",
+      "team": "Club Buenos Aires"
+    }
+  },
+  {
+    "id": "managerial_appointment_dda1d67c-3bca-47c4-8c78-e5bd19d00886_2026-01-02",
+    "headline": "",
+    "body": "",
+    "source": "",
+    "date": "2026-01-02",
+    "category": "ManagerialChange",
+    "team_ids": [
+      "dda1d67c-3bca-47c4-8c78-e5bd19d00886"
+    ],
+    "player_ids": [],
+    "match_score": null,
+    "read": false,
+    "headline_key": "be.news.managerialAppointment.headline",
+    "body_key": "be.news.managerialAppointment.body",
+    "source_key": "be.source.leagueWire",
+    "i18n_params": {
+      "managerId": "mgr_user",
+      "manager": "Testing Tester",
+      "team": "Club Buenos Aires"
+    }
+  }
+]

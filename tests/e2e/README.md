@@ -15,15 +15,21 @@ Two binaries need to be on your `PATH`:
 - **`WebKitWebDriver`** — ships with WebKitGTK. On Debian/Ubuntu install
   `libwebkit2gtk-4.1-dev` (or the equivalent for your distro).
 
-Then run `npm install` and build the Tauri dev binary once:
+Then run `npm install` and build the Tauri dev binary once, **with
+the `mcp` Cargo feature enabled**:
 
 ```
-npm run tauri -- build --debug --no-bundle
+npm run tauri -- build --debug --no-bundle --features mcp
 ```
 
-`--no-bundle` skips `.deb` / `.rpm` packaging — those need `dpkg-deb` /
-`rpmbuild` on PATH and hang on machines that don't ship them. We only
-need the raw binary at `src-tauri/target/debug/openfootmanager`.
+- `--no-bundle` skips `.deb` / `.rpm` packaging — those need `dpkg-deb`
+  / `rpmbuild` on PATH and hang on machines that don't ship them. We
+  only need the raw binary at `src-tauri/target/debug/openfootmanager`.
+- `--features mcp` compiles in the automation surface documented in
+  `docs/MCP_SERVER.md`. Specs use `--mcp-auto-start` to boot the game
+  into a known fixture state without clicking through the new-game
+  menu. Without the feature, MCP CLI flags are silently ignored and
+  the game boots to the main menu instead.
 
 Override the binary location with
 `TAURI_APP_BINARY=/path/to/binary npm run test:e2e`.
@@ -66,3 +72,7 @@ under `$XDG_DATA_HOME/com.sturdyrobot.openfootmanager/saves/` from Node
   `WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run test:e2e`, or fall back
   to `GDK_BACKEND=x11 npm run test:e2e` (requires an XWayland-capable
   session).
+- **Game boots to the main menu instead of the fixture** — the
+  binary was likely built without `--features mcp`. `--mcp-auto-start`
+  is silently ignored on non-MCP builds. Rebuild with the feature
+  (see setup step 2).

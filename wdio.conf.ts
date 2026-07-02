@@ -18,6 +18,32 @@ const APP_BINARY =
     process.env.TAURI_APP_BINARY ??
     path.resolve("./src-tauri/target/debug/openfootmanager");
 
+// CLI args passed to the app binary via tauri-driver. Uses the MCP
+// auto-start hook (`--mcp-auto-start world_path,team_id`) to bypass the
+// new-game menu entirely: the game boots straight into a hired-manager
+// dashboard on the given team.
+//
+// The manager identity and team id are pinned from the fixture — the
+// exported world contains a manager "Testing Tester" (AR) currently at
+// Club Buenos Aires. Using the same identity keeps the boot state
+// faithful to what was exported.
+const FIXTURE_WORLD_PATH = path.resolve(
+    "./tests/e2e/fixtures/baseline.json",
+);
+const FIXTURE_TEAM_ID = "dda1d67c-3bca-47c4-8c78-e5bd19d00886"; // Club Buenos Aires
+const APP_ARGS = [
+    "--mcp-port",
+    "4455",
+    "--mcp-auto-start",
+    `${FIXTURE_WORLD_PATH},${FIXTURE_TEAM_ID}`,
+    "--manager-name",
+    "Testing",
+    "--manager-last-name",
+    "Tester",
+    "--manager-nationality",
+    "AR",
+];
+
 export const config: WebdriverIO.Config = {
     runner: "local",
     tsConfigPath: "./tsconfig.node.json",
@@ -32,6 +58,7 @@ export const config: WebdriverIO.Config = {
             maxInstances: 1,
             "tauri:options": {
                 application: APP_BINARY,
+                args: APP_ARGS,
             },
         } as WebdriverIO.Capabilities,
     ],
