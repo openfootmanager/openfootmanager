@@ -493,8 +493,8 @@
       "Forward": "Forvetler"
     },
     "posAbbr": {
-      "Goalkeeper": "GK",
-      "Defender": "DEF",
+      "Goalkeeper": "KL",
+      "Defender": "SVN",
       "Midfielder": "OS",
       "Forward": "FV",
       "RightBack": "SĞB",
@@ -2847,15 +2847,15 @@
       },
       "financeCritical": {
         "subject": "ACİL: Kulüp Borçta",
-        "body": "The club is currently €{{amount}} in debt. This is an unsustainable situation.\n\nThe board demands immediate action to address the financial crisis. Consider selling players, reducing staff, or finding alternative income.\n\nFailure to resolve this may have serious consequences for your position."
+        "body": "Kulüp şu anda {{amount}} borç içinde. Bu sürdürülemez bir durum.\n\nYönetim, mali krizin çözülmesi için derhal harekete geçilmesini talep ediyor. Oyuncu satmayı, personeli azaltmayı veya alternatif gelir kaynakları bulmayı değerlendirin.\n\nBu sorunun çözülmemesi, konumunuz açısından ciddi sonuçlar doğurabilir."
       },
       "financeWarning": {
         "subject": "Finansal Uyarı — Düşük Rezervler",
-        "body": "Our financial reserves are running low. At the current burn rate (€{{weeklyWages}}/week in wages), we have approximately {{weeksLeft}} weeks of funding remaining.\n\nI'd recommend reviewing the wage bill and exploring ways to boost income."
+        "body": "Mali rezervlerimiz azalıyor. Mevcut harcama hızıyla (haftalık {{weeklyWages}} maaş gideri) yaklaşık {{weeksLeft}} haftalık kaynağımız kaldı.\n\nMaaş yükünü gözden geçirmenizi ve geliri artırmanın yollarını araştırmanızı öneririm."
       },
       "wageOverBudget": {
         "subject": "Maaş Yükü Bütçeyi Aşıyor",
-        "body": "Our annual wage bill (€{{annualWages}}) currently exceeds the allocated wage budget (€{{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
+        "body": "Yıllık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
       },
       "financeBoardPressure": {
         "subject": "Yönetim Değerlendirmesi — Finansal Baskı",
@@ -3029,7 +3029,7 @@
       },
       "sponsor": {
         "subject": "Sponsorluk Teklifi — {{sponsor}}",
-        "body": "Good news, boss! {{sponsor}} has expressed interest in becoming a sponsor of {{team}}.\n\nThey are offering a one-time payment of €{{amount}} in exchange for advertising space at the training ground.\n\nThis seems like a reasonable deal, but it is your call.",
+        "body": "İyi haber hocam! {{sponsor}}, {{team}} sponsoru olmakla ilgileniyor.\n\nAntrenman sahasındaki reklam alanı karşılığında önümüzdeki 12 hafta boyunca haftalık {{amount}} ödeme öneriyorlar.\n\nMakul bir anlaşma gibi görünüyor, ama karar sizin.",
         "options": {
           "accept": {
             "label": "Anlaşmayı kabul et",
