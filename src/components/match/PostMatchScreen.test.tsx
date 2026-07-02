@@ -548,6 +548,31 @@ describe("PostMatchScreen", function (): void {
     expect(screen.getByText(/match\.pen 5–4/)).toBeInTheDocument();
   });
 
+  it("keeps a level score without a shootout as a draw", function (): void {
+    const snapshot = {
+      ...makeSnapshot(),
+      home_score: 1,
+      away_score: 1,
+    };
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("match.draw")).toBeInTheDocument();
+    expect(screen.queryByText("match.victory")).not.toBeInTheDocument();
+    expect(screen.queryByText(/match\.pen \d/)).not.toBeInTheDocument();
+  });
+
   it("shows a defeat verdict when the user loses the shootout", function (): void {
     const snapshot = {
       ...makeSnapshot(),
