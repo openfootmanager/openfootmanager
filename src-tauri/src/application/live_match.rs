@@ -14,9 +14,18 @@ pub struct FinishLiveMatchResponse {
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
     info!("[cmd] finish_live_match");
-    let session = state
+    let mut session = state
         .take_live_match()
         .ok_or("be.error.noActiveLiveMatch")?;
+
+    // The GUI only finishes after FullTime, but MCP's match_finish can be
+    // called mid-match — persisting a partial score (or a half-taken
+    // shootout) as the final result. Run the remainder instantly so the
+    // report always describes a completed match.
+    if !session.is_finished() {
+        info!("[cmd] finish_live_match: match not finished, running to completion");
+        session.run_to_completion();
+    }
 
     let fixture_index = session.fixture_index;
     let competition_id = session.competition_id.clone();
