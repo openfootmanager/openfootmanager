@@ -31,8 +31,8 @@ export default function PlayerProfileCareerHistoryCard({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-                            {career.map((entry, index) => (
-                                <tr key={index}>
+                            {career.map((entry) => (
+                                <tr key={`${entry.team_id}-${entry.season}`}>
                                     <td
                                         className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-200 truncate"
                                         title={entry.team_name}

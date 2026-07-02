@@ -5,6 +5,7 @@ import { getAttributeColors } from "../../lib/playerAttributeDisplay";
 import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
+import PlayerProfileStatCard from "./PlayerProfileStatCard";
 
 // Deterministic placeholder bar width (20-79%) for hidden attributes, derived
 // from the attribute name. Stable across renders, unlike Math.random().
@@ -75,21 +76,18 @@ export default function PlayerProfileAttributesCard({
                 ) : isOwnClub ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
                         {attrGroups.map((group) => (
-                            <div
+                            <PlayerProfileStatCard
                                 key={group.label}
-                                className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4"
-                            >
-                                <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
-                                    <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        {group.label}
-                                    </h4>
+                                label={group.label}
+                                headerRight={
                                     <span
                                         title={averageLabel}
                                         className={`font-heading font-bold text-sm tabular-nums ${getAttributeColorClass(group.average)}`}
                                     >
                                         {group.average}
                                     </span>
-                                </div>
+                                }
+                            >
                                 <div className="grid grid-cols-[auto_1fr_1.75rem] items-center gap-x-3 gap-y-2.5">
                                     {group.attrs.map((attr) => (
                                         <Fragment key={attr.name}>
@@ -110,7 +108,7 @@ export default function PlayerProfileAttributesCard({
                                         </Fragment>
                                     ))}
                                 </div>
-                            </div>
+                            </PlayerProfileStatCard>
                         ))}
                     </div>
                 ) : (
@@ -126,18 +124,16 @@ export default function PlayerProfileAttributesCard({
                         </p>
                         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr text-left">
                             {attrGroups.map((group) => (
-                                <div
+                                <PlayerProfileStatCard
                                     key={group.label}
-                                    className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4"
-                                >
-                                    <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
-                                        <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                            {group.label}
-                                        </h4>
+                                    label={group.label}
+                                    labelClassName="text-gray-400 dark:text-gray-500"
+                                    headerRight={
                                         <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500">
                                             ??
                                         </span>
-                                    </div>
+                                    }
+                                >
                                     <div className="grid grid-cols-[auto_1fr_1.75rem] items-center gap-x-3 gap-y-2.5">
                                         {group.attrs.map((attr) => (
                                             <Fragment key={attr.name}>
@@ -156,7 +152,7 @@ export default function PlayerProfileAttributesCard({
                                             </Fragment>
                                         ))}
                                     </div>
-                                </div>
+                                </PlayerProfileStatCard>
                             ))}
                         </div>
                     </div>

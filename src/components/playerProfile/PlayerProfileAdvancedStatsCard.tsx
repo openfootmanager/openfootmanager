@@ -1,4 +1,5 @@
 import { Card, CardBody, CardHeader } from "../ui";
+import PlayerProfileStatCard from "./PlayerProfileStatCard";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 
 type TranslateFn = (key: string) => string;
@@ -58,6 +59,7 @@ function AdvancedStatCard({
     secondaryValue,
     percentile,
     percentileLabel,
+    percentileUnavailableLabel,
 }: {
     label: string;
     primaryValue: string;
@@ -65,20 +67,20 @@ function AdvancedStatCard({
     secondaryValue: string;
     percentile: number | null;
     percentileLabel: string;
+    percentileUnavailableLabel: string;
 }) {
     return (
-        <div className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4">
-            <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
-                <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {label}
-                </h4>
+        <PlayerProfileStatCard
+            label={label}
+            headerRight={
                 <span
-                    title={percentileLabel}
+                    title={percentile === null ? percentileUnavailableLabel : percentileLabel}
                     className="font-heading font-bold text-sm tabular-nums text-gray-700 dark:text-gray-200"
                 >
                     {formatOrdinal(percentile, "-")}
                 </span>
-            </div>
+            }
+        >
             <div className="mt-auto flex items-baseline justify-between gap-3">
                 <span className="font-heading font-bold text-2xl text-gray-800 dark:text-gray-100 tabular-nums">
                     {primaryValue}
@@ -92,7 +94,7 @@ function AdvancedStatCard({
                     </span>
                 </span>
             </div>
-        </div>
+        </PlayerProfileStatCard>
     );
 }
 
@@ -127,10 +129,16 @@ export default function PlayerProfileAdvancedStatsCard({
             "Pass Accuracy",
         ),
         percentile: resolveLabel(t, "playerProfile.percentile", "Percentile"),
+        percentileUnavailable: resolveLabel(
+            t,
+            "playerProfile.percentileUnavailable",
+            "Percentile unavailable",
+        ),
     };
 
     const rows = [
         {
+            id: "shots",
             label: labels.shots,
             primaryValue: String(summary.metrics.shots.total),
             secondaryLabel: labels.per90,
@@ -138,6 +146,7 @@ export default function PlayerProfileAdvancedStatsCard({
             percentile: summary.metrics.shots.percentile,
         },
         {
+            id: "shotsOnTarget",
             label: labels.shotsOnTarget,
             primaryValue: String(summary.metrics.shotsOnTarget.total),
             secondaryLabel: labels.per90,
@@ -145,6 +154,7 @@ export default function PlayerProfileAdvancedStatsCard({
             percentile: summary.metrics.shotsOnTarget.percentile,
         },
         {
+            id: "passes",
             label: labels.passes,
             primaryValue: `${summary.metrics.passes.completed} / ${summary.metrics.passes.attempted}`,
             secondaryLabel: labels.passAccuracy,
@@ -152,6 +162,7 @@ export default function PlayerProfileAdvancedStatsCard({
             percentile: summary.metrics.passes.percentile,
         },
         {
+            id: "tacklesWon",
             label: labels.tacklesWon,
             primaryValue: String(summary.metrics.tacklesWon.total),
             secondaryLabel: labels.per90,
@@ -159,6 +170,7 @@ export default function PlayerProfileAdvancedStatsCard({
             percentile: summary.metrics.tacklesWon.percentile,
         },
         {
+            id: "interceptions",
             label: labels.interceptions,
             primaryValue: String(summary.metrics.interceptions.total),
             secondaryLabel: labels.per90,
@@ -166,6 +178,7 @@ export default function PlayerProfileAdvancedStatsCard({
             percentile: summary.metrics.interceptions.percentile,
         },
         {
+            id: "foulsCommitted",
             label: labels.foulsCommitted,
             primaryValue: String(summary.metrics.foulsCommitted.total),
             secondaryLabel: labels.per90,
@@ -181,13 +194,14 @@ export default function PlayerProfileAdvancedStatsCard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
                     {rows.map((row) => (
                         <AdvancedStatCard
-                            key={row.label}
+                            key={row.id}
                             label={row.label}
                             primaryValue={row.primaryValue}
                             secondaryLabel={row.secondaryLabel}
                             secondaryValue={row.secondaryValue}
                             percentile={row.percentile}
                             percentileLabel={labels.percentile}
+                            percentileUnavailableLabel={labels.percentileUnavailable}
                         />
                     ))}
                 </div>

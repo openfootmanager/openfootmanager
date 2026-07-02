@@ -61,7 +61,7 @@ export default function PlayerProfileMovementHistoryCard({
     );
 
     return (
-        <Card className="lg:col-span-2">
+        <Card>
             <CardHeader>{t("playerProfile.movementHistory")}</CardHeader>
             <CardBody>
                 {sortedHistory.length > 0 ? (
