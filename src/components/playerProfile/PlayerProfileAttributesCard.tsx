@@ -1,9 +1,20 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Shield } from "lucide-react";
+import { getAttributeColorClass } from "./PlayerProfile.helpers";
 import { getAttributeColors } from "../../lib/playerAttributeDisplay";
 import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
+
+// Deterministic placeholder bar width (20-79%) for hidden attributes, derived
+// from the attribute name. Stable across renders, unlike Math.random().
+function placeholderWidth(name: string): number {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = (hash * 31 + name.charCodeAt(i)) % 60;
+    }
+    return hash + 20;
+}
 
 interface PlayerProfileAttributesCardProps {
     attrGroups: PlayerAttributeGroup[];
@@ -62,40 +73,42 @@ export default function PlayerProfileAttributesCard({
                 {isOwnClub && view === "radar" ? (
                     <PlayerAttributeRadarChart attrGroups={attrGroups} isGk={isGk} />
                 ) : isOwnClub ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
                         {attrGroups.map((group) => (
-                            <div key={group.label}>
-                                <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
-                                    {group.label}
-                                </h4>
-                                <div className="flex flex-col gap-2.5">
+                            <div
+                                key={group.label}
+                                className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4"
+                            >
+                                <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
+                                    <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                        {group.label}
+                                    </h4>
+                                    <span
+                                        title={averageLabel}
+                                        className={`font-heading font-bold text-sm tabular-nums ${getAttributeColorClass(group.average)}`}
+                                    >
+                                        {group.average}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-[auto_1fr_1.75rem] items-center gap-x-3 gap-y-2.5">
                                     {group.attrs.map((attr) => (
-                                        <div key={attr.name} className="flex items-center gap-3">
-                                            <span className="text-sm text-gray-600 dark:text-gray-400 w-24">
+                                        <Fragment key={attr.name}>
+                                            <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
                                                 {attr.name}
                                             </span>
                                             <ProgressBar
                                                 value={attr.value}
                                                 variant={getAttributeColors(attr.value).barVariant}
                                                 size="sm"
-                                                className="flex-1"
+                                                className="min-w-0"
                                             />
                                             <span
-                                                className={`font-heading font-bold text-sm w-8 text-right tabular-nums ${getAttributeColors(attr.value).textClass}`}
+                                                className={`font-heading font-bold text-xs text-right tabular-nums ${getAttributeColorClass(attr.value)}`}
                                             >
                                                 {attr.value}
                                             </span>
-                                        </div>
+                                        </Fragment>
                                     ))}
-                                    <div className="pt-1 border-t border-gray-100 dark:border-navy-600 flex items-center gap-3">
-                                        <span className="text-sm text-gray-500 dark:text-gray-400 w-24 font-semibold">
-                                            {averageLabel}
-                                        </span>
-                                        <span className="flex-1" />
-                                        <span className="font-heading font-bold text-sm w-8 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                                            {group.average}
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -111,28 +124,38 @@ export default function PlayerProfileAttributesCard({
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs mx-auto">
                             {hiddenBody}
                         </p>
-                        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr text-left">
                             {attrGroups.map((group) => (
-                                <div key={group.label}>
-                                    <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
-                                        {group.label}
-                                    </h4>
-                                    {group.attrs.map((attr) => (
-                                        <div key={attr.name} className="flex items-center gap-3 mb-1.5">
-                                            <span className="text-xs text-gray-400 dark:text-gray-500 w-24">
-                                                {attr.name}
-                                            </span>
-                                            <div className="flex-1 h-2 bg-gray-200 dark:bg-navy-600 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gray-300 dark:bg-navy-500 rounded-full"
-                                                    style={{ width: `${Math.random() * 60 + 20}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-xs text-gray-400 dark:text-gray-500 w-6 text-right">
-                                                ??
-                                            </span>
-                                        </div>
-                                    ))}
+                                <div
+                                    key={group.label}
+                                    className="flex flex-col rounded-lg border border-gray-100 dark:border-navy-600 bg-gray-50/60 dark:bg-navy-800/40 p-4"
+                                >
+                                    <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100 dark:border-navy-600">
+                                        <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                            {group.label}
+                                        </h4>
+                                        <span className="font-heading font-bold text-sm text-gray-400 dark:text-gray-500">
+                                            ??
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-[auto_1fr_1.75rem] items-center gap-x-3 gap-y-2.5">
+                                        {group.attrs.map((attr) => (
+                                            <Fragment key={attr.name}>
+                                                <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                                                    {attr.name}
+                                                </span>
+                                                <div className="min-w-0 h-1.5 bg-gray-200 dark:bg-navy-600 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gray-300 dark:bg-navy-500 rounded-full"
+                                                        style={{ width: `${placeholderWidth(attr.name)}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-gray-400 dark:text-gray-500 text-right">
+                                                    ??
+                                                </span>
+                                            </Fragment>
+                                        ))}
+                                    </div>
                                 </div>
                             ))}
                         </div>
