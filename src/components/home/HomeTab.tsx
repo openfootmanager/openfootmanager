@@ -126,7 +126,7 @@ export default function HomeTab({
   // League position — sort a copy: sorting the store's array in place is a
   // state mutation during render. Tiebreak matches the standings table
   // (points → goal difference → goals for).
-  const myStanding =
+  const myStandingIndex =
     !isPreseason && league && myTeam
       ? [...league.standings]
         .sort(
@@ -135,8 +135,9 @@ export default function HomeTab({
             b.goals_for - b.goals_against - (a.goals_for - a.goals_against) ||
             b.goals_for - a.goals_for,
         )
-        .findIndex((s) => s.team_id === myTeam.id) + 1
-      : null;
+        .findIndex((s) => s.team_id === myTeam.id)
+      : -1;
+  const myStanding = myStandingIndex >= 0 ? myStandingIndex + 1 : null;
   const myStandingData =
     !isPreseason && league && myTeam
       ? (league.standings.find((s) => s.team_id === myTeam.id) ?? null)
