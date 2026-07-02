@@ -106,24 +106,37 @@ pub fn skip_to_match_day_internal(
     state: &StateManager,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] skip_to_match_day");
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
-
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
-    let user_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned")?;
     // Clock date before any processing — every match dated on/after this was
     // played during the skip, which is what the results recap shows.
-    let start_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let (user_team_id, start_date) = state
+        .get_game(|g| {
+            (
+                g.manager.team_id.clone(),
+                g.clock.current_date.format("%Y-%m-%d").to_string(),
+            )
+        })
+        .ok_or("be.error.noActiveGameSession")?;
+    let user_team_id = user_team_id.ok_or("be.error.noTeamAssigned")?;
     info!(
         "[cmd] skip_to_match_day: start_date={}, user_team_id={}",
         start_date, user_team_id
     );
+
+    // One day per update_game call: each day is processed and persisted
+    // atomically under the game lock, so concurrent GUI/MCP writes between
+    // days are seen by the next iteration instead of being clobbered by a
+    // single stale whole-loop clone — while never holding the lock for the
+    // entire (up to 60-day) skip.
+    enum Step {
+        /// Stop before processing: it's the user's match day.
+        MatchDay,
+        /// The skip ends here with this response (fired / blocked).
+        Terminal(serde_json::Value),
+        /// Quiet day processed; keep skipping.
+        Advanced,
+    }
 
     let mut days_skipped = 0u32;
     loop {
@@ -131,74 +144,87 @@ pub fn skip_to_match_day_internal(
             break;
         }
 
-        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-        // Stop on the user's match day so it can be played interactively rather
-        // than auto-simulated. Detect it across the user's competitions (the
-        // source of truth) — not the legacy `league` mirror, which misses cups.
-        if game.user_has_scheduled_match_on(&today) {
-            info!(
-                "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
-                today, days_skipped
-            );
-            break;
-        }
-
         let mut captures = Vec::new();
-        ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
-            captures.push(capture);
-        });
+        let step = state
+            .update_game(|game| {
+                let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+                // Stop on the user's match day so it can be played interactively
+                // rather than auto-simulated. Detect it across the user's
+                // competitions (the source of truth) — not the legacy `league`
+                // mirror, which misses cups.
+                if game.user_has_scheduled_match_on(&today) {
+                    info!(
+                        "[cmd] skip_to_match_day: found match_day={}, days_skipped={}",
+                        today, days_skipped
+                    );
+                    return Step::MatchDay;
+                }
+
+                ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                    captures.push(capture);
+                });
+
+                // Detect a firing that happened *during* this skip. Because the
+                // function errors out above when the manager starts unemployed,
+                // seeing `team_id.is_none()` here can only mean a real
+                // employed → unemployed transition.
+                if game.manager.team_id.is_none() {
+                    info!(
+                        "[cmd] skip_to_match_day: manager fired after {} days",
+                        days_skipped + 1
+                    );
+                    let results = collect_advance_results(game, &start_date);
+                    return Step::Terminal(serde_json::json!({
+                        "action": "fired",
+                        "game": game.clone(),
+                        "days_skipped": days_skipped + 1,
+                        "results": results
+                    }));
+                }
+
+                // After processing, check if blocking actions arose
+                let blockers = compute_blocking_actions(game);
+                if !blockers.is_empty() {
+                    info!(
+                        "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
+                        days_skipped + 1,
+                        game.clock.current_date.format("%Y-%m-%d"),
+                        blockers.len()
+                    );
+                    let results = collect_advance_results(game, &start_date);
+                    return Step::Terminal(serde_json::json!({
+                        "action": "blocked",
+                        "game": game.clone(),
+                        "blockers": blockers,
+                        "days_skipped": days_skipped + 1,
+                        "results": results
+                    }));
+                }
+
+                Step::Advanced
+            })
+            .ok_or("be.error.noActiveGameSession")?;
         for capture in captures {
             state.append_stats_state(capture);
         }
-        days_skipped += 1;
 
-        // Detect a firing that happened *during* this skip. Because the function
-        // errors out above when the manager starts unemployed, seeing `team_id.is_none()`
-        // here can only mean a real employed → unemployed transition.
-        if game.manager.team_id.is_none() {
-            info!(
-                "[cmd] skip_to_match_day: manager fired after {} days",
-                days_skipped
-            );
-            let results = collect_advance_results(&game, &start_date);
-            state.set_game(game.clone());
-            return Ok(serde_json::json!({
-                "action": "fired",
-                "game": game,
-                "days_skipped": days_skipped,
-                "results": results
-            }));
-        }
-
-        // After processing, check if blocking actions arose
-        let blockers = compute_blocking_actions(&game);
-        if !blockers.is_empty() {
-            info!(
-                "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
-                days_skipped,
-                game.clock.current_date.format("%Y-%m-%d"),
-                blockers.len()
-            );
-            let results = collect_advance_results(&game, &start_date);
-            state.set_game(game.clone());
-            return Ok(serde_json::json!({
-                "action": "blocked",
-                "game": game,
-                "blockers": blockers,
-                "days_skipped": days_skipped,
-                "results": results
-            }));
+        match step {
+            Step::MatchDay => break,
+            Step::Terminal(response) => return Ok(response),
+            Step::Advanced => days_skipped += 1,
         }
     }
 
+    let game = state
+        .get_game(|g| g.clone())
+        .ok_or("be.error.noActiveGameSession")?;
     info!(
         "[cmd] skip_to_match_day: arrived_after_days={}, final_date={}",
         days_skipped,
         game.clock.current_date.format("%Y-%m-%d")
     );
     let results = collect_advance_results(&game, &start_date);
-    state.set_game(game.clone());
     Ok(serde_json::json!({
         "action": "arrived",
         "game": game,
@@ -219,72 +245,74 @@ pub fn skip_to_match_day_internal(
 pub fn advance_one_day_internal(
     state: &StateManager,
 ) -> Result<serde_json::Value, String> {
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
-
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    info!("[cmd] advance_one_day: date={}", today);
-
-    if game.user_has_scheduled_match_on(&today) {
-        info!("[cmd] advance_one_day: match_day={}", today);
-        return Ok(serde_json::json!({
-            "action": "match_day",
-            "game": game,
-            "date": today,
-            "results": []
-        }));
-    }
-
-    let blockers = compute_blocking_actions(&game);
-    if !blockers.is_empty() {
-        info!(
-            "[cmd] advance_one_day: blocked date={} count={}",
-            today,
-            blockers.len()
-        );
-        return Ok(serde_json::json!({
-            "action": "blocked",
-            "game": game,
-            "date": today,
-            "blockers": blockers,
-            "results": []
-        }));
-    }
-
+    // The whole check-process-respond sequence runs under the game lock
+    // (update_game) so a concurrent GUI/MCP write is never clobbered by a
+    // stale clone written back afterwards.
     let mut captures = Vec::new();
-    ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
-        captures.push(capture);
-    });
+    let response = state
+        .update_game(|game| {
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            info!("[cmd] advance_one_day: date={}", today);
+
+            if game.user_has_scheduled_match_on(&today) {
+                info!("[cmd] advance_one_day: match_day={}", today);
+                return serde_json::json!({
+                    "action": "match_day",
+                    "game": game.clone(),
+                    "date": today,
+                    "results": []
+                });
+            }
+
+            let blockers = compute_blocking_actions(game);
+            if !blockers.is_empty() {
+                info!(
+                    "[cmd] advance_one_day: blocked date={} count={}",
+                    today,
+                    blockers.len()
+                );
+                return serde_json::json!({
+                    "action": "blocked",
+                    "game": game.clone(),
+                    "date": today,
+                    "blockers": blockers,
+                    "results": []
+                });
+            }
+
+            ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                captures.push(capture);
+            });
+
+            if game.manager.team_id.is_none() {
+                info!("[cmd] advance_one_day: manager fired on date={}", today);
+                let results = collect_advance_results(game, &today);
+                return serde_json::json!({
+                    "action": "fired",
+                    "game": game.clone(),
+                    "date": today,
+                    "results": results
+                });
+            }
+
+            let results = collect_advance_results(game, &today);
+            info!(
+                "[cmd] advance_one_day: advanced from={} to={}",
+                today,
+                game.clock.current_date.format("%Y-%m-%d")
+            );
+            serde_json::json!({
+                "action": "advanced",
+                "game": game.clone(),
+                "date": today,
+                "results": results
+            })
+        })
+        .ok_or("be.error.noActiveGameSession")?;
     for capture in captures {
         state.append_stats_state(capture);
     }
-
-    if game.manager.team_id.is_none() {
-        info!("[cmd] advance_one_day: manager fired on date={}", today);
-        let results = collect_advance_results(&game, &today);
-        state.set_game(game.clone());
-        return Ok(serde_json::json!({
-            "action": "fired",
-            "game": game,
-            "date": today,
-            "results": results
-        }));
-    }
-
-    let results = collect_advance_results(&game, &today);
-    state.set_game(game.clone());
-    info!(
-        "[cmd] advance_one_day: advanced from={} to={}",
-        today,
-        game.clock.current_date.format("%Y-%m-%d")
-    );
-    Ok(serde_json::json!({
-        "action": "advanced",
-        "game": game,
-        "date": today,
-        "results": results
-    }))
+    Ok(response)
 }
 
 #[tauri::command]
@@ -334,18 +362,29 @@ pub fn advance_to_next_event_internal(
     state: &StateManager,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] advance_to_next_event");
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession")?;
-
     // Require an employed manager at entry so a later `team_id.is_none()` in the
     // loop is a genuine firing transition.
-    let _user_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or("be.error.noTeamAssigned")?;
-    let start_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let (user_team_id, start_date) = state
+        .get_game(|g| {
+            (
+                g.manager.team_id.clone(),
+                g.clock.current_date.format("%Y-%m-%d").to_string(),
+            )
+        })
+        .ok_or("be.error.noActiveGameSession")?;
+    let _user_team_id = user_team_id.ok_or("be.error.noTeamAssigned")?;
+
+    // Per-day atomic steps under the game lock — see skip_to_match_day for why.
+    enum Step {
+        /// Stop before processing: it's the user's match day.
+        MatchDay,
+        /// The skip ends here with this response (fired / blocked).
+        Terminal(serde_json::Value),
+        /// Day processed and it produced an attention event: stop after it.
+        AdvancedThenStop,
+        /// Quiet day processed; keep going.
+        Advanced,
+    }
 
     let mut days_skipped = 0u32;
     loop {
@@ -353,68 +392,83 @@ pub fn advance_to_next_event_internal(
             break;
         }
 
-        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-
-        // Stop *on* the user's match day so it can be played interactively
-        // rather than auto-simulated — detected across the user's competitions.
-        if game.user_has_scheduled_match_on(&today) {
-            break;
-        }
-
-        let high_priority_before = count_high_priority_messages(&game);
-
         let mut captures = Vec::new();
-        ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
-            captures.push(capture);
-        });
+        let step = state
+            .update_game(|game| {
+                let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+                // Stop *on* the user's match day so it can be played interactively
+                // rather than auto-simulated — detected across the user's competitions.
+                if game.user_has_scheduled_match_on(&today) {
+                    return Step::MatchDay;
+                }
+
+                let high_priority_before = count_high_priority_messages(game);
+
+                ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                    captures.push(capture);
+                });
+
+                if game.manager.team_id.is_none() {
+                    let results = collect_advance_results(game, &start_date);
+                    return Step::Terminal(serde_json::json!({
+                        "action": "fired",
+                        "game": game.clone(),
+                        "days_skipped": days_skipped + 1,
+                        "results": results
+                    }));
+                }
+
+                let blockers = compute_blocking_actions(game);
+                if !blockers.is_empty() {
+                    let results = collect_advance_results(game, &start_date);
+                    return Step::Terminal(serde_json::json!({
+                        "action": "blocked",
+                        "game": game.clone(),
+                        "blockers": blockers,
+                        "days_skipped": days_skipped + 1,
+                        "results": results
+                    }));
+                }
+
+                let new_today = game.clock.current_date.format("%Y-%m-%d").to_string();
+                if continue_reached_attention_event(
+                    &game.season_context.transfer_window.status,
+                    game.season_context.transfer_window.opens_on.as_deref(),
+                    &new_today,
+                    high_priority_before,
+                    count_high_priority_messages(game),
+                ) {
+                    return Step::AdvancedThenStop;
+                }
+
+                Step::Advanced
+            })
+            .ok_or("be.error.noActiveGameSession")?;
         for capture in captures {
             state.append_stats_state(capture);
         }
-        days_skipped += 1;
 
-        if game.manager.team_id.is_none() {
-            let results = collect_advance_results(&game, &start_date);
-            state.set_game(game.clone());
-            return Ok(serde_json::json!({
-                "action": "fired",
-                "game": game,
-                "days_skipped": days_skipped,
-                "results": results
-            }));
-        }
-
-        let blockers = compute_blocking_actions(&game);
-        if !blockers.is_empty() {
-            let results = collect_advance_results(&game, &start_date);
-            state.set_game(game.clone());
-            return Ok(serde_json::json!({
-                "action": "blocked",
-                "game": game,
-                "blockers": blockers,
-                "days_skipped": days_skipped,
-                "results": results
-            }));
-        }
-
-        let new_today = game.clock.current_date.format("%Y-%m-%d").to_string();
-        if continue_reached_attention_event(
-            &game.season_context.transfer_window.status,
-            game.season_context.transfer_window.opens_on.as_deref(),
-            &new_today,
-            high_priority_before,
-            count_high_priority_messages(&game),
-        ) {
-            break;
+        match step {
+            Step::MatchDay => break,
+            Step::Terminal(response) => return Ok(response),
+            Step::AdvancedThenStop => {
+                days_skipped += 1;
+                break;
+            }
+            Step::Advanced => days_skipped += 1,
         }
     }
 
+    let game = state
+        .get_game(|g| g.clone())
+        .ok_or("be.error.noActiveGameSession")?;
     info!(
         "[cmd] advance_to_next_event: stopped_after_days={}, final_date={}",
         days_skipped,
         game.clock.current_date.format("%Y-%m-%d")
     );
     let results = collect_advance_results(&game, &start_date);
-    state.set_game(game.clone());
     Ok(serde_json::json!({
         "action": "arrived",
         "game": game,
