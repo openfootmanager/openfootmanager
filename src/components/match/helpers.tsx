@@ -39,6 +39,16 @@ export const EVENT_ICONS: Record<
     color: "text-red-400",
     important: true,
   },
+  ShootoutGoal: {
+    icon: <CircleDot className="w-4 h-4" />,
+    color: "text-accent-700 dark:text-accent-400",
+    important: true,
+  },
+  ShootoutMiss: {
+    icon: <CircleOff className="w-4 h-4" />,
+    color: "text-red-400",
+    important: true,
+  },
   YellowCard: {
     icon: <Square className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />,
     color: "text-yellow-400",

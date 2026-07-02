@@ -26,8 +26,8 @@ interface PenaltyShootoutScreenProps {
 }
 
 const SHOOTOUT_EVENTS = new Set([
-  "PenaltyGoal",
-  "PenaltyMiss",
+  "ShootoutGoal",
+  "ShootoutMiss",
   "PenaltyAwarded",
 ]);
 
@@ -185,12 +185,12 @@ export default function PenaltyShootoutScreen({
               </span>
               <span
                 className={
-                  evt.event_type === "PenaltyGoal"
+                  evt.event_type === "ShootoutGoal"
                     ? "text-green-600 dark:text-green-400 font-semibold"
                     : "text-red-500 dark:text-red-400"
                 }
               >
-                {evt.event_type === "PenaltyGoal" ? "⚽" : "✗"}
+                {evt.event_type === "ShootoutGoal" ? "⚽" : "✗"}
               </span>
               <span>
                 {evt.side === "Home"

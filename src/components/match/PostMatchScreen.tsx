@@ -123,8 +123,24 @@ export default function PostMatchScreen({
   const oppScore =
     userSide === "Home" ? snapshot.away_score : snapshot.home_score;
 
+  // The match score stays the regulation/ET score; a level tie decided on
+  // penalties resolves the verdict via the shootout tally instead.
+  const shootout = snapshot.penalty_shootout;
+  const userPens =
+    userSide === "Home" ? shootout?.home_scored : shootout?.away_scored;
+  const oppPens =
+    userSide === "Home" ? shootout?.away_scored : shootout?.home_scored;
+
   const resultType =
-    userScore > oppScore ? "win" : userScore < oppScore ? "loss" : "draw";
+    userScore > oppScore
+      ? "win"
+      : userScore < oppScore
+        ? "loss"
+        : userPens !== undefined && oppPens !== undefined && userPens !== oppPens
+          ? userPens > oppPens
+            ? "win"
+            : "loss"
+          : "draw";
 
   const keyEvents = importantEvents.filter((e) =>
     [
@@ -294,6 +310,11 @@ export default function PostMatchScreen({
                 <p className="text-base font-heading font-bold text-gray-500 dark:text-gray-500">
                   {t("match.ft")}
                 </p>
+                {shootout && (
+                  <p className="text-sm font-heading font-bold text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap">
+                    {t("match.pen")} {shootout.home_scored}–{shootout.away_scored}
+                  </p>
+                )}
               </div>
               <span className="text-5xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">
                 {snapshot.away_score}
