@@ -50,7 +50,7 @@
     "selectNationality": "Vybrat národnost...",
     "selectCountry": "Vybrat zemi/region...",
     "searchNationalities": "Hledat národnosti...",
-    "chooseWorld": "Vybrat World",
+    "chooseWorld": "Vybrat svět",
     "placeholderFirst": "např. José",
     "placeholderLast": "např. Mourinho"
   },
@@ -111,7 +111,7 @@
     "packageStackErrors": "Chyby v kombinaci balíčků",
     "stackConflictWarnings": "{{count}} konfliktů mezi balíčky — hra použije verzi, která je v pořadí jako poslední",
     "competitions": "{{count}} soutěží",
-    "packageAuthor": "od {{author}}",
+    "packageAuthor": "by {{author}}",
     "packageVersion": "v{{version}}"
   },
   "dashboard": {

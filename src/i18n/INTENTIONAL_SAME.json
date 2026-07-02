@@ -521,6 +521,7 @@
     "nations.eg",
     "nations.gh",
     "worldEditor.competitionSelectorRegion",
-    "worldEditor.staffRole.label"
+    "worldEditor.staffRole.label",
+    "worldSelect.packageAuthor"
   ]
 }
