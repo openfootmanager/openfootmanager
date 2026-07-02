@@ -3,7 +3,7 @@ use rand::{Rng, RngExt};
 use crate::event::{EventType, MatchEvent};
 use crate::types::{Position, Side, Zone};
 
-use super::{LiveMatchState, MinuteResult};
+use super::{LiveMatchState, MinuteResult, PenaltyShootoutState};
 
 // ---------------------------------------------------------------------------
 // Penalty shootout
@@ -64,6 +64,19 @@ impl LiveMatchState {
             Side::Away => self.penalty_state.away_taken += 1,
         }
 
+        // Level after a completed pair with the five regulation kicks taken:
+        // every kick from here on is sudden death.
+        {
+            let ps = &mut self.penalty_state;
+            if !ps.sudden_death
+                && ps.home_taken >= 5
+                && ps.home_taken == ps.away_taken
+                && ps.home_scored == ps.away_scored
+            {
+                ps.sudden_death = true;
+            }
+        }
+
         // Check if shootout is decided
         let decided = self.check_penalty_decided();
         if decided {
@@ -90,33 +103,7 @@ impl LiveMatchState {
     }
 
     pub(super) fn check_penalty_decided(&self) -> bool {
-        let ps = &self.penalty_state;
-
-        if !ps.sudden_death {
-            // Normal rounds (5 each)
-            let home_remaining = 5u8.saturating_sub(ps.home_taken);
-            let away_remaining = 5u8.saturating_sub(ps.away_taken);
-
-            // Home can't catch up even if they score all remaining
-            if ps.home_scored + home_remaining < ps.away_scored && ps.home_taken == ps.away_taken {
-                return true;
-            }
-            if ps.away_scored + away_remaining < ps.home_scored && ps.away_taken == ps.home_taken {
-                return true;
-            }
-
-            // After 5 rounds each
-            if ps.home_taken >= 5 && ps.away_taken >= 5 && ps.home_scored != ps.away_scored {
-                return true;
-            }
-            // If equal after 5 rounds, we enter sudden death on next step
-            // (handled by setting sudden_death flag)
-
-            false
-        } else {
-            // Sudden death: after each pair, check if one side leads
-            ps.home_taken == ps.away_taken && ps.home_scored != ps.away_scored
-        }
+        self.penalty_state.decided()
     }
 
     pub(super) fn resolve_in_match_penalty<R: Rng>(
@@ -157,5 +144,99 @@ impl LiveMatchState {
         }
 
         events
+    }
+}
+
+impl PenaltyShootoutState {
+    /// Whether the shootout has produced a winner after the kick just taken.
+    /// A round is only ever decided once both sides have taken the same number
+    /// of kicks — the trailing side always gets its reply.
+    fn decided(&self) -> bool {
+        if !self.sudden_death {
+            // Normal rounds (5 each)
+            let home_remaining = 5u8.saturating_sub(self.home_taken);
+            let away_remaining = 5u8.saturating_sub(self.away_taken);
+
+            // Home can't catch up even if they score all remaining
+            if self.home_scored + home_remaining < self.away_scored
+                && self.home_taken == self.away_taken
+            {
+                return true;
+            }
+            if self.away_scored + away_remaining < self.home_scored
+                && self.away_taken == self.home_taken
+            {
+                return true;
+            }
+
+            // After 5 completed rounds
+            self.home_taken >= 5
+                && self.home_taken == self.away_taken
+                && self.home_scored != self.away_scored
+        } else {
+            // Sudden death: after each pair, check if one side leads
+            self.home_taken == self.away_taken && self.home_scored != self.away_scored
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PenaltyShootoutState;
+
+    fn state(home_taken: u8, away_taken: u8, home_scored: u8, away_scored: u8) -> PenaltyShootoutState {
+        PenaltyShootoutState {
+            round: 0,
+            home_taken,
+            away_taken,
+            home_scored,
+            away_scored,
+            sudden_death: false,
+        }
+    }
+
+    fn sudden_death(home_taken: u8, away_taken: u8, home_scored: u8, away_scored: u8) -> PenaltyShootoutState {
+        PenaltyShootoutState {
+            sudden_death: true,
+            ..state(home_taken, away_taken, home_scored, away_scored)
+        }
+    }
+
+    // Regression: 4-4 after five rounds each, home converts its 6th kick.
+    // The shootout must NOT be decided before away's reply — regardless of
+    // whether the sudden-death flag has been raised.
+    #[test]
+    fn round_six_not_decided_before_away_replies() {
+        assert!(!state(6, 5, 5, 4).decided());
+        assert!(!sudden_death(6, 5, 5, 4).decided());
+    }
+
+    #[test]
+    fn sudden_death_decided_after_completed_pair() {
+        assert!(sudden_death(6, 6, 5, 4).decided());
+        assert!(sudden_death(7, 7, 5, 6).decided());
+    }
+
+    #[test]
+    fn sudden_death_continues_while_level() {
+        assert!(!sudden_death(6, 6, 5, 5).decided());
+    }
+
+    #[test]
+    fn regulation_decided_after_five_rounds_with_lead() {
+        assert!(state(5, 5, 4, 2).decided());
+        assert!(state(5, 5, 2, 4).decided());
+    }
+
+    #[test]
+    fn regulation_early_decision_when_uncatchable() {
+        // 1-4 after four rounds each: home's single remaining kick can't catch up.
+        assert!(state(4, 4, 1, 4).decided());
+        assert!(state(4, 4, 4, 1).decided());
+    }
+
+    #[test]
+    fn regulation_level_after_five_rounds_not_decided() {
+        assert!(!state(5, 5, 3, 3).decided());
     }
 }

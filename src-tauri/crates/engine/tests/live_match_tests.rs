@@ -382,6 +382,40 @@ fn penalty_shootout_resolves_drawn_et() {
     // That's OK — the mechanism is tested structurally
 }
 
+#[test]
+fn shootout_ends_only_on_completed_pairs() {
+    // Regression: the shootout used to be declared decided the moment one side
+    // led after 5+ kicks, before the trailing side's reply — handing every
+    // sudden-death shootout to the side kicking first (home).
+    let mut shootouts = 0;
+    for seed in 0..500 {
+        let mut state = make_live_match(true);
+        let mut rng = seeded_rng(seed);
+        run_to_finish(&mut state, &mut rng);
+
+        let snap = state.snapshot();
+        if let Some(ps) = snap.penalty_shootout {
+            shootouts += 1;
+            assert_eq!(
+                ps.home_taken, ps.away_taken,
+                "shootout decided mid-round (seed {seed}): {}/{} kicks taken",
+                ps.home_taken, ps.away_taken
+            );
+            assert_ne!(
+                ps.home_scored, ps.away_scored,
+                "finished shootout must have a winner (seed {seed})"
+            );
+            if ps.home_taken > 5 {
+                assert!(
+                    ps.sudden_death,
+                    "shootout past round 5 must be in sudden death (seed {seed})"
+                );
+            }
+        }
+    }
+    assert!(shootouts > 0, "expected at least one shootout in 500 seeds");
+}
+
 // ===========================================================================
 // Tests: Substitutions
 // ===========================================================================
