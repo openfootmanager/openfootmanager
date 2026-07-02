@@ -30,6 +30,8 @@ pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
 
 /// Apply a pre-computed scoreline to a fixture, updating standings and
 /// advancing group/knockout state. Shared by the catch-up and dormant paths.
+/// `penalties` carries a simulated shootout score for level knockout ties so
+/// the round advances with a real winner instead of defaulting to home.
 pub(crate) fn apply_simulated_result(
     competition: &mut League,
     fixture_index: usize,
@@ -37,6 +39,7 @@ pub(crate) fn apply_simulated_result(
     away_team_id: &str,
     home_goals: u8,
     away_goals: u8,
+    penalties: Option<(u8, u8)>,
 ) {
     let fixture = &mut competition.fixtures[fixture_index];
     fixture.status = FixtureStatus::Completed;
@@ -47,8 +50,8 @@ pub(crate) fn apply_simulated_result(
         home_scorers: Vec::new(),
         away_scorers: Vec::new(),
         report: None,
-        home_penalties: None,
-        away_penalties: None,
+        home_penalties: penalties.map(|(home, _)| home),
+        away_penalties: penalties.map(|(_, away)| away),
     });
     if counts {
         if let Some(entry) = competition
@@ -84,7 +87,7 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
         .map(|id| (id.clone(), club_strength(players, id)))
         .collect();
 
-    let due: Vec<(usize, String, String)> = competition
+    let due: Vec<(usize, String, String, String)> = competition
         .fixtures
         .iter()
         .enumerate()
@@ -94,14 +97,98 @@ pub fn simulate_past_fixtures(competition: &mut League, players: &[Player], cuto
                     .map(|d| d < cutoff_date)
                     .unwrap_or(false)
         })
-        .map(|(i, f)| (i, f.home_team_id.clone(), f.away_team_id.clone()))
+        .map(|(i, f)| {
+            (
+                i,
+                f.id.clone(),
+                f.home_team_id.clone(),
+                f.away_team_id.clone(),
+            )
+        })
         .collect();
 
-    for (idx, home_id, away_id) in due {
+    for (idx, fixture_id, home_id, away_id) in due {
         let home_strength = strengths.get(&home_id).copied().unwrap_or(50.0);
         let away_strength = strengths.get(&away_id).copied().unwrap_or(50.0);
         let (home_goals, away_goals) =
             crate::national_team::simulate_scoreline(home_strength, away_strength, &mut rng);
-        apply_simulated_result(competition, idx, &home_id, &away_id, home_goals, away_goals);
+        let penalties = (home_goals == away_goals
+            && competition.is_knockout_fixture(&fixture_id))
+        .then(|| {
+            crate::national_team::simulate_shootout(home_strength, away_strength, &mut rng)
+        });
+        apply_simulated_result(
+            competition,
+            idx,
+            &home_id,
+            &away_id,
+            home_goals,
+            away_goals,
+            penalties,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_simulated_result;
+    use domain::league::{
+        CompetitionFormat, CompetitionRules, Fixture, FixtureCompetition, FixtureStatus,
+        KnockoutRoundState, League,
+    };
+
+    fn make_knockout_cup() -> League {
+        League {
+            id: "cup".to_string(),
+            name: "Cup".to_string(),
+            season: 2030,
+            rules: CompetitionRules {
+                format: CompetitionFormat::Knockout,
+                ..CompetitionRules::default()
+            },
+            fixtures: vec![Fixture {
+                id: "fix-1".to_string(),
+                competition_id: "cup".to_string(),
+                matchday: 1,
+                date: "2030-08-10".to_string(),
+                home_team_id: "home".to_string(),
+                away_team_id: "away".to_string(),
+                competition: FixtureCompetition::Cup,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
+            knockout_rounds: vec![KnockoutRoundState {
+                id: "round-1".to_string(),
+                name: "Final".to_string(),
+                fixture_ids: vec!["fix-1".to_string()],
+                bye_team_ids: Vec::new(),
+                completed: false,
+            }],
+            ..League::default()
+        }
+    }
+
+    // Regression: level knockout results used to persist with no shootout
+    // score, so the away side could never advance from a simulated draw.
+    #[test]
+    fn simulated_shootout_score_persists_and_decides_the_tie() {
+        let mut cup = make_knockout_cup();
+        apply_simulated_result(&mut cup, 0, "home", "away", 1, 1, Some((3, 4)));
+
+        let result = cup.fixtures[0].result.as_ref().unwrap();
+        assert_eq!(result.home_penalties, Some(3));
+        assert_eq!(result.away_penalties, Some(4));
+        assert!(!result.advancing_is_home());
+        assert!(cup.knockout_rounds[0].completed);
+    }
+
+    #[test]
+    fn decisive_result_carries_no_shootout() {
+        let mut cup = make_knockout_cup();
+        apply_simulated_result(&mut cup, 0, "home", "away", 2, 0, None);
+
+        let result = cup.fixtures[0].result.as_ref().unwrap();
+        assert_eq!(result.home_penalties, None);
+        assert!(result.advancing_is_home());
     }
 }
