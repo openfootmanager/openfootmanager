@@ -1166,7 +1166,7 @@ describe("PlayerProfile contract surfaces", () => {
       morale_core: {
         manager_trust: 50,
         renewal_state: {
-          status: "blocked",
+          status: "Blocked",
           manager_blocked_until: null,
           last_attempt_date: "2026-08-01",
           last_assistant_attempt_date: null,
@@ -1213,6 +1213,43 @@ describe("PlayerProfile contract surfaces", () => {
       });
       expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
     });
+  });
+
+  // Regression for #193 / follow-up on PR #245.
+  //
+  // Backend `RenewalSessionStatus::Blocked` serializes as `"Blocked"` (PascalCase)
+  // — serde's default enum representation. The PR #245 fix compared against a
+  // lowercase `"blocked"` literal, so the guard was always false and the block
+  // was never restored on modal reopen. Existing fixtures used lowercase too,
+  // so they matched the buggy frontend and the bug slipped through. This test
+  // uses the real wire shape and asserts the modal opens in terminal (blocked)
+  // state — only the "Done" button, no Submit path.
+  it("restores blocked state when reopening the renewal modal after being blocked", async () => {
+    const blockedPlayer = createPlayer({
+      morale_core: {
+        manager_trust: 30,
+        renewal_state: {
+          status: "Blocked",
+          manager_blocked_until: "2099-01-01",
+          last_attempt_date: "2026-08-01",
+          last_assistant_attempt_date: null,
+          last_outcome: "BlockedByManager",
+          conversation_round: 1,
+          exit_intent: null,
+        },
+      },
+    });
+
+    render(<RenewalHarness initialPlayer={blockedPlayer} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Renew Contract" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Submit Offer" }),
+    ).not.toBeInTheDocument();
   });
 
   it("localizes contract action failures instead of showing raw backend keys", async () => {
