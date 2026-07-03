@@ -66,12 +66,15 @@ function getStandingPosition(
   league: LeagueData,
   teamId: string,
 ): number | null {
+  // Tiebreak matches the standings table (points → goal difference → goals
+  // for) so the opponent's position shown here can't disagree with it.
   const sortedStandings = [...league.standings].sort((leftEntry, rightEntry) => {
     return (
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
       rightEntry.goals_against -
-      (leftEntry.goals_for - leftEntry.goals_against)
+      (leftEntry.goals_for - leftEntry.goals_against) ||
+      rightEntry.goals_for - leftEntry.goals_for
     );
   });
   const standingIndex = sortedStandings.findIndex(
