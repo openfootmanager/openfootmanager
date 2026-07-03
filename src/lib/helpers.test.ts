@@ -20,6 +20,7 @@ import {
   positionBadgeVariant,
 } from "./helpers";
 import type { TeamData, FixtureData, PlayerData } from "../store/gameStore";
+import { useGameStore, type GameStateData } from "../store/gameStore";
 import { useSettingsStore } from "../store/settingsStore";
 
 // ---------------------------------------------------------------------------
@@ -350,9 +351,34 @@ describe("getPlayerOvr", () => {
 });
 
 describe("calcAge", () => {
-  it("calculates age relative to 2026", () => {
+  // Regression: calcAge was hardcoded to `2026 - birth year`, so every
+  // displayed age froze at the starting season as the game clock advanced.
+  afterEach(() => {
+    useGameStore.getState().clearGame();
+  });
+
+  it("ages players as the in-game clock advances across seasons", () => {
+    useGameStore.setState({
+      gameState: { clock: { current_date: "2026-08-01" } } as unknown as GameStateData,
+    });
     expect(calcAge("1996-01-15")).toBe(30);
+
+    useGameStore.setState({
+      gameState: { clock: { current_date: "2028-08-01" } } as unknown as GameStateData,
+    });
+    expect(calcAge("1996-01-15")).toBe(32);
+  });
+
+  it("only increments after the birthday has passed", () => {
+    useGameStore.setState({
+      gameState: { clock: { current_date: "2027-05-01" } } as unknown as GameStateData,
+    });
     expect(calcAge("2000-06-01")).toBe(26);
+
+    useGameStore.setState({
+      gameState: { clock: { current_date: "2027-06-02" } } as unknown as GameStateData,
+    });
+    expect(calcAge("2000-06-01")).toBe(27);
   });
 });
 

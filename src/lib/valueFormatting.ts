@@ -1,4 +1,5 @@
 import { useSettingsStore, type AppSettings } from "../store/settingsStore";
+import { useGameStore } from "../store/gameStore";
 
 function getFormattingSettings(): {
     currency: ReturnType<typeof useSettingsStore.getState>["currency"];
@@ -40,16 +41,30 @@ function prefixCurrency(
     return `${sign}${getCurrencySymbol(currency)}${amount}`;
 }
 
+/**
+ * Age as of the current in-game date (falls back to the real-world date when
+ * no game is loaded). Previously hardcoded to `2026 - birth year`, which froze
+ * every displayed age at the starting season as the game clock advanced.
+ */
 export function calcAge(dob: string): number {
-    return 2026 - new Date(dob).getFullYear();
+    const gameDate = useGameStore.getState().gameState?.clock?.current_date;
+    const asOfDate = gameDate ?? new Date().toISOString().slice(0, 10);
+    return calcAgeOnDate(dob, asOfDate);
 }
 
 export function calcAgeOnDate(dob: string, asOfDate: string): number {
     const birthDate = new Date(dob);
     const currentDate = new Date(asOfDate);
 
-    if (Number.isNaN(birthDate.getTime()) || Number.isNaN(currentDate.getTime())) {
-        return calcAge(dob);
+    if (Number.isNaN(birthDate.getTime())) {
+        // Naive year difference, mirroring the old fallback behavior
+        // (NaN in, NaN out) without re-entering calcAge.
+        return new Date().getUTCFullYear() - birthDate.getUTCFullYear();
+    }
+    if (Number.isNaN(currentDate.getTime())) {
+        // Valid DOB but unusable reference date: keep the birthday-aware
+        // logic, anchored to the real-world date.
+        return calcAgeOnDate(dob, new Date().toISOString().slice(0, 10));
     }
 
     let age = currentDate.getUTCFullYear() - birthDate.getUTCFullYear();
