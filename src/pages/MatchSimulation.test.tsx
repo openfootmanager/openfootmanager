@@ -408,6 +408,8 @@ describe("MatchSimulation", function (): void {
           allowsExtraTime: false,
           fixtureIndex: 4,
           mode: "live",
+          homeTeamId: "home1",
+          awayTeamId: "away1",
         });
       });
 
