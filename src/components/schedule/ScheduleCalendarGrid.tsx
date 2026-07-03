@@ -2,6 +2,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { getLocale } from "../../lib/dateFormatting";
+
 import type { MatchdayGroup } from "../../services/scheduleService";
 
 interface ScheduleCalendarGridProps {
@@ -49,13 +51,24 @@ export default function ScheduleCalendarGrid({
   focusDate,
   onSelectDate,
 }: ScheduleCalendarGridProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const anchorDate = focusDate ?? today;
   const { year: anchorYear, month: anchorMonth } = parseYMD(anchorDate);
 
   const [viewYear, setViewYear] = useState(anchorYear);
   const [viewMonth, setViewMonth] = useState(anchorMonth);
+
+  // Re-anchor the displayed month when the focus date changes (e.g. the next
+  // user match moves into a new month after a schedule refresh) — useState
+  // only seeds on mount, so without this the calendar kept showing the stale
+  // month. Manual prev/next navigation is preserved until the anchor moves.
+  const [lastAnchorDate, setLastAnchorDate] = useState(anchorDate);
+  if (anchorDate !== lastAnchorDate) {
+    setLastAnchorDate(anchorDate);
+    setViewYear(anchorYear);
+    setViewMonth(anchorMonth);
+  }
 
   const fixtureDates = useMemo(() => {
     const map = new Map<string, boolean>(); // date → hasUserMatch
@@ -144,8 +157,9 @@ export default function ScheduleCalendarGrid({
     }
   };
 
+  // Use the app language, not the OS locale, for the month name.
   const monthLabel = new Date(viewYear, viewMonth - 1, 1).toLocaleDateString(
-    undefined,
+    getLocale(i18n.language),
     { month: "long", year: "numeric" },
   );
 
