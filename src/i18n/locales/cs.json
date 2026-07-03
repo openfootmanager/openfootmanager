@@ -1528,6 +1528,7 @@
       "participating": "Účastní se",
       "worldCup": "Mistrovství světa {{year}}",
       "worldCupQualifying": "Kvalifikace na MS {{year}}",
+      "worldCupPlayoff": "Baráž o MS {{year}}",
       "league": "{{country}} lize",
       "firstDivision": "{{country}} — 1. liga",
       "secondDivision": "{{country}} — 2. liga",
@@ -3392,6 +3393,14 @@
       "worldCupQualifying": {
         "headline": "Cesta na Mistrovství světa {{year}} začíná",
         "body": "{{nations}} národů zahajuje svou kampaň s cílem kvalifikovat se na Mistrovství světa {{year}}, která se odehraje během reprezentačních pauz v této sezóně."
+      },
+      "worldCupPlayoff": {
+        "headline": "Drama v mezikontinentální baráži o {{year}}",
+        "body": "{{nations}} prošly mezikontinentální baráží a získaly poslední místa na mistrovství světa {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Šest zemí, dvě místa: baráž o MS {{year}} je známa",
+        "body": "{{nations}} se v červnu utkají v mezikontinentální baráži o poslední dvě místa na mistrovství světa {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Mistrovství světa {{year}} začíná",

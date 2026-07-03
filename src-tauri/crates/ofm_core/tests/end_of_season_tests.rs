@@ -581,8 +581,9 @@ fn process_end_of_season_reschedules_national_team_windows() {
     use domain::national_team::NationalTeam;
 
     let mut game = make_completed_season_game();
-    // A non-cup season so the windows host friendlies (not a World Cup).
-    game.clock = GameClock::new(Utc.with_ymd_and_hms(2024, 5, 20, 12, 0, 0).unwrap());
+    // A neutral season so the windows host friendlies: 2027/28 neither stages
+    // a World Cup nor hosts any part of the two-season qualifying campaign.
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2027, 5, 20, 12, 0, 0).unwrap());
 
     let mut nt_a = NationalTeam::new("nt-a".into(), "A".into(), "AAA".into(), None);
     nt_a.squad_player_ids = vec!["p1".into()];
@@ -621,7 +622,7 @@ fn process_end_of_season_reschedules_national_team_windows() {
         "rescheduled friendlies start the new season unplayed"
     );
     // Windows for the new season fall after the rollover date.
-    assert!(fixtures.iter().all(|f| f.date.as_str() > "2024-06-01"));
+    assert!(fixtures.iter().all(|f| f.date.as_str() > "2027-06-01"));
 }
 
 #[test]
@@ -909,6 +910,107 @@ fn rollover_stages_a_world_cup_in_cup_years_and_retires_it_afterwards() {
             .flat_map(|c| c.fixtures.iter())
             .any(|f| f.competition == FixtureCompetition::Friendly),
         "non-cup summers schedule preseason friendlies as before"
+    );
+}
+
+#[test]
+fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
+    // Spring 2024 rolls into 2024/25 — two summers before the 2026 cup — so
+    // the full home-and-away qualifying campaign gets under way.
+    let mut game = make_two_division_game("team1");
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2024, 5, 20, 12, 0, 0).unwrap());
+    process_end_of_season(&mut game);
+
+    let (qualifying_id, first_season_days) = {
+        let qualifying = game
+            .competitions
+            .iter()
+            .find(|c| ofm_core::world_cup::is_world_cup_qualifying(c))
+            .expect("the campaign starts two seasons out");
+        assert_eq!(qualifying.season, 2026);
+        let windows = ofm_core::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2024, 8, 1, 0, 0, 0).unwrap(),
+        );
+        (
+            qualifying.id.clone(),
+            ofm_core::national_team::international_window_span_dates(&windows),
+        )
+    };
+
+    // Play the first season's share of the campaign.
+    let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(3);
+    for date in &first_season_days {
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+    }
+    let played_midway = game
+        .competitions
+        .iter()
+        .find(|c| c.id == qualifying_id)
+        .unwrap()
+        .fixtures
+        .iter()
+        .filter(|f| f.status == FixtureStatus::Completed)
+        .count();
+    assert!(played_midway > 0, "the campaign's first half is played");
+
+    // The intermediate rollover (summer 2025) carries the campaign over
+    // instead of retiring it: same competition, results intact, and its
+    // remaining fixtures re-anchored onto the new season's windows.
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2025, 5, 20, 12, 0, 0).unwrap());
+    process_end_of_season(&mut game);
+    let second_season_days = {
+        let qualifying = game
+            .competitions
+            .iter()
+            .find(|c| ofm_core::world_cup::is_world_cup_qualifying(c))
+            .expect("an in-progress campaign survives the rollover");
+        assert_eq!(qualifying.id, qualifying_id, "the same edition continues");
+        let played_after = qualifying
+            .fixtures
+            .iter()
+            .filter(|f| f.status == FixtureStatus::Completed)
+            .count();
+        assert_eq!(played_after, played_midway, "played results carry over");
+        let windows = ofm_core::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        let window_days: std::collections::HashSet<String> =
+            ofm_core::national_team::international_window_span_dates(&windows)
+                .into_iter()
+                .collect();
+        assert!(
+            qualifying
+                .fixtures
+                .iter()
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .all(|f| window_days.contains(&f.date)),
+            "the campaign's second half sits on the new season's windows"
+        );
+        ofm_core::national_team::international_window_span_dates(&windows)
+    };
+
+    // Play the campaign to its end; the playoff fills the June window.
+    for date in &second_season_days {
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+    }
+
+    // The cup-summer rollover derives the 48-team field from the finished
+    // campaign and retires both the campaign and its playoff.
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    process_end_of_season(&mut game);
+    let cup = game
+        .competitions
+        .iter()
+        .find(|c| ofm_core::world_cup::is_world_cup_competition(c))
+        .expect("the cup summer stages the finals");
+    assert_eq!(cup.participant_ids.len(), 48, "a full qualified field");
+    assert!(
+        !game
+            .competitions
+            .iter()
+            .any(|c| ofm_core::world_cup::is_world_cup_qualifying(c)
+                || ofm_core::world_cup::is_world_cup_playoff(c)),
+        "the finished campaign and playoff are retired with the rollover"
     );
 }
 

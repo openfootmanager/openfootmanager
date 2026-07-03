@@ -1528,6 +1528,7 @@
       "participating": "Участвует",
       "worldCup": "Чемпионат мира {{year}}",
       "worldCupQualifying": "Отбор на Чемпионат мира {{year}}",
+      "worldCupPlayoff": "Стыковые матчи ЧМ {{year}}",
       "league": "{{country}} Лига",
       "firstDivision": "{{country}} Первый дивизион",
       "secondDivision": "{{country}} Второй дивизион",
@@ -3395,6 +3396,10 @@
       "worldCupPlayoff": {
         "headline": "Драма межконтинентальных стыков за {{year}}",
         "body": "{{nations}} прошли межконтинентальные стыковые матчи и заняли последние места на чемпионате мира {{year}} года."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Шесть сборных, два места: определены участники стыков за {{year}}",
+        "body": "{{nations}} в июне разыграют межконтинентальные стыковые матчи за последние два места на чемпионате мира {{year}} года."
       },
       "worldCupKickoff": {
         "headline": "Чемпионат мира {{year}} начинается",

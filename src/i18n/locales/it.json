@@ -1547,6 +1547,7 @@
       "participating": "Partecipante",
       "worldCup": "Coppa del Mondo {{year}}",
       "worldCupQualifying": "Qualificazioni Coppa del Mondo {{year}}",
+      "worldCupPlayoff": "Spareggi Coppa del Mondo {{year}}",
       "league": "Lega di {{country}}",
       "firstDivision": "Prima Divisione di {{country}}",
       "secondDivision": "Seconda Divisione di {{country}}",
@@ -3399,6 +3400,10 @@
       "worldCupPlayoff": {
         "headline": "Spareggi intercontinentali decisivi per {{year}}",
         "body": "{{nations}} hanno superato gli spareggi intercontinentali conquistando gli ultimi posti per il Mondiale {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Sei nazionali, due posti: definiti gli spareggi per {{year}}",
+        "body": "{{nations}} si contenderanno a giugno gli spareggi intercontinentali per gli ultimi due posti al Mondiale {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Inizia il Mondiale {{year}}",

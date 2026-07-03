@@ -1528,6 +1528,7 @@
       "participating": "Teilnehmend",
       "worldCup": "Weltmeisterschaft {{year}}",
       "worldCupQualifying": "WM-Qualifikation {{year}}",
+      "worldCupPlayoff": "WM-Playoff {{year}}",
       "league": "{{country}} Liga",
       "firstDivision": "{{country}} Erste Division",
       "secondDivision": "{{country}} Zweite Division",
@@ -3399,6 +3400,10 @@
       "worldCupPlayoff": {
         "headline": "Interkontinentales Playoff-Drama um {{year}}",
         "body": "{{nations}} haben sich im interkontinentalen Playoff durchgesetzt und sichern sich die letzten Startplätze für die WM {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Sechs Nationen, zwei Plätze: das Playoff für {{year}} steht",
+        "body": "{{nations}} bestreiten im Juni das interkontinentale Playoff um die letzten beiden Startplätze für die WM {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Die WM {{year}} beginnt",

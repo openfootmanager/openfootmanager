@@ -1164,10 +1164,21 @@ fn ensure_international_windows(game: &mut Game) {
         .any(ofm_core::world_cup::is_world_cup_qualifying);
     let leads_into_world_cup =
         ofm_core::world_cup::season_leads_into_world_cup(preseason_season_start(&game.clock));
+    let starts_qualifying = ofm_core::world_cup::season_starts_world_cup_qualifying(
+        preseason_season_start(&game.clock),
+    );
     if needs_fixtures && !qualifying_running {
-        // A career starting the season before a World Cup opens with the
-        // qualifying campaign; any other season opens with friendlies.
-        if leads_into_world_cup {
+        // A career starting two seasons before a World Cup opens with the full
+        // home-and-away qualifying campaign; one starting the season before
+        // squeezes in a compressed campaign; any other season opens with
+        // friendlies.
+        if starts_qualifying {
+            ofm_core::world_cup::schedule_world_cup_qualifying(
+                game,
+                preseason_season_start(&game.clock).year() + 2,
+                &window_dates,
+            );
+        } else if leads_into_world_cup {
             ofm_core::world_cup::schedule_world_cup_qualifying(
                 game,
                 preseason_season_start(&game.clock).year() + 1,
@@ -1184,7 +1195,7 @@ fn ensure_international_windows(game: &mut Game) {
 
     // Qualifying spreads each window's matches across a multi-day block, so club
     // fixtures must keep clear of the whole span rather than just the openers.
-    let reserved_dates = if leads_into_world_cup || qualifying_running {
+    let reserved_dates = if leads_into_world_cup || starts_qualifying || qualifying_running {
         ofm_core::national_team::international_window_span_dates(&window_dates)
     } else {
         window_dates.clone()

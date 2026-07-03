@@ -1528,6 +1528,7 @@
       "participating": "Participant",
       "worldCup": "Coupe du Monde {{year}}",
       "worldCupQualifying": "Qualifications Coupe du Monde {{year}}",
+      "worldCupPlayoff": "Barrages Coupe du Monde {{year}}",
       "league": "Championnat de {{country}}",
       "firstDivision": "Première Division de {{country}}",
       "secondDivision": "Deuxième Division de {{country}}",
@@ -3399,6 +3400,10 @@
       "worldCupPlayoff": {
         "headline": "Suspense lors des barrages intercontinentaux pour {{year}}",
         "body": "{{nations}} ont franchi les barrages intercontinentaux pour décrocher les dernières places à la Coupe du monde {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Six nations, deux places : les barrages de {{year}} sont connus",
+        "body": "{{nations}} disputeront en juin les barrages intercontinentaux pour les deux dernières places à la Coupe du monde {{year}}."
       },
       "worldCupKickoff": {
         "headline": "La Coupe du monde {{year}} commence",

@@ -512,18 +512,41 @@ pub fn schedule_world_cup_with_field(
 // ---------------------------------------------------------------------------
 
 const QUALIFYING_COMPETITION_PREFIX: &str = "world-cup-qualifying-";
-/// Maximum nations per qualifying group; a round robin of this size fits the
-/// five international windows.
+const PLAYOFF_COMPETITION_PREFIX: &str = "world-cup-playoff-";
+/// Maximum nations per qualifying group in a compressed single-season campaign;
+/// a single round robin of this size fits the five international windows.
 const QUALIFYING_GROUP_SIZE: usize = 6;
+/// Maximum nations per group in a full two-season campaign, where groups play
+/// home-and-away legs.
+const FULL_CAMPAIGN_GROUP_SIZE: usize = 5;
+/// Matchdays one international window hosts in a full campaign — real FIFA
+/// windows fit two matches each.
+const MATCHDAYS_PER_WINDOW: usize = 2;
+/// Confederations that play one all-play-all league (CONMEBOL's real format,
+/// and the natural shape for tiny OFC) in a full campaign, provided the double
+/// round robin fits the campaign's matchday slots.
+const SINGLE_LEAGUE_CONFEDERATIONS: &[&str] = &["conmebol", "ofc"];
 
 /// Whether a competition is a World Cup qualifying campaign.
 pub fn is_world_cup_qualifying(competition: &League) -> bool {
     competition.id.starts_with(QUALIFYING_COMPETITION_PREFIX)
 }
 
+/// Whether a competition is the inter-confederation playoff for the final
+/// World Cup berths.
+pub fn is_world_cup_playoff(competition: &League) -> bool {
+    competition.id.starts_with(PLAYOFF_COMPETITION_PREFIX)
+}
+
 /// A season "leads into" a World Cup when the following summer is a cup summer.
 pub fn season_leads_into_world_cup(season_start: DateTime<Utc>) -> bool {
     is_world_cup_summer(season_start.year() + 1)
+}
+
+/// A season "starts" World Cup qualifying when the cup is two summers away:
+/// the full campaign spans this season and the next, home and away.
+pub fn season_starts_world_cup_qualifying(season_start: DateTime<Utc>) -> bool {
+    is_world_cup_summer(season_start.year() + 2)
 }
 
 fn national_team_id_for(game: &Game, code: &str) -> String {
@@ -695,41 +718,82 @@ fn direct_berths(entrants_by_confed: &BTreeMap<String, usize>) -> BTreeMap<Strin
     berths
 }
 
-/// Spread qualifying fixtures so each matchday's matches fan out across its
-/// international window's [`INTERNATIONAL_WINDOW_SPAN_DAYS`]-day block (matchday
-/// N opens on `window_dates[N-1]`) rather than all landing on the opening date.
-/// The per-day count is sized so every match still fits inside the block.
-fn spread_qualifying_over_windows(fixtures: &mut [domain::league::Fixture], window_dates: &[String]) {
+/// Matchdays a round robin of `n` teams takes over `legs` legs (the circle
+/// method gives an odd field a phantom slot, so its rounds match the next even
+/// size).
+fn round_robin_matchdays(n: usize, legs: usize) -> usize {
+    if n < 2 {
+        return 0;
+    }
+    let slots = if n.is_multiple_of(2) { n } else { n + 1 };
+    (slots - 1) * legs
+}
+
+/// The campaign slot a group's `matchday` occupies. Slots run across the
+/// campaign's windows ([`MATCHDAYS_PER_WINDOW`] per window in a full campaign,
+/// one in a compressed season); each group's schedule is back-loaded so every
+/// campaign finishes together on the last slot — short campaigns (a two-leg
+/// OFC tie, a six-matchday group) start later, long ones (CONMEBOL's
+/// eighteen-round league) span the whole run, mirroring the real staggered
+/// starts.
+fn campaign_slot(matchday: u32, group_matchdays: usize, campaign_slots: usize) -> usize {
+    let index = (matchday as usize).saturating_sub(1);
+    (campaign_slots.saturating_sub(group_matchdays) + index).min(campaign_slots.saturating_sub(1))
+}
+
+/// Date every `(slot, fixture)` entry: slot `s` opens on day
+/// `(s % matchdays_per_window) * block` of window `s / matchdays_per_window`,
+/// and a slot's matches fan out across its `block`-day share of the window span
+/// so no single calendar day is swamped. Deterministic: entries are ordered by
+/// `(slot, fixture id)` before day assignment.
+fn date_fixtures_into_slots(
+    entries: &mut [(usize, domain::league::Fixture)],
+    window_dates: &[String],
+    matchdays_per_window: usize,
+) {
     use std::collections::BTreeMap;
     if window_dates.is_empty() {
         return;
     }
     let span = crate::national_team::INTERNATIONAL_WINDOW_SPAN_DAYS;
+    let block = (span / matchdays_per_window.max(1) as i64).max(1);
 
-    let mut per_matchday: BTreeMap<u32, usize> = BTreeMap::new();
-    for fixture in fixtures.iter() {
-        *per_matchday.entry(fixture.matchday).or_default() += 1;
+    let mut per_slot: BTreeMap<usize, i64> = BTreeMap::new();
+    for (slot, _) in entries.iter() {
+        *per_slot.entry(*slot).or_default() += 1;
     }
 
-    // Deterministic order so day assignment is stable across runs.
-    fixtures.sort_by(|a, b| a.matchday.cmp(&b.matchday).then(a.id.cmp(&b.id)));
+    entries.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.id.cmp(&b.1.id)));
 
-    let mut seen: BTreeMap<u32, i64> = BTreeMap::new();
-    for fixture in fixtures.iter_mut() {
-        let window = (fixture.matchday as usize).saturating_sub(1).min(window_dates.len() - 1);
+    let mut seen: BTreeMap<usize, i64> = BTreeMap::new();
+    for (slot, fixture) in entries.iter_mut() {
+        let window = (*slot / matchdays_per_window.max(1)).min(window_dates.len() - 1);
         let Some(base) = chrono::NaiveDate::parse_from_str(&window_dates[window], "%Y-%m-%d").ok()
         else {
             continue;
         };
-        let count = per_matchday.get(&fixture.matchday).copied().unwrap_or(1) as i64;
-        let per_day = ((count + span - 1) / span).max(1);
-        let index = seen.entry(fixture.matchday).or_default();
-        let offset = (*index / per_day).min(span - 1);
+        let sub = (*slot % matchdays_per_window.max(1)) as i64;
+        let count = per_slot.get(slot).copied().unwrap_or(1);
+        let per_day = ((count + block - 1) / block).max(1);
+        let index = seen.entry(*slot).or_default();
+        let offset = sub * block + (*index / per_day).min(block - 1);
         *index += 1;
         fixture.date = (base + chrono::Duration::days(offset))
             .format("%Y-%m-%d")
             .to_string();
     }
+}
+
+/// The international windows of the season starting in `start_year`'s August —
+/// window dates are fixed calendar days, so a campaign scheduled two seasons
+/// ahead can date its second half exactly (and the intermediate rollover
+/// re-anchors it anyway).
+fn season_window_dates(start_year: i32) -> Vec<String> {
+    let start = chrono::NaiveDate::from_ymd_opt(start_year, 8, 1)
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now);
+    crate::national_team::international_window_dates(start)
 }
 
 fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
@@ -739,9 +803,16 @@ fn standing_order(a: &StandingEntry, b: &StandingEntry) -> std::cmp::Ordering {
         .then(b.goals_for.cmp(&a.goals_for))
 }
 
-/// Schedule World Cup qualifying for `wc_year` across the season's international
-/// windows: per-region groups playing a single round robin, one matchday per
-/// window. National squads are prepared for every candidate nation.
+/// Schedule World Cup qualifying for `wc_year` across the season's
+/// international windows. When the cup is two summers away (a **full
+/// campaign**), confederations play their real formats home and away —
+/// CONMEBOL one all-play-all league, the rest groups of up to
+/// [`FULL_CAMPAIGN_GROUP_SIZE`] — across both seasons' windows, two matchdays
+/// per window, with the final window kept free for the inter-confederation
+/// playoff. When only one season remains (a fresh save starting late), the
+/// campaign is **compressed**: single-leg groups of up to
+/// [`QUALIFYING_GROUP_SIZE`], one matchday per window, as before. National
+/// squads are prepared for every candidate nation.
 pub fn schedule_world_cup_qualifying(
     game: &mut Game,
     wc_year: i32,
@@ -756,6 +827,24 @@ pub fn schedule_world_cup_qualifying(
         return;
     }
     prepare_national_squads(game, &all_codes);
+
+    // The span is inferred from the windows: windows opening two years before
+    // the cup mean the campaign has both seasons to play with.
+    let first_window_year = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
+        .map(|date| date.year())
+        .unwrap_or(wc_year - 1);
+    let full_campaign = wc_year - first_window_year >= 2;
+    let (campaign_windows, matchdays_per_window, campaign_slots, group_size, legs) =
+        if full_campaign {
+            let mut windows = window_dates.to_vec();
+            windows.extend(season_window_dates(first_window_year + 1));
+            // The last window hosts the inter-confederation playoff, not groups.
+            let slots = windows.len().saturating_sub(1) * MATCHDAYS_PER_WINDOW;
+            (windows, MATCHDAYS_PER_WINDOW, slots, FULL_CAMPAIGN_GROUP_SIZE, 2u8)
+        } else {
+            let slots = window_dates.len();
+            (window_dates.to_vec(), 1usize, slots, QUALIFYING_GROUP_SIZE, 1u8)
+        };
 
     let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}{wc_year}");
     let mut competition = League::new(
@@ -778,8 +867,18 @@ pub fn schedule_world_cup_qualifying(
         .unwrap_or_else(Utc::now);
 
     let mut participant_ids: Vec<String> = Vec::new();
+    let mut dated_fixtures: Vec<(usize, domain::league::Fixture)> = Vec::new();
     for (confederation, codes) in &candidates {
-        let group_count = codes.len().div_ceil(QUALIFYING_GROUP_SIZE).max(1);
+        // A single-league confederation plays one all-play-all table when its
+        // double round robin fits the campaign; everyone else plays groups.
+        let single_league = full_campaign
+            && SINGLE_LEAGUE_CONFEDERATIONS.contains(&confederation.as_str())
+            && round_robin_matchdays(codes.len(), legs as usize) <= campaign_slots;
+        let group_count = if single_league {
+            1
+        } else {
+            codes.len().div_ceil(group_size).max(1)
+        };
         let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
         for (index, code) in codes.iter().enumerate() {
             groups[index % group_count].push(code.clone());
@@ -795,15 +894,19 @@ pub fn schedule_world_cup_qualifying(
                 .collect();
             participant_ids.extend(team_ids.iter().cloned());
 
+            let group_matchdays = round_robin_matchdays(team_ids.len(), legs as usize);
             let fixtures = crate::schedule::build_round_robin_fixtures_with(
                 &competition_id,
                 &team_ids,
                 base_date,
                 FixtureCompetition::InternationalNation,
-                1,
+                legs,
                 3,
             );
-            competition.fixtures.extend(fixtures);
+            dated_fixtures.extend(fixtures.into_iter().map(|fixture| {
+                let slot = campaign_slot(fixture.matchday, group_matchdays, campaign_slots);
+                (slot, fixture)
+            }));
             competition.groups.push(GroupState {
                 id: format!("{competition_id}-{confederation}-{group_index}"),
                 name: format!("{confederation} {}", group_index + 1),
@@ -819,9 +922,10 @@ pub fn schedule_world_cup_qualifying(
     if competition.groups.is_empty() {
         return;
     }
-    // Every group plays the same matchday in a window; spread those matches
-    // across the window's multi-day block so no single calendar day is swamped.
-    spread_qualifying_over_windows(&mut competition.fixtures, window_dates);
+    // Slots share windows; spread each slot's matches across its share of the
+    // window's multi-day block so no single calendar day is swamped.
+    date_fixtures_into_slots(&mut dated_fixtures, &campaign_windows, matchdays_per_window);
+    competition.fixtures = dated_fixtures.into_iter().map(|(_, fixture)| fixture).collect();
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
     game.competitions.push(competition);
@@ -851,6 +955,87 @@ pub fn schedule_world_cup_qualifying(
                 params,
             ),
         );
+    }
+}
+
+/// Carry an in-progress two-season qualifying campaign across the intermediate
+/// rollover: re-date every still-scheduled fixture onto the new season's actual
+/// international windows (the second half of the campaign's slot layout) and
+/// refresh national squads after a summer of transfers and retirements.
+/// Fixtures already played keep their dates and results untouched.
+pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
+    if window_dates.is_empty() {
+        return;
+    }
+    let qualifying_indices: Vec<usize> = game
+        .competitions
+        .iter()
+        .enumerate()
+        .filter(|(_, competition)| is_world_cup_qualifying(competition))
+        .map(|(index, _)| index)
+        .collect();
+    if qualifying_indices.is_empty() {
+        return;
+    }
+
+    // Squads first: the campaign's second half should field current players.
+    let codes: Vec<String> = qualifying_indices
+        .iter()
+        .flat_map(|index| game.competitions[*index].participant_ids.iter())
+        .map(|team_id| nation_code_of_national_team(team_id))
+        .collect();
+    prepare_national_squads(game, &codes);
+
+    // The campaign was laid out over both seasons' windows (minus the playoff
+    // window); the second season's slots start after the first season's share.
+    let first_season_slots = window_dates.len() * MATCHDAYS_PER_WINDOW;
+    let campaign_slots =
+        (window_dates.len() * 2).saturating_sub(1) * MATCHDAYS_PER_WINDOW;
+
+    for competition_index in qualifying_indices {
+        let competition = &mut game.competitions[competition_index];
+
+        // Each group's schedule length, recovered from its fixtures, keyed by
+        // every team in the group (groups are disjoint).
+        let mut matchdays_by_team: HashMap<String, usize> = HashMap::new();
+        for group in &competition.groups {
+            let group_matchdays = competition
+                .fixtures
+                .iter()
+                .filter(|fixture| group.team_ids.contains(&fixture.home_team_id))
+                .map(|fixture| fixture.matchday as usize)
+                .max()
+                .unwrap_or(0);
+            for team_id in &group.team_ids {
+                matchdays_by_team.insert(team_id.clone(), group_matchdays);
+            }
+        }
+
+        let fixtures = std::mem::take(&mut competition.fixtures);
+        let (played, scheduled): (Vec<_>, Vec<_>) = fixtures
+            .into_iter()
+            .partition(|fixture| fixture.status != FixtureStatus::Scheduled);
+
+        let mut dated: Vec<(usize, domain::league::Fixture)> = scheduled
+            .into_iter()
+            .map(|fixture| {
+                let group_matchdays = matchdays_by_team
+                    .get(&fixture.home_team_id)
+                    .copied()
+                    .unwrap_or(campaign_slots);
+                let slot = campaign_slot(fixture.matchday, group_matchdays, campaign_slots);
+                // A fixture stranded in the finished first season (a window the
+                // save never simulated) squeezes into the new season's opening
+                // slot so it still gets played.
+                (slot.saturating_sub(first_season_slots), fixture)
+            })
+            .collect();
+        date_fixtures_into_slots(&mut dated, window_dates, MATCHDAYS_PER_WINDOW);
+
+        competition.fixtures = played;
+        competition
+            .fixtures
+            .extend(dated.into_iter().map(|(_, fixture)| fixture));
     }
 }
 
@@ -961,62 +1146,286 @@ fn announce_inter_confed_playoff(game: &mut Game, year: u32, winners: &[String])
     );
 }
 
-/// The qualified field (nation codes) from a completed qualifying campaign.
-///
-/// For the 48-team finals this applies the real FIFA confederation quotas
-/// (UEFA 16, CAF 9, AFC 8, CONMEBOL 6, CONCACAF 6, OFC 1), reserves a slot for
-/// the host within its confederation, and decides the last two berths through
-/// an inter-confederation playoff. Smaller formats keep the simple
-/// size-proportional split. Returns `None` when there is no qualifying campaign.
-pub fn qualified_field_from_game(
-    game: &mut Game,
-    field_size: usize,
-    host_code: Option<&str>,
-) -> Option<Vec<String>> {
-    // Collect every group's sorted standings, grouped by confederation. Done up
-    // front into owned data so the immutable borrow ends before the playoff.
-    let (year, groups_by_confed, entrants_by_confed) = {
-        let competition = game
-            .competitions
-            .iter()
-            .find(|competition| is_world_cup_qualifying(competition))?;
-        let mut groups_by_confed: BTreeMap<String, Vec<Vec<StandingEntry>>> = BTreeMap::new();
-        let mut entrants_by_confed: BTreeMap<String, usize> = BTreeMap::new();
-        for group in &competition.groups {
-            let confederation = group
-                .team_ids
-                .first()
-                .map(|id| confederation_of_code(game, &nation_code_of_national_team(id)))
-                .unwrap_or_else(|| "uefa".to_string());
-            let sorted = crate::group_stage::sorted_group_standings(group);
-            *entrants_by_confed.entry(confederation.clone()).or_insert(0) += sorted.len();
-            groups_by_confed.entry(confederation).or_default().push(sorted);
-        }
-        (competition.season, groups_by_confed, entrants_by_confed)
-    };
+/// The playoff's two qualifiers (nation codes), once its finals round — two
+/// parallel ties, no byes — has been played. `None` while it is undecided.
+fn playoff_winners_of(cup: &League) -> Option<Vec<String>> {
+    if cup.knockout_rounds.len() < 2 {
+        return None;
+    }
+    let finals = cup.knockout_rounds.last()?;
+    if !finals.completed || !finals.bye_team_ids.is_empty() {
+        return None;
+    }
+    let mut winners = Vec::new();
+    for fixture_id in &finals.fixture_ids {
+        let fixture = cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id)?;
+        let result = fixture.result.as_ref()?;
+        let advancing = if result.advancing_is_home() {
+            &fixture.home_team_id
+        } else {
+            &fixture.away_team_id
+        };
+        winners.push(nation_code_of_national_team(advancing));
+    }
+    (winners.len() == INTER_CONFED_PLAYOFF_SPOTS).then_some(winners)
+}
 
-    // Smaller formats (small worlds, tests) keep the proportional split — real
-    // FIFA quotas and the playoff only make sense for the 48-team finals.
-    if field_size != FORMAT_48.field {
-        let berths = berths_by_region(field_size, &entrants_by_confed);
-        let mut field: Vec<String> = Vec::new();
-        for (confederation, groups) in &groups_by_confed {
-            let want = berths.get(confederation).copied().unwrap_or(0);
-            field.extend(rank_confederation_finishers(groups).into_iter().take(want));
-        }
-        return Some(field);
+/// The qualifiers of `year`'s inter-confederation playoff competition, when it
+/// was staged and has been decided.
+fn decided_playoff_winners(game: &Game, year: u32) -> Option<Vec<String>> {
+    let cup = game
+        .competitions
+        .iter()
+        .find(|competition| is_world_cup_playoff(competition) && competition.season == year)?;
+    playoff_winners_of(cup)
+}
+
+/// Advance the inter-confederation playoff once its current round is fully
+/// played. Unlike a standard bracket it crowns no single champion: completing
+/// the preliminaries seeds two parallel finals — each bye seed against a
+/// preliminary winner — and completing the finals simply decides the two
+/// berths, with no further round.
+fn advance_world_cup_playoff(cup: &mut League) {
+    let Some(current) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
+        return;
+    };
+    let round_fixtures: Vec<&domain::league::Fixture> = current
+        .fixture_ids
+        .iter()
+        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
+        .collect();
+    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none())
+    {
+        return;
     }
 
-    let directs = direct_berths(&entrants_by_confed);
+    current.completed = true;
+    let seeds = current.bye_team_ids.clone();
+    if seeds.is_empty() {
+        return; // the finals: berths decided, the bracket ends here
+    }
+    let winners: Vec<String> = round_fixtures
+        .iter()
+        .filter_map(|fixture| {
+            let result = fixture.result.as_ref()?;
+            Some(if result.advancing_is_home() {
+                fixture.home_team_id.clone()
+            } else {
+                fixture.away_team_id.clone()
+            })
+        })
+        .collect();
+    let last_round_date = round_fixtures
+        .iter()
+        .map(|fixture| fixture.date.as_str())
+        .max()
+        .unwrap_or("2026-01-01")
+        .to_string();
+
+    // The finals: the top seed meets the winner of the weaker-seeded tie.
+    let mut order: Vec<String> = Vec::new();
+    for (index, seed) in seeds.iter().enumerate() {
+        order.push(seed.clone());
+        order.push(winners[winners.len() - 1 - index].clone());
+    }
+    let finals_start = chrono::NaiveDate::parse_from_str(&last_round_date, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now)
+        + chrono::Duration::days(cup.rules.knockout_round_gap_days as i64);
+    crate::schedule::seed_knockout_round(
+        cup,
+        &order,
+        finals_start,
+        FixtureCompetition::InternationalNation,
+    );
+    if let Some(finals) = cup.knockout_rounds.last_mut() {
+        finals.name = "Final".to_string();
+    }
+}
+
+/// Stage the inter-confederation playoff as a real, visible knockout in the
+/// campaign's final international window once every qualifying group has
+/// finished. Only a full campaign gets one — it completes in the March window
+/// with the June window free — and only in the real six-entrant shape (two
+/// seeds bye to the finals, four contest the preliminaries); a compressed
+/// campaign, or a degenerate world, resolves its playoff synthetically at the
+/// rollover instead.
+fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
+    if game.competitions.iter().any(is_world_cup_playoff) {
+        return;
+    }
+    let Some((year, groups_by_confed, entrants_by_confed)) =
+        qualifying_groups_by_confederation(game)
+    else {
+        return;
+    };
+    // Quotas and the playoff only exist at 48-team scale.
+    if entrants_by_confed.values().sum::<usize>() < FORMAT_48.field {
+        return;
+    }
+    let all_played = game
+        .competitions
+        .iter()
+        .filter(|competition| is_world_cup_qualifying(competition))
+        .all(|competition| {
+            competition
+                .fixtures
+                .iter()
+                .all(|fixture| fixture.status != FixtureStatus::Scheduled)
+        });
+    if !all_played {
+        return;
+    }
+    // The playoff owns the campaign's last window (June of the cup year); a
+    // campaign still running by then has no room for a scheduled bracket.
+    let Some(playoff_date) = season_window_dates(year as i32 - 1).pop() else {
+        return;
+    };
+    if today >= playoff_date.as_str() {
+        return;
+    }
+
+    let host = host_for_year(game, year as i32);
+    let outcome = split_qualifying_outcome(
+        game,
+        &groups_by_confed,
+        &entrants_by_confed,
+        host.as_deref(),
+    );
+    let ranked = ranked_field(game, &outcome.playoff_entrants);
+    if ranked.len() != INTER_CONFED_PLAYOFF_SPOTS + 4 {
+        return;
+    }
+    let entrant_ids: Vec<String> = {
+        let seeds = &ranked[..INTER_CONFED_PLAYOFF_SPOTS];
+        let rest = &ranked[INTER_CONFED_PLAYOFF_SPOTS..];
+        // Seeds first (they bye to the finals), then the preliminaries pair
+        // the strongest of the rest against the weakest.
+        let order = [seeds[0].clone(), seeds[1].clone(), rest[0].clone(), rest[3].clone(), rest[1].clone(), rest[2].clone()];
+        order
+            .iter()
+            .map(|code| national_team_id_for(game, code))
+            .collect()
+    };
+
+    let competition_id = format!("{PLAYOFF_COMPETITION_PREFIX}{year}");
+    let mut cup = League::new(
+        competition_id.clone(),
+        format!("World Cup Play-off {year}"),
+        year,
+        &[],
+    );
+    cup.kind = CompetitionType::InternationalNation;
+    cup.scope = CompetitionScope::International;
+    cup.rules.format = CompetitionFormat::Knockout;
+    cup.rules.knockout_round_gap_days = KNOCKOUT_GAP_DAYS;
+    cup.rules.knockout_matches_per_day = 2;
+    cup.standings.clear();
+    cup.priority = 9_500;
+    cup.name_key = Some("tournaments.competitions.worldCupPlayoff".to_string());
+    cup.participant_ids = entrant_ids.clone();
+
+    let prelim_start = chrono::NaiveDate::parse_from_str(&playoff_date, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now);
+    crate::schedule::seed_knockout_round(
+        &mut cup,
+        &entrant_ids,
+        prelim_start,
+        FixtureCompetition::InternationalNation,
+    );
+    if let Some(preliminaries) = cup.knockout_rounds.last_mut() {
+        preliminaries.name = "Semifinal".to_string();
+    }
+
+    game.competitions.push(cup);
+    if !game.active_competition_ids.is_empty() {
+        game.active_competition_ids.push(competition_id);
+    }
+
+    // News: the playoff line-up is set.
+    let news_id = format!("world_cup_playoff_draw_{year}");
+    if !game.news.iter().any(|article| article.id == news_id) {
+        let mut params = std::collections::HashMap::new();
+        params.insert("year".to_string(), year.to_string());
+        let names: Vec<String> =
+            ranked.iter().map(|code| nations::nation_display_name(code)).collect();
+        params.insert("nations".to_string(), names.join(", "));
+        game.news.push(
+            NewsArticle::new(
+                news_id,
+                String::new(),
+                String::new(),
+                String::new(),
+                today.to_string(),
+                NewsCategory::Editorial,
+            )
+            .with_i18n(
+                "be.news.worldCupPlayoffDraw.headline",
+                "be.news.worldCupPlayoffDraw.body",
+                "be.source.footballHerald",
+                params,
+            ),
+        );
+    }
+}
+
+/// Sorted final standings of every qualifying group, keyed by confederation.
+type GroupsByConfederation = BTreeMap<String, Vec<Vec<StandingEntry>>>;
+
+/// Every qualifying group's sorted standings grouped by confederation, plus
+/// per-confederation entrant counts and the campaign's cup year. `None` when
+/// no qualifying campaign exists.
+fn qualifying_groups_by_confederation(
+    game: &Game,
+) -> Option<(u32, GroupsByConfederation, BTreeMap<String, usize>)> {
+    let competition = game
+        .competitions
+        .iter()
+        .find(|competition| is_world_cup_qualifying(competition))?;
+    let mut groups_by_confed: BTreeMap<String, Vec<Vec<StandingEntry>>> = BTreeMap::new();
+    let mut entrants_by_confed: BTreeMap<String, usize> = BTreeMap::new();
+    for group in &competition.groups {
+        let confederation = group
+            .team_ids
+            .first()
+            .map(|id| confederation_of_code(game, &nation_code_of_national_team(id)))
+            .unwrap_or_else(|| "uefa".to_string());
+        let sorted = crate::group_stage::sorted_group_standings(group);
+        *entrants_by_confed.entry(confederation.clone()).or_insert(0) += sorted.len();
+        groups_by_confed.entry(confederation).or_default().push(sorted);
+    }
+    Some((competition.season, groups_by_confed, entrants_by_confed))
+}
+
+/// A completed qualifying campaign split by the real quotas: the direct
+/// qualifiers (host slot reserved inside its confederation), the
+/// inter-confederation playoff entrants, and the below-the-cut reserves kept
+/// strongest-first per confederation as a backfill pool.
+struct QualifyingOutcome {
+    direct_field: Vec<String>,
+    playoff_entrants: Vec<String>,
+    reserves: Vec<String>,
+}
+
+fn split_qualifying_outcome(
+    game: &Game,
+    groups_by_confed: &GroupsByConfederation,
+    entrants_by_confed: &BTreeMap<String, usize>,
+    host_code: Option<&str>,
+) -> QualifyingOutcome {
+    let directs = direct_berths(entrants_by_confed);
     let host = host_code.map(str::to_string);
     let host_confed = host.as_deref().map(|code| confederation_of_code(game, code));
 
-    let mut field: Vec<String> = Vec::new();
+    let mut direct_field: Vec<String> = Vec::new();
     let mut playoff_entrants: Vec<String> = Vec::new();
-    // Qualifiers that finished below the direct cut, strongest-first per
-    // confederation, kept as a backfill pool for the safety net below.
     let mut reserves: Vec<String> = Vec::new();
-    for (confederation, groups) in &groups_by_confed {
+    for (confederation, groups) in groups_by_confed {
         let direct_quota = directs.get(confederation).copied().unwrap_or(0);
         let playoff_count = PLAYOFF_ENTRANTS_BY_CONFED
             .iter()
@@ -1045,14 +1454,61 @@ pub fn qualified_field_from_game(
                 reserves.push(code);
             }
         }
-        field.extend(directs_taken);
+        direct_field.extend(directs_taken);
+    }
+    QualifyingOutcome {
+        direct_field,
+        playoff_entrants,
+        reserves,
+    }
+}
+
+/// The qualified field (nation codes) from a completed qualifying campaign.
+///
+/// For the 48-team finals this applies the real FIFA confederation quotas
+/// (UEFA 16, CAF 9, AFC 8, CONMEBOL 6, CONCACAF 6, OFC 1), reserves a slot for
+/// the host within its confederation, and decides the last two berths through
+/// an inter-confederation playoff. Smaller formats keep the simple
+/// size-proportional split. Returns `None` when there is no qualifying campaign.
+pub fn qualified_field_from_game(
+    game: &mut Game,
+    field_size: usize,
+    host_code: Option<&str>,
+) -> Option<Vec<String>> {
+    // Collect every group's sorted standings, grouped by confederation, into
+    // owned data so the immutable borrow ends before the playoff.
+    let (year, groups_by_confed, entrants_by_confed) = qualifying_groups_by_confederation(game)?;
+
+    // Smaller formats (small worlds, tests) keep the proportional split — real
+    // FIFA quotas and the playoff only make sense for the 48-team finals.
+    if field_size != FORMAT_48.field {
+        let berths = berths_by_region(field_size, &entrants_by_confed);
+        let mut field: Vec<String> = Vec::new();
+        for (confederation, groups) in &groups_by_confed {
+            let want = berths.get(confederation).copied().unwrap_or(0);
+            field.extend(rank_confederation_finishers(groups).into_iter().take(want));
+        }
+        return Some(field);
     }
 
-    // Last two berths via the inter-confederation playoff.
-    let mut rng = StdRng::seed_from_u64(u64::from(year) ^ 0xF1FA);
-    let playoff_winners = resolve_inter_confed_playoff(game, &playoff_entrants, &mut rng);
-    field.extend(playoff_winners.iter().cloned());
-    announce_inter_confed_playoff(game, year, &playoff_winners);
+    let outcome =
+        split_qualifying_outcome(game, &groups_by_confed, &entrants_by_confed, host_code);
+    let mut field = outcome.direct_field;
+    let reserves = outcome.reserves;
+
+    // Last two berths via the inter-confederation playoff: read the visible
+    // knockout when a full campaign staged one; a compressed campaign (no time
+    // for a scheduled bracket) resolves it synthetically here instead.
+    let playoff_winners = match decided_playoff_winners(game, year) {
+        Some(winners) => winners,
+        None => {
+            let mut rng = StdRng::seed_from_u64(u64::from(year) ^ 0xF1FA);
+            let winners = resolve_inter_confed_playoff(game, &outcome.playoff_entrants, &mut rng);
+            announce_inter_confed_playoff(game, year, &winners);
+            winners
+        }
+    };
+    field.extend(playoff_winners);
 
     // Safety net: a lopsided world (e.g. one confederation holding nearly every
     // entrant) can starve the non-UEFA playoff pool of two winners, leaving the
@@ -1142,7 +1598,13 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
                 away_penalties,
             });
             crate::group_stage::process_completed_fixture(competition, fixture_index);
-            crate::schedule::advance_knockout_competition_round(competition);
+            // The playoff bracket stops at two parallel finals instead of
+            // converging on a champion, so it advances through its own logic.
+            if is_world_cup_playoff(competition) {
+                advance_world_cup_playoff(competition);
+            } else {
+                crate::schedule::advance_knockout_competition_round(competition);
+            }
             game.world_history.apply_national_result(
                 &nation_code_of_national_team(&home_id),
                 &nation_code_of_national_team(&away_id),
@@ -1154,6 +1616,20 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
         }
 
         announce_champion_if_decided(game, competition_index, today, rng);
+        // The playoff's completion is news the moment its finals are played.
+        let competition = &game.competitions[competition_index];
+        if is_world_cup_playoff(competition)
+            && let Some(winners) = playoff_winners_of(competition)
+        {
+            let year = competition.season;
+            announce_inter_confed_playoff(game, year, &winners);
+        }
+    }
+
+    // A full campaign that just finished (all groups decided by the March
+    // window) stages the inter-confederation playoff in the free June window.
+    if simulated > 0 {
+        stage_world_cup_playoff_if_ready(game, today);
     }
     simulated
 }
@@ -1982,5 +2458,233 @@ mod tests {
             .expect("the champion is recorded for the hall of fame");
         assert_eq!(record.year, 2026);
         assert!(!record.nation_name.is_empty());
+    }
+
+    /// The international windows of the season starting in `year`'s August.
+    fn season_windows(year: i32) -> Vec<String> {
+        crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(year, 8, 1, 0, 0, 0).unwrap(),
+        )
+    }
+
+    #[test]
+    fn a_full_campaign_plays_real_formats_across_two_seasons() {
+        let mut game = empty_game();
+        // Scheduled two summers before the 2026 cup: the full campaign.
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let qualifying = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_qualifying(c))
+            .expect("qualifying is scheduled");
+
+        // CONMEBOL plays one all-play-all league; every other confederation
+        // plays groups of at most five.
+        let conmebol: Vec<_> = qualifying
+            .groups
+            .iter()
+            .filter(|group| group.name.starts_with("conmebol"))
+            .collect();
+        assert_eq!(conmebol.len(), 1, "CONMEBOL is a single league");
+        assert_eq!(conmebol[0].team_ids.len(), 10);
+        for group in &qualifying.groups {
+            if !group.name.starts_with("conmebol") {
+                assert!(
+                    group.team_ids.len() <= FULL_CAMPAIGN_GROUP_SIZE,
+                    "{} exceeds the full-campaign group size",
+                    group.name
+                );
+            }
+        }
+
+        // Home and away: every ordered pair in a group meets exactly once.
+        for group in &qualifying.groups {
+            for home in &group.team_ids {
+                for away in &group.team_ids {
+                    if home == away {
+                        continue;
+                    }
+                    let meetings = qualifying
+                        .fixtures
+                        .iter()
+                        .filter(|f| &f.home_team_id == home && &f.away_team_id == away)
+                        .count();
+                    assert_eq!(meetings, 1, "{home} hosts {away} exactly once");
+                }
+            }
+        }
+
+        // The campaign spans both seasons' windows and leaves the final (June
+        // of the cup year) window free for the inter-confederation playoff.
+        let season_two = season_windows(2025);
+        let mut campaign_days: std::collections::HashSet<String> =
+            crate::national_team::international_window_span_dates(&season_windows(2024))
+                .into_iter()
+                .collect();
+        campaign_days.extend(crate::national_team::international_window_span_dates(
+            &season_two[..season_two.len() - 1],
+        ));
+        assert!(
+            qualifying.fixtures.iter().all(|f| campaign_days.contains(&f.date)),
+            "every match sits on a campaign window, none on the playoff window"
+        );
+        assert!(
+            qualifying.fixtures.iter().any(|f| f.date.starts_with("2024")),
+            "the campaign opens in the first season"
+        );
+        assert!(
+            qualifying.fixtures.iter().any(|f| f.date.starts_with("2026-03")),
+            "the campaign runs to the second season's March window"
+        );
+    }
+
+    #[test]
+    fn continuing_a_campaign_redates_only_the_unplayed_fixtures() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+
+        // Play out the first season's share of the campaign.
+        let mut rng = StdRng::seed_from_u64(7);
+        for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        let (played_before, scheduled_before): (Vec<(String, String)>, usize) = {
+            let qualifying = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_qualifying(c))
+                .unwrap();
+            let played = qualifying
+                .fixtures
+                .iter()
+                .filter(|f| f.status == FixtureStatus::Completed)
+                .map(|f| (f.id.clone(), f.date.clone()))
+                .collect();
+            let scheduled = qualifying
+                .fixtures
+                .iter()
+                .filter(|f| f.status == FixtureStatus::Scheduled)
+                .count();
+            (played, scheduled)
+        };
+        assert!(!played_before.is_empty(), "the first season plays matches");
+        assert!(scheduled_before > 0, "the second season's share remains");
+
+        let season_two = season_windows(2025);
+        continue_world_cup_qualifying(&mut game, &season_two);
+
+        let qualifying = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_qualifying(c))
+            .unwrap();
+        // Played fixtures keep their dates and results.
+        for (fixture_id, date) in &played_before {
+            let fixture = qualifying
+                .fixtures
+                .iter()
+                .find(|f| &f.id == fixture_id)
+                .expect("played fixtures survive the rollover");
+            assert_eq!(&fixture.date, date, "a played fixture keeps its date");
+            assert_eq!(fixture.status, FixtureStatus::Completed);
+        }
+        // Every remaining fixture sits on the new season's windows, clear of
+        // the playoff's June window.
+        let second_days: std::collections::HashSet<String> =
+            crate::national_team::international_window_span_dates(
+                &season_two[..season_two.len() - 1],
+            )
+            .into_iter()
+            .collect();
+        let remaining: Vec<_> = qualifying
+            .fixtures
+            .iter()
+            .filter(|f| f.status == FixtureStatus::Scheduled)
+            .collect();
+        assert_eq!(remaining.len(), scheduled_before, "no fixture is lost");
+        assert!(
+            remaining.iter().all(|f| second_days.contains(&f.date)),
+            "unplayed fixtures land on the continuing season's windows"
+        );
+    }
+
+    #[test]
+    fn a_finished_campaign_stages_a_visible_playoff_that_decides_the_berths() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+
+        // Play the whole campaign: both seasons' windows up to March.
+        let season_two = season_windows(2025);
+        let mut rng = StdRng::seed_from_u64(13);
+        for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        for date in crate::national_team::international_window_span_dates(
+            &season_two[..season_two.len() - 1],
+        ) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+
+        // Groups done by March: the June playoff is staged and in the news.
+        {
+            let playoff = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_playoff(c))
+                .expect("a finished campaign stages the visible playoff");
+            assert_eq!(playoff.season, 2026);
+            assert_eq!(playoff.knockout_rounds.len(), 1);
+            assert_eq!(
+                playoff.knockout_rounds[0].fixture_ids.len(),
+                2,
+                "four teams contest the preliminaries"
+            );
+            assert_eq!(
+                playoff.knockout_rounds[0].bye_team_ids.len(),
+                2,
+                "the two seeds bye straight to the finals"
+            );
+            assert!(
+                playoff.fixtures.iter().all(|f| f.date.starts_with("2026-06")),
+                "the playoff owns the June window"
+            );
+            assert!(game.news.iter().any(|a| a.id == "world_cup_playoff_draw_2026"));
+        }
+
+        // June: preliminaries, then two parallel finals; two berths decided.
+        for date in crate::national_team::international_window_span_dates(
+            &season_two[season_two.len() - 1..],
+        ) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        let winners = {
+            let playoff = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_playoff(c))
+                .unwrap();
+            assert_eq!(playoff.knockout_rounds.len(), 2, "the finals are seeded");
+            assert!(playoff.knockout_rounds.iter().all(|round| round.completed));
+            playoff_winners_of(playoff).expect("the finals decide two qualifiers")
+        };
+        assert_eq!(winners.len(), INTER_CONFED_PLAYOFF_SPOTS);
+        assert!(
+            game.news.iter().any(|a| a.id == "world_cup_playoff_2026"),
+            "the qualifiers make the news the moment the finals are played"
+        );
+
+        // The rollover field takes the played winners, not a synthetic redraw.
+        let host = host_for_year(&game, 2026);
+        let field = qualified_field_from_game(&mut game, FORMAT_48.field, host.as_deref())
+            .expect("a field");
+        assert_eq!(field.len(), FORMAT_48.field);
+        let distinct: std::collections::HashSet<&String> = field.iter().collect();
+        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        for winner in &winners {
+            assert!(
+                field.contains(winner),
+                "playoff winner {winner} takes a berth in the field"
+            );
+        }
     }
 }

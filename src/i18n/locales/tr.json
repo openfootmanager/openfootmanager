@@ -1528,6 +1528,7 @@
       "participating": "Katılıyorsunuz",
       "worldCup": "{{year}} Dünya Kupası",
       "worldCupQualifying": "{{year}} Dünya Kupası Elemeleri",
+      "worldCupPlayoff": "{{year}} Dünya Kupası Play-off",
       "league": "{{country}} Ligi",
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
@@ -3391,6 +3392,14 @@
       "worldCupQualifying": {
         "headline": "{{year}} Dünya Kupası'na Giden Yol Başlıyor",
         "body": "{{nations}} ülke, bu sezonki uluslararası aralarda oynanacak {{year}} Dünya Kupası elemelerinde mücadeleye başlıyor."
+      },
+      "worldCupPlayoff": {
+        "headline": "{{year}} için kıtalararası play-off heyecanı",
+        "body": "{{nations}}, kıtalararası play-off'u geçerek {{year}} Dünya Kupası'ndaki son biletleri kaptı."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Altı takım, iki bilet: {{year}} play-off eşleşmeleri belli oldu",
+        "body": "{{nations}}, {{year}} Dünya Kupası'ndaki son iki bilet için haziranda kıtalararası play-off oynayacak."
       },
       "worldCupKickoff": {
         "headline": "{{year}} Dünya Kupası Başlıyor",

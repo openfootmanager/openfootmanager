@@ -1528,6 +1528,7 @@
       "participating": "Participating",
       "worldCup": "{{year}} World Cup",
       "worldCupQualifying": "World Cup Qualifying {{year}}",
+      "worldCupPlayoff": "World Cup Play-off {{year}}",
       "league": "{{country}} League",
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
@@ -3395,6 +3396,10 @@
       "worldCupPlayoff": {
         "headline": "Intercontinental Play-off Drama for {{year}}",
         "body": "{{nations}} have come through the inter-confederation play-off to claim the last places at the {{year}} World Cup."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Six Nations, Two Places: {{year}} Play-off Line-up Set",
+        "body": "{{nations}} will contest the inter-confederation play-off in June, with the final two places at the {{year}} World Cup on the line."
       },
       "worldCupKickoff": {
         "headline": "The {{year}} World Cup Begins",
