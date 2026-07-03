@@ -162,7 +162,7 @@ const REAL_WORLD_HOSTS: &[(u32, &str)] = &[
 
 /// The host nation code for a World Cup `year`: a host the game awarded, else
 /// the real-world host where known.
-fn host_for_year(game: &Game, year: i32) -> Option<String> {
+pub(crate) fn host_for_year(game: &Game, year: i32) -> Option<String> {
     let year = year as u32;
     game.world_history
         .world_cup_host(year)
@@ -545,9 +545,17 @@ fn region_of_code(game: &Game, code: &str) -> String {
     game.region_for_country(code)
 }
 
-/// Candidate nations grouped by region: every world nation with players plus
-/// the catalog nations, deduped.
-fn qualifying_candidates_by_region(game: &Game) -> BTreeMap<String, Vec<String>> {
+/// The FIFA confederation of a nation code: its (override-aware) region folded
+/// into the six real confederations. World Cup qualifying and berth quotas
+/// group by confederation, so the catalog's split Americas qualify as CONCACAF.
+fn confederation_of_code(game: &Game, code: &str) -> String {
+    nations::confederation_of_region(&region_of_code(game, code)).to_string()
+}
+
+/// Candidate nations grouped by confederation: every world nation with players
+/// plus the catalog nations, deduped. The catalog's split Americas qualify
+/// together as CONCACAF, so each confederation's campaign is a single pool.
+fn qualifying_candidates_by_confederation(game: &Game) -> BTreeMap<String, Vec<String>> {
     let pools = national_pools(game);
     let mut codes: Vec<String> = pools.keys().cloned().collect();
     for nation in nations::NATION_CATALOG {
@@ -555,17 +563,17 @@ fn qualifying_candidates_by_region(game: &Game) -> BTreeMap<String, Vec<String>>
     }
 
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut by_region: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut by_confederation: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for code in codes {
         if !seen.insert(code.clone()) {
             continue;
         }
-        by_region
-            .entry(region_of_code(game, &code))
+        by_confederation
+            .entry(confederation_of_code(game, &code))
             .or_default()
             .push(code);
     }
-    by_region
+    by_confederation
 }
 
 /// Allocate `field_size` World Cup berths across regions, proportional to how
@@ -634,6 +642,59 @@ pub fn berths_by_region(
     berths
 }
 
+/// Real FIFA 2026 direct World Cup berths per confederation (46 of 48; the
+/// final two are decided by the inter-confederation playoff).
+const WORLD_CUP_DIRECT_BERTHS: &[(&str, usize)] = &[
+    ("uefa", 16),
+    ("caf", 9),
+    ("afc", 8),
+    ("conmebol", 6),
+    ("concacaf", 6),
+    ("ofc", 1),
+];
+
+/// Slots filled by the inter-confederation playoff (the 47th and 48th teams).
+const INTER_CONFED_PLAYOFF_SPOTS: usize = 2;
+
+/// Direct (non-playoff) World Cup berths per confederation, starting from the
+/// real FIFA quota and adapting to the world's actual entrant counts: a
+/// confederation can never earn more direct berths than it has entrants, and any
+/// resulting shortfall is redistributed to confederations that still have spare
+/// entrants, largest-quota first. The directs sum to the quota total (46) when
+/// enough nations exist. The host (handled by the caller) occupies one of its
+/// confederation's slots — it does not change the per-confederation counts.
+fn direct_berths(entrants_by_confed: &BTreeMap<String, usize>) -> BTreeMap<String, usize> {
+    let target: usize = WORLD_CUP_DIRECT_BERTHS.iter().map(|(_, n)| n).sum();
+    let entrants_of = |confed: &str| entrants_by_confed.get(confed).copied().unwrap_or(0);
+
+    let mut berths: BTreeMap<String, usize> = BTreeMap::new();
+    for (confed, quota) in WORLD_CUP_DIRECT_BERTHS {
+        berths.insert(confed.to_string(), (*quota).min(entrants_of(confed)));
+    }
+    let mut allocated: usize = berths.values().sum();
+
+    // Redistribute the shortfall (from confederations short of entrants) to those
+    // with spare capacity, in quota order so the biggest confederations absorb it.
+    while allocated < target {
+        let mut progressed = false;
+        for (confed, _) in WORLD_CUP_DIRECT_BERTHS {
+            if allocated >= target {
+                break;
+            }
+            let current = berths.get(*confed).copied().unwrap_or(0);
+            if current < entrants_of(confed) {
+                berths.insert(confed.to_string(), current + 1);
+                allocated += 1;
+                progressed = true;
+            }
+        }
+        if !progressed {
+            break; // not enough entrants anywhere to reach the quota total
+        }
+    }
+    berths
+}
+
 /// Spread qualifying fixtures so each matchday's matches fan out across its
 /// international window's [`INTERNATIONAL_WINDOW_SPAN_DAYS`]-day block (matchday
 /// N opens on `window_dates[N-1]`) rather than all landing on the opening date.
@@ -689,7 +750,7 @@ pub fn schedule_world_cup_qualifying(
     if window_dates.is_empty() {
         return;
     }
-    let candidates = qualifying_candidates_by_region(game);
+    let candidates = qualifying_candidates_by_confederation(game);
     let all_codes: Vec<String> = candidates.values().flatten().cloned().collect();
     if all_codes.len() < 4 {
         return;
@@ -717,7 +778,7 @@ pub fn schedule_world_cup_qualifying(
         .unwrap_or_else(Utc::now);
 
     let mut participant_ids: Vec<String> = Vec::new();
-    for (region, codes) in &candidates {
+    for (confederation, codes) in &candidates {
         let group_count = codes.len().div_ceil(QUALIFYING_GROUP_SIZE).max(1);
         let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
         for (index, code) in codes.iter().enumerate() {
@@ -744,8 +805,8 @@ pub fn schedule_world_cup_qualifying(
             );
             competition.fixtures.extend(fixtures);
             competition.groups.push(GroupState {
-                id: format!("{competition_id}-{region}-{group_index}"),
-                name: format!("{region} {}", group_index + 1),
+                id: format!("{competition_id}-{confederation}-{group_index}"),
+                name: format!("{confederation} {}", group_index + 1),
                 team_ids: team_ids.clone(),
                 standings: team_ids
                     .iter()
@@ -793,48 +854,224 @@ pub fn schedule_world_cup_qualifying(
     }
 }
 
-/// The qualified field (nation codes) from a completed qualifying campaign:
-/// each region's berths go to its best group finishers (winners first, then
-/// runners-up, ranked across the region's groups). Returns `None` when there is
-/// no qualifying campaign to read.
-pub fn qualified_field_from_game(game: &Game, field_size: usize) -> Option<Vec<String>> {
-    let competition = game
-        .competitions
-        .iter()
-        .find(|competition| is_world_cup_qualifying(competition))?;
+/// Inter-confederation playoff entrants per confederation: the best teams beyond
+/// each confederation's direct quota. CONCACAF (the host confederation) sends
+/// two, the other non-UEFA confederations one each — six teams contesting the
+/// final two berths, as in the real 2026 format.
+const PLAYOFF_ENTRANTS_BY_CONFED: &[(&str, usize)] =
+    &[("caf", 1), ("afc", 1), ("conmebol", 1), ("ofc", 1), ("concacaf", 2)];
 
-    let mut groups_by_region: BTreeMap<String, Vec<Vec<StandingEntry>>> = BTreeMap::new();
-    let mut nations_by_region: BTreeMap<String, usize> = BTreeMap::new();
-    for group in &competition.groups {
-        let region = group
-            .team_ids
-            .first()
-            .map(|id| region_of_code(game, &nation_code_of_national_team(id)))
-            .unwrap_or_else(|| "europe".to_string());
-        let sorted = crate::group_stage::sorted_group_standings(group);
-        *nations_by_region.entry(region.clone()).or_insert(0) += sorted.len();
-        groups_by_region.entry(region).or_default().push(sorted);
+/// Nation codes finishing across a confederation's groups, best first: every
+/// group winner (ordered among themselves by `standing_order`), then every
+/// runner-up, and so on down the tables.
+fn rank_confederation_finishers(groups: &[Vec<StandingEntry>]) -> Vec<String> {
+    let max_rank = groups.iter().map(|group| group.len()).max().unwrap_or(0);
+    let mut finishers = Vec::new();
+    for rank in 0..max_rank {
+        let mut at_rank: Vec<&StandingEntry> =
+            groups.iter().filter_map(|group| group.get(rank)).collect();
+        at_rank.sort_by(|a, b| standing_order(a, b));
+        finishers.extend(at_rank.into_iter().map(|e| nation_code_of_national_team(&e.team_id)));
+    }
+    finishers
+}
+
+/// Resolve a single playoff tie through the national-team knockout engine
+/// (regulation → extra time → penalties); returns the advancing nation code.
+fn play_playoff_tie(game: &mut Game, home: &str, away: &str, rng: &mut impl Rng) -> String {
+    let home_id = national_team_id_for(game, home);
+    let away_id = national_team_id_for(game, away);
+    let (home_goals, away_goals, _, _, home_pens, away_pens) =
+        crate::national_team::play_national_knockout_match(game, &home_id, &away_id, rng);
+    let home_advances = if home_goals != away_goals {
+        home_goals > away_goals
+    } else {
+        home_pens.unwrap_or(0) >= away_pens.unwrap_or(0)
+    };
+    if home_advances { home.to_string() } else { away.to_string() }
+}
+
+/// The inter-confederation playoff: `entrants` (ranking order) contest the final
+/// [`INTER_CONFED_PLAYOFF_SPOTS`] berths. The top seeds bye to the finals; the
+/// rest play a preliminary round; the final winners qualify.
+fn resolve_inter_confed_playoff(
+    game: &mut Game,
+    entrants: &[String],
+    rng: &mut impl Rng,
+) -> Vec<String> {
+    let spots = INTER_CONFED_PLAYOFF_SPOTS;
+    if entrants.len() <= spots {
+        return entrants.to_vec();
+    }
+    let ranked = ranked_field(game, entrants);
+    let seeds: Vec<String> = ranked.iter().take(spots).cloned().collect();
+    let rest: Vec<String> = ranked.iter().skip(spots).cloned().collect();
+
+    // Preliminary round: strongest of the rest against weakest.
+    let mut prelim_winners: Vec<String> = Vec::new();
+    let half = rest.len() / 2;
+    for i in 0..half {
+        prelim_winners.push(play_playoff_tie(game, &rest[i], &rest[rest.len() - 1 - i], rng));
+    }
+    if rest.len() % 2 == 1 {
+        prelim_winners.push(rest[half].clone());
     }
 
-    let berths = berths_by_region(field_size, &nations_by_region);
-    let mut field: Vec<String> = Vec::new();
-    for (region, groups) in &groups_by_region {
-        let want = berths.get(region).copied().unwrap_or(0);
-        let max_rank = groups.iter().map(|group| group.len()).max().unwrap_or(0);
-        let mut qualified = 0usize;
-        'ranks: for rank in 0..max_rank {
-            let mut at_rank: Vec<&StandingEntry> =
-                groups.iter().filter_map(|group| group.get(rank)).collect();
-            at_rank.sort_by(|a, b| standing_order(a, b));
-            for entry in at_rank {
-                if qualified >= want {
-                    break 'ranks;
-                }
-                field.push(nation_code_of_national_team(&entry.team_id));
-                qualified += 1;
-            }
+    // Finals: each seed faces a preliminary winner.
+    let mut qualifiers: Vec<String> = Vec::new();
+    for (index, seed) in seeds.iter().enumerate() {
+        match prelim_winners.get(index) {
+            Some(opponent) => qualifiers.push(play_playoff_tie(game, seed, opponent, rng)),
+            None => qualifiers.push(seed.clone()),
         }
     }
+    qualifiers.truncate(spots);
+    qualifiers
+}
+
+/// Announce the inter-confederation playoff qualifiers to the world.
+fn announce_inter_confed_playoff(game: &mut Game, year: u32, winners: &[String]) {
+    if winners.is_empty() {
+        return;
+    }
+    let news_id = format!("world_cup_playoff_{year}");
+    if game.news.iter().any(|article| article.id == news_id) {
+        return;
+    }
+    let mut params = std::collections::HashMap::new();
+    params.insert("year".to_string(), year.to_string());
+    let names: Vec<String> = winners.iter().map(|code| nations::nation_display_name(code)).collect();
+    params.insert("nations".to_string(), names.join(", "));
+    let date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.news.push(
+        NewsArticle::new(
+            news_id,
+            String::new(),
+            String::new(),
+            String::new(),
+            date,
+            NewsCategory::Editorial,
+        )
+        .with_i18n(
+            "be.news.worldCupPlayoff.headline",
+            "be.news.worldCupPlayoff.body",
+            "be.source.footballHerald",
+            params,
+        ),
+    );
+}
+
+/// The qualified field (nation codes) from a completed qualifying campaign.
+///
+/// For the 48-team finals this applies the real FIFA confederation quotas
+/// (UEFA 16, CAF 9, AFC 8, CONMEBOL 6, CONCACAF 6, OFC 1), reserves a slot for
+/// the host within its confederation, and decides the last two berths through
+/// an inter-confederation playoff. Smaller formats keep the simple
+/// size-proportional split. Returns `None` when there is no qualifying campaign.
+pub fn qualified_field_from_game(
+    game: &mut Game,
+    field_size: usize,
+    host_code: Option<&str>,
+) -> Option<Vec<String>> {
+    // Collect every group's sorted standings, grouped by confederation. Done up
+    // front into owned data so the immutable borrow ends before the playoff.
+    let (year, groups_by_confed, entrants_by_confed) = {
+        let competition = game
+            .competitions
+            .iter()
+            .find(|competition| is_world_cup_qualifying(competition))?;
+        let mut groups_by_confed: BTreeMap<String, Vec<Vec<StandingEntry>>> = BTreeMap::new();
+        let mut entrants_by_confed: BTreeMap<String, usize> = BTreeMap::new();
+        for group in &competition.groups {
+            let confederation = group
+                .team_ids
+                .first()
+                .map(|id| confederation_of_code(game, &nation_code_of_national_team(id)))
+                .unwrap_or_else(|| "uefa".to_string());
+            let sorted = crate::group_stage::sorted_group_standings(group);
+            *entrants_by_confed.entry(confederation.clone()).or_insert(0) += sorted.len();
+            groups_by_confed.entry(confederation).or_default().push(sorted);
+        }
+        (competition.season, groups_by_confed, entrants_by_confed)
+    };
+
+    // Smaller formats (small worlds, tests) keep the proportional split — real
+    // FIFA quotas and the playoff only make sense for the 48-team finals.
+    if field_size != FORMAT_48.field {
+        let berths = berths_by_region(field_size, &entrants_by_confed);
+        let mut field: Vec<String> = Vec::new();
+        for (confederation, groups) in &groups_by_confed {
+            let want = berths.get(confederation).copied().unwrap_or(0);
+            field.extend(rank_confederation_finishers(groups).into_iter().take(want));
+        }
+        return Some(field);
+    }
+
+    let directs = direct_berths(&entrants_by_confed);
+    let host = host_code.map(str::to_string);
+    let host_confed = host.as_deref().map(|code| confederation_of_code(game, code));
+
+    let mut field: Vec<String> = Vec::new();
+    let mut playoff_entrants: Vec<String> = Vec::new();
+    // Qualifiers that finished below the direct cut, strongest-first per
+    // confederation, kept as a backfill pool for the safety net below.
+    let mut reserves: Vec<String> = Vec::new();
+    for (confederation, groups) in &groups_by_confed {
+        let direct_quota = directs.get(confederation).copied().unwrap_or(0);
+        let playoff_count = PLAYOFF_ENTRANTS_BY_CONFED
+            .iter()
+            .find(|(confed, _)| confed == confederation)
+            .map(|(_, count)| *count)
+            .unwrap_or(0);
+        let reserve_host = host_confed.as_deref() == Some(confederation.as_str());
+
+        // Reserve the host inside its confederation's quota; it fills one slot.
+        let mut directs_taken: Vec<String> = Vec::new();
+        if reserve_host && let Some(host_code) = &host {
+            directs_taken.push(host_code.clone());
+        }
+        let mut playoff_taken = 0usize;
+        for code in rank_confederation_finishers(groups) {
+            if reserve_host && host.as_deref() == Some(code.as_str()) {
+                continue; // the host already holds a slot
+            }
+            if directs_taken.len() < direct_quota {
+                directs_taken.push(code);
+            } else if playoff_taken < playoff_count {
+                playoff_entrants.push(code.clone());
+                playoff_taken += 1;
+                reserves.push(code);
+            } else {
+                reserves.push(code);
+            }
+        }
+        field.extend(directs_taken);
+    }
+
+    // Last two berths via the inter-confederation playoff.
+    let mut rng = StdRng::seed_from_u64(u64::from(year) ^ 0xF1FA);
+    let playoff_winners = resolve_inter_confed_playoff(game, &playoff_entrants, &mut rng);
+    field.extend(playoff_winners.iter().cloned());
+    announce_inter_confed_playoff(game, year, &playoff_winners);
+
+    // Safety net: a lopsided world (e.g. one confederation holding nearly every
+    // entrant) can starve the non-UEFA playoff pool of two winners, leaving the
+    // field short. Backfill from the strongest remaining qualifiers so the field
+    // still reaches its target when entrants allow. With the real catalog the
+    // pool always yields two winners, so this never fires there; B2's distinct
+    // per-confederation formats keep the pools full too, leaving it a B1 net.
+    if field.len() < field_size {
+        let chosen: std::collections::HashSet<String> = field.iter().cloned().collect();
+        let leftovers: Vec<String> =
+            reserves.into_iter().filter(|code| !chosen.contains(code)).collect();
+        for code in ranked_field(game, &leftovers) {
+            if field.len() >= field_size {
+                break;
+            }
+            field.push(code);
+        }
+    }
+
     Some(field)
 }
 
@@ -1184,10 +1421,152 @@ mod tests {
             .any(|g| g.standings.iter().any(|s| s.played > 0));
         assert!(played, "qualifying group tables update as matches are played");
 
-        let field = qualified_field_from_game(&game, FORMAT_16.field).expect("a field");
+        let field = qualified_field_from_game(&mut game, FORMAT_16.field, None).expect("a field");
         assert_eq!(field.len(), FORMAT_16.field);
         let distinct: std::collections::HashSet<&String> = field.iter().collect();
         assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+    }
+
+    #[test]
+    fn direct_berths_match_fifa_quotas_and_redistribute_shortfalls() {
+        let full: BTreeMap<String, usize> = [
+            ("uefa", 26),
+            ("caf", 10),
+            ("afc", 10),
+            ("conmebol", 10),
+            ("concacaf", 9),
+            ("ofc", 2),
+        ]
+        .iter()
+        .map(|(confed, count)| (confed.to_string(), *count))
+        .collect();
+
+        let berths = direct_berths(&full);
+        assert_eq!(berths["uefa"], 16);
+        assert_eq!(berths["caf"], 9);
+        assert_eq!(berths["afc"], 8);
+        assert_eq!(berths["conmebol"], 6);
+        assert_eq!(berths["concacaf"], 6);
+        assert_eq!(berths["ofc"], 1);
+        assert_eq!(berths.values().sum::<usize>(), 46);
+
+        // A confederation short of entrants gives its slack to the others.
+        let mut short = full.clone();
+        short.insert("ofc".to_string(), 0);
+        let berths = direct_berths(&short);
+        assert_eq!(berths.get("ofc").copied().unwrap_or(0), 0);
+        assert_eq!(berths.values().sum::<usize>(), 46, "the OFC slot is redistributed");
+        assert!(berths["uefa"] >= 16, "slack goes to the biggest quota first");
+    }
+
+    #[test]
+    fn inter_confederation_playoff_returns_two_distinct_qualifiers() {
+        let mut game = empty_game();
+        let entrants: Vec<String> =
+            ["BR", "AR", "NG", "EG", "JP", "KR"].iter().map(|c| c.to_string()).collect();
+        prepare_national_squads(&mut game, &entrants);
+
+        let mut rng = StdRng::seed_from_u64(3);
+        let winners = resolve_inter_confed_playoff(&mut game, &entrants, &mut rng);
+
+        assert_eq!(winners.len(), 2, "two teams come through the playoff");
+        let distinct: std::collections::HashSet<&String> = winners.iter().collect();
+        assert_eq!(distinct.len(), 2, "the two qualifiers are distinct");
+        assert!(winners.iter().all(|w| entrants.contains(w)));
+    }
+
+    #[test]
+    fn a_starved_playoff_pool_still_backfills_a_full_field() {
+        // A degenerate world where every entrant maps to one confederation:
+        // made-up codes default to europe/UEFA, so the non-UEFA playoff pool is
+        // empty and the playoff yields no winners. The 46 directs must still be
+        // topped up to the full 48 from the strongest spare qualifiers.
+        let mut game = empty_game();
+        let codes: Vec<String> = (0..50).map(|i| format!("ZZ{i}")).collect();
+        let competition_id = format!("{QUALIFYING_COMPETITION_PREFIX}2026");
+        let mut competition =
+            League::new(competition_id.clone(), "WC Qualifying 2026".to_string(), 2026, &[]);
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        for (group_index, chunk) in codes.chunks(QUALIFYING_GROUP_SIZE).enumerate() {
+            let team_ids: Vec<String> = chunk.iter().map(|code| national_team_id(code)).collect();
+            competition.groups.push(GroupState {
+                id: format!("{competition_id}-uefa-{group_index}"),
+                name: format!("uefa {}", group_index + 1),
+                standings: team_ids.iter().map(|id| StandingEntry::new(id.clone())).collect(),
+                team_ids,
+            });
+        }
+        game.competitions.push(competition);
+
+        let field = qualified_field_from_game(&mut game, FORMAT_48.field, None)
+            .expect("a field is derived even from a one-confederation world");
+        assert_eq!(field.len(), FORMAT_48.field, "the starved playoff pool is backfilled to 48");
+        let distinct: std::collections::HashSet<&String> = field.iter().collect();
+        assert_eq!(distinct.len(), field.len(), "the backfilled field stays distinct");
+    }
+
+    #[test]
+    fn qualifying_field_uses_real_confederation_quotas_and_a_playoff() {
+        use chrono::TimeZone;
+        let mut game = empty_game();
+        let windows = crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        schedule_world_cup_qualifying(&mut game, 2026, &windows);
+
+        let window_block = crate::national_team::international_window_span_dates(&windows);
+        let mut rng = StdRng::seed_from_u64(7);
+        for date in &window_block {
+            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        }
+
+        let host = "US";
+        let field =
+            qualified_field_from_game(&mut game, FORMAT_48.field, Some(host)).expect("a field");
+        assert_eq!(field.len(), FORMAT_48.field, "48 nations qualify");
+        let distinct: std::collections::HashSet<&String> = field.iter().collect();
+        assert_eq!(distinct.len(), field.len(), "qualified nations are distinct");
+        assert!(field.iter().any(|code| code == host), "the host qualifies");
+
+        // Per-confederation counts follow the real FIFA quotas; the two playoff
+        // winners add one each to two non-UEFA confederations.
+        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+        for code in &field {
+            let confed = nations::confederation_of_region(nations::region_for_code(code));
+            *counts.entry(confed.to_string()).or_insert(0) += 1;
+        }
+        assert_eq!(counts.get("uefa").copied().unwrap_or(0), 16, "UEFA gets its 16 directs");
+        assert!((9..=10).contains(&counts.get("caf").copied().unwrap_or(0)));
+        assert!((8..=9).contains(&counts.get("afc").copied().unwrap_or(0)));
+        assert!((6..=7).contains(&counts.get("conmebol").copied().unwrap_or(0)));
+        assert!((6..=8).contains(&counts.get("concacaf").copied().unwrap_or(0)));
+        assert!((1..=2).contains(&counts.get("ofc").copied().unwrap_or(0)));
+        assert_eq!(counts.values().sum::<usize>(), 48);
+        assert!(
+            game.news.iter().any(|a| a.id == "world_cup_playoff_2026"),
+            "the inter-confederation playoff makes the news"
+        );
+
+        // The real-quota field (16 UEFA teams) must still draw into valid finals
+        // groups: the draw's confederation cap (≤1 per region, europe ≤2) holds.
+        schedule_world_cup_with_field(&mut game, kickoff(2026), &FORMAT_48, Some(field));
+        let finals = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c) && !is_world_cup_qualifying(c))
+            .expect("the finals are staged from the qualified field");
+        for group in &finals.groups {
+            let mut per_region: BTreeMap<String, usize> = BTreeMap::new();
+            for team_id in &group.team_ids {
+                let region = nations::region_for_code(&nation_code_of_national_team(team_id));
+                *per_region.entry(region.to_string()).or_insert(0) += 1;
+            }
+            for (region, count) in per_region {
+                let cap = if region == "europe" { 2 } else { 1 };
+                assert!(count <= cap, "group respects the {region} cap ({count} > {cap})");
+            }
+        }
     }
 
     /// Max number of fixtures that fall on any single calendar date.
