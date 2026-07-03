@@ -140,12 +140,12 @@ export default function PlayerProfileAttributesCard({
                                                 <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
                                                     {attr.name}
                                                 </span>
-                                                <div className="min-w-0 h-1.5 bg-gray-200 dark:bg-navy-600 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-gray-300 dark:bg-navy-500 rounded-full"
-                                                        style={{ width: `${placeholderWidth(attr.name)}%` }}
-                                                    />
-                                                </div>
+                                                <ProgressBar
+                                                    value={placeholderWidth(attr.name)}
+                                                    variant="muted"
+                                                    size="sm"
+                                                    className="min-w-0"
+                                                />
                                                 <span className="text-xs text-gray-400 dark:text-gray-500 text-right">
                                                     ??
                                                 </span>
