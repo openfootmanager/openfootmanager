@@ -335,6 +335,8 @@ fn empty_report(home_goals: u8, away_goals: u8) -> MatchReport {
         player_stats: HashMap::new(),
         home_possession: 50.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 
@@ -397,6 +399,8 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
         player_stats,
         home_possession: 55.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 
@@ -537,6 +541,8 @@ fn full_squad_report(home_goals: u8, away_goals: u8) -> MatchReport {
         player_stats,
         home_possession: 50.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 // ---------------------------------------------------------------------------
@@ -743,6 +749,27 @@ fn apply_match_report_updates_fixture_status() {
     assert_eq!(persisted_report.total_minutes, 90);
     assert_eq!(persisted_report.home_stats.possession_pct, 50);
     assert_eq!(persisted_report.away_stats.possession_pct, 50);
+}
+
+#[test]
+fn apply_match_report_persists_shootout_score() {
+    // Regression: a live match decided on penalties used to persist with
+    // home_penalties: None (and, before the engine fix, an inflated
+    // scoreline). The regulation draw and the shootout score must both land
+    // on the fixture's MatchResult so advancing_is_home() picks the winner.
+    let mut game = make_game_with_match();
+    let mut report = empty_report(1, 1);
+    report.home_penalties = Some(3);
+    report.away_penalties = Some(4);
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let fixture = &game.league.as_ref().unwrap().fixtures[0];
+    let result = fixture.result.as_ref().unwrap();
+    assert_eq!(result.home_goals, 1);
+    assert_eq!(result.away_goals, 1);
+    assert_eq!(result.home_penalties, Some(3));
+    assert_eq!(result.away_penalties, Some(4));
+    assert!(!result.advancing_is_home());
 }
 
 #[test]

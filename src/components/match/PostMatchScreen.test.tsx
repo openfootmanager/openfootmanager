@@ -513,6 +513,96 @@ describe("PostMatchScreen", function (): void {
     expect(onContinue).not.toHaveBeenCalled();
   });
 
+  it("resolves a level score via the shootout and shows the pens score", function (): void {
+    // Regression: shootout kicks used to be folded into the match score, so a
+    // 1-1 tie won on penalties displayed as 5-4 and the verdict came from the
+    // inflated score. Now the score stays level and the shootout decides.
+    const snapshot = {
+      ...makeSnapshot(),
+      home_score: 1,
+      away_score: 1,
+      penalty_shootout: {
+        home_taken: 6,
+        away_taken: 6,
+        home_scored: 5,
+        away_scored: 4,
+        sudden_death: true,
+      },
+    };
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("match.victory")).toBeInTheDocument();
+    expect(screen.queryByText("match.draw")).not.toBeInTheDocument();
+    expect(screen.getByText(/match\.pen 5–4/)).toBeInTheDocument();
+  });
+
+  it("keeps a level score without a shootout as a draw", function (): void {
+    const snapshot = {
+      ...makeSnapshot(),
+      home_score: 1,
+      away_score: 1,
+    };
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("match.draw")).toBeInTheDocument();
+    expect(screen.queryByText("match.victory")).not.toBeInTheDocument();
+    expect(screen.queryByText(/match\.pen \d/)).not.toBeInTheDocument();
+  });
+
+  it("shows a defeat verdict when the user loses the shootout", function (): void {
+    const snapshot = {
+      ...makeSnapshot(),
+      home_score: 1,
+      away_score: 1,
+      penalty_shootout: {
+        home_taken: 5,
+        away_taken: 5,
+        home_scored: 3,
+        away_scored: 4,
+        sudden_death: false,
+      },
+    };
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("match.defeat")).toBeInTheDocument();
+  });
+
   it("calls onFinish when manager clicks Skip", function (): void {
     const onContinue = vi.fn();
     const onFinish = vi.fn();

@@ -916,6 +916,8 @@ mod tests {
             player_stats: HashMap::new(),
             home_possession: 50.0,
             total_minutes: 90,
+            home_penalties: None,
+            away_penalties: None,
         }
     }
 

@@ -44,6 +44,10 @@ pub enum EventType {
     PenaltyAwarded,
     PenaltyGoal,
     PenaltyMiss,
+    // Penalty-shootout kicks. Distinct from PenaltyGoal/PenaltyMiss so the
+    // shootout never counts toward match goals or player stats.
+    ShootoutGoal,
+    ShootoutMiss,
 
     // --- Defending ---
     Tackle,
