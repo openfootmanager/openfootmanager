@@ -29,6 +29,7 @@ import {
 } from "../../services/scoutingService";
 import { GraduationCap, ScanSearch, TrendingUp, Star, Users, Sparkles } from "lucide-react";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
+import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
 
@@ -172,7 +173,7 @@ export default function YouthAcademyTab({
   // or when the game clock advances (issue #250).
   const handleSetSquadRole = async (
     playerId: string,
-    squadRole: "Youth" | "Senior",
+    squadRole: PlayerSquadRole,
   ) => {
     try {
       const updated = await setPlayerSquadRole(playerId, squadRole);
