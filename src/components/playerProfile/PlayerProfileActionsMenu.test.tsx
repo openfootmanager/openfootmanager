@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
+import { setPlayerSquadRole } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -16,6 +17,7 @@ vi.mock("../../services/transfersService", () => ({
 
 vi.mock("../../services/squadService", () => ({
     setPlayerSquadRole: vi.fn(),
+    setStartingXi: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -92,7 +94,7 @@ function openMenu(): void {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 });
 
 describe("PlayerProfileActionsMenu", () => {
@@ -144,16 +146,20 @@ describe("PlayerProfileActionsMenu", () => {
         expect(props.onGameUpdate).not.toHaveBeenCalled();
     });
 
-    it("offers youth academy delegation for eligible under-21 players", () => {
+    it("delegates eligible under-21 players to the youth academy", async () => {
         const player = buildPlayer({ date_of_birth: "2007-01-01" });
         const props = baseProps(player, buildGameState([player]));
+        const updated = { updated: true } as unknown as GameStateData;
+        vi.mocked(setPlayerSquadRole).mockResolvedValue(updated);
 
         render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
         openMenu();
+        fireEvent.click(screen.getByText("youthAcademy.delegateToYouthAcademy"));
 
-        expect(
-            screen.getByText("youthAcademy.delegateToYouthAcademy"),
-        ).toBeInTheDocument();
+        await waitFor(() => {
+            expect(setPlayerSquadRole).toHaveBeenCalledWith("p1", "Youth");
+            expect(props.onGameUpdate).toHaveBeenCalledWith(updated);
+        });
     });
 
     it("offers a transfer bid for another club's player", () => {
@@ -191,6 +197,17 @@ describe("PlayerProfileActionsMenu", () => {
 
         const { container } = render(
             <PlayerProfileActionsMenu {...props} isManagerOwnedProfile={false} />,
+        );
+
+        expect(container).toBeEmptyDOMElement();
+    });
+
+    it("renders nothing for retired players even when manager-owned", () => {
+        const player = buildPlayer({ retired: true });
+        const props = baseProps(player, buildGameState([player]));
+
+        const { container } = render(
+            <PlayerProfileActionsMenu {...props} isManagerOwnedProfile />,
         );
 
         expect(container).toBeEmptyDOMElement();

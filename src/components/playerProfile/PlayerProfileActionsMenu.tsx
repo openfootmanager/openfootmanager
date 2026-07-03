@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useRef, useState } from "react";
 import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -20,8 +19,9 @@ import {
     buildStartingXIIds,
 } from "../squad/SquadTab.helpers";
 import { canDelegateToYouthAcademy } from "../../lib/playerSquad";
-import { setPlayerSquadRole } from "../../services/squadService";
+import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
+import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Button } from "../ui";
 
 interface PlayerProfileActionsMenuProps {
@@ -68,15 +68,26 @@ export default function PlayerProfileActionsMenu({
 }: PlayerProfileActionsMenuProps) {
     const { t } = useTranslation();
     const menuRef = useRef<ContextMenuHandle>(null);
+    const [mutationPending, setMutationPending] = useState(false);
+
+    // No management action applies to a retired player, regardless of
+    // which club last held their contract.
+    if (player.retired) {
+        return null;
+    }
 
     const managerTeamId = gameState.manager.team_id;
     const managerTeam = gameState.teams.find((team) => team.id === managerTeamId);
+    const actionBusy = mutationPending || actionSubmitting;
 
     const runMutation = async (mutation: () => Promise<GameStateData>): Promise<void> => {
+        setMutationPending(true);
         try {
             onGameUpdate(await mutation());
         } catch (error) {
-            onError(String(error));
+            onError(resolveTranslatedErrorMessage(error, t));
+        } finally {
+            setMutationPending(false);
         }
     };
 
@@ -105,9 +116,7 @@ export default function PlayerProfileActionsMenu({
             if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
                 return;
             }
-            void runMutation(() =>
-                invoke<GameStateData>("set_starting_xi", { playerIds: nextXiIds }),
-            );
+            void runMutation(() => setStartingXi(nextXiIds));
         };
 
         items.push(
@@ -116,6 +125,7 @@ export default function PlayerProfileActionsMenu({
                       label: t("squad.sendToBench"),
                       icon: <RotateCcw className="w-4 h-4" />,
                       disabled:
+                          actionBusy ||
                           available.filter((candidate) => !startingXiIds.includes(candidate.id))
                               .length === 0,
                       onClick: () =>
@@ -131,7 +141,7 @@ export default function PlayerProfileActionsMenu({
                 : {
                       label: t("squad.makeStarter"),
                       icon: <Users className="w-4 h-4" />,
-                      disabled: Boolean(player.injury),
+                      disabled: actionBusy || Boolean(player.injury),
                       onClick: () =>
                           persistStartingXi(
                               buildPromoteToStartingXi(
@@ -176,22 +186,29 @@ export default function PlayerProfileActionsMenu({
                 onClick: onOpenTermination,
             },
             buildDividerMenuItem(),
-            buildToggleTransferListMenuItem(t, player.transfer_listed, () => {
-                void runMutation(() => toggleTransferList(player.id));
-            }),
-            buildToggleLoanListMenuItem(t, player.loan_listed, () => {
-                void runMutation(() => toggleLoanList(player.id));
-            }),
+            {
+                ...buildToggleTransferListMenuItem(t, player.transfer_listed, () => {
+                    void runMutation(() => toggleTransferList(player.id));
+                }),
+                disabled: actionBusy,
+            },
+            {
+                ...buildToggleLoanListMenuItem(t, player.loan_listed, () => {
+                    void runMutation(() => toggleLoanList(player.id));
+                }),
+                disabled: actionBusy,
+            },
         );
 
         if (canDelegateToYouthAcademy(player)) {
-            items.push(
-                buildDelegateToYouthAcademyMenuItem(t, () => {
+            items.push({
+                ...buildDelegateToYouthAcademyMenuItem(t, () => {
                     void runMutation(() => setPlayerSquadRole(player.id, "Youth"));
                 }),
-            );
+                disabled: actionBusy,
+            });
         }
-    } else if (managerTeamId && !player.retired) {
+    } else if (managerTeamId) {
         if (isFreeAgent) {
             items.push(buildOfferFreeAgentContractMenuItem(t, onOpenFreeAgentContract));
         } else {
