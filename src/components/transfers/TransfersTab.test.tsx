@@ -988,8 +988,10 @@ describe("TransfersTab", function (): void {
 
     // Modal must stay open on acceptance so the user can read the
     // confirmation. Any auto-close reintroduces the 2-second flicker
-    // and the double-unmount of the deal workspace parent.
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // and the double-unmount of the deal workspace parent. Wait past
+    // the old 2s timer so a regression that reintroduces it fires
+    // before this assertion runs.
+    await new Promise((resolve) => setTimeout(resolve, 2100));
     expect(
       screen.getByRole("dialog", { name: /john smith/i }),
     ).toBeInTheDocument();

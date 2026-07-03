@@ -941,7 +941,13 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 // no other path adds to it, without this refill the market
                 // would freeze after 2-3 seasons as every club drained to
                 // zero.
-                team.transfer_budget = (team.finance as f64 * 0.15) as i64;
+                // Clamp at zero — unlike worldgen (which only ever sees fresh
+                // positive finance), end-of-season runs on live state where a
+                // heavily indebted club can have negative `finance`. A
+                // negative envelope would still be rejected by
+                // `make_transfer_bid`, but showing "€-1.2M transfer budget"
+                // in the UI reads worse than a hard zero.
+                team.transfer_budget = ((team.finance as f64 * 0.15) as i64).max(0);
             }
         }
 

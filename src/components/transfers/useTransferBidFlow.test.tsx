@@ -274,8 +274,9 @@ describe("useTransferBidFlow", function (): void {
 
         // No auto-close: the accepted state must persist until the caller
         // explicitly closes the modal. Regressions here reintroduce the
-        // 2-second flicker that hid the acceptance confirmation.
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // 2-second flicker that hid the acceptance confirmation. Wait
+        // past the old 2s timer so the guard actually catches its return.
+        await new Promise((resolve) => setTimeout(resolve, 2100));
         expect(screen.getByLabelText("bid-result")).toHaveTextContent("accepted");
     });
 });
