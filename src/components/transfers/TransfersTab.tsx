@@ -238,11 +238,6 @@ export default function TransfersTab({
     useState<PlayerData | null>(null);
   const [dealWorkspaceKind, setDealWorkspaceKind] =
     useState<DealKind>("transfer");
-  const closeAcceptedDealWorkspace = (playerId: string) => {
-    setDealWorkspaceTarget((target) =>
-      target?.id === playerId ? null : target,
-    );
-  };
 
   useEffect(() => {
     if (!openPositionPopover) return;
@@ -473,14 +468,6 @@ export default function TransfersTab({
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-
-      if (response.decision === "accepted") {
-        const acceptedPlayerId = loanTarget.id;
-        setTimeout(() => {
-          closeLoanOffer();
-          closeAcceptedDealWorkspace(acceptedPlayerId);
-        }, 1500);
-      }
     } catch (err: any) {
       setLoanResult("error");
       setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));
@@ -540,12 +527,6 @@ export default function TransfersTab({
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-
-      if (response.decision === "accepted") {
-        setTimeout(() => {
-          closeLoanCounterOffer();
-        }, 1500);
-      }
     } catch (err: any) {
       setLoanCounterResult("error");
       setLoanCounterError(
@@ -590,14 +571,6 @@ export default function TransfersTab({
       if (response.suggested_fee !== null) {
         setCounterAmount(formatTransferFeeInput(response.suggested_fee));
       }
-      if (response.decision === "accepted") {
-        setTimeout(() => {
-          setCounterTarget(null);
-          setCounterAmount("");
-          setCounterResult(null);
-          setCounterFeedback(null);
-        }, 1500);
-      }
     } catch (err: any) {
       setCounterError(
         mapTransferNegotiationError(t, err?.toString() || "error"),
@@ -626,7 +599,6 @@ export default function TransfersTab({
   } = useTransferBidFlow({
     gameState,
     onGameUpdate,
-    onAccepted: closeAcceptedDealWorkspace,
   });
   const scouts = gameState.staff.filter(
     (staffMember) =>
@@ -873,7 +845,6 @@ export default function TransfersTab({
   } = useFreeAgentContractFlow({
     gameState,
     onGameUpdate,
-    onAccepted: closeAcceptedDealWorkspace,
   });
 
   const getDealKinds = (player: PlayerData): DealKind[] => {
