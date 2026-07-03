@@ -2743,3 +2743,31 @@ fn transfer_succeeds_when_incoming_player_jersey_collides_with_buyer_squad() {
         "incoming player whose #6 is taken must get the lowest free number (#1)"
     );
 }
+
+#[test]
+fn executed_transfer_debits_the_buying_team_transfer_budget() {
+    let mut player = make_player("player-budget-debit");
+    player.morale = 35;
+    player.stats.appearances = 1;
+    let starting_finance = 5_000_000;
+    let starting_budget = 2_000_000;
+    let mut game = make_game_with_player(player, vec![], starting_finance, starting_budget);
+    game.teams[0].reputation = 700;
+    game.teams[1].reputation = 350;
+
+    // First bid returns a counter — engine picks a suggestion around 950k.
+    make_transfer_bid(&mut game, "player-budget-debit", 900_000)
+        .expect("first bid should return a counter");
+    // Accepting the suggestion executes the transfer.
+    let result = make_transfer_bid(&mut game, "player-budget-debit", 950_000)
+        .expect("second bid should be accepted");
+    assert_eq!(result.decision, TransferNegotiationDecision::Accepted);
+
+    // Both `finance` and `transfer_budget` must drop by the executed fee.
+    // Regression guard for the pre-fix bug where `transfer_budget` gated
+    // only the first bid and stayed constant thereafter, letting a team
+    // spend €100M in €15M chunks against a €15M budget.
+    let buyer = game.teams.iter().find(|t| t.id == "team-1").unwrap();
+    assert_eq!(buyer.finance, starting_finance - 950_000);
+    assert_eq!(buyer.transfer_budget, starting_budget - 950_000);
+}

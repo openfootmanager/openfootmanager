@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -177,14 +177,12 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
 function HookHarness({
     gameState,
     target,
-    onAccepted,
 }: {
     gameState: GameStateData;
     target: PlayerData;
-    onAccepted?: (playerId: string) => void;
 }): JSX.Element {
     const { bidAmount, bidResult, setBidAmount, openBidNegotiation, handleMakeBid } =
-        useTransferBidFlow({ gameState, onAccepted });
+        useTransferBidFlow({ gameState });
 
     return (
         <div>
@@ -246,54 +244,39 @@ describe("useTransferBidFlow", function (): void {
         });
     });
 
-    it("cancels the accepted-bid auto-close timeout on unmount", async function (): Promise<void> {
-        vi.useFakeTimers();
-        try {
-            const target = createPlayer();
-            const gameState = createGameState([target]);
-            const onAccepted = vi.fn();
-            mockedMakeTransferBid.mockResolvedValue({
-                decision: "accepted",
-                suggested_fee: null,
-                is_terminal: true,
-                feedback: {
-                    mood: "positive",
-                    headline_key: "transfers.transferFeedbackAcceptedHeadline",
-                    detail_key: "transfers.transferFeedbackAcceptedDetail",
-                    tension: 20,
-                    patience: 80,
-                    round: 1,
-                    params: { fee: "1500000" },
-                },
-                game: gameState,
-            });
+    it("keeps the acceptance state visible so the modal does not auto-close", async function (): Promise<void> {
+        const target = createPlayer();
+        const gameState = createGameState([target]);
+        mockedMakeTransferBid.mockResolvedValue({
+            decision: "accepted",
+            suggested_fee: null,
+            is_terminal: true,
+            feedback: {
+                mood: "positive",
+                headline_key: "transfers.transferFeedbackAcceptedHeadline",
+                detail_key: "transfers.transferFeedbackAcceptedDetail",
+                tension: 20,
+                patience: 80,
+                round: 1,
+                params: { fee: "1500000" },
+            },
+            game: gameState,
+        });
 
-            const { unmount } = render(
-                <HookHarness
-                    gameState={gameState}
-                    target={target}
-                    onAccepted={onAccepted}
-                />,
-            );
+        render(<HookHarness gameState={gameState} target={target} />);
 
-            fireEvent.click(screen.getByRole("button", { name: "Open" }));
-            fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open" }));
+        fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-            await act(async function flushAcceptedBid(): Promise<void> {
-                await Promise.resolve();
-            });
-
+        await waitFor(function (): void {
             expect(screen.getByLabelText("bid-result")).toHaveTextContent("accepted");
+        });
 
-            unmount();
-
-            act(function advanceAutoCloseTimer(): void {
-                vi.advanceTimersByTime(2000);
-            });
-
-            expect(onAccepted).not.toHaveBeenCalled();
-        } finally {
-            vi.useRealTimers();
-        }
+        // No auto-close: the accepted state must persist until the caller
+        // explicitly closes the modal. Regressions here reintroduce the
+        // 2-second flicker that hid the acceptance confirmation. Wait
+        // past the old 2s timer so the guard actually catches its return.
+        await new Promise((resolve) => setTimeout(resolve, 2100));
+        expect(screen.getByLabelText("bid-result")).toHaveTextContent("accepted");
     });
 });
