@@ -8,6 +8,7 @@ const LANG_LOCALE: Record<string, string> = {
     de: "de-DE",
     it: "it-IT",
     zh: "zh-CN",
+    tr: "tr-TR",
 };
 
 export function getLocale(lang?: string): string {

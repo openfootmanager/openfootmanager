@@ -12,6 +12,7 @@ import itLocale from "../i18n/locales/it.json";
 import ptBR from "../i18n/locales/pt-BR.json";
 import pt from "../i18n/locales/pt.json";
 import ru from "../i18n/locales/ru.json";
+import tr from "../i18n/locales/tr.json";
 import zhCN from "../i18n/locales/zh-CN.json";
 
 const LOCALES: Record<string, LocaleTree> = {
@@ -23,6 +24,7 @@ const LOCALES: Record<string, LocaleTree> = {
   pt,
   "pt-BR": ptBR,
   ru,
+  tr,
   "zh-CN": zhCN,
 };
 
