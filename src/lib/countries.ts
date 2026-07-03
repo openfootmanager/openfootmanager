@@ -14,9 +14,10 @@ import deLocale from "i18n-iso-countries/langs/de.json";
 import itLocale from "i18n-iso-countries/langs/it.json";
 import ruLocale from "i18n-iso-countries/langs/ru.json";
 import zhLocale from "i18n-iso-countries/langs/zh.json";
+import csLocale from "i18n-iso-countries/langs/cs.json";
 import trLocale from "i18n-iso-countries/langs/tr.json";
 
-const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh", "tr"] as const;
+const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh", "tr", "cs"] as const;
 
 type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 
@@ -29,6 +30,7 @@ const REGISTERED_LOCALES = [
   itLocale,
   ruLocale,
   zhLocale,
+  csLocale,
   trLocale,
 ];
 
@@ -56,6 +58,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       it: "Inghilterra",
       ru: "Англия",
       zh: "英格兰",
+      cs: "Anglie",
       tr: "İngiltere",
     },
     aliases: ["english", "england"],
@@ -73,6 +76,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       it: "Scozia",
       ru: "Шотландия",
       zh: "苏格兰",
+      cs: "Skotsko",
       tr: "İskoçya",
     },
     aliases: ["scottish", "scotland"],
@@ -90,6 +94,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       it: "Galles",
       ru: "Уэльс",
       zh: "威尔士",
+      cs: "Wales",
       tr: "Galler",
     },
     aliases: ["welsh", "wales"],
@@ -107,6 +112,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       it: "Irlanda del Nord",
       ru: "Северная Ирландия",
       zh: "北爱尔兰",
+      cs: "Severní Irsko",
       tr: "Kuzey İrlanda",
     },
     aliases: ["northern irish", "northern ireland"],
@@ -124,6 +130,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       it: "Repubblica d'Irlanda",
       ru: "Республика Ирландия",
       zh: "爱尔兰共和国",
+      cs: "Irská republika",
       tr: "İrlanda Cumhuriyeti",
     },
     aliases: ["irish", "republic of ireland", "ireland"],

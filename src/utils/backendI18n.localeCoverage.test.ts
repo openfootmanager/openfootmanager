@@ -4,6 +4,7 @@ import {
   collectMissingKeys,
   type LocaleTree,
 } from "../i18n/i18nTestHelpers";
+import cs from "../i18n/locales/cs.json";
 import de from "../i18n/locales/de.json";
 import en from "../i18n/locales/en.json";
 import es from "../i18n/locales/es.json";
@@ -16,6 +17,7 @@ import tr from "../i18n/locales/tr.json";
 import zhCN from "../i18n/locales/zh-CN.json";
 
 const LOCALES: Record<string, LocaleTree> = {
+  cs,
   de,
   en,
   es,
