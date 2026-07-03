@@ -1,6 +1,6 @@
 interface ProgressBarProps {
   value: number; // 0-100
-  variant?: "primary" | "accent" | "success" | "danger" | "auto";
+  variant?: "primary" | "accent" | "success" | "danger" | "muted" | "auto";
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
   className?: string;
@@ -24,6 +24,7 @@ export function ProgressBar({
     accent: "bg-accent-400",
     success: "bg-success-400",
     danger: "bg-red-500",
+    muted: "bg-gray-300 dark:bg-navy-500",
   };
 
   const heights = {

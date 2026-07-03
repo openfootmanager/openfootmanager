@@ -794,7 +794,10 @@ export default function PlayerProfile({
           listLabel={t("common.listView")}
           radarLabel={t("common.radarView")}
         />
+      </div>
 
+      {/* Full-width data cards, stacked for a uniform page */}
+      <div className="grid grid-cols-1 gap-5 mt-5">
         <PlayerProfileSeasonStatsCard stats={player.stats} t={t} />
 
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />

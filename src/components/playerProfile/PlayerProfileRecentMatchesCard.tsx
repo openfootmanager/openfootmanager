@@ -42,7 +42,7 @@ export default function PlayerProfileRecentMatchesCard({
     }
 
     return (
-        <Card className="lg:col-span-3">
+        <Card>
             <CardHeader>{title}</CardHeader>
             <CardBody>
                 <div className="mb-4">
