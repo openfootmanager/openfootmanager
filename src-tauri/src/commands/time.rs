@@ -280,11 +280,16 @@ pub fn advance_one_day_internal(
                 });
             }
 
+            // Unlike the multi-day handlers there is no employment guard at
+            // entry — this is the unemployed manager's only way to advance
+            // time — so "fired" must mean a transition during today's
+            // processing, not a dismissal from an earlier day.
+            let was_employed = game.manager.team_id.is_some();
             ofm_core::turn::process_day_with_capture(game, &mut |capture| {
                 captures.push(capture);
             });
 
-            if game.manager.team_id.is_none() {
+            if was_employed && game.manager.team_id.is_none() {
                 info!("[cmd] advance_one_day: manager fired on date={}", today);
                 let results = collect_advance_results(game, &today);
                 return serde_json::json!({
@@ -1392,6 +1397,28 @@ mod tests {
             "returned date must be the day that was processed"
         );
         // Game clock should now be 2025-06-16.
+        let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
+            .expect("game deserializable");
+        assert_eq!(
+            game.clock.current_date.date_naive().to_string(),
+            "2025-06-16"
+        );
+    }
+
+    #[test]
+    fn advance_one_day_while_unemployed_advances_instead_of_refiring() {
+        let state = StateManager::new();
+        let mut game = make_game(11);
+        // Manager sacked on an earlier day; the digest keeps calling
+        // advance_one_day while job hunting, and each quiet day must advance
+        // rather than re-report the old dismissal as a fresh "fired" stop.
+        game.manager.fire("2025-06-10");
+        state.set_game(game);
+
+        let result = super::advance_one_day_internal(&state)
+            .expect("advance_one_day result");
+
+        assert_eq!(result.get("action").and_then(Value::as_str), Some("advanced"));
         let game: ofm_core::game::Game = serde_json::from_value(result["game"].clone())
             .expect("game deserializable");
         assert_eq!(
