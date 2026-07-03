@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import type {
   GameStateData,
   PlayerData,
@@ -34,7 +33,7 @@ import {
   clearContractExitIntent,
   setContractExitIntent,
 } from "../../services/contractService";
-import { setPlayerSquadRole } from "../../services/squadService";
+import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import {
   toggleLoanList,
   toggleTransferList,
@@ -323,9 +322,7 @@ export default function SquadRosterView({
   ).length;
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
-    const updated = await invoke<GameStateData>("set_starting_xi", {
-      playerIds,
-    });
+    const updated = await setStartingXi(playerIds);
     onMutationComplete?.(updated);
   };
 
