@@ -167,9 +167,15 @@ export default function YouthAcademyTab({
     );
   };
 
-  const handleDelegatePlayer = async (playerId: string) => {
+  // Both squad-role moves must also patch the cached squad: the prospects and
+  // recovery lists render from `fetchedSquad`, which only refetches on remount
+  // or when the game clock advances (issue #250).
+  const handleSetSquadRole = async (
+    playerId: string,
+    squadRole: "Youth" | "Senior",
+  ) => {
     try {
-      const updated = await setPlayerSquadRole(playerId, "Youth");
+      const updated = await setPlayerSquadRole(playerId, squadRole);
       onGameUpdate?.(updated);
       setFetchedSquad(updated.players.filter((p) => p.team_id === teamId));
     } catch {
@@ -345,7 +351,7 @@ export default function YouthAcademyTab({
                     <Button
                       size="sm"
                       onClick={() => {
-                        void handleDelegatePlayer(player.id);
+                        void handleSetSquadRole(player.id, "Youth");
                       }}
                     >
                       {t("youthAcademy.delegateToYouthAcademy")}
@@ -457,13 +463,8 @@ export default function YouthAcademyTab({
                   const growthRoom = player.potential - player.ovr;
                   const contextItems = [
                     buildViewProfileMenuItem(t, () => onSelectPlayer?.(player.id)),
-                    buildPromoteToSeniorSquadMenuItem(t, async () => {
-                      try {
-                        const updated = await setPlayerSquadRole(player.id, "Senior");
-                        onGameUpdate?.(updated);
-                      } catch {
-                        return;
-                      }
+                    buildPromoteToSeniorSquadMenuItem(t, () => {
+                      void handleSetSquadRole(player.id, "Senior");
                     }),
                   ];
 
