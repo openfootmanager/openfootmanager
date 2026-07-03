@@ -1626,6 +1626,7 @@
     "recentMatchesRating": "Note",
     "vs": "c.",
     "noRecentMatches": "Aucune donnée de match récente",
+    "season": "Saison",
     "apps": "Matchs",
     "goals": "Buts",
     "assists": "Passes D.",
@@ -1715,7 +1716,9 @@
       "it": "Italien",
       "ptBR": "Portugais (Brésil)",
       "zhCN": "Chinois simplifié",
-      "ru": "Russe"
+      "ru": "Russe",
+      "cs": "Tchèque",
+      "tr": "Turc"
     },
     "gameplay": "Gameplay",
     "defaultMatchMode": "Mode de Match par Défaut",

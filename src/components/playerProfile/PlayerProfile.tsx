@@ -10,7 +10,10 @@ import { getRoleOptions } from "../../lib/playerRoles";
 import { setPlayerRole as setPlayerRoleService } from "../../services/squadService";
 import type { PlayerRole } from "../../store/types";
 import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
+import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
+import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
+import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
 import {
   getPlayerAge,
   getPlayerTeamName,
@@ -151,6 +154,24 @@ export default function PlayerProfile({
   } = useFreeAgentContractFlow({ gameState, onGameUpdate });
 
   const {
+    bidTarget,
+    bidAmount,
+    setBidAmount,
+    bidResult,
+    bidLoading,
+    bidFeedback,
+    bidProjection,
+    bidFee,
+    activeBidOffer,
+    myTeam,
+    hasExistingOffer,
+    bidSubmitDisabled,
+    openBidNegotiation,
+    closeBidNegotiation,
+    handleMakeBid,
+  } = useTransferBidFlow({ gameState, onGameUpdate });
+
+  const {
     showRenewalModal,
     renewalWage,
     setRenewalWage,
@@ -180,6 +201,7 @@ export default function PlayerProfile({
   const {
     contractActionSubmitting,
     contractActionError,
+    setContractActionError,
     terminationPreview,
     showTerminationModal,
     handleMarkLetExpire,
@@ -244,15 +266,36 @@ export default function PlayerProfile({
 
   return (
     <div>
-      <button
-        onClick={onClose}
-        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors mb-4"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="font-heading font-bold uppercase tracking-wider">
-          {t("common.back")}
-        </span>
-      </button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="font-heading font-bold uppercase tracking-wider">
+            {t("common.back")}
+          </span>
+        </button>
+        {onGameUpdate ? (
+          <PlayerProfileActionsMenu
+            player={player}
+            gameState={gameState}
+            isManagerOwnedProfile={isManagerOwnedProfile}
+            isFreeAgent={isFreeAgent}
+            hasLetExpireIntent={hasLetExpireIntent}
+            contractRiskLevel={contractRiskLevel}
+            actionSubmitting={contractActionSubmitting}
+            onGameUpdate={onGameUpdate}
+            onOpenRenewal={openRenewalModal}
+            onMarkLetExpire={() => void handleMarkLetExpire()}
+            onClearLetExpire={() => void handleClearLetExpire()}
+            onOpenTermination={() => void openTerminationModal()}
+            onOpenBid={() => openBidNegotiation(player)}
+            onOpenFreeAgentContract={() => openFreeAgentContract(player)}
+            onError={setContractActionError}
+          />
+        ) : null}
+      </div>
 
       <PlayerProfileHeroCard
         player={player}
@@ -374,7 +417,10 @@ export default function PlayerProfile({
           listLabel={t("common.listView")}
           radarLabel={t("common.radarView")}
         />
+      </div>
 
+      {/* Full-width data cards, stacked for a uniform page */}
+      <div className="grid grid-cols-1 gap-5 mt-5">
         <PlayerProfileSeasonStatsCard stats={player.stats} t={t} />
 
         <PlayerProfileAdvancedStatsCard summary={advancedStats} t={t} />
@@ -389,6 +435,25 @@ export default function PlayerProfile({
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>
 
+      {bidTarget && (
+        <TransferBidModal
+          bidTarget={bidTarget}
+          teams={gameState.teams}
+          bidAmount={bidAmount}
+          onBidAmountChange={setBidAmount}
+          myTeam={myTeam}
+          bidFee={bidFee}
+          bidProjection={bidProjection}
+          bidFeedback={bidFeedback}
+          activeBidOffer={activeBidOffer}
+          hasExistingOffer={hasExistingOffer}
+          bidResult={bidResult}
+          bidLoading={bidLoading}
+          bidSubmitDisabled={bidSubmitDisabled}
+          onSubmit={handleMakeBid}
+          onClose={closeBidNegotiation}
+        />
+      )}
       {freeAgentTarget && (
         <FreeAgentContractModal
           player={freeAgentTarget}

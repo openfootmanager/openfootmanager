@@ -335,6 +335,8 @@ fn empty_report(home_goals: u8, away_goals: u8) -> MatchReport {
         player_stats: HashMap::new(),
         home_possession: 50.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 
@@ -397,6 +399,8 @@ fn report_with_scorer(home_goals: u8, away_goals: u8, scorer_id: &str, side: Sid
         player_stats,
         home_possession: 55.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 
@@ -537,6 +541,8 @@ fn full_squad_report(home_goals: u8, away_goals: u8) -> MatchReport {
         player_stats,
         home_possession: 50.0,
         total_minutes: 90,
+        home_penalties: None,
+        away_penalties: None,
     }
 }
 // ---------------------------------------------------------------------------
@@ -715,6 +721,48 @@ fn simulate_other_matches_skips_fixture() {
 }
 
 #[test]
+fn simulate_other_matches_settles_knockout_draws_with_shootout() {
+    // Regression: an AI-simulated knockout tie that ended level persisted with
+    // no shootout score, so advance_knockout_competition_round always advanced
+    // the home team. The full-engine sim path must resolve level knockout
+    // ties with a simulated shootout.
+    let mut saw_draw = false;
+    for _attempt in 0..200 {
+        let mut game = make_game_with_match();
+        {
+            let league = game.league.as_mut().unwrap();
+            league.fixtures[0].competition = FixtureCompetition::Cup;
+            league.knockout_rounds = vec![KnockoutRoundState {
+                id: "round-1".to_string(),
+                name: "Final".to_string(),
+                fixture_ids: vec!["fix1".to_string()],
+                bye_team_ids: Vec::new(),
+                completed: false,
+            }];
+        }
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        turn::simulate_other_matches(&mut game, &today, None);
+
+        let result = game.league.as_ref().unwrap().fixtures[0]
+            .result
+            .as_ref()
+            .expect("fixture should have a result");
+        if result.home_goals == result.away_goals {
+            saw_draw = true;
+            let home_pens = result.home_penalties.expect("level knockout needs pens");
+            let away_pens = result.away_penalties.expect("level knockout needs pens");
+            assert_ne!(home_pens, away_pens, "shootout must have a winner");
+            break;
+        }
+        assert!(
+            result.home_penalties.is_none() && result.away_penalties.is_none(),
+            "decisive results must not carry a shootout"
+        );
+    }
+    assert!(saw_draw, "expected at least one drawn knockout in 200 sims");
+}
+
+#[test]
 fn simulate_other_matches_no_league_no_crash() {
     let mut game = make_game_with_match();
     game.league = None;
@@ -743,6 +791,27 @@ fn apply_match_report_updates_fixture_status() {
     assert_eq!(persisted_report.total_minutes, 90);
     assert_eq!(persisted_report.home_stats.possession_pct, 50);
     assert_eq!(persisted_report.away_stats.possession_pct, 50);
+}
+
+#[test]
+fn apply_match_report_persists_shootout_score() {
+    // Regression: a live match decided on penalties used to persist with
+    // home_penalties: None (and, before the engine fix, an inflated
+    // scoreline). The regulation draw and the shootout score must both land
+    // on the fixture's MatchResult so advancing_is_home() picks the winner.
+    let mut game = make_game_with_match();
+    let mut report = empty_report(1, 1);
+    report.home_penalties = Some(3);
+    report.away_penalties = Some(4);
+    turn::apply_match_report(&mut game, 0, "team1", "team2", &report);
+
+    let fixture = &game.league.as_ref().unwrap().fixtures[0];
+    let result = fixture.result.as_ref().unwrap();
+    assert_eq!(result.home_goals, 1);
+    assert_eq!(result.away_goals, 1);
+    assert_eq!(result.home_penalties, Some(3));
+    assert_eq!(result.away_penalties, Some(4));
+    assert!(!result.advancing_is_home());
 }
 
 #[test]

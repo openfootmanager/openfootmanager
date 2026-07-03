@@ -79,6 +79,22 @@ fn scheduled_user_fixture_index(game: &Game, today: &str) -> Option<(usize, usiz
         })
 }
 
+/// Knockout ties get extra time (and, if still level, a shootout) in the live
+/// engine; league fixtures end after regulation. `index` is a fixture index
+/// into `game.league`, which at the call sites holds the competition being
+/// played today.
+fn fixture_allows_extra_time(game: &Game, index: usize) -> bool {
+    game.league
+        .as_ref()
+        .and_then(|league| {
+            league
+                .fixtures
+                .get(index)
+                .map(|fixture| league.is_knockout_fixture(&fixture.id))
+        })
+        .unwrap_or(false)
+}
+
 pub fn advance_time_with_mode(
     state: &StateManager,
     mode: &str,
@@ -107,7 +123,9 @@ pub fn advance_time_with_mode(
             } else {
                 MatchMode::Spectator
             };
-            let session = live_match_manager::create_live_match(&game, index, match_mode, false)?;
+            let allows_extra_time = fixture_allows_extra_time(&game, index);
+            let session =
+                live_match_manager::create_live_match(&game, index, match_mode, allows_extra_time)?;
             let snapshot = session.snapshot();
             info!(
                 "[cmd] advance_time_with_mode: live_match fixture_idx={}, phase={:?}, home_team={}, away_team={}",
@@ -160,8 +178,13 @@ pub fn advance_time_with_mode(
                 "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
                 index, today
             );
-            let mut session =
-                live_match_manager::create_live_match(&game, index, MatchMode::Instant, false)?;
+            let allows_extra_time = fixture_allows_extra_time(&game, index);
+            let mut session = live_match_manager::create_live_match(
+                &game,
+                index,
+                MatchMode::Instant,
+                allows_extra_time,
+            )?;
             session.user_side = None;
             session.run_to_completion();
 

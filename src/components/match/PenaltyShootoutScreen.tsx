@@ -25,10 +25,11 @@ interface PenaltyShootoutScreenProps {
   onFullTime: () => void;
 }
 
+// Only true shootout kicks: an in-match PenaltyAwarded from regulation/ET
+// lives in the same snapshot.events log and must not appear in this feed.
 const SHOOTOUT_EVENTS = new Set([
-  "PenaltyGoal",
-  "PenaltyMiss",
-  "PenaltyAwarded",
+  "ShootoutGoal",
+  "ShootoutMiss",
 ]);
 
 export default function PenaltyShootoutScreen({
@@ -185,12 +186,12 @@ export default function PenaltyShootoutScreen({
               </span>
               <span
                 className={
-                  evt.event_type === "PenaltyGoal"
+                  evt.event_type === "ShootoutGoal"
                     ? "text-green-600 dark:text-green-400 font-semibold"
                     : "text-red-500 dark:text-red-400"
                 }
               >
-                {evt.event_type === "PenaltyGoal" ? "⚽" : "✗"}
+                {evt.event_type === "ShootoutGoal" ? "⚽" : "✗"}
               </span>
               <span>
                 {evt.side === "Home"

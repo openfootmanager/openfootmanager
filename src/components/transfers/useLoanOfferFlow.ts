@@ -10,7 +10,6 @@ import {
   getErrorMessage,
   resolveTranslatedErrorMessage,
 } from "../../utils/errorMessage";
-import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 import {
   buildLoanPeriodOptions,
   clampWageContributionPct,
@@ -32,7 +31,6 @@ interface UseLoanOfferFlowArgs {
   loanRegistrationDate: string;
   transferWindowBlocksRegistration: boolean;
   onGameUpdate?: (game: GameStateData) => void;
-  onAccepted?: (playerId: string) => void;
 }
 
 interface UseLoanOfferFlowResult {
@@ -61,10 +59,8 @@ export function useLoanOfferFlow({
   loanRegistrationDate,
   transferWindowBlocksRegistration,
   onGameUpdate,
-  onAccepted,
 }: UseLoanOfferFlowArgs): UseLoanOfferFlowResult {
   const { t } = useTranslation();
-  const { scheduleAutoClose } = useAutoCloseTimeout();
   const [loanTarget, setLoanTarget] = useState<PlayerData | null>(null);
   const [loanPeriodId, setLoanPeriodId] = useState<LoanPeriodOptionId | "">(
     getDefaultLoanPeriodId(loanRegistrationDate, null),
@@ -171,14 +167,6 @@ export function useLoanOfferFlow({
         }
       }
       if (onGameUpdate) onGameUpdate(response.game);
-
-      if (response.decision === "accepted") {
-        const acceptedPlayerId = loanTarget.id;
-        scheduleAutoClose(() => {
-          closeLoanOffer();
-          onAccepted?.(acceptedPlayerId);
-        }, 1500);
-      }
     } catch (err: any) {
       setLoanResult("error");
       setLoanError(resolveTranslatedErrorMessage(getErrorMessage(err), t));

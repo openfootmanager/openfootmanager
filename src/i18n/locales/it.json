@@ -1645,6 +1645,7 @@
     "recentMatchesRating": "Voto",
     "vs": "c.",
     "noRecentMatches": "Nessun dato sulle partite recenti",
+    "season": "Stagione",
     "apps": "Pres",
     "goals": "Gol",
     "assists": "Assist",
@@ -1734,7 +1735,9 @@
       "it": "Italiano",
       "ptBR": "Portoghese (Brasile)",
       "zhCN": "Cinese semplificato",
-      "ru": "Russo"
+      "ru": "Russo",
+      "cs": "Ceco",
+      "tr": "Turco"
     },
     "gameplay": "Impostazioni di gioco",
     "defaultMatchMode": "Modalità partita predefinita",

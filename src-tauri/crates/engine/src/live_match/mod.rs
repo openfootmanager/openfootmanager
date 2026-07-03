@@ -381,13 +381,18 @@ impl LiveMatchState {
             .map(|player| player.id.clone())
             .collect();
 
-        MatchReport::from_events_with_players(
+        let mut report = MatchReport::from_events_with_players(
             self.events,
             self.home_possession_ticks,
             self.away_possession_ticks,
             self.current_minute,
             tracked_player_ids,
-        )
+        );
+        if self.penalty_state.home_taken > 0 || self.penalty_state.away_taken > 0 {
+            report.home_penalties = Some(self.penalty_state.home_scored);
+            report.away_penalties = Some(self.penalty_state.away_scored);
+        }
+        report
     }
 
     /// Is the match finished?

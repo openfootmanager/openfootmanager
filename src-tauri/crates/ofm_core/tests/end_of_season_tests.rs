@@ -2409,3 +2409,31 @@ fn retiree_scout_judging_attributes_derived_from_player_attrs() {
     // positioning=72, teamwork=68 → judging_potential = (72+68)/2 = 70
     assert_eq!(scout.attributes.judging_potential, 70);
 }
+
+#[test]
+fn process_end_of_season_refreshes_transfer_budget_from_finance() {
+    let mut game = make_completed_season_game();
+    // Simulate a season where the user emptied their transfer envelope and
+    // another club still has an unspent chunk. Both should be reset to a
+    // fresh envelope sized to post-prize finance — the "unspent chunk" is
+    // deliberately blown away to match the real-football convention of a
+    // new board grant each season.
+    let team1_idx = game.teams.iter().position(|t| t.id == "team1").unwrap();
+    game.teams[team1_idx].finance = 10_000_000;
+    game.teams[team1_idx].transfer_budget = 0;
+    let team2_idx = game.teams.iter().position(|t| t.id == "team2").unwrap();
+    game.teams[team2_idx].finance = 2_000_000;
+    game.teams[team2_idx].transfer_budget = 750_000;
+
+    process_end_of_season(&mut game);
+
+    // Formula matches worldgen (generator/mod.rs:543): 15% of finance.
+    // We assert the invariant against post-prize finance so the test stays
+    // valid regardless of how much prize money each team receives.
+    let team1 = game.teams.iter().find(|t| t.id == "team1").unwrap();
+    let team2 = game.teams.iter().find(|t| t.id == "team2").unwrap();
+    assert_eq!(team1.transfer_budget, (team1.finance as f64 * 0.15) as i64);
+    assert_eq!(team2.transfer_budget, (team2.finance as f64 * 0.15) as i64);
+    // Team1 went in with an empty envelope; the refill must have run.
+    assert!(team1.transfer_budget > 0);
+}

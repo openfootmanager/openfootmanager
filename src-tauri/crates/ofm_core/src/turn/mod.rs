@@ -482,14 +482,32 @@ fn simulate_single_match_with_capture<F>(game: &mut Game, idx: usize, on_capture
 where
     F: FnMut(StatsState),
 {
-    let (home_team_id, away_team_id) = {
-        let f = &game.league.as_ref().unwrap().fixtures[idx];
-        (f.home_team_id.clone(), f.away_team_id.clone())
+    let (home_team_id, away_team_id, is_knockout) = {
+        let league = game.league.as_ref().unwrap();
+        let f = &league.fixtures[idx];
+        (
+            f.home_team_id.clone(),
+            f.away_team_id.clone(),
+            league.is_knockout_fixture(&f.id),
+        )
     };
 
     let home_data = build_engine_team(game, &home_team_id);
     let away_data = build_engine_team(game, &away_team_id);
     let config = engine::MatchConfig::default();
-    let report = engine::simulate(&home_data, &away_data, &config);
+    let mut report = engine::simulate(&home_data, &away_data, &config);
+    // A level knockout tie must produce a winner: resolve it with a simulated
+    // shootout so the home side no longer advances by default on a draw.
+    if is_knockout && report.home_goals == report.away_goals {
+        let home_strength = crate::catchup::club_strength(&game.players, &home_team_id);
+        let away_strength = crate::catchup::club_strength(&game.players, &away_team_id);
+        let (home_pens, away_pens) = crate::national_team::simulate_shootout(
+            home_strength,
+            away_strength,
+            &mut rand::rng(),
+        );
+        report.home_penalties = Some(home_pens);
+        report.away_penalties = Some(away_pens);
+    }
     apply_match_report_with_capture(game, idx, &home_team_id, &away_team_id, &report, on_capture);
 }

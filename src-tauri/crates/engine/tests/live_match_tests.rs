@@ -362,24 +362,83 @@ fn penalty_shootout_resolves_drawn_et() {
 
         let snap = state.snapshot();
         let had_penalties = snap.events.iter().any(|e| {
-            e.event_type == EventType::PenaltyGoal || e.event_type == EventType::PenaltyMiss
+            e.event_type == EventType::ShootoutGoal || e.event_type == EventType::ShootoutMiss
         });
 
         if had_penalties {
-            // Verify the match is finished with a winner
+            // Verify the match is finished with a shootout winner
             assert!(state.is_finished());
-            // In a penalty shootout the final score includes penalty goals
-            // so home_score != away_score (someone won)
-            // Actually after a shootout one side has more penalty goals
-            assert_ne!(
+            // Regression: shootout kicks must NOT be folded into the match
+            // score — the regulation/ET draw that forced the shootout stays.
+            assert_eq!(
                 snap.home_score, snap.away_score,
-                "After penalties, scores should differ. Seed: {seed}"
+                "Shootout must not inflate the match score. Seed: {seed}"
+            );
+            let ps = snap
+                .penalty_shootout
+                .expect("finished shootout must expose its score");
+            assert_ne!(
+                ps.home_scored, ps.away_scored,
+                "Shootout must have a winner. Seed: {seed}"
+            );
+
+            // The report carries the shootout separately from the goals and
+            // never credits shootout kicks to players or the scoreline.
+            let report = state.into_report();
+            assert_eq!(report.home_goals, snap.home_score, "Seed: {seed}");
+            assert_eq!(report.away_goals, snap.away_score, "Seed: {seed}");
+            assert_eq!(report.home_penalties, Some(ps.home_scored), "Seed: {seed}");
+            assert_eq!(report.away_penalties, Some(ps.away_scored), "Seed: {seed}");
+            let goal_details = report.goals.len() as u8;
+            assert_eq!(
+                goal_details,
+                report.home_goals + report.away_goals,
+                "GoalDetails must exclude shootout kicks. Seed: {seed}"
+            );
+            let player_goal_sum: u8 = report.player_stats.values().map(|p| p.goals).sum();
+            assert!(
+                player_goal_sum <= report.home_goals + report.away_goals,
+                "Player goal tallies must exclude shootout kicks. Seed: {seed}"
             );
             return;
         }
     }
     // Penalties may not trigger in 500 seeds if teams don't draw often enough
     // That's OK — the mechanism is tested structurally
+}
+
+#[test]
+fn shootout_ends_only_on_completed_pairs() {
+    // Regression: the shootout used to be declared decided the moment one side
+    // led after 5+ kicks, before the trailing side's reply — handing every
+    // sudden-death shootout to the side kicking first (home).
+    let mut shootouts = 0;
+    for seed in 0..500 {
+        let mut state = make_live_match(true);
+        let mut rng = seeded_rng(seed);
+        run_to_finish(&mut state, &mut rng);
+
+        let snap = state.snapshot();
+        if let Some(ps) = snap.penalty_shootout {
+            shootouts += 1;
+            assert_eq!(
+                ps.home_taken, ps.away_taken,
+                "shootout decided mid-round (seed {seed}): {}/{} kicks taken",
+                ps.home_taken, ps.away_taken
+            );
+            assert_ne!(
+                ps.home_scored, ps.away_scored,
+                "finished shootout must have a winner (seed {seed})"
+            );
+            if ps.home_taken > 5 {
+                assert!(
+                    ps.sudden_death,
+                    "shootout past round 5 must be in sudden death (seed {seed})"
+                );
+            }
+        }
+    }
+    assert!(shootouts > 0, "expected at least one shootout in 500 seeds");
 }
 
 // ===========================================================================

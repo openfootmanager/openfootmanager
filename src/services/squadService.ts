@@ -17,6 +17,12 @@ export async function setPlayerSquadRole(
     });
 }
 
+export async function setStartingXi(
+    playerIds: string[],
+): Promise<GameStateData> {
+    return invoke<GameStateData>("set_starting_xi", { playerIds });
+}
+
 export async function setPlayerRole(
     playerId: string,
     role: PlayerRole | null,

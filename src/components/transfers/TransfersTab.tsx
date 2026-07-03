@@ -136,11 +136,6 @@ export default function TransfersTab({
     useState<PlayerData | null>(null);
   const [dealWorkspaceKind, setDealWorkspaceKind] =
     useState<DealKind>("transfer");
-  const closeAcceptedDealWorkspace = (playerId: string) => {
-    setDealWorkspaceTarget((target) =>
-      target?.id === playerId ? null : target,
-    );
-  };
 
   const handleRespondOffer = async (
     playerId: string,
@@ -196,7 +191,6 @@ export default function TransfersTab({
   } = useTransferBidFlow({
     gameState,
     onGameUpdate,
-    onAccepted: closeAcceptedDealWorkspace,
   });
   const scouts = gameState.staff.filter(
     (staffMember) =>
@@ -461,7 +455,6 @@ export default function TransfersTab({
   } = useFreeAgentContractFlow({
     gameState,
     onGameUpdate,
-    onAccepted: closeAcceptedDealWorkspace,
   });
   const {
     loanTarget,
@@ -487,7 +480,6 @@ export default function TransfersTab({
     loanRegistrationDate,
     transferWindowBlocksRegistration,
     onGameUpdate,
-    onAccepted: closeAcceptedDealWorkspace,
   });
   const {
     loanCounterTarget,

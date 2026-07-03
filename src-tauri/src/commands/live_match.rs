@@ -66,8 +66,17 @@ pub fn start_live_match(
     fixture_index: usize,
     mode: String,
     allows_extra_time: bool,
+    home_team_id: Option<String>,
+    away_team_id: Option<String>,
 ) -> Result<engine::MatchSnapshot, String> {
-    start_live_match_service(&state, fixture_index, &mode, allows_extra_time)
+    start_live_match_service(
+        &state,
+        fixture_index,
+        &mode,
+        allows_extra_time,
+        home_team_id.as_deref(),
+        away_team_id.as_deref(),
+    )
 }
 
 /// Step the live match forward by N minutes. Returns the events from each minute.
@@ -272,7 +281,10 @@ pub fn submit_press_conference(
 mod tests {
     use super::{apply_team_talk_internal, finish_live_match_internal};
     use chrono::{TimeZone, Utc};
-    use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
+    use domain::league::{
+        CompetitionFormat, CompetitionRules, CompetitionType, Fixture, FixtureCompetition,
+        FixtureStatus, KnockoutRoundState, League, StandingEntry,
+    };
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, PlayerIssue, PlayerIssueCategory, Position};
     use domain::team::Team;
@@ -522,6 +534,10 @@ mod tests {
         let mut game = make_game_with_round();
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
         ofm_core::turn::simulate_other_matches(&mut game, &today, Some(0));
+        // Mirror the GUI day-start flow, which writes the updated competition
+        // back before the match finishes: finish_live_match treats
+        // game.competitions as the source of truth.
+        game.competitions[0] = game.league.clone().unwrap();
 
         let mut session =
             live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
@@ -546,6 +562,169 @@ mod tests {
                 .to_string(),
             "2025-06-16"
         );
+    }
+
+    // Regression: MCP match_start called start_live_match directly, which
+    // never simulated the day's other fixtures; match_finish then advanced
+    // the clock, stranding them Scheduled in the past forever.
+    #[test]
+    fn start_live_match_simulates_other_same_day_fixtures() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_round());
+
+        crate::application::live_match::start_live_match(
+            &state, 0, "spectator", false, None, None,
+        )
+        .expect("start live match");
+
+        let (user_fixture, other_fixture) = state
+            .get_game(|g| {
+                let league = g.league.as_ref().unwrap();
+                (league.fixtures[0].clone(), league.fixtures[1].clone())
+            })
+            .unwrap();
+        assert_eq!(
+            user_fixture.status,
+            FixtureStatus::Scheduled,
+            "the user's own fixture must not be pre-simulated"
+        );
+        assert_eq!(
+            other_fixture.status,
+            FixtureStatus::Completed,
+            "the same-day AI fixture must be simulated"
+        );
+        let first_result = other_fixture.result.expect("simulated fixture has a result");
+
+        // The modern competitions list must receive the results too.
+        let competition_fixture = state
+            .get_game(|g| g.competitions[0].fixtures[1].clone())
+            .unwrap();
+        assert_eq!(competition_fixture.status, FixtureStatus::Completed);
+
+        // Session restore: starting again must not re-simulate completed
+        // fixtures (simulate_other_matches only touches Scheduled ones).
+        crate::application::live_match::start_live_match(
+            &state, 0, "spectator", false, None, None,
+        )
+        .expect("restore live match");
+        let restored_result = state
+            .get_game(|g| g.league.as_ref().unwrap().fixtures[1].result.clone())
+            .unwrap()
+            .expect("result still present");
+        assert_eq!(restored_result.home_goals, first_result.home_goals);
+        assert_eq!(restored_result.away_goals, first_result.away_goals);
+    }
+
+    fn make_knockout_cup(fixture_date: &str) -> League {
+        League {
+            id: "cup1".to_string(),
+            name: "Test Cup".to_string(),
+            kind: CompetitionType::Cup,
+            season: 1,
+            rules: CompetitionRules {
+                format: CompetitionFormat::Knockout,
+                ..CompetitionRules::default()
+            },
+            fixtures: vec![Fixture {
+                id: "cupfix1".to_string(),
+                competition_id: "cup1".to_string(),
+                matchday: 1,
+                date: fixture_date.to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team3".to_string(),
+                competition: FixtureCompetition::Cup,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            }],
+            standings: vec![],
+            knockout_rounds: vec![KnockoutRoundState {
+                id: "cup1-round-1".to_string(),
+                name: "Final".to_string(),
+                fixture_ids: vec!["cupfix1".to_string()],
+                bye_team_ids: Vec::new(),
+                completed: false,
+            }],
+            ..League::default()
+        }
+    }
+
+    // Regression: finishing a live CUP match applied the report by raw index
+    // into game.league — which sync_legacy_league had reset to the user's
+    // domestic league — writing the cup result onto an unrelated league
+    // fixture (or panicking on an out-of-range index) while the real cup
+    // fixture stayed Scheduled and the bracket stalled.
+    #[test]
+    fn finish_live_match_applies_cup_result_to_the_cup_competition() {
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        let cup = make_knockout_cup("2025-06-15");
+        game.competitions.push(cup.clone());
+
+        // Mimic the GUI match-day flow: the cup is swapped into game.league,
+        // the session is created against it…
+        game.league = Some(cup);
+        let mut session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true).unwrap();
+        session.user_side = None;
+        session.run_to_completion();
+        assert_eq!(session.competition_id, "cup1");
+
+        // …then the day-start code restores the legacy mirror to the user's
+        // domestic league before finish_live_match runs.
+        game.sync_legacy_league();
+        assert_eq!(game.league.as_ref().unwrap().id, "league1");
+
+        state.set_game(game);
+        state.set_live_match(session);
+
+        let response = finish_live_match_internal(&state).expect("finish live match");
+
+        let cup = response
+            .game
+            .competitions
+            .iter()
+            .find(|c| c.id == "cup1")
+            .expect("cup competition");
+        assert_eq!(cup.fixtures[0].status, FixtureStatus::Completed);
+        assert!(cup.fixtures[0].result.is_some(), "cup fixture gets the result");
+        assert!(cup.knockout_rounds[0].completed, "cup bracket advances");
+
+        let league = response
+            .game
+            .competitions
+            .iter()
+            .find(|c| c.id == "league1")
+            .expect("league competition");
+        assert_eq!(
+            league.fixtures[0].status,
+            FixtureStatus::Scheduled,
+            "league fixture at the same index must be untouched"
+        );
+        assert!(league.fixtures[0].result.is_none());
+        assert!(
+            league.standings.iter().all(|entry| entry.played == 0),
+            "league standings must not record the cup result"
+        );
+    }
+
+    #[test]
+    fn finish_live_match_errors_on_out_of_range_fixture_index() {
+        // Legacy-shaped save: no competitions, game.league is the only truth.
+        let state = StateManager::new();
+        let mut game = make_game_with_round();
+        game.competitions = Vec::new();
+        let mut session =
+            live_match_manager::create_live_match(&game, 1, MatchMode::Instant, false).unwrap();
+        session.user_side = None;
+        session.run_to_completion();
+
+        // The stored index no longer exists.
+        game.league.as_mut().unwrap().fixtures.truncate(1);
+        state.set_game(game);
+        state.set_live_match(session);
+
+        let result = finish_live_match_internal(&state);
+        assert!(result.is_err(), "out-of-range fixture index must error, not panic");
     }
 
     #[test]

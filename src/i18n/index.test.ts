@@ -13,6 +13,8 @@ describe("resolveSupportedLanguage", () => {
   it("keeps existing exact and base language matching behavior", () => {
     expect(resolveSupportedLanguage("PT-BR")).toBe("pt-BR");
     expect(resolveSupportedLanguage("ru-RU")).toBe("ru");
+    expect(resolveSupportedLanguage("cs-CZ")).toBe("cs");
+    expect(resolveSupportedLanguage("tr-TR")).toBe("tr");
     expect(resolveSupportedLanguage("es-419")).toBe("es");
     expect(resolveSupportedLanguage("en-US")).toBe("en");
   });

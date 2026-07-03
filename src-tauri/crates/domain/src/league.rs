@@ -455,6 +455,15 @@ impl League {
         }
     }
 
+    /// Whether `fixture_id` belongs to one of this competition's knockout
+    /// rounds — a tie that must produce a winner. Knockout pairings are
+    /// single-leg (the schedule generator never creates two-legged ties).
+    pub fn is_knockout_fixture(&self, fixture_id: &str) -> bool {
+        self.knockout_rounds
+            .iter()
+            .any(|round| round.fixture_ids.iter().any(|id| id == fixture_id))
+    }
+
     pub fn sorted_standings(&self) -> Vec<StandingEntry> {
         let mut sorted = self.standings.clone();
         sorted.sort_by(|a, b| {

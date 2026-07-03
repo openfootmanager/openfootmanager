@@ -1626,6 +1626,7 @@
     "recentMatchesRating": "Nota",
     "vs": "c.",
     "noRecentMatches": "Sem dados de jogos recentes",
+    "season": "Temporada",
     "apps": "Jogos",
     "goals": "Golos",
     "assists": "Assistências",
@@ -1715,7 +1716,9 @@
       "it": "Italiano",
       "ptBR": "Português (Brasil)",
       "zhCN": "Chinês simplificado",
-      "ru": "Russo"
+      "ru": "Russo",
+      "cs": "Checo",
+      "tr": "Turco"
     },
     "gameplay": "Jogabilidade",
     "defaultMatchMode": "Modo de Jogo Padrão",

@@ -19,12 +19,10 @@ import {
     getOutgoingNegotiationOffer,
     normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
-import { useAutoCloseTimeout } from "./useAutoCloseTimeout";
 
 interface UseTransferBidFlowArgs {
     gameState: GameStateData;
     onGameUpdate?: (game: GameStateData) => void;
-    onAccepted?: (playerId: string) => void;
 }
 
 interface UseTransferBidFlowResult {
@@ -48,7 +46,6 @@ interface UseTransferBidFlowResult {
 export function useTransferBidFlow({
     gameState,
     onGameUpdate,
-    onAccepted,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
     const userTeamId = gameState.manager.team_id;
     const myTeam = gameState.teams.find(
@@ -64,7 +61,6 @@ export function useTransferBidFlow({
         useState<TransferNegotiationFeedbackData | null>(null);
     const [bidProjection, setBidProjection] =
         useState<TransferBidProjectionData["projection"] | null>(null);
-    const { scheduleAutoClose, clearAutoClose } = useAutoCloseTimeout();
 
     const activeBidOffer = bidTarget
         ? getOutgoingNegotiationOffer(bidTarget, userTeamId)
@@ -109,7 +105,6 @@ export function useTransferBidFlow({
     const openBidNegotiation = (player: PlayerData): void => {
         const existingOffer = getOutgoingNegotiationOffer(player, userTeamId);
 
-        clearAutoClose();
         setBidTarget(player);
         setBidAmount(
             (
@@ -125,7 +120,6 @@ export function useTransferBidFlow({
     };
 
     const closeBidNegotiation = (): void => {
-        clearAutoClose();
         setBidTarget(null);
         setBidAmount("");
         setBidResult(null);
@@ -150,14 +144,6 @@ export function useTransferBidFlow({
 
             if (response.suggested_fee !== null) {
                 setBidAmount(formatTransferFeeInput(response.suggested_fee));
-            }
-
-            if (response.decision === "accepted") {
-                const acceptedPlayerId = bidTarget.id;
-                scheduleAutoClose(() => {
-                    closeBidNegotiation();
-                    onAccepted?.(acceptedPlayerId);
-                }, 2000);
             }
         } catch (error: any) {
             setBidResult(error?.toString() || "error");

@@ -3331,6 +3331,11 @@ fn execute_transfer(
     // Debit buying team
     if let Some(t) = game.teams.iter_mut().find(|t| t.id == to_team_id) {
         t.finance -= fee as i64;
+        // Also debit the transfer budget so the cumulative envelope shrinks
+        // as bids complete. `end_of_season` refills the envelope from finance
+        // at the next season rollover; without this line the budget only ever
+        // gated the *first* purchase and was silently uncapped thereafter.
+        t.transfer_budget -= fee as i64;
         // Remove from starting XI if player was there
         if let Some(pos) = t.starting_xi_ids.iter().position(|id| id == player_id) {
             t.starting_xi_ids.remove(pos);

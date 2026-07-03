@@ -19,6 +19,7 @@ interface UseContractActionsFlowArgs {
 interface UseContractActionsFlowResult {
   contractActionSubmitting: boolean;
   contractActionError: string | null;
+  setContractActionError: (error: string | null) => void;
   terminationPreview: ContractTerminationPreviewData | null;
   showTerminationModal: boolean;
   handleMarkLetExpire: () => Promise<void>;
@@ -129,6 +130,7 @@ export function useContractActionsFlow({
   return {
     contractActionSubmitting,
     contractActionError,
+    setContractActionError,
     terminationPreview,
     showTerminationModal,
     handleMarkLetExpire,

@@ -6,6 +6,7 @@ import {
   type LocaleTree,
 } from "./i18nTestHelpers";
 import INTENTIONAL_SAME from "./INTENTIONAL_SAME.json";
+import cs from "./locales/cs.json";
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
@@ -14,9 +15,11 @@ import itLocale from "./locales/it.json";
 import ptBR from "./locales/pt-BR.json";
 import pt from "./locales/pt.json";
 import ru from "./locales/ru.json";
+import tr from "./locales/tr.json";
 import zhCN from "./locales/zh-CN.json";
 
 const LOCALES: Record<string, LocaleTree> = {
+  cs,
   de,
   es,
   fr,
@@ -24,6 +27,7 @@ const LOCALES: Record<string, LocaleTree> = {
   pt,
   "pt-BR": ptBR,
   ru,
+  tr,
   "zh-CN": zhCN,
 };
 

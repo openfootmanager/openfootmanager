@@ -1626,6 +1626,7 @@
     "recentMatchesRating": "评分",
     "vs": "对阵",
     "noRecentMatches": "暂无近期比赛数据",
+    "season": "赛季",
     "apps": "出场",
     "goals": "进球",
     "assists": "助攻",
@@ -1715,7 +1716,9 @@
       "it": "意大利语",
       "ptBR": "巴西葡萄牙语",
       "zhCN": "简体中文",
-      "ru": "俄语"
+      "ru": "俄语",
+      "cs": "捷克语",
+      "tr": "土耳其语"
     },
     "gameplay": "玩法",
     "defaultMatchMode": "默认比赛模式",

@@ -1627,6 +1627,7 @@
     "vs": "vs",
     "noRecentMatches": "No recent match data",
     "ratingTrend": "Rating Trend",
+    "season": "Season",
     "apps": "Apps",
     "goals": "Goals",
     "assists": "Assists",
@@ -1715,7 +1716,9 @@
       "it": "Italian",
       "ptBR": "Portuguese (Brazil)",
       "zhCN": "Simplified Chinese",
-      "ru": "Russian"
+      "ru": "Russian",
+      "cs": "Czech",
+      "tr": "Turkish"
     },
     "gameplay": "Gameplay",
     "defaultMatchMode": "Default Match Mode",

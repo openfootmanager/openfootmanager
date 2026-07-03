@@ -326,6 +326,8 @@ describe("getLocale", () => {
     expect(getLocale("fr")).toBe("fr-FR");
     expect(getLocale("de")).toBe("de-DE");
     expect(getLocale("it")).toBe("it-IT");
+    expect(getLocale("cs")).toBe("cs-CZ");
+    expect(getLocale("tr")).toBe("tr-TR");
   });
 
   it("returns input for unknown codes", () => {
