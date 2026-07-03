@@ -8,7 +8,7 @@ import {
   resolveMatchFixture,
 } from "./helpers";
 import i18n, { i18nReady } from "../../i18n";
-import { getTeamTalkOptions } from "./types";
+import { getTeamTalkOptions, isPersistableSpeed } from "./types";
 import type { MatchSnapshot, EnginePlayerData, EngineTeamData } from "./types";
 import type { GameStateData } from "../../store/gameStore";
 
@@ -328,5 +328,23 @@ describe("getTeamTalkOptions", () => {
       label: "Loda",
       description: "Dì alla squadra che finora è stata eccellente.",
     });
+  });
+});
+
+describe("isPersistableSpeed", () => {
+  it("marks playback speeds as persistable", () => {
+    expect(isPersistableSpeed("slow")).toBe(true);
+    expect(isPersistableSpeed("normal")).toBe(true);
+    expect(isPersistableSpeed("fast")).toBe(true);
+  });
+
+  // Locks in the design of #106: `paused` is a temporary action; `instant`
+  // is a one-shot skip-to-end-of-half. Persisting either across half-time
+  // would either resume paused (surprising) or silently skip the whole
+  // second half (worse). Only "slow" / "normal" / "fast" describe a pace
+  // worth resuming from.
+  it("marks one-shot speeds as non-persistable so they don't resume after half-time", () => {
+    expect(isPersistableSpeed("paused")).toBe(false);
+    expect(isPersistableSpeed("instant")).toBe(false);
   });
 });
