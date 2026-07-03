@@ -1101,18 +1101,20 @@ fn peaked_player_does_not_gain_from_training() {
         p.potential = p.ovr;
     }
 
-    let initial_ovr = game
+    let initial = game
         .players
         .iter()
         .find(|p| p.id == peaked_id)
-        .unwrap()
-        .ovr;
-    let initial_potential = game
-        .players
-        .iter()
-        .find(|p| p.id == peaked_id)
-        .unwrap()
-        .potential;
+        .unwrap();
+    let initial_ovr = initial.ovr;
+    let initial_potential = initial.potential;
+    // Snapshot the exact attributes Physical focus would try to grow so the
+    // regression catches a partial gate that still lets one attribute leak
+    // through even when the aggregated ovr happens not to move.
+    let initial_pace = initial.attributes.pace;
+    let initial_stamina = initial.attributes.stamina;
+    let initial_strength = initial.attributes.strength;
+    let initial_agility = initial.attributes.agility;
     assert_eq!(
         initial_ovr, initial_potential,
         "test precondition: peaked player starts with ovr == potential"
@@ -1129,6 +1131,22 @@ fn peaked_player_does_not_gain_from_training() {
 
     let final_player = game.players.iter().find(|p| p.id == peaked_id).unwrap();
 
+    assert_eq!(
+        final_player.attributes.pace, initial_pace,
+        "peaked player's pace must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.stamina, initial_stamina,
+        "peaked player's stamina must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.strength, initial_strength,
+        "peaked player's strength must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.agility, initial_agility,
+        "peaked player's agility must not rise from Physical training (bug #307)"
+    );
     assert_eq!(
         final_player.potential, initial_potential,
         "peaked player's potential must not rise from training (bug #307): \
