@@ -3392,6 +3392,10 @@
         "headline": "{{year}} Dünya Kupası'na Giden Yol Başlıyor",
         "body": "{{nations}} ülke, bu sezonki uluslararası aralarda oynanacak {{year}} Dünya Kupası elemelerinde mücadeleye başlıyor."
       },
+      "worldCupPlayoff": {
+        "headline": "{{year}} İçin Kıtalararası Play-off Heyecanı",
+        "body": "{{nations}}, kıtalararası play-off'u geçerek {{year}} Dünya Kupası'ndaki son yerlerin sahibi oldu."
+      },
       "worldCupKickoff": {
         "headline": "{{year}} Dünya Kupası Başlıyor",
         "body": "{{nations}} ülke {{year}} Dünya Kupası için bir araya geldi. Dünyanın en iyileri oyunun en büyük ödülünün peşine düşerken bu yaz futbol başka hiçbir şey için durmuyor."
