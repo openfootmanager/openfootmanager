@@ -13,6 +13,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "pt-BR", labelKey: "settings.languages.ptBR" },
   { code: "zh-CN", labelKey: "settings.languages.zhCN" },
   { code: "cs", labelKey: "settings.languages.cs" },
+  { code: "tr", labelKey: "settings.languages.tr" },
 ] as const;
 
 const SUPPORTED_CODES = new Map(

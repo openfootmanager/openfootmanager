@@ -15,8 +15,9 @@ import itLocale from "i18n-iso-countries/langs/it.json";
 import ruLocale from "i18n-iso-countries/langs/ru.json";
 import zhLocale from "i18n-iso-countries/langs/zh.json";
 import csLocale from "i18n-iso-countries/langs/cs.json";
+import trLocale from "i18n-iso-countries/langs/tr.json";
 
-const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh", "cs"] as const;
+const SUPPORTED_LOCALES = ["en", "es", "pt", "fr", "de", "it", "ru", "zh", "tr", "cs"] as const;
 
 type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 
@@ -30,6 +31,7 @@ const REGISTERED_LOCALES = [
   ruLocale,
   zhLocale,
   csLocale,
+  trLocale,
 ];
 
 for (const locale of REGISTERED_LOCALES) {
@@ -57,6 +59,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       ru: "Англия",
       zh: "英格兰",
       cs: "Anglie",
+      tr: "İngiltere",
     },
     aliases: ["english", "england"],
     flagCode: "GB-ENG",
@@ -74,6 +77,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       ru: "Шотландия",
       zh: "苏格兰",
       cs: "Skotsko",
+      tr: "İskoçya",
     },
     aliases: ["scottish", "scotland"],
     flagCode: "GB-SCT",
@@ -91,6 +95,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       ru: "Уэльс",
       zh: "威尔士",
       cs: "Wales",
+      tr: "Galler",
     },
     aliases: ["welsh", "wales"],
     flagCode: "GB-WLS",
@@ -108,6 +113,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       ru: "Северная Ирландия",
       zh: "北爱尔兰",
       cs: "Severní Irsko",
+      tr: "Kuzey İrlanda",
     },
     aliases: ["northern irish", "northern ireland"],
     flagCode: "GB-NIR",
@@ -125,6 +131,7 @@ const FOOTBALL_IDENTITIES: Record<string, FootballIdentityDefinition> = {
       ru: "Республика Ирландия",
       zh: "爱尔兰共和国",
       cs: "Irská republika",
+      tr: "İrlanda Cumhuriyeti",
     },
     aliases: ["irish", "republic of ireland", "ireland"],
     flagCode: "IE",

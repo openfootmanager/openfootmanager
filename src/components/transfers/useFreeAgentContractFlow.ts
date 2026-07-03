@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   getRenewalStatusClassName,
@@ -19,7 +19,6 @@ import { resolveBackendError } from "../../utils/backendI18n";
 interface UseFreeAgentContractFlowArgs {
   gameState: GameStateData;
   onGameUpdate?: (game: GameStateData) => void;
-  onAccepted?: (playerId: string) => void;
 }
 
 const MARKET_VALUE_TO_WAGE_RATIO = 200;
@@ -73,7 +72,6 @@ function defaultContractWage(player: PlayerData): string {
 export function useFreeAgentContractFlow({
   gameState,
   onGameUpdate,
-  onAccepted,
 }: UseFreeAgentContractFlowArgs): UseFreeAgentContractFlowResult {
   const myTeam = gameState.teams.find(
     (team) => team.id === gameState.manager.team_id,
@@ -93,7 +91,6 @@ export function useFreeAgentContractFlow({
   const [contractSuggestedWage, setContractSuggestedWage] = useState<number | null>(null);
   const [contractSuggestedYears, setContractSuggestedYears] = useState<number | null>(null);
   const [contractIsTerminal, setContractIsTerminal] = useState(false);
-  const autoCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const offeredWage = Number(contractWage);
   const offeredYears = Number(contractLength);
@@ -106,15 +103,6 @@ export function useFreeAgentContractFlow({
     isContractWageValid &&
     contractProjection !== null &&
     !contractProjection.policy_allows;
-
-  const clearAutoCloseTimeout = (): void => {
-    if (autoCloseTimeoutRef.current !== null) {
-      clearTimeout(autoCloseTimeoutRef.current);
-      autoCloseTimeoutRef.current = null;
-    }
-  };
-
-  useEffect(() => clearAutoCloseTimeout, []);
 
   useEffect(() => {
     if (!freeAgentTarget || !isContractWageValid) {
@@ -149,7 +137,6 @@ export function useFreeAgentContractFlow({
   }, [freeAgentTarget, isContractWageValid, offeredWage]);
 
   const openFreeAgentContract = (player: PlayerData): void => {
-    clearAutoCloseTimeout();
     setFreeAgentTarget(player);
     setContractWage(defaultContractWage(player));
     setContractLength(defaultContractYears(player.date_of_birth, gameState.clock.current_date));
@@ -168,7 +155,6 @@ export function useFreeAgentContractFlow({
       return;
     }
 
-    clearAutoCloseTimeout();
     setFreeAgentTarget(null);
     setContractWage("");
     setContractLength("");
@@ -215,14 +201,6 @@ export function useFreeAgentContractFlow({
         }
       }
 
-      if (result.outcome === "accepted") {
-        const acceptedPlayerId = freeAgentTarget.id;
-        clearAutoCloseTimeout();
-        autoCloseTimeoutRef.current = setTimeout(() => {
-          closeFreeAgentContract();
-          onAccepted?.(acceptedPlayerId);
-        }, 2000);
-      }
     } catch (error) {
       setContractStatus("error");
       setContractError(resolveBackendError(error));
