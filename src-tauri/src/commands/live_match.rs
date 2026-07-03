@@ -563,6 +563,57 @@ mod tests {
         );
     }
 
+    // Regression: MCP match_start called start_live_match directly, which
+    // never simulated the day's other fixtures; match_finish then advanced
+    // the clock, stranding them Scheduled in the past forever.
+    #[test]
+    fn start_live_match_simulates_other_same_day_fixtures() {
+        let state = StateManager::new();
+        state.set_game(make_game_with_round());
+
+        crate::application::live_match::start_live_match(
+            &state, 0, "spectator", false, None, None,
+        )
+        .expect("start live match");
+
+        let (user_fixture, other_fixture) = state
+            .get_game(|g| {
+                let league = g.league.as_ref().unwrap();
+                (league.fixtures[0].clone(), league.fixtures[1].clone())
+            })
+            .unwrap();
+        assert_eq!(
+            user_fixture.status,
+            FixtureStatus::Scheduled,
+            "the user's own fixture must not be pre-simulated"
+        );
+        assert_eq!(
+            other_fixture.status,
+            FixtureStatus::Completed,
+            "the same-day AI fixture must be simulated"
+        );
+        let first_result = other_fixture.result.expect("simulated fixture has a result");
+
+        // The modern competitions list must receive the results too.
+        let competition_fixture = state
+            .get_game(|g| g.competitions[0].fixtures[1].clone())
+            .unwrap();
+        assert_eq!(competition_fixture.status, FixtureStatus::Completed);
+
+        // Session restore: starting again must not re-simulate completed
+        // fixtures (simulate_other_matches only touches Scheduled ones).
+        crate::application::live_match::start_live_match(
+            &state, 0, "spectator", false, None, None,
+        )
+        .expect("restore live match");
+        let restored_result = state
+            .get_game(|g| g.league.as_ref().unwrap().fixtures[1].result.clone())
+            .unwrap()
+            .expect("result still present");
+        assert_eq!(restored_result.home_goals, first_result.home_goals);
+        assert_eq!(restored_result.away_goals, first_result.away_goals);
+    }
+
     fn make_knockout_cup(fixture_date: &str) -> League {
         League {
             id: "cup1".to_string(),
