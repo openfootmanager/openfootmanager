@@ -208,6 +208,9 @@ export default function TrainingGroupsCard({
                     {t("common.position")}
                   </th>
                   <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    {t("common.condition")}
+                  </th>
+                  <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                     {t("training.groups.group")}
                   </th>
                   <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
@@ -234,6 +237,15 @@ export default function TrainingGroupsCard({
                           t,
                           player.natural_position || player.position,
                         )}
+                      </td>
+                      <td
+                        className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${
+                          player.condition < 60
+                            ? "text-amber-500 dark:text-amber-400"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
+                        {player.condition}
                       </td>
                       <td className="py-1.5 px-3">
                         <Select
