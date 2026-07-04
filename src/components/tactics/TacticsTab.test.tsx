@@ -823,6 +823,72 @@ describe("TacticsTab", () => {
     expect(screen.getByTestId("xi-player-f1")).toBeInTheDocument();
   });
 
+  // A natural striker occupying the right-midfield slot (index 8 in 4-4-2).
+  // Issue #272: the left panel and the pitch role picker must follow the
+  // deployed slot, which is also what the backend validates roles against.
+  const makeOutOfPositionGameState = (): GameStateData => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "m4"
+        ? { ...player, position: "Striker", natural_position: "Striker" }
+        : player,
+    );
+    return gameState;
+  };
+
+  it("shows the deployed slot position for a starter played out of his natural position", () => {
+    const gameState = makeOutOfPositionGameState();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByTestId("xi-player-m4");
+    expect(
+      within(row).getByText("common.posAbbr.RightMidfielder"),
+    ).toBeInTheDocument();
+    expect(
+      within(row).queryByText("common.posAbbr.Striker"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers pitch roles for the deployed slot, not the natural position", () => {
+    const gameState = makeOutOfPositionGameState();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad")
+        return gameState.players.filter((p) => p.team_id === "team1");
+      return gameState;
+    });
+
+    render(
+      <TacticsTab
+        gameState={gameState}
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByTestId("pitch-player-m4");
+    fireEvent.click(within(card).getByRole("combobox"));
+
+    // Right-midfield roles are on offer; striker-only roles are not.
+    expect(
+      screen.getByRole("option", { name: "InvertedWinger" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Poacher" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not promote an injured bench player into the starting XI", async () => {
     const gameState = makeGameState();
     gameState.players = gameState.players.map((player) =>

@@ -33,10 +33,12 @@ interface TacticsPlayerListProps {
   positionFilter: string;
   selectedPlayerId: string | null;
   starters: PlayerData[];
+  xiActivePosition: Map<string, string>;
 }
 
 function PlayerRow({
   comparePlayerId,
+  deployedPosition,
   isSelected,
   matchRoles,
   onAssignMatchRole,
@@ -52,6 +54,7 @@ function PlayerRow({
   selectedPlayerId,
 }: {
   comparePlayerId: string | null;
+  deployedPosition?: string;
   isSelected: boolean;
   matchRoles?: TeamMatchRolesData;
   onAssignMatchRole?: (role: keyof TeamMatchRolesData, playerId: string) => void;
@@ -74,9 +77,11 @@ function PlayerRow({
   const { t } = useTranslation();
   const ovr = getPlayerOvr(player);
   const isCompare = comparePlayerId === player.id;
+  // Starters show the slot they are deployed in (issue #272); the natural
+  // position remains for bench players, who have no deployed slot.
   const position = translatePositionAbbreviation(
     t,
-    player.natural_position || player.position,
+    deployedPosition || player.natural_position || player.position,
   );
   const contextItems = buildTacticsPlayerContextMenuItems({
     isSelected,
@@ -196,6 +201,7 @@ export default function TacticsPlayerList({
   positionFilter,
   selectedPlayerId,
   starters,
+  xiActivePosition,
 }: TacticsPlayerListProps): JSX.Element {
   const { t } = useTranslation();
   const draggedPlayerId = dragState?.playerId ?? null;
@@ -233,6 +239,7 @@ export default function TacticsPlayerList({
             <PlayerRow
               key={player.id}
               comparePlayerId={comparePlayerId}
+              deployedPosition={xiActivePosition.get(player.id)}
               isSelected={selectedPlayerId === player.id}
               matchRoles={matchRoles}
               onAssignMatchRole={onAssignMatchRole}
