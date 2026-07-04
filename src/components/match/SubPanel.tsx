@@ -693,7 +693,7 @@ export function SubPanel({
                       valB={comparedPlayer.tackling}
                     />
                     <CompareBar
-                      label="FIT"
+                      label="COND"
                       valA={Math.round(selectedPlayer.condition)}
                       valB={Math.round(comparedPlayer.condition)}
                     />

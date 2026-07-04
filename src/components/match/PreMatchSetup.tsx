@@ -421,7 +421,7 @@ export default function PreMatchSetup({
                     </span>
                   ))}
                   <span className="text-[8px] font-heading uppercase tracking-widest text-gray-400 dark:text-gray-600 w-8 text-right">
-                    FIT
+                    COND
                   </span>
                 </div>
               </div>
