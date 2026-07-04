@@ -81,16 +81,19 @@ export function buildAdvanceRecap(
 ): AdvanceRecap {
   const advancedTo = toDatePart(game.clock?.current_date);
   // Some news is dated at the event it announces (e.g. the World Cup kickoff
-  // article created months ahead at a season rollover). Without an upper bound
+  // article created months ahead at a season rollover; the news feed hides
+  // those until their day via utils/newsVisibility). Without an upper bound
   // such future-dated items match `date >= sinceDate` on every subsequent
   // advance and repeat in every digest day until their date arrives — so the
   // recap only surfaces items dated inside the window actually simulated.
   // The backend dates a day's events on the day it processes and then moves
   // the clock, so the processed window is [sinceDate, advancedTo): exclusive
   // above, leaving items dated on the landing day to the advance that will
-  // actually play that day.
-  const upTo = advancedTo || "9999-12-31";
-  const inWindow = (date: string): boolean => date >= sinceDate && date < upTo;
+  // actually play that day. No clock (defensive) means no upper bound.
+  const inWindow = (date: string): boolean => {
+    const day = toDatePart(date);
+    return day >= sinceDate && (!advancedTo || day < advancedTo);
+  };
   const userTeamId = game.manager?.team_id ?? null;
 
   const teamName = new Map((game.teams ?? []).map((team) => [team.id, team.name]));
