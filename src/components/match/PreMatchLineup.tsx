@@ -282,7 +282,7 @@ export default function PreMatchLineup({
                       </span>
                     ))}
                     <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-8 text-right">
-                      FIT
+                      COND
                     </span>
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export default function PreMatchLineup({
                   {t("match.keyStats")}
                 </span>
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-8 text-right">
-                  FIT
+                  COND
                 </span>
               </div>
               {userBench.map((bp) => {
