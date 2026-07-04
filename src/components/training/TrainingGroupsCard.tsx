@@ -219,8 +219,7 @@ export default function TrainingGroupsCard({
                 {sortedRoster.map((player) => {
                   const playerGroup = playerGroupMap.get(player.id);
                   const hasIndividualFocus = !!player.training_focus;
-                  const effectiveFocus =
-                    player.training_focus || (playerGroup ? playerGroup.focus : teamFocus);
+                  const fallbackFocus = playerGroup ? playerGroup.focus : teamFocus;
 
                   return (
                     <tr
@@ -273,7 +272,7 @@ export default function TrainingGroupsCard({
                           wrapperClassName="w-full max-w-[110px]"
                         >
                           <option value="">
-                            {t(`training.focuses.${effectiveFocus}.label`)} ↩
+                            {t(`training.focuses.${fallbackFocus}.label`)} ↩
                           </option>
                           {trainingFocusIds.map((focusId) => (
                             <option key={focusId} value={focusId}>
