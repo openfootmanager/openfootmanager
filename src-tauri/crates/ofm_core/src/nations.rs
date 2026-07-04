@@ -369,6 +369,21 @@ pub fn region_for_code(code: &str) -> &'static str {
         .unwrap_or("europe")
 }
 
+/// The FIFA confederation a region belongs to. The catalog splits the Americas
+/// into three size-based regions; World Cup qualifying and berth quotas reason
+/// in terms of the six real confederations, so North and Central America fold
+/// into CONCACAF. Unknown regions default to UEFA, matching `region_for_code`.
+pub fn confederation_of_region(region: &str) -> &'static str {
+    match region {
+        "south-america" => "conmebol",
+        "north-america" | "central-america" => "concacaf",
+        "africa" => "caf",
+        "asia" => "afc",
+        "oceania" => "ofc",
+        _ => "uefa",
+    }
+}
+
 /// Whether `id` names one of the built-in confederations/regions (so a world
 /// package may reference it without redefining it).
 pub fn is_builtin_region(id: &str) -> bool {
@@ -396,6 +411,19 @@ mod tests {
     #[test]
     fn catalog_is_large_enough_for_a_48_team_world_cup() {
         assert!(NATION_CATALOG.len() >= 48);
+    }
+
+    #[test]
+    fn confederation_folds_the_americas_into_concacaf() {
+        assert_eq!(confederation_of_region("north-america"), "concacaf");
+        assert_eq!(confederation_of_region("central-america"), "concacaf");
+        assert_eq!(confederation_of_region("south-america"), "conmebol");
+        assert_eq!(confederation_of_region("europe"), "uefa");
+        assert_eq!(confederation_of_region("africa"), "caf");
+        assert_eq!(confederation_of_region("asia"), "afc");
+        assert_eq!(confederation_of_region("oceania"), "ofc");
+        // Unknown regions default to UEFA, matching region_for_code.
+        assert_eq!(confederation_of_region("made-up"), "uefa");
     }
 
     #[test]

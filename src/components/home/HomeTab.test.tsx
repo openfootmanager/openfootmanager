@@ -387,4 +387,64 @@ describe("HomeTab", function (): void {
       "Youth Prospect",
     );
   });
+
+  // Regression: HomeTab sorted gameState.news and league.standings IN PLACE
+  // during render — a mutation of the Zustand store's arrays that silently
+  // reordered them for every other consumer.
+  it("does not mutate the store's news or standings arrays when rendering", function (): void {
+    const gameState = createGameState({
+      news: [
+        createNewsArticle({ id: "news-old", date: "2025-01-10" }),
+        createNewsArticle({ id: "news-new", date: "2025-01-18" }),
+      ],
+      league: {
+        id: "league-1",
+        name: "League",
+        season: 1,
+        fixtures: [createFixture()],
+        // Stored deliberately NOT in table order: an in-place sort would
+        // move team-2 (3 pts) to the front.
+        standings: [
+          {
+            team_id: "team-1",
+            played: 1,
+            won: 0,
+            drawn: 0,
+            lost: 1,
+            goals_for: 0,
+            goals_against: 2,
+            points: 0,
+          },
+          {
+            team_id: "team-2",
+            played: 1,
+            won: 1,
+            drawn: 0,
+            lost: 0,
+            goals_for: 2,
+            goals_against: 0,
+            points: 3,
+          },
+        ],
+      },
+    });
+    const newsBefore = gameState.news;
+    const standingsBefore = gameState.league!.standings;
+    const newsOrder = newsBefore.map((article) => article.id);
+    const standingsOrder = standingsBefore.map((entry) => entry.team_id);
+
+    render(
+      <HomeTab
+        gameState={gameState}
+        visitedOnboardingTabs={new Set<string>()}
+      />,
+    );
+
+    expect(gameState.news).toBe(newsBefore);
+    expect(gameState.news.map((article) => article.id)).toEqual(newsOrder);
+    expect(gameState.league!.standings).toBe(standingsBefore);
+    expect(gameState.league!.standings.map((entry) => entry.team_id)).toEqual(
+      standingsOrder,
+    );
+  });
 });
