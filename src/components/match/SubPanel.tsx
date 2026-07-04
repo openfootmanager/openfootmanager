@@ -7,6 +7,7 @@ import {
 } from "./types";
 import { getPlayerName } from "./helpers";
 import { FormationPitch } from "./FormationPitch";
+import { condBgColor, condColor } from "../../lib/playerConditionDisplay";
 import { Badge, Select } from "../ui";
 import {
   RefreshCw,
@@ -108,15 +109,6 @@ export function SubPanel({
     if (!offPlayer || !onPlayer) return [];
     return [{ rec, offPlayer, onPlayer }];
   });
-
-  const condColor = (c: number) =>
-    c >= 70 ? "bg-primary-500" : c >= 40 ? "bg-yellow-500" : "bg-red-500";
-  const condText = (c: number) =>
-    c >= 70
-      ? "text-primary-400"
-      : c >= 40
-        ? "text-yellow-400"
-        : "text-red-400";
 
   const getScenarioIcon = (id: MatchScenarioId) => {
     switch (id) {
@@ -418,12 +410,12 @@ export function SubPanel({
                                 <div className="flex items-center gap-1.5">
                                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-300 dark:bg-navy-600">
                                     <div
-                                      className={`h-full rounded-full ${condColor(p.condition)}`}
+                                      className={`h-full rounded-full ${condBgColor(p.condition)}`}
                                       style={{ width: `${p.condition}%` }}
                                     />
                                   </div>
                                   <span
-                                    className={`w-7 text-right font-heading text-xs tabular-nums ${condText(p.condition)}`}
+                                    className={`w-7 text-right font-heading text-xs tabular-nums ${condColor(p.condition)}`}
                                   >
                                     {Math.round(p.condition)}
                                   </span>
@@ -536,12 +528,12 @@ export function SubPanel({
                                 <div className="flex items-center gap-1.5">
                                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-300 dark:bg-navy-600">
                                     <div
-                                      className={`h-full rounded-full ${condColor(p.condition)}`}
+                                      className={`h-full rounded-full ${condBgColor(p.condition)}`}
                                       style={{ width: `${p.condition}%` }}
                                     />
                                   </div>
                                   <span
-                                    className={`w-7 text-right font-heading text-xs tabular-nums ${condText(p.condition)}`}
+                                    className={`w-7 text-right font-heading text-xs tabular-nums ${condColor(p.condition)}`}
                                   >
                                     {Math.round(p.condition)}
                                   </span>
