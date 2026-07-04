@@ -3395,12 +3395,12 @@
         "body": "{{nations}} národů zahajuje svou kampaň s cílem kvalifikovat se na Mistrovství světa {{year}}, která se odehraje během reprezentačních pauz v této sezóně."
       },
       "worldCupPlayoff": {
-        "headline": "Drama v mezikontinentální baráži o {{year}}",
-        "body": "{{nations}} prošly mezikontinentální baráží a získaly poslední místa na mistrovství světa {{year}}."
+        "headline": "Drama mezikontinentální baráže o MS {{year}}",
+        "body": "{{nations}} prošly mezikontinentální baráží a získaly poslední místa na Mistrovství světa {{year}}."
       },
       "worldCupPlayoffDraw": {
         "headline": "Šest zemí, dvě místa: baráž o MS {{year}} je známa",
-        "body": "{{nations}} se v červnu utkají v mezikontinentální baráži o poslední dvě místa na mistrovství světa {{year}}."
+        "body": "{{nations}} se v červnu utkají v mezikontinentální baráži o poslední dvě místa na Mistrovství světa {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Mistrovství světa {{year}} začíná",

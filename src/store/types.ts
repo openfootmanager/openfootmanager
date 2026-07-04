@@ -203,7 +203,11 @@ export interface ContractExitIntentData {
 }
 
 export interface ContractRenewalStateData {
-  status: "idle" | "open" | "agreed" | "blocked" | "stalled";
+  // Backend `RenewalSessionStatus` (domain/player.rs) uses serde default enum
+  // representation — PascalCase variant names on the wire. Do not confuse with
+  // the lowercase `session_status` in command responses, which goes through a
+  // dedicated `serialize_session_status()` helper on the Rust side.
+  status: "Idle" | "Open" | "Agreed" | "Blocked" | "Stalled";
   manager_blocked_until?: string | null;
   last_attempt_date?: string | null;
   last_assistant_attempt_date?: string | null;

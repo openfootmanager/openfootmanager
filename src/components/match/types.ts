@@ -175,6 +175,16 @@ export interface RoundSummary {
 
 export type SimSpeed = "paused" | "slow" | "normal" | "fast" | "instant";
 
+// A "persistable" speed is a playback pace the user might want to resume from
+// after half-time. `paused` is a temporary action; `instant` is a one-shot
+// skip-to-end-of-half — persisting it would silently skip the next half.
+// Only "slow" / "normal" / "fast" describe a pace worth locking in.
+export function isPersistableSpeed(
+  s: SimSpeed,
+): s is "slow" | "normal" | "fast" {
+  return s !== "paused" && s !== "instant";
+}
+
 export type MatchDayStage =
   | "prematch"
   | "first_half"

@@ -416,7 +416,7 @@ describe("SquadTab", () => {
     gameState.players[0].morale_core = {
       manager_trust: 50,
       renewal_state: {
-        status: "blocked",
+        status: "Blocked",
         manager_blocked_until: null,
         last_attempt_date: "2026-08-01",
         last_assistant_attempt_date: null,

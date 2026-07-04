@@ -285,7 +285,13 @@ fn train_player(
         * plan.bonus.coaching_mult
         * plan.bonus.specialization_mult;
 
-    apply_focus_gains(&mut player.attributes, player_focus, gain, rng);
+    // Peaked players (ovr == potential) get no attribute gains. Without this
+    // gate, attribute drift lifts ovr, and `refresh_player_derived`'s
+    // `potential = max(potential, ovr)` invariant silently raises the career
+    // ceiling in lockstep — the ceiling stops being a ceiling.
+    if player.potential > player.ovr {
+        apply_focus_gains(&mut player.attributes, player_focus, gain, rng);
+    }
     apply_fitness_change(&mut player.fitness, player_focus, intensity_mult, rng);
 
     // Refresh position-weighted OVR and traits after attribute gains.

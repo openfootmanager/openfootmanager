@@ -3394,8 +3394,8 @@
         "body": "{{nations}} ülke, bu sezonki uluslararası aralarda oynanacak {{year}} Dünya Kupası elemelerinde mücadeleye başlıyor."
       },
       "worldCupPlayoff": {
-        "headline": "{{year}} için kıtalararası play-off heyecanı",
-        "body": "{{nations}}, kıtalararası play-off'u geçerek {{year}} Dünya Kupası'ndaki son biletleri kaptı."
+        "headline": "{{year}} İçin Kıtalararası Play-off Heyecanı",
+        "body": "{{nations}}, kıtalararası play-off'u geçerek {{year}} Dünya Kupası'ndaki son yerlerin sahibi oldu."
       },
       "worldCupPlayoffDraw": {
         "headline": "Altı takım, iki bilet: {{year}} play-off eşleşmeleri belli oldu",
