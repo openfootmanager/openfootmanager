@@ -76,10 +76,20 @@ export default function PreMatchSetup({
   const userSecondary = userFullTeam?.colors?.secondary ?? "#1a3a6b";
   const userPattern = userFullTeam?.kit_pattern ?? "Solid";
 
+  const oppFullTeam = userSide === "Home" ? awayFullTeam : homeFullTeam;
+  const oppPrimary = oppFullTeam?.colors?.primary ?? "#6366f1";
+  const oppSecondary = oppFullTeam?.colors?.secondary ?? "#1a3a6b";
+  const oppPattern = oppFullTeam?.kit_pattern ?? "Solid";
+
   // Index the full squad so pitch tokens can be enriched with face/jersey/natural
   // position that the lightweight match snapshot player doesn't carry.
   const storeById = useMemo(
     () => new Map(gameState.players.map((p) => [p.id, p])),
+    [gameState.players],
+  );
+
+  const jerseyNumberById = useMemo(
+    () => new Map(gameState.players.map((p) => [p.id, p.jersey_number])),
     [gameState.players],
   );
 
@@ -93,13 +103,14 @@ export default function PreMatchSetup({
         : "out";
     return (
       <div
-        className={`w-16 rounded-xl px-1 py-1 ${
+        className={`w-24 rounded-xl px-1 py-1 ${
           isSelected ? "bg-accent-500/25 ring-2 ring-accent-300/70" : ""
         }`}
       >
         <PitchToken
           name={(sp?.match_name || player.name).toUpperCase()}
           positionAbbr={translatePositionAbbreviation(t, player.position)}
+          position={player.position}
           ovr={player.ovr}
           condition={player.condition}
           fitTone={fit}
@@ -112,6 +123,34 @@ export default function PreMatchSetup({
             primaryColor: userPrimary,
             secondaryColor: userSecondary,
             pattern: userPattern,
+            number: sp?.jersey_number,
+          }}
+        />
+      </div>
+    );
+  };
+
+  // Basic token for the opponent's scouting pitch: avatar, kit, and OVR only —
+  // no fit ring or role furniture, which is the user's-side detail.
+  const renderOppToken = (player: EnginePlayerData) => {
+    const sp = storeById.get(player.id);
+    return (
+      <div className="w-24 rounded-xl px-1 py-1">
+        <PitchToken
+          name={(sp?.match_name || player.name).toUpperCase()}
+          positionAbbr={translatePositionAbbreviation(t, player.position)}
+          position={player.position}
+          ovr={player.ovr}
+          condition={player.condition}
+          avatar={
+            sp
+              ? { full_name: sp.full_name, match_name: sp.match_name, media: sp.media }
+              : { full_name: player.name, match_name: player.name }
+          }
+          jersey={{
+            primaryColor: oppPrimary,
+            secondaryColor: oppSecondary,
+            pattern: oppPattern,
             number: sp?.jersey_number,
           }}
         />
@@ -338,6 +377,7 @@ export default function PreMatchSetup({
           onSelectStarter={setSelectedStarterId}
           onSwap={handleSwap}
           onAutoSelect={handleAutoSelect}
+          jerseyNumberById={jerseyNumberById}
           showStartingList={false}
         />
       </div>
@@ -391,6 +431,7 @@ export default function PreMatchSetup({
           <FormationPitch
             formation={oppTeam.formation}
             players={oppTeam.players}
+            renderToken={(p) => renderOppToken(p)}
             className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
           />
         </div>

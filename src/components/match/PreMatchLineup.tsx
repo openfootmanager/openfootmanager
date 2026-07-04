@@ -154,6 +154,12 @@ interface PreMatchLineupProps {
   onSwap: (benchPlayerId: string) => void;
   onAutoSelect: () => void;
   /**
+   * Jersey number per player id, looked up from the game store — the match
+   * snapshot's lightweight player doesn't carry it. Rows show a number chip
+   * only when this is provided.
+   */
+  jerseyNumberById?: Map<string, number | null | undefined>;
+  /**
    * When false, the textual Starting XI list is hidden — used by the pre-match
    * "command" layout where the pitch is the primary XI visualisation. The
    * formation-fit bar and bench (for swapping) still render. Defaults to true.
@@ -171,10 +177,18 @@ export default function PreMatchLineup({
   onSelectStarter,
   onSwap,
   onAutoSelect,
+  jerseyNumberById,
   showStartingList = true,
 }: PreMatchLineupProps) {
   const { t } = useTranslation();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+
+  const jerseyChip = (playerId: string) =>
+    jerseyNumberById ? (
+      <span className="w-6 shrink-0 rounded-md bg-gray-100 py-0.5 text-center text-[11px] font-heading font-bold tabular-nums text-gray-600 dark:bg-navy-700 dark:text-gray-300">
+        {jerseyNumberById.get(playerId) ?? "–"}
+      </span>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -306,6 +320,7 @@ export default function PreMatchLineup({
                       >
                         {posOvr}
                       </div>
+                      {jerseyChip(p.id)}
                       <span className="text-sm text-gray-800 dark:text-gray-200 font-medium flex-1 truncate">
                         {p.name}
                       </span>
@@ -411,6 +426,7 @@ export default function PreMatchLineup({
                     <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-navy-600 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-400 flex-shrink-0 transition-colors duration-300">
                       {posOvr}
                     </div>
+                    {jerseyChip(bp.id)}
                     <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 truncate">
                       {bp.name}
                     </span>

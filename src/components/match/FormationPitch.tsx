@@ -164,6 +164,7 @@ export function FormationPitch({
           stroke="rgba(255,255,255,0.55)"
           strokeWidth="0.6"
         />
+        <circle cx="50" cy="70" r="0.8" fill="rgba(255,255,255,0.75)" />
         <rect
           x="18"
           y="4"
@@ -196,6 +197,18 @@ export function FormationPitch({
           y="128"
           width="40"
           height="8"
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="0.6"
+        />
+        <path
+          d="M 38 22 A 12 12 0 0 0 62 22"
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="0.6"
+        />
+        <path
+          d="M 38 118 A 12 12 0 0 1 62 118"
           fill="none"
           stroke="rgba(255,255,255,0.55)"
           strokeWidth="0.6"

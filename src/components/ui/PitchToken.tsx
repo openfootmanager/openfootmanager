@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { KitPattern } from "../../store/types";
+import { getPositionColor } from "../../lib/positionColors";
 import { PlayerAvatar } from "./PlayerAvatar";
 import JerseyIcon from "./JerseyIcon";
 
@@ -19,6 +20,8 @@ export interface PitchTokenProps {
   name: string;
   /** Short position label shown top-right (e.g. "ST", "GK"). */
   positionAbbr: string;
+  /** Raw position enum (e.g. "CenterBack"); colours the position badge. */
+  position?: string;
   ovr: number;
   /** 0–100 short-term condition; drives the bar at the bottom. */
   condition: number;
@@ -70,6 +73,7 @@ function conditionFillClass(condition: number): string {
 export function PitchToken({
   name,
   positionAbbr,
+  position,
   ovr,
   condition,
   fitTone = "empty",
@@ -87,7 +91,7 @@ export function PitchToken({
             {markers.slice(0, 3).map((marker) => (
               <span
                 key={marker.key}
-                className={`rounded-full border px-1 py-0 text-[7px] font-heading font-bold leading-4 ${marker.toneClassName}`}
+                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-heading font-bold leading-4 ${marker.toneClassName}`}
               >
                 {marker.shortLabel}
               </span>
@@ -95,7 +99,7 @@ export function PitchToken({
           </div>
         )}
         <div className="absolute -right-1.5 -top-1.5 z-10">
-          <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[7px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
+          <span className={`rounded-full ${position ? getPositionColor(position) : "bg-gray-900"} px-2 py-0.5 text-xs font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/40`}>
             {positionAbbr}
           </span>
         </div>
@@ -104,7 +108,7 @@ export function PitchToken({
           className={`h-11 w-11 overflow-hidden rounded-full ${fitRingClass(fitTone)}`}
         />
         <div className="absolute -bottom-1 -right-1.5 z-10">
-          <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[8px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+          <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-heading font-bold leading-4 text-white ring-1 ring-white/30">
             {ovr}
           </span>
         </div>
@@ -112,7 +116,7 @@ export function PitchToken({
 
       {jersey ? (
         <JerseyIcon
-          size="sm"
+          size="md"
           primaryColor={jersey.primaryColor}
           secondaryColor={jersey.secondaryColor}
           pattern={jersey.pattern}
@@ -120,7 +124,7 @@ export function PitchToken({
         />
       ) : null}
 
-      <div className="max-w-full truncate text-[9px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
+      <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
         {name}
       </div>
 
