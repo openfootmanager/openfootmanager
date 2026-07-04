@@ -35,6 +35,8 @@ export interface PitchTokenProps {
     pattern: KitPattern;
     number?: number | null;
   };
+  /** Plain "#N" fallback shown when no kit `jersey` is available. */
+  jerseyNumber?: number | null;
   /** Role markers stacked at the top-left (max 3 shown). */
   markers?: PitchTokenMarker[];
   /** Optional slot below the name — e.g. a tactical-role combobox. */
@@ -54,10 +56,17 @@ function fitRingClass(fitTone: PitchFitTone): string {
   }
 }
 
-function conditionFillClass(condition: number): string {
-  if (condition >= 90) return "bg-success-400";
-  if (condition >= 75) return "bg-primary-300";
-  if (condition >= 60) return "bg-accent-300";
+function conditionFillClass(condition: number, fitTone: PitchFitTone): string {
+  // The fit tone caps the bar COLOUR (not its width): an out-of-position
+  // player shows a warning-coloured bar even when fully fresh, signalling
+  // reduced effectiveness in that slot.
+  const capped = Math.min(
+    condition,
+    fitTone === "out" ? 56 : fitTone === "adapted" ? 74 : 100,
+  );
+  if (capped >= 90) return "bg-success-400";
+  if (capped >= 75) return "bg-primary-300";
+  if (capped >= 60) return "bg-accent-300";
   return "bg-red-400";
 }
 
@@ -79,6 +88,7 @@ export function PitchToken({
   fitTone = "empty",
   avatar,
   jersey,
+  jerseyNumber,
   markers,
   children,
 }: PitchTokenProps) {
@@ -122,6 +132,10 @@ export function PitchToken({
           pattern={jersey.pattern}
           number={jersey.number}
         />
+      ) : jerseyNumber != null ? (
+        <span className="text-[10px] font-heading font-bold text-white/80">
+          #{jerseyNumber}
+        </span>
       ) : null}
 
       <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
@@ -133,7 +147,7 @@ export function PitchToken({
       <div className="w-full">
         <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className={`h-full rounded-full ${conditionFillClass(condition)}`}
+            className={`h-full rounded-full ${conditionFillClass(condition, fitTone)}`}
             style={{ width: `${Math.max(20, condition)}%` }}
           />
         </div>
