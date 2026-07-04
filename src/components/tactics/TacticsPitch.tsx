@@ -564,7 +564,7 @@ export default function TacticsPitch({
                               )}
                               {/* Top-right: position badge */}
                               <div className="absolute -right-1.5 -top-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[10px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[11px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
                                   {translatePositionAbbreviation(t, slot.position)}
                                 </span>
                               </div>
@@ -575,7 +575,7 @@ export default function TacticsPitch({
                               />
                               {/* Bottom-right: OVR */}
                               <div className="absolute -bottom-1 -right-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[10px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[11px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
                                   {getPlayerOvr(player)}
                                 </span>
                               </div>
@@ -595,7 +595,7 @@ export default function TacticsPitch({
                               </span>
                             ) : null}
                             {/* Player name */}
-                            <div className="max-w-full truncate text-[10px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
+                            <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
                               {getPitchDisplayName(player)}
                             </div>
                             {/* Role combobox */}
@@ -607,7 +607,7 @@ export default function TacticsPitch({
                                 className="w-full"
                               >
                                 <Select
-                                  selectSize="xs"
+                                  selectSize="sm"
                                   variant="ghost"
                                   fullWidth
                                   value={playerRoles?.[player.id] ?? "Standard"}
