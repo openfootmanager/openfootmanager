@@ -12,43 +12,52 @@ struct ObjectiveTargets {
     finance_target: u32,
 }
 
-fn objective_targets(reputation: u32, num_teams: u32) -> ObjectiveTargets {
-    let expected_pos = if reputation >= 80 {
-        1
-    } else if reputation >= 70 {
-        (num_teams / 4).max(2)
-    } else if reputation >= 55 {
-        num_teams / 2
-    } else {
-        (num_teams * 3 / 4).max(num_teams / 2 + 1)
-    };
+impl ObjectiveTargets {
+    pub fn new(reputation: u32, num_teams: u32) -> Self {
+        const HIGH_REPUTATION: u32 = 800;
+        const MEDIUM_REPUTATION: u32 = 650;
+        const LOW_REPUTATION: u32 = 400;
 
-    let total_matchdays = if num_teams > 1 {
-        (num_teams - 1) * 2
-    } else {
-        0
-    };
-    let win_target = if reputation >= 80 {
-        (total_matchdays * 60 / 100).max(1)
-    } else if reputation >= 65 {
-        (total_matchdays * 45 / 100).max(1)
-    } else {
-        (total_matchdays * 30 / 100).max(1)
-    };
+        let expected_pos = if reputation >= HIGH_REPUTATION {
+            1
+        } else if reputation >= MEDIUM_REPUTATION {
+            (num_teams / 4).max(2)
+        } else if reputation >= LOW_REPUTATION {
+            num_teams / 2
+        } else {
+            (num_teams * 3 / 4).max(num_teams / 2 + 1)
+        };
 
-    let goals_target = if reputation >= 75 {
-        (total_matchdays * 2).max(10)
-    } else if reputation >= 55 {
-        (total_matchdays * 3 / 2).max(8)
-    } else {
-        total_matchdays.max(5)
-    };
+        let total_matchdays = if num_teams > 1 {
+            (num_teams - 1) * 2
+        } else {
+            0
+        };
 
-    ObjectiveTargets {
-        expected_pos,
-        win_target,
-        goals_target,
-        finance_target: 100,
+        let win_target = if reputation >= HIGH_REPUTATION {
+            (total_matchdays * 60 / 100).max(1)
+        } else if reputation >= MEDIUM_REPUTATION {
+            (total_matchdays * 45 / 100).max(1)
+        } else if reputation >= LOW_REPUTATION {
+            (total_matchdays * 30 / 100).max(1)
+        } else {
+            (total_matchdays * 10 / 100).max(1)
+        };
+
+        let goals_target = if reputation >= HIGH_REPUTATION {
+            (total_matchdays * 3 / 2).max(20)
+        } else if reputation >= MEDIUM_REPUTATION {
+            (total_matchdays / 2).max(15)
+        } else {
+            (total_matchdays / 5).max(10)
+        };
+
+        Self {
+            expected_pos,
+            win_target,
+            goals_target,
+            finance_target: 100,
+        }
     }
 }
 
@@ -133,7 +142,7 @@ pub fn generate_objectives(game: &mut Game) {
         .filter(|&count| count > 1)
         .unwrap_or(game.teams.len()) as u32;
     let reputation = team.reputation;
-    let targets = objective_targets(reputation, num_teams);
+    let targets = ObjectiveTargets::new(reputation, num_teams);
 
     game.board_objectives = vec![
         BoardObjective {
