@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { MatchSnapshot, EnginePlayerData } from "./types";
 import { Badge } from "../ui";
@@ -159,6 +160,8 @@ interface PreMatchLineupProps {
    * only when this is provided.
    */
   jerseyNumberById?: Map<string, number | null | undefined>;
+  /** Formation/play-style selects, rendered inside the formation-fit card. */
+  formationControls?: ReactNode;
   /**
    * When false, the textual Starting XI list is hidden — used by the pre-match
    * "command" layout where the pitch is the primary XI visualisation. The
@@ -178,6 +181,7 @@ export default function PreMatchLineup({
   onSwap,
   onAutoSelect,
   jerseyNumberById,
+  formationControls,
   showStartingList = true,
 }: PreMatchLineupProps) {
   const { t } = useTranslation();
@@ -192,13 +196,14 @@ export default function PreMatchLineup({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Formation Balance Bar + Auto-Select. Wraps: in the pre-match sidebar
-          this card is ~260px wide and a single row clips the last counts. */}
-      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-3 flex flex-wrap items-center justify-between gap-2 transition-colors duration-300">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-[10px] font-heading uppercase tracking-widest text-gray-700 dark:text-gray-500">
-            {t("match.formationFit")}
-          </span>
+      {/* Formation setup: formation/play-style controls, slot-fit counts, and
+          auto-select — stacked so nothing clips in the narrow sidebar. */}
+      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-3 flex flex-col gap-2.5 transition-colors duration-300">
+        <span className="text-[10px] font-heading uppercase tracking-widest text-gray-700 dark:text-gray-500">
+          {t("match.formationFit")}
+        </span>
+        {formationControls}
+        <div className="grid grid-cols-4 gap-1.5">
           {(["Goalkeeper", "Defender", "Midfielder", "Forward"] as const).map(
             (pos) => {
               const needed = formationNeeds[pos] || 0;
@@ -207,16 +212,19 @@ export default function PreMatchLineup({
               ).length;
               const ok = actual === needed;
               return (
-                <div key={pos} className="flex items-center gap-1">
+                <div
+                  key={pos}
+                  className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-50 py-1.5 dark:bg-navy-700/40"
+                >
                   <span className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-400">
                     {translatePositionAbbreviation(t, pos)}
                   </span>
                   <span
-                    className={`text-sm font-heading font-bold tabular-nums ${ok ? "text-primary-700 dark:text-primary-400" : "text-amber-600 dark:text-amber-400"}`}
+                    className={`flex items-center gap-1 text-sm font-heading font-bold tabular-nums ${ok ? "text-primary-700 dark:text-primary-400" : "text-amber-600 dark:text-amber-400"}`}
                   >
                     {actual}/{needed}
+                    {!ok && <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
                   </span>
-                  {!ok && <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
                 </div>
               );
             },
@@ -225,7 +233,7 @@ export default function PreMatchLineup({
         <button
           onClick={onAutoSelect}
           disabled={isAutoSelecting}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
+          className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${isAutoSelecting
             ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
             : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
             }`}

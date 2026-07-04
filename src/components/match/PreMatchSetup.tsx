@@ -378,10 +378,6 @@ export default function PreMatchSetup({
     oppTeam.players.some((p) => p.position === pos),
   );
 
-  // Header shows Home left / Away right; this decides which side gets the
-  // editable formation & play-style selects (the user's side).
-  const leftIsUser = userSide === "Home";
-
   const renderSetPieces = () => (
     <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-800 p-4 shadow-sm transition-colors duration-300">
       <div className="flex items-center justify-between mb-2.5">
@@ -440,6 +436,40 @@ export default function PreMatchSetup({
           onSwap={handleSwap}
           onAutoSelect={handleAutoSelect}
           jerseyNumberById={jerseyNumberById}
+          formationControls={
+            <div className="flex gap-2">
+              <Select
+                value={
+                  FORMATIONS.includes(userTeam.formation)
+                    ? userTeam.formation
+                    : FORMATIONS[0]
+                }
+                onChange={(e) => handleFormationChange(e.target.value)}
+                selectSize="sm"
+                fullWidth
+                aria-label={t("tactics.formation")}
+              >
+                {FORMATIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                value={userTeam.play_style}
+                onChange={(e) => handlePlayStyleChange(e.target.value)}
+                selectSize="sm"
+                fullWidth
+                aria-label={t("tactics.playStyle")}
+              >
+                {PLAY_STYLES.map((style) => (
+                  <option key={style} value={style}>
+                    {t(`common.playStyles.${style}`, style)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          }
           showStartingList={false}
         />
       </div>
@@ -617,43 +647,10 @@ export default function PreMatchSetup({
               <p className="font-heading font-bold text-lg text-gray-900 dark:text-white truncate">
                 {homeTeam.name}
               </p>
-              {leftIsUser ? (
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Select
-                    value={
-                      FORMATIONS.includes(userTeam.formation)
-                        ? userTeam.formation
-                        : FORMATIONS[0]
-                    }
-                    onChange={(e) => handleFormationChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.formation")}
-                  >
-                    {FORMATIONS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={userTeam.play_style}
-                    onChange={(e) => handlePlayStyleChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.playStyle")}
-                  >
-                    {PLAY_STYLES.map((style) => (
-                      <option key={style} value={style}>
-                        {t(`common.playStyles.${style}`, style)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {homeTeam.formation} ·{" "}
-                  {t(`common.playStyles.${homeTeam.play_style}`, homeTeam.play_style)}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {homeTeam.formation} ·{" "}
+                {t(`common.playStyles.${homeTeam.play_style}`, homeTeam.play_style)}
+              </p>
             </div>
           </div>
 
@@ -692,43 +689,10 @@ export default function PreMatchSetup({
               <p className="font-heading font-bold text-lg text-gray-900 dark:text-white truncate">
                 {awayTeam.name}
               </p>
-              {!leftIsUser ? (
-                <div className="flex items-center gap-2 mt-1.5 justify-end">
-                  <Select
-                    value={
-                      FORMATIONS.includes(userTeam.formation)
-                        ? userTeam.formation
-                        : FORMATIONS[0]
-                    }
-                    onChange={(e) => handleFormationChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.formation")}
-                  >
-                    {FORMATIONS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={userTeam.play_style}
-                    onChange={(e) => handlePlayStyleChange(e.target.value)}
-                    selectSize="xs"
-                    aria-label={t("tactics.playStyle")}
-                  >
-                    {PLAY_STYLES.map((style) => (
-                      <option key={style} value={style}>
-                        {t(`common.playStyles.${style}`, style)}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {awayTeam.formation} ·{" "}
-                  {t(`common.playStyles.${awayTeam.play_style}`, awayTeam.play_style)}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {awayTeam.formation} ·{" "}
+                {t(`common.playStyles.${awayTeam.play_style}`, awayTeam.play_style)}
+              </p>
             </div>
           </div>
 
