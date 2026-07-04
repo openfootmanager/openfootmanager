@@ -339,7 +339,7 @@ mod tests {
                 make_team(
                     &format!("team{}", idx),
                     &format!("Team {}", idx),
-                    if idx == 1 { user_reputation } else { 50 },
+                    if idx == 1 { user_reputation } else { 500 },
                 )
             })
             .collect();
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn generate_objectives_creates_targets_and_board_message() {
-        let mut game = make_game(80, 3, 4);
+        let mut game = make_game(800, 3, 4);
 
         generate_objectives(&mut game);
 
@@ -394,7 +394,7 @@ mod tests {
             objective_by_id(&game, "obj_wins").description,
             "boardObjectives.objective.Wins"
         );
-        assert_eq!(objective_by_id(&game, "obj_goals").target, 12);
+        assert_eq!(objective_by_id(&game, "obj_goals").target, 20);
         assert_eq!(
             objective_by_id(&game, "obj_goals").description,
             "boardObjectives.objective.GoalsScored"
@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(message.i18n_params.get("winTarget"), Some(&"3".to_string()));
         assert_eq!(
             message.i18n_params.get("goalsTarget"),
-            Some(&"12".to_string())
+            Some(&"20".to_string())
         );
         assert_eq!(
             message.i18n_params.get("financeTarget"),
