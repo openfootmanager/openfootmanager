@@ -3,6 +3,7 @@ import {
   isValidElement,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
 interface SelectProps {
@@ -80,6 +82,7 @@ export function Select({
 }: SelectProps) {
   const listboxId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const controlledValue = value !== undefined ? String(value) : undefined;
 
   const options = useMemo<SelectOption[]>(() => {
@@ -133,7 +136,13 @@ export function Select({
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // The menu is portaled to <body>, so a press inside it is "outside" the
+      // wrapper — it must not dismiss the menu before the option click lands.
+      if (
+        !wrapperRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -142,6 +151,56 @@ export function Select({
 
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  // Place the portaled menu against the trigger: below by default, flipped
+  // above when the viewport bottom would clip it (e.g. the GK slot at the foot
+  // of the tactics pitch, issue #282). Re-derived on scroll/resize so the menu
+  // tracks a trigger inside scrollable panels.
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const place = () => {
+      const trigger = wrapperRef.current;
+      const menu = menuRef.current;
+      if (!trigger || !menu) {
+        return;
+      }
+
+      const rect = trigger.getBoundingClientRect();
+      const margin = 8;
+      const gap = 4;
+      // The menu may grow past the trigger (long option labels) but never
+      // narrower than it, so short-option dropdowns keep their current look.
+      menu.style.minWidth = `${rect.width}px`;
+      menu.style.maxWidth = `min(18rem, calc(100vw - ${margin * 2}px))`;
+
+      const menuHeight = menu.offsetHeight;
+      const menuWidth = menu.offsetWidth;
+      const fitsBelow =
+        rect.bottom + gap + menuHeight <= window.innerHeight - margin;
+      const fitsAbove = rect.top - gap - menuHeight >= margin;
+      const openUp = !fitsBelow && fitsAbove;
+
+      menu.style.top = openUp
+        ? `${rect.top - gap - menuHeight}px`
+        : `${rect.bottom + gap}px`;
+      menu.style.left = `${Math.max(
+        margin,
+        Math.min(rect.left, window.innerWidth - menuWidth - margin),
+      )}px`;
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [isOpen, options]);
 
   const handleSelect = (nextValue: string) => {
     if (controlledValue === undefined) {
@@ -297,8 +356,11 @@ export function Select({
         <ChevronDown className={chevronSize} />
       </span>
 
-      {isOpen ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-800">
+      {isOpen ? createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-50 w-max overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-800"
+        >
           <div
             id={listboxId}
             role="listbox"
@@ -331,7 +393,8 @@ export function Select({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
