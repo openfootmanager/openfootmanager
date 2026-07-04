@@ -1,11 +1,63 @@
 import { useId, type ReactNode } from "react";
+import { buildPitchRows } from "../squad/SquadTab.helpers";
 import type { EnginePlayerData } from "./types";
+
+interface FormationSlot {
+  player: EnginePlayerData;
+  x: number;
+  y: number;
+  /** Granular formation slot (e.g. "CenterBack") — only in slot-aligned mode. */
+  slotPosition?: string;
+}
+
+/**
+ * Slot-aligned layout: the engine XI is ordered so entry i plays formation
+ * slot i (team_builder keeps this invariant, including through swaps and
+ * substitutions), which lets us place each player at their actual granular
+ * slot instead of re-bucketing by coarse position group. Returns null when
+ * the invariant can't hold (player count ≠ slot count), so the caller can
+ * fall back to the grouped layout.
+ */
+function buildSlotAlignedSlots(
+  formation: string,
+  players: EnginePlayerData[],
+  sentOff: string[],
+): FormationSlot[] | null {
+  const rows = buildPitchRows(formation);
+  const slotCount = rows.reduce((sum, row) => sum + row.positions.length, 0);
+  if (slotCount !== players.length) {
+    return null;
+  }
+
+  const slots: FormationSlot[] = [];
+  let slotIndex = 0;
+  for (const row of rows) {
+    const y = Number.parseFloat(row.y);
+    row.positions.forEach((slotPosition, colIdx) => {
+      const player = players[slotIndex];
+      slotIndex += 1;
+      if (sentOff.includes(player.id)) {
+        return;
+      }
+      slots.push({
+        player,
+        x:
+          row.positions.length === 1
+            ? 50
+            : Math.round((100 * (colIdx + 1)) / (row.positions.length + 1)),
+        y: Number.isFinite(y) ? y : 50,
+        slotPosition,
+      });
+    });
+  }
+  return slots;
+}
 
 export function buildFormationSlots(
   formation: string,
   players: EnginePlayerData[],
   sentOff: string[] = [],
-): { player: EnginePlayerData; x: number; y: number }[] {
+): FormationSlot[] {
   const active = players.filter((p) => !sentOff.includes(p.id));
   const nums = formation.split("-").map(Number);
   // A valid formation has at least three lines (def-mid-fwd). Anything shorter
@@ -75,7 +127,7 @@ interface FormationPitchProps {
    */
   renderToken?: (
     player: EnginePlayerData,
-    state: { isSelected: boolean; isSubOn: boolean },
+    state: { isSelected: boolean; isSubOn: boolean; slotPosition?: string },
   ) => ReactNode;
 }
 
@@ -92,7 +144,9 @@ export function FormationPitch({
   const uid = useId();
   const surfaceId = `pitch-surface-${uid}`;
   const stripesId = `pitch-stripes-${uid}`;
-  const slots = buildFormationSlots(formation, players, sentOff);
+  const slots =
+    buildSlotAlignedSlots(formation, players, sentOff) ??
+    buildFormationSlots(formation, players, sentOff);
 
   return (
     <div
@@ -214,7 +268,7 @@ export function FormationPitch({
           strokeWidth="0.6"
         />
       </svg>
-      {slots.map(({ player: p, x, y }) => {
+      {slots.map(({ player: p, x, y, slotPosition }) => {
         const isSelected = selectedId === p.id;
         const isSubOn = subbedOnIds?.has(p.id) ?? false;
         const initials = p.name
@@ -226,7 +280,7 @@ export function FormationPitch({
         const sharedClass = `absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 transition-all ${onPlayerClick ? "cursor-pointer hover:scale-110" : ""} ${isSelected ? "scale-110" : ""}`;
         const sharedStyle = { left: `${x}%`, top: `${y}%` };
         const tokenContent = renderToken ? (
-          renderToken(p, { isSelected, isSubOn })
+          renderToken(p, { isSelected, isSubOn, slotPosition })
         ) : (
           <>
             <div

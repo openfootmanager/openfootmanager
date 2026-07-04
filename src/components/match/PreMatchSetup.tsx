@@ -8,7 +8,12 @@ import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, condColor, sta
 import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
-import { normalisePosition, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import {
+  isPlayerExactForSlot,
+  isPlayerOutOfPosition,
+  normalisePosition,
+  translatePositionAbbreviation,
+} from "../squad/SquadTab.helpers";
 import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
 import { setPlayerRole, setTacticsPhase } from "../../services/squadService";
 import { getRoleOptions } from "../../lib/playerRoles";
@@ -110,13 +115,26 @@ export default function PreMatchSetup({
   );
 
   // Rich token for the user's command pitch (avatar, kit, OVR, fit ring).
-  const renderUserToken = (player: EnginePlayerData, isSelected: boolean) => {
+  const renderUserToken = (
+    player: EnginePlayerData,
+    isSelected: boolean,
+    slotPosition?: string,
+  ) => {
     const sp = storeById.get(player.id);
+    // With a granular slot (slot-aligned pitch), grade fit exactly like the
+    // tactics board; otherwise fall back to the coarse group comparison.
     const fit: PitchFitTone = !sp
       ? "exact"
-      : normalisePosition(sp.natural_position || sp.position) === player.position
-        ? "exact"
-        : "out";
+      : slotPosition
+        ? isPlayerExactForSlot(sp, slotPosition)
+          ? "exact"
+          : isPlayerOutOfPosition(sp, slotPosition)
+            ? "out"
+            : "adapted"
+        : normalisePosition(sp.natural_position || sp.position) === player.position
+          ? "exact"
+          : "out";
+    const displayPosition = slotPosition ?? player.position;
     return (
       <div
         className={`flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1 ${
@@ -125,8 +143,8 @@ export default function PreMatchSetup({
       >
         <PitchToken
           name={(sp?.match_name || player.name).toUpperCase()}
-          positionAbbr={translatePositionAbbreviation(t, player.position)}
-          position={player.position}
+          positionAbbr={translatePositionAbbreviation(t, displayPosition)}
+          position={displayPosition}
           ovr={player.ovr}
           condition={player.condition}
           fitTone={fit}
@@ -159,7 +177,7 @@ export default function PreMatchSetup({
               }}
             >
               {getRoleOptions(
-                player.position,
+                displayPosition,
                 playerRoles[player.id] ?? "Standard",
               ).map((role) => (
                 <option key={role} value={role}>
@@ -175,14 +193,15 @@ export default function PreMatchSetup({
 
   // Basic token for the opponent's scouting pitch: avatar, kit, and OVR only —
   // no fit ring or role furniture, which is the user's-side detail.
-  const renderOppToken = (player: EnginePlayerData) => {
+  const renderOppToken = (player: EnginePlayerData, slotPosition?: string) => {
     const sp = storeById.get(player.id);
+    const displayPosition = slotPosition ?? player.position;
     return (
       <div className="flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1">
         <PitchToken
           name={(sp?.match_name || player.name).toUpperCase()}
-          positionAbbr={translatePositionAbbreviation(t, player.position)}
-          position={player.position}
+          positionAbbr={translatePositionAbbreviation(t, displayPosition)}
+          position={displayPosition}
           ovr={player.ovr}
           condition={player.condition}
           avatar={
@@ -434,7 +453,9 @@ export default function PreMatchSetup({
           onPlayerClick={(id) =>
             setSelectedStarterId(id === selectedStarterId ? null : id)
           }
-          renderToken={(p, { isSelected }) => renderUserToken(p, isSelected)}
+          renderToken={(p, { isSelected, slotPosition }) =>
+            renderUserToken(p, isSelected, slotPosition)
+          }
           className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
         />
       </div>
@@ -474,7 +495,7 @@ export default function PreMatchSetup({
           <FormationPitch
             formation={oppTeam.formation}
             players={oppTeam.players}
-            renderToken={(p) => renderOppToken(p)}
+            renderToken={(p, { slotPosition }) => renderOppToken(p, slotPosition)}
             className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
           />
         </div>

@@ -54,14 +54,20 @@ impl LiveMatchState {
             .position(|p| p.id == player_on_id)
             .ok_or("be.error.liveMatch.playerNotOnBench")?;
 
-        let player_on = bench.remove(on_idx);
+        let mut player_on = bench.remove(on_idx);
         let player_off = self.team_mut(side).players.remove(off_idx);
+
+        // The XI is slot-aligned (entry i plays formation slot i), so the sub
+        // takes over the vacated slot: same index, and the slot's position —
+        // players are simulated where they actually play, not where they'd
+        // naturally play.
+        player_on.position = player_off.position;
 
         // Initialize condition for incoming player
         self.player_conditions
             .insert(player_on.id.clone(), player_on.condition as f64);
 
-        self.team_mut(side).players.push(player_on);
+        self.team_mut(side).players.insert(off_idx, player_on);
 
         // Move subbed-off player to bench (they can't come back, but we keep them)
         match side {
@@ -119,14 +125,21 @@ impl LiveMatchState {
             .position(|p| p.id == player_on_id)
             .ok_or("be.error.liveMatch.playerNotOnBench")?;
 
-        let player_on = bench.remove(on_idx);
+        let mut player_on = bench.remove(on_idx);
         let player_off = self.team_mut(side).players.remove(off_idx);
+
+        // The XI is slot-aligned (entry i plays formation slot i). Removing the
+        // outgoing player and pushing the incoming one to the END shifted every
+        // later starter into a different slot and dropped the newcomer into the
+        // last one — the lineup visibly "reorganized" after a swap. Keep the
+        // vacated index and adopt the slot's position instead.
+        player_on.position = player_off.position;
 
         // Initialize condition for incoming player
         self.player_conditions
             .insert(player_on.id.clone(), player_on.condition as f64);
 
-        self.team_mut(side).players.push(player_on);
+        self.team_mut(side).players.insert(off_idx, player_on);
 
         // Move swapped-out player to bench
         match side {
