@@ -313,6 +313,15 @@ function parseCoordinateValue(value: string): number {
 }
 
 function getSlotXCoordinates(slotCount: number): number[] {
+  // Rows of five (back/mid fives in 4-5-1, 3-5-2, 5-4-1…) get pushed toward
+  // the touchlines so neighbouring markers don't overlap; smaller rows keep
+  // the centered even spread.
+  if (slotCount >= 5) {
+    return Array.from({ length: slotCount }, (_, index) =>
+      Math.round((10 + (index * 80) / (slotCount - 1)) * 10) / 10,
+    );
+  }
+
   return Array.from({ length: slotCount }, (_, index) =>
     Math.round((((index + 1) / (slotCount + 1)) * 100) * 10) / 10,
   );

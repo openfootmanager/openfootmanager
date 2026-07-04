@@ -184,7 +184,7 @@ function getPitchMarkerClassName(options: {
   const isHovered = hoveredSlot === slot.index;
 
   const base =
-    "absolute z-20 flex w-[5.5rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
+    "absolute z-20 flex w-[6rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center gap-0.5 rounded-2xl px-1 py-1 text-center transition-all active:cursor-grabbing";
 
   if (isDragged) {
     return `${base} opacity-60`;
@@ -361,8 +361,8 @@ export default function TacticsPitch({
       </div>
 
       <div className="p-5 sm:p-6 lg:p-7">
-        <div className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
-          <div className="aspect-[8/10] min-h-[31rem] w-full">
+        <div className="relative mx-auto w-full max-w-[36rem] overflow-hidden rounded-[1.5rem] border border-primary-500/20 bg-linear-to-b from-primary-500 to-primary-700 shadow-inner">
+          <div className="aspect-[8/10] min-h-[35rem] w-full">
             <svg
               viewBox="0 0 100 140"
               preserveAspectRatio="none"
@@ -555,7 +555,7 @@ export default function TacticsPitch({
                                   {roleMarkers.slice(0, 3).map((marker) => (
                                     <span
                                       key={`${player.id}-${marker.key}`}
-                                      className={`rounded-full border px-1 py-0 text-[7px] font-heading font-bold leading-4 ${marker.toneClassName}`}
+                                      className={`rounded-full border px-1 py-0 text-[9px] font-heading font-bold leading-4 ${marker.toneClassName}`}
                                     >
                                       {marker.shortLabel}
                                     </span>
@@ -564,7 +564,7 @@ export default function TacticsPitch({
                               )}
                               {/* Top-right: position badge */}
                               <div className="absolute -right-1.5 -top-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[7px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[10px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
                                   {translatePositionAbbreviation(t, slot.position)}
                                 </span>
                               </div>
@@ -575,7 +575,7 @@ export default function TacticsPitch({
                               />
                               {/* Bottom-right: OVR */}
                               <div className="absolute -bottom-1 -right-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[8px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[10px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
                                   {getPlayerOvr(player)}
                                 </span>
                               </div>
@@ -583,7 +583,7 @@ export default function TacticsPitch({
                             {/* Jersey with number */}
                             {teamSecondaryColor ? (
                               <JerseyIcon
-                                size="sm"
+                                size="md"
                                 primaryColor={teamPrimaryColor ?? "#1a3a6b"}
                                 secondaryColor={teamSecondaryColor}
                                 pattern={teamKitPattern ?? "Solid"}
@@ -595,7 +595,7 @@ export default function TacticsPitch({
                               </span>
                             ) : null}
                             {/* Player name */}
-                            <div className="max-w-full truncate text-[9px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
+                            <div className="max-w-full truncate text-[10px] font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
                               {getPitchDisplayName(player)}
                             </div>
                             {/* Role combobox */}
@@ -607,7 +607,7 @@ export default function TacticsPitch({
                                 className="w-full"
                               >
                                 <Select
-                                  selectSize="2xs"
+                                  selectSize="xs"
                                   variant="ghost"
                                   fullWidth
                                   value={playerRoles?.[player.id] ?? "Standard"}
@@ -645,11 +645,11 @@ export default function TacticsPitch({
                       );
                     })()
                   ) : (
-                    <div className="absolute z-20 flex w-[4.2rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/28 bg-black/12 text-[9px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
+                    <div className="absolute z-20 flex w-[4.5rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-white/28 bg-black/12 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-white/70">
                         {translatePositionAbbreviation(t, slot.position)}
                       </div>
-                      <div className="mt-1 max-w-full text-[8px] font-heading font-bold uppercase tracking-[0.16em] text-white/45">
+                      <div className="mt-1 max-w-full text-[9px] font-heading font-bold uppercase tracking-[0.16em] text-white/45">
                         {t("squad.dropPlayerHere")}
                       </div>
                     </div>

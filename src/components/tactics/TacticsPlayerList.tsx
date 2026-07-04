@@ -122,11 +122,14 @@ function PlayerRow({
           >
             {position}
           </Badge>
+          <span className="w-6 shrink-0 rounded-md bg-gray-100 py-0.5 text-center text-[11px] font-heading font-bold tabular-nums text-gray-600 dark:bg-navy-700 dark:text-gray-300">
+            {player.jersey_number ?? "–"}
+          </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
             {player.match_name || player.full_name}
           </span>
           <span
-            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-heading font-bold ${
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
               ovr >= 80
                 ? "bg-primary-500 text-white"
                 : ovr >= 60
@@ -160,6 +163,9 @@ function PlayerRow({
           <Badge variant="neutral" size="sm">
             {position}
           </Badge>
+          <span className="w-6 shrink-0 rounded-md bg-gray-100 py-0.5 text-center text-[11px] font-heading font-bold tabular-nums text-gray-600 dark:bg-navy-700 dark:text-gray-300">
+            {player.jersey_number ?? "–"}
+          </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
             {player.match_name || player.full_name}
           </span>
@@ -167,7 +173,7 @@ function PlayerRow({
             <InjuryBadge injury={player.injury} />
           ) : (
             <span
-              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-heading font-bold ${
+              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
                 ovr >= 80
                   ? "bg-primary-500 text-white"
                   : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
@@ -230,7 +236,7 @@ export default function TacticsPlayerList({
 
       <div className="rounded-xl border border-gray-200 bg-white dark:border-navy-600 dark:bg-navy-800">
         <div className="border-b border-gray-100 px-3 py-2 dark:border-navy-700">
-          <span className="text-[10px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
+          <span className="text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
             {t("preMatch.startingXI")} · {starters.length}
           </span>
         </div>
@@ -260,7 +266,7 @@ export default function TacticsPlayerList({
 
       <div className="rounded-xl border border-gray-200 bg-white dark:border-navy-600 dark:bg-navy-800">
         <div className="border-b border-gray-100 px-3 py-2 dark:border-navy-700">
-          <span className="text-[10px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
+          <span className="text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-400">
             {t("preMatch.substitutes")} · {bench.length}
           </span>
         </div>

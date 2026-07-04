@@ -29,7 +29,7 @@ export default function JerseyIcon({
   const shirtPath =
     "M30,10 L10,30 L22,35 L22,90 L78,90 L78,35 L90,30 L70,10 L58,20 Q50,26 42,20 Z";
 
-  const textSize = size === "lg" ? 28 : size === "md" ? 20 : 13;
+  const textSize = size === "lg" ? 40 : size === "md" ? 35 : 25;
   const textY = size === "lg" ? 70 : size === "md" ? 68 : 68;
 
   const usesPattern = pattern === "Stripes" || pattern === "Hoops";
