@@ -76,6 +76,23 @@ export default function JerseyIcon({
         <polygon points="20,10 80,10 60,90 0,90" fill={secondaryColor} clipPath={`url(#${id}-clip)`} />
       )}
 
+      {/* Outline: white line over a soft dark rim so the shirt stays visible
+          when the kit colour blends into the background (e.g. green on pitch) */}
+      <path
+        d={shirtPath}
+        fill="none"
+        stroke="rgba(0,0,0,0.35)"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path
+        d={shirtPath}
+        fill="none"
+        stroke="rgba(255,255,255,0.9)"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+
       {/* Jersey number */}
       {number != null && (
         <text
