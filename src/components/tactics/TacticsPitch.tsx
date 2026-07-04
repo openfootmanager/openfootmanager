@@ -5,6 +5,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr } from "../../lib/helpers";
+import { getPositionColor } from "../../lib/positionColors";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, JerseyIcon, PlayerAvatar, Select } from "../ui";
@@ -131,7 +132,7 @@ function getRoleMarkers(
     markers.push({
       key: "vice_captain",
       shortLabel: "VC",
-      toneClassName: "border-white/60 bg-white/40 text-white",
+      toneClassName: "border-white/60 bg-gray-800/85 text-white",
     });
   }
 
@@ -555,7 +556,7 @@ export default function TacticsPitch({
                                   {roleMarkers.slice(0, 3).map((marker) => (
                                     <span
                                       key={`${player.id}-${marker.key}`}
-                                      className={`rounded-full border px-1 py-0 text-[9px] font-heading font-bold leading-4 ${marker.toneClassName}`}
+                                      className={`rounded-full border px-1.5 py-0.5 text-[10px] font-heading font-bold leading-4 ${marker.toneClassName}`}
                                     >
                                       {marker.shortLabel}
                                     </span>
@@ -564,7 +565,7 @@ export default function TacticsPitch({
                               )}
                               {/* Top-right: position badge */}
                               <div className="absolute -right-1.5 -top-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[11px] font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/30">
+                                <span className={`rounded-full ${getPositionColor(slot.position)} px-2 py-0.5 text-xs font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/40`}>
                                   {translatePositionAbbreviation(t, slot.position)}
                                 </span>
                               </div>
@@ -575,7 +576,7 @@ export default function TacticsPitch({
                               />
                               {/* Bottom-right: OVR */}
                               <div className="absolute -bottom-1 -right-1.5 z-10">
-                                <span className="rounded-full bg-gray-900 px-1.5 py-0 text-[11px] font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+                                <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-heading font-bold leading-4 text-white ring-1 ring-white/30">
                                   {getPlayerOvr(player)}
                                 </span>
                               </div>
