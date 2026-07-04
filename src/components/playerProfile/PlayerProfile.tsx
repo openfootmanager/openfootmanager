@@ -269,7 +269,7 @@ export default function PlayerProfile({
     const renewalState = player.morale_core?.renewal_state;
     const blockedUntil = renewalState?.manager_blocked_until;
     const hasActiveManagerBlock =
-      renewalState?.status === "blocked" &&
+      renewalState?.status === "Blocked" &&
       (!blockedUntil ||
         blockedUntil.slice(0, 10) >= gameState.clock.current_date.slice(0, 10));
     if (hasActiveManagerBlock) {
