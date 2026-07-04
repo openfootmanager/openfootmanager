@@ -176,13 +176,26 @@ export function Select({
       menu.style.minWidth = `${rect.width}px`;
       menu.style.maxWidth = `min(18rem, calc(100vw - ${margin * 2}px))`;
 
+      // Measure at the list's default cap, then take the roomier side when
+      // neither fully fits, shrinking the scrollable list so the chosen side
+      // never clips.
+      const list = menu.querySelector<HTMLElement>('[role="listbox"]');
+      if (list) {
+        list.style.maxHeight = "";
+      }
+      const availableBelow = window.innerHeight - margin - rect.bottom - gap;
+      const availableAbove = rect.top - gap - margin;
+      const naturalHeight = menu.offsetHeight;
+      const openUp =
+        naturalHeight > availableBelow && availableAbove > availableBelow;
+      const available = openUp ? availableAbove : availableBelow;
+      if (list && naturalHeight > available) {
+        const chrome = naturalHeight - list.offsetHeight;
+        list.style.maxHeight = `${Math.max(80, available - chrome)}px`;
+      }
+
       const menuHeight = menu.offsetHeight;
       const menuWidth = menu.offsetWidth;
-      const fitsBelow =
-        rect.bottom + gap + menuHeight <= window.innerHeight - margin;
-      const fitsAbove = rect.top - gap - menuHeight >= margin;
-      const openUp = !fitsBelow && fitsAbove;
-
       menu.style.top = openUp
         ? `${rect.top - gap - menuHeight}px`
         : `${rect.bottom + gap}px`;
@@ -192,13 +205,34 @@ export function Select({
       )}px`;
     };
 
+    let frame = 0;
+    const schedulePlace = () => {
+      if (frame) {
+        return;
+      }
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        place();
+      });
+    };
+    const handleScroll = (event: Event) => {
+      // Scrolling the options list itself doesn't move the trigger.
+      if (menuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      schedulePlace();
+    };
+
     place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", schedulePlace);
+    window.addEventListener("scroll", handleScroll, true);
 
     return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      window.removeEventListener("resize", schedulePlace);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen, options]);
 
