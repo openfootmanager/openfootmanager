@@ -17,22 +17,10 @@ use domain::team::{FinancialTransaction, FinancialTransactionKind, Team};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const RENEWAL_SESSION_STALE_DAYS: i64 = 14;
-const INSULTING_RENEWAL_BLOCK_DAYS: u64 = 30;
-const MAX_CONTRACT_YEARS: u32 = 5;
-const MARKET_VALUE_TO_WAGE_RATIO: u64 = 200;
-const MINIMUM_DEFAULT_WAGE: u64 = 500;
-const ERR_NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
-const ERR_MANAGED_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";
-const ERR_PLAYER_NOT_FOUND: &str = "be.error.playerNotFound";
-const ERR_PLAYER_NOT_OWNED_BY_CLUB: &str = "be.error.contracts.playerNotOwnedByClub";
-const ERR_PLAYER_NOT_FREE_AGENT: &str = "be.error.contracts.playerNotFreeAgent";
-const ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE: &str =
-    "be.error.contracts.unableToCalculateContractEndDate";
-const ERR_PLAYER_HAS_NO_ACTIVE_CONTRACT: &str = "be.error.contracts.playerHasNoActiveContract";
-const ERR_PLAYER_ON_ACTIVE_LOAN: &str = "be.error.contracts.playerOnActiveLoan";
-const ERR_TERMINATION_WOULD_LEAVE_MATCHDAY_SQUAD_SHORT: &str =
-    "be.error.contracts.terminationWouldLeaveMatchdaySquadShort";
+mod consts;
+
+pub(crate) use self::consts::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContractWarningStage {
     TwelveMonths,
