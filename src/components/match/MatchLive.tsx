@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { GameStateData } from "../../store/gameStore";
-import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS } from "./types";
+import { MatchSnapshot, MatchEvent, MinuteResult, SimSpeed, SPEED_MS, FORMATIONS, isPersistableSpeed } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -331,7 +331,7 @@ export default function MatchLive({
                   onClick={() => {
                     setSpeed(s.id);
                     setIsRunning(s.id !== "paused");
-                    if (s.id !== "paused" && s.id !== "instant") {
+                    if (isPersistableSpeed(s.id)) {
                       onPreferredSpeedChange?.(s.id);
                     }
                   }}
