@@ -5,6 +5,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{Team, TrainingFocus, TrainingIntensity, TrainingSchedule};
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
+use ofm_core::player_rating::refresh_player_derived;
 use ofm_core::training;
 
 // ---------------------------------------------------------------------------
@@ -1066,5 +1067,96 @@ fn ai_fatigue_guard_rests_exhausted_ai_player_but_not_user_team() {
     assert!(
         ai_after > user_after,
         "guarded AI player ({ai_after}) should end fresher than the user player ({user_after})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// process_training — potential ceiling (issue #307)
+//
+// Peaked players (ovr == potential) must not keep gaining. Attribute-driven OVR
+// growth combined with the `potential = max(potential, ovr)` safety net causes
+// the career ceiling to rise in lockstep with the drift when this contract is
+// not enforced at the training-gain site.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn peaked_player_does_not_gain_from_training() {
+    let mut game = make_game();
+    game.teams[0].training_focus = TrainingFocus::Physical;
+    game.teams[0].training_intensity = TrainingIntensity::High;
+    game.teams[0].training_schedule = TrainingSchedule::Intense;
+
+    // Prime-age player (age ~27 in 2025). Compute their natural OVR from
+    // default_attrs, then peg potential to it so they have no headroom.
+    let year = game.clock.current_date.date_naive().format("%Y").to_string();
+    let year: u32 = year.parse().unwrap();
+    let peaked_id = "p2".to_string();
+    {
+        let p = game
+            .players
+            .iter_mut()
+            .find(|p| p.id == peaked_id)
+            .expect("prime player exists");
+        refresh_player_derived(p, year);
+        p.potential = p.ovr;
+    }
+
+    let initial = game
+        .players
+        .iter()
+        .find(|p| p.id == peaked_id)
+        .unwrap();
+    let initial_ovr = initial.ovr;
+    let initial_potential = initial.potential;
+    // Snapshot the exact attributes Physical focus would try to grow so the
+    // regression catches a partial gate that still lets one attribute leak
+    // through even when the aggregated ovr happens not to move.
+    let initial_pace = initial.attributes.pace;
+    let initial_stamina = initial.attributes.stamina;
+    let initial_strength = initial.attributes.strength;
+    let initial_agility = initial.attributes.agility;
+    assert_eq!(
+        initial_ovr, initial_potential,
+        "test precondition: peaked player starts with ovr == potential"
+    );
+
+    // Run many training sessions with condition kept high so the AI fatigue
+    // guard doesn't intervene.
+    for _ in 0..150 {
+        for p in game.players.iter_mut() {
+            p.condition = 90;
+        }
+        training::process_training(&mut game, 0); // Monday, Intense trains Mon
+    }
+
+    let final_player = game.players.iter().find(|p| p.id == peaked_id).unwrap();
+
+    assert_eq!(
+        final_player.attributes.pace, initial_pace,
+        "peaked player's pace must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.stamina, initial_stamina,
+        "peaked player's stamina must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.strength, initial_strength,
+        "peaked player's strength must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.attributes.agility, initial_agility,
+        "peaked player's agility must not rise from Physical training (bug #307)"
+    );
+    assert_eq!(
+        final_player.potential, initial_potential,
+        "peaked player's potential must not rise from training (bug #307): \
+         potential drifted {} → {}",
+        initial_potential, final_player.potential
+    );
+    assert_eq!(
+        final_player.ovr, initial_ovr,
+        "peaked player's ovr must not rise from training (bug #307): \
+         ovr drifted {} → {}",
+        initial_ovr, final_player.ovr
     );
 }
