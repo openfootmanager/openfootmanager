@@ -287,6 +287,14 @@ describe("YouthAcademyTab", () => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young-senior", squadRole: "Youth" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
+    // The delegated player moves to the prospects table immediately, without
+    // waiting for a squad refetch (issue #250).
+    await waitFor(() => {
+      expect(
+        screen.getByText("No eligible under-21 senior players are available right now."),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("Senior Prospect").closest("tr")).not.toBeNull();
   });
 
   it("opens the scouting tab from the recovery card", async () => {
@@ -362,6 +370,45 @@ describe("YouthAcademyTab", () => {
     fireEvent.click(screen.getByText("Rising Star"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-young");
+  });
+
+  // Regression (issue #250): the prospects list is rendered from the cached
+  // get_squad fetch, which only refreshes on remount or when the game clock
+  // advances. Promoting a player must patch that cache from the mutation
+  // response, or the promoted player lingers in the list until the user
+  // switches pages.
+  it("removes a promoted player from the prospects list without a refetch", async () => {
+    const youthPlayer = createPlayer({ id: "player-young", full_name: "Rising Star", date_of_birth: "2008-01-01", squad_role: "Youth" });
+    const gameState = createGameState([youthPlayer]);
+    const updatedGameState = {
+      ...gameState,
+      players: gameState.players.map((p) =>
+        p.id === "player-young" ? { ...p, squad_role: "Senior" as const } : p,
+      ),
+    };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      // get_squad keeps serving the pre-promotion roster: no refetch happens
+      // while the tab stays mounted, so the component must apply the
+      // set_player_squad_role response itself.
+      if (command === "get_squad") return gameState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return updatedGameState;
+    });
+
+    render(<YouthAcademyTab gameState={gameState} onGameUpdate={vi.fn()} onSelectPlayer={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Rising Star")).toBeInTheDocument();
+    });
+    fireEvent.contextMenu(screen.getByText("Rising Star").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(screen.getByRole("button", { name: "Promote to senior squad" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No youth players")).toBeInTheDocument();
+    });
+    // The promoted 18-year-old leaves the prospects table (no <tr> ancestor)
+    // and reappears in the recovery card as an eligible under-21 senior.
+    expect(screen.getByText("Rising Star").closest("tr")).toBeNull();
   });
 
   it("promotes youth academy players through the context menu", async () => {
