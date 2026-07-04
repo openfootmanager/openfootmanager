@@ -9,6 +9,7 @@ import {
   type TrainingGroupData,
 } from "../../services/trainingService";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { condColor } from "../../lib/playerConditionDisplay";
 import { Card, CardBody, CardHeader, Select } from "../ui";
 import {
   buildPlayerGroupMap,
@@ -239,11 +240,7 @@ export default function TrainingGroupsCard({
                         )}
                       </td>
                       <td
-                        className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${
-                          player.condition < 60
-                            ? "text-amber-500 dark:text-amber-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
+                        className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${condColor(player.condition)}`}
                       >
                         {player.condition}
                       </td>

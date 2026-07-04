@@ -4,6 +4,7 @@ import { Badge } from "../ui";
 import { ArrowUpDown, AlertTriangle, Wand2 } from "lucide-react";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { condColor } from "../../lib/playerConditionDisplay";
 
 export const POSITION_KEY_STATS: Record<
   string,
@@ -30,12 +31,6 @@ export const POSITION_KEY_STATS: Record<
     { label: "DRI", key: "dribbling" },
   ],
 };
-
-export function condColor(c: number): string {
-  if (c >= 75) return "text-primary-400";
-  if (c >= 50) return "text-amber-400";
-  return "text-red-400";
-}
 
 export function statColor(v: number): string {
   if (v >= 75) return "text-primary-500 dark:text-primary-400 font-bold";
