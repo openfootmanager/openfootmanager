@@ -552,6 +552,10 @@ fn regenerate_competitions_for_new_season(
     let kickoff = game.clock.current_date + Duration::days(2);
     let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
     let qualified_field = if world_cup_due {
+        // The club season can finish before the campaign's June dates play
+        // out; settle whatever remains (the last matchday, the playoff) so the
+        // field is derived from a finished campaign, not a truncated one.
+        crate::world_cup::settle_outstanding_qualifying(game, &mut rand::rng());
         let host = crate::world_cup::host_for_year(game, kickoff.year());
         crate::world_cup::qualified_field_from_game(
             game,
@@ -770,7 +774,16 @@ fn manage_international_calendar(
 
     if starts_qualifying {
         // Two summers out: the full home-and-away campaign gets under way.
-        crate::world_cup::schedule_world_cup_qualifying(game, next_start.year() + 2, &window_dates);
+        // The in-progress guard mirrors the branch above — under the four-year
+        // cadence a campaign can't still be running here, but scheduling must
+        // never double up if that invariant ever bends.
+        if !qualifying_in_progress {
+            crate::world_cup::schedule_world_cup_qualifying(
+                game,
+                next_start.year() + 2,
+                &window_dates,
+            );
+        }
         return;
     }
 

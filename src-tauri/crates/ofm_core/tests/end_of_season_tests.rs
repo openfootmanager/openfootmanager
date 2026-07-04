@@ -989,15 +989,30 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
         ofm_core::national_team::international_window_span_dates(&windows)
     };
 
-    // Play the campaign to its end; the playoff fills the June window.
-    for date in &second_season_days {
+    // Play the campaign through the March window only: the club season ends in
+    // mid-May, *before* the playoff's June dates — the realistic flow.
+    for date in second_season_days
+        .iter()
+        .filter(|date| date.as_str() < "2026-06-01")
+    {
         ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
     }
+    assert!(
+        game.competitions
+            .iter()
+            .any(|c| ofm_core::world_cup::is_world_cup_playoff(c)),
+        "the finished groups stage the June playoff"
+    );
 
-    // The cup-summer rollover derives the 48-team field from the finished
-    // campaign and retires both the campaign and its playoff.
+    // The cup-summer rollover settles the still-scheduled June playoff, then
+    // derives the 48-team field from the finished campaign and retires both
+    // the campaign and its playoff.
     game.clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
     process_end_of_season(&mut game);
+    assert!(
+        game.news.iter().any(|a| a.id == "world_cup_playoff_2026"),
+        "the playoff bracket was played out, not dropped"
+    );
     let cup = game
         .competitions
         .iter()

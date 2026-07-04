@@ -1374,6 +1374,42 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
     }
 }
 
+/// Fast-forward every World Cup qualifying and playoff fixture still scheduled
+/// when the cup-summer rollover arrives. Club seasons can finish in mid-May,
+/// before the campaign's June dates play out, and the finals field must be
+/// derived from a *finished* campaign — so the outstanding international dates
+/// are settled here, through the ordinary fixture processor (results, group
+/// tables, the playoff bracket, rankings, and news all land as if those days
+/// had been played), rather than dropped with the retired competitions.
+///
+/// Runs to a fixpoint because settling can itself add fixtures: completing the
+/// groups stages the playoff, and completing its preliminaries seeds the
+/// finals.
+pub fn settle_outstanding_qualifying(game: &mut Game, rng: &mut impl Rng) {
+    // Each pass can only extend the schedule by one staged round, so a handful
+    // of passes always reaches quiescence; the bound is just a hard stop.
+    for _ in 0..8 {
+        let mut dates: Vec<String> = game
+            .competitions
+            .iter()
+            .filter(|competition| {
+                is_world_cup_qualifying(competition) || is_world_cup_playoff(competition)
+            })
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
+            .map(|fixture| fixture.date.clone())
+            .collect();
+        if dates.is_empty() {
+            return;
+        }
+        dates.sort();
+        dates.dedup();
+        for date in dates {
+            process_world_cup_fixtures_due(game, &date, rng);
+        }
+    }
+}
+
 /// Sorted final standings of every qualifying group, keyed by confederation.
 type GroupsByConfederation = BTreeMap<String, Vec<Vec<StandingEntry>>>;
 
@@ -2685,6 +2721,61 @@ mod tests {
                 field.contains(winner),
                 "playoff winner {winner} takes a berth in the field"
             );
+        }
+    }
+
+    #[test]
+    fn a_may_rollover_settles_the_june_playoff_instead_of_dropping_it() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+
+        // Play the campaign through the March window only — the club season
+        // ends in mid-May, before the playoff's June dates.
+        let season_two = season_windows(2025);
+        let mut rng = StdRng::seed_from_u64(29);
+        for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        for date in crate::national_team::international_window_span_dates(
+            &season_two[..season_two.len() - 1],
+        ) {
+            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+        }
+        {
+            let playoff = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_playoff(c))
+                .expect("the playoff is staged for June");
+            assert!(
+                playoff.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled),
+                "the playoff has not been played yet"
+            );
+        }
+
+        // The rollover arrives in May: the outstanding bracket is played out.
+        settle_outstanding_qualifying(&mut game, &mut rng);
+        let winners = {
+            let playoff = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_playoff(c))
+                .unwrap();
+            assert!(
+                playoff.knockout_rounds.len() == 2
+                    && playoff.knockout_rounds.iter().all(|round| round.completed),
+                "settling plays the preliminaries and both finals"
+            );
+            playoff_winners_of(playoff).expect("the settled bracket decides two qualifiers")
+        };
+
+        // The field reads those played winners.
+        let host = host_for_year(&game, 2026);
+        let field = qualified_field_from_game(&mut game, FORMAT_48.field, host.as_deref())
+            .expect("a field");
+        assert_eq!(field.len(), FORMAT_48.field);
+        for winner in &winners {
+            assert!(field.contains(winner), "settled winner {winner} is in the field");
         }
     }
 }
