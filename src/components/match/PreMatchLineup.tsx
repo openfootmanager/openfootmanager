@@ -391,11 +391,14 @@ export default function PreMatchLineup({
               {/* Bench column header */}
               <div className="flex items-center gap-2 px-2 pb-1">
                 <span className="w-7" />
+                {jerseyNumberById ? <span className="w-6" /> : null}
                 <span className="flex-1" />
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
                   POS
                 </span>
-                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center">
+                {/* Key stats hide at xl, where this panel is a narrow sidebar —
+                    with them the player name gets truncated to nothing. */}
+                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center xl:hidden">
                   {t("match.keyStats")}
                 </span>
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-8 text-right">
@@ -433,7 +436,7 @@ export default function PreMatchLineup({
                     <Badge variant="neutral" size="sm">
                       {translatePositionAbbreviation(t, bp.position)}
                     </Badge>
-                    <div className="flex items-center gap-0">
+                    <div className="flex items-center gap-0 xl:hidden">
                       {keyStats.map((s) => (
                         <span
                           key={s.label}

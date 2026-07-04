@@ -249,16 +249,26 @@ export function FormationPitch({
         );
 
         if (onPlayerClick) {
+          // div-with-button-role rather than <button>: rich tokens can embed
+          // interactive controls (e.g. the role combobox), which HTML forbids
+          // inside a real <button>.
           return (
-            <button
+            <div
               key={p.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               className={sharedClass}
               style={sharedStyle}
               onClick={() => onPlayerClick(p.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onPlayerClick(p.id);
+                }
+              }}
             >
               {tokenContent}
-            </button>
+            </div>
           );
         }
         return (

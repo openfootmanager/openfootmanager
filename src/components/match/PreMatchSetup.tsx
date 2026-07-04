@@ -10,8 +10,9 @@ import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
 import { normalisePosition, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
-import { setTacticsPhase } from "../../services/squadService";
-import type { TacticsPhaseSettings } from "../../store/types";
+import { setPlayerRole, setTacticsPhase } from "../../services/squadService";
+import { getRoleOptions } from "../../lib/playerRoles";
+import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import {
   ChevronRight,
@@ -55,6 +56,21 @@ export default function PreMatchSetup({
     );
     void setTacticsPhase(patch).catch((err: unknown) => {
       console.error("Failed to set tactics phase:", err);
+    });
+  };
+
+  // Player roles, editable from the pitch like on the tactics board; optimistic
+  // local state persisted fire-and-forget, same pattern as the phase blueprint.
+  const [playerRoles, setPlayerRoles] = useState<Record<string, PlayerRole>>(() => {
+    const uid =
+      userSide === "Home" ? snapshot.home_team.id : snapshot.away_team.id;
+    return gameState.teams.find((tm) => tm.id === uid)?.player_roles ?? {};
+  });
+
+  const handlePlayerRoleChange = (playerId: string, role: PlayerRole) => {
+    setPlayerRoles((prev) => ({ ...prev, [playerId]: role }));
+    void setPlayerRole(playerId, role).catch((err: unknown) => {
+      console.error("Failed to set player role:", err);
     });
   };
 
@@ -103,7 +119,7 @@ export default function PreMatchSetup({
         : "out";
     return (
       <div
-        className={`w-24 rounded-xl px-1 py-1 ${
+        className={`flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1 ${
           isSelected ? "bg-accent-500/25 ring-2 ring-accent-300/70" : ""
         }`}
       >
@@ -125,7 +141,34 @@ export default function PreMatchSetup({
             pattern: userPattern,
             number: sp?.jersey_number,
           }}
-        />
+        >
+          <div
+            draggable={false}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full"
+          >
+            <Select
+              selectSize="sm"
+              variant="ghost"
+              fullWidth
+              value={playerRoles[player.id] ?? "Standard"}
+              onChange={(e) => {
+                handlePlayerRoleChange(player.id, e.target.value as PlayerRole);
+              }}
+            >
+              {getRoleOptions(
+                player.position,
+                playerRoles[player.id] ?? "Standard",
+              ).map((role) => (
+                <option key={role} value={role}>
+                  {t(`tactics.playerRoles.${role}`, role)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </PitchToken>
       </div>
     );
   };
@@ -135,7 +178,7 @@ export default function PreMatchSetup({
   const renderOppToken = (player: EnginePlayerData) => {
     const sp = storeById.get(player.id);
     return (
-      <div className="w-24 rounded-xl px-1 py-1">
+      <div className="flex w-24 flex-col items-center gap-0.5 rounded-xl px-1 py-1">
         <PitchToken
           name={(sp?.match_name || player.name).toUpperCase()}
           positionAbbr={translatePositionAbbreviation(t, player.position)}
