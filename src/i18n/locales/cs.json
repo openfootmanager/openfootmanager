@@ -454,6 +454,7 @@
     "viewTeam": "Zobrazit tým",
     "player": "Hráč",
     "actions": "Akce",
+    "playerActions": "Akce hráče {{name}}",
     "position": "Pozice",
     "nationality": "Národnost",
     "contract": "Smlouva",

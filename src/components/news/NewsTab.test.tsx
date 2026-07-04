@@ -156,7 +156,7 @@ describe("NewsTab", () => {
     );
 
     fireEvent.contextMenu(screen.getByTestId("news-article-news-1"));
-    fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team: Beta FC" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });

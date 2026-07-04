@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
@@ -19,7 +19,7 @@ import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import ContextMenu from "../ContextMenu";
+import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import { buildPromoteToSeniorSquadMenuItem, buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
 import { setPlayerSquadRole } from "../../services/squadService";
 import {
@@ -27,7 +27,7 @@ import {
   reassignYouthScouting,
   startYouthScouting,
 } from "../../services/scoutingService";
-import { GraduationCap, ScanSearch, TrendingUp, Star, Users, Sparkles } from "lucide-react";
+import { GraduationCap, ScanSearch, TrendingUp, Star, Users, Sparkles, MoreVertical } from "lucide-react";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
@@ -70,6 +70,8 @@ export default function YouthAcademyTab({
   const [youthTargetPosition, setYouthTargetPosition] = useState("");
   const [startingYouthSearch, setStartingYouthSearch] = useState(false);
   const [youthSearchError, setYouthSearchError] = useState<string | null>(null);
+  const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
+  const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
@@ -456,6 +458,9 @@ export default function YouthAcademyTab({
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
                     {t("youthAcademy.condition")}
                   </th>
+                  <th className="py-3 px-4 w-10">
+                    <span className="sr-only">{t("common.actions")}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
@@ -470,7 +475,20 @@ export default function YouthAcademyTab({
                   ];
 
                   return (
-                    <ContextMenu items={contextItems} key={player.id}>
+                    <ContextMenu
+                      items={contextItems}
+                      key={player.id}
+                      ref={(handle) => {
+                        if (handle) menuRefs.current.set(player.id, handle);
+                        else menuRefs.current.delete(player.id);
+                      }}
+                      onOpenChange={(open) => {
+                        setOpenMenuPlayerId((prev) => {
+                          if (open) return player.id;
+                          return prev === player.id ? null : prev;
+                        });
+                      }}
+                    >
                       <tr
                         onClick={() => onSelectPlayer?.(player.id)}
                         className="hover:bg-gray-50 dark:hover:bg-navy-700/50 cursor-pointer transition-colors"
@@ -565,6 +583,22 @@ export default function YouthAcademyTab({
                           >
                             {player.condition}%
                           </span>
+                        </td>
+                        <td className="py-2.5 px-4" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
+                            }}
+                            aria-label={t("common.playerActions", { name: player.match_name })}
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuPlayerId === player.id}
+                            className="rounded-md p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 transition-colors"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
                         </td>
                       </tr>
                     </ContextMenu>

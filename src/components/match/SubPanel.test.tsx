@@ -160,7 +160,7 @@ describe("SubPanel", () => {
         fireEvent.contextMenu(screen.getByTestId("sub-panel-bench-bench-1"));
 
         expect(
-            screen.getByRole("button", { name: "Select player to take off first" }),
+            screen.getByRole("menuitem", { name: "Select player to take off first" }),
         ).toBeDisabled();
     });
 
@@ -172,10 +172,10 @@ describe("SubPanel", () => {
         );
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
-        fireEvent.click(screen.getByRole("button", { name: "Select to take off" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Select to take off" }));
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-bench-bench-1"));
-        fireEvent.click(screen.getByRole("button", { name: "Select replacement" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Select replacement" }));
 
         fireEvent.click(
             screen.getByRole("button", { name: "Confirm substitution" }),
@@ -192,12 +192,12 @@ describe("SubPanel", () => {
         );
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
-        fireEvent.click(screen.getByRole("button", { name: "Select to take off" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Select to take off" }));
 
         expect(screen.getByText("match.selectBenchToCompare")).toBeInTheDocument();
 
         fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
-        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Cancel" }));
 
         expect(screen.queryByText("match.selectBenchToCompare")).not.toBeInTheDocument();
     });

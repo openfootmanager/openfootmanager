@@ -185,11 +185,11 @@ describe("ScoutingPlayerSearchCard", () => {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });
 });

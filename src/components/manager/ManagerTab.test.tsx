@@ -147,12 +147,12 @@ describe("ManagerTab", () => {
     );
 
     fireEvent.contextMenu(screen.getByTestId("manager-current-team"));
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-1");
 
     fireEvent.contextMenu(screen.getByTestId("manager-history-team-0"));
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-0");
   });

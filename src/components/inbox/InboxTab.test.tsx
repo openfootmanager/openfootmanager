@@ -450,7 +450,7 @@ describe("InboxTab", function (): void {
     });
 
     fireEvent.contextMenu(screen.getByTestId("inbox-row-m1"));
-    fireEvent.click(screen.getByRole("button", { name: "Delete message" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete message" }));
 
     expect(
       screen.getByTestId("inbox-delete-confirm-modal"),

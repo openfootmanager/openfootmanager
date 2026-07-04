@@ -454,6 +454,7 @@
     "viewTeam": "View team",
     "player": "Player",
     "actions": "Actions",
+    "playerActions": "Player actions for {{name}}",
     "position": "Position",
     "nationality": "Nationality",
     "contract": "Contract",

@@ -350,7 +350,7 @@ describe("TeamProfile", () => {
     });
 
     fireEvent.contextMenu(screen.getByTestId("team-profile-roster-player-1"));
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });

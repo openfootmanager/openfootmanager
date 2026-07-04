@@ -450,6 +450,7 @@
     "viewTeam": "查看球队",
     "player": "球员",
     "actions": "操作",
+    "playerActions": "{{name}} 的球员操作",
     "position": "位置",
     "nationality": "国籍",
     "contract": "合同",

@@ -507,7 +507,7 @@ describe("ScoutingTab", () => {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Make Transfer Bid" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Make Transfer Bid" }));
 
     expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
 

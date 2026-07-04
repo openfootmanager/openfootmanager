@@ -216,7 +216,7 @@ describe("StaffTab", () => {
     fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
     fireEvent.contextMenu(screen.getByTestId("staff-card-staff-2"));
     fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("button", { name: "Hire staff" }),
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }),
     );
 
     await waitFor(() => {
@@ -241,7 +241,7 @@ describe("StaffTab", () => {
     });
     fireEvent.contextMenu(screen.getByTestId("staff-card-staff-1"));
     fireEvent.click(
-      within(screen.getByRole("menu")).getByRole("button", { name: "Release staff" }),
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Release staff" }),
     );
 
     await waitFor(() => {

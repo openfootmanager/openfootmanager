@@ -401,7 +401,7 @@ describe("YouthAcademyTab", () => {
       expect(screen.getByText("Rising Star")).toBeInTheDocument();
     });
     fireEvent.contextMenu(screen.getByText("Rising Star").closest("tr") as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Promote to senior squad" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Promote to senior squad" }));
 
     await waitFor(() => {
       expect(screen.getByText("No youth players")).toBeInTheDocument();
@@ -435,7 +435,7 @@ describe("YouthAcademyTab", () => {
     const playerRow = screen.getByText("Rising Star").closest("tr");
     expect(playerRow).not.toBeNull();
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Promote to senior squad" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Promote to senior squad" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", { playerId: "player-young", squadRole: "Senior" });

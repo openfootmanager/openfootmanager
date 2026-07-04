@@ -276,7 +276,7 @@ describe("TournamentsTab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Fixtures/i }));
     fireEvent.contextMenu(screen.getByTestId("tournaments-fixture-fixture-1"));
-    fireEvent.click(screen.getByRole("button", { name: "View team: Beta FC" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team: Beta FC" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
@@ -293,7 +293,7 @@ describe("TournamentsTab", () => {
     );
 
     fireEvent.contextMenu(screen.getByTestId("tournaments-top-scorer-player-1"));
-    fireEvent.click(screen.getByRole("button", { name: "View profile" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });

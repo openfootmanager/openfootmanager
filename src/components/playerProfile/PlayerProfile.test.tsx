@@ -564,7 +564,7 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     fireEvent.contextMenu(screen.getByTestId("player-profile-team-link"));
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-1");
   });

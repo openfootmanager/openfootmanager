@@ -28,14 +28,23 @@ export interface ContextMenuHandle {
 interface ContextMenuProps {
   items: ContextMenuItem[];
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
-  function ContextMenu({ items, children }, ref) {
+  function ContextMenu({ items, children, onOpenChange }, ref) {
     const [visible, setVisible] = useState(false);
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const menuRef = useRef<HTMLDivElement>(null);
     const instanceId = useRef(Math.random().toString(36));
+
+    const setOpen = useCallback((next: boolean) => {
+      setVisible(next);
+    }, []);
+
+    useEffect(() => {
+      onOpenChange?.(visible);
+    }, [visible, onOpenChange]);
 
     const openAt = useCallback((x: number, y: number) => {
       window.dispatchEvent(
@@ -44,8 +53,8 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
       const clampedX = Math.min(x, window.innerWidth - 200);
       const clampedY = Math.min(y, window.innerHeight - 300);
       setPos({ x: clampedX, y: clampedY });
-      setVisible(true);
-    }, []);
+      setOpen(true);
+    }, [setOpen]);
 
     useImperativeHandle(ref, () => ({ open: openAt }), [openAt]);
 
@@ -58,23 +67,28 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
     useEffect(() => {
       const closeFromOther = (e: Event) => {
         const detail = (e as CustomEvent).detail;
-        if (detail !== instanceId.current) setVisible(false);
+        if (detail !== instanceId.current) setOpen(false);
       };
       window.addEventListener("close-context-menus", closeFromOther);
       return () =>
         window.removeEventListener("close-context-menus", closeFromOther);
-    }, []);
+    }, [setOpen]);
 
     useEffect(() => {
       if (!visible) return;
-      const close = () => setVisible(false);
+      const close = () => setOpen(false);
+      const closeOnEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setOpen(false);
+      };
       window.addEventListener("click", close);
       window.addEventListener("scroll", close, true);
+      window.addEventListener("keydown", closeOnEscape);
       return () => {
         window.removeEventListener("click", close);
         window.removeEventListener("scroll", close, true);
+        window.removeEventListener("keydown", closeOnEscape);
       };
-    }, [visible]);
+    }, [visible, setOpen]);
 
     const trigger = isValidElement(children) ? (
       cloneElement(children, {
@@ -119,9 +133,10 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
                 ) : (
                   <button
                     key={i}
+                    role="menuitem"
                     onClick={() => {
                       item.onClick?.();
-                      setVisible(false);
+                      setOpen(false);
                     }}
                     disabled={item.disabled}
                     className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${

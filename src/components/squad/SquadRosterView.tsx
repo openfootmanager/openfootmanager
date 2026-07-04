@@ -112,6 +112,7 @@ export default function SquadRosterView({
     null,
   );
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
+  const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const posOrder: Record<string, number> = {
     Goalkeeper: 1,
@@ -782,6 +783,12 @@ export default function SquadRosterView({
                       if (handle) menuRefs.current.set(player.id, handle);
                       else menuRefs.current.delete(player.id);
                     }}
+                    onOpenChange={(open) => {
+                      setOpenMenuPlayerId((prev) => {
+                        if (open) return player.id;
+                        return prev === player.id ? null : prev;
+                      });
+                    }}
                   >
                     <tr
                       onClick={() => onSelectPlayer(player.id)}
@@ -906,7 +913,10 @@ export default function SquadRosterView({
                             const rect = e.currentTarget.getBoundingClientRect();
                             menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
                           }}
-                          className="relative rounded-md p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                          aria-label={t("common.playerActions", { name: player.match_name })}
+                          aria-haspopup="menu"
+                          aria-expanded={openMenuPlayerId === player.id}
+                          className="relative rounded-md p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 transition-colors"
                         >
                           <MoreVertical className="h-4 w-4" />
                           {hasUrgentItems && (

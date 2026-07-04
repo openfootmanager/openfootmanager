@@ -455,12 +455,12 @@ describe("PlayersListTab", () => {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "View team" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "View team" }));
 
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Scout" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("send_scout", {
@@ -497,7 +497,7 @@ describe("PlayersListTab", () => {
       expect(playerRow).not.toBeNull();
 
       fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-      fireEvent.click(screen.getByRole("button", { name: "Scout" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Scout" }));
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
@@ -560,7 +560,7 @@ describe("PlayersListTab", () => {
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
-    fireEvent.click(screen.getByRole("button", { name: "Make Transfer Bid" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Make Transfer Bid" }));
 
     expect(screen.getByText("Make Transfer Bid")).toBeInTheDocument();
 
