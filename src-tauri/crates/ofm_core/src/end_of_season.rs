@@ -552,7 +552,12 @@ fn regenerate_competitions_for_new_season(
     let kickoff = game.clock.current_date + Duration::days(2);
     let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
     let qualified_field = if world_cup_due {
-        crate::world_cup::qualified_field_from_game(game, crate::world_cup::FORMAT_48.field)
+        let host = crate::world_cup::host_for_year(game, kickoff.year());
+        crate::world_cup::qualified_field_from_game(
+            game,
+            crate::world_cup::FORMAT_48.field,
+            host.as_deref(),
+        )
     } else {
         None
     };

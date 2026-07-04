@@ -3393,6 +3393,10 @@
         "headline": "通往{{year}}年世界杯之路开启",
         "body": "{{nations}}支球队开启{{year}}年世界杯预选赛征程，本赛季将在各个国际比赛日进行。"
       },
+      "worldCupPlayoff": {
+        "headline": "{{year}}年洲际附加赛上演激战",
+        "body": "{{nations}}通过洲际附加赛，夺得{{year}}年世界杯的最后席位。"
+      },
       "worldCupKickoff": {
         "headline": "{{year}}年世界杯拉开帷幕",
         "body": "{{nations}}支球队齐聚{{year}}年世界杯。这个夏天，世界顶尖球员追逐足球界最高荣誉，其他一切都为之让路。"

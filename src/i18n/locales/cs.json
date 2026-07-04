@@ -3393,6 +3393,10 @@
         "headline": "Cesta na Mistrovství světa {{year}} začíná",
         "body": "{{nations}} národů zahajuje svou kampaň s cílem kvalifikovat se na Mistrovství světa {{year}}, která se odehraje během reprezentačních pauz v této sezóně."
       },
+      "worldCupPlayoff": {
+        "headline": "Drama mezikontinentální baráže o MS {{year}}",
+        "body": "{{nations}} prošly mezikontinentální baráží a získaly poslední místa na Mistrovství světa {{year}}."
+      },
       "worldCupKickoff": {
         "headline": "Mistrovství světa {{year}} začíná",
         "body": "{{nations}} národů se sjelo na Mistrovství světa {{year}}. Fotbalové dění toto léto zcela zastíní vše ostatní, protože nejlepší týmy světa bojují o nejcennější fotbalovou trofej."
