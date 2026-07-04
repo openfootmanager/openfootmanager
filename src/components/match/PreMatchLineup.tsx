@@ -192,9 +192,10 @@ export default function PreMatchLineup({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Formation Balance Bar + Auto-Select */}
-      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-3 flex items-center justify-between transition-colors duration-300">
-        <div className="flex items-center gap-4">
+      {/* Formation Balance Bar + Auto-Select. Wraps: in the pre-match sidebar
+          this card is ~260px wide and a single row clips the last counts. */}
+      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-3 flex flex-wrap items-center justify-between gap-2 transition-colors duration-300">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="text-[10px] font-heading uppercase tracking-widest text-gray-700 dark:text-gray-500">
             {t("match.formationFit")}
           </span>
@@ -390,12 +391,7 @@ export default function PreMatchLineup({
             <div className="flex flex-col gap-1">
               {/* Bench column header */}
               <div className="flex items-center gap-2 px-2 pb-1">
-                <span className="w-7" />
-                {jerseyNumberById ? <span className="w-6" /> : null}
                 <span className="flex-1" />
-                <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 w-8 text-center">
-                  POS
-                </span>
                 {/* Key stats hide at xl, where this panel is a narrow sidebar —
                     with them the player name gets truncated to nothing. */}
                 <span className="text-[8px] font-heading uppercase tracking-widest text-gray-600 w-[84px] text-center xl:hidden">
@@ -426,16 +422,13 @@ export default function PreMatchLineup({
                       : "opacity-60 cursor-not-allowed"
                       }`}
                   >
-                    <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-navy-600 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-400 flex-shrink-0 transition-colors duration-300">
-                      {posOvr}
-                    </div>
-                    {jerseyChip(bp.id)}
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 truncate">
-                      {bp.name}
-                    </span>
                     <Badge variant="neutral" size="sm">
                       {translatePositionAbbreviation(t, bp.position)}
                     </Badge>
+                    {jerseyChip(bp.id)}
+                    <span className="min-w-0 text-sm text-gray-700 dark:text-gray-300 font-medium flex-1 truncate">
+                      {bp.name}
+                    </span>
                     <div className="flex items-center gap-0 xl:hidden">
                       {keyStats.map((s) => (
                         <span
@@ -447,7 +440,18 @@ export default function PreMatchLineup({
                       ))}
                     </div>
                     <span
-                      className={`text-xs tabular-nums w-8 text-right ${condColor(bp.condition)}`}
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
+                        posOvr >= 80
+                          ? "bg-primary-500 text-white"
+                          : posOvr >= 60
+                            ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
+                            : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
+                      }`}
+                    >
+                      {posOvr}
+                    </span>
+                    <span
+                      className={`shrink-0 text-xs tabular-nums w-8 text-right ${condColor(bp.condition)}`}
                     >
                       {Math.round(bp.condition)}%
                     </span>

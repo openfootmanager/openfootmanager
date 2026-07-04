@@ -407,7 +407,7 @@ export default function PreMatchSetup({
   // YOUR TEAM tab: fixed 3-panel (subs+fit / pitch / set-pieces). The page never
   // scrolls — each panel scrolls internally.
   const renderTeamView = () => (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[260px_1fr_320px]">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[300px_1fr_320px]">
       {/* Left: formation fit + auto-select + substitutes */}
       <div className="min-h-0 overflow-y-auto">
         <PreMatchLineup
