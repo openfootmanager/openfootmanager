@@ -13,8 +13,7 @@ struct ObjectiveTargets {
 }
 
 impl ObjectiveTargets {
-    pub fn new(reputation: u32, num_teams: u32) -> Self {
-        const HIGH_REPUTATION: u32 = 800;
+    fn new(reputation: u32, num_teams: u32) -> Self {
         const MEDIUM_REPUTATION: u32 = 650;
         const LOW_REPUTATION: u32 = 400;
 
