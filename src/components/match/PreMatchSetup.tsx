@@ -73,9 +73,15 @@ export default function PreMatchSetup({
   });
 
   const handlePlayerRoleChange = (playerId: string, role: PlayerRole) => {
+    const previous = playerRoles[playerId] ?? "Standard";
     setPlayerRoles((prev) => ({ ...prev, [playerId]: role }));
     void setPlayerRole(playerId, role).catch((err: unknown) => {
       console.error("Failed to set player role:", err);
+      // Roll back the optimistic value so the UI doesn't show a role that was
+      // never persisted — unless the user has already picked something newer.
+      setPlayerRoles((prev) =>
+        prev[playerId] === role ? { ...prev, [playerId]: previous } : prev,
+      );
     });
   };
 

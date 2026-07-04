@@ -17,6 +17,7 @@ import {
   useState,
   type JSX,
 } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { Badge, Button, Card, Select } from "../ui";
@@ -55,10 +56,7 @@ const PLAY_STYLES = [
   { id: "HighPress", icon: <Flag className="h-3.5 w-3.5" /> },
 ] as const;
 
-function summarizeTactic(
-  entry: TacticsLibraryEntry,
-  t: (key: string, fallback: string) => string,
-): string {
+function summarizeTactic(entry: TacticsLibraryEntry, t: TFunction): string {
   return `${entry.formation} - ${t(`common.playStyles.${entry.playStyle}`, entry.playStyle)}`;
 }
 

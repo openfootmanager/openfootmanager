@@ -311,7 +311,8 @@ export function FormationPitch({
               key={p.id}
               role="button"
               tabIndex={0}
-              className={sharedClass}
+              aria-label={p.name}
+              className={`${sharedClass} rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/70`}
               style={sharedStyle}
               onClick={() => onPlayerClick(p.id)}
               onKeyDown={(e) => {
