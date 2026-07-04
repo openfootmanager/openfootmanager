@@ -937,9 +937,13 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
         )
     };
 
-    // Play the first season's share of the campaign.
+    // Play the first season's share of the campaign only up to the club
+    // season's end in May: the rollover outruns the June 2025 window.
     let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(3);
-    for date in &first_season_days {
+    for date in first_season_days
+        .iter()
+        .filter(|date| date.as_str() < "2025-06-01")
+    {
         ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
     }
     let played_midway = game
@@ -970,7 +974,10 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
             .iter()
             .filter(|f| f.status == FixtureStatus::Completed)
             .count();
-        assert_eq!(played_after, played_midway, "played results carry over");
+        assert!(
+            played_after > played_midway,
+            "played results carry over and the outrun June window is settled"
+        );
         let windows = ofm_core::national_team::international_window_dates(
             Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
         );

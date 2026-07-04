@@ -21,6 +21,7 @@ use rand::{Rng, RngExt, SeedableRng};
 use crate::game::Game;
 use crate::group_stage::GroupStageConfig;
 use crate::nations;
+use crate::schedule::round_robin_matchdays;
 
 /// A World Cup format preset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -718,15 +719,12 @@ fn direct_berths(entrants_by_confed: &BTreeMap<String, usize>) -> BTreeMap<Strin
     berths
 }
 
-/// Matchdays a round robin of `n` teams takes over `legs` legs (the circle
-/// method gives an odd field a phantom slot, so its rounds match the next even
-/// size).
-fn round_robin_matchdays(n: usize, legs: usize) -> usize {
-    if n < 2 {
-        return 0;
-    }
-    let slots = if n.is_multiple_of(2) { n } else { n + 1 };
-    (slots - 1) * legs
+/// Matchday slots a full campaign offers across `window_count` windows:
+/// [`MATCHDAYS_PER_WINDOW`] per window, minus the final window, which belongs
+/// to the inter-confederation playoff. The scheduling and rollover-continue
+/// paths must agree on this layout, so both derive it here.
+fn full_campaign_slots(window_count: usize) -> usize {
+    window_count.saturating_sub(1) * MATCHDAYS_PER_WINDOW
 }
 
 /// The campaign slot a group's `matchday` occupies. Slots run across the
@@ -755,8 +753,9 @@ fn date_fixtures_into_slots(
     if window_dates.is_empty() {
         return;
     }
+    let per_window = matchdays_per_window.max(1);
     let span = crate::national_team::INTERNATIONAL_WINDOW_SPAN_DAYS;
-    let block = (span / matchdays_per_window.max(1) as i64).max(1);
+    let block = (span / per_window as i64).max(1);
 
     let mut per_slot: BTreeMap<usize, i64> = BTreeMap::new();
     for (slot, _) in entries.iter() {
@@ -767,12 +766,12 @@ fn date_fixtures_into_slots(
 
     let mut seen: BTreeMap<usize, i64> = BTreeMap::new();
     for (slot, fixture) in entries.iter_mut() {
-        let window = (*slot / matchdays_per_window.max(1)).min(window_dates.len() - 1);
+        let window = (*slot / per_window).min(window_dates.len() - 1);
         let Some(base) = chrono::NaiveDate::parse_from_str(&window_dates[window], "%Y-%m-%d").ok()
         else {
             continue;
         };
-        let sub = (*slot % matchdays_per_window.max(1)) as i64;
+        let sub = (*slot % per_window) as i64;
         let count = per_slot.get(slot).copied().unwrap_or(1);
         let per_day = ((count + block - 1) / block).max(1);
         let index = seen.entry(*slot).or_default();
@@ -789,9 +788,7 @@ fn date_fixtures_into_slots(
 /// ahead can date its second half exactly (and the intermediate rollover
 /// re-anchors it anyway).
 fn season_window_dates(start_year: i32) -> Vec<String> {
-    let start = chrono::NaiveDate::from_ymd_opt(start_year, 8, 1)
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+    let start = crate::schedule::date_str_to_utc(&format!("{start_year}-08-01"))
         .unwrap_or_else(Utc::now);
     crate::national_team::international_window_dates(start)
 }
@@ -838,8 +835,7 @@ pub fn schedule_world_cup_qualifying(
         if full_campaign {
             let mut windows = window_dates.to_vec();
             windows.extend(season_window_dates(first_window_year + 1));
-            // The last window hosts the inter-confederation playoff, not groups.
-            let slots = windows.len().saturating_sub(1) * MATCHDAYS_PER_WINDOW;
+            let slots = full_campaign_slots(windows.len());
             (windows, MATCHDAYS_PER_WINDOW, slots, FULL_CAMPAIGN_GROUP_SIZE, 2u8)
         } else {
             let slots = window_dates.len();
@@ -860,11 +856,7 @@ pub fn schedule_world_cup_qualifying(
     competition.priority = 9_000;
     competition.name_key = Some("tournaments.competitions.worldCupQualifying".to_string());
 
-    let base_date = chrono::NaiveDate::parse_from_str(&window_dates[0], "%Y-%m-%d")
-        .ok()
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-        .unwrap_or_else(Utc::now);
+    let base_date = crate::schedule::date_str_to_utc(&window_dates[0]).unwrap_or_else(Utc::now);
 
     let mut participant_ids: Vec<String> = Vec::new();
     let mut dated_fixtures: Vec<(usize, domain::league::Fixture)> = Vec::new();
@@ -959,11 +951,17 @@ pub fn schedule_world_cup_qualifying(
 }
 
 /// Carry an in-progress two-season qualifying campaign across the intermediate
-/// rollover: re-date every still-scheduled fixture onto the new season's actual
-/// international windows (the second half of the campaign's slot layout) and
-/// refresh national squads after a summer of transfers and retirements.
-/// Fixtures already played keep their dates and results untouched.
-pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
+/// rollover: settle any first-season fixtures the rollover outran (the club
+/// season can end in mid-May, before the June window plays), re-date every
+/// still-scheduled fixture onto the new season's actual international windows
+/// (the second half of the campaign's slot layout), and refresh national
+/// squads after a summer of transfers and retirements. Fixtures already
+/// played keep their dates and results untouched.
+pub fn continue_world_cup_qualifying(
+    game: &mut Game,
+    window_dates: &[String],
+    rng: &mut impl Rng,
+) {
     if window_dates.is_empty() {
         return;
     }
@@ -978,7 +976,28 @@ pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
         return;
     }
 
-    // Squads first: the campaign's second half should field current players.
+    // Fixtures dated before the new season's first window belong to the
+    // finished half of the campaign; play them out now — as the cup-summer
+    // rollover does — instead of dragging them into the new season and
+    // double-booking nations on its opening window.
+    let mut stranded: Vec<String> = game
+        .competitions
+        .iter()
+        .filter(|competition| is_world_cup_qualifying(competition))
+        .flat_map(|competition| competition.fixtures.iter())
+        .filter(|fixture| {
+            fixture.status == FixtureStatus::Scheduled
+                && fixture.date.as_str() < window_dates[0].as_str()
+        })
+        .map(|fixture| fixture.date.clone())
+        .collect();
+    stranded.sort();
+    stranded.dedup();
+    for date in stranded {
+        process_world_cup_fixtures_due(game, &date, rng);
+    }
+
+    // Squads next: the campaign's second half should field current players.
     let codes: Vec<String> = qualifying_indices
         .iter()
         .flat_map(|index| game.competitions[*index].participant_ids.iter())
@@ -989,23 +1008,18 @@ pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
     // The campaign was laid out over both seasons' windows (minus the playoff
     // window); the second season's slots start after the first season's share.
     let first_season_slots = window_dates.len() * MATCHDAYS_PER_WINDOW;
-    let campaign_slots =
-        (window_dates.len() * 2).saturating_sub(1) * MATCHDAYS_PER_WINDOW;
+    let campaign_slots = full_campaign_slots(window_dates.len() * 2);
 
     for competition_index in qualifying_indices {
         let competition = &mut game.competitions[competition_index];
 
-        // Each group's schedule length, recovered from its fixtures, keyed by
-        // every team in the group (groups are disjoint).
+        // A surviving campaign is always the full home-and-away span (a
+        // compressed one finishes within its own season), so each group's
+        // schedule length is the double round robin of its size — the same
+        // derivation the scheduler used. Keyed by team; groups are disjoint.
         let mut matchdays_by_team: HashMap<String, usize> = HashMap::new();
         for group in &competition.groups {
-            let group_matchdays = competition
-                .fixtures
-                .iter()
-                .filter(|fixture| group.team_ids.contains(&fixture.home_team_id))
-                .map(|fixture| fixture.matchday as usize)
-                .max()
-                .unwrap_or(0);
+            let group_matchdays = round_robin_matchdays(group.team_ids.len(), 2);
             for team_id in &group.team_ids {
                 matchdays_by_team.insert(team_id.clone(), group_matchdays);
             }
@@ -1159,13 +1173,7 @@ fn playoff_winners_of(cup: &League) -> Option<Vec<String>> {
     let mut winners = Vec::new();
     for fixture_id in &finals.fixture_ids {
         let fixture = cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id)?;
-        let result = fixture.result.as_ref()?;
-        let advancing = if result.advancing_is_home() {
-            &fixture.home_team_id
-        } else {
-            &fixture.away_team_id
-        };
-        winners.push(nation_code_of_national_team(advancing));
+        winners.push(nation_code_of_national_team(fixture.advancing_team_id()?));
     }
     (winners.len() == INTER_CONFED_PLAYOFF_SPOTS).then_some(winners)
 }
@@ -1183,64 +1191,26 @@ fn decided_playoff_winners(game: &Game, year: u32) -> Option<Vec<String>> {
 /// Advance the inter-confederation playoff once its current round is fully
 /// played. Unlike a standard bracket it crowns no single champion: completing
 /// the preliminaries seeds two parallel finals — each bye seed against a
-/// preliminary winner — and completing the finals simply decides the two
-/// berths, with no further round.
+/// preliminary winner, the top seed meeting the winner of the weaker-seeded
+/// tie — and completing the finals simply decides the two berths, with no
+/// further round.
 fn advance_world_cup_playoff(cup: &mut League) {
-    let Some(current) = cup.knockout_rounds.iter_mut().find(|round| !round.completed) else {
-        return;
-    };
-    let round_fixtures: Vec<&domain::league::Fixture> = current
-        .fixture_ids
-        .iter()
-        .filter_map(|fixture_id| cup.fixtures.iter().find(|fixture| &fixture.id == fixture_id))
-        .collect();
-    if round_fixtures.is_empty() || round_fixtures.iter().any(|fixture| fixture.result.is_none())
+    let rounds_before = cup.knockout_rounds.len();
+    crate::schedule::advance_knockout_round_with(cup, |winners, seeds| {
+        if seeds.is_empty() {
+            return None; // the finals: berths decided, the bracket ends here
+        }
+        let mut order: Vec<String> = Vec::new();
+        for (seed, winner) in seeds.iter().zip(winners.iter().rev()) {
+            order.push(seed.clone());
+            order.push(winner.clone());
+        }
+        (!order.is_empty()).then_some(order)
+    });
+    // The freshly seeded round is the pair of parallel finals.
+    if cup.knockout_rounds.len() > rounds_before
+        && let Some(finals) = cup.knockout_rounds.last_mut()
     {
-        return;
-    }
-
-    current.completed = true;
-    let seeds = current.bye_team_ids.clone();
-    if seeds.is_empty() {
-        return; // the finals: berths decided, the bracket ends here
-    }
-    let winners: Vec<String> = round_fixtures
-        .iter()
-        .filter_map(|fixture| {
-            let result = fixture.result.as_ref()?;
-            Some(if result.advancing_is_home() {
-                fixture.home_team_id.clone()
-            } else {
-                fixture.away_team_id.clone()
-            })
-        })
-        .collect();
-    let last_round_date = round_fixtures
-        .iter()
-        .map(|fixture| fixture.date.as_str())
-        .max()
-        .unwrap_or("2026-01-01")
-        .to_string();
-
-    // The finals: the top seed meets the winner of the weaker-seeded tie.
-    let mut order: Vec<String> = Vec::new();
-    for (index, seed) in seeds.iter().enumerate() {
-        order.push(seed.clone());
-        order.push(winners[winners.len() - 1 - index].clone());
-    }
-    let finals_start = chrono::NaiveDate::parse_from_str(&last_round_date, "%Y-%m-%d")
-        .ok()
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-        .unwrap_or_else(Utc::now)
-        + chrono::Duration::days(cup.rules.knockout_round_gap_days as i64);
-    crate::schedule::seed_knockout_round(
-        cup,
-        &order,
-        finals_start,
-        FixtureCompetition::InternationalNation,
-    );
-    if let Some(finals) = cup.knockout_rounds.last_mut() {
         finals.name = "Final".to_string();
     }
 }
@@ -1253,18 +1223,20 @@ fn advance_world_cup_playoff(cup: &mut League) {
 /// campaign, or a degenerate world, resolves its playoff synthetically at the
 /// rollover instead.
 fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
+    // The cheap gates run first: this is called on every day that simulates a
+    // qualifying fixture, and sorting every group's standings below is only
+    // worth it once the campaign has actually finished.
     if game.competitions.iter().any(is_world_cup_playoff) {
         return;
     }
-    let Some((year, groups_by_confed, entrants_by_confed)) =
-        qualifying_groups_by_confederation(game)
+    let Some(year) = game
+        .competitions
+        .iter()
+        .find(|competition| is_world_cup_qualifying(competition))
+        .map(|competition| competition.season)
     else {
         return;
     };
-    // Quotas and the playoff only exist at 48-team scale.
-    if entrants_by_confed.values().sum::<usize>() < FORMAT_48.field {
-        return;
-    }
     let all_played = game
         .competitions
         .iter()
@@ -1284,6 +1256,15 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         return;
     };
     if today >= playoff_date.as_str() {
+        return;
+    }
+    let Some((year, groups_by_confed, entrants_by_confed)) =
+        qualifying_groups_by_confederation(game)
+    else {
+        return;
+    };
+    // Quotas and the playoff only exist at 48-team scale.
+    if entrants_by_confed.values().sum::<usize>() < FORMAT_48.field {
         return;
     }
 
@@ -1327,11 +1308,7 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
     cup.name_key = Some("tournaments.competitions.worldCupPlayoff".to_string());
     cup.participant_ids = entrant_ids.clone();
 
-    let prelim_start = chrono::NaiveDate::parse_from_str(&playoff_date, "%Y-%m-%d")
-        .ok()
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-        .unwrap_or_else(Utc::now);
+    let prelim_start = crate::schedule::date_str_to_utc(&playoff_date).unwrap_or_else(Utc::now);
     crate::schedule::seed_knockout_round(
         &mut cup,
         &entrant_ids,
@@ -1386,9 +1363,10 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
 /// groups stages the playoff, and completing its preliminaries seeds the
 /// finals.
 pub fn settle_outstanding_qualifying(game: &mut Game, rng: &mut impl Rng) {
-    // Each pass can only extend the schedule by one staged round, so a handful
-    // of passes always reaches quiescence; the bound is just a hard stop.
-    for _ in 0..8 {
+    // Each pass drains one generation of fixtures — the groups, then the
+    // playoff preliminaries its completion stages, then the finals — so four
+    // passes always reach quiescence; the bound is just a hard stop.
+    for _ in 0..4 {
         let mut dates: Vec<String> = game
             .competitions
             .iter()
@@ -2498,9 +2476,7 @@ mod tests {
 
     /// The international windows of the season starting in `year`'s August.
     fn season_windows(year: i32) -> Vec<String> {
-        crate::national_team::international_window_dates(
-            Utc.with_ymd_and_hms(year, 8, 1, 0, 0, 0).unwrap(),
-        )
+        season_window_dates(year)
     }
 
     #[test]
@@ -2579,9 +2555,13 @@ mod tests {
         let mut game = empty_game();
         schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
 
-        // Play out the first season's share of the campaign.
+        // Play the first season only up to the club season's end in May: the
+        // rollover outruns the June window, leaving its fixtures scheduled.
         let mut rng = StdRng::seed_from_u64(7);
-        for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
+        for date in crate::national_team::international_window_span_dates(&season_windows(2024))
+            .into_iter()
+            .filter(|date| date.as_str() < "2025-06-01")
+        {
             process_world_cup_fixtures_due(&mut game, &date, &mut rng);
         }
         let (played_before, scheduled_before): (Vec<(String, String)>, usize) = {
@@ -2605,9 +2585,22 @@ mod tests {
         };
         assert!(!played_before.is_empty(), "the first season plays matches");
         assert!(scheduled_before > 0, "the second season's share remains");
+        let stranded_before = {
+            let qualifying = game
+                .competitions
+                .iter()
+                .find(|c| is_world_cup_qualifying(c))
+                .unwrap();
+            qualifying
+                .fixtures
+                .iter()
+                .filter(|f| f.status == FixtureStatus::Scheduled && f.date.starts_with("2025-06"))
+                .count()
+        };
+        assert!(stranded_before > 0, "the June window is outrun by the rollover");
 
         let season_two = season_windows(2025);
-        continue_world_cup_qualifying(&mut game, &season_two);
+        continue_world_cup_qualifying(&mut game, &season_two, &mut rng);
 
         let qualifying = game
             .competitions
@@ -2624,8 +2617,9 @@ mod tests {
             assert_eq!(&fixture.date, date, "a played fixture keeps its date");
             assert_eq!(fixture.status, FixtureStatus::Completed);
         }
-        // Every remaining fixture sits on the new season's windows, clear of
-        // the playoff's June window.
+        // The outrun June fixtures were settled, not dragged into the new
+        // season; every remaining fixture sits on the new season's windows,
+        // clear of the playoff's June window.
         let second_days: std::collections::HashSet<String> =
             crate::national_team::international_window_span_dates(
                 &season_two[..season_two.len() - 1],
@@ -2637,7 +2631,11 @@ mod tests {
             .iter()
             .filter(|f| f.status == FixtureStatus::Scheduled)
             .collect();
-        assert_eq!(remaining.len(), scheduled_before, "no fixture is lost");
+        assert_eq!(
+            remaining.len(),
+            scheduled_before - stranded_before,
+            "the finished season's stranded fixtures are settled, the rest kept"
+        );
         assert!(
             remaining.iter().all(|f| second_days.contains(&f.date)),
             "unplayed fixtures land on the continuing season's windows"

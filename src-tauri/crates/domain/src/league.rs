@@ -406,6 +406,17 @@ impl Fixture {
         matches!(self.competition, FixtureCompetition::League)
     }
 
+    /// The team advancing from this knockout fixture once a result is
+    /// recorded: the winner on goals, or on penalties after a drawn tie.
+    pub fn advancing_team_id(&self) -> Option<&str> {
+        let result = self.result.as_ref()?;
+        Some(if result.advancing_is_home() {
+            self.home_team_id.as_str()
+        } else {
+            self.away_team_id.as_str()
+        })
+    }
+
     pub fn generates_match_report_news(&self) -> bool {
         matches!(
             self.competition,

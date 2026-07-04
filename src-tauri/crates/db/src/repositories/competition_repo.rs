@@ -163,6 +163,8 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                     let id: String = row.get(0)?;
                     if id.starts_with("world-cup-qualifying-") {
                         Some("tournaments.competitions.worldCupQualifying".to_string())
+                    } else if id.starts_with("world-cup-playoff-") {
+                        Some("tournaments.competitions.worldCupPlayoff".to_string())
                     } else if parse_competition_type(&row.get::<_, String>(2)?)
                         == CompetitionType::InternationalNation
                     {
