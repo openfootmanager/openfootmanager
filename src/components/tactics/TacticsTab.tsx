@@ -869,6 +869,7 @@ export default function TacticsTab({
           positionFilter={positionFilter}
           selectedPlayerId={selectedPlayerId}
           starters={filteredStartingXI}
+          xiActivePosition={xiActivePosition}
         />
 
         {/* Center: pitch */}

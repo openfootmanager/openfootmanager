@@ -449,6 +449,23 @@ export function buildPitchSlotRows(
   }));
 }
 
+/**
+ * Front-end mirror of the backend's `deployed_position`
+ * (ofm_core::player_rating): the granular slot a player occupies, derived from
+ * the team's formation and starting-XI order. Returns null for players outside
+ * the starting XI; callers fall back to the natural position, matching how the
+ * backend validates `set_player_role`.
+ */
+export function getDeployedPosition(
+  team: { formation: string; starting_xi_ids: string[] },
+  playerId: string,
+): string | null {
+  const slotIndex = team.starting_xi_ids.indexOf(playerId);
+  if (slotIndex < 0) return null;
+  const slots = buildPitchRows(team.formation).flatMap((row) => row.positions);
+  return slots[slotIndex] ?? null;
+}
+
 export function buildActivePositionMap(
   pitchSlotRows: PitchSlotRow[],
 ): Map<string, string> {

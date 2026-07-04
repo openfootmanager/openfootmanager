@@ -8,6 +8,7 @@ import {
   buildRoleCoverageSummary,
   getBestRoleForFormation,
   getCurrentPosition,
+  getDeployedPosition,
   getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
@@ -734,5 +735,31 @@ describe("SquadTab helpers", () => {
       benchOptions: 0,
       status: "thin",
     });
+  });
+});
+
+describe("getDeployedPosition", () => {
+  // Slot order must mirror the backend's formation_slot_rows
+  // (ofm_core::player_rating): GK, defenders, [deep + attacking] midfield,
+  // forwards — 4-2-3-1 → GK; LB CB CB RB; DM CM; LM AM RM; ST.
+  const team = {
+    formation: "4-2-3-1",
+    starting_xi_ids: [
+      "gk", "lb", "cb1", "cb2", "rb", "dm", "cm", "lm", "am", "rm", "st",
+    ],
+  };
+
+  it("derives the granular slot from formation and starting-XI order", () => {
+    expect(getDeployedPosition(team, "gk")).toBe("Goalkeeper");
+    expect(getDeployedPosition(team, "rb")).toBe("RightBack");
+    expect(getDeployedPosition(team, "dm")).toBe("DefensiveMidfielder");
+    expect(getDeployedPosition(team, "cm")).toBe("CentralMidfielder");
+    expect(getDeployedPosition(team, "am")).toBe("AttackingMidfielder");
+    expect(getDeployedPosition(team, "rm")).toBe("RightMidfielder");
+    expect(getDeployedPosition(team, "st")).toBe("Striker");
+  });
+
+  it("returns null for players outside the starting XI", () => {
+    expect(getDeployedPosition(team, "bench-player")).toBeNull();
   });
 });

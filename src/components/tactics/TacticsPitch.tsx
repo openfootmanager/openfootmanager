@@ -616,7 +616,12 @@ export default function TacticsPitch({
                                   }}
                                 >
                                   {getRoleOptions(
-                                    player.natural_position || player.position,
+                                    // Roles follow the deployed slot, which is
+                                    // what the backend validates against —
+                                    // natural-position roles for an
+                                    // out-of-position player would be
+                                    // rejected and silently revert (#272).
+                                    slot.position,
                                     playerRoles?.[player.id] ?? "Standard",
                                   ).map((role) => (
                                     <option key={role} value={role}>
