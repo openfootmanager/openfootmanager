@@ -242,7 +242,7 @@ export default function TrainingGroupsCard({
                       <td
                         className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${condColor(player.condition)}`}
                       >
-                        {player.condition}
+                        {Math.round(player.condition)}%
                       </td>
                       <td className="py-1.5 px-3">
                         <Select
