@@ -14,26 +14,35 @@ struct ObjectiveTargets {
 
 impl ObjectiveTargets {
     fn new(reputation: u32, num_teams: u32) -> Self {
+        const HIGH_REPUTATION: u32 = 800;
         const MEDIUM_REPUTATION: u32 = 650;
         const LOW_REPUTATION: u32 = 400;
 
+        // Degenerate worlds can reach this with a single team (the league
+        // participant count is only used when > 1, but the fallback is the raw
+        // team count) — clamp the position into the table and drop the win/goal
+        // floors when there are no matchdays, or the objectives are impossible.
+        let league_size = num_teams.max(1);
         let expected_pos = if reputation >= HIGH_REPUTATION {
             1
         } else if reputation >= MEDIUM_REPUTATION {
-            (num_teams / 4).max(2)
+            (league_size / 4).max(2)
         } else if reputation >= LOW_REPUTATION {
-            num_teams / 2
+            (league_size / 2).max(1)
         } else {
-            (num_teams * 3 / 4).max(num_teams / 2 + 1)
-        };
+            (league_size * 3 / 4).max(league_size / 2 + 1)
+        }
+        .min(league_size);
 
-        let total_matchdays = if num_teams > 1 {
-            (num_teams - 1) * 2
+        let total_matchdays = if league_size > 1 {
+            (league_size - 1) * 2
         } else {
             0
         };
 
-        let win_target = if reputation >= HIGH_REPUTATION {
+        let win_target = if total_matchdays == 0 {
+            0
+        } else if reputation >= HIGH_REPUTATION {
             (total_matchdays * 60 / 100).max(1)
         } else if reputation >= MEDIUM_REPUTATION {
             (total_matchdays * 45 / 100).max(1)
@@ -43,7 +52,9 @@ impl ObjectiveTargets {
             (total_matchdays * 10 / 100).max(1)
         };
 
-        let goals_target = if reputation >= HIGH_REPUTATION {
+        let goals_target = if total_matchdays == 0 {
+            0
+        } else if reputation >= HIGH_REPUTATION {
             (total_matchdays * 3 / 2).max(20)
         } else if reputation >= MEDIUM_REPUTATION {
             (total_matchdays / 2).max(15)
@@ -439,6 +450,20 @@ mod tests {
             message.i18n_params.get("financeTarget"),
             Some(&"100".to_string())
         );
+    }
+
+    #[test]
+    fn generate_objectives_stays_feasible_for_a_single_team_world() {
+        // League participant counts <= 1 fall back to the raw team count, which
+        // can also be 1 in a degenerate world; targets must stay achievable
+        // instead of demanding wins/goals from zero matchdays.
+        let mut game = make_game(500, 1, 1);
+
+        generate_objectives(&mut game);
+
+        assert_eq!(objective_by_id(&game, "obj_position").target, 1);
+        assert_eq!(objective_by_id(&game, "obj_wins").target, 0);
+        assert_eq!(objective_by_id(&game, "obj_goals").target, 0);
     }
 
     #[test]
