@@ -552,6 +552,12 @@ fn regenerate_competitions_for_new_season(
     let kickoff = game.clock.current_date + Duration::days(2);
     let world_cup_due = crate::world_cup::is_world_cup_summer(kickoff.year());
     let qualified_field = if world_cup_due {
+        // The club season can finish before the campaign's June dates play
+        // out; settle whatever remains (the last matchday, the playoff) so the
+        // field is derived from a finished campaign, not a truncated one.
+        // Seeded per year so a reloaded save settles to the same field.
+        let mut settle_rng = world_cup_rng(kickoff.year());
+        crate::world_cup::settle_outstanding_qualifying(game, &mut settle_rng);
         let host = crate::world_cup::host_for_year(game, kickoff.year());
         crate::world_cup::qualified_field_from_game(
             game,
@@ -564,9 +570,18 @@ fn regenerate_competitions_for_new_season(
 
     // World Cups and their qualifying are one-shot competitions: retire last
     // cycle's editions instead of regenerating them, and stage new ones when the
-    // calendar says so.
-    game.competitions
-        .retain(|competition| !crate::world_cup::is_world_cup_competition(competition));
+    // calendar says so. A full qualifying campaign spans two seasons, so an
+    // in-progress campaign (its cup still ahead) survives the intermediate
+    // rollover and is re-anchored below.
+    let kickoff_year = kickoff.year().max(0) as u32;
+    game.competitions.retain(|competition| {
+        if !crate::world_cup::is_world_cup_competition(competition) {
+            return true;
+        }
+        (crate::world_cup::is_world_cup_qualifying(competition)
+            || crate::world_cup::is_world_cup_playoff(competition))
+            && competition.season > kickoff_year
+    });
     let remaining_ids: std::collections::HashSet<String> = game
         .competitions
         .iter()
@@ -613,6 +628,12 @@ fn regenerate_competitions_for_new_season(
     }
 
     for competition in game.competitions.iter_mut() {
+        // A surviving mid-campaign qualifying competition must not be rebuilt
+        // as a plain league — its groups and played results carry over; the
+        // international-calendar pass below re-anchors its remaining fixtures.
+        if crate::world_cup::is_world_cup_competition(competition) {
+            continue;
+        }
         if !is_competition_complete(competition) {
             // TODO(hemisphere-stall): Mid-season foreign leagues are correctly
             // skipped here to prevent their fixtures from being wiped. However,
@@ -705,7 +726,12 @@ fn manage_international_calendar(
     // Qualifying spreads each window's matches across a multi-day block, so club
     // fixtures must keep clear of the whole span rather than just the openers.
     let leads_into_world_cup = crate::world_cup::season_leads_into_world_cup(next_start);
-    let reserved_dates = if leads_into_world_cup {
+    let starts_qualifying = crate::world_cup::season_starts_world_cup_qualifying(next_start);
+    let qualifying_in_progress = game
+        .competitions
+        .iter()
+        .any(crate::world_cup::is_world_cup_qualifying);
+    let reserved_dates = if leads_into_world_cup || starts_qualifying || qualifying_in_progress {
         crate::national_team::international_window_span_dates(&window_dates)
     } else {
         window_dates.clone()
@@ -714,6 +740,12 @@ fn manage_international_calendar(
         national_team.fixtures.clear();
     }
     for competition in game.competitions.iter_mut() {
+        // The World Cup's own competitions live *on* the reserved windows —
+        // shifting them off would move the very fixtures the reservation
+        // protects. Only club competitions step aside.
+        if crate::world_cup::is_world_cup_competition(competition) {
+            continue;
+        }
         crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
     }
     crate::schedule::append_south_american_preseason_friendlies(
@@ -726,8 +758,50 @@ fn manage_international_calendar(
     );
 
     if leads_into_world_cup {
-        // The windows host World Cup qualifying instead of friendlies.
-        crate::world_cup::schedule_world_cup_qualifying(game, next_start.year() + 1, &window_dates);
+        // The windows host the qualifying campaign instead of friendlies: the
+        // second half of a two-season campaign continues on this season's
+        // windows; a world without one (a save that started late) squeezes a
+        // compressed campaign into the single remaining season.
+        if qualifying_in_progress {
+            crate::world_cup::continue_world_cup_qualifying(
+                game,
+                &window_dates,
+                &mut world_cup_rng(next_start.year()),
+            );
+        } else {
+            crate::world_cup::schedule_world_cup_qualifying(
+                game,
+                next_start.year() + 1,
+                &window_dates,
+            );
+        }
+        return;
+    }
+
+    if starts_qualifying {
+        // Two summers out: the full home-and-away campaign gets under way.
+        // The in-progress guard mirrors the branch above — under the four-year
+        // cadence a campaign can't still be running here, but scheduling must
+        // never double up if that invariant ever bends.
+        if !qualifying_in_progress {
+            crate::world_cup::schedule_world_cup_qualifying(
+                game,
+                next_start.year() + 2,
+                &window_dates,
+            );
+        }
+        return;
+    }
+
+    if qualifying_in_progress {
+        // Unreachable under the four-year cadence, but if a campaign ever
+        // survives into a neutral season, keep it anchored to this season's
+        // windows rather than stacking friendlies on top of stale fixtures.
+        crate::world_cup::continue_world_cup_qualifying(
+            game,
+            &window_dates,
+            &mut world_cup_rng(next_start.year()),
+        );
         return;
     }
 
@@ -736,6 +810,13 @@ fn manage_international_calendar(
         &window_dates,
         &mut rand::rng(),
     );
+}
+
+/// A per-year deterministic RNG for settling World Cup fixtures at rollover,
+/// so reloading a save and rolling over again reproduces the same field.
+fn world_cup_rng(year: i32) -> rand::rngs::StdRng {
+    use rand::SeedableRng;
+    rand::rngs::StdRng::seed_from_u64(u64::from(year.unsigned_abs()) ^ 0xF1FA)
 }
 
 /// The league-table competition the user's club contests. Falls back to the

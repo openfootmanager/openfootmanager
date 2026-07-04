@@ -1528,6 +1528,7 @@
       "participating": "参与中",
       "worldCup": "{{year}} 世界杯",
       "worldCupQualifying": "世界杯预选赛 {{year}}",
+      "worldCupPlayoff": "世界杯附加赛 {{year}}",
       "league": "{{country}}联赛",
       "firstDivision": "{{country}}甲级联赛",
       "secondDivision": "{{country}}乙级联赛",
@@ -3396,6 +3397,10 @@
       "worldCupPlayoff": {
         "headline": "{{year}}年洲际附加赛上演激战",
         "body": "{{nations}}通过洲际附加赛，夺得{{year}}年世界杯的最后席位。"
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "六队争两席：{{year}}年附加赛对阵揭晓",
+        "body": "{{nations}}将于六月进行洲际附加赛，争夺{{year}}年世界杯的最后两个参赛名额。"
       },
       "worldCupKickoff": {
         "headline": "{{year}}年世界杯拉开帷幕",

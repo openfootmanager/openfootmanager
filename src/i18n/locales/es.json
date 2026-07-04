@@ -1558,6 +1558,7 @@
       "participating": "Participando",
       "worldCup": "Copa del Mundo {{year}}",
       "worldCupQualifying": "Clasificación Copa del Mundo {{year}}",
+      "worldCupPlayoff": "Repesca Copa del Mundo {{year}}",
       "league": "Liga de {{country}}",
       "firstDivision": "Primera División de {{country}}",
       "secondDivision": "Segunda División de {{country}}",
@@ -3429,6 +3430,10 @@
       "worldCupPlayoff": {
         "headline": "Drama en la repesca intercontinental para {{year}}",
         "body": "{{nations}} superaron la repesca intercontinental para hacerse con las últimas plazas del Mundial de {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Seis selecciones, dos plazas: definida la repesca de {{year}}",
+        "body": "{{nations}} disputarán en junio la repesca intercontinental por las dos últimas plazas del Mundial de {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Comienza el Mundial de {{year}}",

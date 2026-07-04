@@ -1528,6 +1528,7 @@
       "participating": "Participando",
       "worldCup": "Copa do Mundo {{year}}",
       "worldCupQualifying": "Qualificação para a Copa do Mundo {{year}}",
+      "worldCupPlayoff": "Repescagem da Copa do Mundo {{year}}",
       "league": "Liga de {{country}}",
       "firstDivision": "Primeira Divisão de {{country}}",
       "secondDivision": "Segunda Divisão de {{country}}",
@@ -3399,6 +3400,10 @@
       "worldCupPlayoff": {
         "headline": "Drama na repescagem intercontinental para {{year}}",
         "body": "{{nations}} avançaram na repescagem intercontinental e garantiram as últimas vagas na Copa do Mundo de {{year}}."
+      },
+      "worldCupPlayoffDraw": {
+        "headline": "Seis seleções, duas vagas: repescagem de {{year}} definida",
+        "body": "{{nations}} disputam em junho a repescagem intercontinental pelas duas últimas vagas na Copa do Mundo de {{year}}."
       },
       "worldCupKickoff": {
         "headline": "Começa a Copa do Mundo de {{year}}",

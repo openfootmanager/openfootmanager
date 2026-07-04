@@ -53,6 +53,17 @@ pub fn build_round_robin_fixtures(
     )
 }
 
+/// Matchdays a round robin of `n` teams takes over `legs` legs — the round
+/// count [`build_round_robin_fixtures_with`] emits (the circle method gives an
+/// odd field a phantom slot, so its rounds match the next even size).
+pub fn round_robin_matchdays(n: usize, legs: usize) -> usize {
+    if n < 2 {
+        return 0;
+    }
+    let slots = if n.is_multiple_of(2) { n } else { n + 1 };
+    (slots - 1) * legs
+}
+
 /// Build a round-robin fixture list with a configurable number of legs (even
 /// legs reverse home and away) and days between matchdays. Uses the circle
 /// method; an odd club count plays against a phantom slot, giving each club
@@ -70,7 +81,7 @@ pub fn build_round_robin_fixtures_with(
         return Vec::new();
     }
     let slots = if n.is_multiple_of(2) { n } else { n + 1 };
-    let rounds = slots - 1;
+    let rounds = round_robin_matchdays(n, 1);
     let half = slots / 2;
     let mut fixtures = Vec::new();
     let mut matchday: u32 = 1;
@@ -282,6 +293,22 @@ pub fn seed_knockout_round(
 }
 
 pub fn advance_knockout_competition_round(cup: &mut League) {
+    // Winners and byes advance together, in that order, until a champion.
+    advance_knockout_round_with(cup, |winners, byes| {
+        let mut advancing = winners.to_vec();
+        advancing.extend(byes.iter().cloned());
+        (advancing.len() >= 2).then_some(advancing)
+    });
+}
+
+/// Shared knockout-round completion core: once the first incomplete round is
+/// fully played, mark it complete and seed the next round with the seeding
+/// order `next_round_order` chooses from the round's winners and byes —
+/// or end the bracket when it returns `None`.
+pub fn advance_knockout_round_with(
+    cup: &mut League,
+    next_round_order: impl FnOnce(&[String], &[String]) -> Option<Vec<String>>,
+) {
     if !matches!(
         cup.rules.format,
         CompetitionFormat::Knockout | CompetitionFormat::GroupAndKnockout
@@ -315,31 +342,19 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
 
     next_round.completed = true;
     let round_fixture_ids = next_round.fixture_ids.clone();
-    let mut advancing: Vec<String> = round_fixtures
+    let winners: Vec<String> = round_fixtures
         .iter()
-        .filter_map(|fixture| {
-            let result = fixture.result.as_ref()?;
-            if result.advancing_is_home() {
-                Some(fixture.home_team_id.clone())
-            } else {
-                Some(fixture.away_team_id.clone())
-            }
-        })
+        .filter_map(|fixture| fixture.advancing_team_id().map(str::to_string))
         .collect();
-    // Teams that received a bye this round join the winners in the next round.
-    advancing.extend(next_round.bye_team_ids.iter().cloned());
+    let byes = next_round.bye_team_ids.clone();
 
-    if advancing.len() >= 2 {
+    if let Some(advancing) = next_round_order(&winners, &byes) {
         let last_round_date = round_fixtures
             .iter()
             .map(|fixture| fixture.date.as_str())
             .max()
             .unwrap_or("2026-01-01");
-        let round_start = chrono::NaiveDate::parse_from_str(last_round_date, "%Y-%m-%d")
-            .ok()
-            .and_then(|date| date.and_hms_opt(0, 0, 0))
-            .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-            .unwrap_or_else(Utc::now)
+        let round_start = date_str_to_utc(last_round_date).unwrap_or_else(Utc::now)
             + Duration::days(cup.rules.knockout_round_gap_days as i64);
         let fixture_competition = cup
             .fixtures
@@ -349,6 +364,14 @@ pub fn advance_knockout_competition_round(cup: &mut League) {
             .unwrap_or(FixtureCompetition::Cup);
         seed_knockout_round(cup, &advancing, round_start, fixture_competition);
     }
+}
+
+/// Parse a stored `%Y-%m-%d` fixture date into a UTC midnight timestamp.
+pub fn date_str_to_utc(date: &str) -> Option<DateTime<Utc>> {
+    chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
 }
 
 pub fn generate_preseason_friendlies(
