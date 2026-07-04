@@ -89,176 +89,181 @@ pub fn advance_time_with_mode(
     mode: &str,
 ) -> Result<AdvanceTimeWithModeResponse, String> {
     info!("[cmd] advance_time_with_mode: mode={}", mode);
-    let mut game = state
-        .get_game(|current_game| current_game.clone())
-        .ok_or("be.error.noActiveGameSession")?;
 
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let round_context = round_context_for_today(&game, &today);
-    let user_fixture = scheduled_user_fixture_index(&game, &today);
+    // The whole day-start sequence runs under the game lock (update_game) so a
+    // concurrent GUI/MCP mutation is never clobbered by writing back a stale
+    // whole-game clone. Stats captures are appended and the live session is
+    // stored only after the game lock is released, so the two state mutexes
+    // are never held at once.
+    let mut captures = Vec::new();
+    let mut session_out: Option<live_match_manager::LiveMatchSession> = None;
+    let response = state
+        .update_game(|game| -> Result<AdvanceTimeWithModeResponse, String> {
+            let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+            let round_context = round_context_for_today(game, &today);
+            let user_fixture = scheduled_user_fixture_index(game, &today);
 
-    info!(
-        "[cmd] advance_time_with_mode: date={}, user_team_id={:?}, user_fixture={:?}",
-        today, game.manager.team_id, user_fixture
-    );
-
-    match (mode, user_fixture) {
-        ("live" | "spectator", Some((competition_index, index))) => {
-            if let Some(competition) = game.competitions.get(competition_index).cloned() {
-                game.league = Some(competition);
-            }
-            let match_mode = if mode == "live" {
-                MatchMode::Live
-            } else {
-                MatchMode::Spectator
-            };
-            let allows_extra_time = fixture_allows_extra_time(&game, index);
-            let session =
-                live_match_manager::create_live_match(&game, index, match_mode, allows_extra_time)?;
-            let snapshot = session.snapshot();
             info!(
-                "[cmd] advance_time_with_mode: live_match fixture_idx={}, phase={:?}, home_team={}, away_team={}",
-                index,
-                snapshot.phase,
-                snapshot.home_team.name,
-                snapshot.away_team.name
+                "[cmd] advance_time_with_mode: date={}, user_team_id={:?}, user_fixture={:?}",
+                today, game.manager.team_id, user_fixture
             );
-            state.set_live_match(session);
 
-            let mut captures = Vec::new();
-            ofm_core::turn::simulate_other_matches_with_capture(
-                &mut game,
-                &today,
-                Some(index),
-                &mut |capture| captures.push(capture),
-            );
-            if competition_index < game.competitions.len() {
-                if let Some(updated_competition) = game.league.take() {
-                    game.competitions[competition_index] = updated_competition;
-                    game.sync_legacy_league();
+            match (mode, user_fixture) {
+                ("live" | "spectator", Some((competition_index, index))) => {
+                    if let Some(competition) = game.competitions.get(competition_index).cloned() {
+                        game.league = Some(competition);
+                    }
+                    let match_mode = if mode == "live" {
+                        MatchMode::Live
+                    } else {
+                        MatchMode::Spectator
+                    };
+                    let allows_extra_time = fixture_allows_extra_time(game, index);
+                    let session = live_match_manager::create_live_match(
+                        game,
+                        index,
+                        match_mode,
+                        allows_extra_time,
+                    )?;
+                    let snapshot = session.snapshot();
+                    info!(
+                        "[cmd] advance_time_with_mode: live_match fixture_idx={}, phase={:?}, home_team={}, away_team={}",
+                        index,
+                        snapshot.phase,
+                        snapshot.home_team.name,
+                        snapshot.away_team.name
+                    );
+                    session_out = Some(session);
+
+                    ofm_core::turn::simulate_other_matches_with_capture(
+                        game,
+                        &today,
+                        Some(index),
+                        &mut |capture| captures.push(capture),
+                    );
+                    if competition_index < game.competitions.len() {
+                        if let Some(updated_competition) = game.league.take() {
+                            game.competitions[competition_index] = updated_competition;
+                            game.sync_legacy_league();
+                        }
+                    }
+                    let round_summary =
+                        round_context
+                            .as_ref()
+                            .and_then(|(matchday, previous_standings)| {
+                                build_round_summary_dto(game, *matchday, previous_standings)
+                            });
+
+                    Ok(AdvanceTimeWithModeResponse {
+                        action: "live_match".to_string(),
+                        game: None,
+                        snapshot: Some(snapshot),
+                        fixture_index: Some(index),
+                        mode: Some(mode.to_string()),
+                        round_summary,
+                        results: Vec::new(),
+                    })
+                }
+                ("delegate", Some((competition_index, index))) => {
+                    if let Some(competition) = game.competitions.get(competition_index).cloned() {
+                        game.league = Some(competition);
+                    }
+                    info!(
+                        "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
+                        index, today
+                    );
+                    let allows_extra_time = fixture_allows_extra_time(game, index);
+                    let mut session = live_match_manager::create_live_match(
+                        game,
+                        index,
+                        MatchMode::Instant,
+                        allows_extra_time,
+                    )?;
+                    session.user_side = None;
+                    session.run_to_completion();
+
+                    let home_team_id = session.home_team_id.clone();
+                    let away_team_id = session.away_team_id.clone();
+                    let report = session.match_state.into_report();
+
+                    ofm_core::turn::simulate_other_matches_with_capture(
+                        game,
+                        &today,
+                        Some(index),
+                        &mut |capture| captures.push(capture),
+                    );
+
+                    ofm_core::turn::apply_match_report_with_capture(
+                        game,
+                        index,
+                        &home_team_id,
+                        &away_team_id,
+                        &report,
+                        &mut |capture| captures.push(capture),
+                    );
+                    if competition_index < game.competitions.len() {
+                        if let Some(updated_competition) = game.league.take() {
+                            game.competitions[competition_index] = updated_competition;
+                            game.sync_legacy_league();
+                        }
+                    }
+
+                    let round_summary =
+                        round_context
+                            .as_ref()
+                            .and_then(|(matchday, previous_standings)| {
+                                build_round_summary_dto(game, *matchday, previous_standings)
+                            });
+
+                    ofm_core::turn::finish_live_match_day(game);
+                    let results = collect_advance_results(game, &today);
+
+                    Ok(AdvanceTimeWithModeResponse {
+                        action: "advanced".to_string(),
+                        game: Some(game.clone()),
+                        snapshot: None,
+                        fixture_index: None,
+                        mode: None,
+                        round_summary,
+                        results,
+                    })
+                }
+                _ => {
+                    info!(
+                        "[cmd] advance_time_with_mode: normal_advance date={}, mode={}",
+                        today, mode
+                    );
+                    ofm_core::turn::process_day_with_capture(game, &mut |capture| {
+                        captures.push(capture);
+                    });
+                    let round_summary =
+                        round_context
+                            .as_ref()
+                            .and_then(|(matchday, previous_standings)| {
+                                build_round_summary_dto(game, *matchday, previous_standings)
+                            });
+                    let results = collect_advance_results(game, &today);
+
+                    Ok(AdvanceTimeWithModeResponse {
+                        action: "advanced".to_string(),
+                        game: Some(game.clone()),
+                        snapshot: None,
+                        fixture_index: None,
+                        mode: None,
+                        round_summary,
+                        results,
+                    })
                 }
             }
-            for capture in captures {
-                state.append_stats_state(capture);
-            }
-            let round_summary =
-                round_context
-                    .as_ref()
-                    .and_then(|(matchday, previous_standings)| {
-                        build_round_summary_dto(&game, *matchday, previous_standings)
-                    });
-            state.set_game(game);
+        })
+        .ok_or("be.error.noActiveGameSession")??;
 
-            Ok(AdvanceTimeWithModeResponse {
-                action: "live_match".to_string(),
-                game: None,
-                snapshot: Some(snapshot),
-                fixture_index: Some(index),
-                mode: Some(mode.to_string()),
-                round_summary,
-                results: Vec::new(),
-            })
-        }
-        ("delegate", Some((competition_index, index))) => {
-            if let Some(competition) = game.competitions.get(competition_index).cloned() {
-                game.league = Some(competition);
-            }
-            info!(
-                "[cmd] advance_time_with_mode: delegate fixture_idx={}, date={}",
-                index, today
-            );
-            let allows_extra_time = fixture_allows_extra_time(&game, index);
-            let mut session = live_match_manager::create_live_match(
-                &game,
-                index,
-                MatchMode::Instant,
-                allows_extra_time,
-            )?;
-            session.user_side = None;
-            session.run_to_completion();
-
-            let home_team_id = session.home_team_id.clone();
-            let away_team_id = session.away_team_id.clone();
-            let report = session.match_state.into_report();
-
-            let mut captures = Vec::new();
-            ofm_core::turn::simulate_other_matches_with_capture(
-                &mut game,
-                &today,
-                Some(index),
-                &mut |capture| captures.push(capture),
-            );
-
-            ofm_core::turn::apply_match_report_with_capture(
-                &mut game,
-                index,
-                &home_team_id,
-                &away_team_id,
-                &report,
-                &mut |capture| captures.push(capture),
-            );
-            if competition_index < game.competitions.len() {
-                if let Some(updated_competition) = game.league.take() {
-                    game.competitions[competition_index] = updated_competition;
-                    game.sync_legacy_league();
-                }
-            }
-
-            for capture in captures {
-                state.append_stats_state(capture);
-            }
-
-            let round_summary =
-                round_context
-                    .as_ref()
-                    .and_then(|(matchday, previous_standings)| {
-                        build_round_summary_dto(&game, *matchday, previous_standings)
-                    });
-
-            ofm_core::turn::finish_live_match_day(&mut game);
-            let results = collect_advance_results(&game, &today);
-            state.set_game(game.clone());
-
-            Ok(AdvanceTimeWithModeResponse {
-                action: "advanced".to_string(),
-                game: Some(game),
-                snapshot: None,
-                fixture_index: None,
-                mode: None,
-                round_summary,
-                results,
-            })
-        }
-        _ => {
-            info!(
-                "[cmd] advance_time_with_mode: normal_advance date={}, mode={}",
-                today, mode
-            );
-            let mut captures = Vec::new();
-            ofm_core::turn::process_day_with_capture(&mut game, &mut |capture| {
-                captures.push(capture);
-            });
-            for capture in captures {
-                state.append_stats_state(capture);
-            }
-            let round_summary =
-                round_context
-                    .as_ref()
-                    .and_then(|(matchday, previous_standings)| {
-                        build_round_summary_dto(&game, *matchday, previous_standings)
-                    });
-            let results = collect_advance_results(&game, &today);
-            state.set_game(game.clone());
-
-            Ok(AdvanceTimeWithModeResponse {
-                action: "advanced".to_string(),
-                game: Some(game),
-                snapshot: None,
-                fixture_index: None,
-                mode: None,
-                round_summary,
-                results,
-            })
-        }
+    for capture in captures {
+        state.append_stats_state(capture);
     }
+    if let Some(session) = session_out {
+        state.set_live_match(session);
+    }
+
+    Ok(response)
 }

@@ -563,6 +563,42 @@ mod tests {
         );
     }
 
+    // Regression: MCP match_finish could be called mid-match and persisted the
+    // partial score (or a half-taken shootout) as the final result. The finish
+    // path must run the remainder so the report describes a completed match.
+    #[test]
+    fn finish_live_match_completes_an_unfinished_match_first() {
+        let state = StateManager::new();
+        let game = make_game_with_round();
+
+        let mut session =
+            live_match_manager::create_live_match(&game, 0, MatchMode::Instant, false).unwrap();
+        session.user_side = None;
+        // Step only a few minutes — nowhere near full time.
+        session.step_many(5);
+        assert!(!session.is_finished());
+
+        state.set_game(game);
+        state.set_live_match(session);
+
+        finish_live_match_internal(&state).expect("finish live match");
+
+        let fixture = state
+            .get_game(|g| g.competitions[0].fixtures[0].clone())
+            .unwrap();
+        assert_eq!(fixture.status, FixtureStatus::Completed);
+        let report = fixture
+            .result
+            .expect("result persisted")
+            .report
+            .expect("compact report persisted");
+        assert!(
+            report.total_minutes >= 90,
+            "persisted report must describe a full match, got {} minutes",
+            report.total_minutes
+        );
+    }
+
     // Regression: MCP match_start called start_live_match directly, which
     // never simulated the day's other fixtures; match_finish then advanced
     // the clock, stranding them Scheduled in the past forever.
