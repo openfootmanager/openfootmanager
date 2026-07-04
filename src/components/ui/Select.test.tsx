@@ -85,4 +85,43 @@ describe("Select", () => {
     expect(hiddenInput).not.toBeNull();
     expect(hiddenInput?.value).toBe("pt");
   });
+
+  // Issue #282: the menu used to render inside the trigger's wrapper, so an
+  // overflow-hidden ancestor (e.g. the tactics pitch) clipped it entirely for
+  // slots near the container edge, and it was capped at the trigger's width.
+  it("renders the open menu in a portal so overflow-hidden ancestors cannot clip it", () => {
+    render(
+      <div data-testid="clipping-ancestor" style={{ overflow: "hidden" }}>
+        <Select defaultValue="en" aria-label="Language">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+        </Select>
+      </div>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Language" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(listbox).toBeInTheDocument();
+    expect(screen.getByTestId("clipping-ancestor")).not.toContainElement(
+      listbox,
+    );
+  });
+
+  it("closes the portaled menu on an outside pointer press but not on a menu press", () => {
+    render(
+      <Select defaultValue="en" aria-label="Language">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+      </Select>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Language" }));
+    // A press inside the menu must not dismiss it before the click lands.
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Português" }));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
 });
