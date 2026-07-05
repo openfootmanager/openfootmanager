@@ -266,4 +266,65 @@ describe("advanceRecap", function (): void {
     expect(recap.matches).toHaveLength(1);
     expect(recap.hasEvents).toBe(true);
   });
+
+  it("hides future-dated news, inbox, and transfers until their day", function (): void {
+    // Regression for #321: some articles (e.g. World Cup kickoff) are dated at
+    // the event day but created earlier. Without an upper bound they resurface
+    // in every digest day until their date arrives.
+    const game = createGame({
+      news: [
+        {
+          id: "wc-kickoff",
+          headline: "World Cup 2026 kicks off",
+          body: "",
+          date: "2026-11-14",
+          category: "Editorial",
+          team_ids: [],
+          player_ids: [],
+          read: false,
+        },
+      ],
+      messages: [
+        {
+          id: "future-brief",
+          subject: "Board briefing",
+          body: "",
+          sender: "",
+          sender_role: "",
+          date: "2026-11-14",
+          read: false,
+          category: "Board",
+          priority: "High",
+          actions: [],
+        },
+      ],
+      competitions: [
+        {
+          id: "comp-1",
+          name: "Premier League",
+          season: 1,
+          participant_ids: ["team-1", "team-2"],
+          fixtures: [],
+          standings: [],
+          transfer_log: [
+            {
+              date: "2026-11-14",
+              from_team_id: "team-1",
+              to_team_id: "team-2",
+              player_id: "player-1",
+              fee: 1,
+            },
+          ],
+        },
+      ],
+      league: null,
+    } as unknown as Partial<GameStateData>);
+
+    const recap = buildAdvanceRecap(game, "2026-07-01", []);
+
+    expect(recap.news).toEqual([]);
+    expect(recap.inbox).toEqual([]);
+    expect(recap.transfers).toEqual([]);
+    expect(recap.hasEvents).toBe(false);
+  });
 });

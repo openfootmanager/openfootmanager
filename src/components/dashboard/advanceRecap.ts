@@ -1,6 +1,7 @@
 import type { AdvanceMatchResultData } from "../../services/advanceTimeService";
 import type { GameStateData } from "../../store/gameStore";
 import { getUserCompetition } from "../../lib/fixtures";
+import { articleDay } from "../../utils/newsVisibility";
 
 /** Match result enriched with the user's outcome (win/draw/loss) when they were involved. */
 export interface RecapMatch extends AdvanceMatchResultData {
@@ -101,9 +102,17 @@ export function buildAdvanceRecap(
     return { ...match, userResult };
   });
 
+  // Cap items at the current game date so future-dated entries (e.g. a World
+  // Cup kickoff article dated at the kickoff day, or a transfer window that
+  // opens next month) don't resurface in every day's digest until they arrive.
+  const inRecapWindow = (date: string): boolean => {
+    const day = articleDay(date);
+    return day >= sinceDate && day <= advancedTo;
+  };
+
   const userCompetition = getUserCompetition(game);
   const transfers: RecapTransfer[] = (userCompetition?.transfer_log ?? [])
-    .filter((entry) => entry.date >= sinceDate)
+    .filter((entry) => inRecapWindow(entry.date))
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((entry) => ({
@@ -119,7 +128,7 @@ export function buildAdvanceRecap(
   const news: RecapHeadline[] = (game.news ?? [])
     .filter(
       (article) =>
-        article.date >= sinceDate &&
+        inRecapWindow(article.date) &&
         !isRoutineRecapNews(article),
     )
     .sort((left, right) => right.date.localeCompare(left.date))
@@ -133,7 +142,7 @@ export function buildAdvanceRecap(
     }));
 
   const inbox: RecapHeadline[] = (game.messages ?? [])
-    .filter((message) => message.date >= sinceDate && message.priority === "High")
+    .filter((message) => inRecapWindow(message.date) && message.priority === "High")
     .sort((left, right) => right.date.localeCompare(left.date))
     .slice(0, MAX_PER_SECTION)
     .map((message) => ({
