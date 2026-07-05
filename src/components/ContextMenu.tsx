@@ -37,19 +37,18 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
     const [pos, setPos] = useState({ x: 0, y: 0 });
     const menuRef = useRef<HTMLDivElement>(null);
     const instanceId = useRef(Math.random().toString(36));
+    const triggerRef = useRef<HTMLElement | null>(null);
 
     const setOpen = useCallback((next: boolean) => {
       setVisible(next);
-    }, []);
-
-    useEffect(() => {
-      onOpenChange?.(visible);
-    }, [visible, onOpenChange]);
+      onOpenChange?.(next);
+    }, [onOpenChange]);
 
     const openAt = useCallback((x: number, y: number) => {
       window.dispatchEvent(
         new CustomEvent("close-context-menus", { detail: instanceId.current }),
       );
+      triggerRef.current = document.activeElement as HTMLElement | null;
       const clampedX = Math.min(x, window.innerWidth - 200);
       const clampedY = Math.min(y, window.innerHeight - 300);
       setPos({ x: clampedX, y: clampedY });
@@ -78,7 +77,9 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(
       if (!visible) return;
       const close = () => setOpen(false);
       const closeOnEscape = (e: KeyboardEvent) => {
-        if (e.key === "Escape") setOpen(false);
+        if (e.key !== "Escape") return;
+        setOpen(false);
+        triggerRef.current?.focus();
       };
       window.addEventListener("click", close);
       window.addEventListener("scroll", close, true);
