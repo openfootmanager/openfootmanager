@@ -1128,6 +1128,28 @@ mod tests {
         assert_eq!(response.projection.finance_after, 4_000_000);
         assert!(!response.projection.exceeds_transfer_budget);
         assert!(!response.projection.exceeds_finance);
+        // Window is open in the fixture — the debit fires today, no deferred
+        // registration date to surface.
+        assert!(response.projection.pending_registration_date.is_none());
+    }
+
+    #[test]
+    fn preview_transfer_bid_financial_impact_reports_pending_registration_date_when_window_closed() {
+        let state = StateManager::new();
+        let mut game = make_bid_game();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 12, 20, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2027-01-02".to_string());
+        state.set_game(game);
+
+        let response =
+            preview_transfer_bid_financial_impact_internal(&state, "player-2", 1_000_000)
+                .expect("response");
+
+        assert_eq!(
+            response.projection.pending_registration_date.as_deref(),
+            Some("2027-01-02"),
+        );
     }
 
     #[test]

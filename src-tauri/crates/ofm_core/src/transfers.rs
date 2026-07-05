@@ -211,6 +211,11 @@ pub struct TransferBidFinancialProjection {
     pub projected_wage_budget_usage_pct: i64,
     pub exceeds_transfer_budget: bool,
     pub exceeds_finance: bool,
+    /// Set when the window is closed and this bid would land as
+    /// PendingRegistration: the date the debit will actually fire. `None` when
+    /// the window is open and the debit fires immediately on acceptance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_registration_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -1270,6 +1275,18 @@ pub fn project_transfer_bid_financial_impact(
     let transfer_budget_after = team.transfer_budget - fee as i64;
     let finance_after = team.finance - fee as i64;
 
+    // Same rule as make_transfer_bid uses when it decides Accepted vs
+    // PendingRegistration: a registration date later than today means the
+    // debit is deferred to the next window opening. Fall back to None if the
+    // registration date is unresolvable (window closed with no future
+    // opens_on) — the projection is purely informational, so it shouldn't
+    // fail here.
+    let current_date = game.clock.current_date.date_naive();
+    let pending_registration_date = transfer_registration_date(game)
+        .ok()
+        .filter(|date| *date != current_date)
+        .map(|date| date.format("%Y-%m-%d").to_string());
+
     Ok(TransferBidFinancialProjection {
         transfer_budget_before: team.transfer_budget,
         transfer_budget_after,
@@ -1281,6 +1298,7 @@ pub fn project_transfer_bid_financial_impact(
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,
+        pending_registration_date,
     })
 }
 
