@@ -152,12 +152,12 @@ export function TransferBidForm({
             })}
           </p>
           {bidProjection.exceeds_transfer_budget ? (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-red-600 dark:text-red-300">
               {t("transfers.bidImpactOverTransferBudget")}
             </p>
           ) : null}
           {bidProjection.exceeds_finance ? (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-red-600 dark:text-red-300">
               {t("transfers.bidImpactOverBalance")}
             </p>
           ) : null}
@@ -174,7 +174,7 @@ export function TransferBidForm({
       <TransferNegotiationHistory offer={activeBidOffer} mode="outgoing" />
       {bidResult ? (
         <div
-          className={`text-xs font-heading font-bold uppercase tracking-wider mb-3 ${bidResult === "accepted" ? "text-green-500" : bidResult === "rejected" ? "text-red-500" : "text-amber-500"}`}
+          className={`text-xs font-heading font-bold uppercase tracking-wider mb-3 ${bidResult === "accepted" ? "text-green-500" : bidResult === "rejected" ? "text-red-600 dark:text-red-300" : "text-amber-500"}`}
         >
           {bidResult === "accepted"
             ? t("transfers.bidAccepted")

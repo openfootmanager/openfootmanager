@@ -167,7 +167,7 @@ export function LoanOfferForm({
             })}
           </p>
         ) : (
-          <p role="alert" className="text-xs text-red-500 mb-3">
+          <p role="alert" className="text-xs text-red-600 dark:text-red-300 mb-3">
             {t("transfers.noLoanPeriodAvailable")}
           </p>
         )}
@@ -272,7 +272,7 @@ export function LoanOfferForm({
 
         {result ? (
           <div
-            className={`text-xs font-heading font-bold uppercase tracking-wider mb-3 ${result === "accepted" ? "text-green-500" : result === "counter_offer" ? "text-amber-500" : "text-red-500"}`}
+            className={`text-xs font-heading font-bold uppercase tracking-wider mb-3 ${result === "accepted" ? "text-green-500" : result === "counter_offer" ? "text-amber-500" : "text-red-600 dark:text-red-300"}`}
           >
             {result === "accepted"
               ? acceptedMessage ?? t(acceptedLabelKey)
@@ -303,7 +303,7 @@ export function LoanOfferForm({
         ) : null}
 
         {error && !result ? (
-          <p role="alert" className="text-xs text-red-500 mb-3">
+          <p role="alert" className="text-xs text-red-600 dark:text-red-300 mb-3">
             {error}
           </p>
         ) : null}
