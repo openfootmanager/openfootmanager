@@ -145,7 +145,7 @@ export function FreeAgentContractForm({
               })}
             </p>
             {!projection.policy_allows ? (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-red-600 dark:text-red-300">
                 {t("playerProfile.renewalBudgetWarning")}
               </p>
             ) : null}
