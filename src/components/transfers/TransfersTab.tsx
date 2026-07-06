@@ -21,6 +21,8 @@ import {
   UserPlus,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   getTeamName,
@@ -182,6 +184,9 @@ export default function TransfersTab({
   );
   const positionFilterRef = useRef<HTMLDivElement | null>(null);
   const [affordableOnly, setAffordableOnly] = useState(false);
+  // Click the OVR header to cycle: none → desc → asc → none. Applied over the
+  // filter output before pagination so sorted rows stay stable across pages.
+  const [ovrSortDir, setOvrSortDir] = useState<"none" | "desc" | "asc">("none");
   const [marketPage, setMarketPage] = useState(1);
   const [counterTarget, setCounterTarget] = useState<CounterTarget | null>(
     null,
@@ -756,31 +761,39 @@ export default function TransfersTab({
     () => getCurrentTransferList(view, transferCollections),
     [transferCollections, view],
   );
-  const filteredList = useMemo(
-    () =>
-      filterTransferPlayers(
-        currentList,
-        search,
-        null,
-        isPlayersView ? availabilityFilter : "all",
-        isPlayersView && affordableOnly && myTeam
-          ? {
-              transferBudget: myTeam.transfer_budget,
-              finance: myTeam.finance,
-            }
-          : null,
-        specificPositions,
-      ),
-    [
-      affordableOnly,
-      availabilityFilter,
+  const filteredList = useMemo(() => {
+    const filtered = filterTransferPlayers(
       currentList,
-      isPlayersView,
-      myTeam,
       search,
+      null,
+      isPlayersView ? availabilityFilter : "all",
+      isPlayersView && affordableOnly && myTeam
+        ? {
+            transferBudget: myTeam.transfer_budget,
+            finance: myTeam.finance,
+          }
+        : null,
       specificPositions,
-    ],
-  );
+    );
+
+    if (ovrSortDir === "none") {
+      return filtered;
+    }
+
+    const sorted = [...filtered].sort(
+      (left, right) => getPlayerOvr(left) - getPlayerOvr(right),
+    );
+    return ovrSortDir === "desc" ? sorted.reverse() : sorted;
+  }, [
+    affordableOnly,
+    availabilityFilter,
+    currentList,
+    isPlayersView,
+    myTeam,
+    ovrSortDir,
+    search,
+    specificPositions,
+  ]);
   const marketTotalPages = Math.max(
     1,
     Math.ceil(filteredList.length / TRANSFER_MARKET_PAGE_SIZE),
@@ -1325,8 +1338,37 @@ export default function TransfersTab({
                     <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       {t("common.wage")}
                     </th>
-                    <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      {t("common.ovr")}
+                    <th
+                      role="columnheader"
+                      aria-sort={
+                        ovrSortDir === "desc"
+                          ? "descending"
+                          : ovrSortDir === "asc"
+                            ? "ascending"
+                            : "none"
+                      }
+                      className={`py-3 px-4 font-heading font-bold uppercase tracking-wider cursor-pointer select-none hover:text-primary-400 transition-colors ${ovrSortDir !== "none" ? "text-primary-500 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={() => {
+                        // Cycle: none → desc → asc → none. Reset paging on any change so
+                        // the user always lands on the first page of the new order.
+                        setOvrSortDir((current) =>
+                          current === "none"
+                            ? "desc"
+                            : current === "desc"
+                              ? "asc"
+                              : "none",
+                        );
+                        setMarketPage(1);
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        {t("common.ovr")}
+                        {ovrSortDir === "desc" ? (
+                          <ChevronDown className="w-3 h-3" />
+                        ) : ovrSortDir === "asc" ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : null}
+                      </div>
                     </th>
                     <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       {t("common.status")}
