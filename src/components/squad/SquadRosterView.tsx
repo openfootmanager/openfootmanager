@@ -152,7 +152,7 @@ export default function SquadRosterView({
     playersById,
   );
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
-  const xiIds = new Set(startingXiIds);
+  const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
     () => buildRoleCoverageSummary(available, startingXiIds, formation),
     [available, startingXiIds, formation],
