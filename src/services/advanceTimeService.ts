@@ -71,14 +71,6 @@ export async function skipToMatchDay(): Promise<SkipToMatchDayResponse> {
   return invoke<SkipToMatchDayResponse>("skip_to_match_day");
 }
 
-/**
- * Roll forward day by day until the next event (user match, blocker, transfer
- * deadline, or high-priority inbox item). Shares the skip response shape.
- */
-export async function advanceToNextEvent(): Promise<SkipToMatchDayResponse> {
-  return invoke<SkipToMatchDayResponse>("advance_to_next_event");
-}
-
 /** Per-day response used by the digest feed loop. */
 export interface OneDayResponse {
   /** "advanced" | "match_day" | "blocked" | "fired" */

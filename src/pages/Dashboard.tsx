@@ -272,8 +272,6 @@ export default function Dashboard(): JSX.Element {
     setMatchMode,
     blockerModal,
     setBlockerModal,
-    recapResults,
-    setRecapResults,
     handleContinue,
     handleConfirmMatch,
     handleSkipToMatchDay,
@@ -282,9 +280,10 @@ export default function Dashboard(): JSX.Element {
     isDigestVisible,
     isDigestRunning,
     isDigestAborting,
-    startDigest,
     abortDigest,
     dismissDigest,
+    resumeDigest,
+    resumeAfterBlocker,
   } = useAdvanceTime(
     setGameState,
     hasMatchToday,
@@ -518,8 +517,6 @@ export default function Dashboard(): JSX.Element {
         blockerModal={blockerModal}
         currentModeMeta={currentModeMeta}
         isAdvancing={isAdvancing}
-        recapResults={recapResults}
-        onCloseRecap={() => setRecapResults(null)}
         handleConfirmMatch={handleConfirmMatch}
         handleExitToMenu={handleExitToMenu}
         handleNavigate={handleNavigate}
@@ -540,7 +537,8 @@ export default function Dashboard(): JSX.Element {
         isDigestVisible={isDigestVisible}
         isDigestRunning={isDigestRunning}
         isDigestAborting={isDigestAborting}
-        onDigestContinueAfterBlocker={() => void startDigest()}
+        onDigestContinueAfterBlocker={resumeAfterBlocker}
+        onDigestResume={resumeDigest}
         onDismissDigest={dismissDigest}
         onDigestStop={abortDigest}
       />

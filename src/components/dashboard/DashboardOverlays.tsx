@@ -8,16 +8,12 @@ import DashboardExitConfirmModal from "./DashboardExitConfirmModal";
 import DashboardExitSavingModal from "./DashboardExitSavingModal";
 import { type DashboardMatchModeMeta } from "./DashboardHeader";
 import DashboardMatchConfirmModal from "./DashboardMatchConfirmModal";
-import DashboardResultsRecapModal from "./DashboardResultsRecapModal";
 import DashboardSimulatingModal from "./DashboardSimulatingModal";
-import type { AdvanceRecap } from "./advanceRecap";
 
 interface DashboardOverlaysProps {
   blockerModal: BlockerModal | null;
   currentModeMeta: DashboardMatchModeMeta;
   isAdvancing: boolean;
-  recapResults: AdvanceRecap | null;
-  onCloseRecap: () => void;
   handleConfirmMatch: () => void;
   handleExitToMenu: () => void | Promise<void>;
   handleNavigate: (tab: string) => void;
@@ -40,6 +36,7 @@ interface DashboardOverlaysProps {
   isDigestRunning?: boolean;
   isDigestAborting?: boolean;
   onDigestContinueAfterBlocker?: () => void;
+  onDigestResume?: () => void;
   onDismissDigest?: () => void;
   onDigestStop?: () => void;
 }
@@ -48,8 +45,6 @@ export default function DashboardOverlays({
   blockerModal,
   currentModeMeta,
   isAdvancing,
-  recapResults,
-  onCloseRecap,
   handleConfirmMatch,
   handleExitToMenu,
   handleNavigate,
@@ -71,6 +66,7 @@ export default function DashboardOverlays({
   isDigestRunning,
   isDigestAborting,
   onDigestContinueAfterBlocker,
+  onDigestResume,
   onDismissDigest,
   onDigestStop,
 }: DashboardOverlaysProps) {
@@ -78,7 +74,10 @@ export default function DashboardOverlays({
     <>
       {(isDigestVisible || isAdvancing) ? (
         <DashboardSimulatingModal
-          digestEntries={digestEntries}
+          // While a batch advance is still crunching there is no feed yet:
+          // withhold the entries so the modal shows the plain spinner, then
+          // switches to the digest once the processed days land.
+          digestEntries={isDigestVisible ? digestEntries : undefined}
           isDigestRunning={isDigestRunning}
           isDigestAborting={isDigestAborting}
           stopReason={digestStopReason}
@@ -86,11 +85,8 @@ export default function DashboardOverlays({
           onDismiss={onDismissDigest}
           onNavigate={handleNavigate}
           onContinueAfterBlocker={onDigestContinueAfterBlocker}
+          onResume={onDigestResume}
         />
-      ) : null}
-
-      {!isAdvancing && recapResults ? (
-        <DashboardResultsRecapModal recap={recapResults} onClose={onCloseRecap} />
       ) : null}
 
       {isExitingToMenu ? <DashboardExitSavingModal /> : null}
