@@ -186,6 +186,13 @@
     "digestStop": "Zastavit simulaci",
     "digestStopping": "Zastavování...",
     "digestStopped": "Simulace zastavena",
+    "digestEventStop": "Něco se stalo",
+    "digestEventStopDesc": "Postup byl pozastaven, abyste si to mohli projít, než budete pokračovat.",
+    "digestEventInbox": "Přišla zpráva s vysokou prioritou",
+    "digestEventUserTransfer": "Byl dokončen přestup týkající se vašeho klubu",
+    "digestEventUserNews": "Novinky o vašem klubu nebo hráčích",
+    "digestEventTransferWindow": "Otevření nebo uzávěrka přestupového okna",
+    "digestContinue": "Pokračovat v postupu",
     "digestError": "Chyba simulace"
   },
   "continueMenu": {

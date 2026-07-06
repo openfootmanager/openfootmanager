@@ -186,6 +186,13 @@
     "digestStop": "停止模拟",
     "digestStopping": "正在停止...",
     "digestStopped": "模拟已停止",
+    "digestEventStop": "发生了一些事情",
+    "digestEventStopDesc": "推进已暂停，请先查看以下事项再继续。",
+    "digestEventInbox": "收到一条高优先级消息",
+    "digestEventUserTransfer": "一笔涉及您俱乐部的转会已完成",
+    "digestEventUserNews": "关于您俱乐部或球员的新闻",
+    "digestEventTransferWindow": "转会窗口开启或截止日",
+    "digestContinue": "继续推进",
     "digestError": "模拟出错"
   },
   "continueMenu": {

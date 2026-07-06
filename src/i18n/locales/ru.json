@@ -186,6 +186,13 @@
     "digestStop": "Остановить симуляцию",
     "digestStopping": "Остановка...",
     "digestStopped": "Симуляция остановлена",
+    "digestEventStop": "Кое-что произошло",
+    "digestEventStopDesc": "Продвижение приостановлено, чтобы вы могли ознакомиться перед продолжением.",
+    "digestEventInbox": "Пришло сообщение с высоким приоритетом",
+    "digestEventUserTransfer": "Завершён трансфер с участием вашего клуба",
+    "digestEventUserNews": "Новости о вашем клубе или игроках",
+    "digestEventTransferWindow": "Открытие или закрытие трансферного окна",
+    "digestContinue": "Продолжить продвижение",
     "digestError": "Ошибка симуляции"
   },
   "continueMenu": {

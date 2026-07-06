@@ -186,6 +186,13 @@
     "digestStop": "Simülasyonu Durdur",
     "digestStopping": "Durduruluyor...",
     "digestStopped": "Simülasyon durduruldu",
+    "digestEventStop": "Bir şeyler oldu",
+    "digestEventStopDesc": "Devam etmeden önce gözden geçirebilmeniz için ilerleme duraklatıldı.",
+    "digestEventInbox": "Yüksek öncelikli bir mesaj geldi",
+    "digestEventUserTransfer": "Kulübünüzü ilgilendiren bir transfer tamamlandı",
+    "digestEventUserNews": "Kulübünüz veya oyuncularınız hakkında haberler",
+    "digestEventTransferWindow": "Transfer penceresinin açılışı veya kapanışı",
+    "digestContinue": "İlerlemeye devam et",
     "digestError": "Simülasyon hatası"
   },
   "continueMenu": {

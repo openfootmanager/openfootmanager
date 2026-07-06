@@ -186,6 +186,13 @@
     "digestStop": "Stop Simulation",
     "digestStopping": "Stopping...",
     "digestStopped": "Simulation stopped",
+    "digestEventStop": "Something Happened",
+    "digestEventStopDesc": "The advance paused so you can review these before carrying on.",
+    "digestEventInbox": "A high-priority message arrived",
+    "digestEventUserTransfer": "A transfer involving your club was completed",
+    "digestEventUserNews": "News about your club or players",
+    "digestEventTransferWindow": "Transfer window opening or deadline day",
+    "digestContinue": "Keep Going",
     "digestError": "Simulation error"
   },
   "continueMenu": {

@@ -186,6 +186,13 @@
     "digestStop": "Parar simulação",
     "digestStopping": "Parando...",
     "digestStopped": "Simulação parada",
+    "digestEventStop": "Algo aconteceu",
+    "digestEventStopDesc": "O avanço foi pausado para você revisar antes de continuar.",
+    "digestEventInbox": "Chegou uma mensagem de alta prioridade",
+    "digestEventUserTransfer": "Uma transferência envolvendo seu clube foi concluída",
+    "digestEventUserNews": "Notícias sobre seu clube ou jogadores",
+    "digestEventTransferWindow": "Abertura ou fechamento da janela de transferências",
+    "digestContinue": "Continuar avançando",
     "digestError": "Erro de simulação"
   },
   "continueMenu": {

@@ -218,6 +218,13 @@
     "digestStop": "Detener simulación",
     "digestStopping": "Deteniendo...",
     "digestStopped": "Simulación detenida",
+    "digestEventStop": "Algo ha ocurrido",
+    "digestEventStopDesc": "El avance se ha pausado para que lo revises antes de continuar.",
+    "digestEventInbox": "Ha llegado un mensaje de alta prioridad",
+    "digestEventUserTransfer": "Se ha completado un traspaso que involucra a tu club",
+    "digestEventUserNews": "Noticias sobre tu club o tus jugadores",
+    "digestEventTransferWindow": "Apertura o cierre del mercado de fichajes",
+    "digestContinue": "Seguir avanzando",
     "digestError": "Error de simulación"
   },
   "continueMenu": {
