@@ -40,8 +40,17 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
 }
 
 fn needs_identity_upgrade(player: &Player) -> bool {
-    player.position.is_legacy_bucket()
-        || player.natural_position.is_legacy_bucket()
+    // `player.position` intentionally stays as a coarse legacy bucket (the
+    // player's group). Only trigger re-inference when the granular fields
+    // — natural_position or alternate_positions — still hold a legacy value,
+    // meaning the initial upgrade hasn't run for this player yet.
+    //
+    // Previously this also checked `player.position.is_legacy_bucket()`,
+    // which is always true by design and made the upgrade re-run on every
+    // save-load. That let `natural_position` flip between reloads when a
+    // player's attribute scores or XI-slot assignment drifted across the
+    // striker-vs-winger threshold (or similar).
+    player.natural_position.is_legacy_bucket()
         || player
             .alternate_positions
             .iter()
@@ -549,6 +558,98 @@ mod tests {
         assert_eq!(player.natural_position, Position::CenterBack);
         assert!(player.alternate_positions.len() <= 1);
         assert!(player.footedness != Footedness::Both);
+    }
+
+    #[test]
+    fn upgrade_player_identity_does_not_rerun_when_natural_position_is_already_granular() {
+        // Regression for the Kevin Müller flip: `player.position` stays as a
+        // coarse legacy bucket (Forward) by design, but a granular
+        // `natural_position` (LeftWinger) means the initial upgrade has
+        // already happened. The guard must not re-run inference — otherwise
+        // a border-line attribute score or a new XI-slot assignment can
+        // flip the natural on every save-load.
+        let attrs = PlayerAttributes {
+            pace: 80,
+            stamina: 74,
+            strength: 66,
+            agility: 78,
+            passing: 70,
+            shooting: 75,
+            tackling: 40,
+            dribbling: 82,
+            defending: 34,
+            positioning: 74,
+            vision: 68,
+            decisions: 70,
+            composure: 72,
+            aggression: 58,
+            teamwork: 66,
+            leadership: 50,
+            handling: 20,
+            reflexes: 20,
+            aerial: 60,
+        };
+        let mut player = make_player("p-lw", Position::Forward, attrs);
+        // Simulate a save where the initial upgrade has already run.
+        player.natural_position = Position::LeftWinger;
+        player.alternate_positions = vec![Position::Striker, Position::RightWinger];
+        player.footedness = Footedness::Left;
+        player.weak_foot = 3;
+
+        // Even with an assigned XI slot that would score to a *different*
+        // natural (Striker) under fresh inference, the upgrade must be a
+        // no-op because natural_position is already granular.
+        let changed = upgrade_player_identity(&mut player, Some(&Position::Striker));
+
+        assert!(!changed, "should not re-upgrade a player with a granular natural");
+        assert_eq!(player.natural_position, Position::LeftWinger);
+        assert_eq!(
+            player.alternate_positions,
+            vec![Position::Striker, Position::RightWinger]
+        );
+    }
+
+    #[test]
+    fn upgrade_player_identity_still_runs_when_alternates_contain_legacy_bucket() {
+        // If a save was written by an older build that put a coarse bucket
+        // into alternate_positions, the upgrade should still run so the
+        // player ends up with fully granular fields.
+        let attrs = PlayerAttributes {
+            pace: 84,
+            stamina: 82,
+            strength: 63,
+            agility: 72,
+            passing: 64,
+            shooting: 40,
+            tackling: 77,
+            dribbling: 62,
+            defending: 72,
+            positioning: 66,
+            vision: 58,
+            decisions: 64,
+            composure: 60,
+            aggression: 64,
+            teamwork: 74,
+            leadership: 44,
+            handling: 20,
+            reflexes: 20,
+            aerial: 46,
+        };
+        let mut player = make_player("p-mixed", Position::Defender, attrs);
+        player.natural_position = Position::RightBack;
+        // Legacy bucket sneaking in — must trigger re-inference.
+        player.alternate_positions = vec![Position::Midfielder];
+
+        let changed = upgrade_player_identity(&mut player, Some(&Position::RightBack));
+
+        assert!(changed);
+        assert!(
+            player
+                .alternate_positions
+                .iter()
+                .all(|position| !position.is_legacy_bucket()),
+            "alternates should be fully granular after upgrade",
+        );
     }
 
     #[test]
