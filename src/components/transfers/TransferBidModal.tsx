@@ -135,16 +135,28 @@ export function TransferBidForm({
             {t("transfers.bidImpactTitle")}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactTransferBudget", {
-              before: formatVal(bidProjection.transfer_budget_before),
-              after: formatVal(bidProjection.transfer_budget_after),
-            })}
+            {t(
+              bidProjection.pending_registration_date
+                ? "transfers.bidImpactTransferBudgetDeferred"
+                : "transfers.bidImpactTransferBudget",
+              {
+                before: formatVal(bidProjection.transfer_budget_before),
+                after: formatVal(bidProjection.transfer_budget_after),
+                date: bidProjection.pending_registration_date ?? "",
+              },
+            )}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactBalance", {
-              before: formatVal(bidProjection.finance_before),
-              after: formatVal(bidProjection.finance_after),
-            })}
+            {t(
+              bidProjection.pending_registration_date
+                ? "transfers.bidImpactBalanceDeferred"
+                : "transfers.bidImpactBalance",
+              {
+                before: formatVal(bidProjection.finance_before),
+                after: formatVal(bidProjection.finance_after),
+                date: bidProjection.pending_registration_date ?? "",
+              },
+            )}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300">
             {t("transfers.bidImpactWagePressure", {
