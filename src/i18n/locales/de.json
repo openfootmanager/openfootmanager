@@ -680,6 +680,8 @@
     "coverageNeedsAttention": "{{count}} Rollengruppen brauchen Verstärkung",
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
+    "formationFit": "Formations-Eignung",
+    "startingXi": "Startelf",
     "styleFit": "Stileignung",
     "starter": "Startelf",
     "benchOption": "Bank",
