@@ -12,43 +12,62 @@ struct ObjectiveTargets {
     finance_target: u32,
 }
 
-fn objective_targets(reputation: u32, num_teams: u32) -> ObjectiveTargets {
-    let expected_pos = if reputation >= 80 {
-        1
-    } else if reputation >= 70 {
-        (num_teams / 4).max(2)
-    } else if reputation >= 55 {
-        num_teams / 2
-    } else {
-        (num_teams * 3 / 4).max(num_teams / 2 + 1)
-    };
+impl ObjectiveTargets {
+    fn new(reputation: u32, num_teams: u32) -> Self {
+        const HIGH_REPUTATION: u32 = 800;
+        const MEDIUM_REPUTATION: u32 = 650;
+        const LOW_REPUTATION: u32 = 400;
 
-    let total_matchdays = if num_teams > 1 {
-        (num_teams - 1) * 2
-    } else {
-        0
-    };
-    let win_target = if reputation >= 80 {
-        (total_matchdays * 60 / 100).max(1)
-    } else if reputation >= 65 {
-        (total_matchdays * 45 / 100).max(1)
-    } else {
-        (total_matchdays * 30 / 100).max(1)
-    };
+        // Degenerate worlds can reach this with a single team (the league
+        // participant count is only used when > 1, but the fallback is the raw
+        // team count) — clamp the position into the table and drop the win/goal
+        // floors when there are no matchdays, or the objectives are impossible.
+        let league_size = num_teams.max(1);
+        let expected_pos = if reputation >= HIGH_REPUTATION {
+            1
+        } else if reputation >= MEDIUM_REPUTATION {
+            (league_size / 4).max(2)
+        } else if reputation >= LOW_REPUTATION {
+            (league_size / 2).max(1)
+        } else {
+            (league_size * 3 / 4).max(league_size / 2 + 1)
+        }
+        .min(league_size);
 
-    let goals_target = if reputation >= 75 {
-        (total_matchdays * 2).max(10)
-    } else if reputation >= 55 {
-        (total_matchdays * 3 / 2).max(8)
-    } else {
-        total_matchdays.max(5)
-    };
+        let total_matchdays = if league_size > 1 {
+            (league_size - 1) * 2
+        } else {
+            0
+        };
 
-    ObjectiveTargets {
-        expected_pos,
-        win_target,
-        goals_target,
-        finance_target: 100,
+        let win_target = if total_matchdays == 0 {
+            0
+        } else if reputation >= HIGH_REPUTATION {
+            (total_matchdays * 60 / 100).max(1)
+        } else if reputation >= MEDIUM_REPUTATION {
+            (total_matchdays * 45 / 100).max(1)
+        } else if reputation >= LOW_REPUTATION {
+            (total_matchdays * 30 / 100).max(1)
+        } else {
+            (total_matchdays * 10 / 100).max(1)
+        };
+
+        let goals_target = if total_matchdays == 0 {
+            0
+        } else if reputation >= HIGH_REPUTATION {
+            (total_matchdays * 3 / 2).max(20)
+        } else if reputation >= MEDIUM_REPUTATION {
+            (total_matchdays / 2).max(15)
+        } else {
+            (total_matchdays / 5).max(10)
+        };
+
+        Self {
+            expected_pos,
+            win_target,
+            goals_target,
+            finance_target: 100,
+        }
     }
 }
 
@@ -133,7 +152,7 @@ pub fn generate_objectives(game: &mut Game) {
         .filter(|&count| count > 1)
         .unwrap_or(game.teams.len()) as u32;
     let reputation = team.reputation;
-    let targets = objective_targets(reputation, num_teams);
+    let targets = ObjectiveTargets::new(reputation, num_teams);
 
     game.board_objectives = vec![
         BoardObjective {
@@ -330,7 +349,7 @@ mod tests {
                 make_team(
                     &format!("team{}", idx),
                     &format!("Team {}", idx),
-                    if idx == 1 { user_reputation } else { 50 },
+                    if idx == 1 { user_reputation } else { 500 },
                 )
             })
             .collect();
@@ -370,7 +389,7 @@ mod tests {
 
     #[test]
     fn generate_objectives_creates_targets_and_board_message() {
-        let mut game = make_game(80, 3, 4);
+        let mut game = make_game(800, 3, 4);
 
         generate_objectives(&mut game);
 
@@ -385,7 +404,7 @@ mod tests {
             objective_by_id(&game, "obj_wins").description,
             "boardObjectives.objective.Wins"
         );
-        assert_eq!(objective_by_id(&game, "obj_goals").target, 12);
+        assert_eq!(objective_by_id(&game, "obj_goals").target, 20);
         assert_eq!(
             objective_by_id(&game, "obj_goals").description,
             "boardObjectives.objective.GoalsScored"
@@ -425,12 +444,26 @@ mod tests {
         assert_eq!(message.i18n_params.get("winTarget"), Some(&"3".to_string()));
         assert_eq!(
             message.i18n_params.get("goalsTarget"),
-            Some(&"12".to_string())
+            Some(&"20".to_string())
         );
         assert_eq!(
             message.i18n_params.get("financeTarget"),
             Some(&"100".to_string())
         );
+    }
+
+    #[test]
+    fn generate_objectives_stays_feasible_for_a_single_team_world() {
+        // League participant counts <= 1 fall back to the raw team count, which
+        // can also be 1 in a degenerate world; targets must stay achievable
+        // instead of demanding wins/goals from zero matchdays.
+        let mut game = make_game(500, 1, 1);
+
+        generate_objectives(&mut game);
+
+        assert_eq!(objective_by_id(&game, "obj_position").target, 1);
+        assert_eq!(objective_by_id(&game, "obj_wins").target, 0);
+        assert_eq!(objective_by_id(&game, "obj_goals").target, 0);
     }
 
     #[test]
