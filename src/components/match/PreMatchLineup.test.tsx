@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { parseFormationNeeds, condColor, statColor, starterOvrColor, starterBadgeStyle, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import { parseFormationNeeds, statColor, starterOvrColor, starterBadgeStyle, getStatVal, POSITION_KEY_STATS } from "./PreMatchLineup";
+import { condColor } from "../../lib/playerConditionDisplay";
 import PreMatchLineup from "./PreMatchLineup";
 import type { EnginePlayerData, EngineTeamData } from "./types";
 

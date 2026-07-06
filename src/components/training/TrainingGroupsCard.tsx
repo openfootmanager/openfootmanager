@@ -9,6 +9,7 @@ import {
   type TrainingGroupData,
 } from "../../services/trainingService";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { condColor } from "../../lib/playerConditionDisplay";
 import { Card, CardBody, CardHeader, Select } from "../ui";
 import {
   buildPlayerGroupMap,
@@ -208,6 +209,9 @@ export default function TrainingGroupsCard({
                     {t("common.position")}
                   </th>
                   <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    {t("common.condition")}
+                  </th>
+                  <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                     {t("training.groups.group")}
                   </th>
                   <th className="py-2 px-3 text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
@@ -219,8 +223,7 @@ export default function TrainingGroupsCard({
                 {sortedRoster.map((player) => {
                   const playerGroup = playerGroupMap.get(player.id);
                   const hasIndividualFocus = !!player.training_focus;
-                  const effectiveFocus =
-                    player.training_focus || (playerGroup ? playerGroup.focus : teamFocus);
+                  const fallbackFocus = playerGroup ? playerGroup.focus : teamFocus;
 
                   return (
                     <tr
@@ -235,6 +238,11 @@ export default function TrainingGroupsCard({
                           t,
                           player.natural_position || player.position,
                         )}
+                      </td>
+                      <td
+                        className={`py-1.5 px-3 text-xs font-heading font-bold tabular-nums ${condColor(player.condition)}`}
+                      >
+                        {Math.round(player.condition)}%
                       </td>
                       <td className="py-1.5 px-3">
                         <Select
@@ -273,7 +281,7 @@ export default function TrainingGroupsCard({
                           wrapperClassName="w-full max-w-[110px]"
                         >
                           <option value="">
-                            {t(`training.focuses.${effectiveFocus}.label`)} ↩
+                            {t(`training.focuses.${fallbackFocus}.label`)} ↩
                           </option>
                           {trainingFocusIds.map((focusId) => (
                             <option key={focusId} value={focusId}>

@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { FixtureData, GameStateData } from "../../store/gameStore";
 import { getFixtureDisplayLabel } from "../../lib/helpers";
 import { MatchSnapshot, EnginePlayerData, FORMATIONS, PLAY_STYLES } from "./types";
-import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, condColor, statColor, starterOvrColor, getStatVal } from "./PreMatchLineup";
+import PreMatchLineup, { parseFormationNeeds, POSITION_KEY_STATS, statColor, starterOvrColor, getStatVal } from "./PreMatchLineup";
+import { condColor } from "../../lib/playerConditionDisplay";
 import { getSetPieceStats } from "./SetPieceSelector";
 import { FormationPitch } from "./FormationPitch";
 import { makeTeamFallback } from "./helpers";
@@ -561,7 +562,7 @@ export default function PreMatchSetup({
                     </span>
                   ))}
                   <span className="text-[8px] font-heading uppercase tracking-widest text-gray-400 dark:text-gray-600 w-8 text-right">
-                    FIT
+                    COND
                   </span>
                 </div>
               </div>

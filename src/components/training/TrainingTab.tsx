@@ -100,7 +100,7 @@ export default function TrainingTab({
   const [isSaving, setIsSaving] = useState(false);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad] = useFetchedSquad(teamId, clockDate);
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -233,7 +233,16 @@ export default function TrainingTab({
 
         <TrainingGroupsCard
           team={team}
-          onGameUpdate={onGameUpdate}
+          onGameUpdate={(game) => {
+            onGameUpdate?.(game);
+            // Patch the useFetchedSquad cache so per-player mutations
+            // (individual training_focus) reflect in the roster without a
+            // clock-advance or remount. Same pattern the youth-promote fix
+            // uses (PR #308).
+            if (teamId) {
+              setFetchedSquad(game.players.filter((p) => p.team_id === teamId));
+            }
+          }}
           roster={roster}
           isSaving={isSaving}
           setIsSaving={setIsSaving}
